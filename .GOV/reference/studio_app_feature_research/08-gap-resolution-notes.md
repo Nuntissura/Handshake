@@ -4,8 +4,8 @@ topic_id: SFR-GAP-NOTES
 title: "Gap Resolution Notes"
 status: draft
 summary: "Resolved, mitigated, and residual evidence gaps for the Studio app feature research corpus."
-sources: 61
-updated_at: "2026-07-09"
+sources: 69
+updated_at: "2026-07-20"
 ---
 
 ## [SFR-GAP-NOTES] Gap Resolution Notes
@@ -198,6 +198,29 @@ resolved_gaps:
       corpus_feature_rows_total_after_pass: 5060
       verification_pass: "All deep rows source-confirmed VERIFIED except 4 documented-unreachable residuals (3 InDesign menu enumerations, 1 Figma Motion .fig posture); each carries a residual_reason."
       completeness_audit: "Three rounds, distinct decompositions. Round 1 (Adobe-centric top-level surface classes): 3 Photoshop ecosystem-posture holes + missing Figma Motion. Round 2 (app-unique features + cross-cutting capability depth + whole-product surfaces, 130+ classes): only InDesign Balance Ragged Lines. Round 3 (recency, 2024-2026 releases): Photoshop Adjustment Brush, Illustrator Objects on Path, and the Affinity v3.0 unified-relaunch (Oct 2025, account-gated) + v3.1/v3.2 2026 features (24 rows). All findings filled and verified. A round-4 confirmation pass follows to prove convergence."
+  - id: "SFR-GAP-021"
+    original_issue: "The three completeness-audit rounds under SFR-GAP-020 proved the corpus DECOMPOSITION converged, but never audited the corpus against each app's real current NON-AI feature universe for SEMANTIC omissions, and never captured team/production WORKFLOW-level needs. The corpus completeness surfaces (this file's SFR-GAP-020 completeness_audit and 49-source-coverage-verification-matrix.md missing_required_fields=0) audit only field-completeness of the 2,730-row leaf pipeline and cannot detect either class."
+    resolution: "Ran a 2026-07-20 two-workflow adversarial audit. Workflow 1 (feature parity): per-app corpus read -> external vendor feature-universe delta -> adversarial corpus verification of every claimed gap; 58 gaps survived refutation (1 CRITICAL, 28 MAJOR, 29 MINOR; 17 CONFIRMED_MISSING, 41 PARTIALLY_COVERED). Workflow 2 (workflow scenarios): 82 professional scenarios across large-team/small-team/solo + cross-app pipelines -> 113 deduped workflow needs -> corpus+spec coverage verification (72 COVERED, 40 PARTIALLY_COVERED, 1 NOT_COVERED). Also captured 86 bridge opportunities (NON-AI features the apps themselves lack). Registered all findings as machine-readable provenance."
+    artifacts:
+      - ".GOV/reference/studio_app_feature_research/58-parity-feature-gap-register.md"
+      - ".GOV/reference/studio_app_feature_research/59-workflow-needs-register.md"
+      - ".GOV/reference/studio_app_feature_research/60-bridge-opportunity-register.md"
+      - ".GOV/reference/studio_app_feature_research/61-parity-audit-action-register.md"
+      - ".GOV/reference/studio_app_feature_research/_tools/generate-parity-audit-registers.py"
+      - ".GOV/reference/studio_app_feature_research/_audit_20260720/inputs/parity_merged.json"
+      - ".GOV/reference/studio_app_feature_research/_audit_20260720/inputs/parity_bridges.json"
+      - ".GOV/reference/studio_app_feature_research/_audit_20260720/inputs/workflow_needs.json"
+    counts:
+      surviving_parity_gaps: 58
+      parity_gaps_critical: 1
+      parity_gaps_major: 28
+      parity_gaps_minor: 29
+      workflow_needs_total: 113
+      workflow_needs_covered: 72
+      workflow_needs_partial: 40
+      workflow_needs_not_covered: 1
+      bridge_opportunities: 86
+      verdict: "Corpus is NOT yet exhaustive enough to claim full non-AI parity for any of the 5 apps; strongest at single-artifact craft, weakest at team-scale coordination workflows and command/scripting/print/performance option depth."
 ```
 
 ### [SFR-GAP-NOTES.unresolved] Remaining Unresolved Gaps
@@ -264,6 +287,36 @@ remaining_gaps:
     detail: "The corpus now contains contracts, parity lanes, provider posture, and a vertical slice, but those artifacts remain reference/planning material until accepted into a Work Packet, spec, or implementation authority."
     mitigation: "Promote the selected vertical slice into the appropriate Handshake work packet/spec authority before coding."
     residual_verification_needed: "Work packet acceptance criteria, test commands, and product-code proof gates."
+  - id: "SFR-REMAINING-GAP-011"
+    title: "Coverage pipeline is blind to the deep-delta layer (silent-undercount mechanism)."
+    status: "open"
+    detail: "The card/row/coverage generators (15/39-series and 49-source-coverage-verification-matrix) consume only the leaf indexes (2,730 rows). The 2,330 deep-delta rows (51-55) never enter the coverage matrix, so 49's missing_required_fields=0 is a green field-completeness signal about the leaf layer only and says nothing about the deep layer where most of the 2026-07-20 surviving gaps live. This is the single biggest silent-undercount mechanism (audit action A1)."
+    mitigation: "49-source-coverage-verification-matrix.md now carries an explicit leaf-pipeline-only caveat. Full fix requires extending _tools/generate-source-coverage-verification-matrix.py (and the card/row generators) to ingest deep-delta rows; tracked as ACTION-A1 in 61-parity-audit-action-register.md."
+    residual_verification_needed: "Regenerate 49 after the generator ingests 51-55; confirm deep rows appear with coverage status."
+  - id: "SFR-REMAINING-GAP-012"
+    title: "58 verified parity gaps are registered but not yet promoted to feature rows / command contracts."
+    status: "mitigated"
+    detail: "The 2026-07-20 audit registered 58 adversarially-verified NON-AI parity gaps (58-parity-feature-gap-register.md). They are provenance, not yet distilled into feature rows, Feature Use Cards, or command contracts, and not yet reflected in Section 14 parity coverage."
+    mitigation: "Use 58 as the feature-level gap register the corpus previously lacked. Snapshot distillation (ACTION-A4, 62-snapshot-distillation-delta.md) and the targeted re-pass (ACTION-A5, 63-parity-repass-delta.md, 106 rows) have now closed the highest-value gaps at promotable depth: the CRITICAL Figma Sites accessibility panel, Camera Raw (Point Color/HDR/gain-map/etc.), InDesign variable fonts + OpenType, Affinity option depth, PS AVIF/JXL+HDR, and InDesign CJK composition DOM. Remaining gaps feed WP-KERNEL-STUDIO refinement."
+    residual_verification_needed: "Per remaining gap: source-page inspection, feature row, command contract, and Section-14 coverage decision. Affinity rows sourced under affinity.help 403 remain UNVERIFIED."
+  - id: "SFR-REMAINING-GAP-013"
+    title: "Team/production WORKFLOW-level needs were never captured by the feature corpus."
+    status: "mitigated"
+    detail: "82-scenario workflow audit found 41/113 needs partial-or-uncovered, clustered in team-scale coordination: review/approval/sign-off/version-of-record (NEED-005/017/022), production workflow-state/PM (NEED-009), integrated culling/rating/catalog stage (NEED-051, sole NOT_COVERED), DAM/PIM + governed library releases (NEED-045/057), and production-volume performance NFRs (NEED-026/047/071). All fully-covered needs are single-artifact craft; every hole is a coordination surface a feature-list audit cannot see."
+    mitigation: "Use 59-workflow-needs-register.md. Five workflow research passes are tracked as ACTION-A6. Architecture implication for Studio: a scale-adaptive review/approval + workflow-state + permission triad on the CRDT/EventLedger substrate."
+    residual_verification_needed: "Workflow research passes (ACTION-A6), then Section-14 coverage decisions for the review/approval/workflow-state/permission surfaces."
+  - id: "SFR-REMAINING-GAP-014"
+    title: "Command-surface / default-shortcut / menu-ID inventories not captured (installed-export path unavailable)."
+    status: "open"
+    detail: "The default-shortcut inventory (XAPP-01), InDesign command-surface ground truth, and menu-command-ID/scripting-DOM catalogs (XAPP-02) are still uncaptured. The installed-app ExtendScript export route (_installed_export_scripts/*.jsx per 32-adobe-installed-ui-export-playbook.md) is RETIRED as the primary path: the operator has no Adobe apps or subscriptions, so that route is unavailable, and ExtendScript foregrounds the app (violates the headless/quiet law). Project invariant reaffirmed: Studio research must be reproducible from PUBLIC ONLINE SOURCES, not from owning the vendor apps."
+    mitigation: "Re-planned as an ONLINE-SOURCE capture pass (no apps required) and RUN: 65-command-shortcut-capture.md (82 groups) captures the category structure + canonical source URLs + representative verbatim samples for PS/AI/ID/Affinity/Figma shortcuts, Illustrator executeMenuCommand entry points, and the InDesign scripting DOM namespaces. Tracked as ACTION-A3 (DONE PARTIAL)."
+    residual_verification_needed: "The canonical Adobe helpx default-keyboard-shortcuts SPA pages time out for all non-browser clients (WebFetch/curl/Invoke-WebRequest failed; Jina 422; archive.org blocked), so the full verbatim binding tables + complete executeMenuCommand ID catalog still need a browser-capable fetch (or the SFR-REMAINING-GAP-003 browser-export fallback). Doc 65 records the exact URLs + structure for that deterministic completion."
+  - id: "SFR-REMAINING-GAP-015"
+    title: "No vendor-watch / re-crawl cadence; snapshots drift."
+    status: "open"
+    detail: "ACR what's-new is registered but never re-distilled (2025-26 non-AI features absent); Affinity 2.6.1-2.6.5 + v3 help center untracked; Figma frozen at 2026-07-09. Photoshop/Figma ship monthly, Affinity ships patches. Compounded by reproduced fetch blockers (helpx timeouts, affinity.help 403, Jina 422 on PS what's-new)."
+    mitigation: "Vendor-watch cadence is ACTION-A8, HELD by operator on 2026-07-20 (not yet scheduled). Release-drift gaps are recorded in 58 as XAPP-06."
+    residual_verification_needed: "Operator decision to stand up the cadence; then per-vendor re-crawl + re-distill."
 ```
 
 ### [SFR-GAP-NOTES.next] Recommended Next Closure Unit
@@ -355,4 +408,12 @@ sources:
   - { id: GAP-S59, path: "_source_snapshots/figma-draw-section-jina.md", note: "Local Figma Draw section snapshot." }
   - { id: GAP-S60, path: "50-proprietary-format-fixture-plan.md", note: "Proprietary/native/local-copy format fixture plan." }
   - { id: GAP-S61, path: "_tools/generate-proprietary-format-fixture-plan.py", note: "Generator for the proprietary/native/local-copy format fixture plan." }
+  - { id: GAP-S62, path: "58-parity-feature-gap-register.md", note: "2026-07-20 adversarially-verified NON-AI parity feature gap register (58 gaps)." }
+  - { id: GAP-S63, path: "59-workflow-needs-register.md", note: "2026-07-20 workflow needs register (113 needs, coverage-verified) from 82 pro scenarios." }
+  - { id: GAP-S64, path: "60-bridge-opportunity-register.md", note: "2026-07-20 bridge opportunity register (86 features the source apps lack)." }
+  - { id: GAP-S65, path: "61-parity-audit-action-register.md", note: "2026-07-20 recommended-action tracker with per-action status." }
+  - { id: GAP-S66, path: "62-snapshot-distillation-delta.md", note: "ACTION-A4 rows distilled from in-repo snapshots (Figma export options, InDesign CJK DOM)." }
+  - { id: GAP-S67, path: "63-parity-repass-delta.md", note: "ACTION-A5 targeted re-pass rows (106) closing the CRITICAL + highest-value gaps." }
+  - { id: GAP-S68, path: "64-workflow-needs-research-delta.md", note: "ACTION-A6 workflow research (70 capabilities) for review/approval, workflow-state, perf NFR, DAM/PIM, culling/catalog." }
+  - { id: GAP-S69, path: "65-command-shortcut-capture.md", note: "ACTION-A3 online command/shortcut/scripting-DOM capture (82 groups; partial, browser-fetch residual)." }
 ```

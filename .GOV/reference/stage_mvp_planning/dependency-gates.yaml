@@ -1,0 +1,267 @@
+stage_dependency_gates:
+  schema_id: hsk.stage_dependency_gate_registry@1
+  registry_id: stage-dependency-gates
+  id: stage-dependency-gates
+  authority: NON_AUTHORITATIVE_REFERENCE
+  status: blockers_explicit
+  updated_at: "2026-07-19"
+  wp_id: WP-1-Handshake-Stage-MVP-v1
+  rule: >-
+    Stage production code and official microtasks may not consume a dependency
+    until its required baseline, contract version, owner, validator state,
+    failure behavior, and evidence are bound here and the gate is PASS.
+    A planning description or existing code reference is not a passed gate.
+  pass_validation_rules:
+    - "PASS is illegal when required_contract_version or baseline_commit is UNBOUND."
+    - "PASS is illegal when owner, consumer, validator_state, required checks, unavailable behavior, or evidence is absent."
+    - "A DECLARED_DIRTY baseline requires baseline_diff_hash and exact dirty-diff evidence; observed dirty state is never an approved baseline."
+    - "Any required green check that is missing, failed, skipped-only, stale, or from another commit keeps the gate blocked."
+    - "A changed revalidation trigger makes prior PASS evidence STALE until rerun."
+    - "Orphan requirement, acceptance, production-gate, owner, or dependency references are validation failures."
+
+gates:
+  - id: STAGE-DEP-ARTIFACT-HANDLE
+    dependency: Shared ArtifactHandle serialization
+    dependency_ref: { kind: SHARED_SERVICE, id: ArtifactService }
+    dependency_wp: WP-1-Artifact-System-Foundations-v1
+    owner: SHARED_ARTIFACT_SYSTEM_OWNER_UNASSIGNED
+    consumer: StageCaptureCoordinator
+    current_state: BLOCKED_CONTRACT_DRIFT
+    required_contract_version: UNBOUND
+    baseline_commit: UNBOUND
+    baseline_dirty_state: UNBOUND
+    baseline_diff_hash: null
+    observed_head: 6519f4e2827840642a6c0401ac31055469f09d3b
+    observed_dirty_state: DECLARED_DIRTY
+    observed_dirty_entries: 2
+    validator_state: BLOCKED
+    required_green_checks: [cross-system-handle-round-trip, malformed-handle-negative-suite, real-data-migration-proof]
+    fake_contract_version: NOT_APPLICABLE
+    current_evidence:
+      - .GOV/spec/master-spec-v02.201/spec-modules/02-system-architecture.md
+      - .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+      - ../handshake_main/src/backend/handshake_core/src/ace/mod.rs
+      - ../handshake_main/src/backend/handshake_core/src/kernel/product_screenshot_capture.rs
+    gap: >-
+      Current spec and product code use incompatible rich, URI, and
+      artifact_id/path representations. Stage cannot select or mint an encoding.
+    entry_criteria:
+      - "One canonical structured serialized ArtifactHandle and version are selected globally."
+      - "ArtifactStore, Downloader, Atelier/CKC, Workflow, Export/Materialize, and Stage fixtures use the same encoding."
+      - "Stage treats the handle as opaque and never reads a path or constructs an artifact URI."
+      - "Migration/compatibility behavior for existing real handles is explicit."
+    unavailable_behavior: { code: STAGE_ARTIFACT_HANDLE_CONTRACT_UNAVAILABLE, preserves: [manual-browsing, tab-organization], blocks: [capture-success, governed-download-success, project-intake-success] }
+    failure_behavior: "Stage capture/download/intake integration remains disabled with a typed dependency-unavailable result."
+    revalidation_triggers: [artifact-schema-change, storage-api-change, downloader-contract-change, atelier-intake-change]
+    requirement_ids: [STAGE-REQ-CAPTURE-006, STAGE-REQ-CAPTURE-007, STAGE-REQ-WP12-002]
+    acceptance_ids: [STAGE-ACC-CAPTURE-006, STAGE-ACC-CAPTURE-007, STAGE-ACC-WP12-002]
+    production_gate_ids: [STAGE-GATE-010-DOWNLOAD-CAPTURE, STAGE-GATE-011-DOWNSTREAM, STAGE-GATE-012-MIGRATION]
+    required_evidence: [cross-system-handle-round-trip, malformed-handle-negative-suite, real-data-migration-proof]
+    checked_at: "2026-07-19"
+
+  - id: STAGE-DEP-ARTIFACT-STREAMING
+    dependency: Shared ArtifactStore streamed ingest and bounded reads
+    dependency_ref: { kind: SHARED_SERVICE, id: ArtifactService }
+    dependency_wp: WP-1-Artifact-System-Foundations-v1
+    owner: SHARED_ARTIFACT_SYSTEM_OWNER_UNASSIGNED
+    consumer: StageCaptureCoordinator
+    current_state: BLOCKED_MISSING_PRODUCTION_API
+    required_contract_version: UNBOUND
+    baseline_commit: UNBOUND
+    baseline_dirty_state: UNBOUND
+    baseline_diff_hash: null
+    observed_head: 6519f4e2827840642a6c0401ac31055469f09d3b
+    observed_dirty_state: DECLARED_DIRTY
+    observed_dirty_entries: 2
+    validator_state: BLOCKED
+    required_green_checks: [large-media-stream-stress, disk-full-and-cancel, uncertain-finalize-reconcile, orphan-cleanup, bounded-memory-profile]
+    fake_contract_version: NOT_APPLICABLE
+    current_evidence:
+      - ../handshake_main/src/backend/handshake_core/src/storage/mod.rs
+      - ../handshake_main/src/backend/handshake_core/src/storage/retention.rs
+      - ../handshake_main/src/backend/handshake_core/src/workflows.rs
+    gap: >-
+      Shared storage writes/materialization are whole-buffer-oriented while the
+      Media Downloader contains a separate streaming writer. Large Stage media,
+      PDF, WARC, and multi-part captures need one shared bounded ingest contract.
+    entry_criteria:
+      - "Versioned begin/write/finalize/abort/reconcile ingest contract exists."
+      - "Hashing is incremental and bytes are not reread solely to recompute the same digest."
+      - "Buffers, concurrency, checkpoints, and EventLedger writes are bounded and backpressured."
+      - "Atomic idempotent finalize returns canonical ArtifactHandle plus observed stat."
+      - "Orphan staging cleanup, range/stream reads, and materialization by handle are implemented."
+      - "Artifact retention/health scans are incremental, pausable, and outside Stage startup/sidebar paths."
+    unavailable_behavior: { code: STAGE_ARTIFACT_STREAMING_UNAVAILABLE, preserves: [manual-browsing, tab-organization, small-capability-query], blocks: [large-capture-success, governed-batch-download-success] }
+    failure_behavior: "Large capture/download jobs fail or pause visibly before unbounded buffering; Stage never creates a parallel store."
+    revalidation_triggers: [artifact-ingest-api-change, hash-policy-change, retention-change, materialize-api-change]
+    requirement_ids: [STAGE-REQ-CAPTURE-004, STAGE-REQ-CAPTURE-008, STAGE-REQ-RESOURCE-009]
+    acceptance_ids: [STAGE-ACC-CAPTURE-004, STAGE-ACC-CAPTURE-008, STAGE-ACC-RESOURCE-009]
+    production_gate_ids: [STAGE-GATE-009-HIGH-VOLUME, STAGE-GATE-010-DOWNLOAD-CAPTURE, STAGE-GATE-011-DOWNSTREAM]
+    required_evidence: [large-media-stream-stress, disk-full-and-cancel, uncertain-finalize-reconcile, orphan-cleanup, bounded-memory-profile]
+    checked_at: "2026-07-19"
+
+  - id: STAGE-DEP-WP1-MODEL-ORCHESTRATION
+    dependency: WP-1 model orchestration and execution control plane
+    dependency_ref: { kind: WORK_PACKET, id: WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1 }
+    dependency_wp: WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1
+    owner: WP-1
+    consumer: Stage AgentObservationAndActionGateway
+    current_state: BLOCKED_PENDING_VALIDATION
+    required_contract_version: UNBOUND
+    baseline_commit: UNBOUND
+    baseline_dirty_state: UNBOUND
+    baseline_diff_hash: null
+    observed_head: 28e2e5c8be347e0fa62d09de84f4992aad931c7c
+    observed_dirty_state: DECLARED_DIRTY
+    observed_dirty_entries: 190
+    validator_state: BLOCKED
+    required_green_checks: [required-wp1-microtasks-pass, model-lane-contract, toolgate-contract, process-cancel-reap, event-and-telemetry-contract]
+    fake_contract_version: UNBOUND
+    current_evidence:
+      - .GOV/task_packets/WP-1/packet.json
+      - .GOV/task_packets/WP-1/mt_index.json
+      - .GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md
+      - .GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md
+    gap: >-
+      Required model lanes, ToolGate, process ownership/cancel/reap, promotion,
+      EventLedger, Flight Recorder, Argus, and telemetry baseline is not yet
+      bound to a validated commit and passing validator state.
+    entry_criteria:
+      - "Required contract/schema versions and exact baseline commit are bound."
+      - "Relevant WP-1 microtasks and validators are PASS, not implementer-ready claims."
+      - "Stage fake/frozen dependency version and typed unavailable/degraded behavior are defined."
+      - "Parallel model leases, cancellation, process-loss, promotion, telemetry, and no-focus-theft fixtures pass."
+      - "Revalidation triggers and ownership for future WP-1 change are registered."
+    unavailable_behavior: { code: STAGE_MODEL_CONTROL_UNAVAILABLE, preserves: [manual-browsing, capture-without-model, tab-organization], blocks: [local-model-control, cloud-model-control, model-driven-browser-tests] }
+    failure_behavior: "Manual browsing remains available; model control is typed UNAVAILABLE and cannot bypass ToolGate or create a Stage-owned process runtime."
+    revalidation_triggers: [wp1-contract-change, model-lane-change, toolgate-change, process-ledger-change, event-schema-change]
+    requirement_ids: [STAGE-REQ-AGENT-001, STAGE-REQ-AGENT-004, STAGE-REQ-AGENT-008, STAGE-REQ-WP1-001, STAGE-REQ-WP1-002]
+    acceptance_ids: [STAGE-ACC-AGENT-001, STAGE-ACC-AGENT-004, STAGE-ACC-AGENT-008, STAGE-ACC-WP1-001, STAGE-ACC-WP1-002]
+    production_gate_ids: [STAGE-GATE-008-AGENT-CONTROL, STAGE-GATE-011-DOWNSTREAM]
+    required_evidence: [validated-wp1-entry-report, fake-contract-suite, parallel-agent-suite, process-cancel-reap-proof]
+    checked_at: "2026-07-19"
+
+  - id: STAGE-DEP-WP12-LEGACY-REMOVAL
+    dependency: WP-12 legacy Stage surface removal and optional data import
+    dependency_ref: { kind: WORK_PACKET, id: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1 }
+    dependency_wp: WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1
+    owner: WP-12_AND_STAGE_MIGRATION_OWNER_UNASSIGNED
+    consumer: New canonical Stage module
+    current_state: BLOCKED_INVENTORY_AND_MIGRATION_BINDING
+    required_contract_version: UNBOUND
+    baseline_commit: UNBOUND
+    baseline_dirty_state: UNBOUND
+    baseline_diff_hash: null
+    observed_head: 30d8657afaac31756852929291b669723f97234e
+    observed_dirty_state: DECLARED_DIRTY
+    observed_dirty_entries: 325
+    validator_state: BLOCKED
+    required_green_checks: [complete-legacy-inventory, real-data-decision, migration-rehearsal, no-reader-no-writer-proof, worksurface-replacement]
+    fake_contract_version: NOT_APPLICABLE
+    current_evidence:
+      - .GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md
+      - .GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md
+      - ../handshake_main/src/backend/handshake_core/src/api/stage.rs
+      - ../handshake_main/src/backend/handshake_core/src/storage/stage_artifacts.rs
+    gap: >-
+      StagePane, routes, wire types, inline 16KiB storage, stage.jobs.enqueue,
+      migrations, guards, readers/writers, tests, and possible real data do not
+      yet have a complete machine-readable disposition and collision-safe plan.
+    entry_criteria:
+      - "Exact WP-12/target baselines and migration maximums are bound."
+      - "Every legacy Stage file/type/route/table/index/trigger/guard/reader/writer/test/UI surface has REMOVE, REPLACE, SALVAGE_CODE_ONLY, or ONE_WAY_DATA_IMPORT disposition."
+      - "Real operator data is inventoried separately from test/mock data and receives an explicit non-loss decision."
+      - "Migration numbers and file-conflict ownership are reserved after rebase."
+      - "One-way import is bounded, idempotent, count/hash verified, restartable, and followed by legacy-writer shutdown."
+      - "No compatibility alias/read/write window survives unless later explicitly approved."
+    unavailable_behavior: { code: STAGE_LEGACY_REMOVAL_INCOMPLETE, preserves: [planning, read-only-inventory], blocks: [new-stage-activation, editor-stage-integration, migration-cutover] }
+    failure_behavior: "New Stage activation and editor integration remain blocked; old Stage runtime is not treated as canonical fallback."
+    revalidation_triggers: [wp12-rebase, migration-added, legacy-reader-or-writer-change, stage-ui-change]
+    requirement_ids: [STAGE-REQ-SUPERSESSION-001, STAGE-REQ-SUPERSESSION-002, STAGE-REQ-WP12-001, STAGE-REQ-WP12-002, STAGE-REQ-WP12-003, STAGE-REQ-WP12-004]
+    acceptance_ids: [STAGE-ACC-SUPERSESSION-001, STAGE-ACC-SUPERSESSION-002, STAGE-ACC-WP12-001, STAGE-ACC-WP12-002, STAGE-ACC-WP12-003, STAGE-ACC-WP12-004]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-012-MIGRATION]
+    required_evidence: [legacy-disposition-register, migration-rehearsal, real-data-inventory, no-reader-no-writer-proof, worksurface-supersession-proof]
+    checked_at: "2026-07-19"
+
+  - id: STAGE-DEP-ATELIER-CKC-INTAKE
+    dependency: Atelier/Lens/CKC artifact-batch intake
+    dependency_ref: { kind: WORK_PACKET, id: WP-CKC-posekit-overhaul }
+    dependency_wp: WP-CKC-posekit-overhaul
+    owner: ATELIER_LENS_CKC_OWNER_UNASSIGNED
+    consumer: Stage project-intake adapter
+    current_state: BLOCKED_MISSING_PUBLIC_ADAPTER
+    required_contract_version: UNBOUND
+    baseline_commit: UNBOUND
+    baseline_dirty_state: UNBOUND
+    baseline_diff_hash: null
+    observed_head: a2abba07af8e0446d5cd988f5aaabc1c7f48cbfe
+    observed_dirty_state: DECLARED_DIRTY
+    observed_dirty_entries: 353
+    validator_state: BLOCKED
+    required_green_checks: [public-intake-contract-suite, partial-item-dispositions, restart-idempotency, boundary-negative-tests]
+    fake_contract_version: UNBOUND
+    current_evidence:
+      - ../handshake_main/src/backend/handshake_core/src/atelier/intake.rs
+      - ../handshake_main/src/backend/handshake_core/src/api/atelier.rs
+      - ../handshake_main/src/backend/handshake_core/src/atelier/media.rs
+      - .GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md
+    gap: >-
+      Current intake can open batches and register path-oriented items, and media
+      consumes ArtifactStore refs, but there is no Stage-ready public endpoint
+      accepting opaque ArtifactHandles with full source/correlation/idempotency
+      and per-item dispositions.
+    entry_criteria:
+      - "Consumer-owned versioned request/result schema accepts canonical opaque ArtifactHandles."
+      - "Source/capture/job correlation, causation, recursion limit, idempotency, and partial per-item disposition are explicit."
+      - "Retry/cancel/restart and intake-unavailable behavior preserve completed artifacts without redownload."
+      - "CKC/Atelier cannot access Stage tables, profiles, cookies, engine IDs, or renderer state."
+      - "No caller-supplied unmanaged source path becomes canonical asset identity."
+    unavailable_behavior: { code: STAGE_PROJECT_INTAKE_UNAVAILABLE, preserves: [manual-browsing, capture-finalized-handles, retryable-intake-record], blocks: [project-intake-success, ckc-route-back-success] }
+    failure_behavior: "Stage retains finalized handles and a pending/retryable intake batch; browsing and capture remain available."
+    revalidation_triggers: [atelier-intake-schema-change, ckc-media-change, artifact-handle-change, consumer-routing-change]
+    requirement_ids: [STAGE-REQ-INTAKE-002, STAGE-REQ-INTAKE-004, STAGE-REQ-STUDIO-001]
+    acceptance_ids: [STAGE-ACC-INTAKE-002, STAGE-ACC-INTAKE-004, STAGE-ACC-STUDIO-001]
+    production_gate_ids: [STAGE-GATE-011-DOWNSTREAM]
+    required_evidence: [public-intake-contract-suite, partial-item-dispositions, restart-idempotency, boundary-negative-tests]
+    checked_at: "2026-07-19"
+
+  - id: STAGE-DEP-MEDIA-DOWNLOADER
+    dependency: Media Downloader records/workflow/credential/artifact convergence
+    dependency_ref: { kind: PRODUCT_COMPONENT, id: MediaDownloader }
+    dependency_wp: WP-1-Media-Downloader-v2
+    owner: MEDIA_DOWNLOADER_OWNER_UNASSIGNED
+    consumer: Stage download and intake orchestration
+    current_state: BLOCKED_V0_V2_CONVERGENCE
+    required_contract_version: UNBOUND
+    baseline_commit: UNBOUND
+    baseline_dirty_state: UNBOUND
+    baseline_diff_hash: null
+    observed_head: 6519f4e2827840642a6c0401ac31055469f09d3b
+    observed_dirty_state: DECLARED_DIRTY
+    observed_dirty_entries: 2
+    validator_state: BLOCKED
+    required_green_checks: [v0-v2-convergence-report, credential-lease-suite, shared-streamed-artifact-proof, renderer-kill-download-continuation]
+    fake_contract_version: UNBOUND
+    current_evidence:
+      - ../handshake_main/src/backend/handshake_core/src/atelier/downloader.rs
+      - ../handshake_main/src/backend/handshake_core/src/workflows.rs
+      - .GOV/task_packets/WP-1-Media-Downloader-v2/packet.json
+      - .GOV/refinements/WP-1-Media-Downloader-v2.md
+    gap: >-
+      Records-only v2 and the real v0 workflow are split. The workflow reads
+      ArtifactHandle.path, uses a legacy media_downloader_sessions.json Stage
+      session registry, and carries a duplicate streaming artifact writer.
+    entry_criteria:
+      - "One versioned public request/control/result contract and exact implementation baseline are bound."
+      - "Downloader consumes scoped revocable CredentialLeaseRef rather than legacy Stage session registry or routine raw cookie files."
+      - "Downloader uses canonical opaque ArtifactHandle and the shared streamed ArtifactStore API."
+      - "Browser-native handoff, pause/resume/cancel/retry, partial results, captions/ASR, and renderer-kill continuation pass."
+      - "Materialization policy is structured and external paths are not asset identity."
+    unavailable_behavior: { code: STAGE_GOVERNED_DOWNLOADER_UNAVAILABLE, preserves: [manual-browsing, explicit-browser-native-download-when-policy_allows], blocks: [governed-batch-download, authenticated-downloader-handoff] }
+    failure_behavior: "Stage reports downloader capability unavailable/degraded; it does not fall back to renderer-bound ad-hoc downloads for governed batch workflows."
+    revalidation_triggers: [downloader-schema-change, workflow-change, credential-contract-change, artifact-api-change]
+    requirement_ids: [STAGE-REQ-COMPAT-002, STAGE-REQ-DOWNLOAD-001, STAGE-REQ-DOWNLOAD-003, STAGE-REQ-DOWNLOAD-004, STAGE-REQ-INTAKE-001, STAGE-REQ-SESSION-005]
+    acceptance_ids: [STAGE-ACC-COMPAT-002, STAGE-ACC-DOWNLOAD-001, STAGE-ACC-DOWNLOAD-003, STAGE-ACC-DOWNLOAD-004, STAGE-ACC-INTAKE-001, STAGE-ACC-SESSION-005]
+    production_gate_ids: [STAGE-GATE-005-SESSION-ISOLATION, STAGE-GATE-010-DOWNLOAD-CAPTURE, STAGE-GATE-011-DOWNSTREAM]
+    required_evidence: [v0-v2-convergence-report, credential-lease-suite, streamed-artifact-proof, renderer-kill-download-continuation]
+    checked_at: "2026-07-19"

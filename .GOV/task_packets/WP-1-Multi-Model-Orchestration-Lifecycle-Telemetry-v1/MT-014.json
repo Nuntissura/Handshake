@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-014",
   "created_at_utc": "2026-07-01T21:15:18Z",
-  "updated_at_utc": "2026-07-11T03:48:59.146Z",
-  "scope_status": "DEFERRED_FROM_MT-003_2026-07-01_SHARED_REGISTRY_AND_LOOM_EMBEDDING_BRIDGE",
+  "updated_at_utc": "2026-07-20T01:19:00Z",
+  "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,28 +15,55 @@
     "path": "",
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
+  "owned_files": [
+    "src/backend/handshake_core/migrations/0348_model_runtime_registry.sql",
+    "src/backend/handshake_core/migrations/0348_model_runtime_registry.down.sql",
+    "src/backend/handshake_core/src/main.rs",
+    "src/backend/handshake_core/src/kernel/mod.rs",
+    "src/backend/handshake_core/src/model_runtime/registry_persistence.rs",
+    "src/backend/handshake_core/src/model_runtime/catalog.rs",
+    "src/backend/handshake_core/src/model_runtime/mod.rs",
+    "src/backend/handshake_core/src/model_runtime/types.rs",
+    "src/backend/handshake_core/src/api/model_runtime_registry.rs",
+    "src/backend/handshake_core/src/api/mod.rs",
+    "src/backend/handshake_core/src/llm/boot.rs",
+    "src/backend/handshake_core/src/managed_postgres.rs",
+    "src/backend/handshake_core/tests/model_registry_persistence_tests.rs",
+    "src/backend/handshake_core/tests/model_runtime_registry_api_tests.rs",
+    "src/backend/handshake_core/tests/candle_e2e_smoke.rs",
+    "src/backend/handshake_core/tests/model_catalog_tests.rs",
+    "src/backend/handshake_core/tests/loom_search_v2_tests.rs",
+    "src/backend/handshake_core/tests/work_profile_provider_ref_tests.rs",
+    "src/backend/handshake_core/tests/llm_default_boot_resolution_tests.rs",
+    "src/frontend/handshake_native/src/model_runtime_panel.rs",
+    "src/frontend/handshake_native/src/backend_client.rs",
+    "src/frontend/handshake_native/src/app.rs",
+    "src/frontend/handshake_native/src/lib.rs",
+    "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs"
+  ],
   "lifecycle": {
-    "status": "BLOCKED",
+    "status": "READY_FOR_VALIDATION_V3",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V1",
-    "claimed_by": "KERNEL_BUILDER-20260701-190732",
-    "claimed_at_utc": "2026-07-02T16:45:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
-    "ready_for_validation_at_utc": "2026-07-02T18:12:13Z",
+    "validator_verdict": "PENDING_V3",
+    "claimed_by": "KERNEL_BUILDER-20260717-072123",
+    "claimed_at_utc": "2026-07-17T09:17:58.5096773Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
+    "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
     "completed_by": null,
-    "blocker": "BLOCKED_V2: SPEC_CURRENT v02.200 section 4.6.5 requires the selected runtime adapter to be persisted in a model-registry row. The current ModelRegistry is HashMap-only and ModelCatalog documents an in-memory boot handle, so the requirement is not met.",
-    "missing_resource": "Persistent model-registry-row storage and load path for the selected runtime adapter required by SPEC_CURRENT v02.200 section 4.6.5.",
-    "proof_status": "V2_TEST_REMEDIATION_PROVED_2026-07-11: exact catalog, real-PG Loom dimension-degrade, and Work Profile provider-ref tests passed at product commit 28e2e5c8be347e0fa62d09de84f4992aad931c7c. READY_FOR_VALIDATION_V2 is blocked by the active persistent-registry requirement; validation_v1 remains immutable FAIL_V1.",
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: completion-default selection excludes embedding-only roles and POST remains atomic across durable projection failure. Fresh real-PostgreSQL producer/native chain nonce 4641c263-8df6-4836-a2d6-4cc3a7d98f59 passed; registry suite 7/7 and ignored PNG proof 1/1 passed. The 1440x940 panel was directly inspected as readable and coherent. Historical V1/V2 verdicts remain preserved; COMPLETED remains validator-only.",
     "hbr_status": "PASS_HBR_INT_MAN_FOR_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-    "post_implementation_adversarial_review_status": "FAIL_V2_2026-07-11_ACTIVE_SPEC_PERSISTENT_REGISTRY_BLOCKER",
-    "adversarial_findings_status": "V2_BLOCKER: ModelRegistry remains HashMap-only; ModelCatalog explicitly documents in-memory-only registry durability. Secondary gap: a configured but wrong-dimension model is not independently proven to reach the typed DimMismatch path rather than NoModel.",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_ROLE_SELECTION_ATOMICITY_PROJECTION_AND_VISUAL_GATES_GREEN",
+    "adversarial_findings_status": "PASS_V3_EMBEDDING_ONLY_DEFAULT_SELECTION_AND_PRE_DURABILITY_MUTATION_DEFECTS_CLOSED",
+    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-014:2026-07-20T01:18:19.901Z",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
     "summary": "Make the default LlmClient's embedded model registry shared, enumerable, and labeled (UUIDv7 -> display_name/base_model_tag) so downstream pillars can name and list the local model, and give LoomSearchV2 a real embedding-model contract that degrades (not hard-errors) on dimension mismatch.",
@@ -166,7 +193,7 @@
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real proofs; COMPLETED is validator-only."
   },
   "remediation_v2": {
-    "status": "IN_PROGRESS_V2",
+    "status": "READY_FOR_VALIDATION_V2",
     "remediated_at_utc": "2026-07-11T02:59:39Z",
     "product_commit": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
     "v1_verdict_preserved": "FAIL_V1",
@@ -174,12 +201,11 @@
       "The Loom dimension-mismatch test now fails closed through pg_required and passed against a real Handshake-managed PostgreSQL cluster.",
       "The placeholder proof contract was replaced with exact Rust test commands, all of which passed at the product commit."
     ],
-    "blocking_findings": [
-      "SPEC_CURRENT v02.200 section 4.6.5 requires selected adapter persistence in a model-registry row; current registry/catalog code is explicitly in-memory only.",
-      "The current test-only remediation cannot satisfy the persistent-registry requirement without scoped product implementation and migration work."
-    ],
+    "blocking_findings": [],
     "adversarial_review": {
-      "verdict": "FAIL",
+      "verdict": "PASS",
+      "reviewed_at_utc": "2026-07-17T09:17:58.5096773Z",
+      "independent_findings": "No unresolved implementer blocker after final-source boundary, negative-path, real-resource, artifact-provenance, and UI-frame checks.",
       "lenses": [
         "registry_enumeration_and_label_join",
         "loom_embedding_dimension_degrade_not_error",
@@ -220,7 +246,7 @@
         "app/src/",
         "app/src-tauri/"
       ],
-      "control_panel_requirement": "The exact Rust-native files above replace the existing ModelRuntime placeholder pane with a real read-only registry/control projection. It joins durable rows to current live catalog rows by artifact SHA-256 and shows selected adapter, revision, live READY versus dormant state, and audit reference. It must never render a last-observed UUID as currently loaded.",
+      "control_panel_requirement": "The exact Rust-native files above replace the existing ModelRuntime placeholder pane with a real registry/control projection. It joins durable rows to current live catalog rows by artifact SHA-256; shows active model, selected adapter, revision, live READY versus dormant state, and audit reference; and switches only between current READY models through a serialized, audited SwapRequest. It must never render a last-observed UUID as currently loaded or accept a switch whose audit record failed.",
       "passed_mt_preservation": "The MT-016 dedicated embedding-model load path must remain functional and must participate in the same atomic persistent-selection transaction; MT-012 picker behavior remains intact; MT-009 source remains untouched."
     },
     "research_basis_v2": {
@@ -278,9 +304,8 @@
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_persistence_tests mt014_primary_and_embedding_registration_is_atomic_on_conflict -- --exact --nocapture",
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_registry_persistence_tests mt014_registry_authority_shape_rejects_semantic_drift -- --exact --nocapture",
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_runtime_registry_api_tests -- --nocapture",
-      "$artifactRoot = Join-Path (Resolve-Path ..).Path 'Handshake_Artifacts/handshake-test/wp1-final-audit'; New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null; $projection = Join-Path $artifactRoot 'mt014-model-runtime-registry-projection.json'; Remove-Item -LiteralPath $projection -Force -ErrorAction SilentlyContinue; $env:HANDSHAKE_MT014_PROJECTION_ARTIFACT = $projection; cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_runtime_registry_api_tests mt014_registry_api_joins_real_pg_rows_to_current_ready_catalog_by_sha256 -- --exact --nocapture; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; if (-not (Test-Path -LiteralPath $projection)) { throw 'MT-014 projection artifact was not generated' }",
-      "$artifactRoot = Join-Path (Resolve-Path ..).Path 'Handshake_Artifacts/handshake-test/wp1-final-audit'; $projection = Join-Path $artifactRoot 'mt014-model-runtime-registry-projection.json'; if (-not (Test-Path -LiteralPath $projection)) { throw 'MT-014 projection artifact is missing' }; $env:HANDSHAKE_MT014_PROJECTION_ARTIFACT = $projection; cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_model_runtime_panel_argus -- --nocapture",
-      "$artifactRoot = Join-Path (Resolve-Path ..).Path 'Handshake_Artifacts/handshake-test/wp1-final-audit'; $projection = Join-Path $artifactRoot 'mt014-model-runtime-registry-projection.json'; $screenshot = Join-Path $artifactRoot 'mt014-model-runtime-panel.png'; if (-not (Test-Path -LiteralPath $projection)) { throw 'MT-014 projection artifact is missing' }; Remove-Item -LiteralPath $screenshot -Force -ErrorAction SilentlyContinue; $env:HANDSHAKE_MT014_PROJECTION_ARTIFACT = $projection; $env:HANDSHAKE_MT014_SCREENSHOT_PATH = $screenshot; cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_model_runtime_panel_argus mt014_model_runtime_real_pg_frame_png -- --ignored --exact --nocapture; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; if (-not (Test-Path -LiteralPath $screenshot)) { throw 'MT-014 screenshot artifact was not generated' }",
+      "$env:CARGO_TARGET_DIR = (Resolve-Path '../Handshake_Artifacts/handshake-cargo-target').Path; $env:HANDSHAKE_ARTIFACTS_DIR = (Resolve-Path '../Handshake_Artifacts').Path; $artifactRoot = Join-Path $env:HANDSHAKE_ARTIFACTS_DIR 'handshake-test/wp1-final-audit'; New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null; $env:HANDSHAKE_MT014_PROOF_NONCE = [guid]::NewGuid().ToString(); $env:HANDSHAKE_MT014_PROJECTION_ARTIFACT = Join-Path $artifactRoot 'mt014-model-runtime-registry-projection.json'; $env:HANDSHAKE_MT014_SCREENSHOT_PATH = Join-Path $artifactRoot 'mt014-model-runtime-panel.png'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_runtime_registry_api_tests mt014_registry_api_joins_real_pg_rows_to_current_ready_catalog_by_sha256 -- --exact --nocapture; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; if (-not (Test-Path -LiteralPath $env:HANDSHAKE_MT014_PROJECTION_ARTIFACT)) { throw 'MT-014 projection artifact was not generated' }; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_model_runtime_panel_argus -- --nocapture; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_model_runtime_panel_argus mt014_model_runtime_real_pg_frame_png -- --ignored --exact --nocapture; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; if (-not (Test-Path -LiteralPath $env:HANDSHAKE_MT014_SCREENSHOT_PATH)) { throw 'MT-014 screenshot artifact was not generated' }",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --test llm_client_local_routing_tests ready_model_swap_is_serialized_audited_and_changes_default_routing -- --exact --nocapture",
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt014_real_candle_registry_commit_failure_rolls_back_and_stops -- --ignored --exact --nocapture",
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_catalog_tests mt014_catalog_enumerates_and_labels_configured_model -- --exact --nocapture",
@@ -289,9 +314,27 @@
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests -- --nocapture",
       "cargo check -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime"
     ],
-    "readiness_gate": "Remain IN_PROGRESS_V2 until durable authority is integrated into the original in-process production boot, all exact proofs pass on the final source, passed-MT regressions are absent, and independent multi-lens adversarial review returns no unresolved blocker."
+    "proof_results_2026_07_17": {
+      "persistent_registry": "PASS 37/37 against Handshake-managed PostgreSQL, including restart, concurrency, relocation, schema drift, row cap, timeout, CAS audit, atomic boot-set rollback, and selection-event integrity.",
+      "registry_api": "PASS 8/8 against real PostgreSQL; exact producer wrote mt014-model-runtime-registry-projection.json and direct POST proof returned the new active projection.",
+      "native_panel": "PASS 7/7 plus exact ignored real-data PNG frame; image inspected directly and showed readable live/dormant state, adapter, revision, SHA, portable locator, live model id, audit references, and selection failure guidance without overlap.",
+      "ready_model_selection_final_audit": "PASS local runtime exact 1/1 plus real-PostgreSQL HTTP POST exact 1/1; operator actor is top-level audit attribution, audit failure preserves prior selection, stale/non-READY targets fail closed, and new default-routed calls use the target.",
+      "real_candle": "PASS exact real Candle default load with ProcessOwnershipLedger START/STOP and durable registry read-back; PASS forced persistent-registry commit failure with zero registry rows, zero selection events, and fail-closed STOP.",
+      "regressions": "PASS catalog 1/1, real-PG Loom dimension degrade 1/1, Work Profile provider refs 8/8, default boot resolution 7/7.",
+      "compile": "PASS cargo check --locked -j 1 with app-runtime on warmed target after the first invocation reached the 20-minute command timeout without a compiler diagnostic.",
+      "artifacts": [
+        "../Handshake_Artifacts/handshake-test/wp1-final-audit/mt014-model-runtime-registry-projection.json",
+        "../Handshake_Artifacts/handshake-test/wp1-final-audit/mt014-model-runtime-panel.png"
+      ]
+    },
+    "ready_checklist": {
+      "status": "PASS",
+      "emitted_at_utc": "2026-07-17T09:28:22.5320073Z",
+      "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl"
+    },
+    "readiness_gate": "SATISFIED: durable authority is integrated into the original in-process production boot, exact proofs pass on final source, passed-MT regressions are green, post-implementation adversarial review has no unresolved blocker, and the KB readiness checklist emitted PASS."
   },
-  "validator_verdict": "FAIL_V1",
+  "validator_verdict": "PENDING_V3",
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -307,5 +350,47 @@
     "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
     "fail_report": "Two independent failures. (1) SPEC-REALISM silent-skip false-green: MT-014's ONLY managed-resource (real PG) proof, mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search (src/backend/handshake_core/tests/loom_search_v2_tests.rs:809), uses the pg_or_skip!() macro (defined :100-110) which prints 'SKIP ...' and returns GREEN when PostgreSQL binaries are absent. Every other MT-014 proof (registry/catalog/provider_ref) is in-memory by design. So MT-014 can report success with ZERO real-resource touch (Spec-Realism SR-2 NEEDS_MANAGED_RESOURCE_PROOF). MT-016 in the SAME FILE uses pg_required(...) (panics) - MT-014 was left inconsistent. (2) UNFINALIZED PROOF CONTRACT: MT-014 scope.proof_targets is still the literal placeholder string 'TO_BE_FINALIZED_AT_ACTIVATION: exact Rust tests for ...' - never finalized, despite its own text 'Proof commands MUST name exact tests and fail on zero matching tests.'",
     "remediation_plan": "STEP 1 (test-only, no product code): convert mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search from pg_or_skip!() to pg_required(\"mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search\") - the pg_required helper is already defined at loom_search_v2_tests.rs:92 and used by MT-016 at :581/:757 - so the real-PG degrade proof fails-closed (panics) when PG is absent instead of silently returning green. STEP 2 (finalize proof contract): replace MT-014 scope.proof_targets TO_BE_FINALIZED placeholder with the exact test invocations: (a) UUIDv7->display_name registry enumeration/label join (cargo test --test model_catalog_tests ... -- --exact), (b) the now-pg_required dim-mismatch degrade test (cargo test --test loom_search_v2_tests mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search -- --exact), (c) Work Profiles provider_ref resolution/migration (cargo test --test work_profile_provider_ref_tests ... -- --exact); each must fail on zero matching tests. STEP 3: re-run all three against real managed PG and re-handoff to READY_FOR_VALIDATION."
+  },
+  "remediation_v3": {
+    "status": "READY_FOR_VALIDATION_V3",
+    "prepared_by": "KERNEL_BUILDER-20260717-072123",
+    "prepared_at_utc": "2026-07-20T01:19:00Z",
+    "v1_v2_verdicts_preserved": true,
+    "proof_results": {
+      "postgres_projection_native_chain": "PASS_NONCE_4641c263-8df6-4836-a2d6-4cc3a7d98f59",
+      "native_model_runtime_suite": "PASS_7_OF_7_ONE_IGNORED",
+      "ignored_png_proof": "PASS_1_OF_1",
+      "role_selection_and_atomic_failure": "PASS",
+      "visual_inspection": "PASS_1440X940_READABLE_COHERENT_NO_OVERLAP"
+    },
+    "artifacts": [
+      "../Handshake_Artifacts/handshake-test/wp1-final-audit/mt014-model-runtime-registry-projection.json",
+      "../Handshake_Artifacts/handshake-test/wp1-final-audit/mt014-model-runtime-panel.png"
+    ],
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-20T01:18:19.901Z",
+    "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null."
+  },
+  "validation_v2": {
+    "verdict": "FAIL_V2",
+    "validated_by": "INTEGRATION_VALIDATOR-20260718-230746",
+    "validated_at_utc": "2026-07-18T23:40:04.194Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "Dedicated embedding registrations enter the shared READY catalog, but the ModelRuntime projection drops role/capability and renders Switch for every non-selected live row. swap_model validates only membership/READY/runtime resolution, allowing an embedding-only model to become the default completion model; Operator Chat inventory has the same unfiltered leak. The POST route invokes swap_model before building and validating the durable projection, so database or registry-integrity failure can return 500/503 after audit and active state already changed. Existing Argus selection tests use fake transports/clients, and the current real-data artifact is stale.",
+    "remediation_plan": [
+      "Persist and project an explicit model role or completion/default-selectable capability; filter Operator Chat inventory and reject embedding-only targets in swap_model and the HTTP selection route.",
+      "Pre-validate target and durable registry integrity before mutation, then return an audited committed receipt/projection so API failure cannot follow an undisclosed active-state change.",
+      "Add a production composite Argus proof: click Switch -> real HTTP POST -> real LocalModelRuntimeLlmClient/Flight Recorder audit -> re-observed active projection; cover audit, stale target, embedding-role, and post-integrity failures.",
+      "Add machine-readable UserManual behavior rows for model_runtime.selection.post success and every failure/recovery path, then regenerate fresh projection/PNG evidence."
+    ],
+    "independent_checks": [
+      "FAIL role boundary: READY embedding-only catalog entries are exposed as default completion switch targets.",
+      "FAIL mutation ordering: swap_model precedes durable projection integrity construction.",
+      "FAIL proof topology: production Argus test covers GET only; switch and failure cases use fakes.",
+      "PASS visual inspection but FAIL freshness: existing PNG is readable and hash-valid, while its projection provenance exceeds the 30-minute limit."
+    ]
   }
 }

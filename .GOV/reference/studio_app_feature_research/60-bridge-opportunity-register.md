@@ -1,0 +1,780 @@
+---
+file_id: studio-app-feature-research-bridge-opportunity-register
+topic_id: SFR-BRIDGE
+title: "Bridge Opportunity Register (2026-07-20 audit)"
+status: draft
+summary: "NON-AI features the 5 apps themselves lack that Handshake Studio could ship as differentiators, per app, with demand evidence and bridge framing."
+sources: 86
+updated_at: "2026-07-20"
+---
+
+
+## [SFR-BRIDGE] Bridge Opportunity Register
+
+### [SFR-BRIDGE.summary] Summary
+
+```json
+{
+  "audit_date": "2026-07-20",
+  "scope": "NON_AI features the 5 source apps themselves lack or do badly, that Handshake Studio could ship as differentiators (bridge opportunities)",
+  "method": "Per-app research of long-standing user feature requests, forum/reddit complaints, and switching guides. Licensing/pricing complaints excluded unless they imply a technical capability (offline/local files).",
+  "note": "AI/generative differentiators are intentionally excluded; Handshake ships its own AI natively later.",
+  "total_bridge_features": 86,
+  "by_app": {
+    "PS": 16,
+    "AI": 18,
+    "ID": 18,
+    "AF": 18,
+    "FG": 16
+  },
+  "top_deduped_themes": [
+    "local-first files + true offline (Figma structural; Adobe cloud-doc-only)",
+    "persistent local version history + real branching in the document format",
+    "CRDT co-editing over LAN / self-hosted relay (no vendor cloud)",
+    "one modern automation API (loops/conditions/data) doubling as the agent surface",
+    "fully non-destructive node graph by default + PSD smart-object preservation",
+    "unified codec-forward export (JXL/AVIF/WebP, unlimited size, deterministic batch)",
+    "full prepress in every editor + local spot-color infra (never render unlicensed Pantone black)",
+    "native tagged PDF/UA that survives re-export (EAA compliance trigger)",
+    "universal HarfBuzz-class international text engine (RTL/CJK/composite fonts everywhere)",
+    "performance-class engine as marketing (GPU-native, disk-streaming past RAM ceiling, unbounded canvas)"
+  ]
+}
+```
+
+### [SFR-BRIDGE.authority] Authority
+
+Reference/provenance only. Differentiator candidates, not committed scope. Feed the WP-KERNEL-STUDIO refinement and Section-14 'differentiator' framing ([STU-OVR-003]); promotion into product scope requires operator decision.
+
+### [SFR-BRIDGE.ps] Adobe Photoshop (incl. Camera Raw) (16 opportunities)
+
+```json
+{
+  "bridge_features": [
+    {
+      "id": "SFR-BRIDGE-PS-001",
+      "app": "PS",
+      "title": "Live filter layers (non-destructive filters without Smart Object wrapping)",
+      "description": "Photoshop cannot apply arbitrary filters (blur, sharpen, distort, Camera Raw, etc.) as adjustment-layer-style live layers in the stack. Any non-destructive filtering requires converting layers to Smart Objects, and adjustment layers cannot be applied inside a Smart Filter chain. Users describe the Smart Object detour as awkward and a workflow-breaker; Affinity Photo ships live filter layers as a headline differentiator.",
+      "demand_evidence": "Adobe Community feature request 'Filters as Adjustment Layers' (community.adobe.com/feature-requests-713/filters-as-adjustment-layers-656369) explicitly lists these limits; Adobe Community thread 'Smart objects and non destructive editing' (questions-712/1060482); Affinity-vs-Photoshop switching guides (perishablepress.com, dennystips.com) cite live filter layers as a reason to switch.",
+      "bridge_opportunity": "Make every filter a first-class node in a fully non-destructive layer graph: any effect is a live, maskable, reorderable layer with parametric re-editing at any time, no container-object ceremony. A native Rust evaluation graph can re-render only dirty subtrees, keeping live filters fast even on large documents."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-002",
+      "app": "PS",
+      "title": "Persistent undo history saved with the document",
+      "description": "Photoshop's History states are session-only: closing a file discards all undo history and snapshots, and PSD/PSB cannot store them. Users have requested a 'save with history' option or sidecar for years; Adobe staff answer that history states are too large to save. Only the text-based History Log (non-restorable) exists.",
+      "demand_evidence": "Adobe Community feature requests 'P: Save with history' (community.adobe.com/feature-requests-713/p-save-with-history-653202) and 'History Cleared When File Saved' (656267); recurring help threads like 'Saving project to PSD file - history of action is lost' (questions-712/1121665).",
+      "bridge_opportunity": "Store the edit graph, not raster snapshots: a local-first document format where operations are logged as compact deltas makes cross-session undo, named checkpoints, and time-travel scrubbing cheap. This is structurally easy for Handshake's non-destructive engine and impossible for Photoshop's raster-state history without a format rewrite."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-003",
+      "app": "PS",
+      "title": "A complete, modern export pipeline (Save for Web is frozen legacy; Export As is incomplete)",
+      "description": "Save for Web has been 'Legacy' since 2015 because its ImageReady-era code cannot be developed further, yet Export As never reached parity: no slice support, a 15,000px input-size limit, no artboard support in Save for Web, and artboard right-click export limited to JPEG/PNG/GIF. Users must juggle three overlapping export dialogs, and Export Artboards to Files fails intermittently on 25+ artboards.",
+      "demand_evidence": "Adobe Community feature requests 'Make Slices work with Normal Export options' (655486) and 'Save for Web / Save Optimized As - outdated UI' (655364); Jeffrey Zeldman's 'Save \"Save For Web\"' essay (medium.com/@zeldman); threads 'Export Artboards As - And try your luck today!' (questions-712/1166366) and 'Unable to export artboards to files' (1139716).",
+      "bridge_opportunity": "One unified, scriptable export system: named export presets per layer/group/artboard, unlimited input dimensions, deterministic batch export with a machine-readable manifest (fits Handshake's model-facing automation surfaces), and reliable multi-artboard export as a stress-tested core path rather than a bolt-on."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-004",
+      "app": "PS",
+      "title": "True vector export (SVG output that is actually vector)",
+      "description": "Photoshop's 'Export As SVG' routinely emits a PNG embedded in an SVG wrapper, even for Vector Smart Objects and shape layers; files are reported corrupted by web platforms, and Adobe staff themselves call SVG-from-Photoshop a bad idea and redirect users to Illustrator. Shape/vector data that exists in the document cannot round-trip out as clean vector.",
+      "demand_evidence": "Adobe Community threads 'Export a proper SVG from a PS Vector Smart Object?' (t5/photoshop/9630813), 'Photoshop svg export corrupted' (11272206), 'SVGs not exporting properly from Photoshop' (questions-712/1122460), and the feature request 655484 about the missing/removed SVG export option.",
+      "bridge_opportunity": "Handshake keeps vector primitives (shapes, paths, text) as real vector objects through the whole pipeline and exports standards-clean SVG/PDF with fonts outlined or embedded on request. Because the suite spans raster and vector natively, web/design studios avoid the Photoshop-to-Illustrator app hop entirely."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-005",
+      "app": "PS",
+      "title": "Multi-page documents",
+      "description": "Photoshop has no native multi-page document model. Multi-page PDF creation requires saving each page as a separate PSD and running File > Automate > PDF Presentation; placing a multi-page PDF imports pages one at a time. Illustrators, comic/storyboard artists, and studios producing multi-page deliverables are told to buy InDesign instead.",
+      "demand_evidence": "Adobe Community threads '[Feature Request] Multiple Pages, same document. like a drawing book' (questions-646/306421), 'Multi-page document' (questions-712/1107564), 'Creating Multi-page pdfs in Photoshop CC' (9251339); ClearPS and Photoshop Gurus forum threads asking the same for years.",
+      "bridge_opportunity": "Ship pages/spreads as a native document dimension (artboards that can also be ordered pages), with per-page and whole-document export to print-ready PDF. One coherent model covers storyboards, comics, and multi-page mockups that currently force a second app."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-006",
+      "app": "PS",
+      "title": "Real automation: loops, conditionals, and data-driven batch processing without a deprecated scripting stack",
+      "description": "Actions have no loops, minimal conditional logic (Insert Conditional tests only a handful of document/layer states), and no external data access; anything serious requires scripting. Meanwhile the scripting story is fractured: ExtendScript (ES3-era) is legacy, CEP is being sunset, and UXP still has an incomplete DOM with missing API parity — developers must fall back to low-level batchPlay descriptors and complain about documentation quality.",
+      "demand_evidence": "Adobe Community 'Logic in Actions?' (questions-712/1063846); Mapsoft's Photoshop automation guides documenting Action limits; Creative Cloud Developer Forums thread 'In 2025, what isn't possible with UXP scripting compared to old school ExtendScript' (forums.creativeclouddeveloper.com/t/9099); Adobe Community 'Why doesn't UXP expose a direct evalScript-like API' (questions-712/1183642).",
+      "bridge_opportunity": "A single, stable, first-class automation API from day one (Rust core exposed to a scripting layer), with recorder output that is a real program (loops, conditions, variables, CSV/JSON data sources) rather than a macro list. This also directly serves Handshake's multi-model/agent workflow goals — automation surface and agent surface are the same API."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-007",
+      "app": "PS",
+      "title": "Multithreaded file I/O and broader multicore scaling",
+      "description": "Opening and saving compressed PSD/PSB/TIFF is bottlenecked on a single thread, and Photoshop cannot even save two documents concurrently; benchmarking guides note most operations stop scaling past 6-8 cores. Professionals on many-core workstations wait on serial saves of multi-GB files daily.",
+      "demand_evidence": "Adobe Community bug report 'Why is Photoshop still single-threaded for open and save operations? There is no excuse for this.' (community.adobe.com/bug-reports-711/657155); Puget-style benchmark commentary echoed in PCPartPicker/Adobe forums; Adobe's own performance doc admitting diminishing returns past a few cores (helpx.adobe.com/photoshop/kb/optimize-photoshop-hardware-os.html).",
+      "bridge_opportunity": "Rust makes parallel tile-based codecs and background async save/load natural: saves never block the UI, multiple documents encode concurrently, and large-file open streams progressively. 'Your 16 cores actually get used' is a measurable, marketable performance differentiator."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-008",
+      "app": "PS",
+      "title": "Frictionless non-destructive raw editing (Camera Raw without Smart Object traps)",
+      "description": "Re-editable raw development inside a composite requires opening the raw as a Camera Raw Smart Object, a workflow riddled with traps: hidden workflow settings that silently degrade quality, different ACR menu options depending on how it was opened, color-space/size changes failing to propagate from Lightroom-opened Smart Objects, and reports of ACR freezing on large Smart Objects. The Camera Raw Filter path is destructive unless the Smart Object detour is taken.",
+      "demand_evidence": "Greg Benz Photography's '3 Common Misconceptions about Camera RAW Smart Objects' and 'Don't let this hidden setting RUIN your RAW smart objects'; Adobe Community threads 'Adobe Camera Raw has different menu options depending on how it is opened/used' (questions-712/1176243), 'Camera RAW problem with Smart Objects' (1147660), 'Stuck in Camera Raw Filter' (questions-563/180652).",
+      "bridge_opportunity": "Treat raw development as just another live, parametric node on an image layer: always re-editable, one consistent UI regardless of entry path, and settings that visibly propagate. No container-object concept for the user to misconfigure — this dissolves an entire class of documented Photoshop foot-guns."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-009",
+      "app": "PS",
+      "title": "First-class spot color and prepress workflow",
+      "description": "Spot colors in Photoshop live in separate spot channels that do not behave like layers, lack layer blending options, always overprint/multiply, and require manual knockouts. Prepress professionals call the workflow clunky and route spot work through Illustrator/InDesign; opening a PDF loses spot color identification in the eyedropper.",
+      "demand_evidence": "PrintPlanet prepress forum threads 'Spot color .pdf to spot channels in Photoshop?' (printplanet.com/forum/.../5298) and 'Change single process color to PMS' (9091); Adobe Community 'How to add spot color and how to properly export to print ready PDF file?' (questions-712/1068333); Graphic Design Forum 'Pantones and Spot Colors' thread.",
+      "bridge_opportunity": "Spot colors as real paint: assign a spot ink to any layer, stroke, or fill with proper knockout/overprint controls and live separation preview, then export PDF/X with correct plates. Print-focused studios get an Illustrator-grade spot workflow inside their raster tool — a parity gap neither Photoshop nor Affinity Photo fully closes."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-010",
+      "app": "PS",
+      "title": "Full OpenType feature control in the type UI",
+      "description": "Photoshop exposes only the most common OpenType features; stylistic sets beyond the basics, historical/old-style ligature options, and other font features that plain macOS TextEdit can toggle have no UI in Photoshop's Type/Options panels. The Unified Text Engine rewrite (23.0) did not expand the exposed feature list.",
+      "demand_evidence": "Adobe's own UTE documentation confirms the OpenType feature list was not expanded (helpx.adobe.com/photoshop/desktop/text-typography/.../overview-of-unified-text-engine.html); Adobe Community complaints that 'all the nice features available in OpenType are not usable because there's no UI to pick them' in UTE announcement threads (community.adobe.com/questions-700/670815).",
+      "bridge_opportunity": "Expose the entire OpenType feature table (all ssXX sets, character alternates with visual pickers, optical sizes, full variable-font axis control) in Handshake's type engine. Typography-heavy branding studios get InDesign-class type inside the image editor."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-011",
+      "app": "PS",
+      "title": "Local file version history (versioning is cloud-document-only)",
+      "description": "Automatic version history and restore exist only for Adobe cloud documents; local PSD/PSB files get no autosaved versions beyond crash recovery. Users who want versioning are pushed into Creative Cloud storage, which itself draws complaints (files marked online-only still consuming 20+ GB locally, duplicated offline copies). The technical capability gap: no offline/local versioning or snapshot system.",
+      "demand_evidence": "Adobe's cloud documents FAQ shows versioning is a cloud-doc feature (helpx.adobe.com/photoshop/desktop/save-and-export/save-files/common-questions-on-photoshop-cloud-documents.html); Adobe Community thread 'Files stored offline even though they're set to online only. Taking up gigs of storage after 2025 UD' (t5/photoshop-ecosystem-discussions/14939892) documenting cloud-storage backlash.",
+      "bridge_opportunity": "Local-first versioning is Handshake's home turf: automatic on-disk version snapshots with delta storage, named milestones, visual diff between versions, and optional sync to any user-chosen backend (NAS, git-like remote) — no vendor cloud required. Directly converts the anti-cloud sentiment into a capability win."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-012",
+      "app": "PS",
+      "title": "InDesign-grade linked asset management (relink to folder, find missing links, reliable packaging)",
+      "description": "Linked Smart Object management is far weaker than InDesign's Links panel: no 'relink to folder', packaging fails with unfindable missing links, and users report being unable to locate which layer holds a missing linked object even with layer filters. Adobe support workarounds (package via Bridge, move files off cloud) are documented as failing.",
+      "demand_evidence": "Adobe Community threads 'cannot package file because a linked smart object is missing - how to find??!!' (questions-712/1181102), 'Managing Linked Images in Photoshop files' (1076999), 'How to find info for Missing Linked Smart Object' (t5/photoshop/8476899), including explicit user comparison to InDesign's link system.",
+      "bridge_opportunity": "A real Links panel for compositions: every external asset tracked with relative-path portability (aligns with Handshake's disk-agnostic policy), relink-to-folder, jump-to-layer for any missing link, and one-click collect/package that provably includes everything. Agency handoff workflows depend on this daily."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-013",
+      "app": "PS",
+      "title": "Consistently low-latency brushing on tablets",
+      "description": "Brush lag, stutter, and multi-second buffering with Wacom tablets is a recurring, version-spanning complaint (reports from CS4 through Photoshop 2025), even on small canvases with simple round brushes; GPU toggling often does not fix it, and community workarounds (disable smoothing, adjust RAM/cache, reinstall drivers) are folklore rather than fixes.",
+      "demand_evidence": "Adobe Community threads 'Photoshop 2025 Brush Lag' (questions-712/1174223), 'Photoshop Brush Lag/Stutter/Buffering/Freezing while using Wacom Intuos Pro' (1082403), 'Brush lag with mouse and Wacom' (1179481); third-party fix guides (grutbrushes.com/how-to-fix-photoshop-brush-lag) existing at all signals chronic pain.",
+      "bridge_opportunity": "A GPU-native, predictive-stroke brush engine with a hard latency budget (input-to-pixel measured and surfaced in Handshake's diagnostics), tested against tablet input as a first-class CI scenario. Digital painters are among the loudest Photoshop complainers and the most willing to switch on feel alone."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-014",
+      "app": "PS",
+      "title": "Full toolset in 32-bit/HDR editing mode",
+      "description": "32-bit (HDR/linear) documents run with a crippled toolset: healing brushes, magic wand, dodge/burn/sponge, paint bucket and many filters are unavailable; users report being unable even to invert a 32-bit image, and Camera Raw Filter is greyed out on 32-bit files (known issue since ACR 9.10/CC 2017). VFX/ACES users must round-trip through 16-bit with visible color loss.",
+      "demand_evidence": "Adobe's own HDR documentation listing unavailable tools (helpx.adobe.com/photoshop/using/high-dynamic-range-images.html); Adobe Community threads '32 bit support functionality' (questions-712/1130852), 'how to use 32bit photoshop with full functionality' (1086985), 'camera raw dont works in hdr 32 bit' (questions-563/182822).",
+      "bridge_opportunity": "Build the whole engine float-native (scene-referred/linear internally, display-referred on output), so every tool works identically at 8/16/32-bit. With HDR displays and ACES pipelines growing, 'no reduced mode' is a clean, verifiable parity-plus claim against Photoshop."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-015",
+      "app": "PS",
+      "title": "Modern format support integrated into the main export path (JPEG XL / AVIF arrived late and only via Save a Copy)",
+      "description": "AVIF and JPEG XL export only shipped natively in Photoshop 26.8 (mid-2026) after years of community requests, and they live in Save As/Save a Copy rather than Export As — continuing the fragmentation where different formats are reachable only through different dialogs. Historic pattern: WebP also arrived years after the web needed it.",
+      "demand_evidence": "Adobe Community feature requests 'Please add support for exporting JXL (JPEG XL)' (feature-requests-713/656262) and 'P: Please add AVIF file support' (t5/photoshop-ecosystem-ideas/12248530, 5+ pages of votes since 2021); DPReview forum thread on the June 26.8 update; gregbenzphotography.com coverage noting the multi-year gap.",
+      "bridge_opportunity": "Codec-forward from day one: JPEG XL, AVIF, WebP, HEIF, and print formats all available in the single unified export dialog and batch API, with new codecs added via a plugin codec interface rather than waiting on monolithic releases. Positions Handshake as the tool that keeps pace with web delivery formats."
+    },
+    {
+      "id": "SFR-BRIDGE-PS-016",
+      "app": "PS",
+      "title": "Non-destructive transforms by default (no quality loss without Smart Object ritual)",
+      "description": "Scaling a normal raster layer down and back up in Photoshop destroys pixel data unless the user remembered to convert to a Smart Object first; non-destructive resize is opt-in ceremony rather than default behavior. Switching guides repeatedly cite Affinity Photo's lossless-by-default layer scaling as a concrete advantage.",
+      "demand_evidence": "Perishable Press 'Switching from Photoshop to Affinity Photo: Lessons Learned' (perishablepress.com/switching-photoshop-affinity-photo/) and dennystips.com comparison both name this explicitly; Adobe Community 'Smart objects and non destructive editing' (questions-712/1060482) describes the Smart Object requirement as a workflow-breaker.",
+      "bridge_opportunity": "In Handshake's non-destructive core, every layer keeps its source resolution and transform as parameters, so scale/rotate/warp are always lossless and re-editable with zero user ceremony. This is a default-behavior win that requires no learning and demos powerfully against Photoshop."
+    }
+  ]
+}
+```
+
+### [SFR-BRIDGE.ai] Adobe Illustrator (18 opportunities)
+
+```json
+{
+  "bridge_features": [
+    {
+      "id": "SFR-BRIDGE-AI-001",
+      "app": "AI",
+      "title": "Unbounded canvas / coordinate space (227-inch legacy limit)",
+      "description": "Default canvas is capped at 227 x 227 in (16,383 px) due to a decades-old coordinate storage decision. The newer 'large canvas' (10x) mode is a bolted-on workaround: it cannot be applied to an existing document (users must recreate the file), and Adobe acknowledges compatibility issues in large-canvas mode. Large-format print, textile, vehicle-wrap, and signage shops hit this daily (e.g., 260-inch textile templates that cannot fit).",
+      "demand_evidence": "Top UserVoice request 'Remove canvas size limit' with ~1,022 votes (illustrator.uservoice.com forum 333657); Adobe community threads 'Add the ability to scale the canvas beyond its archaic 227 inch limits' and 'Workflows that need large canvas/artboard' (community.adobe.com); Adobe's own KB pages document the limit and its known issues (helpx.adobe.com/illustrator/kb/large-sized-canvas-troubleshooting.html).",
+      "bridge_opportunity": "Design Handshake's vector document model with 64-bit float coordinates from day one: a single unlimited canvas with no mode switch, no file recreation, and no fidelity loss at any scale. Market directly at large-format/sign/textile studios as 'no canvas limit, ever' — a structural advantage Adobe has said is extremely costly to retrofit."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-002",
+      "app": "AI",
+      "title": "True multithreaded CPU rendering and stable large-document performance",
+      "description": "Illustrator remains largely single-threaded for core operations; users report Adobe added multithreading only to 'a handful of barely useful processes'. Community reports severe lag after the 2025 update, memory leaks that degrade performance over 30-60 minutes of use, and machines never exceeding half their resources while Illustrator struggles on documents with many objects.",
+      "demand_evidence": "UserVoice 'Make Illustrator multi threaded on CPU' ~779 votes; UserVoice Desktop Bugs Performance category lists 700+ ideas; Adobe community threads 'Severe lag in Illustrator since updating to 2025 version', 'Extremely slow after updating from 2023 to 2025', 'Sluggish Performance with Many Objects' (community.adobe.com).",
+      "bridge_opportunity": "Rust gives Handshake a native story here: parallel scene-graph evaluation (rayon-style work stealing), GPU-first rendering pipeline, and no GC/memory-leak class of degradation. Publish reproducible benchmarks vs Illustrator on 100k+ object documents as a headline differentiator for the performance-wall audience."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-003",
+      "app": "AI",
+      "title": "Clean, developer-grade SVG export",
+      "description": "Illustrator's SVG export is notorious for bloated markup (unnecessary groups, metadata, non-collapsed paths), mangled element IDs (layer names replaced with 'a', 'b', ...), and geometry degradation — users report it 'destroys the ovals/circles' by converting primitives to path soup. Independent testing found SVGO strips 35-45% from Illustrator exports vs 8-12% for other tools, and developers refuse to accept Illustrator-produced SVGs.",
+      "demand_evidence": "UserVoice 'Reduce & refine the SVG code that Illustrator exports!' (suggestion 38699191) and 'Fully support the SVG standard' (31209892); UserVoice bug 'svg code export issues' (44963893); SitePoint VectorNest review quantifying the bloat; css-irl.info 'Optimising SVGs for the Web'.",
+      "bridge_opportunity": "Ship first-class, hand-quality SVG export: preserve shape primitives (circle/rect/ellipse), stable user-controlled IDs, optional built-in SVGO-class optimization pass, and a live code preview panel. This wins the web/design-studio segment where Illustrator output is actively rejected by developers."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-004",
+      "app": "AI",
+      "title": "Advanced gradient fidelity across export formats (mesh/freeform gradients)",
+      "description": "Freeform gradients and gradient meshes do not survive export: SVG export either drops the fill entirely or rasterizes it (SVG Tiny 1.2 embeds a raster image), because Illustrator never implemented a vector-preserving downlevel strategy. This breaks logo/web handoff for any artwork using its own flagship gradient tools.",
+      "demand_evidence": "UserVoice bug 'Freeform gradient doesn't export to svg' (42179245); UserVoice request 'Convert gradient properly on SVG instead of rasterizing' (44479185); Adobe community threads 'Issues with gradients going from .AI to .SVG' and 'how to export proper SVG with gradient mesh' (community.adobe.com).",
+      "bridge_opportunity": "Implement mesh/freeform gradients with a defined export contract: automatic high-quality approximation to stacked linear/radial gradients or SVG2 mesh where supported, with a fidelity preview and per-object fallback control — making 'what you design is what exports' a guarantee Illustrator cannot make."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-005",
+      "app": "AI",
+      "title": "Tagged, accessible PDF export (PDF/UA)",
+      "description": "Illustrator has zero tooling for accessible PDF output: no tagging of text/structure, no alt-text on images, no reading-order control, no accessibility export options — capabilities InDesign has had for years. With government accessibility deadlines (e.g., US April 2026 ADA Title II), agencies and public-sector studios cannot deliver compliant PDFs from Illustrator at all and must rebuild in InDesign or remediate in Acrobat.",
+      "demand_evidence": "UserVoice 'Make Illustrator PDFs more automatically accessible' (31494562, open since 2017); Adobe community threads 'A plea to Adobe to help make Illustrator PDF's accessible' and 'Creating an Accessible Illustrator document' (community.adobe.com); Acrobat community thread 'accessible pdf from Illustrator' confirming the gap.",
+      "bridge_opportunity": "Bake structure/tagging into Handshake's document model (semantic text roles, alt text, reading order) and export PDF/UA-tagged output natively from the vector editor. Public-sector and agency compliance work is an underserved, budget-backed niche no vector competitor currently owns."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-006",
+      "app": "AI",
+      "title": "Built-in live preflight for print production",
+      "description": "Illustrator has no equivalent of InDesign's continuous Preflight panel (missing fonts, low-res links, color-mode violations, overprint/spot issues surfaced live). Print shops rely on manual checks (Document Info, Separations Preview) or paid third-party tools like Markzware FlightCheck to validate .ai files before output.",
+      "demand_evidence": "Markzware's entire FlightCheck-for-Illustrator product line exists to fill this gap (markzware.com flightcheck archive pages); Adobe's own docs show Preflight as InDesign-only (helpx.adobe.com/indesign/using/preflighting-files-handoff.html); print-industry preflight checklists (thepremierprintgroup.com) list Illustrator manual steps.",
+      "bridge_opportunity": "Ship a live, rules-based preflight engine (ink limits, min stroke/type sizes, image DPI, spot-color count, bleed, overprint conflicts) with shareable preflight profiles per print vendor. Direct differentiator for prepress parity and easy to build atop a well-typed Rust document model."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-007",
+      "app": "AI",
+      "title": "Bundled spot-color libraries (post-Pantone-removal vacuum)",
+      "description": "Adobe removed most Pantone color books from Illustrator/Photoshop/InDesign after August 2022; legacy files show spot colors replaced with black, and full access now requires a separate ~$15/month Pantone Connect subscription and a clunky plugin users report fails to add swatches. Prepress workflows dependent on spot-color books were broken overnight.",
+      "demand_evidence": "Adobe community 'Pantone unavailable in Illustrator 2022' (thread 13206875) and 'Pantone Connect not letting me add pantones to swatch in Illustrator'; graphicdesignforum.com 'Adobe has pulled plug on Pantone'; widespread coverage (creative-boost.com, mousegraphics.com, stridecreative.com) documenting the black-swatch failure mode.",
+      "bridge_opportunity": "Provide a robust local spot-color infrastructure: first-class named spot inks, import of ASE/ACB/CxF standards, bundled open color systems (e.g., RAL/open ink libraries where licensable), and graceful preservation of legacy spot definitions in imported .ai/PDF files — never silently converting spot colors to black. Local-first means color books work offline forever."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-008",
+      "app": "AI",
+      "title": "Non-destructive live boolean / parametric shape operations",
+      "description": "Illustrator's Pathfinder and Shape Builder operations are destructive by default (compound shapes are a partial, awkward exception), and effects-based workarounds are opaque. Affinity Designer's live, endlessly re-editable boolean stack is a repeatedly cited reason designers prefer it for iterative logo/icon work.",
+      "demand_evidence": "Comparative coverage: Envato Tuts+ 'Affinity Designer vs. Illustrator', Amadine 'Shape builder in top apps' comparison, Affinity forum discussions of non-destructive booleans (forum.affinity.serif.com topic 206281). Marked as comparative-analysis evidence rather than a single high-vote Adobe request.",
+      "bridge_opportunity": "Make every geometry operation non-destructive by default in Handshake: a node-based or stack-based shape history where booleans, offsets, and corner operations remain editable indefinitely, with one-click flattening for export. This matches the modern-tool expectation Illustrator's 1987-era object model cannot deliver."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-009",
+      "app": "AI",
+      "title": "Modern plugin/automation platform (ExtendScript is ES3-era; no UXP)",
+      "description": "Illustrator automation still runs on ExtendScript, an ES3-vintage JavaScript with no promises/async, blocking UI during batch jobs; panel plugins use the deprecated CEP framework. Adobe's modern UXP platform shipped for Photoshop and InDesign but as of 2026 still has no public API for Illustrator, leaving developers on legacy tooling with poor debugging.",
+      "demand_evidence": "Mapsoft status pages 'UXP for Illustrator: Status & What to Use Today' and 'What is Adobe ExtendScript? 2026 Status' (mapsoft.com) documenting no public UXP API for Illustrator in 2026; MetaDesign Solutions framework comparisons (ExtendScript vs CEP vs UXP); Hyper Brew 'Building Adobe Scripts'.",
+      "bridge_opportunity": "Ship a first-class automation surface at launch: a documented Rust/WASM plugin API plus embedded modern scripting (JS/TS or Lua) with async support, headless CLI batch mode, and stable typed document APIs. Automation-heavy studios (sign shops, icon foundries, localization pipelines) are the stickiest professional users and are currently on 20-year-old tooling."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-010",
+      "app": "AI",
+      "title": "Real-time co-editing and modern collaboration (without cloud lock-in)",
+      "description": "Illustrator has no multiplayer editing; collaboration is limited to cloud-document sharing, invite-to-edit turn-taking, and Share for Review. Figma's real-time multiplayer is the defining reason design teams left Adobe for UI and collaborative work, and Adobe's collaborative design app (XD) is discontinued/maintenance-mode after the blocked Figma acquisition.",
+      "demand_evidence": "Figma multiplayer engineering posts (figma.com/blog 'Multiplayer Editing in Figma', 'How Figma's multiplayer technology works'); Sonary 'Adobe XD vs Figma: Why Figma won'; saasdesign.io Figma-vs-Illustrator comparisons naming real-time collaboration as the decisive gap; Medium switching essays ('Why I ditched Adobe for Figma').",
+      "bridge_opportunity": "Handshake's local-first architecture can offer CRDT-based co-editing over LAN or self-hosted sync — real-time collaboration without mandatory vendor cloud, which neither Adobe (cloud-doc lock-in) nor Figma (cloud-only) offers. Directly serves studios with client-confidentiality or offline requirements."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-011",
+      "app": "AI",
+      "title": "Reliable CAD interchange (DXF/DWG round-trip)",
+      "description": "Illustrator's DXF/DWG export is chronically broken for fabrication workflows: exports gain spurious anchor points, produce jagged curves, include header data that chokes waterjet/laser software, and cutter operators report files as 'damaged'. M1 Macs shipped for a period with no DXF/DWG support at all (v25.3). Sign, laser, CNC, and architecture users resort to saving Illustrator 8 EPS as a workaround.",
+      "demand_evidence": "Adobe community threads 'Export DXF files not workable' (4530162), 'Exporting as a DXF creates jagged lines' (805883), 'Illustrator 25.3 unable to open/import/export AutoCAD DWG/DXF on M1 Macs' (12102645); cadtutor.net and signs101.com forum threads on failed Illustrator-to-laser handoffs.",
+      "bridge_opportunity": "Implement a modern, tested DXF/DWG (and G-code-adjacent) export path with unit-true geometry, native arcs/circles preserved as arc entities, and validation against common CAM packages. Fabrication (laser/CNC/signage) is a professional segment Adobe demonstrably underserves."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-012",
+      "app": "AI",
+      "title": "Native dimensioning and measurement tooling",
+      "description": "No built-in tool to place live dimensions/measurements on artwork (lengths, angles, callouts that update with the object). Sign makers, packaging engineers, and technical illustrators have requested it for years and depend on paid third-party plugins (e.g., CADtools). Adobe acknowledged the demand and began beta work only recently, driven by the UserVoice thread.",
+      "demand_evidence": "UserVoice 'automatic dimension/measuring tool' ~679 votes (forum 333657); Adobe's own 'Road to MAX: 10 highly requested features' blog post citing the sign-industry request (blog.adobe.com, Sept 2024). Status of Adobe's beta Dimension tool as of mid-2026 not fully verified — marked UNVERIFIED.",
+      "bridge_opportunity": "Ship parametric smart dimensions (linear, angular, radial, chained; scale-aware; auto-updating) as core tooling, integrated with the preflight and CAD-export features above — one coherent technical-drawing story instead of a plugin ecosystem tax."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-013",
+      "app": "AI",
+      "title": "Serious variable-data / data-merge engine",
+      "description": "Illustrator's Variables panel (XML/CSV data-driven graphics) is widely considered rudimentary: a bare file-input dialog with strict CSV header syntax (@/%/# prefixes), no record preview UI comparable to InDesign Data Merge, errors when variables are shared by multiple objects, invalid-library failures on ordinary CSVs, and no image-path spaces allowed. Production users depend on the third-party VariableImporter.jsx script and forum folklore.",
+      "demand_evidence": "Adobe community threads 'Data Merge Using Variables' (10446549), 'I need a way to print 1000 cards with variable data merge and photos' (11535504), 'Incoming Variable Library Is Invalid' (774711); UserVoice bug 36934588 (shared-variable errors); signs101.com 'Merging Variable Data in Illustrator'; LinkedIn post documenting Adobe copying VariableImporter logic 17 years late.",
+      "bridge_opportunity": "Build first-class data-driven artwork: CSV/JSON/spreadsheet binding with live record preview, image/QR/barcode fields, per-record export naming, and batch PDF/print output. Combines with the automation API for sign-shop and packaging pipelines — a high-stickiness professional workflow Illustrator only half-serves."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-014",
+      "app": "AI",
+      "title": "Lossless version round-trip (legacy .ai down-save destroys editability)",
+      "description": "Saving to any older .ai version ('legacy format') expands live effects to pixels, outlines or rasterizes unsupported objects, and can permanently break text editability; a documented bug (still incomplete as of v28/2024) causes updated legacy text to disappear entirely. There is no stable, documented, openly-specified native format — .ai is effectively a PDF wrapper with private data, so cross-version and cross-app exchange is lossy.",
+      "demand_evidence": "vektorgarten.de 'Saving Illustrator Legacy files' documenting the failure modes; UserVoice bug 'Text lost when updating text of old version' (32018143) noting incomplete fix in v28; Adobe community 'Legacy format? huh?' (10576781); rockymountaintraining.com backwards-compatibility guide.",
+      "bridge_opportunity": "Define an open, versioned, documented native format with guaranteed forward/backward compatibility (unknown features preserved as opaque islands, never silently flattened) plus high-fidelity .ai/PDF import. 'Your file opens in every version, forever' is a trust-level differentiator against Adobe's lossy down-save."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-015",
+      "app": "AI",
+      "title": "Typography quality-of-life: live spell-check, sane hyphenation defaults, grammar integration",
+      "description": "No real-time spell-check with red-underline indicators (users must run a modal dialog check); hyphenation is enabled by default on area type and must be manually disabled per document, silently hyphenating display copy; no grammar-tool integration. All three are long-standing, separately top-voted requests.",
+      "demand_evidence": "UserVoice: 'Auto spell-check with red underlines' ~451 votes, 'Disable hyphenation by default' ~449 votes, 'Grammarly integration' ~430 votes (forum 333657 top list, fetched 2026-07-20).",
+      "bridge_opportunity": "Cheap, high-visibility wins: live inline spell-check (Hunspell-class, local dictionaries, works offline), hyphenation off by default with per-paragraph-style control, and a pluggable proof-reading hook. Signals typography seriousness to the print/branding audience at low engineering cost."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-016",
+      "app": "AI",
+      "title": "Export governed by clipping-mask bounds and precise export cropping",
+      "description": "When exporting raster assets, Illustrator uses object bounding boxes rather than clipping-mask boundaries, so masked artwork exports with unwanted transparent padding (or content outside the mask affecting bounds). Users must add crop rectangles/artboards per asset as a workaround — chronic friction in asset-production pipelines.",
+      "demand_evidence": "UserVoice 'Export using clipping mask boundaries' ~523 votes (forum 333657 top list).",
+      "bridge_opportunity": "Make export bounds a first-class property (artboard, selection, mask bounds, or explicit slice) with per-asset presets — trivially satisfiable in a new export engine and a daily-friction remover for web/app asset workflows."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-017",
+      "app": "AI",
+      "title": "Local-first shared asset libraries with full asset-type coverage (incl. gradients)",
+      "description": "CC Libraries — Illustrator's only shared-asset system — cannot store gradient swatches (a top-voted request for years) and are cloud-dependent: assets live in Adobe's cloud, with no self-hosted or offline-native team library equivalent. Related top request: dragging swatches onto the artboard for visual organization is also unsupported.",
+      "demand_evidence": "UserVoice 'Allow gradient swatches in CC library' ~862 votes and 'Drag-drop swatches to artboard' ~525 votes (forum 333657 top list). Cloud-dependency characterization is from Adobe's own CC Libraries architecture (helpx.adobe.com) — no offline/self-hosted mode exists; marked as vendor-documented fact, not user-vote evidence.",
+      "bridge_opportunity": "Ship team libraries as plain local/vendored files (colors, gradients, styles, components, fonts metadata) syncable via any file share or git, with every asset type supported uniformly. Aligns exactly with Handshake's local-first thesis and answers both the gradient-swatch gap and studio confidentiality needs."
+    },
+    {
+      "id": "SFR-BRIDGE-AI-018",
+      "app": "AI",
+      "title": "Linux support",
+      "description": "No native Linux build of Illustrator exists and Adobe has committed to nothing despite years of requests; studios standardizing on Linux (VFX pipelines, cost-sensitive shops, privacy-focused teams) are locked out entirely and rely on VMs or alternatives.",
+      "demand_evidence": "UserVoice 'Add Linux Support' (suggestion 35688577); Adobe community threads 'Please Adobe, it's time for Linux support' (15448665) and 'Linux Support for Illustrator on the Desktop' (816842) with Adobe staff deflecting to UserVoice voting.",
+      "bridge_opportunity": "Native Rust makes tri-platform (Windows/macOS/Linux) shipping realistic from one codebase. Being the professional-grade vector suite that runs natively on Linux captures an audience with zero incumbent competition from Adobe."
+    }
+  ]
+}
+```
+
+### [SFR-BRIDGE.id] Adobe InDesign (18 opportunities)
+
+```json
+{
+  "bridge_features": [
+    {
+      "id": "SFR-BRIDGE-ID-001",
+      "app": "ID",
+      "title": "Local-first real-time multi-user editing (no cloud lock-in)",
+      "description": "InDesign has never shipped production real-time co-editing; a single .indd can only be safely opened by one person at a time. The 2025/2026 co-editing effort is still a Beta and depends on Adobe cloud documents. The traditional answer, InCopy, is a separate paid app with a rigid check-in/check-out assignment workflow users describe as unworkable when multiple people need to touch the same content.",
+      "demand_evidence": "UserVoice 'Real time Collaboration on a single file' (indesign.uservoice.com/forums/601021 suggestion 46605367) and 'Collaborative Editing' (suggestion 30993673); Adobe Community thread 'Work together in Indesign'; indesignperfect.com beta previews (2025) confirm the feature exists only as a cloud-document beta.",
+      "bridge_opportunity": "Ship CRDT-based co-editing that syncs over LAN or a self-hosted relay as well as cloud, working on plain local files. This directly matches Handshake's local-first architecture: studios get Figma-class multiplayer on page-layout documents without surrendering files to a vendor cloud, something Adobe's architecture structurally cannot offer."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-002",
+      "app": "ID",
+      "title": "True autosave and built-in version history for local files",
+      "description": "Local .indd files have no autosave, only crash auto-recovery; genuine autosave exists solely for Adobe cloud documents. There is no Photoshop-style history/state versioning or file-level version control; users manually 'Save As' incremented filenames.",
+      "demand_evidence": "UserVoice 'Autosave on Indesign' (suggestion 48170240), 'file version-control' (suggestion 36060232), 'Automatic version control for Share for Review' (suggestion 41768125); Adobe Community 'Auto save for InDesign documents?'; CreativePro thread 'Version control system for InDesign?'.",
+      "bridge_opportunity": "Continuous background snapshotting with a browsable version timeline on local files (append-only local store, optional git-style diffing of layout objects). A native Rust engine can make snapshots cheap; 'never lose work, no cloud required' is a headline differentiator against both InDesign and cloud-only tools."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-003",
+      "app": "ID",
+      "title": "Global/external styles shared and synced across documents",
+      "description": "Paragraph/character/table/object styles are trapped per-document. There is no linked external style library: updating a brand style means re-syncing via the Book panel hack (blank style-source document) or manual copying. Adobe's 'Style Packs' only partially addresses this and does not push live updates to all documents.",
+      "demand_evidence": "UserVoice 'External (Global) Styles' (suggestion 40694311), 'Some way to synchronize and update styles across multiple InDesign documents' (suggestion 35489932), 'External Styles / Style Libraries to push Style updates dynamically' (suggestion 38717548); Adobe Community 'Synchronizing Styles Across Individual InDesign Files'.",
+      "bridge_opportunity": "First-class linked design-token/style libraries: styles live in a shared local file (or repo) referenced by many documents, with propagated updates and per-document overrides. Reuses the design-system concept web studios already know from Figma, applied to print/layout — a workflow Adobe has left unbuilt for 15+ years."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-004",
+      "app": "ID",
+      "title": "Version-stable, forward/backward-compatible document format",
+      "description": "Every InDesign release (including .5 point releases) breaks backward compatibility: older versions cannot open newer .indd files. The escape hatches are lossy IDML export or the cloud-dependent 'Simple Saveback' service, which fails offline. Agencies and printers are routinely forced onto matching versions.",
+      "demand_evidence": "Adobe help 'Can't open InDesign files from newer versions' (helpx.adobe.com); Adobe Community threads on version errors; UserVoice bug 'CC2018 IDML files not compatible with CS6' (suggestion 32413492); in-tools.com 'What's with back-save to earlier versions of InDesign?'.",
+      "bridge_opportunity": "An openly documented, versioned file format with guaranteed forward-compat reading (unknown features degrade gracefully, not fatally) and offline down-save. For print bureaus and long-lived archives this removes a decades-old tax; pairs naturally with Handshake's local-first, no-forced-upgrade stance."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-005",
+      "app": "ID",
+      "title": "Modern variable-data/data-merge engine (conditional content, robust multi-record)",
+      "description": "Data Merge has no conditional logic (cannot include/exclude content per record or suppress empty fields), cannot vary record counts per page, breaks with fields on multiple parent pages, is reported to duplicate/reorder records in multi-record merges, and hits memory walls on large CSVs (~50k rows with images).",
+      "demand_evidence": "UserVoice 'Add conditions to Data Merge' (suggestion 38260237) and bug 'Data Merge multiple records not working properly at all' (suggestion 39171592, users noting it's still broken years later); CreativePro 'Troubleshooting Data Merge Errors'; Redokun and Mapsoft guides documenting the conditional-content and record-count limits.",
+      "bridge_opportunity": "A streaming variable-data engine: conditional blocks, expressions, per-record layouts, image fields, and out-of-core processing of large datasets — effectively bringing web-templating power (loops/conditions) to print merge. High value for the direct-mail/VDP and catalog markets Adobe underserves."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-006",
+      "app": "ID",
+      "title": "Long-document performance class (footnotes, cross-references, 500+ page files)",
+      "description": "Well-documented performance collapse on long documents: 20–30 second stalls editing text in a 100-page file with 250 footnotes, crashes on 500+ footnote documents with tables, cross-reference panels taking minutes to load, and documents with cross-doc references opening every referenced file to verify links. Standard advice is to split files — a workaround, not a fix.",
+      "demand_evidence": "UserVoice bug ID-4213629 'Slow work of InDesign when editing text with large footnotes' (suggestion 36173428); Adobe Community 'Footnotes causing InDesign to crash' and 'Slow loading Cross-Reference Panel'; CreativePro 'Work Faster with Long Documents' documenting the cross-reference crawl; UserVoice Performance/Usability bug category has 1000+ ideas.",
+      "bridge_opportunity": "Design the layout engine for incremental recomposition from day one (dirty-region reflow, indexed cross-references, parallel composition in Rust). Publish benchmark targets (e.g. 1000-page book with 5000 footnotes edits at interactive speed) as a marketed capability — a performance-class feature InDesign's 25-year-old codebase cannot retrofit."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-007",
+      "app": "ID",
+      "title": "Responsive GPU-accelerated canvas as a baseline, not an afterthought",
+      "description": "GPU-accelerated rendering only reached InDesign on Windows in 2025 (v20.4), decades after users requested it, and the initial rollout has reported bugs (animated zoom laggy, zoom not centering on cursor, Windows 11 preview issues). Users on high-end hardware (RTX 3080/64GB) reported laggy zoom/pan on 4K displays for years.",
+      "demand_evidence": "UserVoice 'GPU-Acceleration on Windows' (suggestion 31872184); UserVoice bug 'GPU Accelerated Preview Issues on Windows 11' (suggestion 50702603); Adobe Community 'GPU Options / Performance InDesign' (thread 14334422) and 'InDesign 2025 SLOW'.",
+      "bridge_opportunity": "Handshake's native GPU pipeline (wgpu/Vulkan-class) makes 120fps zoom/pan/scroll on dense spreads a baseline capability across Windows/macOS/Linux. Demoable side-by-side against InDesign's canvas; performance is one of the few switching triggers that overrides format inertia."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-008",
+      "app": "ID",
+      "title": "Complete table engine (style-driven borders/merges, selections, calculations)",
+      "description": "Recurring gaps: table styles cannot control interior cell strokes without separate cell styles (widely called broken/illogical), cell merging cannot be captured in any style, non-contiguous row/column selection is impossible, table styles are reported to ignore border/stroke edits, and there are no spreadsheet-style formulas. Word-imported tables resist restyling.",
+      "demand_evidence": "UserVoice bug 'Table Styles don't work properly' (suggestion 47759933); UserVoice request for CTRL-selecting non-contiguous rows (surfaced in top feature requests forum 601021); CreativePro 'Something's missing in Table and Cell Styles?'; Adobe Community 'Table options, Cell options and Table & Cell styles behaving badly' (thread 9961952).",
+      "bridge_opportunity": "A unified table style model (borders, zebra patterns, merges, header logic in one style), multi-range selection, and optional cell expressions/formulas with data refresh. Tables are daily-driver pain for report/catalog studios; 'tables that actually work' is a concrete, testable parity-plus claim."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-009",
+      "app": "ID",
+      "title": "Full academic notes system (multiple footnote streams, table notes, margin notes, book-level endnotes)",
+      "description": "InDesign supports only one footnote stream per story; table footnotes flow into the bottom of the text frame instead of under the table; margin/side notes don't exist natively; footnotes can't span columns when columns are separate frames; endnotes cannot collect at the end of a Book (multi-file publication). Scholarly publishers rely on scripts (e.g. Kahrel's) and plugins to work around this.",
+      "demand_evidence": "UserVoice 'Real table footnotes' (suggestion 35831632) and 'Footnotes from all text frames and tables on every page' (suggestion 32002240); CreativePro 'Going Deep with Footnotes' and 'Working With Endnotes' documenting the single-stream and book-level limits; carijansen.com footnotes/endnotes overview.",
+      "bridge_opportunity": "Ship a notes engine with multiple named streams, true table notes, margin notes, and publication-level endnote collection. Targets academic/legal/technical publishing — a lucrative vertical where FrameMaker is dying and InDesign never caught up."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-010",
+      "app": "ID",
+      "title": "Native mathematical typesetting",
+      "description": "For most of its life InDesign had no equation support at all; publishers used third-party plugins (MathTools, MathML Kit, Math+Magic) or pasted images from Word. Adobe's recent Math Expressions/MathML panel places equations but arrived late and coexists with a plugin ecosystem that exists precisely because the native support is thin. The UserVoice MathML request ran for years.",
+      "demand_evidence": "UserVoice 'MathML Support' (suggestion 32805088); Adobe Community 'Type math equations in InDesign' (thread 8509359); existence and marketing of MathTools/SCAND MathML Kit/Typefi equation tooling as paid gap-fillers; indesignperfect.com 2025 guide on math workarounds.",
+      "bridge_opportunity": "First-class LaTeX/MathML input rendering to native, styleable, reflow-aware equations (inline and display), exported correctly to PDF and tagged PDF. Combined with the notes engine above, this makes Handshake a credible STM-publishing platform, a niche Adobe serves only via third parties."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-011",
+      "app": "ID",
+      "title": "Universal world-script typography (RTL/CJK as standard, not SKU-gated)",
+      "description": "Full Arabic/Hebrew RTL support requires the separate MENA build of InDesign; the standard build's World-Ready Composer is hidden (no UI to enable it without scripts/workarounds) and breaks other features when active (OpenType by Frame, Flush Space, Optical Margin Alignment reported non-functional). CJK features are likewise split into separate language versions, and some features (e.g. PDF open) are absent from MENA/CJK builds.",
+      "demand_evidence": "UserVoice 'RTL support in Adobe Composer (not Adobe World-Ready Composer)' (suggestion 40423993); TypeDrawers 'Status of Arabic text support in InDesign' documenting broken features under WRC; Adobe help 'Set up World-Ready composers' confirming the MENA-build gating; andrewheiss.com and bloodandfrogs.com workaround guides.",
+      "bridge_opportunity": "One binary, one composer: HarfBuzz-class shaping for RTL, bidi, Indic, and CJK in every copy, with vertical text and kinsoku/burasagari rules available everywhere. Instantly serves multilingual studios and localization agencies that today juggle language-specific SKUs."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-012",
+      "app": "ID",
+      "title": "High-fidelity HTML/EPUB export that validates",
+      "description": "Reflowable EPUB/HTML export is a chronic weak point: exports fail EPUB 3 validation (spurious absolute positioning when CSS set to Relative, bad xml:lang), distributors have rejected InDesign-produced EPUBs, tables come out 'completely smashed', fonts and images misbehave, and a hang bug on endnote hyperlinks shipped in a release. The Bugs forum has a dedicated ePub/HTML/Publish Online category with 258 ideas.",
+      "demand_evidence": "UserVoice bugs 'EPUB export with common settings fails validation' (suggestion 35363767), 'Issues with epub quality on the new 2023 update' (suggestion 45879523), ID-4222229 endnote-hyperlink hang (suggestion 41381650); UserVoice ePub/HTML bug category (601180, category 209104); Adobe Community 'Maintaining formatting when exporting to EPUB'.",
+      "bridge_opportunity": "Semantic-first export: because styles map to structure, emit clean, standards-validating EPUB3/HTML+CSS (with epubcheck run built into the export dialog). For hybrid print+digital publishers, 'the EPUB passes validation on first export' is a direct, verifiable differentiator."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-013",
+      "app": "ID",
+      "title": "Self-hostable interactive/web output (no vendor-hosted publishing)",
+      "description": "Publish Online, the only built-in interactive web output for years, hosts exclusively on Adobe servers — no intranet, paywall, or own-domain hosting, and content dies with the subscription. Exportable HTML5 only arrived in InDesign 2025 (v20.0); before that users bought the third-party in5 plugin specifically to self-host.",
+      "demand_evidence": "Adobe 'Publish Online FAQ' explicitly states hosting on your own server is not supported; Ajar Productions 'How to Publish Interactive HTML to Your Own Server From InDesign' (the in5 plugin exists to fill this gap); Adobe Community 'How to publish an InDesign project online using another host/url?'.",
+      "bridge_opportunity": "Export interactive documents as a self-contained static bundle (HTML/WASM viewer) deployable to any server, intranet, or offline kiosk. Perfectly aligned with local-first positioning: your published output is a file you own, not a URL you rent."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-014",
+      "app": "ID",
+      "title": "Editable-format round-trips (Word export, arbitrary PDF import)",
+      "description": "There is no native Export-to-Word: only RTF text extraction or PDF-then-convert, losing style names and structure; agencies buy ID2Office for this daily need. The new Open-PDF feature is restricted to PDFs originally exported from InDesign, capped at 150 MB/200 pages, excludes signed/protected PDFs, is absent in MENA/CJK builds, and even successful conversions are described as 'about halfway there'.",
+      "demand_evidence": "Recosoft/ID2Office and Id-Extras 'One-click Export InDesign to Word' exist as paid gap-fillers; Adobe Community 'Exporting InDesign files to Word while retaining style names' (thread 14342443); Adobe help 'PDF to InDesign conversion features and limits' documenting the ID-origin/150MB/200-page restrictions; Community bug threads 'Unable to convert pdf file' (897882).",
+      "bridge_opportunity": "Style-preserving DOCX export/import round-trip (paragraph/character styles map to Word styles bidirectionally) and a real PDF importer that reconstructs any PDF into editable frames. Removes two of the most common agency-to-client friction points and two whole categories of paid plugins."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-015",
+      "app": "ID",
+      "title": "Accessibility (tagged PDF/PDF-UA) that survives re-export without Acrobat",
+      "description": "Producing a compliant PDF/UA file from InDesign still requires post-remediation in Acrobat Pro (tag tree fixes, reading-order corrections, table header repairs); those fixes live only in the PDF, so every re-export from InDesign regenerates the problems. The Articles panel reading order is reported not to reliably drive exported tag order, and third-party post-processors exist specifically to patch InDesign's tagged output.",
+      "demand_evidence": "Equalize Digital 'InDesign & PDF Accessibility Mistakes' (Colleen Gratzer); ACHECKS 'PDF/UA Accessibility Post-Processor for Adobe InDesign exported PDFs' (a product existing solely to fix InDesign output); Adobe Community 'Why won't Articles Panel set reading order in exported PDF?' (thread 10575070); accessibility.psu.edu and doit.illinois.gov guides documenting mandatory Acrobat touch-up.",
+      "bridge_opportunity": "Make the source document the single source of accessibility truth: in-app PDF/UA validation, live tag-tree preview, table header semantics, alt-text management, and exports that pass PAC/veraPDF checks with zero Acrobat step. With EU accessibility law (EAA, in force since June 2025) mandating accessible documents, this is a compliance-driven purchase trigger."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-016",
+      "app": "ID",
+      "title": "Modern, complete automation surface",
+      "description": "InDesign automation rests on ExtendScript, an ES3-era JavaScript dialect Adobe itself calls antiquated; the UXP replacement is incomplete for InDesign (no consistent undo/redo control from plugins, missing DOM coverage vs ExtendScript, UI bugs, sparse documentation), leaving developers stuck between a deprecated platform and an unfinished one. C++ plugin development requires a heavyweight proprietary SDK (UNVERIFIED beyond forum characterizations).",
+      "demand_evidence": "Adobe UserVoice SDK/Scripting forum (913162) including 'No consistent way to control undo/redo of script execution' (suggestion 50340987); Mapsoft 'What is Adobe ExtendScript? 2026 Status' quoting the ES3 characterization; RolandDreger/indesign-uxp-scripting GitHub repo and Indiscripts IDJS articles documenting community trial-and-error due to insufficient docs.",
+      "bridge_opportunity": "A single modern automation story from day one: a documented document model exposed identically to a scripting runtime (modern JS/TS or Python), a CLI/headless mode for server-side rendering, and a stable plugin ABI. Print automation shops (Typefi-class workflows) are high-value customers who choose tools by automation surface."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-017",
+      "app": "ID",
+      "title": "Long-document/book management that keeps pace with document features",
+      "description": "The Book panel is widely described as neglected: new features aren't wired into it (endnotes cannot collect across a book), hyperlinks break if a member document is renamed, cross-doc hyperlink/cross-ref verification makes books crawl, and reviewers note FrameMaker's long-document features still exceed InDesign's despite FrameMaker's decline.",
+      "demand_evidence": "bookdesignmadesimple.com 'InDesign Book feature: the good, the bad, and the ugly'; CreativePro 'Using the Book Panel in InDesign'; indesignsecrets.com 'Put Your Book Documents on a Time-Out for Bad Behavior'; Adobe Community 'InDesign Best Practices 3: Large Documents' (thread 891142).",
+      "bridge_opportunity": "Treat a multi-chapter publication as a first-class project: shared styles/numbering/notes/cross-refs resolved by stable IDs (rename-safe), lazy cross-doc link verification, book-wide find/change and preflight. Combined with the performance and notes items, this positions Handshake as the FrameMaker successor Adobe never built."
+    },
+    {
+      "id": "SFR-BRIDGE-ID-018",
+      "app": "ID",
+      "title": "Find/Change and text-variable ergonomics",
+      "description": "Recurring workflow-friction requests that have sat for years: Find/Change requires deep dialog-diving to set formatting options (users ask for inline dropdowns), text variables/live captions cannot wrap like normal text (forcing users to break the live link to fix layout), and leading cannot be defined as a percentage that tracks point-size changes in styles.",
+      "demand_evidence": "Multiple long-standing requests on the UserVoice top-ideas forum (601021): Find/Change format-options friction, text-variable wrapping, and percentage leading all appear among top-voted ideas (surfaced via the forum's top filter pages).",
+      "bridge_opportunity": "Low-cost, high-visibility wins: a single-surface find/change with query chips and saved queries (regex/GREP included), wrapping live variables, and relative leading in styles. Cheap to build on a fresh engine, and each one is a known named irritation that makes switcher demos land with working professionals."
+    }
+  ]
+}
+```
+
+### [SFR-BRIDGE.af] Affinity V2 suite (Photo 2, Designer 2, Publisher 2, StudioLink) (18 opportunities)
+
+```json
+{
+  "bridge_features": [
+    {
+      "id": "SFR-BRIDGE-AF-001",
+      "app": "AF",
+      "title": "No scripting or automation API across the suite",
+      "description": "Affinity V2 has no scripting support at all (no JavaScript, Python, or AppleScript surface). Automation is limited to recorded Macros and Batch Jobs in Photo, which cannot express conditional logic, cross-app workflows, or document generation. Serif's own support center confirms 'Affinity V2 does not have scripting support.' This blocks studios that rely on Photoshop/InDesign scripting for production pipelines (renaming, export matrices, catalog generation, template population).",
+      "demand_evidence": "Serif support article 'Does Affinity V2 have scripting support?' (support.serif.com/hc/en-us/articles/10259359235599); CG Journal comparison of Photo vs Photoshop actions/batches (cg-journal.com/en/affinityphoto-action-batch) noting no scripting language; makeuseof and clippingpathexperts articles note user demand for native automation is high; long-running scripting feature-request threads on forum.affinity.serif.com.",
+      "bridge_opportunity": "Ship a first-class local scripting/automation surface (embedded scripting runtime plus a documented Rust plugin ABI and CLI headless mode) from day one. Local-first fits Handshake's architecture: headless batch/export pipelines, watch-folder automation, and deterministic document generation give agencies the Photoshop-script/InDesign-script replacement Affinity never delivered, and double as the machine-operable surface Handshake needs for its own AI/agent integration."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-002",
+      "app": "AF",
+      "title": "No third-party plugin ecosystem / Photoshop plugin incompatibility",
+      "description": "Affinity Photo cannot run the Photoshop plugin architecture that professional retouchers depend on (Nik Collection, Topaz, and thousands of specialized filters run poorly or not at all); the Affinity-native plugin surface is minimal. Users must rebuild workflows or abandon tools they own.",
+      "demand_evidence": "inkydesignworks.com/posts/affinity-photo-problems documents incompatibility with Photoshop plugin architecture and inability to run Nik/Topaz-class tools; fstoppers.com Affinity Photo 2 review contrasts Photoshop's enormous plugin ecosystem with Affinity's limited support.",
+      "bridge_opportunity": "Design a stable, documented native plugin API (filters, tools, panels, export hooks) with an open SDK, plus a compatibility shim for the most common plugin classes (8bf-style filter plugins). A local-first plugin marketplace with no cloud dependency is a direct differentiator against both Adobe (subscription-gated) and Affinity (no surface at all)."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-003",
+      "app": "AF",
+      "title": "No smart-object equivalent and lossy PSD smart-object round-trip",
+      "description": "Affinity Photo 2 has no equivalent of Photoshop smart objects (re-editable, non-destructively embedded/linked source layers with reapplicable transforms/filters). PSD files containing smart objects import with those layers rasterized to pixels, destroying editability; users report masks lost as well. This breaks round-trip collaboration with Photoshop-based clients.",
+      "demand_evidence": "Affinity forum thread 'Are Smart Objects not available in Affinity Photo?' (forum.affinity.serif.com topic 200795); photopea GitHub issue #3771 documenting smart objects converted to pixels when a PSD is opened in Affinity Photo; lifeafterphotoshop.com review lists smart objects among key missing Photoshop features.",
+      "bridge_opportunity": "Implement true linked/embedded smart layers natively (non-destructive nested documents with preserved transforms and filter stacks) and preserve PSD smart objects on import/export instead of rasterizing. Full-fidelity PSD round-trip is the single highest-leverage trust feature for studios migrating off Photoshop."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-004",
+      "app": "AF",
+      "title": "No automatic raster-to-vector tracing (Image Trace)",
+      "description": "Affinity Designer 2 has no bitmap auto-trace; converting logos, scans, or sketches to vectors requires hand-tracing with the Pen/Pencil tool. This is repeatedly cited as one of the two most-missed Illustrator tools and a workflow blocker for logo/branding work. (The 2025 Canva-era Affinity added a trace feature users describe as half-baked with limited parameter control; V2 itself never had one.)",
+      "demand_evidence": "xda-developers.com article '7 features of Adobe Illustrator that are missing from Affinity Designer' (feature #1); Affinity forum thread 'Designer V2 and Image Trace' (topic 171256); creofora.com forum thread on Image Trace limitations describing the newer implementation as inflexible.",
+      "bridge_opportunity": "Ship a best-in-class deterministic vectorizer (color quantization, curve-fit quality controls, live re-trace parameters, centerline tracing for line art) as a native Rust engine — fast local tracing on large scans is a concrete performance-plus-capability win Affinity never matched and Illustrator gates behind subscription."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-005",
+      "app": "AF",
+      "title": "No Blend tool / distribute-objects-along-path",
+      "description": "Designer 2 has no equivalent of Illustrator's Blend tool (interpolating shape, color, and position between objects) and no native way to distribute copies along a path; users must place every object manually or abuse symbol-font-on-path workarounds.",
+      "demand_evidence": "xda-developers.com '7 features missing from Affinity Designer' (feature #3) states there is no native blend or distribute-along-path and calls the manual process 'painstakingly long'; the article names Blend one of Illustrator's most popular tools whose absence makes a full Affinity workflow hard.",
+      "bridge_opportunity": "Implement parametric blends (step/spacing/orientation controls, editable spine path, live color/shape interpolation) plus a general 'scatter/repeat along path' primitive. Cheap to build on a modern vector engine and instantly demo-able as a parity headline against both Illustrator and Affinity."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-006",
+      "app": "AF",
+      "title": "No gradient mesh",
+      "description": "Designer 2 lacks a gradient/mesh fill tool for photorealistic multi-point vector shading, present in Illustrator, CorelDRAW, and even free alternatives (Inkscape). Community calls it one of the 'big' missing items.",
+      "demand_evidence": "Affinity forum thread 'Designer: Feature Request - Gradient Mesh Tool' (topic 202108) describing gradient mesh as one of the big things missing from Designer and present in almost all alternatives.",
+      "bridge_opportunity": "Ship gradient mesh (and modern freeform/diffusion gradients like Illustrator's Freeform Gradient) natively; GPU-evaluated mesh shading in a Rust/wgpu renderer can outperform Illustrator's CPU implementation and closes a gap Affinity ignored for a decade."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-007",
+      "app": "AF",
+      "title": "No right-to-left or complex-script text support (Arabic, Hebrew, Farsi, Urdu, Indic)",
+      "description": "The entire Affinity suite lacks RTL text layout and complex text shaping: no correct letter joining for Arabic/Urdu, no RTL paragraph direction, no mirrored layouts. The gap has persisted since 2015 across V1 and V2, spawning paid third-party workaround tools (RTL Fixer). This makes the suite unusable for multilingual print/publishing studios.",
+      "demand_evidence": "Affinity forum mega-thread 'Fix RTL for Arabic, Persian and Hebrew languages' (topic 78209, 10+ pages, complaints dating to 2015); rtlfixer.com exists specifically to patch Arabic/Farsi support into Affinity apps, documenting missing shaping and joining.",
+      "bridge_opportunity": "Build the text engine on a proper shaping stack (HarfBuzz-class shaping, bidi, vertical/CJK layout) from the start. Full international typography is enormously expensive to retrofit — shipping it natively locks in the global publishing market Affinity structurally cannot serve and matches InDesign's ME edition without a separate SKU."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-008",
+      "app": "AF",
+      "title": "No vertical type / CJK typography",
+      "description": "Designer 2 (and the suite generally) has no dedicated vertical type tool; vertical text for CJK or design layouts requires manual letter-by-letter positioning. InDesign/Illustrator support vertical writing modes natively.",
+      "demand_evidence": "xda-developers.com '7 features missing from Affinity Designer' (feature #6) documents absence of a Vertical Type tool and the manual repositioning workaround.",
+      "bridge_opportunity": "Same text-engine investment as RTL: support vertical writing modes, tate-chu-yoko, and CJK composition rules. Combined with RTL this makes Handshake the only non-Adobe pro suite with full international text, a clear studio-migration unlock for JP/CN/KR/ME markets."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-009",
+      "app": "AF",
+      "title": "No GREP styles or nested styles in Publisher",
+      "description": "Publisher 2 lacks InDesign's GREP styles (regex-driven automatic character styling inside paragraph styles) and nested styles — cornerstone automation for long-document typesetting (auto-styling run-ins, numbers, fractions, dialogue). Missing since V1 and never added in V2.",
+      "demand_evidence": "Wikipedia Affinity Publisher article documents lack of GREP-based and nested styles at release; search of V2 documentation and forum shows no GREP-style feature added in the V2 line; recurring requests on forum.affinity.serif.com feedback board.",
+      "bridge_opportunity": "Ship regex-driven style rules and nested/line styles in the paragraph-style model, with live preview of matches. Cheap relative to a text engine already being built, and it targets exactly the book/editorial typesetters most likely to leave InDesign if capability is preserved."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-010",
+      "app": "AF",
+      "title": "No IDML (InDesign) export — one-way format compatibility",
+      "description": "Publisher 2 imports IDML but cannot export to IDML (or .indd), so any document that enters Affinity can never go back to an InDesign-based printer, publisher, or client. This one-way door is a hard adoption blocker for studios embedded in InDesign-centric supply chains.",
+      "demand_evidence": "Affinity forum thread 'Is IDML export from Publisher going to be supported?' (topic 193956) requesting an official statement; Serif support article confirms import-only IDML capability; creative-boost.com InDesign-vs-Publisher comparison notes Publisher cannot write .indd.",
+      "bridge_opportunity": "Implement IDML write support (it is a documented, ZIP+XML open spec) alongside IDML import. Two-way InDesign interchange removes the biggest structural switching risk for agencies and positions Handshake as the safe migration path rather than a one-way trap."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-011",
+      "app": "AF",
+      "title": "Weak accessible-PDF output (limited tagging, no PDF/UA) and no EPUB export",
+      "description": "Publisher 2 supports basic tagged-PDF export (alt text, reading order, P and H1–H6 export tags only) but cannot assign other tag types to styles and does not produce PDF/UA-compliant output; there is no EPUB/reflowable ebook export at all. Accessibility mandates (EU Accessibility Act, Section 508) increasingly make this a hard requirement for publishers.",
+      "demand_evidence": "Affinity forum thread 'Accessible PDF (tagged PDF) and (accessible) EPUB with Publisher?' (topic 170266); michaelhans.com/eclecticism (2025-11-06) accessible-PDF output test documenting that only P/H1–H6 tags can be assigned and EPUB output needs work; Affinity help pages confirm the limited tagging surface.",
+      "bridge_opportunity": "Ship full tagged-PDF with PDF/UA-1 compliance (table/list/figure/artifact tags, role mapping from styles, validation preflight) and EPUB3 export from the same document model. Regulatory tailwind means studios must have this by 2025+ EU deadlines — a capability gate Adobe meets and Affinity does not."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-012",
+      "app": "AF",
+      "title": "No overprint preview and shallow prepress toolset",
+      "description": "Publisher 2 cannot preview overprint on canvas; Serif's own guidance is to export the PDF and check it in Adobe Acrobat — meaning a printer still needs an Adobe tool to verify output. Preflight exists but is shallow compared to InDesign+Acrobat prepress workflows (ink coverage limits, separations-based checking).",
+      "demand_evidence": "affinityspotlight.com article 'Designing for professional printing in Affinity V2' explicitly states Publisher 'does not offer overprint preview at the moment' and recommends checking exported PDFs in Acrobat with Overprint Preview; Affinity help pages document overprint attributes without on-canvas preview.",
+      "bridge_opportunity": "Ship on-canvas separations preview, overprint simulation, total-ink-coverage heatmaps, and a rule-based preflight engine. A print-production suite that never requires Acrobat for verification is a direct 'replace the whole Adobe stack' claim and lands with print studios first."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-013",
+      "app": "AF",
+      "title": "No DAM / raw catalog / asset browser",
+      "description": "Affinity Photo 2 has no image browser, catalog, culling, keywording, rating, or collection system (no Lightroom/Bridge equivalent), forcing photographers to pair it with third-party DAM software. Reviewers repeatedly flag this as the biggest ecosystem hole for photo professionals.",
+      "demand_evidence": "digitalcameraworld.com Affinity Photo 2 review notes a much-needed Raw image browser/catalog remains absent; inkydesignworks.com documents the missing asset-management layer vs Lightroom for thousands of images with keywords/ratings/collections.",
+      "bridge_opportunity": "Ship a local-first asset catalog (fast folder-watching indexer, ratings/keywords/collections, tethered to the editor with virtual copies) — no cloud subscription required. Local-first indexing in Rust is a performance story (instant search over 100k+ images) and completes the 'replace Lightroom+Photoshop' loop Affinity never closed."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-014",
+      "app": "AF",
+      "title": "Instability and performance walls on large documents and Windows GPU acceleration",
+      "description": "Photo 2 shows degraded stability and memory management on 100+ MP files, large focus stacks, and multi-hundred-layer documents; on Windows, OpenCL hardware acceleration is a recurring crash source (launch crashes, Windows 24H2 instability requiring driver fixes or disabling acceleration entirely — losing performance). Serif's own support pages document disabling OpenCL as the standard remedy.",
+      "demand_evidence": "inkydesignworks.com documents degraded stability on 100+MP files and unpredictable memory reclamation; Serif support articles 'How do I disable OpenCL Compute Acceleration on Windows?' and 'Windows 24H2 update can cause Affinity app Instability with OpenCL Acceleration Enabled' (support.serif.com); Affinity forum topic 174203 on OpenCL issues.",
+      "bridge_opportunity": "Handshake's native Rust + modern GPU API (wgpu/Vulkan/Metal/DX12 instead of OpenCL) architecture directly targets this: tiled/out-of-core document handling for multi-gigapixel files, deterministic memory budgets, and GPU acceleration that does not have to be turned off to be stable. Publish reproducible large-document benchmarks against Photo 2 and Photoshop as marketing."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-015",
+      "app": "AF",
+      "title": "Rigid artboard-only workspace and primitive guide system in Designer",
+      "description": "Designer 2 restricts drawing to artboards with no usable scratch/pasteboard space around them for variations and swatches; guides are horizontal/vertical only (no angled guides or convert-shape-to-guide); multiple artboards cannot be specified at document creation. Each is a small friction, collectively cited as daily-workflow pain versus Illustrator.",
+      "demand_evidence": "xda-developers.com '7 features missing from Affinity Designer' features #2 (shape/angled guides), #5 (working outside artboards), #7 (multiple artboards at creation), each with described manual workarounds.",
+      "bridge_opportunity": "Trivial-to-moderate engineering with outsized daily-use payoff: infinite pasteboard with artboards as export regions, guides from any path at any angle, and multi-artboard document templates. These 'paper-cut' fixes are what reviewers list when comparing switchers' experience — cheap parity wins for launch reviews."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-016",
+      "app": "AF",
+      "title": "Raster-based 'vector' brushes that cannot be expanded to curves",
+      "description": "Designer 2's vector brushes are bitmap textures stretched along a path, not true vector strokes: they cannot be expanded to curves, degrade on scaling, and are useless for cutting/plotting/laser workflows or clean SVG export. Illustrator's art/scatter/bristle brushes remain fully vector.",
+      "demand_evidence": "2dgameartguru.com vector-brush guide documents that Affinity brushes are bitmap images along a vector line, cannot be expanded to curves, and cause limitations for scaling and export for cutting/lasering; recurring forum requests for true vector brushes on forum.affinity.serif.com.",
+      "bridge_opportunity": "Implement genuine vector brushes (art/pattern/scatter brushes defined as vector art with expand-to-outlines), keeping output resolution-independent and machine-ready (SVG, cutters, plotters). Directly serves illustration plus the craft/cutting-machine market Affinity's raster brushes lock out."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-017",
+      "app": "AF",
+      "title": "Weak offset-path workflow",
+      "description": "Designer 2 has no one-step Offset Path equivalent; its Contour tool requires duplicating layers and combining multiple tools to produce an editable offset outline around text or graphics, which reviewers call far less efficient than Illustrator's single command.",
+      "demand_evidence": "xda-developers.com '7 features missing from Affinity Designer' (feature #4) describes the Contour-tool workaround requiring 'duplicating and reorganizing layers and using a multitude of tools'.",
+      "bridge_opportunity": "One-command live offset path (positive/negative, joins, live re-editable distance) built on the geometry kernel; small feature, frequently used in logo/signage/sticker production, and a standard reviewer checklist item for Illustrator parity."
+    },
+    {
+      "id": "SFR-BRIDGE-AF-018",
+      "app": "AF",
+      "title": "Unreliable dynamic cross-references in Publisher",
+      "description": "Publisher 2's cross-reference feature (added 2.2) has documented reliability problems — users report broken/incorrect cross-reference updates in long documents, undermining trust for technical/book publishing where dynamic references are load-bearing.",
+      "demand_evidence": "Affinity forum thread 'Problems with Publisher cross-references' (topic 194232) in the V2 feedback board. Marked partially verified: the thread title and board confirm recurring problems, but the specific failure modes were not individually inspected in this audit.",
+      "bridge_opportunity": "Treat cross-references, variables, and running headers as first-class document-model objects with transactional update semantics and a validation panel listing broken targets. Reliability-by-architecture here differentiates against both Publisher's bolt-on and InDesign's aging implementation."
+    }
+  ]
+}
+```
+
+### [SFR-BRIDGE.fg] Figma (Design, Draw, Dev Mode; FigJam/Slides/Sites/Buzz/Make secondary) (16 opportunities)
+
+```json
+{
+  "bridge_features": [
+    {
+      "id": "SFR-BRIDGE-FG-001",
+      "app": "FG",
+      "title": "True offline mode and local-first files",
+      "description": "Figma cannot open or save local files and has no fully-featured offline mode. Offline work only functions for files/pages already opened in the session, with changes synced back when reconnected; there is no way to download a whole project for offline work or to work without an account/login. Figma has stated it has no plans for a full offline mode; the desktop app is effectively a wrapped browser.",
+      "demand_evidence": "Multiple long-running Figma Forum threads (2021-2026): 'Plans for an supporting OFFLINE Figma' (forum.figma.com/ask-the-community-7/plans-for-an-supporting-offline-figma-29688), 'Just OFFLINE!!!' (48557), 'OFFLINE feature' (53906), 'Working locally' (40822), 'Will Figma Support True Local-First Workflows and Incremental Sync?' (41358); Figma Help Center confirms the limitation (help.figma.com/hc/en-us/articles/360040328553).",
+      "bridge_opportunity": "Handshake Studio is local-first by architecture: native .file open/save on disk, full offline creation and editing with no account requirement, plus optional sync. This is the single clearest structural differentiator against Figma since Figma's cloud-only model is a stated design philosophy they will not reverse."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-002",
+      "app": "FG",
+      "title": "CMYK / print-production export pipeline",
+      "description": "Figma is RGB-only: no CMYK color model, no print-ready PDF export with bleed, crop marks, spot colors (Pantone), overprint, ICC profile embedding, or DPI control. Users designing labels, packaging, and marketing collateral must buy third-party plugins (Printery, Print for Figma, PrintPlix) that users describe as cumbersome and nearly as expensive as an Illustrator license.",
+      "demand_evidence": "Figma Forum 'Export to CMYK' (forum.figma.com/suggest-a-feature-11/export-to-cmyk-36522) and 'Printing missing' (41577); community discussion 'Figma's missing feature: CMYK PDF export for print' (community.latenode.com/t/figmas-missing-feature-cmyk-pdf-export-for-print/19621); a whole paid plugin ecosystem (print-for-figma.com, Printery, PrintPlix) exists solely to patch this gap.",
+      "bridge_opportunity": "Ship a first-class prepress pipeline: CMYK/spot color models, ICC-managed RGB→CMYK conversion, bleed/trim/crop marks, overprint preview, preflight checks, and PDF/X export. Lets studios do brand + print + digital in one tool, which neither Figma nor most screen-design competitors can."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-003",
+      "app": "FG",
+      "title": "Native data-table primitive",
+      "description": "No native table tool for designing data tables: no responsive tables, cell merging, row/column resize independent of font, content wrapping, or full row/column prototype interactions. Users report the grid/auto-layout/slots workarounds are 'half-baked' and 'buggy'; B2B app designers report 'infuriating amounts of wasted time'. Figma has said a real table tool is not on the Design roadmap (Slides/FigJam tables only).",
+      "demand_evidence": "Figma Forum threads spanning years: 'Tables for Figma' (forum.figma.com/suggest-a-feature-11/tables-for-figma-8001), 'Actually responsive tables on figma' (52712), 'Feature Request: Advanced Table Editing' (54027), 'Figma table feature' (34220), 'Feedback: grid limitations when creating tables' (48267).",
+      "bridge_opportunity": "A true table object (data-bound, responsive column sizing, merge/split, styles per row/column, interaction states) directly serves B2B/enterprise product design — the highest-paying Figma segment with the loudest unmet complaint."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-004",
+      "app": "FG",
+      "title": "Professional typography and composition engine",
+      "description": "Figma lacks hyphenation, justification controls, linked/threaded text boxes (text flow), baseline-grid alignment, and has a limited OpenType implementation compared to InDesign/Illustrator; OpenType alternates are not writable via the Plugin API, so plugins cannot automate them. Typography-heavy layouts (editorial, long-form) are widely described as impractical.",
+      "demand_evidence": "Figma Forum 'Text Wrapping and Hyphenation for Better Layouts' (forum.figma.com/suggest-a-feature-11/text-wrapping-and-hyphenation-for-better-layouts-38478) — community asking 'for years'; 'Writable OpenType alternates in the Figma Plugin API' (51707); type-community blogs (pimpmytype.com/figma-typography-tips, type.today/en/journal/uiuxtypography) documenting the gaps.",
+      "bridge_opportunity": "A HarfBuzz-class shaping and composition engine (hyphenation dictionaries, optical margin alignment, baseline grids, threaded frames, full OpenType feature surface exposed to both UI and automation API) gives Handshake InDesign-grade text in a screen-design tool — a capability neither Figma nor Sketch has."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-005",
+      "app": "FG",
+      "title": "Large-document performance without the browser memory ceiling",
+      "description": "Figma files are capped by the ~2GB-per-browser-tab memory limit; files approaching it show memory warnings, slow to a crawl, or crash. Official guidance is to manually split files, compress images, and delete hidden layers. Large design systems, big component sets, and image-heavy files routinely hit this wall even in the desktop app.",
+      "demand_evidence": "Figma Help Center 'Reduce memory usage in files' (help.figma.com/hc/en-us/articles/360040528173) documents the hard limit; recurring forum reports: 'Figma serious slow performance' (forum.figma.com/report-a-problem-6/figma-serious-slow-performance-41555), 'How do I handle large Figma files that are becoming too slow or laggy?' (47583), 'Figma running very slow' (42811).",
+      "bridge_opportunity": "Native Rust + GPU rendering with disk-backed document streaming removes the tab-memory ceiling entirely. Benchmark marketing: open and edit files that crash Figma. Performance-class parity is explicitly a Handshake goal and this is Figma's best-documented hard wall."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-006",
+      "app": "FG",
+      "title": "Real version control: branch-to-branch merge, selective merge, deep history",
+      "description": "Figma branching supports only main↔branch, one level deep: no sub-branches, no merging one branch into another, no cherry-picking which changes to accept when updating from main. Version history is a stream of minute-level autosaves that teams find unusable for release management; teams document abandoning branching entirely.",
+      "demand_evidence": "Figma Forum 'Extended Branching & Version Control (Merge branch into branch, Sub branches, Git like versioning)' (forum.figma.com/suggest-a-feature-11/...-46960) and 'Git Like versioning' (27857); practitioner postmortem 'Why Branching in Figma Didn't Work for Us' (medium.com/devexperts/why-branching-in-figma-didnt-work-for-us-...-96c05a3d0590).",
+      "bridge_opportunity": "Local files make git-native design version control feasible: real DAG branching, semantic diff/merge of the document model, named releases, and offline history. Pairs naturally with Handshake's local-first architecture and with developer-adjacent studio workflows."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-007",
+      "app": "FG",
+      "title": "Timeline/keyframe animation and animated export (Lottie, GIF, MP4, animated SVG)",
+      "description": "Smart Animate has no editable timeline, no keyframes, no editable easing curves over time, and no sequencing of properties. Animations exist only inside Present mode; native export covers static PNG/JPG/SVG/PDF only — no Lottie, GIF, or video export. Users must recreate motion in third-party tools or pay for LottieFiles.",
+      "demand_evidence": "Figma Forum 'Smart Animate - Edit Timeline' (forum.figma.com/suggest-a-feature-11/smart-animate-edit-timeline-19784); 'How to export a smart animation as JSON/Lottie?' (12204); LottieFiles forum threads on broken Figma export (forum.lottiefiles.com/t/figma-export-to-lottie-delay-timing-no-longer-working/5977); community 'requesting native Lottie support for years' per figanimations.com guides.",
+      "bridge_opportunity": "Ship a real motion timeline (keyframes, curves, property tracks) with first-class Lottie/animated-SVG/video export. Collapses the Figma→After Effects/LottieFiles round-trip into one tool — a concrete deliverable-output gap, not a nice-to-have."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-008",
+      "app": "FG",
+      "title": "Advanced vector illustration tools (mesh gradients, width profiles, full path operations)",
+      "description": "Even with Figma Draw (Config 2025), advanced vector work stays out of reach: no mesh gradients (plugin-only, rasterized results), no stroke width profiles beyond basic variable-width, weaker path/pathfinder-class operations and curve manipulation than Illustrator. Reviews position Draw as covering '80% of everyday Illustrator tasks' with the advanced 20% explicitly missing. UI3 vector-editing regressions also drew complaints.",
+      "demand_evidence": "Config 2025 Draw feedback megathread (forum.figma.com/share-your-feedback-26/config-2025-figma-draw-is-here-...-40305); 'Vector editing DRAMATICALLY worse on UI3' (forum.figma.com/suggest-a-feature-11/vector-editing-dramatically-worse-on-ui3-24822); comparison coverage (designsystems.surf 2025 release review; figtowp.com/figma-vs-illustrator) naming mesh gradients and prepress as remaining Illustrator territory.",
+      "bridge_opportunity": "Handshake's vector engine can target the full Illustrator feature envelope (mesh/freeform gradients, width profiles, robust boolean/pathfinder set, precise pen tooling) so studios stop keeping an Adobe seat 'just for illustration'."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-009",
+      "app": "FG",
+      "title": "Prototyping logic beyond variables: functions, loops, data, and state without screen explosion",
+      "description": "Figma variables/conditionals lack functions, arrays, and loops; dynamic content (e.g. adding rows to a list) forces duplicated screens or brittle workarounds; users report variable-linked text failing to update after the first interaction. Practitioners conclude writing real code is faster than building complex Figma prototypes, pushing teams to Axure or code.",
+      "demand_evidence": "Figma Forum 'Issues with Figma Prototypes: Variable-Linked Text Not Updating and Conditional Logic Limitations' (forum.figma.com/ask-the-community-7/...-9843); 'Figma variables and conditionals: a reality check' (medium.com/design-bootcamp/figma-variables-and-conditionals-reality-check-7a84ef3d8a5c).",
+      "bridge_opportunity": "A real state model (arrays, expressions, reusable logic, data-bound components) in the prototyping layer eliminates screen-explosion. Marked opportunity: Handshake can prototype against real/sample data locally — no cloud dependency, no per-seat gating."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-010",
+      "app": "FG",
+      "title": "High-fidelity SVG and asset export",
+      "description": "SVG export is lossy and frequently broken: inside/outside stroke alignment is faked (SVG supports center only) producing clipped or wrong-weight strokes, strokes are exported as fills, blend modes are dropped, masks/gradients/shadows disappear, dashed lines render solid. Users report exported SVGs 'look completely different' in browsers.",
+      "demand_evidence": "Figma Forum 'SVG Export Issue' (forum.figma.com/t/svg-export-issue/3424), 'Exported SVGs code is causing problems' (34057), 'Error with SVG Export' (36717); an ecosystem of fix guides exists (svggenie.com/blog/figma-svg-stroke-fix, freesvgonline.com/figma-svg-export) documenting recurring failure classes.",
+      "bridge_opportunity": "Deterministic, spec-faithful SVG export (proper stroke expansion, blend-mode fallback strategies with preview, optimized clean output) plus export preview diffing. 'What you export is what ships' is an easily demonstrable fidelity win for dev handoff."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-011",
+      "app": "FG",
+      "title": "End-to-end color management (ICC pipeline, reliable profile handling)",
+      "description": "Color management is limited to a binary sRGB/Display P3 document setting. Reported problems: imported P3 images mapped to sRGB, the profile toggle reverting/stuck (cannot switch back to sRGB), color shifts when handing off to After Effects and other tools, and P3 colors clipping unpredictably on non-P3 displays and in print. No per-document ICC profiles, no soft-proofing, no gamut warnings.",
+      "demand_evidence": "Figma Forum: '[BUG] Cannot go back to sRGB after selecting Display P3' (forum.figma.com/ask-the-community-7/...-18549), 'Problem with managing image colour profiles' (34569), 'Inconsistent/Incorrect Colors in sRGB Profile' (14724), 'Maintaining colors in After Effects' (27380), P3 plugin API issues (39211).",
+      "bridge_opportunity": "Full ICC-managed color from import to export: per-document working spaces, embedded-profile respect, soft-proofing/gamut warnings, consistent numbers across handoff targets. Table-stakes in Adobe-land, absent in Figma — and required anyway for Handshake's print pipeline."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-012",
+      "app": "FG",
+      "title": "Built-in accessibility tooling that works with the design system (and accessible output)",
+      "description": "Figma's native contrast checker only works when picking a raw hex — it is unavailable for color styles and does not work with color variables, i.e. exactly where design systems live. There are no native accessibility annotations (focus order, roles, alt text) — teams rely on plugins and manual annotation kits; exports (e.g. PDF) carry no accessibility structure such as tagging.",
+      "demand_evidence": "Figma Forum 'Why is the Accessibility color contrast only visible in direct color mode vs. Style color' (forum.figma.com/ask-the-community-7/...-39325); plugin ecosystem filling the gap (Accessibility Contrast Checker, Corpowid WCAG plugins on figma.com/community); practitioner guidance on manual annotation workflows (stephaniewalter.design/blog/how-to-check-and-document-design-accessibility-in-your-figma-mockups). Tagged-PDF absence: UNVERIFIED as an explicit user complaint, but consistent with Figma's static-PDF export scope.",
+      "bridge_opportunity": "System-aware accessibility: contrast checking across styles/variables/modes, first-class a11y annotations (roles, focus order, alt text) flowing into dev handoff, and tagged/accessible PDF export. Serves both product-design handoff and Handshake's print/document ambitions."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-013",
+      "app": "FG",
+      "title": "Ungated inspect, measurement, and annotation for developers",
+      "description": "Measurement/redline and annotation tools are gated to full design seats; Dev Mode seats lost the old free Inspect capabilities and still lack rulers and annotation. Beyond pricing, the technical gap is that there is no way for a consumer of a design to measure and annotate without editor privileges — the capability is tied to seat class rather than being a universal read-surface.",
+      "demand_evidence": "Figma Forum 'Give Dev seats rulers and annotation tools' (forum.figma.com/suggest-a-feature-11/give-dev-seats-rulers-and-annotation-tools-41252); Dev Mode pricing megathreads documenting loss of the old Inspect feature (forum.figma.com/t/dev-mode-pricing/61271, /t/licensing-dev-mode-at-a-high-cost/61481).",
+      "bridge_opportunity": "Make inspect/measure/annotate a free, universal capability of any Handshake file viewer (local or shared), with structured annotation data accessible to automation. Directly converts the most resented Dev Mode gating into a switching argument for whole teams, not just designers."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-014",
+      "app": "FG",
+      "title": "Nested/composable styles and finer-grained token application",
+      "description": "No nested style variants (e.g. a color style with hover/pressed sub-variants, or text style families that inherit and override); styles are flat. Token/variable application granularity is limited — e.g. tokens cannot target a word range within a text layer due to Plugin API limits, and typography tokens with percentage units cannot map to variables. Design-system teams manage this with external tooling (Tokens Studio) and manual reconciliation.",
+      "demand_evidence": "Figma Forum 'Nested Styles: Color Style and Text Style variants' (forum.figma.com/suggest-a-feature-11/nested-styles-color-style-and-text-style-variants-31895); Tokens Studio documentation explicitly cataloguing Figma API limitations (docs.tokens.studio/figma/styles-overview, docs.tokens.studio/manage-tokens/token-types/typography/).",
+      "bridge_opportunity": "A style/token model designed for inheritance and composition from day one (style variants, range-level token application, first-class token export to code) removes the Tokens-Studio-shaped hole and appeals to the design-systems teams who drive tool adoption."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-015",
+      "app": "FG",
+      "title": "Layout-engine gaps: negative spacing, absolute positioning, and grid parity in Auto Layout",
+      "description": "Recurring Auto Layout/Grid requests: negative values in Auto Layout, better absolute-position support inside Auto Layout, Grid mode lacking Fill/Fixed/Hug sizing options, and grid settings being lost when switching between layout modes. These force detach-and-rebuild workarounds and are cited as blockers for building truly responsive components (including tables).",
+      "demand_evidence": "Figma Forum 'Feature Requests for Improving Grid Auto Layout in Figma' (forum.figma.com/suggest-a-feature-11/feature-requests-for-improving-grid-auto-layout-in-figma-40911) and related Auto Layout threads surfaced from the Suggest-a-Feature board; responsive-table thread 52712 ties the gap to concrete workflows.",
+      "bridge_opportunity": "Implement a CSS-grade layout engine (flex + grid with full sizing semantics, negative margins, absolute children, mode-stable settings) so component layout matches what developers actually build — strengthening Handshake's design-to-code fidelity story."
+    },
+    {
+      "id": "SFR-BRIDGE-FG-016",
+      "app": "FG",
+      "title": "Documented exclusion: AI features",
+      "description": "Figma AI, First Draft, Figma Make prompt-based generation, and other ML-assisted features are intentionally excluded from this audit per scope rules (Handshake ships its own AI natively). Noted only so downstream consumers know the omission is deliberate, not an oversight. One adjacent non-AI signal retained: users request managing/clearing Figma Make prompt history because it causes performance/memory issues (forum.figma.com Suggest-a-Feature board).",
+      "demand_evidence": "Scope rule of this audit; Figma Make history/performance request seen on forum.figma.com Suggest-a-Feature board.",
+      "bridge_opportunity": "Not applicable (exclusion marker). Handshake provides native AI independently."
+    }
+  ]
+}
+```

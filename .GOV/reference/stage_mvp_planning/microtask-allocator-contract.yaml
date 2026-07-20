@@ -1,0 +1,219 @@
+stage_microtask_allocator_contract:
+  schema_id: hsk.stage_microtask_allocator_contract@1
+  allocator_id: stage-microtask-allocator
+  authority: NON_AUTHORITATIVE_REFERENCE
+  status: SPECIFIED_UNBOUND
+  updated_at: "2026-07-19"
+  wp_id: WP-1-Handshake-Stage-MVP-v1
+  purpose: >-
+    Deterministically compile the later approved Stage requirement, acceptance,
+    topology, dependency, and release graph into official machine-readable
+    Handshake microtask contracts. This planning contract is not an alternative
+    microtask authority and cannot create or activate official microtasks by itself.
+
+canonical_output:
+  schema_id: hsk.microtask_contract@1
+  schema_path: .GOV/roles_shared/schemas/MICRO_TASK_CONTRACT.schema.json
+  template_path: .GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json
+  contract_pattern: .GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-###.json
+  projection_pattern: .GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-###.md
+  packet_contract: .GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/packet.json
+  contract_authority: PRIMARY_MACHINE_READABLE
+  projection_authority: GENERATED_NON_AUTHORITATIVE
+  projection_rule: >-
+    The Markdown file is generated only on demand or when contract-bound, cites
+    the JSON source hash, and cannot activate work or override the JSON contract.
+
+required_inputs:
+  - { id: STAGE-ALLOC-IN-001, path: .GOV/reference/stage_mvp_planning/requirements-and-traceability.yaml, required_state: every_requirement_resolved_exactly_once }
+  - { id: STAGE-ALLOC-IN-002, path: .GOV/reference/stage_mvp_planning/acceptance-registry.yaml, required_state: all_117_atomic_rows_valid }
+  - { id: STAGE-ALLOC-IN-003, path: .GOV/reference/stage_mvp_planning/acceptance/, required_state: every_requirement_has_positive_negative_failure_and_evidence_cases }
+  - { id: STAGE-ALLOC-IN-004, path: .GOV/reference/stage_mvp_planning/production-gates.yaml, required_state: graph_valid_commands_bound_before_execution }
+  - { id: STAGE-ALLOC-IN-005, path: .GOV/reference/stage_mvp_planning/dependency-gates.yaml, required_state: every_external_dependency_has_exact_entry_and_unavailable_contract }
+  - { id: STAGE-ALLOC-IN-006, path: .GOV/reference/stage_mvp_planning/pillar-compatibility-matrix.yaml, required_state: all_24_pillars_have_explicit_disposition_and_edge_resolution }
+  - { id: STAGE-ALLOC-IN-007, path: .GOV/reference/stage_mvp_planning/legacy-stage-disposition-register.yaml, required_state: exact_baseline_inventory_no_catchall_closure }
+  - { id: STAGE-ALLOC-IN-008, path: .GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md, required_state: exact_owned_shared_forbidden_reference_paths_bound }
+  - { id: STAGE-ALLOC-IN-009, path: .GOV/reference/stage_mvp_planning/planning-readiness.yaml, required_state: operator_decisions_locked_and_authority_pass_started }
+  - { id: STAGE-ALLOC-IN-010, path: .GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/packet.json, required_state: later_approved_packet_contract_exists }
+
+generation_preconditions:
+  all_required: true
+  conditions:
+    - "The operator has explicitly started the later Master Spec/WP/MT authority pass."
+    - "The current Master Spec Stage topic and approved refinement exist and pass their canonical validators."
+    - "The replacement Stage packet has one approved exact integration baseline."
+    - "Every input ID, requirement, source, decision, spec anchor, pillar edge, acceptance row, release, production gate, dependency gate, evidence type, and path resolves."
+    - "Every legacy Stage surface has an exact disposition; a catchall row is not closure evidence."
+    - "Every external dependency is either PASS at the exact approved baseline or assigned to an explicit prerequisite MT that can close it without pretending Stage already consumes it."
+    - "All generated contracts pass the canonical microtask schema and packet-local validators before activation."
+
+deterministic_allocation:
+  ordering:
+    - topological_wave
+    - lane_numeric_order
+    - dependency_gate_order
+    - requirement_id_lexical_order
+    - closure_unit_lexical_tiebreak
+  id_policy:
+    pattern: MT-###
+    start: MT-001
+    contiguous: true
+    reuse_retired_id: false
+    allocation_receipt_required: true
+  atomicity_rule: >-
+    One microtask has one externally provable closure unit and one primary proof
+    target. Multiple requirements may share that task only when the same code or
+    contract change and the same validator verdict close them together.
+  split_triggers:
+    - more_than_one_independently_reviewable_runtime_result
+    - more_than_one_primary_proof_target_without_recorded_indivisibility
+    - independent_rollback_boundaries
+    - independent_dependency_entry_gates
+    - independent_file_conflict_owners
+    - implementation_and_unrelated_governance_or_documentation
+  dependency_policy: >-
+    A generated dependency edge must follow the requirement, topology, release,
+    or external-gate graph. Convenience ordering is not a dependency. The final
+    graph must be acyclic and every blocks edge must be the reverse of a depends_on edge.
+
+canonical_field_mapping:
+  - { planning_field: wp_id, output_field: wp_id, rule: exact_approved_replacement_packet_id }
+  - { planning_field: allocated_mt_id, output_field: mt_id, rule: contiguous_allocator_id }
+  - { planning_field: dependencies, output_field: lifecycle.depends_on, rule: exact_official_mt_ids }
+  - { planning_field: blocks, output_field: lifecycle.blocks, rule: exact_reverse_edges }
+  - { planning_field: lifecycle_state, output_field: lifecycle.status, rule: starts_PENDING }
+  - { planning_field: closure_unit, output_field: scope.summary, rule: one_externally_provable_result }
+  - { planning_field: owned_and_shared_paths, output_field: scope.allowed_paths, rule: repo_relative_exact_paths_or_narrow_globs }
+  - { planning_field: forbidden_paths, output_field: scope.forbidden_paths, rule: repo_relative_exact_paths_or_narrow_globs }
+  - { planning_field: acceptance_rows, output_field: scope.acceptance_criteria, rule: exact_acceptance_ids_and_closure_text }
+  - { planning_field: primary_proof_target, output_field: scope.proof_targets, rule: exactly_one_unless_indivisibility_is_recorded }
+  - { planning_field: path_ownership, output_field: file_ownership, rule: owned_shared_reference_forbidden_and_merge_owner }
+  - { planning_field: trace_graph, output_field: traceability, rule: requirement_source_decision_spec_pillar_acceptance_release_and_gate_ids }
+  - { planning_field: tests_and_evidence, output_field: verification, rule: exact_commands_zero_match_guards_fixtures_outputs_and_freshness }
+  - { planning_field: external_gates, output_field: external_dependency_gates, rule: dependency_gate_ids_and_required_state }
+  - { planning_field: rollback, output_field: rollback_or_compensation, rule: executable_or_typed_not_applicable_with_reason }
+  - { planning_field: diagnostics, output_field: diagnostic_obligations, rule: structured_state_logs_traces_health_error_and_reproduction_evidence }
+  - { planning_field: user_manual, output_field: user_manual_obligation, rule: canonical_template_shape }
+  - { planning_field: gui_and_argus, output_field: gui_obligation, rule: canonical_template_shape_with_explicit_not_applicable_reason }
+  - { planning_field: hbr, output_field: hbr_obligations_and_hbr_int_009_tier_obligations, rule: project_authority_resolved }
+  - { planning_field: handoff_and_status, output_field: handoff_and_status_sync, rule: canonical_receipts_validator_and_transaction_surfaces }
+  - { planning_field: risks_and_failures, output_field: red_team, rule: canonical_required_profile_plus_task_specific_risks_and_controls }
+
+generated_contract_template:
+  schema_id: hsk.microtask_contract@1
+  schema_version: microtask_contract_v1
+  contract_authority: PRIMARY_MACHINE_READABLE
+  artifact_policy:
+    authority_surface: MACHINE_CONTRACT
+    legacy_markdown_policy: SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD
+    projection_creation: ON_DEMAND_OR_CONTRACT_BOUND
+    operator_facing_authority: false
+    model_created_markdown_authority_allowed: false
+    allowed_markdown_exceptions: [operator_created_notes, operator_created_research, operator_created_audits, explicit_on_demand_projection, explicit_report_projection_contract, frozen_legacy_migration_reference]
+  wp_id: WP-1-Handshake-Stage-MVP-v1
+  mt_id: MT-###
+  created_at_utc: ALLOCATOR_BOUND_UTC
+  updated_at_utc: null
+  authority_files:
+    microtask_contract: .GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-###.json
+    microtask_projection: .GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-###.md
+    packet_contract: .GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/packet.json
+  markdown_projection:
+    path: .GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-###.md
+    status: GENERATED_PENDING
+    source_hash: null
+    generated_at_utc: null
+    generator: null
+  lifecycle: { status: PENDING, depends_on: [], blocks: [], active: false, validator_verdict: PENDING }
+  scope: { summary: ALLOCATED_CLOSURE_UNIT, allowed_paths: [], forbidden_paths: [], acceptance_criteria: [], proof_targets: [] }
+  file_ownership: { owned_paths: [], shared_paths: [], reference_paths: [], forbidden_paths: [], merge_owner: UNBOUND, conflict_groups: [] }
+  traceability: { requirement_ids: [], source_ids: [], decision_ids: [], spec_anchor_ids: [], pillar_edge_ids: [], acceptance_ids: [], release_ids: [], production_gate_ids: [] }
+  external_dependency_gates: []
+  verification: { command_ids: [], zero_match_guards: [], fixture_ids: [], evidence_outputs: [], freshness_contract: UNBOUND }
+  rollback_or_compensation: { steps: [], not_applicable_reason: null }
+  diagnostic_obligations: []
+  gui_obligation:
+    operator_surface_required: UNBOUND
+    gui_creation_required: UNBOUND
+    argus_required: UNBOUND
+    trace_projection_required_when_non_ui: true
+    surfaces: []
+    argus_targets: []
+    expected_evidence: [argus_inspect_or_accesskit_tree, argus_screenshot_or_snapshot_reference, renderer_console_error_scan, layout_overlap_state_check, capture_matrix_or_recorded_not_applicable_reason]
+    not_applicable_reason: null
+  user_manual_obligation:
+    required: true
+    same_change_update_required: UNBOUND
+    manual_version_bump_required: UNBOUND
+    target_entries: []
+    expected_evidence: [user_manual_diff, manual_self_consistency_test, manual_inspection_or_no_context_operation_test, hbr_int_009_diagnostic_posture_recorded]
+    not_applicable_reason: null
+  hbr_obligations: []
+  hbr_int_009_tier_obligations: []
+  handoff: { coder_session: null, wp_validator_session: null, review_request_receipt_id: null, review_response_receipt_id: null }
+  status_sync: { surfaces: [], transaction_command_id: UNBOUND, repair_command_id: UNBOUND }
+  red_team:
+    required: true
+    profile: DETERMINISTIC_CONTRACT_MIGRATION_V1
+    risks: []
+    minimum_controls: []
+
+required_conflict_groups:
+  - { id: STAGE-CONFLICT-NATIVE-SHELL, surfaces: [native-application-entrypoint, shell-registry, module-registry] }
+  - { id: STAGE-CONFLICT-BACKEND-ROUTING, surfaces: [backend-lib, api-routing, command-registry] }
+  - { id: STAGE-CONFLICT-CONTRACT-REGISTRIES, surfaces: [event-registry, capability-registry, error-registry] }
+  - { id: STAGE-CONFLICT-MIGRATIONS, surfaces: [database-migration-numbers, schema-version-registry] }
+  - { id: STAGE-CONFLICT-WORKSPACE, surfaces: [workspace-manifest, cargo-manifests, dependency-lock] }
+  - { id: STAGE-CONFLICT-MANUAL, surfaces: [user-manual-registry, in-app-help-index] }
+  - { id: STAGE-CONFLICT-DIAGNOSTICS, surfaces: [diagnostic-registry, health-registry, argus-surface-registry] }
+  - { id: STAGE-CONFLICT-EVIDENCE, surfaces: [fixture-registry, evidence-registry, validator-command-registry] }
+  - { id: STAGE-CONFLICT-PACKAGING, surfaces: [release-packaging, installer-update-manifest, supply-chain-records] }
+
+allocator_rejections:
+  - { id: STAGE-ALLOC-REJECT-001, condition: duplicate_gapped_reversed_or_reused_mt_ids }
+  - { id: STAGE-ALLOC-REJECT-002, condition: orphan_or_unknown_requirement_source_decision_spec_pillar_acceptance_release_gate_evidence_or_path_reference }
+  - { id: STAGE-ALLOC-REJECT-003, condition: any_requirement_not_covered_exactly_once_by_primary_acceptance_ownership }
+  - { id: STAGE-ALLOC-REJECT-004, condition: dependency_cycle_self_edge_or_blocks_reverse_edge_mismatch }
+  - { id: STAGE-ALLOC-REJECT-005, condition: undeclared_file_overlap_or_concurrent_shared_file_ownership_without_one_merge_owner }
+  - { id: STAGE-ALLOC-REJECT-006, condition: migration_number_collision_or_unreserved_migration_range }
+  - { id: STAGE-ALLOC-REJECT-007, condition: unbound_external_dependency_gate_or_dependency_pass_from_dirty_unhashed_stale_or_wrong_commit_evidence }
+  - { id: STAGE-ALLOC-REJECT-008, condition: verification_command_missing_exact_binding_or_zero_match_guard }
+  - { id: STAGE-ALLOC-REJECT-009, condition: acceptance_missing_positive_negative_failure_recovery_or_fresh_evidence_case }
+  - { id: STAGE-ALLOC-REJECT-010, condition: evidence_missing_build_fixture_dependency_version_commit_environment_or_timestamp_binding }
+  - { id: STAGE-ALLOC-REJECT-011, condition: legacy_stage_compatibility_alias_reader_writer_route_schema_or_mock_leakage_not_explicitly_selected_by_current_contract }
+  - { id: STAGE-ALLOC-REJECT-012, condition: legacy_disposition_catchall_used_as_exact_inventory_closure }
+  - { id: STAGE-ALLOC-REJECT-013, condition: non_atomic_closure_unit_multiple_primary_proof_targets_or_independent_rollback_boundaries }
+  - { id: STAGE-ALLOC-REJECT-014, condition: canonical_schema_template_or_packet_local_validator_failure }
+  - { id: STAGE-ALLOC-REJECT-015, condition: missing_explicit_disposition_or_edge_resolution_for_any_of_24_pillars }
+  - { id: STAGE-ALLOC-REJECT-016, condition: release_root_can_close_without_all_mandatory_predecessor_gates }
+  - { id: STAGE-ALLOC-REJECT-017, condition: generated_projection_source_hash_mismatch_or_projection_used_as_authority }
+  - { id: STAGE-ALLOC-REJECT-018, condition: gui_manual_diagnostics_hbr_red_team_handoff_or_status_sync_obligation_missing_or_unresolved }
+  - { id: STAGE-ALLOC-REJECT-019, condition: absolute_machine_local_path_or_non_portable_command }
+  - { id: STAGE-ALLOC-REJECT-020, condition: task_activation_before_packet_validator_and_allocator_receipt_pass }
+
+status_sync_transaction:
+  canonical_source: official_microtask_json_and_packet_contract
+  surfaces:
+    - official_microtask_contract
+    - packet_mt_index
+    - work_packet_aggregate
+    - taskboard_row
+    - build_order
+    - traceability_registry
+    - dependency_gate_registry
+    - validator_projections
+  required_input: validator_verdict_or_operator_authority_receipt
+  atomicity: all_or_detected_partial_failure
+  partial_failure_behavior: no_completion_claim_repair_from_canonical_contract
+  command_id: UNBOUND_FUTURE_AUTHORITY_PASS
+  repair_command_id: UNBOUND_FUTURE_AUTHORITY_PASS
+
+validation_bindings:
+  allocator_command_id: UNBOUND_FUTURE_AUTHORITY_PASS
+  canonical_schema_command_id: UNBOUND_FUTURE_AUTHORITY_PASS
+  packet_validator_command_id: UNBOUND_FUTURE_AUTHORITY_PASS
+  graph_validator_command_id: UNBOUND_FUTURE_AUTHORITY_PASS
+  overlap_validator_command_id: UNBOUND_FUTURE_AUTHORITY_PASS
+  traceability_validator_command_id: UNBOUND_FUTURE_AUTHORITY_PASS
+  projection_hash_validator_command_id: UNBOUND_FUTURE_AUTHORITY_PASS
+  planning_validator_state: SPECIFIED_NOT_EXECUTABLE

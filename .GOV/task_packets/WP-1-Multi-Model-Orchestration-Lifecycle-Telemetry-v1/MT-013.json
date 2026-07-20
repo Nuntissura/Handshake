@@ -5,8 +5,8 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-013",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-07-04T05:32:28Z",
-  "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-04_REAL_CANDLE_LOAD_LEDGER_PROOF_GREEN_LOSSLESS_OVERFLOW_FIX",
+  "updated_at_utc": "2026-07-20T01:19:00Z",
+  "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-013.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -16,30 +16,31 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V3",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "PENDING_V3",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T18:12:00Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260704-040151",
-    "ready_for_validation_at_utc": "2026-07-04T04:45:58Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
+    "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "PASS_MT013_2026-07-04_REAL_CANDLE_DEFAULT_LOAD_LEDGER_GREEN_LOSSLESS_OVERFLOW_FIX: subagent-discovered fail-open overflow blocker fixed with lossless embedded START/STOP enqueue path and retryable STOP failure. Fresh proofs passed after fix: embedded_model_ledger_tests 8/8, process_ledger_writer overflow preservation 1/1, llm_client_local_routing_tests 14/14, user_manual_behavior_coverage_tests 4/4, frontend cloud/settings Argus 5/5, operator-chat selection/transcript Argus exact 1/1. Required managed-resource proof command passed 1/1 with HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a local cached peft-internal-testing/tiny-random-LlamaForCausalLM snapshot; output printed [MT-013_REAL_CANDLE_LEDGER_DUMP] with a real Candle START row and matching STOP row for process_uuid 019f2b98-b88c-7c22-b714-a93a5d8f1fea, os_pid=null, os_pid_absent_reason=in_process_library_load_no_os_process, model_artifact_sha256=49c20f32c6c597480fcaec5df2f86c645eabea765cbea1e67886dbae45e5c992, owner_role=handshake-embedded-default, and stop_reason=llm-client-shutdown. Logs are under ../Handshake_Artifacts/handshake-test/wp1-final-audit/.",
-    "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT013_REAL_CANDLE_LEDGER_FR_MANUAL_PROOFS_GREEN",
+    "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: reclaim durability/ABA controls and real Candle lifecycle are green. Fresh proof nonce 5cfe2c2d-2056-4230-9483-64b9ff775cbd binds schema @3, provenance @1, SHA-256 f74718c2e3d2bfba83267a3cf4dfa5de9daadd9d182cdfc67fedca259ba1e6c0, durable STOP, and lease release. Invalid nonce fails clean with neither canonical file present. Independent post-fix audit reports no findings. Historical V1/V2 verdicts remain preserved; COMPLETED remains validator-only.",
+    "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-    "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_REVIEW_OVERFLOW_BLOCKER_FIXED_AND_REPROVEN",
-    "adversarial_findings_status": "APPLIED_F1_GRACEFUL_SHUTDOWN_STOP_PLUS_ORPHAN_RECONCILE_F2_EMBEDDING_FR_F3_USERMANUAL_COVERAGE_2026-07-04_REAL_PROOF_FALSE_GREEN_REPLACED_LEDGER_START_FAIL_CLOSED_MULTI_EMBEDDING_HANDLE_LOSSLESS_OVERFLOW_FAIL_CLOSED",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_POST_FIX_REAUDIT_NO_FINDINGS",
+    "adversarial_findings_status": "PASS_V3_STALE_CANONICAL_PROOF_AND_PUBLICATION_ORDER_FINDINGS_CLOSED_WITH_NEGATIVE_AND_POSITIVE_RUNTIME_PROOF",
+    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-013:2026-07-20T01:13:40.778Z",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
-    "summary": "Embedded ModelRuntime real-load conformance hardening: box the default embedded-model load path under a SandboxAdapter and emit ProcessOwnershipLedger START/STOP rows, and emit a Flight Recorder event on the DisabledLlmClient / fail-closed error paths, all validated with a REAL Candle model load.",
+    "summary": "Embedded ModelRuntime real-load conformance hardening: for the in-process Candle/llama.cpp library path, enforce artifact integrity plus ProcessOwnershipLedger START/STOP rows with honest pid-less metadata; any actual spawned model process remains SandboxAdapter-owned. Emit a Flight Recorder event on DisabledLlmClient and fail-closed error paths, validated with a REAL Candle model load.",
     "origin": "Deferred from MT-003 (2026-07-01) pre/post-implementation review. MT-003 made the embedded ModelRuntime the default local LlmClient path, but the embedded model-load path (llm/boot.rs build_default_local_client -> CandleRuntime/LlamaCppRuntime::load) has ZERO SandboxAdapter / ProcessOwnershipLedger wiring (the boxed path is the separate SandboxModelRuntime used only by the swarm factory), which violates master-spec-v02.197 3.6.2/4.6.1 (HARD; MUST fail the 5.6 HBR gate). Additionally DisabledLlmClient returns an error without emitting a Flight Recorder event (pre-existing, mod.rs), against 4.2.3.2(3). These are coupled to a real model load, so they are deferred here rather than faked in MT-003. This is a real conformance gap, NOT a re-implementation of engines (WP-KERNEL-004 owns the adapters).",
     "allowed_paths": [
       "src/backend/handshake_core/src/model_runtime/",
@@ -56,7 +57,7 @@
       "SQLite runtime/test/fixture additions"
     ],
     "acceptance_criteria": [
-      "The default embedded-model load path (llm/boot.rs build_default_local_client) loads the model under the configured SandboxAdapter (default HandshakeNativeSandboxAdapter, master-spec 3.5.2) and registers ProcessOwnershipLedger START on load + STOP on unload (master-spec 3.6.2/4.6.1), so the boxed+ledgered obligation the swarm factory already satisfies also holds for the LlmClient default path; verified with a REAL Candle CPU model load (feature candle-runtime-engine).",
+      "For the default embedded-model load path (llm/boot.rs build_default_local_client), SandboxAdapter boxing is NOT_APPLICABLE when Candle/llama.cpp is loaded as an in-process Rust library with no OS child or guest. The enforced obligation is artifact integrity plus ProcessOwnershipLedger START on load and STOP on unload (master-spec 4.6.1), using os_pid=null and os_pid_absent_reason=in_process_library_load_no_os_process; any actual spawned model process remains SandboxAdapter-owned. Verify with a REAL Candle CPU model load (feature candle-runtime-engine).",
       "DisabledLlmClient (and any fail-closed error return on the default LLM path) emits a Flight Recorder event carrying the disabled/error reason so 'every call emits a Flight Recorder event' (master-spec 4.2.3.2(3)) holds on the error path too; a test proves the FR event is emitted.",
       "The LocalModelRuntimeLlmClient::embedding() path (added by MT-003) emits a Flight Recorder event with trace_id/model_id (embeddings carry no TokenUsage, so record the embedding-appropriate FR shape) so the embedding lane is Flight-Recorder-correlatable per 4.2.3.2(3)/11.5; a test proves emission. (Deferred from MT-003 post-review: embedding() currently carries EmbeddingRequest.trace_id but does not emit, matching the removed OllamaAdapter parity.)",
       "A real-load runtime proof (cargo test --features \"test-utils,candle-runtime-engine\" against tests/candle_e2e_smoke.rs or a new embedded-default e2e test) shows a ProcessOwnershipLedger START row on load and STOP row on unload for the default embedded model, and no bare std::process::Command model spawn.",
@@ -160,9 +161,9 @@
   "handshake_compatibility": {
     "native_rust_backend_first": true,
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
-    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after a REAL Candle model load proves boxing+ledger; COMPLETED is validator-only."
+    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after a REAL Candle model load proves artifact integrity plus matching pid-less ProcessOwnershipLedger START/STOP rows; SandboxAdapter boxing is NOT_APPLICABLE to the no-child/no-guest in-process path, and any actual spawned model process remains SandboxAdapter-owned. COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V1",
+  "validator_verdict": "PENDING_V3",
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -180,7 +181,7 @@
     "remediation_plan": "STEP 1 (contract-truth, governance/spec-owner action - Coder MUST NOT edit /.GOV/): mark AC#1's SandboxAdapter-boxing clause NOT_APPLICABLE with recorded reason 'in-process Candle/llama.cpp library load spawns no OS process/child/guest; master-spec 3.6.2 clause(1) vacuous; the enforced obligation is ProcessOwnershipLedger START-on-load/STOP-on-unload (4.6.1), implemented in src/backend/handshake_core/src/llm/embedded_ledger.rs with os_pid=None + os_pid_absent_reason=in_process_library_load_no_os_process'. Strike 'box the default embedded model-load under a SandboxAdapter' from scope.summary and proof_status. STEP 2 (durable runtime evidence): re-run mt013_real_candle_default_load_emits_process_ledger_start_stop at HEAD with HANDSHAKE_TEST_CANDLE_MODEL_DIR pointing at the cached peft-internal-testing/tiny-random-LlamaForCausalLM snapshot and '--features candle-runtime-engine -- --ignored', and cite the captured [MT-013_REAL_CANDLE_LEDGER_DUMP] artifact path in proof_commands (not only in the proof_status narrative). STEP 3: re-handoff to READY_FOR_VALIDATION."
   },
   "remediation_v2": {
-    "status": "IN_PROGRESS_V2",
+    "status": "READY_FOR_VALIDATION_V2",
     "opened_at_utc": "2026-07-11T11:19:45Z",
     "product_baseline": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
     "v1_verdict_preserved": "FAIL_V1",
@@ -252,6 +253,65 @@
       "cargo check -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime"
     ],
     "required_runtime_artifact": "A fresh captured [MT-013_REAL_CANDLE_LEDGER_DUMP] from the final product source, naming matching START/STOP rows for the same process_uuid and real artifact SHA-256.",
-    "readiness_gate": "Remain IN_PROGRESS_V2 until the fresh real-Candle artifact exists, every supporting proof passes, and independent adversarial review finds no unresolved realism or ownership gap."
+    "readiness_gate": "SATISFIED_2026-07-17: fresh real-Candle artifact exists, every supporting final-source proof passes, and post-implementation adversarial review found no unresolved realism or ownership gap.",
+    "ready_for_validation_at_utc": "2026-07-17T11:02:43Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
+    "final_source_proof_v2": {
+      "embedded_model_ledger_tests": "PASS_44_OF_44_206.9_SECONDS",
+      "process_ledger_writer_tests": "PASS_27_OF_27_17.2_SECONDS",
+      "llm_client_local_routing_tests": "PASS_16_OF_16_12.7_SECONDS",
+      "distinct_embedding_default_boot": "PASS_1_OF_1_10.9_SECONDS",
+      "embedded_model_user_manual_coverage": "PASS_1_OF_1_44.4_SECONDS",
+      "real_candle_default_load_ledger": "PASS_1_OF_1_52.7_SECONDS",
+      "app_runtime_check": "PASS_255.4_SECONDS_AFTER_OWNED_INITIAL_BUILD_COMPLETED_DUCKDB_ARCHIVE",
+      "runtime_artifact": "../Handshake_Artifacts/handshake-test/wp1-final-audit/mt013-real-candle-ledger-proof-v2.json",
+      "process_reclaim_final_audit": "PASS_7_OF_7_PLUS_REAL_POSTGRES_FAILED_KILL_CLAIM_RELEASE_1_OF_1_AND_CONCURRENT_EXACTLY_ONCE_CLAIMING_1_OF_1",
+      "failed_kill_semantics": "PASS_STOP_NOT_WRITTEN_AND_RECLAIM_CLAIM_RELEASED",
+      "successful_kill_semantics": "PASS_STOP_WRITTEN_ONLY_AFTER_TERMINATION",
+      "warnings": "Existing compiler warnings remain non-fatal and outside this MT closure unit."
+    }
+  },
+  "remediation_v3": {
+    "status": "READY_FOR_VALIDATION_V3",
+    "prepared_by": "KERNEL_BUILDER-20260717-072123",
+    "prepared_at_utc": "2026-07-20T01:19:00Z",
+    "v1_v2_verdicts_preserved": true,
+    "proof_results": {
+      "real_candle_lifecycle": "PASS_1_OF_1",
+      "proof_nonce": "5cfe2c2d-2056-4230-9483-64b9ff775cbd",
+      "artifact_sha256": "f74718c2e3d2bfba83267a3cf4dfa5de9daadd9d182cdfc67fedca259ba1e6c0",
+      "invalid_nonce_fail_clean": "PASS_EXIT_101_ARTIFACT_AND_PROVENANCE_ABSENT",
+      "reclaim_and_writer_proofs": "PASS"
+    },
+    "artifacts": [
+      "../Handshake_Artifacts/handshake-test/wp1-final-audit/mt013-real-candle-ledger-proof-v2.json",
+      "../Handshake_Artifacts/handshake-test/wp1-final-audit/mt013-real-candle-ledger-proof-v2.provenance.json"
+    ],
+    "adversarial_review": "PASS_POST_FIX_NO_FINDINGS",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-20T01:13:40.778Z",
+    "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null."
+  },
+  "validation_v2": {
+    "verdict": "FAIL_V2",
+    "validated_by": "INTEGRATION_VALIDATOR-20260718-230746",
+    "validated_at_utc": "2026-07-18T23:40:04.194Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "The session reclaimer calls append_reclaim_stop after a successful kill and reports stop_event_kind=STOP, but the ProcessLedgerWriter implementation delegates to ordinary append_stop. On a Full or Closed writer queue, enqueue records overflow telemetry and returns Ok without durably enqueuing STOP, so a killed process can be reported terminal while its row remains open. Separately, reclaim ownership contains only a 30-second timestamp; a slow kill permits a second claimant, and the first claimant can release the second claim by process UUID (ABA/double-action). The UserManual also says the boot reclaimer examines 32 groups while runtime caps it at 16.",
+    "remediation_plan": [
+      "Reserve durable STOP authority before kill or persist a kill_succeeded_pending_stop state; do not report STOP until durable acknowledgement, and retry STOP persistence without re-killing.",
+      "Add a claimant UUID/fencing generation to claim, renewal/ownership checks, release WHERE claimant token, and STOP transition; test a kill blocked beyond claim TTL with two reclaimers.",
+      "Inject writer Full, writer Closed, and database-write failure after kill; assert no false STOP report and deterministic recovery.",
+      "Align the UserManual reclaim cap with runtime (16) or deliberately change the runtime constant, with a numeric parity assertion."
+    ],
+    "independent_checks": [
+      "PASS artifact inspection: real Candle ledger dump contains matching pidless START/STOP and artifact SHA-256.",
+      "FAIL negative path: ProcessLedgerWriter Full/Closed returns Ok through overflow telemetry while no STOP is queued.",
+      "FAIL concurrency boundary: timestamp-only 30-second claim and UUID-only release permit ABA claim erasure/double action.",
+      "FAIL UserManual parity: documented group cap 32 differs from runtime cap 16."
+    ]
   }
 }

@@ -7,7 +7,8 @@ status: draft
 summary: Generated matrix that audits every source-distilled feature row for required
   planning fields, source reference strength, provider/offline registry linkage, format
   registry linkage, tool registry linkage, and implementation obligations.
-updated_at: '2026-07-05'
+  LEAF-PIPELINE-ONLY scope caveat added 2026-07-20 (see source_coverage_summary.scope_caveat_2026_07_20).
+updated_at: '2026-07-20'
 coverage_row_count: 2730
 source_feature_row_count: 2730
 ---
@@ -20,6 +21,7 @@ source_feature_row_count: 2730
 
 ```yaml
 source_coverage_summary:
+  scope_caveat_2026_07_20: "LEAF-PIPELINE-ONLY. This matrix audits FIELD COMPLETENESS of the 2,730 leaf-derived source-distilled rows only. It does NOT cover the 2,330 deep-delta rows (files 51-55) and CANNOT detect SEMANTIC omissions (missing features, missing dialog options, thin option depth). missing_required_field_count=0 is a green signal about leaf-row FIELDS, NOT proof of parity completeness. For known semantic parity gaps see 58-parity-feature-gap-register.md; for the pipeline-blindness gap and its fix see 08 SFR-REMAINING-GAP-011 and 61 ACTION-A1 (extend the generator to ingest 51-55)."
   feature_row_count: 2730
   source_feature_row_files:
     photoshop: 39-photoshop-source-distilled-feature-rows.md

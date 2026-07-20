@@ -1,0 +1,1072 @@
+stage_index:
+  id: stage-mvp-planning
+  title: "Handshake Stage Topics and Files Index"
+  wp_id: WP-1-Handshake-Stage-MVP-v1
+  status: production_planning_hardened_operator_review_and_dependency_proof_pending
+  authority: NON_AUTHORITATIVE_REFERENCE
+  updated_at: "2026-07-20"
+  location: ".GOV/reference/stage_mvp_planning/index.yaml"
+  purpose: >-
+    Single machine-readable index for every Stage planning topic and every
+    currently identified Stage planning, authority, source-stub, dependency,
+    downstream-consumer, and research file.
+  completeness: FULL_FEATURE_AND_PRODUCTION_CONTRACT_CORPUS
+  completeness_note: >-
+    The current planning/governance corpus, Stage-related current spec,
+    selected active WP contracts, protected product reuse surfaces, WP-12
+    legacy Stage prototype/migrations and supersession plan, full browser-product requirements,
+    production data/security/operations contracts, 24-Pillar compatibility,
+    and future authoring requirements have been inspected or drafted. Active
+    dependency gates now explicitly block ArtifactHandle/streaming convergence,
+    WP-1 validation, WP-12 removal/migration, CKC/Atelier public intake, and
+    Downloader v0/v2 convergence. All 117 requirements now resolve one-to-one
+    to atomic acceptance rows, and the future allocator conforms to the canonical
+    microtask schema. Operator-locked STAGE-DEC-019 (unconditional download
+    continuity) and STAGE-DEC-020 (normal-browser baseline; complexity only for
+    tab scale, Handshake integration, or security) govern all remaining work. Runtime implementation, exact command bindings, exact
+    legacy-surface/data inventory, operator target locks, and target-hardware
+    validation remain future work; no production runtime gate is claimed.
+  authority_note: >-
+    This index is a reference catalog. It does not override the master spec,
+    machine-readable work-packet contracts, taskboard, build order, or
+    validator authority.
+
+operator_direction:
+  umbrella_wp: WP-1-Handshake-Stage-MVP-v1
+  absorbed_stage_stubs:
+    - WP-1-Stage-Media-Artifact-Portability-v1
+    - WP-1-Stage-ASR-Transcript-Lineage-v1
+  servo_role: primary_product_renderer
+  chromium_role: minimal_first_usable_bootstrap
+  coequal_backend_strategy: rejected
+  intended_microtask_scale: "100+"
+  master_spec_rewrite_timing: after_initial_planning_is_concluded
+  current_operator_sequence: planning_and_research_only_authority_edits_deferred
+  legacy_stage_authority: superseded_regardless_of_build_status
+  legacy_stage_asset_rule: lineage_or_optional_salvage_only_no_implicit_compatibility
+  real_operator_data_rule: explicit_non_loss_disposition_without_legacy_runtime_authority
+  download_continuity_rule: active_downloads_never_stopped_frozen_or_dormant_by_lifecycle_machinery_STAGE-DEC-019
+  normal_browser_baseline_rule: normal_browser_behavior_default_unless_handshake_module_overrides_STAGE-DEC-020
+  core_performance_requirement: 3000_plus_tabs_without_taxing_cpu
+  bootstrap_viability_gate: authenticated_youtube_via_governed_session_import_or_abandon_chromium_for_servo_STAGE-DEC-021
+  wp_complete_rule: whole_wp_complete_everything_proven_chromium_retired_or_demoted_is_only_finished_state_STAGE-DEC-022
+  artifact_store_role: retained_shared_global_infrastructure
+  stage_capture_product_name: Stage_Capture
+  stage_capture_component: StageCaptureCoordinator
+  stage_artifact_rule: no_stage_specific_byte_store_or_handle_encoding
+  release_slices:
+    - id: STAGE-WIN-BOOTSTRAP-PROD
+      state: conditional_on_STAGE-DEC-021_youtube_login_spike
+    - id: STAGE-SERVO-RESTRICTED-ALPHA
+      state: planned
+    - id: STAGE-SERVO-ARBITRARY-WEB
+      state: blocked_until_sandbox_gate
+    - id: STAGE-WP-COMPLETE
+      state: locked_as_only_finished_state_STAGE-DEC-022
+
+topics:
+  - id: STAGE-PLAN-OPERATOR-OUTCOMES
+    title: "Operator Outcomes and Primary Use Cases"
+    status: active
+    depends_on: []
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/04-operator-outcomes-and-use-cases.md
+    outputs:
+      - operator-requirement-register
+      - project-asset-intake-primary-workflow
+      - high-volume-reminder-and-watch-queue-workflow
+      - local-and-cloud-AI-interaction-workflow
+    verification:
+      - "Every operator note is preserved explicitly and mapped to one or more planning topics."
+
+  - id: STAGE-PLAN-SCOPE-PRESERVATION
+    title: "Current Scope, Source Lineage, and Legacy Stage Supersession"
+    status: active
+    depends_on: []
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/01-source-preservation-register.md
+      - .GOV/reference/stage_mvp_planning/topics/scope-and-preservation/WP-1-Handshake-Stage-MVP-v1-stub-consolidation-proposal.md
+    source_files:
+      - .GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json
+      - .GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.contract.json
+      - .GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.contract.json
+    outputs:
+      - requirement-level-current-disposition-map
+      - absorbed-versus-adjacent-scope-boundary
+      - dependency-and-blocker-rewrite-proposal
+      - archival-and-supersession-plan
+    verification:
+      - "Every source item has an explicit reaffirmed, superseded, external-boundary, or operator-decision disposition; old Stage implementation creates no implicit compatibility."
+
+  - id: STAGE-PLAN-RENDERER-ARCHITECTURE
+    title: "Stage Renderer Architecture"
+    status: active
+    depends_on: [STAGE-PLAN-SCOPE-PRESERVATION]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/00-workspace-overview.md
+      - .GOV/reference/stage_mvp_planning/02-decision-register.md
+      - .GOV/reference/stage_mvp_planning/06-backend-and-data-contracts.md
+      - .GOV/reference/stage_mvp_planning/11-current-spec-reconciliation.md
+      - .GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md
+      - .GOV/reference/stage_mvp_planning/13-production-architecture-and-promotion-gates.md
+    source_files:
+      - .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+      - .GOV/reference/stage_mvp_planning/research/source-register.yaml
+    outputs:
+      - StageBrowserKernel-boundary
+      - renderer-capability-negotiation-contract
+      - renderer-owned-versus-host-owned-responsibility-map
+      - no-silent-fallback-rule
+    open_questions:
+      - "Which capabilities are invariant Stage-domain behavior versus Servo-only enhancements?"
+      - "How is renderer provenance represented in sessions, events, artifacts, and diagnostics?"
+
+  - id: STAGE-PLAN-CHROMIUM-BOOTSTRAP
+    title: "Minimal Chromium Bootstrap"
+    status: active
+    depends_on: [STAGE-PLAN-RENDERER-ARCHITECTURE]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/02-decision-register.md
+      - .GOV/reference/stage_mvp_planning/research/research-plan.md
+      - .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-004-chromium-bootstrap.md
+    source_files:
+      - .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+      - .GOV/reference/stage_mvp_planning/research/source-register.yaml
+    research_workstreams: [STAGE-RW-004]
+    outputs:
+      - bootstrap-substrate-decision
+      - minimum-usable-capability-contract
+      - supported-platform-boundary
+      - removal-or-dev-only-retention-plan
+    verification:
+      - "Bootstrap acceptance cannot satisfy whole-WP completion."
+      - "Direct Chromium-specific calls remain confined to the adapter boundary."
+
+  - id: STAGE-PLAN-SERVO-PRIMARY
+    title: "Servo Primary Renderer"
+    status: active
+    depends_on: [STAGE-PLAN-RENDERER-ARCHITECTURE]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/00-workspace-overview.md
+      - .GOV/reference/stage_mvp_planning/research/research-plan.md
+      - .GOV/reference/stage_mvp_planning/research/source-register.yaml
+      - .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-001-003-009-servo-production-readiness.md
+    research_workstreams: [STAGE-RW-001, STAGE-RW-002, STAGE-RW-003, STAGE-RW-009]
+    outputs:
+      - embedding-and-rendering-design
+      - interactive-headless-and-restricted-profile-contracts
+      - dependency-pin-and-update-policy
+      - upstream-first-patch-policy
+      - product-default-readiness-gates
+    verification:
+      - "Navigation, input, rendering, accessibility, screenshot, storage, permission, and request-interception behavior are proven against current Servo."
+      - "Arbitrary-web security gates are proven on every supported target platform."
+
+  - id: STAGE-PLAN-SECURITY-ISOLATION
+    title: "Browser Security and Process Isolation"
+    status: planned
+    depends_on: [STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-SERVO-PRIMARY]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/research/research-plan.md
+      - .GOV/reference/stage_mvp_planning/06-backend-and-data-contracts.md
+      - .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+      - .GOV/reference/stage_mvp_planning/13-production-architecture-and-promotion-gates.md
+      - .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-005-008-browser-control-security-and-capture.md
+    source_files:
+      - .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+      - .GOV/reference/stage_mvp_planning/research/source-register.yaml
+    research_workstreams: [STAGE-RW-002, STAGE-RW-010]
+    outputs:
+      - threat-model
+      - trusted-host-versus-hostile-content-boundary
+      - multiprocess-and-os-sandbox-contract
+      - crash-hang-timeout-and-recovery-contract
+      - private-network-and-file-access-policy
+    verification:
+      - negative-security-tests
+      - process-boundary-and-sandbox-evidence
+      - crash-and-hang-recovery-evidence
+      - bridge-origin-and-capability-bypass-tests
+
+  - id: STAGE-PLAN-SESSIONS-STATE
+    title: "Sessions, Profiles, Tabs, and Browser State"
+    status: planned
+    depends_on: [STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-SECURITY-ISOLATION]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/00-workspace-overview.md
+      - .GOV/reference/stage_mvp_planning/01-source-preservation-register.md
+      - .GOV/reference/stage_mvp_planning/04-operator-outcomes-and-use-cases.md
+      - .GOV/reference/stage_mvp_planning/06-backend-and-data-contracts.md
+      - .GOV/reference/stage_mvp_planning/08-loom-search-translation-export-and-manual.md
+    source_files:
+      - .GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json
+      - .GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.contract.json
+    research_workstreams: [STAGE-RW-007]
+    outputs:
+      - StageSession-and-StageTab-contracts
+      - cookie-cache-storage-and-permission-isolation-rules
+      - project-and-agent-scoped-state-policy
+      - explicit-cross-engine-session-transfer-contract
+      - retention-clear-and-export-behavior
+
+  - id: STAGE-PLAN-HIGH-VOLUME-TABS
+    title: "High-Volume Tabs and Resource Lifecycle"
+    status: active
+    depends_on: [STAGE-PLAN-OPERATOR-OUTCOMES, STAGE-PLAN-SESSIONS-STATE, STAGE-PLAN-RENDERER-ARCHITECTURE]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/04-operator-outcomes-and-use-cases.md
+      - .GOV/reference/stage_mvp_planning/05-native-frontend-and-tab-workspace.md
+      - .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+      - .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-011-high-volume-tab-lifecycle.md
+      - .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-022-high-volume-tab-cpu-memory-spike.md
+    source_files:
+      - .GOV/reference/stage_mvp_planning/research/source-register.yaml
+    research_workstreams: [STAGE-RW-011, STAGE-RW-022]
+    spike_result: >-
+      STAGE-RW-022 harness built+run 2026-07-20. Core "3000+ tabs without taxing CPU" architecture EMPIRICALLY
+      VALIDATED at resource level: 3000 records + 0 live renderers = 22 MB / ~0% CPU; RAM tracks live-renderer
+      ceiling K not record count N (flat ~450 MB light / ~1.26 GB YouTube at K=3 whether 10 or 10000 tabs);
+      idle CPU ~0 everywhere. vs operator's live Firefox 3000 tabs = 3.88 GB, Stage model at 3 live YouTube
+      renderers = 1.26 GB (~3x less, ~2.6 GB more headroom for ComfyUI/editors). Open (increment 2):
+      load-storm CPU, GPU, and virtualized egui sidebar per-frame cost.
+    outputs:
+      - active-suspended-unloaded-archived-lifecycle
+      - machine-wide-live-and-background-work-ceilings
+      - metadata-only-pins-and-expiring-keep-live-contract
+      - zero-per-record-dormant-host-work-contract
+      - incremental-projection-and-virtualized-tab-sidebar-contract
+      - multi-window-fairness-and-why-awake-diagnostics
+      - lazy-session-restore-contract
+      - cache-site-data-and-tab-state-retention-policy
+      - 1-to-10000-scale-curve-and-mandatory-3000-plus-tab-fixture
+    verification:
+      - "Idle CPU and live renderer count do not scale as if every persisted tab were active."
+      - "Bulk operations and search use the canonical tab set rather than rendered sidebar rows."
+      - "Unloaded tabs perform no page timers, media playback, background fetches, or indexing."
+      - "Unloaded records create no proportional host timers, tasks, subscriptions, widgets, decoded thumbnails, refresh work, or shared-store scans."
+      - "Multiple windows and pinned records cannot multiply or bypass the machine-wide ceiling."
+      - "No lifecycle mechanism ever stops, pauses, freezes, or makes dormant an active download; renderer-bound downloads protect their carrier renderer until completion or durable handoff (STAGE-DEC-019)."
+
+  - id: STAGE-PLAN-AGENT-CONTROL-REPLAY
+    title: "Native Agent Control, Observation, and Replay"
+    status: planned
+    depends_on: [STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-SESSIONS-STATE]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/00-workspace-overview.md
+      - .GOV/reference/stage_mvp_planning/research/research-plan.md
+      - .GOV/reference/stage_mvp_planning/05-native-frontend-and-tab-workspace.md
+      - .GOV/reference/stage_mvp_planning/06-backend-and-data-contracts.md
+      - .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+      - .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-005-008-browser-control-security-and-capture.md
+    research_workstreams: [STAGE-RW-006, STAGE-RW-008]
+    outputs:
+      - typed-observation-and-action-protocol
+      - stable-element-identity-policy
+      - DOM-accessibility-visual-network-observation-model
+      - per-agent-capability-and-attribution-contract
+      - deterministic-receipt-and-replay-model
+    verification:
+      - concurrent-agent-attribution-tests
+      - stale-target-and-navigation-race-tests
+      - action-receipt-replay-tests
+      - no-foreground-focus-or-keyboard-hijack-tests
+
+  - id: STAGE-PLAN-PRIVACY-NETWORK
+    title: "Privacy, Ad Blocking, and Network Policy"
+    status: planned
+    depends_on: [STAGE-PLAN-SERVO-PRIMARY, STAGE-PLAN-SECURITY-ISOLATION]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/02-decision-register.md
+      - .GOV/reference/stage_mvp_planning/research/research-plan.md
+      - .GOV/reference/stage_mvp_planning/research/source-register.yaml
+    research_workstreams: [STAGE-RW-005]
+    outputs:
+      - host-level-request-policy-pipeline
+      - Rust-adblock-engine-evaluation
+      - filter-list-user-rule-and-update-lifecycle
+      - DNS-private-network-redirect-and-download-policy
+      - privacy-receipts-and-operator-controls
+
+  - id: STAGE-PLAN-STAGE-APPS-BRIDGE
+    title: "Stage Apps and Privileged Bridge"
+    status: planned
+    depends_on: [STAGE-PLAN-SECURITY-ISOLATION, STAGE-PLAN-SESSIONS-STATE]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/01-source-preservation-register.md
+      - .GOV/reference/stage_mvp_planning/06-backend-and-data-contracts.md
+      - .GOV/reference/stage_mvp_planning/10-microtask-lane-and-dag-seed.md
+    source_files:
+      - .GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json
+      - .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+    outputs:
+      - Stage-App-origin-and-package-contract
+      - bridge-capability-schema
+      - Workflow-Engine-gate-and-Flight-Recorder-routing
+      - external-web-no-bridge-proof
+      - outbound-network-policy-for-Stage-Apps
+
+  - id: STAGE-PLAN-CAPTURE-IMPORT
+    title: "Web, Selection, PDF, Media, and 3D Capture/Import"
+    status: planned
+    depends_on: [STAGE-PLAN-AGENT-CONTROL-REPLAY, STAGE-PLAN-STAGE-APPS-BRIDGE]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/01-source-preservation-register.md
+      - .GOV/reference/stage_mvp_planning/07-project-asset-intake-and-existing-system-reuse.md
+      - .GOV/reference/stage_mvp_planning/08-loom-search-translation-export-and-manual.md
+      - .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+    source_files:
+      - .GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json
+      - .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+    outputs:
+      - webpage-snapshot-and-selection-clip-contracts
+      - capture-provenance-and-source-hash-contract
+      - PDF-import-contract
+      - media-import-contract
+      - 3D-import-validation-and-read-only-viewport-contract
+
+  - id: STAGE-PLAN-PROJECT-ASSET-INTAKE
+    title: "Project Asset Download and Lens/Atelier Intake"
+    status: active
+    depends_on: [STAGE-PLAN-OPERATOR-OUTCOMES, STAGE-PLAN-CAPTURE-IMPORT, STAGE-PLAN-MEDIA-PORTABILITY, STAGE-PLAN-COOKIE-CREDENTIAL-HANDOFF]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/04-operator-outcomes-and-use-cases.md
+      - .GOV/reference/stage_mvp_planning/01-source-preservation-register.md
+      - .GOV/reference/stage_mvp_planning/07-project-asset-intake-and-existing-system-reuse.md
+      - .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+    source_files:
+      - .GOV/task_packets/WP-1-Media-Downloader-v2/packet.json
+      - .GOV/refinements/WP-1-Media-Downloader-v2.md
+      - .GOV/task_packets/WP-1-Artifact-System-Foundations-v1/packet.json
+      - .GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1.contract.json
+    research_workstreams: [STAGE-RW-014]
+    outputs:
+      - page-media-playlist-gallery-and-asset-download-actions
+      - destination-project-and-consumer-selection
+      - downloader-job-and-progress-integration
+      - ArtifactStore-ingest-and-provenance-contract
+      - Lens-Atelier-handoff-and-tab-status-update
+      - related-tab-set-to-batch-conversion
+    verification:
+      - "Downloads continue independently after their source tab unloads."
+      - "Lens/Atelier receives governed artifact handles and lineage, not unmanaged paths."
+
+  - id: STAGE-PLAN-TAB-ORGANIZATION-LOOM
+    title: "Tab Folders, Labels, Bookmarks, Tags, and Loom"
+    status: active
+    depends_on: [STAGE-PLAN-OPERATOR-OUTCOMES, STAGE-PLAN-HIGH-VOLUME-TABS]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/04-operator-outcomes-and-use-cases.md
+      - .GOV/reference/stage_mvp_planning/05-native-frontend-and-tab-workspace.md
+      - .GOV/reference/stage_mvp_planning/08-loom-search-translation-export-and-manual.md
+      - .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+    source_files:
+      - .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+    research_workstreams: [STAGE-RW-012]
+    outputs:
+      - per-window-virtualized-tab-sidebar
+      - nested-folder-and-group-contract
+      - color-label-and-bookmark-contract
+      - Stage-folder-versus-Loom-authority-boundary
+      - LoomBlock-tag-mention-backlink-and-pin-promotion-flow
+      - opened-from-and-watch-after-relationship-model
+    verification:
+      - "Stage organization does not duplicate or silently diverge from Loom knowledge relationships."
+      - "Folder, tag, bookmark, and bulk operations work across 3,000+ tab records."
+
+  - id: STAGE-PLAN-COOKIE-CREDENTIAL-HANDOFF
+    title: "Cookie Editing, JSON Export, and Credential Handoff"
+    status: active
+    depends_on: [STAGE-PLAN-OPERATOR-OUTCOMES, STAGE-PLAN-SESSIONS-STATE, STAGE-PLAN-SECURITY-ISOLATION]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/04-operator-outcomes-and-use-cases.md
+      - .GOV/reference/stage_mvp_planning/02-decision-register.md
+      - .GOV/reference/stage_mvp_planning/07-project-asset-intake-and-existing-system-reuse.md
+      - .GOV/reference/stage_mvp_planning/08-loom-search-translation-export-and-manual.md
+      - .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+    source_files:
+      - .GOV/task_packets/WP-1-Media-Downloader-v2/packet.json
+      - .GOV/refinements/WP-1-Media-Downloader-v2.md
+    research_workstreams: [STAGE-RW-013]
+    outputs:
+      - cookie-view-edit-import-and-export-contract
+      - canonical-JSON-and-interoperability-adapters
+      - encrypted-export-and-native-confirmation-policy
+      - secret-redaction-and-no-log-leakage-tests
+      - scoped-Media-Downloader-credential-lease
+    verification:
+      - "Routine authenticated downloads do not require materializing raw reusable cookie files."
+      - "Explicit export is session/domain scoped and never leaks cookie values into logs or receipts."
+
+  - id: STAGE-PLAN-MEDIA-PORTABILITY
+    title: "Stage Media Artifact Portability"
+    status: active
+    depends_on: [STAGE-PLAN-SCOPE-PRESERVATION, STAGE-PLAN-CAPTURE-IMPORT, STAGE-PLAN-SESSIONS-STATE]
+    absorbed_source: WP-1-Stage-Media-Artifact-Portability-v1
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/01-source-preservation-register.md
+      - .GOV/reference/stage_mvp_planning/07-project-asset-intake-and-existing-system-reuse.md
+    source_files:
+      - .GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.contract.json
+      - .GOV/task_packets/WP-1-Media-Downloader-v2/packet.json
+      - .GOV/task_packets/WP-1-Artifact-System-Foundations-v1/packet.json
+      - .GOV/task_packets/stubs/WP-1-Storage-Trait-Purity-v1.contract.json
+    research_workstreams: [STAGE-RW-007, STAGE-RW-010]
+    outputs:
+      - shared-portable-artifact-manifest
+      - capture-import-session-bundle-index
+      - retention-export-and-replay-contract
+      - Media-Downloader-session-and-materialization-interoperability
+      - backend-swap-semantic-invariants
+
+  - id: STAGE-PLAN-ASR-LINEAGE
+    title: "Stage Media to ASR Transcript Lineage"
+    status: active
+    depends_on: [STAGE-PLAN-SCOPE-PRESERVATION, STAGE-PLAN-CAPTURE-IMPORT, STAGE-PLAN-MEDIA-PORTABILITY]
+    absorbed_source: WP-1-Stage-ASR-Transcript-Lineage-v1
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/01-source-preservation-register.md
+      - .GOV/reference/stage_mvp_planning/07-project-asset-intake-and-existing-system-reuse.md
+    source_files:
+      - .GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.contract.json
+      - .GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.contract.json
+      - .GOV/task_packets/stubs/WP-1-Media-Downloader-v1.contract.json
+      - .GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.contract.json
+    outputs:
+      - Stage-media-to-ASR-job-lineage
+      - source-hash-and-media-probe-fact-contract
+      - timing-anchor-and-transcript-artifact-contract
+      - progress-failure-and-retry-receipts
+      - downstream-Loom-Lens-and-archive-assumptions
+
+  - id: STAGE-PLAN-TRANSLATION-EXPORT
+    title: "Translation and Markdown/PDF Export"
+    status: planned
+    depends_on: [STAGE-PLAN-OPERATOR-OUTCOMES, STAGE-PLAN-CAPTURE-IMPORT, STAGE-PLAN-PRIVACY-NETWORK]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/04-operator-outcomes-and-use-cases.md
+      - .GOV/reference/stage_mvp_planning/08-loom-search-translation-export-and-manual.md
+      - .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+    research_workstreams: [STAGE-RW-015]
+    outputs:
+      - selection-and-page-translation-workflows
+      - local-and-cloud-translation-adapters
+      - translation-provenance-and-source-linkage
+      - captured-content-to-Markdown-contract
+      - captured-content-to-PDF-contract
+      - cloud-egress-and-redaction-controls
+    verification:
+      - "Exports preserve source URL, capture time, provenance, and asset references."
+      - "Translation never silently replaces the source text."
+
+  - id: STAGE-PLAN-SEARCH-RETRIEVAL
+    title: "Fuzzy Tab Search and Captured Website Retrieval"
+    status: planned
+    depends_on: [STAGE-PLAN-OPERATOR-OUTCOMES, STAGE-PLAN-HIGH-VOLUME-TABS, STAGE-PLAN-TAB-ORGANIZATION-LOOM, STAGE-PLAN-CAPTURE-IMPORT]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/04-operator-outcomes-and-use-cases.md
+      - .GOV/reference/stage_mvp_planning/08-loom-search-translation-export-and-manual.md
+      - .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+    research_workstreams: [STAGE-RW-012, STAGE-RW-015]
+    outputs:
+      - fuzzy-title-URL-folder-bookmark-label-note-and-tag-search
+      - captured-page-full-text-index
+      - optional-semantic-retrieval-and-Loom-expansion
+      - duplicate-and-canonicalized-URL-detection
+      - no-background-tab-wake-indexing-rule
+    verification:
+      - "Search covers the canonical full tab collection without instantiating unloaded pages."
+      - "Live, captured, derived, and translated text are visibly distinguished."
+
+  - id: STAGE-PLAN-INTERNAL-MANUAL
+    title: "Stage UserManual and Model Manual"
+    status: planned
+    depends_on: [STAGE-PLAN-OPERATOR-OUTCOMES]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/04-operator-outcomes-and-use-cases.md
+      - .GOV/reference/stage_mvp_planning/08-loom-search-translation-export-and-manual.md
+    outputs:
+      - operator-Stage-manual
+      - no-context-model-Stage-manual
+      - action-ID-linked-workflows
+      - safety-constraints-failure-modes-and-recovery
+      - in-product-contextual-help
+    verification:
+      - "A no-context model can operate Stage, download and ingest an asset, organize tabs, recover an unloaded tab, and locate evidence using only shipped manual surfaces."
+
+  - id: STAGE-PLAN-DIAGNOSTICS-VALIDATION
+    title: "Diagnostics, Visual Inspection, and Validation"
+    status: planned
+    depends_on: [STAGE-PLAN-AGENT-CONTROL-REPLAY, STAGE-PLAN-SECURITY-ISOLATION, STAGE-PLAN-CAPTURE-IMPORT]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/research/research-plan.md
+      - .GOV/reference/stage_mvp_planning/05-native-frontend-and-tab-workspace.md
+      - .GOV/reference/stage_mvp_planning/06-backend-and-data-contracts.md
+      - .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+    source_files:
+      - .GOV/roles_shared/docs/ARGUS_VISUAL_INSPECTION_PROTOCOL.md
+      - .GOV/spec/master-spec-v02.201/spec-modules/06-mechanical-integrations.md
+    research_workstreams: [STAGE-RW-008, STAGE-RW-010]
+    outputs:
+      - no-context-model-debug-surface
+      - Argus-compatible-visual-and-accessibility-inspection-path
+      - console-network-navigation-process-and-policy-traces
+      - representative-site-compatibility-corpus
+      - renderer-conformance-and-regression-suite
+
+  - id: STAGE-PLAN-PROMOTION-RETIREMENT
+    title: "Servo Promotion and Chromium Retirement"
+    status: planned
+    depends_on: [STAGE-PLAN-CHROMIUM-BOOTSTRAP, STAGE-PLAN-SERVO-PRIMARY, STAGE-PLAN-DIAGNOSTICS-VALIDATION]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/02-decision-register.md
+      - .GOV/reference/stage_mvp_planning/03-planning-sequence.md
+      - .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+      - .GOV/reference/stage_mvp_planning/10-microtask-lane-and-dag-seed.md
+    outputs:
+      - Servo-default-promotion-gates
+      - bootstrap-feature-freeze-rule
+      - explicit-compatibility-mode-policy
+      - Chromium-removal-or-dev-only-retention-condition
+      - user-and-agent-transition-behavior
+    verification:
+      - operator-visible-renderer-state
+      - promotion-gate-evidence-bundle
+      - rollback-and-recovery-test
+      - Chromium-feature-freeze-audit
+
+  - id: STAGE-PLAN-MICROTASK-DECOMPOSITION
+    title: "100+ Microtask Decomposition and Dependency DAG"
+    status: planned
+    depends_on: [STAGE-PLAN-SCOPE-PRESERVATION, STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-DIAGNOSTICS-VALIDATION, STAGE-PLAN-PROMOTION-RETIREMENT]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/03-planning-sequence.md
+      - .GOV/reference/stage_mvp_planning/10-microtask-lane-and-dag-seed.md
+    outputs:
+      - lane-registry
+      - microtask-DAG
+      - per-microtask-file-ownership
+      - acceptance-and-verification-mapping
+      - parallel-claim-and-status-sync-rules
+      - whole-WP-integration-gates
+    verification:
+      - DAG-cycle-check
+      - orphan-requirement-check
+      - overlapping-file-ownership-review
+      - acceptance-coverage-check
+      - downstream-dependency-unblock-check
+
+  - id: STAGE-PLAN-MASTER-SPEC-ENRICHMENT
+    title: "Deferred Master-Spec Stage-Topic Enrichment"
+    status: deferred_until_initial_planning_concludes
+    depends_on: [STAGE-PLAN-SCOPE-PRESERVATION, STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-PROMOTION-RETIREMENT, STAGE-PLAN-MICROTASK-DECOMPOSITION]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/03-planning-sequence.md
+      - .GOV/reference/stage_mvp_planning/11-current-spec-reconciliation.md
+      - .GOV/reference/stage_mvp_planning/topics/master-spec-enrichment/STAGE-MASTER-SPEC-OVERHAUL-PROPOSAL-v1.md
+    source_files:
+      - .GOV/spec/SPEC_CURRENT.md
+      - .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+    outputs:
+      - approved-Stage-architecture-text
+      - approved-terminology-and-component-map
+      - approved-security-and-privacy-requirements
+      - approved-acceptance-and-promotion-gates
+      - old-to-new-spec-anchor-map
+    hold_rule: >-
+      Collect proposed enrichments during initial planning but do not edit the
+      master spec until the operator concludes initial planning.
+
+  - id: STAGE-PLAN-FULL-FEATURE
+    title: "Full Browser-Product and Handshake-Native Requirements"
+    status: research_hardened_proposed
+    depends_on: [STAGE-PLAN-OPERATOR-OUTCOMES, STAGE-PLAN-SCOPE-PRESERVATION, STAGE-PLAN-HIGH-VOLUME-TABS]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/14-full-feature-product-requirements.md
+      - .GOV/reference/stage_mvp_planning/requirements-and-traceability.yaml
+      - .GOV/reference/stage_mvp_planning/acceptance-registry.yaml
+    outputs:
+      - native-browser-shell-and-navigation-contract
+      - history-bookmarks-recently-closed-and-onboarding-contract
+      - downloads-permissions-settings-and-browser-services-contract
+      - full-Handshake-intake-search-translation-export-manual-contract
+      - stable-product-requirement-register
+    verification:
+      - zero-orphan-requirements
+      - 3000-tab-onboarding-and-browser-product-journeys
+      - every-requirement-mapped-to-release-lane-gate-and-evidence
+
+  - id: STAGE-PLAN-PRODUCT-TOPOLOGY
+    title: "Product Topology, Shared-System Reuse, and Legacy Stage Supersession"
+    status: current_state_inspected_supersession_locked
+    depends_on: [STAGE-PLAN-FULL-FEATURE, STAGE-PLAN-SCOPE-PRESERVATION]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md
+      - .GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md
+      - .GOV/reference/stage_mvp_planning/dependency-gates.yaml
+      - .GOV/reference/stage_mvp_planning/legacy-stage-disposition-register.yaml
+    outputs:
+      - current-shared-product-authority-reuse-map
+      - canonical-Stage-worksurface-decision
+      - WP12-legacy-Stage-removal-and-optional-data-import-plan
+      - WP1-and-CKC-versioned-consumer-boundaries
+    open_questions:
+      - "Exact future integration baseline commits, legacy-surface inventory, removal sequence, and whether any real operator data requires one-way import."
+    verification:
+      - exact-baseline-source-map
+      - migration-collision-and-cross-table-guard-rehearsal
+      - public-consumer-contract-tests
+
+  - id: STAGE-PLAN-PILLAR-DEPENDENCY-COMPATIBILITY
+    title: "All-Pillar and Active-Dependency Compatibility"
+    status: complete_matrix_dependency_gates_blocked
+    depends_on: [STAGE-PLAN-FULL-FEATURE, STAGE-PLAN-PRODUCT-TOPOLOGY]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/pillar-compatibility-matrix.yaml
+      - .GOV/reference/stage_mvp_planning/dependency-gates.yaml
+      - .GOV/reference/stage_mvp_planning/legacy-stage-disposition-register.yaml
+      - .GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md
+      - .GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md
+    outputs:
+      - complete-24-pillar-status-and-ownership-declaration
+      - proposed-current-master-spec-interaction-edges
+      - ArtifactHandle-and-streaming-capability-gates
+      - validated-WP1-entry-gate
+      - WP12-complete-legacy-disposition-and-migration-gate
+      - CKC-Atelier-public-artifact-intake-gate
+      - Media-Downloader-v0-v2-convergence-gate
+    verification:
+      - "Exactly 24 unique Pillar rows exist with status, contract, boundary, evidence, and current gap."
+      - "Every active dependency has a bound owner/baseline/contract/validator/failure/revalidation/evidence record before PASS."
+      - "No blocked dependency is represented as reusable production capability."
+
+  - id: STAGE-PLAN-AUTH-COMPATIBILITY
+    title: "Authenticated-Site and Browser-Service Compatibility"
+    status: research_hardened_proposed_with_production_blocker
+    depends_on: [STAGE-PLAN-CHROMIUM-BOOTSTRAP, STAGE-PLAN-SESSIONS-STATE, STAGE-PLAN-FULL-FEATURE]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/16-web-compatibility-auth-and-agent-security.md
+      - .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-016-018-browser-product-auth-agent-security.md
+      - .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-021-webview2-youtube-auth-spike.md
+    outputs:
+      - supported-session-acquisition-modes
+      - authenticated-site-compatibility-matrix-schema
+      - Google-YouTube-production-blocker
+      - OAuth-WebAuthn-MFA-client-cert-and-cookie-boundaries
+      - webview2-youtube-auth-spike-harness-and-result
+    research_workstreams: [STAGE-RW-021]
+    spike_status: >-
+      STAGE-RW-021 harness built and run 2026-07-20 against operator's real Firefox default-release session.
+      RESULT: governed session import into WebView2 WORKS — with ~40 essential .youtube.com auth cookies,
+      YouTube reports logged-in and the auth-gated subscriptions feed rendered as a logged-in Premium session
+      (screenshot confirmed). Gate parts 1-3 PASS; part 4 (download handoff) untested. Corrects earlier
+      FAIL/FRAGILE prediction: Google's embedded block targets interactive login, not cookie import.
+      STAGE-DEC-021 does NOT fire; STAGE-WIN-BOOTSTRAP-PROD stays alive. Constraints: cookie set must be
+      scoped (full jar triggers HTTP 413); Firefox is the unencrypted session source. Open: session
+      DURABILITY over time under DBSC (not soak-tested). Harness at C:\Handshake_Stage_Spike (outside gov kernel).
+    open_questions:
+      - "Session DURABILITY: does an imported WebView2 YouTube session survive over hours/days under DBSC/cookie-refresh, or need periodic re-import? Initial + short-term import is PROVEN working per STAGE-RW-021; durability soak-test and part-4 authenticated download handoff remain."
+    verification:
+      - STAGE-GATE-007-AUTH-COMPATIBILITY
+
+  - id: STAGE-PLAN-AGENT-SECURITY
+    title: "Browser-Agent Prompt-Injection and Data-Flow Security"
+    status: research_hardened_proposed
+    depends_on: [STAGE-PLAN-AGENT-CONTROL-REPLAY, STAGE-PLAN-SECURITY-ISOLATION, STAGE-PLAN-AUTH-COMPATIBILITY]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/16-web-compatibility-auth-and-agent-security.md
+      - .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-016-018-browser-product-auth-agent-security.md
+    outputs:
+      - hostile-content-nonauthority-rule
+      - source-to-sink-and-consequence-policy
+      - durable-action-and-unknown-outcome-contract
+      - parallel-lease-and-operator-control-contract
+      - prompt-injection-and-non-exfiltration-corpus
+    verification:
+      - STAGE-GATE-008-AGENT-CONTROL
+
+  - id: STAGE-PLAN-PERSISTENCE-RECOVERY
+    title: "Production Persistence, Events, Migration, Backup, and Recovery"
+    status: research_hardened_proposed
+    depends_on: [STAGE-PLAN-PRODUCT-TOPOLOGY, STAGE-PLAN-SESSIONS-STATE, STAGE-PLAN-DIAGNOSTICS-VALIDATION]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/17-production-data-events-recovery-and-portability.md
+      - .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-019-020-production-data-and-release-operations.md
+    outputs:
+      - logical-table-index-event-and-transaction-contract
+      - revision-fencing-outbox-projector-and-bulk-run-contract
+      - expand-backfill-cutover-contract-migration-protocol
+      - database-artifact-and-operator-portability-model
+      - safe-mode-health-and-failure-state-contract
+    verification:
+      - persistence-property-and-replay-tests
+      - migration-interruption-and-rollback-boundary-rehearsal
+      - clean-machine-restore-and-3000-tab-no-storm-proof
+
+  - id: STAGE-PLAN-RELEASE-OPERATIONS
+    title: "Release, Packaging, Updates, Supply Chain, and Support"
+    status: research_hardened_proposed
+    depends_on: [STAGE-PLAN-PERSISTENCE-RECOVERY, STAGE-PLAN-PROMOTION-RETIREMENT, STAGE-PLAN-PRODUCT-TOPOLOGY]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/18-release-packaging-update-and-support.md
+      - .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-019-020-production-data-and-release-operations.md
+    outputs:
+      - distinct-WebView2-production-and-Servo-promotion-slices
+      - Windows-package-and-platform-qualification-matrix
+      - vendor-versus-app-owned-update-and-rollback-semantics
+      - SBOM-signing-licensing-and-component-provenance
+      - support-bundle-safe-mode-and-incident-drills
+    open_questions:
+      - "Project-wide installer/update/signing baseline."
+      - "Operator-locked numerical service and evidence freshness targets after measurement."
+    verification:
+      - STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN
+      - STAGE-GATE-017-SUPPORT
+
+  - id: STAGE-PLAN-VALIDATION-GATES
+    title: "Validation Harness, Evidence, and Production Gates"
+    status: specified_command_binding_pending_implementation
+    depends_on: [STAGE-PLAN-FULL-FEATURE, STAGE-PLAN-AGENT-SECURITY, STAGE-PLAN-PERSISTENCE-RECOVERY, STAGE-PLAN-RELEASE-OPERATIONS]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/19-validation-evidence-and-production-gates.md
+      - .GOV/reference/stage_mvp_planning/production-gates.yaml
+      - .GOV/reference/stage_mvp_planning/acceptance-registry.yaml
+      - .GOV/reference/stage_mvp_planning/acceptance/acceptance-browser-core.yaml
+      - .GOV/reference/stage_mvp_planning/acceptance/acceptance-behavior-integrations.yaml
+      - .GOV/reference/stage_mvp_planning/acceptance/acceptance-operations-governance.yaml
+      - .GOV/reference/stage_mvp_planning/production-risk-register.yaml
+    outputs:
+      - controlled-fixture-corpus
+      - evidence-manifest-schema
+      - 21-stable-production-and-closure-gates
+      - 117-one-to-one-atomic-acceptance-rows
+      - 16-risk-production-control-register
+      - future-exact-command-binding-rule
+    verification:
+      - evidence-schema-validation
+      - zero-selected-zero-executed-and-skipped-only-guards
+      - gate-prerequisite-cycle-and-release-coverage-check
+
+  - id: STAGE-PLAN-FUTURE-AUTHORING-READINESS
+    title: "Future Master-Spec, WP, and Microtask Authoring Readiness"
+    status: hardened_planning_input_authority_work_deferred
+    depends_on: [STAGE-PLAN-VALIDATION-GATES, STAGE-PLAN-MICROTASK-DECOMPOSITION, STAGE-PLAN-MASTER-SPEC-ENRICHMENT]
+    primary_files:
+      - .GOV/reference/stage_mvp_planning/20-future-wp-and-microtask-generation-readiness.md
+      - .GOV/reference/stage_mvp_planning/planning-readiness.yaml
+      - .GOV/reference/stage_mvp_planning/10-microtask-lane-and-dag-seed.md
+      - .GOV/reference/stage_mvp_planning/microtask-allocator-contract.yaml
+    outputs:
+      - future-authority-sequence
+      - future-WP-refinement-and-MT-schema
+      - 23-lane-expanded-blueprint
+      - allocator-rejection-rules
+      - canonical-hsk-microtask-schema-field-map
+      - status-synchronization-transaction
+    hold_rule: >-
+      Do not edit the Master Spec, fold/archive source stubs, create the
+      replacement WP/refinement, or generate official MT files until the
+      operator starts the later authority pass.
+    verification:
+      - readiness-decision-and-revalidation-checks
+      - future-allocator-orphan-cycle-conflict-and-command-binding-checks
+
+files:
+  workspace:
+    - id: STAGE-FILE-INDEX
+      path: .GOV/reference/stage_mvp_planning/index.yaml
+      kind: single-topic-and-file-index
+      status: active
+      topics: [ALL]
+    - id: STAGE-FILE-INSTRUCTIONS
+      path: .GOV/reference/stage_mvp_planning/INSTRUCTIONS.md
+      kind: workspace-instructions
+      status: active
+      topics: [ALL]
+    - id: STAGE-FILE-OVERVIEW
+      path: .GOV/reference/stage_mvp_planning/00-workspace-overview.md
+      kind: planning-note
+      status: active
+      topics: [STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-SESSIONS-STATE, STAGE-PLAN-AGENT-CONTROL-REPLAY]
+    - id: STAGE-FILE-PRESERVATION
+      path: .GOV/reference/stage_mvp_planning/01-source-preservation-register.md
+      kind: source-disposition-register
+      status: active
+      topics: [STAGE-PLAN-SCOPE-PRESERVATION, STAGE-PLAN-SESSIONS-STATE, STAGE-PLAN-STAGE-APPS-BRIDGE, STAGE-PLAN-CAPTURE-IMPORT, STAGE-PLAN-MEDIA-PORTABILITY, STAGE-PLAN-ASR-LINEAGE]
+    - id: STAGE-FILE-DECISIONS
+      path: .GOV/reference/stage_mvp_planning/02-decision-register.md
+      kind: decision-register
+      status: supersession-locked
+      topics: [STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-CHROMIUM-BOOTSTRAP, STAGE-PLAN-PRIVACY-NETWORK, STAGE-PLAN-PROMOTION-RETIREMENT]
+    - id: STAGE-FILE-SEQUENCE
+      path: .GOV/reference/stage_mvp_planning/03-planning-sequence.md
+      kind: planning-sequence
+      status: proposed
+      topics: [STAGE-PLAN-PROMOTION-RETIREMENT, STAGE-PLAN-MICROTASK-DECOMPOSITION, STAGE-PLAN-MASTER-SPEC-ENRICHMENT]
+    - id: STAGE-FILE-OPERATOR-OUTCOMES
+      path: .GOV/reference/stage_mvp_planning/04-operator-outcomes-and-use-cases.md
+      kind: operator-requirement-preservation-note
+      status: active
+      topics: [STAGE-PLAN-OPERATOR-OUTCOMES, STAGE-PLAN-HIGH-VOLUME-TABS, STAGE-PLAN-PROJECT-ASSET-INTAKE, STAGE-PLAN-TAB-ORGANIZATION-LOOM, STAGE-PLAN-COOKIE-CREDENTIAL-HANDOFF, STAGE-PLAN-AGENT-CONTROL-REPLAY, STAGE-PLAN-TRANSLATION-EXPORT, STAGE-PLAN-SEARCH-RETRIEVAL, STAGE-PLAN-INTERNAL-MANUAL]
+    - id: STAGE-FILE-NATIVE-FRONTEND
+      path: .GOV/reference/stage_mvp_planning/05-native-frontend-and-tab-workspace.md
+      kind: reference-architecture-plan
+      status: proposed
+      topics: [STAGE-PLAN-HIGH-VOLUME-TABS, STAGE-PLAN-TAB-ORGANIZATION-LOOM, STAGE-PLAN-AGENT-CONTROL-REPLAY, STAGE-PLAN-DIAGNOSTICS-VALIDATION]
+    - id: STAGE-FILE-BACKEND-DATA
+      path: .GOV/reference/stage_mvp_planning/06-backend-and-data-contracts.md
+      kind: reference-architecture-plan
+      status: proposed
+      topics: [STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-SECURITY-ISOLATION, STAGE-PLAN-SESSIONS-STATE, STAGE-PLAN-AGENT-CONTROL-REPLAY, STAGE-PLAN-STAGE-APPS-BRIDGE, STAGE-PLAN-DIAGNOSTICS-VALIDATION]
+    - id: STAGE-FILE-PROJECT-ASSET-INTAKE
+      path: .GOV/reference/stage_mvp_planning/07-project-asset-intake-and-existing-system-reuse.md
+      kind: reference-integration-plan
+      status: proposed
+      topics: [STAGE-PLAN-PROJECT-ASSET-INTAKE, STAGE-PLAN-COOKIE-CREDENTIAL-HANDOFF, STAGE-PLAN-CAPTURE-IMPORT, STAGE-PLAN-MEDIA-PORTABILITY, STAGE-PLAN-ASR-LINEAGE]
+    - id: STAGE-FILE-LOOM-SEARCH-TRANSLATION
+      path: .GOV/reference/stage_mvp_planning/08-loom-search-translation-export-and-manual.md
+      kind: reference-integration-plan
+      status: proposed
+      topics: [STAGE-PLAN-TAB-ORGANIZATION-LOOM, STAGE-PLAN-SEARCH-RETRIEVAL, STAGE-PLAN-TRANSLATION-EXPORT, STAGE-PLAN-COOKIE-CREDENTIAL-HANDOFF, STAGE-PLAN-INTERNAL-MANUAL]
+    - id: STAGE-FILE-ACCEPTANCE-RED-TEAM
+      path: .GOV/reference/stage_mvp_planning/09-acceptance-benchmarks-and-red-team.md
+      kind: reference-validation-plan
+      status: proposed
+      topics: [STAGE-PLAN-HIGH-VOLUME-TABS, STAGE-PLAN-SECURITY-ISOLATION, STAGE-PLAN-AGENT-CONTROL-REPLAY, STAGE-PLAN-PROJECT-ASSET-INTAKE, STAGE-PLAN-SEARCH-RETRIEVAL, STAGE-PLAN-TRANSLATION-EXPORT, STAGE-PLAN-DIAGNOSTICS-VALIDATION, STAGE-PLAN-PROMOTION-RETIREMENT]
+    - id: STAGE-FILE-MICROTASK-SEED
+      path: .GOV/reference/stage_mvp_planning/10-microtask-lane-and-dag-seed.md
+      kind: reference-execution-decomposition
+      status: expanded-blueprint-non-execution
+      topics: [STAGE-PLAN-MICROTASK-DECOMPOSITION, STAGE-PLAN-PROMOTION-RETIREMENT]
+    - id: STAGE-FILE-SPEC-RECONCILIATION
+      path: .GOV/reference/stage_mvp_planning/11-current-spec-reconciliation.md
+      kind: current-spec-reconciliation
+      status: research-hardened-proposed
+      topics: [STAGE-PLAN-SCOPE-PRESERVATION, STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-MASTER-SPEC-ENRICHMENT]
+    - id: STAGE-FILE-ACTIVE-WP-COMPATIBILITY
+      path: .GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md
+      kind: active-work-packet-integration-and-legacy-stage-supersession-analysis
+      status: legacy-stage-supersession-locked
+      topics: [STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-AGENT-CONTROL-REPLAY, STAGE-PLAN-CAPTURE-IMPORT]
+    - id: STAGE-FILE-PRODUCTION-ARCHITECTURE
+      path: .GOV/reference/stage_mvp_planning/13-production-architecture-and-promotion-gates.md
+      kind: reference-technical-design
+      status: proposed-for-operator-review
+      topics: [STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-CHROMIUM-BOOTSTRAP, STAGE-PLAN-SERVO-PRIMARY, STAGE-PLAN-SECURITY-ISOLATION, STAGE-PLAN-SESSIONS-STATE, STAGE-PLAN-AGENT-CONTROL-REPLAY, STAGE-PLAN-CAPTURE-IMPORT, STAGE-PLAN-DIAGNOSTICS-VALIDATION, STAGE-PLAN-PROMOTION-RETIREMENT]
+    - id: STAGE-FILE-FULL-FEATURE
+      path: .GOV/reference/stage_mvp_planning/14-full-feature-product-requirements.md
+      kind: reference-product-requirements
+      status: research-hardened-proposed
+      topics: [STAGE-PLAN-FULL-FEATURE]
+    - id: STAGE-FILE-REQUIREMENTS
+      path: .GOV/reference/stage_mvp_planning/requirements-and-traceability.yaml
+      kind: machine-readable-requirement-register
+      status: research-hardened-supersession-locked
+      topics: [STAGE-PLAN-FULL-FEATURE, STAGE-PLAN-FUTURE-AUTHORING-READINESS]
+    - id: STAGE-FILE-PILLAR-COMPATIBILITY
+      path: .GOV/reference/stage_mvp_planning/pillar-compatibility-matrix.yaml
+      kind: machine-readable-pillar-and-interaction-matrix
+      status: complete-24-pillar-proposed
+      topics: [STAGE-PLAN-PILLAR-DEPENDENCY-COMPATIBILITY, STAGE-PLAN-MASTER-SPEC-ENRICHMENT]
+    - id: STAGE-FILE-ACCEPTANCE-REGISTRY
+      path: .GOV/reference/stage_mvp_planning/acceptance-registry.yaml
+      kind: machine-readable-requirement-to-acceptance-resolution-and-command-binding-register
+      status: atomic-rows-specified-command-and-runtime-bindings-pending
+      topics: [STAGE-PLAN-FULL-FEATURE, STAGE-PLAN-VALIDATION-GATES, STAGE-PLAN-FUTURE-AUTHORING-READINESS]
+    - id: STAGE-FILE-ACCEPTANCE-BROWSER-CORE
+      path: .GOV/reference/stage_mvp_planning/acceptance/acceptance-browser-core.yaml
+      kind: machine-readable-atomic-acceptance-shard
+      status: 50-rows-specified-unbound
+      topics: [STAGE-PLAN-FULL-FEATURE, STAGE-PLAN-VALIDATION-GATES]
+    - id: STAGE-FILE-ACCEPTANCE-BEHAVIOR-INTEGRATIONS
+      path: .GOV/reference/stage_mvp_planning/acceptance/acceptance-behavior-integrations.yaml
+      kind: machine-readable-atomic-acceptance-shard
+      status: 42-rows-specified-unbound
+      topics: [STAGE-PLAN-FULL-FEATURE, STAGE-PLAN-VALIDATION-GATES, STAGE-PLAN-PILLAR-DEPENDENCY-COMPATIBILITY]
+    - id: STAGE-FILE-ACCEPTANCE-OPERATIONS-GOVERNANCE
+      path: .GOV/reference/stage_mvp_planning/acceptance/acceptance-operations-governance.yaml
+      kind: machine-readable-atomic-acceptance-shard
+      status: 24-rows-specified-unbound
+      topics: [STAGE-PLAN-VALIDATION-GATES, STAGE-PLAN-RELEASE-OPERATIONS, STAGE-PLAN-FUTURE-AUTHORING-READINESS]
+    - id: STAGE-FILE-PRODUCTION-RISKS
+      path: .GOV/reference/stage_mvp_planning/production-risk-register.yaml
+      kind: machine-readable-production-risk-control-register
+      status: 16-risks-controls-specified-evidence-pending
+      topics: [STAGE-PLAN-FULL-FEATURE, STAGE-PLAN-VALIDATION-GATES, STAGE-PLAN-FUTURE-AUTHORING-READINESS]
+    - id: STAGE-FILE-DEPENDENCY-GATES
+      path: .GOV/reference/stage_mvp_planning/dependency-gates.yaml
+      kind: machine-readable-active-dependency-gate-register
+      status: blockers-explicit
+      topics: [STAGE-PLAN-PILLAR-DEPENDENCY-COMPATIBILITY, STAGE-PLAN-PRODUCT-TOPOLOGY, STAGE-PLAN-FUTURE-AUTHORING-READINESS]
+    - id: STAGE-FILE-LEGACY-DISPOSITION
+      path: .GOV/reference/stage_mvp_planning/legacy-stage-disposition-register.yaml
+      kind: machine-readable-legacy-stage-disposition-register
+      status: inventory-seed-exact-baseline-and-real-data-pending
+      topics: [STAGE-PLAN-PRODUCT-TOPOLOGY, STAGE-PLAN-PILLAR-DEPENDENCY-COMPATIBILITY]
+    - id: STAGE-FILE-PRODUCT-TOPOLOGY
+      path: .GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md
+      kind: reference-topology-supersession-and-optional-data-import-analysis
+      status: current-state-inspected-supersession-locked
+      topics: [STAGE-PLAN-PRODUCT-TOPOLOGY, STAGE-PLAN-PERSISTENCE-RECOVERY]
+    - id: STAGE-FILE-AUTH-AGENT-SECURITY
+      path: .GOV/reference/stage_mvp_planning/16-web-compatibility-auth-and-agent-security.md
+      kind: reference-security-and-compatibility-contract
+      status: research-hardened-proposed
+      topics: [STAGE-PLAN-AUTH-COMPATIBILITY, STAGE-PLAN-AGENT-SECURITY, STAGE-PLAN-STAGE-APPS-BRIDGE]
+    - id: STAGE-FILE-PRODUCTION-DATA
+      path: .GOV/reference/stage_mvp_planning/17-production-data-events-recovery-and-portability.md
+      kind: reference-production-data-contract
+      status: research-hardened-proposed
+      topics: [STAGE-PLAN-PERSISTENCE-RECOVERY, STAGE-PLAN-SESSIONS-STATE, STAGE-PLAN-DIAGNOSTICS-VALIDATION]
+    - id: STAGE-FILE-RELEASE-OPERATIONS
+      path: .GOV/reference/stage_mvp_planning/18-release-packaging-update-and-support.md
+      kind: reference-release-operations-plan
+      status: research-hardened-proposed
+      topics: [STAGE-PLAN-RELEASE-OPERATIONS, STAGE-PLAN-PROMOTION-RETIREMENT]
+    - id: STAGE-FILE-VALIDATION-GATES
+      path: .GOV/reference/stage_mvp_planning/19-validation-evidence-and-production-gates.md
+      kind: reference-validation-and-evidence-contract
+      status: research-hardened-proposed
+      topics: [STAGE-PLAN-VALIDATION-GATES, STAGE-PLAN-DIAGNOSTICS-VALIDATION]
+    - id: STAGE-FILE-PRODUCTION-GATE-REGISTRY
+      path: .GOV/reference/stage_mvp_planning/production-gates.yaml
+      kind: machine-readable-production-gate-register
+      status: specified-command-binding-pending-implementation
+      topics: [STAGE-PLAN-VALIDATION-GATES, STAGE-PLAN-PROMOTION-RETIREMENT]
+    - id: STAGE-FILE-FUTURE-AUTHORING
+      path: .GOV/reference/stage_mvp_planning/20-future-wp-and-microtask-generation-readiness.md
+      kind: reference-future-authoring-readiness
+      status: hardened-planning-input-authority-work-deferred
+      topics: [STAGE-PLAN-FUTURE-AUTHORING-READINESS, STAGE-PLAN-MICROTASK-DECOMPOSITION, STAGE-PLAN-MASTER-SPEC-ENRICHMENT]
+    - id: STAGE-FILE-MICROTASK-ALLOCATOR-CONTRACT
+      path: .GOV/reference/stage_mvp_planning/microtask-allocator-contract.yaml
+      kind: machine-readable-future-microtask-allocator-contract
+      status: specified-unbound-authority-pass-deferred
+      topics: [STAGE-PLAN-FUTURE-AUTHORING-READINESS, STAGE-PLAN-MICROTASK-DECOMPOSITION]
+    - id: STAGE-FILE-PLANNING-READINESS
+      path: .GOV/reference/stage_mvp_planning/planning-readiness.yaml
+      kind: machine-readable-planning-readiness
+      status: hardened-planning-input-authority-work-deferred
+      topics: [STAGE-PLAN-FUTURE-AUTHORING-READINESS]
+    - id: STAGE-FILE-SPEC-PROPOSAL
+      path: .GOV/reference/stage_mvp_planning/topics/master-spec-enrichment/STAGE-MASTER-SPEC-OVERHAUL-PROPOSAL-v1.md
+      kind: spec-proposal
+      status: deferred-requires-regeneration-from-hardened-corpus
+      topics: [STAGE-PLAN-MASTER-SPEC-ENRICHMENT]
+    - id: STAGE-FILE-STUB-CONSOLIDATION-PROPOSAL
+      path: .GOV/reference/stage_mvp_planning/topics/scope-and-preservation/WP-1-Handshake-Stage-MVP-v1-stub-consolidation-proposal.md
+      kind: work-packet-stub-consolidation-proposal
+      status: deferred-requires-regeneration-from-hardened-corpus
+      topics: [STAGE-PLAN-SCOPE-PRESERVATION, STAGE-PLAN-MICROTASK-DECOMPOSITION]
+    - id: STAGE-FILE-RESEARCH-PLAN
+      path: .GOV/reference/stage_mvp_planning/research/research-plan.md
+      kind: research-plan
+      status: full-feature-research-basis-hardened-validation-pending
+      topics: [STAGE-PLAN-CHROMIUM-BOOTSTRAP, STAGE-PLAN-SERVO-PRIMARY, STAGE-PLAN-SECURITY-ISOLATION, STAGE-PLAN-AGENT-CONTROL-REPLAY, STAGE-PLAN-PRIVACY-NETWORK, STAGE-PLAN-DIAGNOSTICS-VALIDATION]
+    - id: STAGE-FILE-SOURCE-REGISTER
+      path: .GOV/reference/stage_mvp_planning/research/source-register.yaml
+      kind: research-source-register
+      status: research-hardened-validation-pending
+      topics: [ALL]
+    - id: STAGE-FILE-RW-001-003-009-SERVO
+      path: .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-001-003-009-servo-production-readiness.md
+      kind: research-note
+      status: primary-source-deep-review-complete-validation-pending
+      topics: [STAGE-PLAN-SERVO-PRIMARY, STAGE-PLAN-SECURITY-ISOLATION, STAGE-PLAN-PROMOTION-RETIREMENT]
+    - id: STAGE-FILE-RW-004-CHROMIUM
+      path: .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-004-chromium-bootstrap.md
+      kind: research-note
+      status: primary-source-deep-review-complete-validation-pending
+      topics: [STAGE-PLAN-CHROMIUM-BOOTSTRAP, STAGE-PLAN-RENDERER-ARCHITECTURE, STAGE-PLAN-PROMOTION-RETIREMENT]
+    - id: STAGE-FILE-RW-005-008-BROWSER-CONTROL
+      path: .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-005-008-browser-control-security-and-capture.md
+      kind: research-note
+      status: primary-source-deep-review-complete-validation-pending
+      topics: [STAGE-PLAN-PRIVACY-NETWORK, STAGE-PLAN-AGENT-CONTROL-REPLAY, STAGE-PLAN-SESSIONS-STATE, STAGE-PLAN-DIAGNOSTICS-VALIDATION, STAGE-PLAN-CAPTURE-IMPORT]
+    - id: STAGE-FILE-RW-011-TAB-LIFECYCLE
+      path: .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-011-high-volume-tab-lifecycle.md
+      kind: research-note
+      status: initial-primary-sources-checked
+      topics: [STAGE-PLAN-HIGH-VOLUME-TABS, STAGE-PLAN-SESSIONS-STATE]
+    - id: STAGE-FILE-RW-012-015-OPERATOR-SYSTEMS
+      path: .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-012-015-operator-workflow-systems.md
+      kind: research-note
+      status: initial-primary-and-local-sources-checked
+      topics: [STAGE-PLAN-TAB-ORGANIZATION-LOOM, STAGE-PLAN-COOKIE-CREDENTIAL-HANDOFF, STAGE-PLAN-PROJECT-ASSET-INTAKE, STAGE-PLAN-TRANSLATION-EXPORT, STAGE-PLAN-SEARCH-RETRIEVAL]
+    - id: STAGE-FILE-RW-016-018-BROWSER-PRODUCT-AUTH-AGENT
+      path: .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-016-018-browser-product-auth-agent-security.md
+      kind: research-note
+      status: primary-source-deep-review-complete-validation-pending
+      topics: [STAGE-PLAN-FULL-FEATURE, STAGE-PLAN-AUTH-COMPATIBILITY, STAGE-PLAN-AGENT-SECURITY]
+    - id: STAGE-FILE-RW-019-020-DATA-RELEASE
+      path: .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-019-020-production-data-and-release-operations.md
+      kind: research-note
+      status: primary-and-local-source-basis-complete-validation-pending
+      topics: [STAGE-PLAN-PERSISTENCE-RECOVERY, STAGE-PLAN-RELEASE-OPERATIONS]
+
+  canonical_stage_sources:
+    - { id: STAGE-SOURCE-SPEC-POINTER, path: .GOV/spec/SPEC_CURRENT.md, kind: current-spec-pointer }
+    - { id: STAGE-SOURCE-SPEC-TOPIC, path: .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md, kind: current-stage-spec-topic }
+    - { id: STAGE-SOURCE-MVP-CONTRACT, path: .GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json, kind: machine-readable-stub }
+    - { id: STAGE-SOURCE-MVP-PROJECTION, path: .GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.md, kind: legacy-projection }
+    - { id: STAGE-SOURCE-PORTABILITY-CONTRACT, path: .GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.contract.json, kind: absorbed-machine-readable-stub }
+    - { id: STAGE-SOURCE-PORTABILITY-PROJECTION, path: .GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.md, kind: absorbed-legacy-projection }
+    - { id: STAGE-SOURCE-ASR-LINEAGE-CONTRACT, path: .GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.contract.json, kind: absorbed-machine-readable-stub }
+    - { id: STAGE-SOURCE-ASR-LINEAGE-PROJECTION, path: .GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.md, kind: absorbed-legacy-projection }
+    - { id: STAGE-SOURCE-TASKBOARD, path: .GOV/roles_shared/records/TASK_BOARD.md, kind: taskboard-projection }
+    - { id: STAGE-SOURCE-BUILD-ORDER, path: .GOV/roles_shared/records/BUILD_ORDER.md, kind: build-order-projection }
+    - { id: STAGE-SOURCE-TRACEABILITY, path: .GOV/roles_shared/records/wp_traceability_registry.json, kind: machine-readable-traceability }
+
+  adjacent_dependencies_and_consumers:
+    - { id: STAGE-ADJ-WP1-MODEL-ORCHESTRATION, path: .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json, relation: active-orchestration-process-control-telemetry-dependency }
+    - { id: STAGE-ADJ-WP12-NATIVE-EDITORS, path: .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json, relation: editor-authority-and-legacy-stage-supersession-boundary }
+    - { id: STAGE-ADJ-CKC-POSEKIT, path: .GOV/task_packets/WP-CKC-posekit-overhaul/packet.json, relation: active-downstream-artifact-lineage-consumer }
+    - { id: STAGE-ADJ-MEDIA-DOWNLOADER-V2-CONTRACT, path: .GOV/task_packets/WP-1-Media-Downloader-v2/packet.json, relation: active-validated-dependency-and-session-consumer }
+    - { id: STAGE-ADJ-MEDIA-DOWNLOADER-V2-REFINEMENT, path: .GOV/refinements/WP-1-Media-Downloader-v2.md, relation: active-auth-and-security-refinement }
+    - { id: STAGE-ADJ-MEDIA-DOWNLOADER-CONTRACT, path: .GOV/task_packets/stubs/WP-1-Media-Downloader-v1.contract.json, relation: dependency-and-session-consumer }
+    - { id: STAGE-ADJ-MEDIA-DOWNLOADER-PROJECTION, path: .GOV/task_packets/stubs/WP-1-Media-Downloader-v1.md, relation: legacy-projection }
+    - { id: STAGE-ADJ-MEDIA-LOOM-CONTRACT, path: .GOV/task_packets/stubs/WP-1-Media-Downloader-Loom-Bridge-v1.contract.json, relation: downstream-consumer }
+    - { id: STAGE-ADJ-MEDIA-LOOM-PROJECTION, path: .GOV/task_packets/stubs/WP-1-Media-Downloader-Loom-Bridge-v1.md, relation: legacy-projection }
+    - { id: STAGE-ADJ-ASR-CONTRACT, path: .GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.contract.json, relation: dependency }
+    - { id: STAGE-ADJ-ASR-PROJECTION, path: .GOV/task_packets/stubs/WP-1-ASR-Transcribe-Media-v1.md, relation: legacy-projection }
+    - { id: STAGE-ADJ-VIDEO-ARCHIVE-CONTRACT, path: .GOV/task_packets/stubs/WP-1-Video-Archive-Loom-Integration-v1.contract.json, relation: downstream-consumer }
+    - { id: STAGE-ADJ-VIDEO-ARCHIVE-PROJECTION, path: .GOV/task_packets/stubs/WP-1-Video-Archive-Loom-Integration-v1.md, relation: legacy-projection }
+    - { id: STAGE-ADJ-ARTIFACT-CONTRACT, path: .GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.contract.json, relation: dependency }
+    - { id: STAGE-ADJ-ARTIFACT-PROJECTION, path: .GOV/task_packets/stubs/WP-1-Artifact-System-Foundations-v1.md, relation: legacy-projection }
+    - { id: STAGE-ADJ-ARTIFACT-ACTIVE-CONTRACT, path: .GOV/task_packets/WP-1-Artifact-System-Foundations-v1/packet.json, relation: active-done-dependency }
+    - { id: STAGE-ADJ-ATELIER-LENS-INTAKE-CONTRACT, path: .GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1.contract.json, relation: downstream-project-intake-consumer }
+    - { id: STAGE-ADJ-STORAGE-CONTRACT, path: .GOV/task_packets/stubs/WP-1-Storage-Trait-Purity-v1.contract.json, relation: dependency }
+    - { id: STAGE-ADJ-STORAGE-PROJECTION, path: .GOV/task_packets/stubs/WP-1-Storage-Trait-Purity-v1.md, relation: legacy-projection }
+
+research:
+  source_register: .GOV/reference/stage_mvp_planning/research/source-register.yaml
+  research_plan: .GOV/reference/stage_mvp_planning/research/research-plan.md
+  notes_directory: .GOV/reference/stage_mvp_planning/research/notes/
+  workstreams:
+    - { id: STAGE-RW-001, topic: Servo-embedding-and-release-posture, status: primary-source-deep-review-complete-validation-pending }
+    - { id: STAGE-RW-002, topic: Servo-multiprocess-sandbox-and-Windows-isolation, status: primary-source-deep-review-complete-validation-pending }
+    - { id: STAGE-RW-003, topic: web-compatibility-auth-forms-media-and-downloads, status: research-basis-drafted-representative-corpus-validation-pending }
+    - { id: STAGE-RW-004, topic: Chromium-bootstrap-substrate, status: primary-source-deep-review-complete-validation-pending }
+    - { id: STAGE-RW-005, topic: Rust-adblock-request-interception-and-filter-lifecycle, status: candidate-selected-adapter-coverage-validation-pending }
+    - { id: STAGE-RW-006, topic: agent-observation-action-replay-and-parallelism, status: primary-source-deep-review-complete-validation-pending }
+    - { id: STAGE-RW-007, topic: session-profile-storage-and-portability, status: primary-source-deep-review-complete-validation-pending }
+    - { id: STAGE-RW-008, topic: diagnostics-accessibility-visual-inspection-and-testing, status: primary-source-deep-review-complete-validation-pending }
+    - { id: STAGE-RW-009, topic: Servo-fork-LTS-patch-and-upstream-policy, status: primary-source-deep-review-complete-validation-pending }
+    - { id: STAGE-RW-010, topic: Handshake-current-code-spec-and-cross-WP-impact, status: current-local-authority-and-active-wp-inspected }
+    - { id: STAGE-RW-011, topic: high-volume-tab-lifecycle-and-resource-control, status: initial-primary-sources-checked }
+    - { id: STAGE-RW-012, topic: tab-organization-search-and-Loom-integration, status: initial-primary-and-local-sources-checked }
+    - { id: STAGE-RW-013, topic: cookie-edit-export-and-downloader-credential-handoff, status: initial-primary-and-local-sources-checked }
+    - { id: STAGE-RW-014, topic: project-asset-intake-and-Lens-Atelier-handoff, status: initial-primary-and-local-sources-checked }
+    - { id: STAGE-RW-015, topic: translation-Markdown-PDF-and-content-retrieval, status: initial-primary-and-local-sources-checked }
+    - { id: STAGE-RW-016, topic: full-native-browser-product-workflows, status: primary-source-deep-review-complete-validation-pending }
+    - { id: STAGE-RW-017, topic: authenticated-site-and-session-acquisition-compatibility, status: primary-source-deep-review-complete-validation-pending }
+    - { id: STAGE-RW-018, topic: browser-agent-prompt-injection-and-data-exfiltration, status: primary-source-deep-review-complete-validation-pending }
+    - { id: STAGE-RW-019, topic: production-data-events-migration-backup-and-recovery, status: primary-and-local-source-basis-complete-validation-pending }
+    - { id: STAGE-RW-020, topic: packaging-updates-supply-chain-support-and-operations, status: primary-and-local-source-basis-complete-validation-pending }
+
+planning_gates:
+  - { id: STAGE-PLAN-GATE-001, name: source-lineage-and-supersession-dispositions-complete, status: open, evidence_state: ready_for_operator_review }
+  - { id: STAGE-PLAN-GATE-002, name: research-basis-complete, status: open, evidence_state: full_feature_production_basis_ready_for_operator_review_runtime_validation_pending }
+  - { id: STAGE-PLAN-GATE-003, name: architecture-and-scope-operator-locked, status: open }
+  - { id: STAGE-PLAN-GATE-004, name: initial-microtask-DAG-complete, status: open }
+  - { id: STAGE-PLAN-GATE-005, name: initial-planning-concluded, status: open }
+  - { id: STAGE-PLAN-GATE-006, name: full-feature-production-planning-reviewed, status: open, evidence_state: corpus_ready_for_operator_review }

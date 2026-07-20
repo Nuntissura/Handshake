@@ -1,0 +1,141 @@
+legacy_stage_disposition:
+  id: stage-legacy-disposition-register
+  authority: NON_AUTHORITATIVE_REFERENCE
+  status: inventory_seed_exact_baseline_and_real_data_pending
+  updated_at: "2026-07-19"
+  wp_id: WP-1-Handshake-Stage-MVP-v1
+  operator_decision: STAGE-DEC-017
+  allowed_dispositions: [REMOVE, REPLACE, SALVAGE_CODE_ONLY, ONE_WAY_DATA_IMPORT]
+  forbidden_default: COMPATIBILITY_RETENTION
+  rule: >-
+    Existing implementation, adapter, connector, schema, route, pane, mockup,
+    test, or built status does not grant authority. Code salvage requires direct
+    conformance to the new contract. Real operator data is inventoried separately
+    and may receive a verified one-way import without preserving legacy runtime.
+
+surfaces:
+  - id: STAGE-LEGACY-001
+    surface: StagePane
+    kind: ui_pane
+    disposition: REPLACE
+    replacement: canonical_native_stage_module
+    real_data_possible: false
+    proof: [new-stage-worksurface-canonical, old-pane-unregistered, no-alias-navigation]
+
+  - id: STAGE-LEGACY-002
+    surface: ModuleId::Stage placeholder behavior
+    kind: shell_registry_placeholder
+    disposition: REPLACE
+    replacement: canonical_native_stage_module_registration
+    real_data_possible: false
+    proof: [single-stage-module-registration, no-placeholder-route]
+
+  - id: STAGE-LEGACY-003
+    surface: /stage/artifacts routes
+    kind: api_route
+    disposition: REMOVE
+    replacement: versioned_stage_capture_commands_plus_shared_artifact_content_api
+    real_data_possible: false
+    proof: [route-absence, new-capture-contract-suite, no-compatibility-alias]
+
+  - id: STAGE-LEGACY-004
+    surface: StageArtifactRefWire
+    kind: wire_type
+    disposition: REMOVE
+    replacement: shared_opaque_canonical_ArtifactHandle
+    real_data_possible: true
+    proof: [canonical-handle-round-trip, serialized-real-data-inventory, no-string-handle-constructor]
+
+  - id: STAGE-LEGACY-005
+    surface: stage_capture_artifacts
+    kind: duplicate_byte_table
+    disposition: ONE_WAY_DATA_IMPORT
+    replacement: shared_ArtifactStore_plus_stage_capture_parts_and_source_artifact_links
+    real_data_possible: true
+    precondition: "Inventory rows and classify real operator data separately from mock/test data. Import only real data selected for retention."
+    proof: [row-and-byte-counts, sha256-before-after, bounded-idempotent-restart, legacy-writer-disabled, table-removal-or-inert-proof]
+
+  - id: STAGE-LEGACY-006
+    surface: stage.jobs.enqueue
+    kind: capability_or_action_alias
+    disposition: REMOVE
+    replacement: separately_registered_stage_action_capability_tool_and_workflow_profile_ids
+    real_data_possible: false
+    proof: [registry-allocation, unknown-legacy-id-rejected, no-generic-queue-bypass]
+
+  - id: STAGE-LEGACY-007
+    surface: WP-12 Stage session-to-downloader connector
+    kind: connector
+    disposition: REPLACE
+    replacement: scoped_revocable_CredentialLeaseRef_and_new_downloader_contract
+    real_data_possible: true
+    precondition: "Inventory persisted session references without exporting raw secrets into governance evidence."
+    proof: [credential-lease-expiry, secret-scan, legacy-connector-unreachable]
+
+  - id: STAGE-LEGACY-008
+    surface: WP-12 editor-to-Stage routes and embed-back aliases
+    kind: public_integration
+    disposition: REPLACE
+    replacement: newly_specified_versioned_editor_consumer_of_current_StageCaptureCoordinator_contract
+    real_data_possible: true
+    proof: [new-public-contract, lineage-round-trip, no-old-route-or-wire-alias]
+
+  - id: STAGE-LEGACY-009
+    surface: migration-0341-stage-capture-artifacts
+    kind: database_migration
+    disposition: ONE_WAY_DATA_IMPORT
+    replacement: collision_safe_new_stage_and_shared_artifact_migrations
+    real_data_possible: true
+    proof: [migration-number-reservation, clean-and-populated-rehearsal, count-and-hash-proof, downgrade-readonly-disposition]
+
+  - id: STAGE-LEGACY-010
+    surface: migration-0346-stage-related-guards
+    kind: database_migration_or_guard
+    disposition: REPLACE
+    replacement: current_schema_constraints_after_exact_reader_writer_inventory
+    real_data_possible: true
+    proof: [guard-dependency-inventory, collision-free-migration, current-constraint-suite]
+
+  - id: STAGE-LEGACY-011
+    surface: migration-0348-stage-related-guards
+    kind: database_migration_or_guard
+    disposition: REPLACE
+    replacement: current_schema_constraints_after_exact_reader_writer_inventory
+    real_data_possible: true
+    proof: [guard-dependency-inventory, collision-free-migration, current-constraint-suite]
+
+  - id: STAGE-LEGACY-012
+    surface: migration-0349-stage-related-guards
+    kind: database_migration_or_guard
+    disposition: REPLACE
+    replacement: current_schema_constraints_after_exact_reader_writer_inventory
+    real_data_possible: true
+    proof: [guard-dependency-inventory, collision-free-migration, current-constraint-suite]
+
+  - id: STAGE-LEGACY-013
+    surface: legacy Stage mockups fixtures and tests
+    kind: test_and_mock_surface
+    disposition: SALVAGE_CODE_ONLY
+    replacement: current_requirement_and_adapter_conformance_fixtures
+    real_data_possible: false
+    precondition: "Each salvaged fixture must map to a current requirement and must not encode legacy route/schema/UI expectations."
+    proof: [fixture-to-requirement-map, legacy-expectation-negative-scan]
+
+  - id: STAGE-LEGACY-014
+    surface: older Stage adapters and connectors not individually listed
+    kind: implementation_inventory_catchall
+    disposition: SALVAGE_CODE_ONLY
+    replacement: current_versioned_adapter_or_public_contract
+    real_data_possible: unknown
+    precondition: "Expand into individually identified rows before official migration microtasks; catchall cannot close the gate."
+    proof: [complete-file-symbol-route-schema-test-inventory, per-surface-disposition]
+
+closure_requirements:
+  - exact_source_and_target_commits_bound
+  - all_readers_writers_routes_types_tables_indexes_triggers_guards_tests_and_ui_rows_inventory_complete
+  - real_operator_data_decision_recorded
+  - migration_numbers_and_file_conflict_owner_reserved_after_rebase
+  - clean_database_and_populated_database_rehearsals_pass
+  - optional_import_bounded_idempotent_restartable_and_count_hash_verified
+  - legacy_writers_stopped_before_cutover
+  - no_unapproved_legacy_alias_reader_writer_or_compatibility_window

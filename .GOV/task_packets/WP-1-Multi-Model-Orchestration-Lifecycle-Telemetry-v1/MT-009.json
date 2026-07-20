@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-009",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-11T03:48:59.146Z",
+  "updated_at_utc": "2026-07-20T01:19:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-009.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "READY_FOR_VALIDATION_V3",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -27,25 +27,25 @@
       "MT-010"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "PENDING_V3",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T02:33:02Z",
-    "ready_for_validation_by": "CODEX_REMEDIATION_20260711",
-    "ready_for_validation_at_utc": "2026-07-11T03:30:47.040Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
+    "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V2_2026-07-11: product commit 28e2e5c8be347e0fa62d09de84f4992aad931c7c; real PostgreSQL CRDT atomicity, cancellation/start fencing, rollback, Argus, UserManual, and shared-CRDT regression proofs passed. validation_v1 remains immutable FAIL_V1.",
+    "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: routing outputs resolve to durable PostgreSQL/Yjs updates and post-update state vectors; mixed producer/native diagnostics passed with one nonce, schema/hash/status/freshness binding, and a bounded writer drain into kernel_process_lifecycle. Cancellation, routing-policy, replay, compaction, and negative exacts pass. Independent adversarial review found no MT-009 false-green. Historical V1/V2 verdicts remain preserved; COMPLETED remains validator-only.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT009_MIXED_GREEN",
-    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-009:2026-07-11T03:30:47.040Z",
+    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-009:2026-07-20T01:13:33.373Z",
     "product_worktree_root_resolution": "HANDSHAKE_PRODUCT_WORKTREE_ROOT:D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
     "last_runtime_status_ref": null,
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "PASS_V2_2026-07-11_MULTI_LENS_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
-    "adversarial_findings_status": "V2_PASS: atomic PostgreSQL/EventLedger CRDT receipts, server-derived Yjs causality/attribution, cancellation/start fencing with terminal rollback, late-capture authority ordering, real-PG negative probes, Argus and UserManual proofs. Delete-only Yjs updates remain intentionally fail-closed pending durable author attribution.",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_PRODUCER_CONSUMER_AND_POSTGRES_DRAIN_REVIEW_NO_FINDINGS",
+    "adversarial_findings_status": "PASS_V3_STRICT_NONCE_HASH_SCHEMA_FRESHNESS_AND_REAL_POSTGRES_LEDGER_DRAIN_PROVEN",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
     "summary": "Build validation harnesses and negative cases for mixed cloud/local/subagent lane runs.",
@@ -87,16 +87,17 @@
       "After implementation and before READY_FOR_VALIDATION, this MT MUST receive post-implementation adversarial review against the actual diff. Findings must be fixed or converted into explicit lifecycle blocker/missing_resource/proof_status state; the implementer may not self-certify COMPLETED."
     ],
     "proof_targets": [
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact --nocapture",
+      "$env:HANDSHAKE_ARTIFACTS_DIR=(Resolve-Path '../Handshake_Artifacts').Path; $env:HANDSHAKE_MT009_DIAGNOSTICS_PROOF_NONCE=[guid]::NewGuid().ToString(); cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact --nocapture; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cargo test --locked -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact --nocapture",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact --nocapture",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key -- --exact --nocapture",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact --nocapture",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact --nocapture",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_all_six_policies_execute_real_production_waves_with_typed_lineage -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact --nocapture",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact --nocapture",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact --nocapture",
-      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rolls_back_after_terminal_pg_failure -- --exact --nocapture",
-      "cargo test --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_retries_after_terminal_pg_failure -- --exact --nocapture",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_validation_harness_user_manual_entry_is_current -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact"
     ],
@@ -306,9 +307,73 @@
     "shared_regressions": [
       "MT-012 operator-chat capture suite: all 14 exact tests covered after shared cancellation changes.",
       "MT-067/070/077/078/080/236/237 shared CRDT suites: real PostgreSQL regressions passed after fixtures were converted from opaque bytes to real Yjs v1 updates."
-    ]
+    ],
+    "final_source_revalidation_2026_07_17": {
+      "status": "PASS_REQUIRED_PROOFS",
+      "actor_session": "KERNEL_BUILDER-20260717-072123",
+      "validated_at_utc": "2026-07-17T14:47:07Z",
+      "product_source_state": "Shared dirty product worktree; proof was run against the exact final source files, not attributed to the historical product_commit.",
+      "repairs": [
+        "Updated the mixed-run diagnostics assertion from schema @1 to the authoritative backend/native schema @2.",
+        "Changed the replay-gap negative fixture to corrupt model_lane_recovery_events and kernel_event_ledger after the store allocates contiguous replay_order_seq values.",
+        "Carried the exact ProcessStart snapshot on the loopback LiveSession so coordinator cancellation builds an identity-symmetric STOP."
+      ],
+      "required_proof_results": {
+        "mixed_model_lane_exact": "PASS_6_OF_6",
+        "operator_chat_exact": "PASS_3_OF_3_CURRENT_TEST_IDENTIFIERS",
+        "native_argus_exact": "PASS_1_OF_1",
+        "user_manual_exact": "PASS_2_OF_2",
+        "repaired_cases_final_source_rerun": "PASS_3_OF_3",
+        "git_diff_check": "PASS"
+      },
+      "inconclusive_non_required_sweep": "The optional full 33-test mixed_model_lane_integration_pg_tests run exceeded the configured 20-minute command timeout with no verdict; the owned continuation was terminated after its exact PIDs and command lines were verified. No PASS claim is made for that sweep.",
+      "adversarial_review": {
+        "verdict": "PASS_REMEDIATED",
+        "diff_attack_surfaces": [
+          "A schema-only assertion change could hide backward projection drift.",
+          "A caller-supplied replay sequence cannot create a persisted gap after allocator ownership, so an uncorrected fixture can false-green or false-red.",
+          "A coordinator STOP reconstructed without the original START snapshot can conflict on owner, WP/MT, parent session, or sandbox identity."
+        ],
+        "counterfactual_checks": [
+          "If production regresses to diagnostics schema @1, the corrected MT-009 assertion and existing backend/native @2 tests fail.",
+          "If recovery stops checking contiguous canonical replay order, the post-insert database/EventLedger corruption test succeeds unexpectedly and the negative guard fails.",
+          "If coordinator cancellation drops the ProcessStart snapshot, the durable ledger drain rejects STOP identity and the operator-chat cancellation proof fails."
+        ],
+        "boundary_probes": [
+          "Only MT-009-owned Rust test files were changed in this final-source repair.",
+          "The replay-gap probe mutates both the materialized recovery row and EventLedger projection to model canonical corruption consistently.",
+          "The native Argus consumer accepts the backend-generated schema @2 projection."
+        ],
+        "negative_path_checks": [
+          "Cancellation preserves the captured prefix, rejects late activity, and produces one durable STOP.",
+          "Terminal PostgreSQL write fencing rejects concurrent generation and retries after terminal-write failure.",
+          "CRDT duplicate, stale-base, replay-gap, attribution, and atomic cross-connection cases fail closed or converge as declared."
+        ],
+        "independent_findings": "No unresolved final-source blocker remains in the required MT-009 acceptance surface.",
+        "residual_uncertainty": "The optional full-suite sweep has no verdict because it exceeded 20 minutes; required exact tests and targeted final-source repaired-case reruns are green."
+      }
+    },
+    "final_audit_remediation_2026_07_18": {
+      "status": "PASS_READY_FOR_VALIDATION_ONLY",
+      "verified_at_utc": "2026-07-18T10:17:35.548Z",
+      "repairs": [
+        "Made missing CRDT author attribution fail closed independently of entity kind.",
+        "Replaced stale opaque fixtures with current Yjs update/state-vector proofs and kept stale-base rejection explicit.",
+        "Pinned mixed-lane and diagnostics backend/native projections to current producer artifacts; diagnostics schema is @3."
+      ],
+      "proof_results": {
+        "crdt_kind_independent_fail_closed": "PASS_EXACT",
+        "real_postgres_yjs_compaction_and_convergence": "PASS_1_OF_1",
+        "mixed_local_cloud_restart_replay_backend": "PASS_1_OF_1",
+        "mixed_model_lane_native_consumer": "PASS_1_OF_1",
+        "diagnostics_backend_projection": "PASS_1_OF_1",
+        "diagnostics_native_schema_v3_consumer": "PASS_1_OF_1",
+        "diagnostics_negative_author_and_count_guards": "PASS_1_OF_1"
+      },
+      "validator_boundary": "Historical FAIL_V1 remains immutable; COMPLETED remains validator-only."
+    }
   },
-  "validator_verdict": "FAIL_V1",
+  "validator_verdict": "PENDING_V3",
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -324,5 +389,43 @@
     "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
     "fail_report": "Two declared acceptance criteria are unproven and openly conceded as gaps. (1) AC#4 requires each lane to 'honor cooperative cancellation between streaming chunks/tool-call boundaries'. Verified: NO CancellationToken usage and NO .cancel() call exists in mixed_model_lane_integration_pg_tests.rs (grep count 0); cancellation_ref is only a static string field (line 2281: format!(\"cancel-token://mt009/{lane_id}\")). The behavior is never exercised. (2) AC#5 requires 'snapshot compaction preserves update hashes, state vectors, and replay metadata' and stable derived state_vector. Verified: ZERO occurrences of 'compaction' in any WP-1 test file; crdt_state_vector is a static sample value (\"sv:mt009:3\"), not derived/computed. mt_index.json MT-009 openly concedes 'GAPS: snapshot compaction / derived state_vector / real cancellation -> MT-017 AC-2..AC-4' with NO contract amendment and NO operator descope. The genuine concurrency test mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key DOES pass at HEAD (Coder log g1_swarm.out.log 2026-07-09, 1104s) but is not in scope.proof_targets and does not cover AC#4/AC#5.",
     "remediation_plan": "STEP 1 (cancellation, product+test): add a test to src/backend/handshake_core/tests/mixed_model_lane_integration_pg_tests.rs that drives a real CancellationToken.cancel() mid-stream between streamed activity blocks and asserts (a) partial capture up to the cancel point persists, (b) a terminal cancelled lane state is written to PG/EventLedger, (c) no ModelLaneMessage chunks are recorded after cancel. STEP 2 (compaction + derived state_vector, product+test): add a test asserting snapshot compaction preserves per-update hashes, state vectors, and replay metadata, and that state_vector is COMPUTED (not a static string) and stable across varied replay orders + duplicates. STEP 3: add mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key and the two new tests to MT-009 scope.proof_targets (its own contract says proof commands MUST name exact tests). ALTERNATIVE to STEP 1-2: obtain an Operator-approved contract amendment formally moving AC#4 (cancellation) and AC#5 (compaction, derived state_vector) to MT-017, and STRIKE them from MT-009 acceptance_criteria - the mt_index.json 'GAPS->MT-017' note is NOT a substitute for a contract amendment. STEP 4: re-handoff to READY_FOR_VALIDATION."
+  },
+  "remediation_v3": {
+    "status": "READY_FOR_VALIDATION_V3",
+    "prepared_by": "KERNEL_BUILDER-20260717-072123",
+    "prepared_at_utc": "2026-07-20T01:19:00Z",
+    "v1_v2_verdicts_preserved": true,
+    "proof_results": {
+      "mixed_backend_native_chain": "PASS_1_OF_1_PLUS_1_OF_1_NONCE_2101dc23-3432-4cf0-b855-8283cad37c34",
+      "postgres_process_ledger_drain": "PASS_KERNEL_PROCESS_LIFECYCLE_DURABLE_ROWS",
+      "crdt_yjs_state_vector_and_compaction": "PASS_REAL_POSTGRES",
+      "routing_policies_and_retry_exhaustion": "PASS",
+      "operator_chat_cancellation": "PASS"
+    },
+    "adversarial_review": "PASS_NO_MT009_FINDING",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-20T01:13:33.373Z",
+    "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null."
+  },
+  "validation_v2": {
+    "verdict": "FAIL_V2",
+    "validated_by": "INTEGRATION_VALIDATOR-20260718-230746",
+    "validated_at_utc": "2026-07-18T23:40:04.194Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "Successful ordinary routing proposals fabricate proposal://, crdt-update://model-lane-routing, and crdt-proposal:// references while persisting only the ModelLaneMessage and routing artifact. No kernel_crdt_updates/Yjs payload exists for those references, and the copied base state vector does not include the generated proposal. The all-six-policy test checks payload lineage but never dereferences the CRDT reference. Existing diagnostics artifacts also exceeded the native 30-minute freshness ceiling at validation time and cannot close the Argus producer/consumer gate.",
+    "remediation_plan": [
+      "Either classify non-shared-state routing outputs as non-CRDT advisory messages with null CRDT authority fields, or atomically persist a real Yjs proposal/update row and derive its post-update state vector before recording the ModelLane message.",
+      "For every routing policy, resolve every non-null CRDT reference to PostgreSQL update bytes and re-materialize it; add missing-row, hash-mismatch, stale-vector, and replay-order negative tests.",
+      "Regenerate the backend diagnostics artifact and native Argus consumer proof serially with one fresh nonce after source freeze; verify hash, schema, producer identity, completion receipt, and freshness."
+    ],
+    "independent_checks": [
+      "FAIL source trace: routing CRDT URI prefixes exist only at formatting sites and have no persistence/resolution path.",
+      "FAIL counterfactual: a consumer using the real Yjs replay resolver cannot materialize a routing-produced CRDT reference.",
+      "FAIL proof freshness: historical backend/native diagnostics artifacts exceed the enforced 30-minute maximum.",
+      "INCONCLUSIVE environment run: bounded-retry exact execution did not produce a result during shared Cargo compilation; no pass claim is made."
+    ]
   }
 }

@@ -17,7 +17,19 @@
       "frozen_legacy_migration_reference"
     ]
   },
-  "execution_authority": "NON_EXECUTION_STUB",
+  "execution_authority": "SUPERSEDED_FOLDED_STUB",
+  "supersession": {
+    "status": "SUPERSEDED_FOLDED",
+    "folded_into": "WP-1-Handshake-Stage-MVP-v1",
+    "folded_at_utc": "2026-07-20T00:00:00Z",
+    "operator_decision": "STAGE-DEC-001, STAGE-DEC-017",
+    "reason": "Operator-directed consolidation into the single Stage umbrella WP stub. This stub's outcomes are preserved as lineage in the hardened Stage planning corpus (ASR transcript-lineage lane), NOT as legacy implementation authority. Archived, not deleted.",
+    "outcome_lane": "L15",
+    "planning_topic": "STAGE-PLAN-ASR-LINEAGE",
+    "lineage_ids": ["STAGE-PRES-ASR-001", "STAGE-PRES-ASR-002", "STAGE-PRES-ASR-003", "STAGE-PRES-ASR-004", "STAGE-PRES-ASR-005", "STAGE-PRES-ASR-006"],
+    "requirement_ids": ["STAGE-REQ-INTAKE-003", "STAGE-REQ-CAPTURE-001"],
+    "legacy_authority": "NONE_NO_IMPLICIT_COMPATIBILITY"
+  },
   "wp_id": "WP-1-Stage-ASR-Transcript-Lineage-v1",
   "base_wp_id": "WP-1-Stage-ASR-Transcript-Lineage",
   "created_at_utc": "2026-03-09T00:00:00Z",

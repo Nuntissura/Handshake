@@ -1,0 +1,202 @@
+stage_production_risk_register:
+  schema_id: hsk.stage_production_risk_registry@1
+  registry_id: stage-production-risks
+  authority: NON_AUTHORITATIVE_REFERENCE
+  status: RISKS_AND_CONTROLS_SPECIFIED_EVIDENCE_PENDING
+  updated_at: "2026-07-19"
+  wp_id: WP-1-Handshake-Stage-MVP-v1
+  rule: >-
+    A risk closes only when every minimum control is implemented and its named
+    fresh evidence passes at the exact approved build and dependency baselines.
+    Planning text, a clean happy path, or an adjacent WP status is not closure.
+
+risks:
+  - id: STAGE-RISK-001
+    category: renderer_security
+    severity: RELEASE_BLOCKING
+    current_state: OPEN_CONFIRMED_UPSTREAM_GAP
+    concern: "Current Servo Windows content processes are not proven to have an effective default-deny OS sandbox for arbitrary hostile web content."
+    failure_scenarios: [renderer_escape_reaches_host_or_operator_files, multiprocess_is_mistaken_for_sandboxing, restricted_alpha_is_silently_promoted]
+    minimum_controls: [keep_arbitrary_web_promotion_blocked, default_deny_windows_content_sandbox, brokered_capabilities, escape_oriented_validation, visible_restricted_alpha_state, rollback_and_kill_switch]
+    required_evidence: [windows_sandbox_conformance, hostile_content_escape_suite, process_tree_and_token_proof, restricted_alpha_boundary_proof]
+    requirement_ids: [STAGE-REQ-RELEASE-002]
+    production_gate_ids: [STAGE-GATE-019-SERVO-RESTRICTED-ALPHA, STAGE-GATE-020-SERVO-ARBITRARY-WEB]
+
+  - id: STAGE-RISK-002
+    category: bootstrap_compatibility
+    severity: RELEASE_BLOCKING
+    current_state: OPEN_OPERATOR_DECISION_AND_JOURNEY_PROOF
+    concern: "WebView2 provides an embeddable runtime rather than a full Edge browser product and blocks embedded Google authentication paths required by some YouTube workflows."
+    failure_scenarios: [browser_chrome_is_assumed_present, login_flow_fails_after_release, engine_gap_silently_falls_back, unsupported_feature_is_marked_success]
+    minimum_controls: [stage_owned_native_browser_chrome, explicit_capability_states, external_user_agent_oauth_where_applicable, selected_google_youtube_session_path, representative_journey_matrix]
+    required_evidence: [webview2_gap_journeys, auth_compatibility_matrix, youtube_workflow_matrix, unsupported_degraded_blocked_negative_suite]
+    requirement_ids: [STAGE-REQ-SHELL-008, STAGE-REQ-AUTH-001, STAGE-REQ-AUTH-002, STAGE-REQ-COMPAT-002, STAGE-REQ-COMPAT-004]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-007-AUTH-COMPATIBILITY, STAGE-GATE-018-WEBVIEW2-PRODUCTION]
+
+  - id: STAGE-RISK-003
+    category: high_volume_resources
+    severity: RELEASE_BLOCKING
+    current_state: CONTRACT_SPECIFIED_RUNTIME_EVIDENCE_MISSING
+    concern: "Three thousand durable tab records can still cause high idle CPU, memory, disk, or UI latency through hidden per-record work even when renderer count and visible-row painting look bounded."
+    failure_scenarios: [per_record_timer_or_subscription_growth, hidden_full_tree_filter_count_or_accessibility_walks, decoded_thumbnail_growth, restore_navigation_storm, artifact_maintenance_on_sidebar_path]
+    minimum_controls: [zero_per_record_dormant_work, incremental_or_paged_projections, machine_wide_live_and_background_ceilings, lazy_restore, bounded_shared_queues, why_awake_and_process_attribution]
+    required_evidence: [one_to_ten_thousand_scale_curve, realistic_three_thousand_record_fixture, multi_window_resource_scheduler_suite, dormant_host_work_profile, projection_allocation_profile, restart_storm_benchmark]
+    requirement_ids: [STAGE-REQ-STATE-007, STAGE-REQ-RESOURCE-001, STAGE-REQ-RESOURCE-002, STAGE-REQ-RESOURCE-004, STAGE-REQ-RESOURCE-006, STAGE-REQ-RESOURCE-007, STAGE-REQ-RESOURCE-008, STAGE-REQ-RESOURCE-009]
+    production_gate_ids: [STAGE-GATE-009-HIGH-VOLUME]
+
+  - id: STAGE-RISK-004
+    category: background_execution
+    severity: RELEASE_BLOCKING
+    current_state: CONTRACT_SPECIFIED_RUNTIME_EVIDENCE_MISSING
+    concern: "A discarded tab can release a renderer while profile-level service workers, push/background work, GPU utilities, or shared maintenance continue consuming resources."
+    failure_scenarios: [discard_is_reported_as_zero_activity, profile_background_work_has_no_owner, service_worker_bypasses_budget, utility_or_gpu_process_is_charged_to_no_session]
+    minimum_controls: [separate_record_renderer_page_profile_and_process_state, profile_background_budgets, service_worker_attribution, independent_shared_service_scheduling, why_awake_diagnostics]
+    required_evidence: [background_activity_suite, service_worker_adversarial_fixture, process_attribution_report, background_service_budget_and_cancel_proof]
+    requirement_ids: [STAGE-REQ-RESOURCE-005, STAGE-REQ-RESOURCE-007, STAGE-REQ-RESOURCE-009]
+    production_gate_ids: [STAGE-GATE-009-HIGH-VOLUME, STAGE-GATE-013-FAILURE-RECOVERY]
+
+  - id: STAGE-RISK-005
+    category: shared_artifact_contract
+    severity: DEPENDENCY_BLOCKING
+    current_state: BLOCKED_CONTRACT_DRIFT
+    concern: "Current spec and product surfaces use incompatible ArtifactHandle representations; Stage must not choose a local encoding or inspect raw paths."
+    failure_scenarios: [stage_mints_incompatible_handle, consumer_reads_path_as_identity, existing_real_handle_cannot_round_trip, malformed_handle_crosses_trust_boundary]
+    minimum_controls: [globally_owned_versioned_opaque_handle, cross_system_round_trip, malformed_handle_rejection, existing_data_migration_or_compatibility_contract, no_stage_handle_encoding]
+    required_evidence: [cross_system_handle_round_trip, malformed_handle_negative_suite, real_data_migration_proof]
+    requirement_ids: [STAGE-REQ-CAPTURE-006, STAGE-REQ-CAPTURE-007, STAGE-REQ-WP12-002]
+    dependency_gate_ids: [STAGE-DEP-ARTIFACT-HANDLE]
+    production_gate_ids: [STAGE-GATE-010-DOWNLOAD-CAPTURE, STAGE-GATE-011-DOWNSTREAM, STAGE-GATE-012-MIGRATION]
+
+  - id: STAGE-RISK-006
+    category: shared_artifact_scaling
+    severity: DEPENDENCY_BLOCKING
+    current_state: BLOCKED_MISSING_PRODUCTION_API
+    concern: "Shared ArtifactStore writes and materialization are whole-buffer-oriented while large media/PDF/WARC capture requires bounded streamed ingest and reads."
+    failure_scenarios: [large_capture_oom, bytes_are_rehashed_by_full_reread, disk_full_leaves_orphan_staging, uncertain_finalize_duplicates_artifact, stage_creates_parallel_byte_store]
+    minimum_controls: [shared_begin_write_finalize_abort_reconcile_api, incremental_hashing, bounded_backpressure, atomic_idempotent_finalize, orphan_cleanup, ranged_or_streamed_reads, no_stage_store]
+    required_evidence: [large_media_stream_stress, bounded_memory_profile, disk_full_and_cancel, uncertain_finalize_reconcile, orphan_cleanup]
+    requirement_ids: [STAGE-REQ-CAPTURE-004, STAGE-REQ-CAPTURE-008, STAGE-REQ-RESOURCE-009]
+    dependency_gate_ids: [STAGE-DEP-ARTIFACT-STREAMING]
+    production_gate_ids: [STAGE-GATE-009-HIGH-VOLUME, STAGE-GATE-010-DOWNLOAD-CAPTURE, STAGE-GATE-011-DOWNSTREAM]
+
+  - id: STAGE-RISK-007
+    category: model_orchestration_dependency
+    severity: DEPENDENCY_BLOCKING
+    current_state: BLOCKED_UNVALIDATED_ACTIVE_BASELINE
+    concern: "Stage model control depends on WP-1 ToolGate, process ownership, telemetry, promotion, and cancellation contracts that are not bound to a passing exact baseline."
+    failure_scenarios: [stage_duplicates_orchestration_runtime, model_action_bypasses_toolgate, process_survives_cancel, stale_telemetry_claims_success, parallel_agents_overwrite_state]
+    minimum_controls: [exact_clean_or_hashed_baseline, passing_wp1_validators, frozen_fake_contract, typed_unavailable_behavior, parallel_lease_and_process_reap_proof]
+    required_evidence: [validated_wp1_entry_report, fake_contract_suite, parallel_agent_suite, process_cancel_reap_proof]
+    requirement_ids: [STAGE-REQ-AGENT-001, STAGE-REQ-AGENT-004, STAGE-REQ-AGENT-008, STAGE-REQ-WP1-001, STAGE-REQ-WP1-002]
+    dependency_gate_ids: [STAGE-DEP-WP1-MODEL-ORCHESTRATION]
+    production_gate_ids: [STAGE-GATE-008-AGENT-CONTROL, STAGE-GATE-011-DOWNSTREAM]
+
+  - id: STAGE-RISK-008
+    category: legacy_stage_supersession
+    severity: ACTIVATION_BLOCKING
+    current_state: BLOCKED_EXACT_INVENTORY_AND_DATA_DECISION
+    concern: "WP-12 and current product code contain legacy Stage UI, routes, storage, tools, migrations, readers, writers, tests, and possible real data that cannot be treated as current authority or silently discarded."
+    failure_scenarios: [legacy_writer_survives_cutover, compatibility_alias_restores_old_authority, migration_number_collision, real_operator_data_is_lost, catchall_row_hides_reader_or_route]
+    minimum_controls: [exact_surface_inventory, explicit_remove_replace_salvage_or_one_way_import, real_data_separate_from_test_data, stop_legacy_writes, bounded_restartable_import_if_selected, no_reader_no_writer_proof]
+    required_evidence: [legacy_disposition_register_without_catchall_closure, real_data_inventory, migration_rehearsal, no_reader_no_writer_proof, worksurface_supersession_proof]
+    requirement_ids: [STAGE-REQ-SUPERSESSION-001, STAGE-REQ-SUPERSESSION-002, STAGE-REQ-WP12-001, STAGE-REQ-WP12-002, STAGE-REQ-WP12-003, STAGE-REQ-WP12-004]
+    dependency_gate_ids: [STAGE-DEP-WP12-LEGACY-REMOVAL]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-012-MIGRATION]
+
+  - id: STAGE-RISK-009
+    category: downstream_intake_dependency
+    severity: DEPENDENCY_BLOCKING
+    current_state: BLOCKED_MISSING_PUBLIC_ADAPTER
+    concern: "Atelier/Lens/CKC lacks a Stage-ready public artifact-batch endpoint with opaque handles, correlation, idempotency, and per-item dispositions."
+    failure_scenarios: [stage_writes_consumer_tables, unmanaged_path_becomes_asset_identity, partial_batch_is_reported_success, retry_redownloads_completed_artifacts, consumer_accesses_profile_or_renderer_state]
+    minimum_controls: [consumer_owned_versioned_schema, opaque_handles, source_and_job_correlation, per_item_dispositions, restart_idempotency, strict_boundary_negative_tests]
+    required_evidence: [public_intake_contract_suite, partial_item_dispositions, restart_idempotency, boundary_negative_tests]
+    requirement_ids: [STAGE-REQ-INTAKE-002, STAGE-REQ-INTAKE-004, STAGE-REQ-STUDIO-001]
+    dependency_gate_ids: [STAGE-DEP-ATELIER-CKC-INTAKE]
+    production_gate_ids: [STAGE-GATE-011-DOWNSTREAM]
+
+  - id: STAGE-RISK-010
+    category: downloader_dependency
+    severity: DEPENDENCY_BLOCKING
+    current_state: BLOCKED_V0_V2_CONVERGENCE
+    concern: "Media Downloader records and executing workflow are split; current execution reads ArtifactHandle.path, uses a legacy Stage-session registry, and duplicates streaming artifact writes."
+    failure_scenarios: [validated_packet_is_mistaken_for_validated_runtime, raw_cookie_or_session_file_survives, renderer_close_aborts_durable_job, duplicate_writer_diverges_from_artifact_policy, path_identity_breaks_portability]
+    minimum_controls: [one_public_request_control_result_contract, scoped_credential_leases, canonical_opaque_handle, shared_streamed_artifact_api, detached_job_continuation, partial_result_and_restart_proof]
+    required_evidence: [v0_v2_convergence_report, credential_lease_suite, shared_streamed_artifact_proof, renderer_kill_download_continuation]
+    requirement_ids: [STAGE-REQ-COMPAT-002, STAGE-REQ-DOWNLOAD-001, STAGE-REQ-DOWNLOAD-003, STAGE-REQ-DOWNLOAD-004, STAGE-REQ-INTAKE-001, STAGE-REQ-SESSION-005]
+    dependency_gate_ids: [STAGE-DEP-MEDIA-DOWNLOADER]
+    production_gate_ids: [STAGE-GATE-005-SESSION-ISOLATION, STAGE-GATE-010-DOWNLOAD-CAPTURE, STAGE-GATE-011-DOWNSTREAM]
+
+  - id: STAGE-RISK-011
+    category: agent_security
+    severity: RELEASE_BLOCKING
+    current_state: CONTRACT_SPECIFIED_ADVERSARIAL_EVIDENCE_MISSING
+    concern: "Hostile pages and captured content can prompt-inject models into cross-origin exfiltration or consequential actions; classifier-only defenses are insufficient."
+    failure_scenarios: [hidden_or_encoded_injection_changes_goal, stale_target_causes_wrong_action, cross_tab_data_exfiltration, secret_entry_is_observed, unknown_remote_outcome_is_retried]
+    minimum_controls: [typed_observation_provenance, origin_bound_capabilities, source_sink_data_flow_policy, consequence_classes, fresh_target_revalidation, takeover_for_secrets, no_auto_retry_after_unknown_outcome]
+    required_evidence: [prompt_injection_corpus, exfiltration_negative_suite, stale_target_rejection, takeover_auth_journey, unknown_outcome_reconciliation]
+    requirement_ids: [STAGE-REQ-AGENT-002, STAGE-REQ-AGENT-003, STAGE-REQ-AGENT-005, STAGE-REQ-AGENT-006, STAGE-REQ-AUTH-006]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY, STAGE-GATE-008-AGENT-CONTROL]
+
+  - id: STAGE-RISK-012
+    category: durability_and_recovery
+    severity: RELEASE_BLOCKING
+    current_state: CONTRACT_SPECIFIED_FAULT_EVIDENCE_MISSING
+    concern: "Renderer, host, database, profile, disk, event, and migration failures can leave Stage action or capture outcomes unknown, duplicated, or internally inconsistent."
+    failure_scenarios: [database_commits_without_artifact_bytes, artifact_finalizes_without_stage_link, crash_retries_consequential_action, event_reorder_regresses_state, corrupt_profile_causes_restart_loop]
+    minimum_controls: [durable_intent_before_dispatch, idempotency_and_reconciliation, explicit_unknown_state, bounded_retry, crash_loop_breaker, safe_mode, invariant_repair, orphan_cleanup]
+    required_evidence: [process_failure_injection, system_fault_matrix, uncertain_finalize_reconcile, crash_loop_safe_mode, event_replay_and_reorder_suite]
+    requirement_ids: [STAGE-REQ-RECOVERY-001, STAGE-REQ-RECOVERY-002, STAGE-REQ-RECOVERY-003, STAGE-REQ-CAPTURE-004]
+    production_gate_ids: [STAGE-GATE-004-PERSISTENCE-REPLAY, STAGE-GATE-013-FAILURE-RECOVERY]
+
+  - id: STAGE-RISK-013
+    category: backup_and_portability
+    severity: RELEASE_BLOCKING
+    current_state: TARGETS_AND_RUNTIME_EVIDENCE_MISSING
+    concern: "PostgreSQL/EventLedger state, ArtifactStore bytes, browser profile materialization, encryption keys, and external exports have different consistency and recovery boundaries."
+    failure_scenarios: [raw_profile_is_mistaken_for_backup_authority, restored_database_references_missing_artifacts, wrong_key_blocks_recovery_without_safe_mode, project_move_breaks_absolute_paths, rpo_rto_is_claimed_without_measurement]
+    minimum_controls: [consistency_watermark, canonical_record_and_artifact_restore_first, key_and_wrong_key_drills, disk_agnostic_paths, safe_mode_and_export, measured_operator_locked_rpo_rto]
+    required_evidence: [clean_machine_restore, counts_and_hashes, partial_artifact_availability, wrong_key_fixture, three_thousand_tab_restore_without_navigation_storm, portability_loss_report, rpo_rto_measurement]
+    requirement_ids: [STAGE-REQ-RECOVERY-004, STAGE-REQ-EXPORT-004]
+    production_gate_ids: [STAGE-GATE-014-BACKUP-RESTORE]
+
+  - id: STAGE-RISK-014
+    category: release_operations
+    severity: RELEASE_BLOCKING
+    current_state: BASELINE_AND_COMMAND_BINDINGS_MISSING
+    concern: "Engine/runtime packaging, signing, SBOM, update/rollback, Windows policy/architecture variants, safe mode, and support procedures are not production proof until run on the candidate build."
+    failure_scenarios: [runtime_missing_on_clean_machine, update_breaks_profile_or_schema, rollback_cannot_open_newer_data, unsigned_or_unknown_binary_ships, support_bundle_leaks_secrets]
+    minimum_controls: [approved_installer_and_signing_baseline, clean_machine_matrix, signed_manifest_and_sbom, forward_and_rollback_compatibility, update_quarantine, redacted_support_bundle]
+    required_evidence: [windows_packaging_matrix, signature_and_sbom_validation, update_rollback_drill, clean_machine_offline_install, support_bundle_secret_scan]
+    requirement_ids: [STAGE-REQ-RELEASE-003, STAGE-REQ-RELEASE-004, STAGE-REQ-RELEASE-005, STAGE-REQ-RELEASE-006]
+    production_gate_ids: [STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN, STAGE-GATE-017-SUPPORT]
+
+  - id: STAGE-RISK-015
+    category: acceptance_integrity
+    severity: PLANNING_AND_RELEASE_BLOCKING
+    current_state: ATOMIC_ROWS_SPECIFIED_COMMANDS_UNBOUND
+    concern: "Requirement and gate prose can look complete while selecting zero tests, running skipped-only cases, using stale evidence, or omitting negative and recovery proof."
+    failure_scenarios: [zero_selected_is_pass, skipped_only_is_pass, evidence_from_wrong_build_or_dependency_is_reused, one_happy_path_closes_broad_requirement, command_wildcard_matches_nothing]
+    minimum_controls: [one_atomic_acceptance_row_per_requirement, positive_negative_failure_and_recovery_cases, exact_command_binding, zero_match_guard, candidate_and_dependency_freshness, evidence_manifest_validation]
+    required_evidence: [acceptance_coverage_report, orphan_and_duplicate_report, command_selection_counts, evidence_manifest_validation, stale_evidence_negative_suite]
+    requirement_ids: [STAGE-REQ-DEV-003, STAGE-REQ-RELEASE-005]
+    production_gate_ids: [STAGE-GATE-001-REQUIREMENT-COVERAGE, STAGE-GATE-021-WP-COMPLETE]
+
+  - id: STAGE-RISK-016
+    category: authority_and_status_drift
+    severity: ACTIVATION_BLOCKING
+    current_state: ALLOCATOR_SPECIFIED_OFFICIAL_AUTHORITY_DEFERRED
+    concern: "Master Spec, replacement packet, official MT JSON, projections, taskboard, build order, traceability, and dependency gates can diverge during later consolidation."
+    failure_scenarios: [markdown_projection_becomes_authority, superseded_stub_still_activates_work, mt_status_changes_only_one_surface, pillar_edge_is_omitted, allocator_emits_orphan_or_conflicting_task]
+    minimum_controls: [canonical_json_contracts, generated_projection_hashes, deterministic_allocator, complete_24_pillar_edge_propagation, status_sync_transaction, drift_and_orphan_validators]
+    required_evidence: [canonical_schema_validation, projection_hash_report, allocator_rejection_suite, status_sync_partial_failure_repair, master_spec_topology_validation]
+    requirement_ids: [STAGE-REQ-SUPERSESSION-001, STAGE-REQ-SUPERSESSION-002]
+    production_gate_ids: [STAGE-GATE-001-REQUIREMENT-COVERAGE, STAGE-GATE-012-MIGRATION, STAGE-GATE-021-WP-COMPLETE]
+
+closure_summary:
+  total_risks: 16
+  release_blocking: [STAGE-RISK-001, STAGE-RISK-002, STAGE-RISK-003, STAGE-RISK-004, STAGE-RISK-011, STAGE-RISK-012, STAGE-RISK-013, STAGE-RISK-014]
+  dependency_blocking: [STAGE-RISK-005, STAGE-RISK-006, STAGE-RISK-007, STAGE-RISK-009, STAGE-RISK-010]
+  activation_blocking: [STAGE-RISK-008, STAGE-RISK-016]
+  planning_and_release_blocking: [STAGE-RISK-015]
+  closed: []

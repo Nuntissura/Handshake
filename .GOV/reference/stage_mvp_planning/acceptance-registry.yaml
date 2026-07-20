@@ -1,0 +1,158 @@
+schema_id: hsk.stage_acceptance_registry_index@1
+registry_id: stage-acceptance-registry
+
+stage_acceptance_registry:
+  id: stage-acceptance-registry
+  authority: NON_AUTHORITATIVE_REFERENCE
+  status: atomic_rows_specified_command_and_runtime_bindings_pending
+  updated_at: "2026-07-20"
+  wp_id: WP-1-Handshake-Stage-MVP-v1
+  requirement_source: requirements-and-traceability.yaml
+  production_gate_source: production-gates.yaml
+  dependency_gate_source: dependency-gates.yaml
+  expected_requirement_count: 117
+  expected_atomic_acceptance_count: 117
+  resolution_rule: >-
+    For every requirement row, acceptance_id is STAGE-ACC- plus the suffix of
+    requirement_id, lane_id and evidence_id come from the requirement row,
+    release_ids come from releases, production_gate_ids are the union of the
+    domain default and explicit requirement override, and dependency_gate_ids
+    are the reverse lookup of every dependency-gates.yaml requirement_ids list.
+    Generation fails on an unknown domain, missing evidence/lane/release,
+    unknown gate, duplicate requirement, or unresolved dependency reference.
+
+acceptance_shards:
+  - id: STAGE-ACCEPTANCE-SHARD-BROWSER-CORE
+    path: .GOV/reference/stage_mvp_planning/acceptance/acceptance-browser-core.yaml
+    expected_rows: 50
+    domains: [shell, state, sessions, authentication, compatibility, developer_testing, network, permissions, stage_apps]
+  - id: STAGE-ACCEPTANCE-SHARD-BEHAVIOR-INTEGRATIONS
+    path: .GOV/reference/stage_mvp_planning/acceptance/acceptance-behavior-integrations.yaml
+    expected_rows: 43
+    domains: [agent, capture, downloads, intake, search, export, resources]
+  - id: STAGE-ACCEPTANCE-SHARD-OPERATIONS-GOVERNANCE
+    path: .GOV/reference/stage_mvp_planning/acceptance/acceptance-operations-governance.yaml
+    expected_rows: 24
+    domains: [accessibility, localization, manual, recovery, release, active_wp, supersession]
+
+atomic_row_contract:
+  required_fields:
+    - id
+    - closure_unit
+    - requirement_ids
+    - source_ids
+    - release_ids
+    - production_gate_ids
+    - dependency_gate_ids
+    - owner_lane
+    - preconditions
+    - fixture_ids
+    - command_ids
+    - cases
+    - evidence_types
+    - freshness_policy
+    - pass_rule
+    - status
+  cardinality_rules:
+    - "Every acceptance row owns exactly one requirement ID."
+    - "Every requirement ID appears in exactly one acceptance row across all shards."
+    - "Acceptance ID is STAGE-ACC- plus the suffix of its requirement ID."
+    - "Every row contains non-empty positive, negative, failure_recovery, and concurrency case groups."
+    - "Every referenced source, release, production gate, and dependency gate resolves."
+    - "UNBOUND command IDs keep the row SPECIFIED_UNBOUND and cannot produce PASS."
+
+domain_gate_defaults:
+  accessibility: [STAGE-GATE-015-ACCESS-I18N-MANUAL]
+  active_wp: [STAGE-GATE-011-DOWNSTREAM, STAGE-GATE-012-MIGRATION]
+  agent: [STAGE-GATE-008-AGENT-CONTROL]
+  authentication: [STAGE-GATE-007-AUTH-COMPATIBILITY]
+  capture: [STAGE-GATE-010-DOWNLOAD-CAPTURE]
+  compatibility: [STAGE-GATE-002-ADAPTER-CONFORMANCE, STAGE-GATE-007-AUTH-COMPATIBILITY]
+  developer_testing: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-006-WEB-SECURITY]
+  downloads: [STAGE-GATE-010-DOWNLOAD-CAPTURE]
+  export: [STAGE-GATE-010-DOWNLOAD-CAPTURE]
+  intake: [STAGE-GATE-011-DOWNSTREAM]
+  localization: [STAGE-GATE-015-ACCESS-I18N-MANUAL]
+  manual: [STAGE-GATE-015-ACCESS-I18N-MANUAL]
+  network: [STAGE-GATE-006-WEB-SECURITY]
+  permissions: [STAGE-GATE-006-WEB-SECURITY]
+  recovery: [STAGE-GATE-013-FAILURE-RECOVERY]
+  release: [STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN]
+  resources: [STAGE-GATE-009-HIGH-VOLUME]
+  search: [STAGE-GATE-011-DOWNSTREAM]
+  sessions: [STAGE-GATE-005-SESSION-ISOLATION]
+  shell: [STAGE-GATE-003-NATIVE-SHELL]
+  stage_apps: [STAGE-GATE-006-WEB-SECURITY]
+  state: [STAGE-GATE-004-PERSISTENCE-REPLAY]
+  supersession: [STAGE-GATE-012-MIGRATION]
+
+requirement_gate_overrides:
+  STAGE-REQ-SHELL-003: [STAGE-GATE-004-PERSISTENCE-REPLAY]
+  STAGE-REQ-SHELL-006: [STAGE-GATE-006-WEB-SECURITY]
+  STAGE-REQ-SHELL-008: [STAGE-GATE-018-WEBVIEW2-PRODUCTION]
+  STAGE-REQ-STATE-007: [STAGE-GATE-009-HIGH-VOLUME]
+  STAGE-REQ-STATE-008: [STAGE-GATE-009-HIGH-VOLUME]
+  STAGE-REQ-STATE-005: [STAGE-GATE-011-DOWNSTREAM]
+  STAGE-REQ-STATE-009: [STAGE-GATE-009-HIGH-VOLUME]
+  STAGE-REQ-PERM-002: [STAGE-GATE-005-SESSION-ISOLATION]
+  STAGE-REQ-SESSION-003: [STAGE-GATE-013-FAILURE-RECOVERY]
+  STAGE-REQ-SESSION-005: [STAGE-GATE-011-DOWNSTREAM]
+  STAGE-REQ-NET-005: [STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN]
+  STAGE-REQ-NET-006: [STAGE-GATE-010-DOWNLOAD-CAPTURE]
+  STAGE-REQ-COMPAT-001: [STAGE-GATE-018-WEBVIEW2-PRODUCTION, STAGE-GATE-019-SERVO-RESTRICTED-ALPHA]
+  STAGE-REQ-COMPAT-002: [STAGE-GATE-010-DOWNLOAD-CAPTURE, STAGE-GATE-011-DOWNSTREAM]
+  STAGE-REQ-COMPAT-003: [STAGE-GATE-018-WEBVIEW2-PRODUCTION, STAGE-GATE-019-SERVO-RESTRICTED-ALPHA]
+  STAGE-REQ-DEV-001: [STAGE-GATE-008-AGENT-CONTROL]
+  STAGE-REQ-DEV-002: [STAGE-GATE-017-SUPPORT]
+  STAGE-REQ-DEV-003: [STAGE-GATE-002-ADAPTER-CONFORMANCE, STAGE-GATE-008-AGENT-CONTROL]
+  STAGE-REQ-APP-001: [STAGE-GATE-013-FAILURE-RECOVERY, STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN]
+  STAGE-REQ-DOWNLOAD-003: [STAGE-GATE-011-DOWNSTREAM]
+  STAGE-REQ-DOWNLOAD-005: [STAGE-GATE-009-HIGH-VOLUME]
+  STAGE-REQ-AUTH-006: [STAGE-GATE-008-AGENT-CONTROL]
+  STAGE-REQ-AGENT-008: [STAGE-GATE-011-DOWNSTREAM]
+  STAGE-REQ-CAPTURE-006: [STAGE-GATE-011-DOWNSTREAM, STAGE-GATE-012-MIGRATION]
+  STAGE-REQ-CAPTURE-007: [STAGE-GATE-011-DOWNSTREAM]
+  STAGE-REQ-CAPTURE-008: [STAGE-GATE-011-DOWNSTREAM]
+  STAGE-REQ-SEARCH-001: [STAGE-GATE-009-HIGH-VOLUME]
+  STAGE-REQ-SEARCH-004: [STAGE-GATE-009-HIGH-VOLUME]
+  STAGE-REQ-EXPORT-004: [STAGE-GATE-014-BACKUP-RESTORE]
+  STAGE-REQ-RESOURCE-009: [STAGE-GATE-017-SUPPORT]
+  STAGE-REQ-RECOVERY-004: [STAGE-GATE-014-BACKUP-RESTORE]
+  STAGE-REQ-RELEASE-001: [STAGE-GATE-018-WEBVIEW2-PRODUCTION, STAGE-GATE-021-WP-COMPLETE]
+  STAGE-REQ-RELEASE-002: [STAGE-GATE-019-SERVO-RESTRICTED-ALPHA, STAGE-GATE-020-SERVO-ARBITRARY-WEB, STAGE-GATE-021-WP-COMPLETE]
+  STAGE-REQ-RELEASE-006: [STAGE-GATE-017-SUPPORT]
+  STAGE-REQ-WP1-001: [STAGE-GATE-008-AGENT-CONTROL]
+  STAGE-REQ-WP1-002: [STAGE-GATE-008-AGENT-CONTROL]
+  STAGE-REQ-WP12-001: [STAGE-GATE-003-NATIVE-SHELL]
+  STAGE-REQ-WP12-004: [STAGE-GATE-003-NATIVE-SHELL]
+
+gate_command_bindings:
+  STAGE-GATE-001-REQUIREMENT-COVERAGE: { command_id: STAGE-CMD-REQUIREMENT-COVERAGE, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-002-ADAPTER-CONFORMANCE: { command_id: STAGE-CMD-ADAPTER-CONFORMANCE, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-003-NATIVE-SHELL: { command_id: STAGE-CMD-NATIVE-SHELL, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-004-PERSISTENCE-REPLAY: { command_id: STAGE-CMD-PERSISTENCE-REPLAY, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-005-SESSION-ISOLATION: { command_id: STAGE-CMD-SESSION-ISOLATION, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-006-WEB-SECURITY: { command_id: STAGE-CMD-WEB-SECURITY, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-007-AUTH-COMPATIBILITY: { command_id: STAGE-CMD-AUTH-COMPATIBILITY, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-008-AGENT-CONTROL: { command_id: STAGE-CMD-AGENT-CONTROL, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-009-HIGH-VOLUME: { command_id: STAGE-CMD-HIGH-VOLUME, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-010-DOWNLOAD-CAPTURE: { command_id: STAGE-CMD-DOWNLOAD-CAPTURE, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-011-DOWNSTREAM: { command_id: STAGE-CMD-DOWNSTREAM, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-012-MIGRATION: { command_id: STAGE-CMD-MIGRATION, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-013-FAILURE-RECOVERY: { command_id: STAGE-CMD-FAILURE-RECOVERY, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-014-BACKUP-RESTORE: { command_id: STAGE-CMD-BACKUP-RESTORE, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-015-ACCESS-I18N-MANUAL: { command_id: STAGE-CMD-ACCESS-I18N-MANUAL, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN: { command_id: STAGE-CMD-PACKAGE-SUPPLY-CHAIN, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-017-SUPPORT: { command_id: STAGE-CMD-SUPPORT, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-018-WEBVIEW2-PRODUCTION: { command_id: STAGE-CMD-WEBVIEW2-PRODUCTION, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-019-SERVO-RESTRICTED-ALPHA: { command_id: STAGE-CMD-SERVO-RESTRICTED-ALPHA, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-020-SERVO-ARBITRARY-WEB: { command_id: STAGE-CMD-SERVO-ARBITRARY-WEB, state: UNBOUND_FUTURE_IMPLEMENTATION }
+  STAGE-GATE-021-WP-COMPLETE: { command_id: STAGE-CMD-WP-COMPLETE, state: UNBOUND_FUTURE_IMPLEMENTATION }
+
+closure_checks:
+  - every_requirement_resolves_exactly_once
+  - every_requirement_has_lane_evidence_release_and_production_gate
+  - every_gate_and_dependency_reference_exists
+  - every_gate_command_is_exact_bound_and_zero_match_guarded_before_execution
+  - no_blocked_dependency_can_produce_pass
+  - acceptance_evidence_is_build_fixture_and_version_bound

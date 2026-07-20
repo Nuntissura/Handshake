@@ -1,0 +1,158 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Handshake-Stage-MVP-v1",
+  "mt_id": "MT-113",
+  "created_at_utc": "2026-07-20T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-MT-113.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-MT-113.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-MT-113.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-004",
+      "MT-006",
+      "MT-007"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "WP-12 duplicate 16KiB storage and stage.jobs.enqueue authority are removed; real operator data, if present, receives a verified one-way import into ArtifactStore and current tool/capability contracts.",
+    "allowed_paths": [
+      "BIND_AT_L00_BASELINE"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "another WP's private tables/routes/profiles"
+    ],
+    "acceptance_criteria": [
+      "WP-12 duplicate 16KiB storage and stage.jobs.enqueue authority are removed; discovered real data is dispositioned and any selected one-way import lands in ArtifactStore and current tool/capability contracts with opaque canonical handles.",
+      "[positive] Inventory both legacy authorities, prove removal, and rehearse one-way import fixtures with per-record count, hash, handle, lineage, and capability reconciliation.",
+      "[negative] No current writer, reader, route, job, test, or migration may create new legacy storage records, consume handle paths directly, or invoke stage.jobs.enqueue.",
+      "[failure_recovery] Partial import retains source data and finalized ArtifactStore objects, records per-item disposition, and resumes idempotently after the canonical handle dependency is restored.",
+      "[concurrency] Concurrent or retried imports share idempotency keys and canonical handle finalization so each source item produces at most one current identity."
+    ],
+    "proof_targets": [
+      "wp12-data-disposition-and-import"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "CONDITIONAL",
+    "gui_creation_required": "CONDITIONAL",
+    "argus_required": "CONDITIONAL",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Bind at implementation: headless/backend MT records typed NOT_APPLICABLE reason; operator-visible behavior requires Argus."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "WHEN_APPLICABLE",
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted.",
+      "Legacy Stage code (WP-12) must not silently constrain this MT (STAGE-DEC-017).",
+      "Do not duplicate ArtifactStore, WP-1 ToolGate/process/promotion, or Loom authority."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  },
+  "planning_metadata": {
+    "lane": "L19",
+    "kind": "requirement",
+    "requirement_id": "STAGE-REQ-WP12-002",
+    "requirement_priority": "P0",
+    "acceptance_id": "STAGE-ACC-WP12-002",
+    "release_ids": [
+      "STAGE-WIN-BOOTSTRAP-PROD",
+      "STAGE-WP-COMPLETE"
+    ],
+    "production_gate_ids": [
+      "STAGE-GATE-011-DOWNSTREAM",
+      "STAGE-GATE-012-MIGRATION"
+    ],
+    "dependency_gate_ids": [
+      "STAGE-DEP-ARTIFACT-HANDLE",
+      "STAGE-DEP-WP12-LEGACY-REMOVAL"
+    ],
+    "fixture_ids": [
+      "STAGE-FIX-WP12-002"
+    ],
+    "corpus_refs": [
+      ".GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md",
+      ".GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md",
+      ".GOV/reference/stage_mvp_planning/legacy-stage-disposition-register.yaml"
+    ],
+    "implementation_note": "Planning-stage MT. Exact owned_files, code anchors, and proof_commands are bound at the L00 integration baseline. Deep spec detail lives in corpus_refs; acceptance_criteria carry the provable closure unit and the positive/negative/failure_recovery/concurrency case groups.",
+    "no_context_read_order": [
+      ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json",
+      ".GOV/reference/stage_mvp_planning/index.yaml",
+      ".GOV/reference/stage_mvp_planning/requirements-and-traceability.yaml",
+      ".GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md",
+      ".GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md",
+      ".GOV/reference/stage_mvp_planning/legacy-stage-disposition-register.yaml"
+    ]
+  }
+}

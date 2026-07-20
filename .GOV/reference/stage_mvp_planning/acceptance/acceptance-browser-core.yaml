@@ -1,0 +1,1122 @@
+schema_id: hsk.stage_acceptance_registry@1
+registry_id: stage-acceptance-browser-core
+authority: NON_AUTHORITATIVE_REFERENCE
+status: SPECIFIED_UNBOUND
+updated_at: "2026-07-19"
+wp_id: WP-1-Handshake-Stage-MVP-v1
+domains:
+  - shell
+  - state
+  - sessions
+  - authentication
+  - compatibility
+  - developer_testing
+  - network
+  - permissions
+  - stage_apps
+row_count: 50
+command_binding_rule: >-
+  UNBOUND is permitted while implementation entrypoints do not exist. Before
+  execution, every UNBOUND command must be replaced by an exact non-interactive
+  repository command with a zero-match guard and declared evidence outputs.
+
+acceptance:
+  - id: STAGE-ACC-SHELL-001
+    title: Native omnibox classification and disclosure
+    closure_unit: "URL and search inputs are classified deterministically and the selected provider and privacy impact are visible before navigation."
+    requirement_ids: [STAGE-REQ-SHELL-001]
+    source_ids: [STAGE-PRES-MVP-002]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL]
+    dependency_gate_ids: []
+    owner_lane: L05
+    preconditions: [controlled-omnibox-input-corpus, search-provider-policy-bound]
+    fixture_ids: [STAGE-FIX-SHELL-OMNIBOX-001]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Known URLs and search phrases select the correct action and expose provider/privacy state."]
+      negative: ["Ambiguous or malformed input does not silently navigate or leak text to an unselected provider."]
+      failure_recovery: ["Unavailable provider returns a typed error while preserving the entered text for correction."]
+      concurrency: ["Parallel omnibox submissions retain distinct action IDs and cannot overwrite each other's target."]
+    evidence_types: [omnibox-fixture, structured-results, visual-evidence]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [omnibox-parser-change, search-provider-policy-change, adapter-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SHELL-002
+    title: Stable native navigation actions
+    closure_unit: "Back, forward, reload, stop, home/new-tab, close, and restore each emit a stable action ID and an explicit capability/result state."
+    requirement_ids: [STAGE-REQ-SHELL-002]
+    source_ids: [STAGE-PRES-MVP-002]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL]
+    dependency_gate_ids: []
+    owner_lane: L05
+    preconditions: [controlled-navigation-history-fixture, adapter-capability-manifest-bound]
+    fixture_ids: [STAGE-FIX-SHELL-NAVIGATION-002]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Every supported navigation control reaches its postcondition with attributable action and result IDs."]
+      negative: ["An unsupported or stale navigation action is rejected with an explicit capability/staleness result."]
+      failure_recovery: ["Crash or timeout records an unknown/failed outcome and reconciles before any retry."]
+      concurrency: ["Conflicting stop/reload/close actions serialize or reject without losing the canonical tab state."]
+    evidence_types: [navigation-action-contract, action-receipts, structured-results]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [navigation-contract-change, adapter-change, action-registry-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SHELL-003
+    title: Canonical tab mutation actions
+    closure_unit: "Duplicate, move, pin, mute, close-others/right, and reopen-closed mutate the canonical tab set without losing unrelated state."
+    requirement_ids: [STAGE-REQ-SHELL-003]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-004-PERSISTENCE-REPLAY]
+    dependency_gate_ids: []
+    owner_lane: L05
+    preconditions: [multi-tab-state-fixture, canonical-tab-revision-contract-bound]
+    fixture_ids: [STAGE-FIX-SHELL-TAB-ACTIONS-003]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Each tab action preserves ordering, history, organization, audio, and recently-closed invariants."]
+      negative: ["Close-others/right never targets pinned, excluded, or post-snapshot tabs outside the canonical target set."]
+      failure_recovery: ["Interrupted mutation replays idempotently or compensates to one reconciled canonical state."]
+      concurrency: ["Concurrent move/close/pin operations use revisions and cannot silently overwrite peer changes."]
+    evidence_types: [tab-action-suite, database-invariant-report, action-receipts]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [tab-schema-change, tab-action-change, projector-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SHELL-004
+    title: Capability-aware native browser chrome
+    closure_unit: "Find, zoom, fullscreen, page-audio, context-menu, hover-URL, and popup flows use native UI and report supported, degraded, blocked, or unavailable capability state."
+    requirement_ids: [STAGE-REQ-SHELL-004]
+    source_ids: [STAGE-PRES-MVP-002]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL]
+    dependency_gate_ids: []
+    owner_lane: L05
+    preconditions: [browser-chrome-journey-fixture, adapter-capability-manifest-bound]
+    fixture_ids: [STAGE-FIX-SHELL-BROWSER-CHROME-004]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Each supported chrome flow is discoverable, operable, and reflects current page state."]
+      negative: ["Missing engine capability is visible and never replaced by a silent or unsafe fallback."]
+      failure_recovery: ["Renderer loss closes transient chrome safely and restores state from canonical records."]
+      concurrency: ["Chrome actions on separate tabs remain target-bound and cannot cross focus or page identity."]
+    evidence_types: [browser-chrome-journeys, visual-snapshots, capability-results]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [browser-chrome-change, adapter-capability-change, native-shell-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SHELL-005
+    title: Deterministic native input routing
+    closure_unit: "Keyboard, command-palette, pointer, drag/drop, clipboard, file-chooser, touchpad, and IME inputs route to the intended Stage target with deterministic receipts."
+    requirement_ids: [STAGE-REQ-SHELL-005]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL]
+    dependency_gate_ids: []
+    owner_lane: L05
+    preconditions: [native-input-matrix-fixture, stable-focus-targets-bound]
+    fixture_ids: [STAGE-FIX-SHELL-NATIVE-INPUT-005]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Each input class reaches the selected control/page target and records the resulting state."]
+      negative: ["Hidden, stale, unauthorized, or background targets cannot consume unintended input."]
+      failure_recovery: ["Lost target or canceled chooser/drop returns a typed result without stuck capture or focus."]
+      concurrency: ["Parallel model actions cannot hijack operator keyboard, clipboard, pointer, or focus ownership."]
+    evidence_types: [native-input-matrix, argus-evidence, focus-proof]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [input-router-change, focus-policy-change, native-shell-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SHELL-006
+    title: Visible Stage security and activity state
+    closure_unit: "Origin, TLS, permission, engine, profile, private-mode, model-lease, capture, and download states are visible and accurately bound to the selected tab/session."
+    requirement_ids: [STAGE-REQ-SHELL-006]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-006-WEB-SECURITY]
+    dependency_gate_ids: []
+    owner_lane: L05
+    preconditions: [mixed-security-state-fixture, canonical-state-projections-bound]
+    fixture_ids: [STAGE-FIX-SHELL-SECURITY-STATE-006]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["All declared state indicators match canonical backend and adapter state for the active target."]
+      negative: ["Stale, unknown, or unavailable state is labeled and never rendered as secure, idle, or complete."]
+      failure_recovery: ["Projection interruption recovers from canonical state without retaining a false success indicator."]
+      concurrency: ["Rapid tab/session switching cannot display security or job state from the previous target."]
+    evidence_types: [security-state-visual-proof, visual-evidence, projection-consistency-report]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [state-projection-change, security-policy-change, shell-layout-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SHELL-007
+    title: Explicit optional browser service capabilities
+    closure_unit: "View-source, developer-tools, readable-view, spellcheck, picture-in-picture, and media controls expose an explicit per-engine capability and operable path when supported."
+    requirement_ids: [STAGE-REQ-SHELL-007]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL]
+    dependency_gate_ids: []
+    owner_lane: L05
+    preconditions: [optional-service-capability-fixture, adapter-capability-manifest-bound]
+    fixture_ids: [STAGE-FIX-SHELL-OPTIONAL-SERVICES-007]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Supported optional services open through their declared native or adapter-backed route."]
+      negative: ["Unsupported services remain visibly unavailable and cannot be invoked through hidden routes."]
+      failure_recovery: ["Service crash/closure returns control to Stage without changing page or tab authority."]
+      concurrency: ["Optional services opened for multiple tabs remain scoped to their originating target."]
+    evidence_types: [optional-browser-service-matrix, capability-results, visual-evidence]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [optional-service-change, adapter-capability-change, engine-version-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SHELL-008
+    title: Native closure of embedded WebView2 UI gaps
+    closure_unit: "Every required browser control absent from embedded WebView2 has a native Stage equivalent with the same product-level postcondition and visible limitation state."
+    requirement_ids: [STAGE-REQ-SHELL-008]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-018-WEBVIEW2-PRODUCTION]
+    dependency_gate_ids: []
+    owner_lane: L05
+    preconditions: [webview2-gap-register-bound, native-equivalent-journey-fixture]
+    fixture_ids: [STAGE-FIX-SHELL-WEBVIEW2-GAPS-008]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Each required WebView2 gap maps to and passes a native Stage journey."]
+      negative: ["An unimplemented or semantically weaker replacement blocks the production-slice claim."]
+      failure_recovery: ["Native-control failure leaves the browser state recoverable and reports the missing capability."]
+      concurrency: ["Native equivalents remain target-scoped across multiple WebView2 tabs and windows."]
+    evidence_types: [webview2-gap-journeys, gap-coverage-report, visual-evidence]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [webview2-runtime-change, gap-register-change, native-shell-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-STATE-001
+    title: Stable versioned Stage record identities
+    closure_unit: "Every canonical window, session, tab, folder, bookmark, visit, recently-closed, attachment, action, capture, and bulk-run record has a stable versioned ID."
+    requirement_ids: [STAGE-REQ-STATE-001]
+    source_ids: [STAGE-PRES-MVP-010, STAGE-PRES-PORT-003, STAGE-SPEC-006, STAGE-SPEC-010, STAGE-SPEC-018]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-004-PERSISTENCE-REPLAY]
+    dependency_gate_ids: []
+    owner_lane: L03
+    preconditions: [stage-schema-registry-bound, postgres-eventledger-test-environment]
+    fixture_ids: [STAGE-FIX-STATE-IDENTITY-001]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Create/load/replay preserves each record ID and declared schema version across restart."]
+      negative: ["Missing, reused, malformed, cross-kind, or versionless IDs are rejected before authoritative write."]
+      failure_recovery: ["Partial write/outbox failure reconciles without minting a second identity for the same intent."]
+      concurrency: ["Concurrent creates and updates remain unique, attributable, and revision-safe."]
+    evidence_types: [schema-registry, database-invariant-report, event-replay-report]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [schema-registry-change, id-policy-change, migration-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-STATE-002
+    title: Distinct joint-session and profile visit histories
+    closure_unit: "Per-tab joint session history remains separate from profile visit history and restores only through an engine-qualified path."
+    requirement_ids: [STAGE-REQ-STATE-002]
+    source_ids: [STAGE-PRES-MVP-002, STAGE-SPEC-010]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-004-PERSISTENCE-REPLAY]
+    dependency_gate_ids: []
+    owner_lane: L06
+    preconditions: [multi-engine-history-fixture, history-schema-version-bound]
+    fixture_ids: [STAGE-FIX-STATE-HISTORY-002]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Tab history and profile visits round-trip separately and restore with the recorded engine qualification."]
+      negative: ["A profile visit cannot be treated as restorable tab history and an incompatible engine restore is rejected."]
+      failure_recovery: ["Interrupted restore preserves both histories and records a retryable/failed restore result."]
+      concurrency: ["Parallel navigation and history queries cannot reorder or merge the two authorities."]
+    evidence_types: [session-history-restore-suite, event-replay-report, structured-results]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [history-schema-change, adapter-change, restore-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-STATE-003
+    title: Governed profile visit history lifecycle
+    closure_unit: "Profile visit history supports search, filtering, item deletion, clear-by-time, and private-mode exclusion against canonical records."
+    requirement_ids: [STAGE-REQ-STATE-003]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-004-PERSISTENCE-REPLAY]
+    dependency_gate_ids: []
+    owner_lane: L06
+    preconditions: [mixed-profile-visit-fixture, canonical-history-query-bound]
+    fixture_ids: [STAGE-FIX-STATE-VISITS-003]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Search/filter/delete/clear operations affect the exact canonical visit set requested."]
+      negative: ["Private visits are never persisted or returned and another profile's visits are never mutated."]
+      failure_recovery: ["Interrupted deletion/clear reconciles idempotently and reports the final affected set."]
+      concurrency: ["Visits added during clear-by-time are handled by a frozen target rule without accidental deletion."]
+    evidence_types: [visit-history-suite, database-invariant-report, query-result-manifest]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [visit-schema-change, query-policy-change, private-mode-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-STATE-004
+    title: Crash-safe recently-closed retention and restore
+    closure_unit: "Recently closed tabs/windows obey bounded retention and explicit removal while preserving ordered crash-safe restore."
+    requirement_ids: [STAGE-REQ-STATE-004]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-004-PERSISTENCE-REPLAY]
+    dependency_gate_ids: []
+    owner_lane: L06
+    preconditions: [recently-closed-retention-fixture, persistence-replay-harness]
+    fixture_ids: [STAGE-FIX-STATE-RECENTLY-CLOSED-004]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Close, list, ordered restore, explicit removal, and retention expiry produce the expected canonical sequence."]
+      negative: ["Expired or explicitly removed entries cannot be restored through stale UI or action IDs."]
+      failure_recovery: ["Crash between close and projection rebuild preserves or deterministically reconciles the close event."]
+      concurrency: ["Concurrent close/restore actions use revisions and cannot duplicate or reorder the same entry silently."]
+    evidence_types: [recently-closed-suite, event-replay-report, database-invariant-report]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [retention-policy-change, recently-closed-schema-change, projector-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-STATE-005
+    title: Full organization metadata round trip
+    closure_unit: "Folders, groups, ordering, colors, pins, bookmarks, notes, reminders, opened-from links, and Loom links round-trip without creating a second graph authority."
+    requirement_ids: [STAGE-REQ-STATE-005]
+    source_ids: [STAGE-DEC-011]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-004-PERSISTENCE-REPLAY, STAGE-GATE-011-DOWNSTREAM]
+    dependency_gate_ids: []
+    owner_lane: L06
+    preconditions: [organization-graph-fixture, loom-public-contract-bound]
+    fixture_ids: [STAGE-FIX-STATE-ORGANIZATION-005]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["All organization fields persist, restore, export/import, and resolve Loom references by stable ID."]
+      negative: ["Dangling/unauthorized Loom links or duplicate Stage graph identities are rejected or visibly unresolved."]
+      failure_recovery: ["Partial metadata or Loom handoff failure preserves Stage state and exposes retry/reconciliation."]
+      concurrency: ["Concurrent reorders and metadata edits merge or reject by revision without silent loss."]
+    evidence_types: [organization-round-trip, lineage-graph, database-invariant-report]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [organization-schema-change, loom-contract-change, ordering-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-STATE-006
+    title: Versioned idempotent onboarding import and export
+    closure_unit: "Bookmark, folder, and URL-list import/export is versioned and idempotent and emits an itemized partial-loss report."
+    requirement_ids: [STAGE-REQ-STATE-006]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-004-PERSISTENCE-REPLAY]
+    dependency_gate_ids: []
+    owner_lane: L06
+    preconditions: [versioned-onboarding-corpus, import-export-schema-bound]
+    fixture_ids: [STAGE-FIX-STATE-ONBOARDING-006]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Supported hierarchy/order/metadata round-trips and reimport produces no duplicate canonical records."]
+      negative: ["Malformed, unsupported, or path-traversal content is rejected and represented in the loss report."]
+      failure_recovery: ["Interrupted import resumes idempotently from durable progress without duplicating accepted rows."]
+      concurrency: ["Parallel import requests deduplicate by import identity and cannot interleave conflicting writes silently."]
+    evidence_types: [onboarding-import-export, count-hash-reconciliation, partial-loss-report]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [import-schema-change, export-schema-change, onboarding-parser-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-STATE-007
+    title: Dormant 3000-plus-tab corpus onboarding
+    closure_unit: "A representative 3000-plus-tab corpus imports with hierarchy intact and without eager navigation or renderer-count growth tied to record count."
+    requirement_ids: [STAGE-REQ-STATE-007]
+    source_ids: [STAGE-DEC-009]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-004-PERSISTENCE-REPLAY, STAGE-GATE-009-HIGH-VOLUME]
+    dependency_gate_ids: []
+    owner_lane: L06
+    preconditions: [representative-3000-plus-tab-corpus, machine-wide-renderer-budget-bound]
+    fixture_ids: [STAGE-FIX-STATE-3000-TAB-007]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["All records/hierarchy import while only the bounded selected/warm set may materialize pages."]
+      negative: ["Import fails if it eagerly navigates dormant tabs, loses hierarchy, or scales renderers with records."]
+      failure_recovery: ["Crash mid-import resumes by durable cursor and reconciles counts/hashes without a restore storm."]
+      concurrency: ["Simultaneous multi-window import/restore still respects one machine-wide renderer ceiling."]
+    evidence_types: [3000-tab-onboarding, benchmark-series, renderer-process-map]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [importer-change, scheduler-change, renderer-budget-change, fixture-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-STATE-008
+    title: Canonical offscreen bulk reconciliation
+    closure_unit: "A bulk action freezes its canonical target set and reconciles every target, including records never rendered in the UI."
+    requirement_ids: [STAGE-REQ-STATE-008]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-004-PERSISTENCE-REPLAY, STAGE-GATE-009-HIGH-VOLUME]
+    dependency_gate_ids: []
+    owner_lane: L06
+    preconditions: [offscreen-bulk-record-fixture, canonical-query-snapshot-contract-bound]
+    fixture_ids: [STAGE-FIX-STATE-BULK-008]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["All matching visible and never-rendered records receive exactly one terminal disposition."]
+      negative: ["Rendered, loaded, filtered, or paginated subsets cannot substitute for the frozen canonical set."]
+      failure_recovery: ["Partial bulk failure resumes/reconciles per item without repeating completed non-idempotent effects."]
+      concurrency: ["Records added or changed after the snapshot follow the declared revision rule and are not silently included."]
+    evidence_types: [offscreen-bulk-reconciliation, bulk-reconciliation, database-invariant-report]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [bulk-engine-change, query-projection-change, revision-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-STATE-009
+    title: Non-destructive duplicate suggestions
+    closure_unit: "Duplicate suggestions preserve distinct notes, ordering, history, artifacts, and other state unless an explicit reviewed merge action succeeds."
+    requirement_ids: [STAGE-REQ-STATE-009]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-004-PERSISTENCE-REPLAY, STAGE-GATE-009-HIGH-VOLUME]
+    dependency_gate_ids: []
+    owner_lane: L06
+    preconditions: [near-duplicate-state-corpus, duplicate-suggestion-policy-bound]
+    fixture_ids: [STAGE-FIX-STATE-DUPLICATES-009]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Suggestion output identifies candidates without mutating either canonical record."]
+      negative: ["Automatic or ambiguous deduplication cannot delete distinct metadata, history, or artifact links."]
+      failure_recovery: ["Failed explicit merge rolls back or reports compensation while preserving both source records."]
+      concurrency: ["Concurrent edits invalidate or re-evaluate stale duplicate suggestions before any merge."]
+    evidence_types: [duplicate-safety-suite, database-invariant-report, action-receipts]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [duplicate-policy-change, similarity-engine-change, state-schema-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-PERM-001
+    title: Default-deny engine permission broker
+    closure_unit: "Every engine permission request is mediated by the Stage per-origin/session broker and defaults to deny without an applicable grant."
+    requirement_ids: [STAGE-REQ-PERM-001]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY]
+    dependency_gate_ids: []
+    owner_lane: L10
+    preconditions: [permission-broker-contract-bound, cross-origin-session-permission-fixture]
+    fixture_ids: [STAGE-FIX-PERM-BROKER-001]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["A matching explicit grant permits only the requested kind, origin, and session scope."]
+      negative: ["Unknown kind, absent grant, origin mismatch, or session mismatch is denied and receipted."]
+      failure_recovery: ["Broker or persistence failure fails closed and preserves a retryable operator-visible decision state."]
+      concurrency: ["Concurrent requests cannot reuse or race another origin/session grant."]
+    evidence_types: [permission-broker-negative-suite, policy-receipts, structured-results]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [permission-broker-change, adapter-permission-change, policy-schema-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-PERM-002
+    title: Permission grant lifecycle round trip
+    closure_unit: "Allow-once, allow-session, persistent allow/deny, expiry, reset, and decision receipts round-trip with exact origin/session scope."
+    requirement_ids: [STAGE-REQ-PERM-002]
+    source_ids: [STAGE-PRES-MVP-004]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-005-SESSION-ISOLATION, STAGE-GATE-006-WEB-SECURITY]
+    dependency_gate_ids: []
+    owner_lane: L10
+    preconditions: [permission-lifecycle-fixture, policy-clock-and-receipt-store-bound]
+    fixture_ids: [STAGE-FIX-PERM-LIFECYCLE-002]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Every grant/deny class applies for exactly its declared lifetime and produces a durable receipt."]
+      negative: ["Expired, reset, wrong-origin, or wrong-session grants cannot authorize a request."]
+      failure_recovery: ["Restart and clock advancement expire/reload grants deterministically without widening scope."]
+      concurrency: ["Concurrent reset and permission request resolve by revision without a stale grant succeeding."]
+    evidence_types: [site-settings-round-trip, policy-receipts, restart-results]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [permission-lifecycle-change, clock-policy-change, session-schema-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-PERM-003
+    title: Governed popup and external-scheme policy
+    closure_unit: "New windows, popups, external schemes, and protocol handlers pass Stage-owned policy with destination visibility before dispatch."
+    requirement_ids: [STAGE-REQ-PERM-003]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY]
+    dependency_gate_ids: []
+    owner_lane: L10
+    preconditions: [popup-scheme-destination-fixture, external-dispatch-policy-bound]
+    fixture_ids: [STAGE-FIX-PERM-POPUP-SCHEME-003]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Allowed popup/scheme requests display the destination and dispatch only after the declared policy outcome."]
+      negative: ["Hidden, malformed, recursive, unregistered, or disallowed destinations are denied without external launch."]
+      failure_recovery: ["Failed external dispatch returns control to Stage and records a non-success result."]
+      concurrency: ["Popup storms are bounded and each request remains attributable to its initiating origin/tab."]
+    evidence_types: [popup-and-scheme-suite, policy-receipts, visual-evidence]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [popup-policy-change, scheme-registry-change, adapter-navigation-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-PERM-004
+    title: Individually governed permission kinds
+    closure_unit: "Camera, microphone, geolocation, clipboard, file, MIDI/device, fonts, screen capture, window management, notifications, and automatic-download permissions are independently governed."
+    requirement_ids: [STAGE-REQ-PERM-004]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY]
+    dependency_gate_ids: []
+    owner_lane: L10
+    preconditions: [complete-permission-kind-fixture, per-kind-capability-map-bound]
+    fixture_ids: [STAGE-FIX-PERM-KINDS-004]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Each supported kind can be granted/denied without changing any other permission kind."]
+      negative: ["Unknown, grouped, or capability-missing requests cannot inherit authority from a different kind."]
+      failure_recovery: ["Device loss or adapter error revokes/ends the active capability and records cleanup."]
+      concurrency: ["Simultaneous requests for different kinds retain independent decisions and lifetimes."]
+    evidence_types: [permission-kind-matrix, capability-results, cleanup-receipts]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [permission-kind-change, adapter-capability-change, device-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-AUTH-001
+    title: Explicit authenticated-site compatibility
+    closure_unit: "Authenticated-site journeys are tested per supported mode and embedded Google OAuth in WebView2 remains explicitly blocked rather than reported as working."
+    requirement_ids: [STAGE-REQ-AUTH-001]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-007-AUTH-COMPATIBILITY]
+    dependency_gate_ids: []
+    owner_lane: L11
+    preconditions: [authenticated-site-journey-corpus, webview2-google-auth-disposition-bound]
+    fixture_ids: [STAGE-FIX-AUTH-COMPATIBILITY-001]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Every supported authentication mode completes and records engine/site/mode provenance."]
+      negative: ["Embedded Google OAuth under WebView2 is blocked and cannot be relabeled as degraded success."]
+      failure_recovery: ["Expired or invalid session returns a typed reacquisition/takeover path without false login state."]
+      concurrency: ["Authentication in one profile cannot authenticate, clear, or expose state in another profile."]
+    evidence_types: [auth-compatibility-matrix, auth-matrix, loss-reports]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [auth-policy-change, webview2-runtime-change, representative-site-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-AUTH-002
+    title: RFC 8252 native OAuth with PKCE
+    closure_unit: "Native-app OAuth launches an external user-agent, uses PKCE, and accepts only the declared redirect/deep-link contract."
+    requirement_ids: [STAGE-REQ-AUTH-002]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-007-AUTH-COMPATIBILITY]
+    dependency_gate_ids: []
+    owner_lane: L11
+    preconditions: [owned-oauth-provider-fixture, redirect-deep-link-contract-bound]
+    fixture_ids: [STAGE-FIX-AUTH-OAUTH-PKCE-002]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Valid external authorization with matching state, verifier, and redirect completes once."]
+      negative: ["Missing PKCE, state mismatch, wrong redirect, replay, or embedded-user-agent attempt is rejected."]
+      failure_recovery: ["Canceled/timed-out authorization revokes temporary state and supports a clean new attempt."]
+      concurrency: ["Parallel OAuth attempts use isolated state/verifier values and cannot consume each other's redirect."]
+    evidence_types: [rfc8252-oauth-fixture, oauth-receipts, structured-results]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [oauth-contract-change, deep-link-handler-change, provider-config-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-AUTH-003
+    title: OAuth-token and website-session separation
+    closure_unit: "OAuth API tokens remain typed API credentials and are never presented, stored, or reported as arbitrary website cookies or browser login state."
+    requirement_ids: [STAGE-REQ-AUTH-003]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-007-AUTH-COMPATIBILITY]
+    dependency_gate_ids: []
+    owner_lane: L11
+    preconditions: [token-cookie-confusion-fixture, credential-type-registry-bound]
+    fixture_ids: [STAGE-FIX-AUTH-TOKEN-SEPARATION-003]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["API token and website cookie/session records retain distinct types, scopes, consumers, and UI labels."]
+      negative: ["Token-to-cookie injection, cookie-to-token projection, or arbitrary website-login claims are rejected."]
+      failure_recovery: ["Credential-store failure exposes no raw value and leaves both authorities unchanged."]
+      concurrency: ["Simultaneous API and browser authentication cannot cross-bind credentials or completion state."]
+    evidence_types: [token-cookie-separation-tests, credential-type-report, secret-scan]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [credential-schema-change, oauth-adapter-change, cookie-contract-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-AUTH-004
+    title: Explicit per-site session acquisition policy
+    closure_unit: "Each qualified site declares engine-native login, external OAuth, governed cookie import, or unsupported/degraded acquisition without silent substitution."
+    requirement_ids: [STAGE-REQ-AUTH-004]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-007-AUTH-COMPATIBILITY]
+    dependency_gate_ids: []
+    owner_lane: L11
+    preconditions: [multi-site-session-acquisition-fixture, site-auth-policy-registry-bound]
+    fixture_ids: [STAGE-FIX-AUTH-ACQUISITION-004]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Every site journey uses and displays its declared acquisition mode and resulting scope."]
+      negative: ["Blocked/unsupported modes cannot silently fall back to cookie injection or another engine."]
+      failure_recovery: ["Failed acquisition preserves prior session authority and offers only declared recovery options."]
+      concurrency: ["Parallel acquisitions remain isolated by site, profile, actor, and correlation ID."]
+    evidence_types: [session-acquisition-policy, auth-matrix, capability-results]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [site-policy-change, auth-mode-change, engine-capability-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-AUTH-005
+    title: Qualified credential-method behavior without raw-password vault
+    closure_unit: "Passkey/WebAuthn, password/autofill, HTTP auth, proxy auth, and client certificates have explicit qualified behavior without creating a Stage raw-password vault."
+    requirement_ids: [STAGE-REQ-AUTH-005]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-007-AUTH-COMPATIBILITY]
+    dependency_gate_ids: []
+    owner_lane: L11
+    preconditions: [credential-method-fixture-corpus, credential-storage-boundary-bound]
+    fixture_ids: [STAGE-FIX-AUTH-CREDENTIAL-METHODS-005]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Each supported credential method completes through its engine/OS/provider boundary and records capability provenance."]
+      negative: ["Raw passwords are never persisted by Stage and unsupported methods remain visibly unavailable."]
+      failure_recovery: ["Canceled/failed credential flow clears transient data and resumes from an unprivileged state."]
+      concurrency: ["Credential prompts and results remain bound to one origin/profile and cannot be observed by peer actors."]
+    evidence_types: [credential-method-matrix, capability-results, secret-scan]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [credential-method-change, platform-auth-change, engine-version-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-AUTH-006
+    title: Private operator takeover for credentials and challenges
+    closure_unit: "Operator takeover hides credential/challenge input from model observation, suspends model control, and resumes only from a fresh post-takeover observation."
+    requirement_ids: [STAGE-REQ-AUTH-006]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-007-AUTH-COMPATIBILITY, STAGE-GATE-008-AGENT-CONTROL]
+    dependency_gate_ids: []
+    owner_lane: L12
+    preconditions: [owned-challenge-and-credential-fixture, operator-takeover-state-machine-bound]
+    fixture_ids: [STAGE-FIX-AUTH-TAKEOVER-006]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Takeover revokes model action/observation access and successful return requires a new observation/revision."]
+      negative: ["Models cannot read input, screenshots, accessibility text, logs, or stale targets from the protected interval."]
+      failure_recovery: ["Canceled or crashed takeover returns to a known blocked/recoverable state without exposing secrets."]
+      concurrency: ["All parallel model lanes lose the protected capability and none can race the operator resume transition."]
+    evidence_types: [takeover-auth-journey, agent-traces, secret-scan, focus-proof]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [takeover-state-change, observation-contract-change, model-lease-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SESSION-001
+    title: Exact Stage session-class materialization
+    closure_unit: "Persistent, strong-isolation, and ephemeral session classes materialize only their declared profile, process, and storage boundaries."
+    requirement_ids: [STAGE-REQ-SESSION-001]
+    source_ids: [STAGE-PRES-MVP-004]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-005-SESSION-ISOLATION]
+    dependency_gate_ids: []
+    owner_lane: L11
+    preconditions: [session-class-materialization-fixture, engine-profile-capabilities-bound]
+    fixture_ids: [STAGE-FIX-SESSION-CLASSES-001]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Each class creates and restores only the declared profile/process/storage resources."]
+      negative: ["Unsupported isolation strength cannot be silently downgraded or share undeclared state."]
+      failure_recovery: ["Partial materialization cleans up or enters typed recoverable state without exposing a usable half-profile."]
+      concurrency: ["Concurrent sessions retain independent materialization IDs and cannot attach to the wrong profile/process."]
+    evidence_types: [isolation-class-matrix, process-profile-map, cleanup-receipts]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [session-class-change, adapter-profile-change, process-model-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SESSION-002
+    title: Cross-profile browser-state isolation
+    closure_unit: "Cookies, cache, storage, IndexedDB, service workers, permissions, history, and preferences remain isolated and independently clearable by profile."
+    requirement_ids: [STAGE-REQ-SESSION-002]
+    source_ids: [STAGE-PRES-MVP-001, STAGE-PRES-MVP-004, STAGE-PRES-MVP-012]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-005-SESSION-ISOLATION]
+    dependency_gate_ids: []
+    owner_lane: L11
+    preconditions: [cross-profile-canary-fixture, complete-browser-state-kind-map]
+    fixture_ids: [STAGE-FIX-SESSION-ISOLATION-002]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Each state kind persists/clears within one profile without changing peer profiles."]
+      negative: ["Cross-profile reads, writes, service-worker control, permission reuse, or clear operations are denied."]
+      failure_recovery: ["Crash/restart preserves isolation and cleanup resumes for any incomplete clear operation."]
+      concurrency: ["Parallel profile activity and clear operations do not leak, deadlock, or cross-target state."]
+    evidence_types: [cross-profile-leak-suite, canary-matrix, cleanup-receipts, secret-scan]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [profile-layout-change, storage-kind-change, adapter-profile-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SESSION-003
+    title: Verified deferred ephemeral-profile cleanup
+    closure_unit: "Ephemeral cleanup begins after engine exit, verifies deletion, and persists retry receipts for locked or undeletable files."
+    requirement_ids: [STAGE-REQ-SESSION-003]
+    source_ids: [STAGE-PRES-MVP-004]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-005-SESSION-ISOLATION, STAGE-GATE-013-FAILURE-RECOVERY]
+    dependency_gate_ids: []
+    owner_lane: L11
+    preconditions: [ephemeral-profile-lock-fixture, engine-exit-observation-bound]
+    fixture_ids: [STAGE-FIX-SESSION-CLEANUP-003]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Engine exit is observed, all ephemeral resources delete, and verification records a terminal receipt."]
+      negative: ["Cleanup never races a live engine or reports success while files/resources remain."]
+      failure_recovery: ["Locked files produce durable bounded retry state and cleanup succeeds after restart/unlock."]
+      concurrency: ["Multiple profile cleanups are independently attributed and cannot delete a peer profile."]
+    evidence_types: [deferred-profile-cleanup, cleanup-receipts, orphan-cleanup-report]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [cleanup-worker-change, profile-layout-change, engine-exit-contract-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SESSION-004
+    title: Scoped redacted cookie round trip
+    closure_unit: "Cookie edit/import/export preserves supported attributes, reports loss, limits scope, redacts previews/logs, and treats output as high sensitivity."
+    requirement_ids: [STAGE-REQ-SESSION-004]
+    source_ids: [STAGE-DEC-012, STAGE-PRES-PORT-002]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-005-SESSION-ISOLATION]
+    dependency_gate_ids: []
+    owner_lane: L11
+    preconditions: [cookie-attribute-corpus, high-sensitivity-export-policy-bound]
+    fixture_ids: [STAGE-FIX-SESSION-COOKIE-ROUNDTRIP-004]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Selected session/domain cookies round-trip supported attributes and emit an itemized loss report."]
+      negative: ["Cross-profile/domain export, unredacted preview/logging, or routine raw-cookie materialization is denied."]
+      failure_recovery: ["Partial import/export preserves prior cookie authority and reports exact per-item outcomes."]
+      concurrency: ["Concurrent cookie edits use revisions and cannot overwrite or export stale values silently."]
+    evidence_types: [cookie-round-trip-secret-scan, loss-report, secret-scan]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [cookie-schema-change, adapter-cookie-change, sensitivity-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SESSION-005
+    title: Revocable scoped downloader credential lease
+    closure_unit: "Downloader access uses a revocable scoped CredentialLeaseRef with expiry; raw cookie files remain exceptional operator exports."
+    requirement_ids: [STAGE-REQ-SESSION-005]
+    source_ids: [STAGE-DEC-012, STAGE-PRES-PORT-002]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-005-SESSION-ISOLATION, STAGE-GATE-011-DOWNSTREAM]
+    dependency_gate_ids: [STAGE-DEP-MEDIA-DOWNLOADER]
+    owner_lane: L15
+    preconditions: [credential-lease-contract-bound, downloader-fake-or-validated-baseline]
+    fixture_ids: [STAGE-FIX-SESSION-CREDENTIAL-LEASE-005]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Downloader resolves only the authorized credential subset during the lease lifetime and records use."]
+      negative: ["Expired, revoked, wrong-consumer, wrong-origin, or replayed leases fail without raw-cookie fallback."]
+      failure_recovery: ["Downloader/session crash revokes or expires the lease and a resumed job requires a valid new lease."]
+      concurrency: ["Parallel jobs cannot share, widen, or race-revive another job's lease."]
+    evidence_types: [credential-lease-expiry, consumer-contract-results, secret-scan]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [credential-lease-change, downloader-contract-change, session-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SESSION-006
+    title: Explicit loss-reporting cross-engine session transfer
+    closure_unit: "Cross-engine session transfer is explicitly requested, transfers only supported state, encrypts persisted transfer material, and reports every unsupported/lost field."
+    requirement_ids: [STAGE-REQ-SESSION-006]
+    source_ids: []
+    release_ids: [STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-005-SESSION-ISOLATION]
+    dependency_gate_ids: []
+    owner_lane: L11
+    preconditions: [cross-engine-session-corpus, source-target-capability-map-bound]
+    fixture_ids: [STAGE-FIX-SESSION-CROSS-ENGINE-006]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Supported state transfers to a new explicit target profile and the loss report matches source/target capabilities."]
+      negative: ["Implicit transfer, plaintext persistence, unsupported-field fabrication, or source mutation is rejected."]
+      failure_recovery: ["Interrupted transfer deletes/retains encrypted staging by policy and leaves the source session authoritative."]
+      concurrency: ["Concurrent transfers use distinct manifests and cannot cross-bind source or destination profiles."]
+    evidence_types: [cross-engine-loss-report, encryption-proof, count-hash-reconciliation]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [session-transfer-change, engine-capability-change, encryption-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-SESSION-007
+    title: Profile-scoped clear-browsing-data
+    closure_unit: "Clear-browsing-data applies the requested data kinds and time range to exactly one profile and cannot affect any other profile."
+    requirement_ids: [STAGE-REQ-SESSION-007]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-005-SESSION-ISOLATION]
+    dependency_gate_ids: []
+    owner_lane: L11
+    preconditions: [multi-profile-time-ranged-data-fixture, clear-data-kind-registry-bound]
+    fixture_ids: [STAGE-FIX-SESSION-CLEAR-DATA-007]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Only selected kinds within the requested time range are removed from the selected profile."]
+      negative: ["Unknown kinds, invalid ranges, stale profile IDs, and cross-profile targets fail closed."]
+      failure_recovery: ["Interrupted clear resumes/reconciles by kind and never reports success until verification completes."]
+      concurrency: ["Concurrent browsing and clear operations follow a declared cutoff/revision without peer-profile impact."]
+    evidence_types: [clear-data-isolation-suite, cleanup-receipts, canary-matrix]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [clear-data-contract-change, storage-kind-change, profile-isolation-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-NET-001
+    title: Complete host request and SSRF policy
+    closure_unit: "Host request policy re-evaluates redirects and DNS/address changes and governs loopback, link-local, private networks, IPv4/IPv6, files, and custom schemes."
+    requirement_ids: [STAGE-REQ-NET-001]
+    source_ids: [STAGE-PRES-MVP-001, STAGE-PRES-MVP-012, STAGE-SPEC-016]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY]
+    dependency_gate_ids: []
+    owner_lane: L10
+    preconditions: [owned-ssrf-dns-rebinding-fixture, host-request-policy-bound]
+    fixture_ids: [STAGE-FIX-NET-HOST-POLICY-001]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Declared public and development-profile targets pass each policy phase with attributable decisions."]
+      negative: ["Redirect/DNS rebinding to denied address classes, file targets, or custom schemes is blocked on re-evaluation."]
+      failure_recovery: ["Resolver/policy failure aborts the request and leaves no privileged connection or cached allow decision."]
+      concurrency: ["Parallel requests cannot reuse another origin, profile, or development-profile allowance."]
+    evidence_types: [ssrf-dns-rebinding-suite, network-policy-decisions, structured-results]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [host-policy-change, resolver-change, address-classification-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-NET-002
+    title: Explicit enterprise network behavior
+    closure_unit: "Proxy/PAC, proxy authentication, TLS inspection, enterprise roots, HSTS, client certificates, and captive portals each expose an explicit supported/degraded/blocked behavior."
+    requirement_ids: [STAGE-REQ-NET-002]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY]
+    dependency_gate_ids: []
+    owner_lane: L10
+    preconditions: [owned-enterprise-network-fixture, per-engine-network-capability-map]
+    fixture_ids: [STAGE-FIX-NET-ENTERPRISE-002]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Supported enterprise paths connect with visible proxy/certificate provenance and scoped credentials."]
+      negative: ["Unsupported PAC/auth/root/certificate/captive behavior is blocked or labeled without insecure bypass."]
+      failure_recovery: ["Proxy, portal, or certificate transition returns to a known reconnectable state without leaking credentials."]
+      concurrency: ["Different profiles/proxies cannot share authentication or trust decisions implicitly."]
+    evidence_types: [enterprise-network-matrix, process-boundary-evidence, secret-scan]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [proxy-policy-change, trust-store-change, adapter-network-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-NET-003
+    title: Fail-closed certificate error handling
+    closure_unit: "Certificate errors never auto-bypass; any permitted exception is operator-visible, narrowly scoped, time-bounded, and receipted."
+    requirement_ids: [STAGE-REQ-NET-003]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY]
+    dependency_gate_ids: []
+    owner_lane: L10
+    preconditions: [owned-certificate-error-corpus, certificate-exception-policy-bound]
+    fixture_ids: [STAGE-FIX-NET-CERTIFICATES-003]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Valid certificates connect and an explicitly allowed test exception shows scope/expiry/receipt."]
+      negative: ["Expired, self-signed, wrong-host, revoked, HSTS, or undeclared certificate errors fail closed."]
+      failure_recovery: ["Trust or certificate changes invalidate cached decisions and require fresh evaluation."]
+      concurrency: ["An exception for one origin/profile cannot authorize another concurrent origin/profile."]
+    evidence_types: [certificate-negative-suite, policy-receipts, visual-evidence]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [certificate-policy-change, trust-store-change, tls-stack-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-NET-004
+    title: Policy coverage for all browser transports
+    closure_unit: "WebSocket, WebTransport, WebRTC, service-worker, cache, authentication, and download transports are governed by policy or explicitly blocked per engine."
+    requirement_ids: [STAGE-REQ-NET-004]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY]
+    dependency_gate_ids: []
+    owner_lane: L10
+    preconditions: [complete-transport-fixture-corpus, transport-policy-capability-map]
+    fixture_ids: [STAGE-FIX-NET-TRANSPORTS-004]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Every supported transport records policy decisions for setup, redirect/address change, and teardown."]
+      negative: ["Uncovered transports and blocked capability gaps cannot operate through an ungoverned side path."]
+      failure_recovery: ["Transport loss closes resources, records terminal state, and cannot retain a stale policy grant."]
+      concurrency: ["High parallel transport load remains origin/profile scoped and bounded without decision cross-talk."]
+    evidence_types: [transport-coverage-matrix, network-policy-decisions, cleanup-receipts]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [transport-support-change, network-policy-change, engine-version-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-NET-005
+    title: Deterministic provenance-backed filtering
+    closure_unit: "Ad/tracker filtering verifies signed/provenanced lists and applies deterministic precedence across base lists, user rules, exceptions, update rollback, and receipts."
+    requirement_ids: [STAGE-REQ-NET-005]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY, STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN]
+    dependency_gate_ids: []
+    owner_lane: L10
+    preconditions: [signed-filter-list-corpus, filter-precedence-contract-bound]
+    fixture_ids: [STAGE-FIX-NET-FILTERING-005]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Signed list, user rule, and exception precedence yields the same receipted result on repeat runs."]
+      negative: ["Unsigned, expired, corrupted, rollback-incompatible, or ambiguous updates are rejected without replacing the prior good set."]
+      failure_recovery: ["Interrupted/bad update rolls back atomically to the last verified filter generation."]
+      concurrency: ["Requests during update use one complete filter generation and never a partially applied ruleset."]
+    evidence_types: [filter-policy-corpus, signatures, update-drill, policy-receipts]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [filter-engine-change, list-signing-policy-change, update-path-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-NET-006
+    title: Visible safe-browsing and download-scan coverage
+    closure_unit: "Safe-browsing and download-scanning support and gaps are visible for the exact engine/runtime and never inferred from a different backend."
+    requirement_ids: [STAGE-REQ-NET-006]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY, STAGE-GATE-010-DOWNLOAD-CAPTURE]
+    dependency_gate_ids: []
+    owner_lane: L10
+    preconditions: [safe-malicious-download-fixture, engine-scan-capability-map-bound]
+    fixture_ids: [STAGE-FIX-NET-SAFE-BROWSING-006]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Known safe/malicious fixtures produce the declared engine/runtime warning, block, scan, or explicit gap state."]
+      negative: ["Missing scanner or reputation capability cannot be displayed as protected or silently delegated."]
+      failure_recovery: ["Scanner timeout/failure quarantines or blocks by policy and preserves a retryable evidence trail."]
+      concurrency: ["Parallel downloads retain independent scan verdicts and cannot release another item's quarantined bytes."]
+    evidence_types: [malicious-download-fixtures, negative-security-results, download-results, visual-evidence]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [scanner-change, engine-runtime-change, safe-browsing-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-COMPAT-001
+    title: Representative browser compatibility coverage
+    closure_unit: "The compatibility matrix executes representative authentication, forms, upload/download, JS-app, media/codec/DRM, WebRTC, PDF, 3D, accessibility, storage, and offline-transition journeys for each claimed adapter."
+    requirement_ids: [STAGE-REQ-COMPAT-001]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-SERVO-RESTRICTED-ALPHA, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-002-ADAPTER-CONFORMANCE, STAGE-GATE-007-AUTH-COMPATIBILITY, STAGE-GATE-018-WEBVIEW2-PRODUCTION, STAGE-GATE-019-SERVO-RESTRICTED-ALPHA]
+    dependency_gate_ids: []
+    owner_lane: L04
+    preconditions: [representative-compatibility-corpus-approved, adapter-builds-and-capability-manifests-bound]
+    fixture_ids: [STAGE-FIX-COMPAT-REPRESENTATIVE-001]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Every claimed journey passes with exact adapter/runtime/build and capability provenance."]
+      negative: ["Missing, skipped-only, silent-fallback, or unclaimed coverage cannot satisfy a compatibility claim."]
+      failure_recovery: ["Journey failure cleans processes/profiles and records reproducible state for rerun."]
+      concurrency: ["Parallel representative journeys remain profile/fixture isolated and produce attributable evidence."]
+    evidence_types: [representative-journey-corpus, adapter-manifests, journey-results, cleanup-receipts]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [adapter-change, engine-runtime-change, compatibility-corpus-change, release-claim-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-COMPAT-002
+    title: Separated YouTube workflow gates
+    closure_unit: "YouTube anonymous, authenticated, media-discovery, download-handoff, captions, and ASR-fallback journeys produce separate attributable verdicts."
+    requirement_ids: [STAGE-REQ-COMPAT-002]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-002-ADAPTER-CONFORMANCE, STAGE-GATE-007-AUTH-COMPATIBILITY, STAGE-GATE-010-DOWNLOAD-CAPTURE, STAGE-GATE-011-DOWNSTREAM]
+    dependency_gate_ids: [STAGE-DEP-MEDIA-DOWNLOADER]
+    owner_lane: L04
+    preconditions: [youtube-workflow-fixture-and-live-monitor-bound, downloader-and-asr-contracts-bound]
+    fixture_ids: [STAGE-FIX-COMPAT-YOUTUBE-002]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Each workflow stage emits an independent verdict and end-to-end lineage where supported."]
+      negative: ["Anonymous success cannot substitute for authenticated, download, captions, or ASR-fallback proof."]
+      failure_recovery: ["Auth/download/caption/ASR partial failure preserves completed work and exposes retry at the failed boundary."]
+      concurrency: ["Parallel media workflows keep session, job, artifact, transcript, and source-tab correlation separate."]
+    evidence_types: [youtube-workflow-matrix, auth-matrix, download-results, lineage-graph]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [youtube-journey-change, downloader-contract-change, asr-contract-change, auth-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-COMPAT-003
+    title: Deterministic fixture release authority
+    closure_unit: "External live-site monitoring is evidence-only while deterministic owned/self-hosted fixtures remain the release-authoritative compatibility source."
+    requirement_ids: [STAGE-REQ-COMPAT-003]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-SERVO-RESTRICTED-ALPHA, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-002-ADAPTER-CONFORMANCE, STAGE-GATE-007-AUTH-COMPATIBILITY, STAGE-GATE-018-WEBVIEW2-PRODUCTION, STAGE-GATE-019-SERVO-RESTRICTED-ALPHA]
+    dependency_gate_ids: []
+    owner_lane: L04
+    preconditions: [controlled-fixture-manifest-bound, live-site-monitor-policy-bound]
+    fixture_ids: [STAGE-FIX-COMPAT-AUTHORITY-003]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Release verdict cites versioned deterministic fixture hashes and treats live-site results as supplemental."]
+      negative: ["A favorable live-site run cannot replace missing/failed deterministic fixture evidence."]
+      failure_recovery: ["Fixture service failure blocks the verdict and retains prior evidence as stale rather than passing."]
+      concurrency: ["Parallel fixture and live monitoring runs remain separately identified and cannot overwrite authority labels."]
+    evidence_types: [fixture-authority-policy, fixture-manifest, release-evidence-index]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [fixture-manifest-change, authority-policy-change, adapter-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-COMPAT-004
+    title: Distinct capability states with no silent fallback
+    closure_unit: "Unsupported, degraded, and security-blocked capabilities are distinct typed states and adapter selection never silently falls back."
+    requirement_ids: [STAGE-REQ-COMPAT-004]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-SERVO-RESTRICTED-ALPHA, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-002-ADAPTER-CONFORMANCE, STAGE-GATE-007-AUTH-COMPATIBILITY]
+    dependency_gate_ids: []
+    owner_lane: L02
+    preconditions: [capability-state-contract-bound, fake-adapter-state-fixture]
+    fixture_ids: [STAGE-FIX-COMPAT-CAPABILITY-STATES-004]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Each capability state serializes, projects, and gates actions with exact adapter provenance."]
+      negative: ["Unsupported/degraded/security-blocked cannot alias each other or trigger an undeclared backend fallback."]
+      failure_recovery: ["Capability discovery loss becomes unknown/unavailable and requires revalidation before action."]
+      concurrency: ["Adapter capability updates are generation-bound and stale readers cannot authorize an action."]
+    evidence_types: [capability-state-contract, adapter-manifests, negative-results]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [capability-schema-change, adapter-selection-change, engine-version-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-DEV-001
+    title: Bounded local development-test profile
+    closure_unit: "The development-test profile permits only declared loopback/local targets for a visible TTL with separate credentials, owned processes, and automatic revocation."
+    requirement_ids: [STAGE-REQ-DEV-001]
+    source_ids: [STAGE-DEC-013, STAGE-SPEC-016]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-006-WEB-SECURITY, STAGE-GATE-008-AGENT-CONTROL]
+    dependency_gate_ids: []
+    owner_lane: L10
+    preconditions: [owned-local-target-fixture, development-profile-policy-bound]
+    fixture_ids: [STAGE-FIX-DEV-LOCAL-PROFILE-001]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Declared local targets work only during visible TTL with isolated credentials/process ownership."]
+      negative: ["Public/private undeclared targets, TTL expiry, hidden activation, and default-profile credentials are denied."]
+      failure_recovery: ["Host/model crash revokes the profile, terminates owned processes, and records cleanup."]
+      concurrency: ["Parallel test profiles cannot share TTL, credentials, targets, or process authority."]
+    evidence_types: [local-test-profile-negative-suite, process-ownership-ledger, cleanup-receipts, visual-evidence]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [development-profile-policy-change, network-policy-change, process-ledger-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-DEV-002
+    title: Explicit shipped browser diagnostics capabilities
+    closure_unit: "Inspect element, console, network, storage/service-worker, performance, accessibility, screenshot, and redacted-trace export are explicit discoverable operator capabilities."
+    requirement_ids: [STAGE-REQ-DEV-002]
+    source_ids: []
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-006-WEB-SECURITY, STAGE-GATE-017-SUPPORT]
+    dependency_gate_ids: []
+    owner_lane: L05
+    preconditions: [browser-diagnostics-journey-fixture, per-adapter-diagnostics-capability-map]
+    fixture_ids: [STAGE-FIX-DEV-DIAGNOSTICS-002]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Every supported diagnostic opens through a visible operator path and emits bounded attributable output."]
+      negative: ["Unsupported diagnostics remain explicit; traces/screenshots/logs cannot expose raw secrets."]
+      failure_recovery: ["Diagnostic attachment/export failure closes cleanly and leaves the page/session operable."]
+      concurrency: ["Diagnostics on multiple tabs remain target-bound and do not steal operator focus or keyboard."]
+    evidence_types: [shipped-devtools-debug-journey, argus-evidence, support-bundle, secret-scan]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [diagnostics-surface-change, adapter-debug-change, redaction-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-DEV-003
+    title: Versioned cross-adapter web-test manifest
+    closure_unit: "A web-test manifest versions build, viewport, DPR, locale/timezone, permissions, network, inputs, postconditions, screenshots, traces, and cleanup for every supported adapter run."
+    requirement_ids: [STAGE-REQ-DEV-003]
+    source_ids: [STAGE-DEC-013, STAGE-SPEC-016]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-002-ADAPTER-CONFORMANCE, STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-006-WEB-SECURITY, STAGE-GATE-008-AGENT-CONTROL]
+    dependency_gate_ids: []
+    owner_lane: L04
+    preconditions: [web-test-manifest-schema-bound, fake-and-real-adapter-fixtures]
+    fixture_ids: [STAGE-FIX-DEV-WEB-TEST-MANIFEST-003]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Equivalent declared runs produce complete manifests/evidence for every supported adapter."]
+      negative: ["Missing build/environment/input/postcondition/cleanup fields or silent adapter fallback invalidates the run."]
+      failure_recovery: ["Timeout/crash records partial evidence, executes cleanup, and never reports a passing postcondition."]
+      concurrency: ["Parallel manifests use isolated profiles/artifacts and preserve actor/run/adapter correlation."]
+    evidence_types: [cross-adapter-test-manifest, adapter-manifests, screenshots, traces, cleanup-receipts]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [manifest-schema-change, adapter-change, fixture-change, harness-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-APP-001
+    title: Versioned Stage App package lifecycle
+    closure_unit: "Stage App manifest, origin, signing/trust, install, update, rollback, revoke, migration, and diagnostics execute as one versioned package lifecycle."
+    requirement_ids: [STAGE-REQ-APP-001]
+    source_ids: [STAGE-PRES-MVP-003, STAGE-SPEC-017]
+    release_ids: [STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY, STAGE-GATE-013-FAILURE-RECOVERY, STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN]
+    dependency_gate_ids: []
+    owner_lane: L13
+    preconditions: [stage-app-package-corpus, package-trust-and-migration-contracts-bound]
+    fixture_ids: [STAGE-FIX-APP-LIFECYCLE-001]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Signed compatible packages install/update/migrate/revoke/rollback with exact version and diagnostic receipts."]
+      negative: ["Invalid/expired/revoked signature, origin mismatch, downgrade, or incompatible migration is blocked."]
+      failure_recovery: ["Interrupted install/update/migration returns to the last valid generation or safe disabled state."]
+      concurrency: ["Parallel package operations serialize per app identity and cannot expose a mixed generation."]
+    evidence_types: [stage-app-lifecycle-suite, signatures, update-drill, recovery-receipts]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [stage-app-manifest-change, signing-policy-change, migration-contract-change, package-runtime-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-APP-002
+    title: Origin-bound least-authority Stage App bridge
+    closure_unit: "The trusted bridge binds package, origin, and digest; removes authority on navigation; bounds messages; and exposes only registered explicit methods."
+    requirement_ids: [STAGE-REQ-APP-002]
+    source_ids: [STAGE-PRES-MVP-003, STAGE-PRES-MVP-005, STAGE-SPEC-007, STAGE-SPEC-017]
+    release_ids: [STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY]
+    dependency_gate_ids: []
+    owner_lane: L13
+    preconditions: [stage-app-bridge-confusion-corpus, bridge-method-registry-bound]
+    fixture_ids: [STAGE-FIX-APP-BRIDGE-002]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["A valid package/origin/digest invokes only a registered method within message limits."]
+      negative: ["Origin/digest/package mismatch, post-navigation use, oversized/malformed message, or undeclared method is denied."]
+      failure_recovery: ["Bridge process/navigation failure revokes authority and requires a fresh validated binding."]
+      concurrency: ["Multiple Stage Apps cannot reuse another app's bridge capability, request ID, or response channel."]
+    evidence_types: [bridge-origin-confusion-suite, negative-security-results, policy-receipts]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [bridge-contract-change, method-registry-change, package-origin-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND
+
+  - id: STAGE-ACC-APP-003
+    title: Hostile-content denial of Stage App bridge
+    closure_unit: "Arbitrary web content and captured or replayed hostile HTML cannot discover, invoke, or retain any Stage App bridge authority."
+    requirement_ids: [STAGE-REQ-APP-003]
+    source_ids: [STAGE-PRES-MVP-003, STAGE-PRES-MVP-005, STAGE-PRES-MVP-012, STAGE-SPEC-014]
+    release_ids: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    production_gate_ids: [STAGE-GATE-006-WEB-SECURITY]
+    dependency_gate_ids: []
+    owner_lane: L13
+    preconditions: [hostile-html-and-origin-confusion-corpus, stage-app-trust-zone-bound]
+    fixture_ids: [STAGE-FIX-APP-HOSTILE-DENIAL-003]
+    command_ids: [UNBOUND]
+    cases:
+      positive: ["Trusted Stage App content retains bridge access only while all package/origin/digest conditions hold."]
+      negative: ["Arbitrary web, captured HTML, replay, iframe, redirect, injected script, and service worker receive no bridge authority."]
+      failure_recovery: ["Navigation or trust loss immediately revokes bridge state and cleanup leaves no reusable capability."]
+      concurrency: ["Hostile tabs/frames racing a trusted app cannot capture or replay its bridge messages/capabilities."]
+    evidence_types: [hostile-bridge-denial, negative-security-results, bridge-audit-receipts]
+    freshness_policy: { max_age: release-run, revalidation_triggers: [trust-zone-change, capture-viewer-change, bridge-contract-change, navigation-policy-change] }
+    pass_rule: { selected_min: 1, executed_min: 1, skipped_only_invalid: true, cleanup_required: true, redaction_scan_required: true }
+    status: SPECIFIED_UNBOUND

@@ -1,0 +1,728 @@
+source_register:
+  id: stage-mvp-source-register
+  wp_id: WP-1-Handshake-Stage-MVP-v1
+  authority: NON_AUTHORITATIVE_REFERENCE
+  status: research_hardened_validation_pending
+  updated_at: "2026-07-19"
+
+sources:
+  - id: STAGE-SRC-LOCAL-001
+    kind: local_authority
+    title: "Current master-spec pointer"
+    location: .GOV/spec/SPEC_CURRENT.md
+    verification: inspected
+    relevance: "Identifies master-spec v02.201 as current."
+  - id: STAGE-SRC-LOCAL-002
+    kind: local_spec
+    title: "Current Stage topic"
+    location: .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+    verification: inspected
+    relevance: "Current platform-WebView architecture, Stage bridge, capture/import, security, and optional tracker-defense text."
+  - id: STAGE-SRC-LOCAL-003
+    kind: local_contract
+    title: "Handshake Stage MVP stub contract"
+    location: .GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json
+    verification: inspected
+    relevance: "Destination umbrella scope."
+  - id: STAGE-SRC-LOCAL-004
+    kind: local_contract
+    title: "Stage Media Artifact Portability stub contract"
+    location: .GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.contract.json
+    verification: inspected
+    relevance: "Absorbed portability requirements."
+  - id: STAGE-SRC-LOCAL-005
+    kind: local_contract
+    title: "Stage ASR Transcript Lineage stub contract"
+    location: .GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.contract.json
+    verification: inspected
+    relevance: "Absorbed ASR-lineage requirements."
+  - id: STAGE-SRC-LOCAL-006
+    kind: local_active_contract
+    title: "Media Downloader v2 packet"
+    location: .GOV/task_packets/WP-1-Media-Downloader-v2/packet.json
+    verification: inspected
+    relevance: "Validated PASS active packet for unified media download workflow, existing Stage Session authentication, and OutputRootDir behavior."
+  - id: STAGE-SRC-LOCAL-007
+    kind: local_active_contract
+    title: "Artifact System Foundations packet"
+    location: .GOV/task_packets/WP-1-Artifact-System-Foundations-v1/packet.json
+    verification: inspected
+    relevance: "Done packet owning canonical artifacts, hashing, Materialize, retention, pinning, and garbage collection."
+  - id: STAGE-SRC-LOCAL-008
+    kind: local_spec
+    title: "Current Loom topic"
+    location: .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+    verification: inspected
+    relevance: "LoomBlock, tag, mention, backlink, pin, graph, and current PostgreSQL/EventLedger direction used to define the Stage/Loom ownership boundary."
+  - id: STAGE-SRC-LOCAL-009
+    kind: local_contract
+    title: "Atelier/Lens CKC Core Data Intake stub"
+    location: .GOV/task_packets/stubs/WP-1-Atelier-Lens-CKC-Core-Data-Intake-v1.contract.json
+    verification: inspected
+    relevance: "Carries project intake, collections, source metadata, downloader, captions/transcripts, Loom, search, similarity, and no-UI-lock batch requirements."
+  - id: STAGE-SRC-LOCAL-010
+    kind: local_refinement
+    title: "Media Downloader v2 refinement"
+    location: .GOV/refinements/WP-1-Media-Downloader-v2.md
+    verification: inspected
+    relevance: "Defines the existing auth modes and host-only Stage Session to Netscape cookie artifact adapter plus security and provenance controls."
+  - id: STAGE-SRC-WEB-001
+    kind: official_documentation
+    title: "Servo WebView API"
+    url: https://doc.servo.org/servo/webview/struct.WebView.html
+    verification: checked_initial
+    relevance: "Navigation, input, rendering, JavaScript evaluation, screenshots, and webview lifecycle."
+  - id: STAGE-SRC-WEB-002
+    kind: official_documentation
+    title: "Servo LTS releases"
+    url: https://book.servo.org/embedding/lts-release.html
+    verification: checked_initial
+    relevance: "Best-effort LTS scope, pre-1.0 stability, security, and arbitrary-content risk warning."
+  - id: STAGE-SRC-WEB-003
+    kind: official_documentation
+    title: "Servo architecture"
+    url: https://book.servo.org/design-documentation/architecture.html
+    verification: checked_initial
+    relevance: "Multiprocess architecture, trusted embedder boundary, content processes, and sandbox importance."
+  - id: STAGE-SRC-WEB-004
+    kind: official_release_note
+    title: "January 2026 in Servo"
+    url: https://servo.org/blog/2026/02/28/january-in-servo/
+    verification: checked_initial
+    relevance: "Multiprocess mode not enabled by default and embedding/storage updates."
+  - id: STAGE-SRC-WEB-005
+    kind: official_release_note
+    title: "April 2026 in Servo"
+    url: https://servo.org/blog/2026/05/31/april-in-servo/
+    verification: checked_initial
+    relevance: "Request interception metadata useful for ad blocking, session storage isolation, cookies, and embedding API changes."
+  - id: STAGE-SRC-WEB-006
+    kind: source_repository
+    title: "Servo source repository"
+    url: https://github.com/servo/servo
+    verification: checked_initial
+    relevance: "Engine source, issues, tests, platform support, and implementation evidence."
+  - id: STAGE-SRC-WEB-007
+    kind: source_repository
+    title: "Brave adblock-rust"
+    url: https://github.com/brave/adblock-rust
+    verification: queued_for_deep_review
+    relevance: "Mature Rust content-blocking engine candidate and filter-list behavior."
+  - id: STAGE-SRC-WEB-008
+    kind: source_repository
+    title: "ungoogled-chromium"
+    url: https://github.com/ungoogled-software/ungoogled-chromium
+    verification: queued_for_deep_review
+    relevance: "Chromium de-Googling patchset and maintenance posture; not assumed to be an embedding SDK."
+  - id: STAGE-SRC-WEB-009
+    kind: source_repository
+    title: "Wry"
+    url: https://github.com/tauri-apps/wry
+    verification: checked_initial
+    relevance: "Current Rust system-WebView embedding patterns and platform constraints."
+  - id: STAGE-SRC-WEB-010
+    kind: official_design_document
+    title: "Chromium tab discarding and reloading"
+    url: https://www.chromium.org/chromium-os/chromiumos-design-docs/tab-discarding-and-reloading/
+    verification: checked_initial
+    relevance: "Why renderer/page discard provides persistent memory relief while cache/garbage-collection approaches do not."
+  - id: STAGE-SRC-WEB-011
+    kind: official_product_engineering_note
+    title: "Chrome Memory and Energy Saver modes"
+    url: https://developer.chrome.com/blog/memory-and-energy-saver-mode
+    verification: checked_initial
+    relevance: "Current discard behavior: inactive page content is removed while tab identity remains and reloads on activation."
+  - id: STAGE-SRC-WEB-012
+    kind: official_product_documentation
+    title: "Microsoft Edge sleeping tabs"
+    url: https://www.microsoft.com/en-us/edge/features/sleeping-tabs
+    verification: checked_initial
+    relevance: "Distinguishes script freezing/sleeping from complete tab discard and documents activity exemptions."
+  - id: STAGE-SRC-WEB-013
+    kind: standards-adjacent-api-documentation
+    title: "MDN tabs.discard()"
+    url: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs/discard
+    verification: checked_initial
+    relevance: "Cross-browser model for unloaded tab content that remains represented and restores on activation."
+  - id: STAGE-SRC-WEB-014
+    kind: official-product-documentation
+    title: "Vivaldi tab hibernation and lazy loading"
+    url: https://help.vivaldi.com/desktop/tabs/tab-features/
+    verification: checked_initial
+    relevance: "Field product pattern for hibernating individual tabs/stacks and lazy-loading restored sessions."
+  - id: STAGE-SRC-WEB-015
+    kind: official_library_documentation
+    title: "egui ScrollArea visible-row rendering"
+    url: https://docs.rs/egui/latest/egui/containers/scroll_area/struct.ScrollArea.html
+    verification: checked_initial
+    relevance: "Official Rust API pattern for materializing only the visible range of a large row collection."
+  - id: STAGE-SRC-WEB-016
+    kind: official_standard
+    title: "W3C WebDriver BiDi"
+    url: https://www.w3.org/TR/webdriver-bidi/
+    verification: checked_initial
+    relevance: "Bidirectional user-agent control, browsing contexts, events, script execution, network behavior, and DOM/accessibility node-location concepts."
+  - id: STAGE-SRC-WEB-017
+    kind: official_project_documentation
+    title: "AccessKit architecture"
+    url: https://accesskit.dev/how-it-works/
+    verification: checked_initial
+    relevance: "Rust-native accessibility tree/schema and platform-adapter architecture relevant to the native Stage shell."
+  - id: STAGE-SRC-WEB-018
+    kind: official_database_documentation
+    title: "PostgreSQL pg_trgm"
+    url: https://www.postgresql.org/docs/current/pgtrgm.html
+    verification: checked_initial
+    relevance: "Similarity functions/operators, GiST/GIN indexes, and fuzzy matching integration with full-text search."
+  - id: STAGE-SRC-WEB-019
+    kind: official_database_documentation
+    title: "PostgreSQL full-text search"
+    url: https://www.postgresql.org/docs/current/textsearch.html
+    verification: checked_initial
+    relevance: "Document normalization, query, ranking, and indexed full-text retrieval for captured page content."
+  - id: STAGE-SRC-WEB-020
+    kind: official_project_documentation
+    title: "yt-dlp cookie FAQ"
+    url: https://github.com/yt-dlp/yt-dlp/wiki/FAQ
+    verification: checked_initial
+    relevance: "Requires Mozilla/Netscape cookie-file format for manual cookie input and warns about whole-browser cookie export exposure."
+  - id: STAGE-SRC-WEB-021
+    kind: official_standard
+    title: "Cookie Store API"
+    url: https://cookiestore.spec.whatwg.org/
+    verification: checked_initial
+    relevance: "Living-standard cookie query, mutation, deletion, and monitoring concepts for the Stage cookie editor."
+  - id: STAGE-SRC-WEB-022
+    kind: official_source_repository
+    title: "Mozilla Readability"
+    url: https://github.com/mozilla/readability
+    verification: checked_initial
+    relevance: "Field-proven readable-content extraction API plus explicit sanitizer and CSP security guidance."
+  - id: STAGE-SRC-WEB-023
+    kind: official_protocol_documentation
+    title: "Chrome DevTools Protocol Page domain"
+    url: https://chromedevtools.github.io/devtools-protocol/1-3/Page/
+    verification: checked_initial
+    relevance: "Bootstrap Chromium `Page.printToPDF` capability and page-domain behavior; not a Stage-level product contract."
+  - id: STAGE-SRC-WEB-024
+    kind: official_project_documentation
+    title: "Firefox Bergamot translator"
+    url: https://firefox-source-docs.mozilla.org/toolkit/components/translations/resources/03_bergamot.html
+    verification: checked_initial
+    relevance: "WASM translation engine, quantized models, HTML alignment, and sentence iteration used by Firefox."
+  - id: STAGE-SRC-WEB-025
+    kind: official_project_documentation
+    title: "Firefox Translations overview"
+    url: https://firefox-source-docs.mozilla.org/toolkit/components/translations/resources/01_overview.html
+    verification: checked_initial
+    relevance: "Direction-specific models, local translation flow, and pivot translation behavior."
+  - id: STAGE-SRC-LOCAL-011
+    kind: local_spec
+    title: "Current workflow, artifact, persistence, and orchestration modules"
+    location: .GOV/spec/master-spec-v02.201/spec-modules/
+    verification: inspected_selected_modules
+    relevance: "Modules 01, 02, 06, 07, 10, and 12 establish current ArtifactHandle, workflow_run, PostgreSQL/EventLedger, UI, diagnostics, and orchestration contracts that the old Stage draft must reconcile with."
+  - id: STAGE-SRC-LOCAL-012
+    kind: local_active_contract
+    title: "WP-1 Multi-Model Orchestration Lifecycle Telemetry"
+    location: .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json
+    verification: inspected_current_dirty-worktree-context
+    relevance: "Owns model lanes, ToolGate, process ownership/recovery, promotion, and telemetry services that Stage consumes rather than duplicates."
+  - id: STAGE-SRC-LOCAL-013
+    kind: local_active_contract
+    title: "WP-12 Native Editors Obsidian VSCode Parity"
+    location: .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json
+    verification: inspected_current_dirty-worktree-context
+    relevance: "Owns editor routes and embed-back; its active branch contains transitional Stage route/artifact prototypes requiring adaptation."
+  - id: STAGE-SRC-LOCAL-014
+    kind: local_active_contract
+    title: "WP-CKC posekit overhaul"
+    location: .GOV/task_packets/WP-CKC-posekit-overhaul/packet.json
+    verification: inspected_current_dirty-worktree-context
+    relevance: "Downstream governed-artifact and lineage consumer; CKC domain work remains outside Stage."
+  - id: STAGE-SRC-LOCAL-015
+    kind: active_worktree_source
+    title: "WP-12 Stage pane prototype"
+    location: ../wtc-native-editors-v1/src/frontend/handshake_native/src/stage_pane.rs
+    verification: inspected_dated_snapshot
+    relevance: "Current native route-to-Stage UI/action semantics."
+  - id: STAGE-SRC-LOCAL-016
+    kind: active_worktree_source
+    title: "WP-12 Stage interop prototype"
+    location: ../wtc-native-editors-v1/src/frontend/handshake_native/src/interop/stage_interop.rs
+    verification: inspected_dated_snapshot
+    relevance: "Document, Selection, CanvasNode, and AtelierItem routing plus stage_capture embed-back semantics."
+  - id: STAGE-SRC-LOCAL-017
+    kind: active_worktree_source
+    title: "WP-12 Stage API prototype"
+    location: ../wtc-native-editors-v1/src/backend/handshake_core/src/api/stage.rs
+    verification: inspected_dated_snapshot
+    relevance: "Transitional Stage artifact wire API and stage.jobs.enqueue capability naming to migrate."
+  - id: STAGE-SRC-LOCAL-018
+    kind: active_worktree_source
+    title: "WP-12 Stage artifact storage prototype"
+    location: ../wtc-native-editors-v1/src/backend/handshake_core/src/storage/stage_artifacts.rs
+    verification: inspected_dated_snapshot
+    relevance: "Exact-byte SHA-256, provenance, idempotency, and typed blocker patterns to preserve while replacing duplicate domain authority."
+  - id: STAGE-SRC-LOCAL-019
+    kind: active_worktree_source
+    title: "WP-12 Stage capture artifact migration"
+    location: ../wtc-native-editors-v1/src/backend/handshake_core/migrations/0341_stage_capture_artifacts.sql
+    verification: inspected_dated_snapshot
+    relevance: "Transitional storage schema and migration-sequence overlap risk."
+  - id: STAGE-SRC-WEB-026
+    kind: official_release
+    title: "Servo releases"
+    url: https://github.com/servo/servo/releases
+    verification: deep_reviewed_2026-07-19
+    relevance: "Current regular/LTS release truth and pinning basis."
+  - id: STAGE-SRC-WEB-027
+    kind: official_source
+    title: "Servo Windows sandbox implementation"
+    url: https://github.com/servo/servo/blob/main/components/constellation/sandboxing.rs
+    verification: deep_reviewed_2026-07-19
+    relevance: "Primary source showing Windows content child processes are currently unsandboxed."
+  - id: STAGE-SRC-WEB-028
+    kind: official_ci_source
+    title: "Servo Windows CI workflow"
+    url: https://github.com/servo/servo/blob/main/.github/workflows/windows.yml
+    verification: deep_reviewed_2026-07-19
+    relevance: "Defines current Windows build/smoke coverage and absence of Windows WPT, multiprocess-sandbox, and enabled Speedometer proof."
+  - id: STAGE-SRC-WEB-029
+    kind: official_test_data
+    title: "Servo WPT scores"
+    url: https://wpt.servo.org/scores.json
+    verification: deep_reviewed_2026-07-19
+    relevance: "Development-revision compatibility trend only; not released Windows Stage acceptance."
+  - id: STAGE-SRC-WEB-030
+    kind: official_documentation
+    title: "Servo testing and WPT"
+    url: https://book.servo.org/contributing/testing.html
+    verification: deep_reviewed_2026-07-19
+    relevance: "Commands and manifest basis for Stage-owned compatibility qualification."
+  - id: STAGE-SRC-WEB-031
+    kind: official_issue
+    title: "Servo Speedometer completion failure"
+    url: https://github.com/servo/servo/issues/46070
+    verification: deep_reviewed_2026-07-19
+    relevance: "Current performance/reliability failure evidence requiring workload-specific and post-benchmark health gates."
+  - id: STAGE-SRC-WEB-032
+    kind: official_issue
+    title: "Servo external crash reporting gap"
+    url: https://github.com/servo/servo/issues/42928
+    verification: deep_reviewed_2026-07-19
+    relevance: "Supports Stage-owned watchdog, dump, correlation, and recovery telemetry."
+  - id: STAGE-SRC-WEB-033
+    kind: official_source_repository
+    title: "Verso archived repository"
+    url: https://github.com/versotile-org/verso
+    verification: deep_reviewed_2026-07-19
+    relevance: "Rejected production base; useful only for historical integration lessons."
+  - id: STAGE-SRC-WEB-034
+    kind: official_documentation
+    title: "WebView2 CompositionController"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2compositioncontroller
+    verification: deep_reviewed_2026-07-19
+    relevance: "DirectComposition integration and forwarded-input requirements; not true offscreen rendering."
+  - id: STAGE-SRC-WEB-035
+    kind: official_documentation
+    title: "WebView2 web resource requests"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/how-to/webresourcerequested
+    verification: deep_reviewed_2026-07-19
+    relevance: "First-party request observation, mutation, blocking, and response replacement."
+  - id: STAGE-SRC-WEB-036
+    kind: official_documentation
+    title: "WebView2 profiles and user-data folders"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/multi-profile-support
+    verification: deep_reviewed_2026-07-19
+    relevance: "Cookie/preference/cache separation and shared-environment tradeoffs."
+  - id: STAGE-SRC-WEB-037
+    kind: official_documentation
+    title: "WebView2 process model and process failures"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/process-model
+    verification: deep_reviewed_2026-07-19
+    relevance: "Browser/renderer/GPU/utility topology and recovery design."
+  - id: STAGE-SRC-WEB-038
+    kind: official_documentation
+    title: "WebView2 distribution"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution
+    verification: deep_reviewed_2026-07-19
+    relevance: "Evergreen versus fixed runtime servicing, payload, and restart implications."
+  - id: STAGE-SRC-WEB-039
+    kind: official_issue
+    title: "Wry arbitrary HTTP interception limitation"
+    url: https://github.com/tauri-apps/wry/issues/1087
+    verification: deep_reviewed_2026-07-19
+    relevance: "Blocks Wry from being the durable Stage request-policy abstraction."
+  - id: STAGE-SRC-WEB-040
+    kind: official_documentation
+    title: "ChromeDriver and Chrome for Testing"
+    url: https://developer.chrome.com/docs/chromedriver
+    verification: deep_reviewed_2026-07-19
+    relevance: "Versioned external Chromium automation/validation lane."
+  - id: STAGE-SRC-WEB-041
+    kind: official_security_note
+    title: "Chrome remote-debugging profile restriction"
+    url: https://developer.chrome.com/blog/remote-debugging-port
+    verification: deep_reviewed_2026-07-19
+    relevance: "Requires non-default isolated profiles for automation and recommends Chrome for Testing."
+  - id: STAGE-SRC-WEB-042
+    kind: official_documentation
+    title: "CEF general usage and offscreen rendering"
+    url: https://chromiumembedded.github.io/cef/general_usage.html
+    verification: deep_reviewed_2026-07-19
+    relevance: "Conditional true-offscreen/cross-platform Chromium fallback and its integration burden."
+  - id: STAGE-SRC-WEB-043
+    kind: official_source_repository
+    title: "tauri-apps cef-rs"
+    url: https://github.com/tauri-apps/cef-rs
+    verification: deep_reviewed_2026-07-19
+    relevance: "Maintained Rust CEF binding candidate for a gated escalation."
+  - id: STAGE-SRC-WEB-044
+    kind: official_standard
+    title: "WebDriver BiDi specification and tests"
+    url: https://w3c.github.io/webdriver-bidi/
+    verification: deep_reviewed_2026-07-19
+    relevance: "Cross-browser command/event, context, navigation, user-context, and subscription model."
+  - id: STAGE-SRC-WEB-045
+    kind: official_project_documentation
+    title: "Selenium WebDriver BiDi"
+    url: https://www.selenium.dev/documentation/webdriver/bidi/
+    verification: deep_reviewed_2026-07-19
+    relevance: "Field implementation direction and CDP-as-temporary-adapter posture."
+  - id: STAGE-SRC-WEB-046
+    kind: official_draft_implementation
+    title: "Servo WebDriver BiDi draft"
+    url: https://github.com/servo/servo/pull/45266
+    verification: deep_reviewed_2026-07-19
+    relevance: "Current draft/TODO state; not a production dependency."
+  - id: STAGE-SRC-WEB-047
+    kind: official_documentation
+    title: "Chrome Page Lifecycle"
+    url: https://developer.chrome.com/docs/web-platform/page-lifecycle-api
+    verification: deep_reviewed_2026-07-19
+    relevance: "Hidden/frozen/discarded/terminated semantics used to reject one-dimensional tab lifecycle."
+  - id: STAGE-SRC-WEB-048
+    kind: official_design_document
+    title: "Chromium process model and site isolation"
+    url: https://chromium.googlesource.com/chromium/src/+/main/docs/process_model_and_site_isolation.md
+    verification: deep_reviewed_2026-07-19
+    relevance: "Process isolation, stability/security boundary, and resource tradeoff."
+  - id: STAGE-SRC-WEB-049
+    kind: official_documentation
+    title: "Playwright browser contexts, actionability, and ARIA snapshots"
+    url: https://playwright.dev/docs/aria-snapshots
+    verification: deep_reviewed_2026-07-19
+    relevance: "Useful observation/action patterns while remaining nonauthoritative adapter behavior."
+  - id: STAGE-SRC-WEB-050
+    kind: official_test_documentation
+    title: "CAPTCHA deterministic test keys"
+    url: https://developers.google.com/recaptcha/docs/faq
+    verification: deep_reviewed_2026-07-19
+    relevance: "Deterministic owned-fixture testing and operator-takeover boundary."
+  - id: STAGE-SRC-WEB-051
+    kind: official_source_repository
+    title: "Brave adblock-rust"
+    url: https://github.com/brave/adblock-rust
+    verification: deep_reviewed_2026-07-19
+    relevance: "Selected prototype candidate for native filtering; Stage still owns request policy and list lifecycle."
+  - id: STAGE-SRC-WEB-052
+    kind: official_project_documentation
+    title: "SingleFile FAQ"
+    url: https://github.com/gildas-lormeau/SingleFile/wiki/FAQ
+    verification: deep_reviewed_2026-07-19
+    relevance: "Explicitly separates convenience page snapshotting from professional WARC archival."
+  - id: STAGE-SRC-WEB-053
+    kind: official_protocol_documentation
+    title: "Chrome DevTools DOMSnapshot"
+    url: https://chromedevtools.github.io/devtools-protocol/tot/DOMSnapshot/
+    verification: deep_reviewed_2026-07-19
+    relevance: "Current-renderer DOM/layout evidence primitive, not archive authority."
+  - id: STAGE-SRC-WEB-054
+    kind: official_project_documentation
+    title: "Firefox Session Store"
+    url: https://firefox-source-docs.mozilla.org/toolkit/components/sessionstore/
+    verification: deep_reviewed_2026-07-19
+    relevance: "Field pattern for prioritized lazy restoration instead of eager renderer recreation."
+  - id: STAGE-SRC-WEB-055
+    kind: field_report_search
+    title: "Reddit WebView2 embedding and runtime failure search"
+    url: https://www.reddit.com/search/?q=WebView2%20embedding%20focus%20IME%20composition
+    verification: searched_anecdotal_not_architecture_authority
+    relevance: "Surfaced airspace/composition, focus/IME, overlay, deployment, and runtime-update failure scenarios; retained only as prototype test prompts and not as factual architecture authority."
+  - id: STAGE-SRC-WEB-056
+    kind: adjacent_repository_search
+    title: "Hugging Face browser-agent trace search"
+    url: https://huggingface.co/datasets?search=browser%20agent%20traces
+    verification: searched_adjacent_patterns_only
+    relevance: "Corroborated the usefulness of state/action/outcome traces combining screenshots, DOM/accessibility context, actions, and result labels; no project contract was adopted."
+  - id: STAGE-SRC-WEB-057
+    kind: source_class_search
+    title: "X/Twitter Servo and browser-embedding search"
+    url: https://x.com/search?q=Servo%20browser%20WebView2%20embedding&src=typed_query
+    verification: searched_no_reliable_additional_source_selected
+    relevance: "Required source-class scan; no claim or recommendation depends on it."
+  - id: STAGE-SRC-WEB-058
+    kind: source_class_search
+    title: "Civitai browser-agent and webview search"
+    url: https://civitai.com/search/models?query=browser%20agent
+    verification: searched_no_relevant_product_architecture_evidence
+    relevance: "Required adjacent source-class scan; no Stage browser architecture evidence was adopted."
+  - id: STAGE-SRC-WEB-059
+    kind: hyperscaler_research_paper
+    title: "Site Isolation: Process Separation for Web Sites within the Browser"
+    url: https://research.google/pubs/site-isolation-process-separation-for-web-sites-within-the-browser/
+    verification: deep_reviewed_2026-07-19
+    relevance: "Production evidence that browser multiprocess topology alone is insufficient and site/process isolation carries measurable security, compatibility, and performance tradeoffs."
+  - id: STAGE-SRC-WEB-060
+    kind: university_benchmark_paper_and_code
+    title: "WebArena"
+    url: https://github.com/web-arena-x/webarena
+    verification: deep_reviewed_2026-07-19
+    relevance: "Reproducible functional web-agent tasks, multimodal observation options, and programmatic postcondition evaluation."
+  - id: STAGE-SRC-WEB-061
+    kind: university_benchmark_paper
+    title: "BrowserArena"
+    url: https://arxiv.org/abs/2510.02418
+    verification: deep_reviewed_2026-07-19
+    relevance: "Current real-web agent evaluation and step-level evidence for CAPTCHA, popup, and direct-navigation brittleness."
+  - id: STAGE-SRC-WEB-062
+    kind: official_standard
+    title: "WARC 1.1"
+    url: https://iipc.github.io/warc-specifications/specifications/warc-format/warc-1.1/
+    verification: deep_reviewed_2026-07-19
+    relevance: "Archive record model for request/response payloads, metadata, transformations, integrity, and replay-oriented acquisition."
+  - id: STAGE-SRC-WEB-063
+    kind: research_paper
+    title: "Parallel Performance-Energy Predictive Modeling of Browsers: Case Study of Servo"
+    url: https://arxiv.org/abs/2002.03850
+    verification: checked_for_design_implication_2026-07-19
+    relevance: "Shows Servo parallelism and energy benefit are workload dependent, reinforcing representative-site measurement instead of invented resource thresholds."
+  - id: STAGE-SRC-LOCAL-020
+    kind: protected-product-source
+    title: "Canonical ArtifactHandle"
+    location: ../handshake_main/src/backend/handshake_core/src/ace/mod.rs
+    verification: inspected_read_only_2026-07-19
+    relevance: "Defines the structured canonical artifact reference Stage must reuse."
+  - id: STAGE-SRC-LOCAL-021
+    kind: protected-product-source
+    title: "Current workflow, EventLedger, process, storage, diagnostics, and UserManual implementations"
+    location: ../handshake_main/src/backend/handshake_core/src/
+    verification: inspected_selected_sources_read_only_2026-07-19
+    relevance: "Maps existing product services Stage extends instead of duplicating."
+  - id: STAGE-SRC-LOCAL-022
+    kind: protected-product-source
+    title: "Current native search, event, and Loom projections"
+    location: ../handshake_main/src/frontend/handshake_native/src/
+    verification: inspected_selected_sources_read_only_2026-07-19
+    relevance: "Maps reusable native search/event/Loom patterns."
+  - id: STAGE-SRC-LOCAL-023
+    kind: active-worktree-source
+    title: "WP-12 Stage capture runtime migration"
+    location: ../wtc-native-editors-v1/src/backend/handshake_core/migrations/0346_stage_capture_runtime_contract.sql
+    verification: inspected_read_only_2026-07-19
+    relevance: "Defines the 16 KiB inline-byte constraint, provenance, job, and EventLedger coupling to migrate."
+  - id: STAGE-SRC-LOCAL-024
+    kind: active-worktree-source
+    title: "WP-12 Stage capture integrity and cross-domain provenance guards"
+    location: ../wtc-native-editors-v1/src/backend/handshake_core/migrations/0348_stage_capture_integrity_and_canvas_provenance.sql
+    verification: inspected_read_only_2026-07-19
+    relevance: "Installs Stage compensation/reference guards across Loom, FEMS, knowledge, context, and quick-switcher tables."
+  - id: STAGE-SRC-LOCAL-025
+    kind: active-worktree-source
+    title: "WP-12 Stage canvas provenance JSON migration"
+    location: ../wtc-native-editors-v1/src/backend/handshake_core/migrations/0349_stage_canvas_provenance_json_string_types.sql
+    verification: inspected_read_only_2026-07-19
+    relevance: "Final transitional Stage provenance schema change in the colliding migration range."
+  - id: STAGE-SRC-LOCAL-026
+    kind: active-worktree-source
+    title: "WP-12 native Stage module and pane topology"
+    location: ../wtc-native-editors-v1/src/frontend/handshake_native/src/
+    verification: inspected_selected_sources_read_only_2026-07-19
+    relevance: "Shows ModuleId::Stage currently defaults to FontManager while StagePane is a separate route/embed-back client."
+  - id: STAGE-SRC-LOCAL-027
+    kind: active-worktree-migration-inventory
+    title: "WP-1, WP-12, and CKC 034x migration inventories"
+    location: ../
+    verification: inspected_read_only_2026-07-19
+    relevance: "Proves collisions at 0341, 0346, 0348, and 0349 across active worktrees."
+  - id: STAGE-SRC-WEB-064
+    kind: official_documentation
+    title: "Differences between Microsoft Edge and WebView2"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/browser-features
+    verification: deep_reviewed_2026-07-19
+    relevance: "Proves missing browser UI/features and embedded Google Authentication restriction."
+  - id: STAGE-SRC-WEB-065
+    kind: official_documentation
+    title: "Overview of WebView2 features and APIs"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/overview-features-apis
+    verification: deep_reviewed_2026-07-19
+    relevance: "Maps host APIs for browser services Stage must implement natively."
+  - id: STAGE-SRC-WEB-066
+    kind: official_design_document
+    title: "Chromium Session History"
+    url: https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/session_history.md
+    verification: deep_reviewed_2026-07-19
+    relevance: "Separates per-tab joint session history from profile browsing history and documents restore state."
+  - id: STAGE-SRC-WEB-067
+    kind: official_documentation
+    title: "WebView2 download operation"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2downloadoperation
+    verification: deep_reviewed_2026-07-19
+    relevance: "Pause/resume/cancel/progress and interrupt reasons for the native download manager."
+  - id: STAGE-SRC-WEB-068
+    kind: official_documentation
+    title: "Clear WebView2 browsing data"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/clear-browsing-data
+    verification: deep_reviewed_2026-07-19
+    relevance: "Profile-scoped data-kind/time-range clearing support."
+  - id: STAGE-SRC-WEB-069
+    kind: official_provider_security_policy
+    title: "Google OAuth embedded WebView restriction"
+    url: https://developers.googleblog.com/en/upcoming-security-changes-to-googles-oauth-20-authorization-endpoint-in-embedded-webviews/
+    verification: deep_reviewed_2026-07-19
+    relevance: "Provider policy blocking OAuth authorization in embedded user agents."
+  - id: STAGE-SRC-WEB-070
+    kind: official_standard
+    title: "RFC 8252 OAuth 2.0 for Native Apps"
+    url: https://www.rfc-editor.org/info/rfc8252/
+    verification: deep_reviewed_2026-07-19
+    relevance: "Requires external user-agent authorization and PKCE for public native clients."
+  - id: STAGE-SRC-WEB-071
+    kind: official_documentation
+    title: "WebView2 CookieManager"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2cookiemanager
+    verification: deep_reviewed_2026-07-19
+    relevance: "Explicit profile-scoped cookie query/mutation capability and sharing boundary."
+  - id: STAGE-SRC-WEB-072
+    kind: vendor_security_research
+    title: "Designing AI agents to resist prompt injection"
+    url: https://openai.com/index/designing-agents-to-resist-prompt-injection/
+    verification: deep_reviewed_2026-07-19
+    relevance: "Shows classifier-only defenses are insufficient and recommends impact-constraining system design."
+  - id: STAGE-SRC-WEB-073
+    kind: vendor_security_research
+    title: "Keeping your data safe when an AI agent clicks a link"
+    url: https://openai.com/index/ai-agent-link-safety/
+    verification: deep_reviewed_2026-07-19
+    relevance: "Primary description of URL-based data-exfiltration risk and source/sink controls."
+  - id: STAGE-SRC-WEB-074
+    kind: vendor_security_documentation
+    title: "Understanding prompt injections"
+    url: https://openai.com/safety/prompt-injections/
+    verification: deep_reviewed_2026-07-19
+    relevance: "Layered defenses, least access, confirmations, watch mode, and ongoing adversarial testing."
+  - id: STAGE-SRC-WEB-075
+    kind: government_evaluation_guidance
+    title: "NIST AI 800-2 initial public draft"
+    url: https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.800-2.ipd.pdf
+    verification: checked_2026-07-19
+    relevance: "Includes agent prompt-injection vulnerability evaluation as a deployment-relevant metric."
+  - id: STAGE-SRC-WEB-076
+    kind: official_documentation
+    title: "Distribute WebView2 Runtime"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution
+    verification: deep_reviewed_2026-07-19
+    relevance: "Evergreen/fixed runtime, restart/update, feature detection, payload, and servicing tradeoffs."
+  - id: STAGE-SRC-WEB-077
+    kind: official_documentation
+    title: "Handle WebView2 process-related events"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/process-related-events
+    verification: deep_reviewed_2026-07-19
+    relevance: "Browser/renderer/GPU/utility failure observation and recovery semantics."
+  - id: STAGE-SRC-WEB-078
+    kind: official_documentation
+    title: "WebView2 security guidance"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security
+    verification: checked_2026-07-19
+    relevance: "Origin, host-object, script, message, and bridge hardening requirements."
+  - id: STAGE-SRC-WEB-079
+    kind: official_documentation
+    title: "WebView2 performance guidance"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/performance
+    verification: checked_2026-07-19
+    relevance: "Resource scaling, shared environments, inactive controls, and measurement implications."
+  - id: STAGE-SRC-WEB-080
+    kind: official_database_documentation
+    title: "PostgreSQL ALTER TABLE"
+    url: https://www.postgresql.org/docs/current/sql-altertable.html
+    verification: checked_2026-07-19
+    relevance: "Locking implications that require expand/backfill/contract and bounded migration operations."
+  - id: STAGE-SRC-WEB-081
+    kind: official_standard
+    title: "W3C Service Workers"
+    url: https://www.w3.org/TR/service-workers/
+    verification: checked_2026-07-19
+    relevance: "Profile-level background registrations can outlive page windows; unloaded-tab zero-activity claims need qualification."
+  - id: STAGE-SRC-WEB-082
+    kind: official_documentation
+    title: "WebView2 user-data-folder management"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder
+    verification: checked_2026-07-19
+    relevance: "Profile/process-group/materialization, file-locking, and cleanup constraints."
+  - id: STAGE-SRC-WEB-083
+    kind: official_documentation
+    title: "Windows accessibility testing"
+    url: https://learn.microsoft.com/en-us/windows/apps/design/accessibility/accessibility-testing
+    verification: checked_2026-07-19
+    relevance: "Automated accessibility checks plus focused manual assistive-technology testing."
+  - id: STAGE-SRC-WEB-084
+    kind: official_database_documentation
+    title: "PostgreSQL continuous archiving and point-in-time recovery"
+    url: https://www.postgresql.org/docs/current/continuous-archiving.html
+    verification: checked_2026-07-19
+    relevance: "Base-backup/WAL requirements and restore constraints for disaster recovery planning."
+  - id: STAGE-SRC-WEB-085
+    kind: official_tool_documentation
+    title: "OSV-Scanner supported artifacts"
+    url: https://google.github.io/osv-scanner/supported-languages-and-lockfiles/
+    verification: checked_2026-07-19
+    relevance: "Cargo lockfile and CycloneDX/SPDX vulnerability-scanning support for supply-chain evidence."
+  - id: STAGE-SRC-WEB-086
+    kind: official_project_documentation
+    title: "Firefox Places"
+    url: https://firefox-source-docs.mozilla.org/browser/places/index.html
+    verification: checked_2026-07-19
+    relevance: "Field implementation for durable bookmarks/history, import/restore, and transaction-backed operations."
+  - id: STAGE-SRC-WEB-087
+    kind: official_project_documentation
+    title: "Firefox Places architecture overview"
+    url: https://firefox-source-docs.mozilla.org/browser/places/architecture-overview.html
+    verification: checked_2026-07-19
+    relevance: "Separates bookmark/history storage and product services from live tab state."
+  - id: STAGE-SRC-WEB-088
+    kind: official_project_documentation
+    title: "Firefox data sanitization"
+    url: https://firefox-source-docs.mozilla.org/toolkit/components/antitracking/anti-tracking/data-sanitization/index.html
+    verification: checked_2026-07-19
+    relevance: "Category/site/time data-clearing patterns and long-running cleanup implications."
+  - id: STAGE-SRC-WEB-089
+    kind: official_standard
+    title: "W3C User Agent Accessibility Guidelines 2.0"
+    url: https://www.w3.org/TR/UAAG20/
+    verification: checked_2026-07-19
+    relevance: "Keyboard access, focus, zoom, and platform accessibility requirements for user agents."
+  - id: STAGE-SRC-WEB-090
+    kind: official_api_documentation
+    title: "CoreWebView2 TrySuspendAsync"
+    url: https://learn.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.trysuspendasync
+    verification: checked_2026-07-19
+    relevance: "WebView2 suspension pauses timers/animations and reduces CPU but is best effort, requires invisibility, may wait on running script, and can be auto-resumed by API calls."
+  - id: STAGE-SRC-WEB-091
+    kind: official_product_documentation
+    title: "WebView2 process-related events and diagnostics"
+    url: https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/process-related-events
+    verification: checked_2026-07-19
+    relevance: "Browser/renderer/GPU/utility failure kinds, duplicate event behavior, process/frame attribution, crash evidence, and recovery responsibilities."
+  - id: STAGE-SRC-WEB-092
+    kind: official_product_engineering_documentation
+    title: "Chrome Page Lifecycle API"
+    url: https://developer.chrome.com/docs/web-platform/page-lifecycle-api
+    verification: checked_2026-07-19
+    relevance: "Freeze/discard lifecycle, unreliable termination callbacks, volatile-state preparation, document.wasDiscarded restoration, and background-activity exemptions."
+  - id: STAGE-SRC-WEB-093
+    kind: official_source_repository
+    title: "egui CPU usage and large-scroll-area guidance"
+    url: https://github.com/emilk/egui
+    verification: checked_2026-07-19
+    relevance: "Immediate-mode full layout can tax CPU for large scroll areas; large collections should lay out only the visible part and avoid needless repaint."

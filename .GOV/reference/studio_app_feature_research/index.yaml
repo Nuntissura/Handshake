@@ -10,8 +10,8 @@ research_paper:
     Illustrator, and Figma app behavior for rebuilding equivalent capability as
     local-first, no-cloud-required, Handshake-native Rust tools inside the built-in
     Studio module.
-  status: "draft - category maps, generated official-help leaf indexes, plus per-app deep-feature deltas (51-55) below help-TOC level, a Handshake integration architecture (56), and a generated deep-delta cross-app overlap map (57)"
-  updated_at: "2026-07-09"
+  status: "draft - category maps, generated official-help leaf indexes, per-app deep-feature deltas (51-55), a Handshake integration architecture (56), a deep-delta cross-app overlap map (57), plus the 2026-07-20 adversarial parity audit: parity feature gap register (58), workflow needs register (59), bridge opportunity register (60), action register (61), snapshot distillation delta (62), targeted re-pass delta (63), workflow needs research delta (64), and command/shortcut/scripting-DOM capture (65)"
+  updated_at: "2026-07-20"
   repo: Handshake
   location: ".GOV/reference/studio_app_feature_research/"
   instruction_file: "INSTRUCTIONS.md"
@@ -529,6 +529,67 @@ topics:
     overlap_group_count: 160
     generator: "_tools/generate-deep-delta-overlap-map.py"
     subtopics: [coverage, domain-counts, groups, sources]
+  - id: SFR-PGAP
+    title: "Parity Feature Gap Register (2026-07-20 audit)"
+    file: "58-parity-feature-gap-register.md"
+    status: draft
+    summary: "Adversarially-verified NON-AI feature-parity gaps that survived corpus refutation (58 gaps: 1 CRITICAL, 28 MAJOR, 29 MINOR; 17 CONFIRMED_MISSING, 41 PARTIALLY_COVERED), per app, with severity, verdict, and corpus/external evidence."
+    gap_count: 58
+    generator: "_tools/generate-parity-audit-registers.py"
+    subtopics: [summary, authority, ps, ai, id, af, fg]
+  - id: SFR-WNEED
+    title: "Workflow Needs Register (2026-07-20 scenario audit)"
+    file: "59-workflow-needs-register.md"
+    status: draft
+    summary: "Unified NON-AI workflow-level needs from 82 pro scenarios (large-team/small-team/solo + cross-app), each with corpus/spec coverage verdict (72 COVERED, 40 PARTIALLY_COVERED, 1 NOT_COVERED). Surfaces team-scale coordination needs a feature-list audit cannot see."
+    need_count: 113
+    generator: "_tools/generate-parity-audit-registers.py"
+    subtopics: [summary, authority, needs]
+  - id: SFR-BRIDGE
+    title: "Bridge Opportunity Register (2026-07-20 audit)"
+    file: "60-bridge-opportunity-register.md"
+    status: draft
+    summary: "NON-AI features the 5 source apps themselves lack that Handshake Studio could ship as differentiators (86 opportunities), per app, with demand evidence and bridge framing."
+    bridge_feature_count: 86
+    generator: "_tools/generate-parity-audit-registers.py"
+    subtopics: [summary, authority, ps, ai, id, af, fg]
+  - id: SFR-PAUDIT-ACTIONS
+    title: "Parity Audit Action Register (2026-07-20)"
+    file: "61-parity-audit-action-register.md"
+    status: draft
+    summary: "Tracks the recommended research-refactor actions from the 2026-07-20 audit with per-action status. A2/A4 DONE, A1/A5/A6 IN_PROGRESS, A3 OPERATOR_HOST_DEPENDENT, A7/A8 HELD."
+    subtopics: [summary, actions, sources]
+  - id: SFR-SNAPSHOT-DISTILL
+    title: "Snapshot Distillation Delta (2026-07-20, ACTION-A4)"
+    file: "62-snapshot-distillation-delta.md"
+    status: draft
+    summary: "Feature rows distilled from content already present verbatim in _source_snapshots/ but never promoted: Figma export-modal options + InDesign CJK composition DOM classes. Zero new external research."
+    distilled_row_count: 12
+    subtopics: [method, figma-export, indesign-cjk-dom, sources]
+  - id: SFR-REPASS
+    title: "Parity Re-Pass Delta (2026-07-20, ACTION-A5)"
+    file: "63-parity-repass-delta.md"
+    status: draft
+    summary: "Targeted online-source re-pass rows (106) closing the highest-value verified parity gaps: Figma Sites accessibility (CRITICAL, now rowed), Camera Raw, InDesign fonts, Affinity option depth, PS AVIF/JXL+HDR. NON-AI."
+    row_count: 106
+    generator: "_tools/generate-parity-audit-repass.py"
+    subtopics: [summary, figma-sites-a11y, camera-raw, indesign-fonts, affinity-option-depth, ps-formats-hdr]
+  - id: SFR-WFRES
+    title: "Workflow Needs Research Delta (2026-07-20, ACTION-A6)"
+    file: "64-workflow-needs-research-delta.md"
+    status: draft
+    summary: "Research detail (70 capabilities) for the team/production workflow needs the feature corpus missed: review/approval, workflow-state PM, performance NFRs, DAM/PIM + governed libraries, culling/catalog. How incumbents implement each + the Handshake Studio requirement. NON-AI."
+    capability_count: 70
+    generator: "_tools/generate-parity-audit-repass.py"
+    subtopics: [summary, review-approval, workflow-state-pm, perf-nfr, dam-pim-libraries, culling-catalog]
+  - id: SFR-CMDCAP
+    title: "Command / Shortcut / Scripting-DOM Capture (2026-07-20, ACTION-A3)"
+    file: "65-command-shortcut-capture.md"
+    status: draft
+    summary: "STRUCTURE + representative-sample capture of default shortcuts, Illustrator menu-command IDs, and InDesign scripting DOM from PUBLIC ONLINE sources (no vendor apps). Partial: canonical Adobe SPA pages time out for non-browser clients; full binding tables are a browser-fetch residual (SFR-REMAINING-GAP-003)."
+    group_count: 82
+    generator: "_tools/generate-parity-audit-repass.py"
+    subtopics: [summary, photoshop-shortcuts, illustrator-menu_command_ids, illustrator-shortcuts, indesign-scripting_dom, indesign-shortcuts, affinity-shortcuts, figma-shortcuts]
   - id: SFR-PRIMITIVES
     title: "Studio Primitive and Engine Module Map"
     file: "05-studio-primitive-map.md"
@@ -672,5 +733,5 @@ known_gaps:
     mitigation: "Use 51-55 deep-delta files alongside the leaf indexes and feature rows; use 57-deep-delta-cross-app-overlap-map.md for no-double-features grouping; use 56-studio-handshake-integration-architecture.md for pillar wiring, model visibility/steerability, parallel workflows, propose-work, history/undo, headless/quiet law, operator unification, and the dual-audience UserManual strategy. Rows marked PARTIAL/UNVERIFIED still need page-level inspection at command-contract promotion time."
 
 review:
-  verdict: "Useful research corpus and implementation-planning seed for Studio; still not product authority until selected command contracts are accepted into a work packet or spec."
-  updated_at: "2026-07-09"
+  verdict: "Useful research corpus and implementation-planning seed for Studio; still not product authority until selected command contracts are accepted into a work packet or spec. 2026-07-20 adversarial audit added: the corpus is NOT yet exhaustive enough to claim full non-AI parity for any of the 5 apps (58 verified feature gaps + 41/113 workflow needs partial-or-uncovered); see 58/59/60/61 and 08 SFR-GAP-021 / SFR-REMAINING-GAP-011..015."
+  updated_at: "2026-07-20"

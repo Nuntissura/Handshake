@@ -1,0 +1,288 @@
+stage_pillar_compatibility:
+  id: stage-pillar-compatibility-matrix
+  authority: NON_AUTHORITATIVE_REFERENCE
+  status: proposed_complete_24_pillar_declaration
+  updated_at: "2026-07-19"
+  wp_id: WP-1-Handshake-Stage-MVP-v1
+  current_spec: .GOV/spec/master-spec-v02.201
+  navigation_reference: .GOV/spec/HANDSHAKE_PRODUCT_REFERENCE.md
+  navigation_reference_role: REFERENCE_ONLY_NOT_AUTHORITY
+  rule: >-
+    Every pillar has an explicit Stage relationship and ownership boundary.
+    DIRECT_INTEGRATION does not transfer authority into Stage. GOVERNANCE_ONLY
+    does not create a runtime dependency. No edge is approved product authority
+    until propagated through the later Master Spec and work-packet workflow.
+
+pillars:
+  - id: STAGE-PILLAR-001
+    pillar_no: 1
+    name: Flight Recorder
+    status: DIRECT_INTEGRATION
+    stage_contract: "Emit bounded business/action/job/policy correlation and receipts; preserve trace IDs across Stage, Workflow, capture, and intake."
+    ownership_boundary: "Flight Recorder is diagnostic projection, never Stage state/EventLedger/PostgreSQL authority and never a raw page/secret payload sink."
+    required_evidence: [event-family-registration, trace-correlation-replay, secret-and-payload-bound-tests]
+    current_gap: "The current FEAT-STAGE appendix lacks the complete EventLedger/Flight Recorder edge and tier split."
+
+  - id: STAGE-PILLAR-002
+    pillar_no: 2
+    name: Calendar
+    status: INDIRECT_OPTIONAL_PROJECTION
+    stage_contract: "Stage visits, captures, jobs, and operator/model activity may expose stable activity references for shared temporal correlation."
+    ownership_boundary: "Calendar owns time-structured views; Stage owns browser records and does not create calendar events implicitly."
+    required_evidence: [activity-reference-schema, no-implicit-calendar-mutation]
+    current_gap: "No required operator workflow currently depends on Calendar; retain as an explicit optional edge."
+
+  - id: STAGE-PILLAR-003
+    pillar_no: 3
+    name: Code editor
+    status: PUBLIC_CONSUMER_AND_TEST_TARGET
+    stage_contract: "Open authorized local/self-hosted builds for browser testing; return versioned observations, screenshots, traces, and capture handles through a newly specified public contract."
+    ownership_boundary: "The editor owns documents/builds; Stage owns browser execution/capture and does not reuse WP-12 legacy Stage routes or panes."
+    required_evidence: [new-editor-stage-contract, local-test-profile-negative-suite, embed-back-lineage]
+    current_gap: "WP-12 editor integration must be specified anew after legacy Stage surface removal."
+
+  - id: STAGE-PILLAR-004
+    pillar_no: 4
+    name: Rich-text / Word clone
+    status: PUBLIC_CONSUMER
+    stage_contract: "Consume Stage-captured readable/Markdown/PDF artifacts and provenance through shared handles; optional embed-back uses the new public editor contract."
+    ownership_boundary: "Rich-text owns document blocks and edits; Stage never becomes document authority."
+    required_evidence: [sanitized-document-handoff, immutable-source-and-derivation-proof]
+    current_gap: "No current canonical embed-back contract is bound."
+
+  - id: STAGE-PILLAR-005
+    pillar_no: 5
+    name: Excel clone
+    status: OPTIONAL_PUBLIC_CONSUMER
+    stage_contract: "Consume explicit structured exports or capture artifacts through shared handles when spreadsheet workflows request them."
+    ownership_boundary: "Spreadsheet owns cells/formulas/documents; Stage does not infer spreadsheet ingestion or mutate workbooks."
+    required_evidence: [typed-export-handoff, no-direct-document-write]
+    current_gap: "No P0 Stage workflow depends on spreadsheet integration."
+
+  - id: STAGE-PILLAR-006
+    pillar_no: 6
+    name: Locus
+    status: GOVERNANCE_AND_READINESS_PROJECTION
+    stage_contract: "Project Stage work, incidents, release readiness, and stable Stage/job/evidence references into Locus where the product workflow selects it."
+    ownership_boundary: "Locus records coordination/readiness; Stage, Workflow, EventLedger, and ArtifactStore remain product/job/byte authorities."
+    required_evidence: [stable-reference-projection, no-duplicate-state-authority]
+    current_gap: "The current Stage appendix lacks an explicit Locus edge."
+
+  - id: STAGE-PILLAR-007
+    pillar_no: 7
+    name: Loom
+    status: DIRECT_INTEGRATION
+    stage_contract: "Link tab folders/views/bookmarks/captures to LoomBlocks, tags, mentions, backlinks, pins, collections, and retrieval without waking pages."
+    ownership_boundary: "Stage owns operational tab organization; Loom owns durable knowledge relationships and semantic graph identities."
+    required_evidence: [folder-loom-authority-consistency, captured-content-indexing, no-duplicate-tag-graph]
+    current_gap: "Exact folder/tag/view synchronization and conflict behavior remains to be locked."
+
+  - id: STAGE-PILLAR-008
+    pillar_no: 8
+    name: Work packets (product)
+    status: GOVERNANCE_ONLY
+    stage_contract: "The later Stage implementation is governed by one consolidated WP/refinement and may expose stable work/evidence references to product views."
+    ownership_boundary: "Work-packet lifecycle/signature authority is external to Stage runtime."
+    required_evidence: [single-wp-lineage, requirement-to-microtask-trace]
+    current_gap: "Official consolidated WP/refinement is intentionally deferred until planning and Master Spec authoring."
+
+  - id: STAGE-PILLAR-009
+    pillar_no: 9
+    name: Task board (product)
+    status: GOVERNANCE_ONLY
+    stage_contract: "Later Stage WP/MT status projects to the canonical task board; Stage runtime does not own task status."
+    ownership_boundary: "Task-board state remains the governed projection outside Stage product data."
+    required_evidence: [wp-mt-taskboard-status-sync]
+    current_gap: "No official Stage WP/MT rows exist yet by operator decision."
+
+  - id: STAGE-PILLAR-010
+    pillar_no: 10
+    name: MicroTask
+    status: DIRECT_EXECUTION_CONSUMER
+    stage_contract: "No-context MT agents invoke typed Stage actions through WP-1 ToolGate/Workflow and receive bounded observations, receipts, screenshots, and evidence."
+    ownership_boundary: "MicroTask executor owns claim/validate/escalate; Stage owns browser actions and cannot bypass WP-1 gates."
+    required_evidence: [canonical-microtask-schema-binding, no-context-stage-journeys, cancellation-and-recovery]
+    current_gap: "The future MT blueprint is not yet compiled into canonical hsk.microtask_contract@1 records."
+
+  - id: STAGE-PILLAR-011
+    pillar_no: 11
+    name: Command Center (DCC)
+    status: DIRECT_OPERATIONAL_INTEGRATION
+    stage_contract: "Expose Stage sessions, jobs, approvals, agent/takeover state, resource budgets, why-awake reasons, captures, failures, and evidence through stable projections."
+    ownership_boundary: "DCC is an operator visibility/control surface; Stage remains record/runtime authority."
+    required_evidence: [dcc-stage-health-projection, approval-and-takeover-flow, resource-hotlist]
+    current_gap: "Existing appendix edge is incomplete for the expanded Stage resource/capture/model contract."
+
+  - id: STAGE-PILLAR-012
+    pillar_no: 12
+    name: Front End Memory System
+    status: DIRECT_BOUNDED_CONTEXT_INTEGRATION
+    stage_contract: "Provide bounded provenance-first browser observations and action outcomes for front-end model context without persisting arbitrary live-page state."
+    ownership_boundary: "FEMS owns bounded model memory; Stage owns canonical browser records and page data remains hostile input."
+    required_evidence: [bounded-context-pack, provenance-and-staleness-labels, no-secret-or-unbounded-page-memory]
+    current_gap: "The current FEAT-STAGE appendix omits this edge."
+
+  - id: STAGE-PILLAR-013
+    pillar_no: 13
+    name: Execution / Job Runtime
+    status: CORE_SHARED_DEPENDENCY
+    stage_contract: "Compile capture, download, ASR, translation, export, browser-test, and model-control work into versioned Workflow/AI Job profiles with durable cancellation/recovery."
+    ownership_boundary: "WP-1 owns ModelSession, ToolGate, process supervision, cancellation/reap, promotion, EventLedger, telemetry, and runtime scheduling."
+    required_evidence: [wp1-entry-gate-pass, workflow-profile-registry, renderer-kill-job-continuation]
+    current_gap: "Active WP-1 is not validated on the required baseline; Stage production agent control remains dependency-blocked."
+
+  - id: STAGE-PILLAR-014
+    pillar_no: 14
+    name: Spec to prompt
+    status: ADJACENT_MODEL_WORKFLOW
+    stage_contract: "Stage may execute browser tests/captures requested by compiled spec prompts and return versioned evidence/artifact handles."
+    ownership_boundary: "Spec-to-prompt owns deterministic prompt envelopes; Stage neither compiles prompts nor changes capability snapshots."
+    required_evidence: [compiled-request-to-stage-action-trace, evidence-return-contract]
+    current_gap: "No explicit current appendix edge."
+
+  - id: STAGE-PILLAR-015
+    pillar_no: 15
+    name: PostgreSQL + CRDT authority
+    status: CORE_SHARED_DEPENDENCY
+    stage_contract: "Persist canonical window/session/tab/folder/action/capture/bulk/outbox state in PostgreSQL/EventLedger with versioned revisions, idempotency, fencing, and deterministic projectors."
+    ownership_boundary: "Browser profiles, renderer memory, UI rows, indexes, and ArtifactStore are not Stage record authority; CRDT is used only where the approved collaboration contract requires it."
+    required_evidence: [schema-and-migration-registry, replay-and-projector-rebuild, concurrency-property-suite]
+    current_gap: "Current Stage appendix still contains SQLite-era posture and must be replaced."
+
+  - id: STAGE-PILLAR-016
+    pillar_no: 16
+    name: LLM-friendly data
+    status: DIRECT_PRODUCT_REQUIREMENT
+    stage_contract: "Expose versioned actions, observations, health, receipts, capabilities, state, errors, screenshots, and manual routes for no-context models."
+    ownership_boundary: "Structured model surfaces are projections over canonical product state and never private hidden authority."
+    required_evidence: [no-context-model-journeys, stable-id-and-schema-registry, bounded-payload-tests]
+    current_gap: "Current appendix model exposure is OPERATOR_ONLY and contradicts the locked local/cloud AI workflow."
+
+  - id: STAGE-PILLAR-017
+    pillar_no: 17
+    name: Stage
+    status: SELF_OWNER
+    stage_contract: "Own the native governed browser/webviewer, durable high-volume workspace, hostile-web boundary, Stage Apps, capture initiation, model browser control, and Stage-specific diagnostics."
+    ownership_boundary: "Stage does not absorb shared execution, artifact, downloader, ASR, Loom, editor, Studio, CKC, Atelier/Lens, or governance authority."
+    required_evidence: [complete-stage-requirement-register, release-slice-gates, legacy-supersession-proof]
+    current_gap: "Master Spec and appendices require the later full Stage rewrite."
+
+  - id: STAGE-PILLAR-018
+    pillar_no: 18
+    name: Studio
+    status: DOWNSTREAM_CONSUMER_AND_RECIPROCAL_INTEGRATION
+    stage_contract: "Send captured/imported visual assets and provenance through shared handles; optionally open Studio outputs in Stage for governed preview/test/review."
+    ownership_boundary: "Studio owns visual authoring/documents; Stage owns web I/O, browser capture, inspection, and handoff."
+    required_evidence: [versioned-stage-studio-envelope, round-trip-correlation, no-authority-absorption]
+    current_gap: "The public reciprocal contract is not yet bound to a current implementation baseline."
+
+  - id: STAGE-PILLAR-019
+    pillar_no: 19
+    name: Atelier/Lens
+    status: PRIMARY_DOWNSTREAM_CONSUMER
+    stage_contract: "Submit persistent project-intake batches using shared ArtifactHandles, source/capture lineage, idempotency, per-item dispositions, retry/cancel, and progress."
+    ownership_boundary: "Atelier/Lens/CKC owns consumer media/review/domain data; consumers cannot access Stage tables, profiles, cookies, or engine IDs."
+    required_evidence: [new-atelier-ckc-intake-endpoint, per-item-disposition-suite, source-tab-to-intake-lineage]
+    current_gap: "No current Stage-ready public artifact-batch intake endpoint exists; a new consumer-owned adapter is required."
+
+  - id: STAGE-PILLAR-020
+    pillar_no: 20
+    name: Skill distillation / LoRA
+    status: OPTIONAL_DOWNSTREAM_EVIDENCE_CONSUMER
+    stage_contract: "Governed Stage action/evidence traces may become review-gated distillation candidates through existing pipelines."
+    ownership_boundary: "Stage does not select training data, train adapters, promote models, or weaken browser-data sensitivity controls."
+    required_evidence: [explicit-review-gate, provenance-preserving-export, no-automatic-training-ingest]
+    current_gap: "No P0 Stage release dependency; keep optional and policy-gated."
+
+  - id: STAGE-PILLAR-021
+    pillar_no: 21
+    name: ACE
+    status: DIRECT_MODEL_CONTEXT_INTEGRATION
+    stage_contract: "Compile bounded WorkingContext from Stage state/observations/manual/capabilities and return attributable action/evidence results for local/cloud agents."
+    ownership_boundary: "ACE owns per-call context compilation; Stage owns browser state/actions and page content never gains instruction authority."
+    required_evidence: [working-context-budget, prompt-injection-and-exfiltration-suite, stale-target-rejection]
+    current_gap: "Current appendix lacks the full ACE/model-control edge."
+
+  - id: STAGE-PILLAR-022
+    pillar_no: 22
+    name: RAG
+    status: CAPTURED_CONTENT_CONSUMER
+    stage_contract: "Index and retrieve captured/ingested content with source kind, capture time, provenance, staleness, and Loom relations without waking or refetching pages."
+    ownership_boundary: "RAG/Loom owns retrieval indexes and evidence ranking; Stage owns source tab/capture lineage and live-page truth labels."
+    required_evidence: [zero-page-activity-search, captured-content-truth-labels, deterministic-index-rebuild]
+    current_gap: "Exact semantic-query and retention boundary remains to be locked."
+
+  - id: STAGE-PILLAR-023
+    pillar_no: 23
+    name: internal_diagnostics
+    status: CORE_DIAGNOSTIC_INTEGRATION
+    stage_contract: "Expose typed allowlisted heartbeat, UI/frame time, CPU/RSS/GPU, renderer/background-process maps, queue depth, why-awake, failures, and recovery state."
+    ownership_boundary: "Internal diagnostics records no project/sensitive page data and supplements rather than replaces Flight Recorder."
+    required_evidence: [diagnostic-allowlist, resource-scale-curve, visual-debug-and-health-panel]
+    current_gap: "Current Stage appendix lacks the expanded high-volume/background-work diagnostics edge."
+
+  - id: STAGE-PILLAR-024
+    pillar_no: 24
+    name: Palmistry
+    status: CORE_EXTERNAL_WATCHER_INTEGRATION
+    stage_contract: "External watcher observes Stage host freeze/crash/heavy-CPU heartbeat, process/resource summaries, and minidump references without depending on the frozen UI."
+    ownership_boundary: "Palmistry records typed non-sensitive diagnostics only; it does not read tab/page/project payloads or become Stage recovery authority."
+    required_evidence: [host-freeze-and-heavy-cpu-drill, minidump-and-heartbeat-correlation, sensitive-data-negative-test]
+    current_gap: "Current Stage appendix lacks the explicit out-of-process heavy-CPU/watchdog edge."
+
+pillar_edge_resolution:
+  - { pillar_id: STAGE-PILLAR-001, direction: BIDIRECTIONAL_DIAGNOSTIC, target_ids: [FLIGHT-RECORDER-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-005], requirement_ids: [STAGE-REQ-RELEASE-006], dependency_gate_ids: [], acceptance_ids: [STAGE-ACC-RELEASE-006], release_gate_ids: [STAGE-GATE-017-SUPPORT], edge_disposition: UPDATE, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-002, direction: STAGE_TO_CALENDAR, target_ids: [CALENDAR-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-026], requirement_ids: [], dependency_gate_ids: [], acceptance_ids: [], release_gate_ids: [], edge_disposition: OPTIONAL, not_applicable_reason: "No operator-locked Stage workflow requires calendar mutation; only explicit activity-reference projection is allowed." }
+  - { pillar_id: STAGE-PILLAR-003, direction: BIDIRECTIONAL_PUBLIC_CONTRACT, target_ids: [CODE-EDITOR-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-012], requirement_ids: [STAGE-REQ-CAPTURE-006, STAGE-REQ-DEV-001, STAGE-REQ-DEV-003], dependency_gate_ids: [STAGE-DEP-WP12-LEGACY-REMOVAL], acceptance_ids: [STAGE-ACC-CAPTURE-006, STAGE-ACC-DEV-001, STAGE-ACC-DEV-003], release_gate_ids: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-006-WEB-SECURITY, STAGE-GATE-012-MIGRATION], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-004, direction: STAGE_TO_RICH_TEXT, target_ids: [RICH-TEXT-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-029], requirement_ids: [STAGE-REQ-CAPTURE-006, STAGE-REQ-EXPORT-003], dependency_gate_ids: [STAGE-DEP-WP12-LEGACY-REMOVAL], acceptance_ids: [STAGE-ACC-CAPTURE-006, STAGE-ACC-EXPORT-003], release_gate_ids: [STAGE-GATE-010-DOWNLOAD-CAPTURE, STAGE-GATE-012-MIGRATION], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-005, direction: STAGE_TO_EXCEL, target_ids: [EXCEL-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-027], requirement_ids: [STAGE-REQ-EXPORT-004], dependency_gate_ids: [STAGE-DEP-ARTIFACT-HANDLE], acceptance_ids: [STAGE-ACC-EXPORT-004], release_gate_ids: [STAGE-GATE-010-DOWNLOAD-CAPTURE], edge_disposition: OPTIONAL, not_applicable_reason: "No P0 Stage workflow depends on spreadsheet ingestion; only explicit typed export is permitted." }
+  - { pillar_id: STAGE-PILLAR-006, direction: STAGE_TO_LOCUS, target_ids: [LOCUS-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-017], requirement_ids: [STAGE-REQ-RELEASE-006], dependency_gate_ids: [], acceptance_ids: [STAGE-ACC-RELEASE-006], release_gate_ids: [STAGE-GATE-017-SUPPORT], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-007, direction: BIDIRECTIONAL_REFERENCE_AND_RETRIEVAL, target_ids: [LOOM-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-009], requirement_ids: [STAGE-REQ-SEARCH-002, STAGE-REQ-SEARCH-003, STAGE-REQ-SEARCH-004], dependency_gate_ids: [], acceptance_ids: [STAGE-ACC-SEARCH-002, STAGE-ACC-SEARCH-003, STAGE-ACC-SEARCH-004], release_gate_ids: [STAGE-GATE-009-HIGH-VOLUME, STAGE-GATE-011-DOWNSTREAM], edge_disposition: UPDATE, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-008, direction: GOVERNANCE_ONLY, target_ids: [WORK-PACKETS-ID_PENDING_REGISTRY], master_spec_edge_ids: [], requirement_ids: [], dependency_gate_ids: [], acceptance_ids: [], release_gate_ids: [], edge_disposition: GOVERNANCE_ONLY, not_applicable_reason: "Work-packet authority governs Stage implementation but is not a Stage runtime dependency." }
+  - { pillar_id: STAGE-PILLAR-009, direction: GOVERNANCE_ONLY, target_ids: [TASK-BOARD-ID_PENDING_REGISTRY], master_spec_edge_ids: [], requirement_ids: [], dependency_gate_ids: [], acceptance_ids: [], release_gate_ids: [], edge_disposition: GOVERNANCE_ONLY, not_applicable_reason: "Task-board projection remains external governance state and is not Stage runtime authority." }
+  - { pillar_id: STAGE-PILLAR-010, direction: MICROTASK_TO_STAGE, target_ids: [MICROTASK-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-018], requirement_ids: [STAGE-REQ-AGENT-001, STAGE-REQ-AGENT-004, STAGE-REQ-AGENT-008, STAGE-REQ-MANUAL-002], dependency_gate_ids: [STAGE-DEP-WP1-MODEL-ORCHESTRATION], acceptance_ids: [STAGE-ACC-AGENT-001, STAGE-ACC-AGENT-004, STAGE-ACC-AGENT-008, STAGE-ACC-MANUAL-002], release_gate_ids: [STAGE-GATE-008-AGENT-CONTROL, STAGE-GATE-015-ACCESS-I18N-MANUAL], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-011, direction: BIDIRECTIONAL_OPERATOR_CONTROL, target_ids: [DCC-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-019], requirement_ids: [STAGE-REQ-SHELL-006, STAGE-REQ-RELEASE-006, STAGE-REQ-RESOURCE-007, STAGE-REQ-RESOURCE-009], dependency_gate_ids: [], acceptance_ids: [STAGE-ACC-SHELL-006, STAGE-ACC-RELEASE-006, STAGE-ACC-RESOURCE-007, STAGE-ACC-RESOURCE-009], release_gate_ids: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-009-HIGH-VOLUME, STAGE-GATE-017-SUPPORT], edge_disposition: UPDATE, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-012, direction: STAGE_TO_FEMS, target_ids: [FEMS-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-020], requirement_ids: [STAGE-REQ-AGENT-003, STAGE-REQ-MANUAL-002], dependency_gate_ids: [STAGE-DEP-WP1-MODEL-ORCHESTRATION], acceptance_ids: [STAGE-ACC-AGENT-003, STAGE-ACC-MANUAL-002], release_gate_ids: [STAGE-GATE-008-AGENT-CONTROL, STAGE-GATE-015-ACCESS-I18N-MANUAL], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-013, direction: STAGE_TO_EXECUTION_RUNTIME, target_ids: [EXECUTION-JOB-RUNTIME-ID_PENDING_REGISTRY, WP1-MODEL-ORCHESTRATION], master_spec_edge_ids: [STAGE-EDGE-003, STAGE-EDGE-006], requirement_ids: [STAGE-REQ-AGENT-008, STAGE-REQ-WP1-001, STAGE-REQ-WP1-002], dependency_gate_ids: [STAGE-DEP-WP1-MODEL-ORCHESTRATION], acceptance_ids: [STAGE-ACC-AGENT-008, STAGE-ACC-WP1-001, STAGE-ACC-WP1-002], release_gate_ids: [STAGE-GATE-008-AGENT-CONTROL, STAGE-GATE-011-DOWNSTREAM], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-014, direction: SPEC_TO_PROMPT_TO_STAGE, target_ids: [SPEC-TO-PROMPT-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-021], requirement_ids: [STAGE-REQ-AGENT-001, STAGE-REQ-AGENT-002, STAGE-REQ-AGENT-008], dependency_gate_ids: [STAGE-DEP-WP1-MODEL-ORCHESTRATION], acceptance_ids: [STAGE-ACC-AGENT-001, STAGE-ACC-AGENT-002, STAGE-ACC-AGENT-008], release_gate_ids: [STAGE-GATE-008-AGENT-CONTROL], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-015, direction: STAGE_TO_POSTGRES_CRDT_EVENTLEDGER, target_ids: [POSTGRES-CRDT-AUTHORITY-ID_PENDING_REGISTRY, EVENTLEDGER], master_spec_edge_ids: [STAGE-EDGE-004, STAGE-EDGE-022], requirement_ids: [STAGE-REQ-STATE-001, STAGE-REQ-STATE-008, STAGE-REQ-RECOVERY-001], dependency_gate_ids: [], acceptance_ids: [STAGE-ACC-STATE-001, STAGE-ACC-STATE-008, STAGE-ACC-RECOVERY-001], release_gate_ids: [STAGE-GATE-004-PERSISTENCE-REPLAY, STAGE-GATE-013-FAILURE-RECOVERY], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-016, direction: STAGE_TO_LLM_FRIENDLY_DATA, target_ids: [LLM-FRIENDLY-DATA-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-023], requirement_ids: [STAGE-REQ-AGENT-001, STAGE-REQ-AGENT-003, STAGE-REQ-MANUAL-002], dependency_gate_ids: [STAGE-DEP-WP1-MODEL-ORCHESTRATION], acceptance_ids: [STAGE-ACC-AGENT-001, STAGE-ACC-AGENT-003, STAGE-ACC-MANUAL-002], release_gate_ids: [STAGE-GATE-008-AGENT-CONTROL, STAGE-GATE-015-ACCESS-I18N-MANUAL], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-017, direction: SELF, target_ids: [FEAT-STAGE], master_spec_edge_ids: [], requirement_ids: [STAGE-REQ-SHELL-001, STAGE-REQ-STATE-001, STAGE-REQ-SUPERSESSION-001], dependency_gate_ids: [], acceptance_ids: [STAGE-ACC-SHELL-001, STAGE-ACC-STATE-001, STAGE-ACC-SUPERSESSION-001], release_gate_ids: [STAGE-GATE-021-WP-COMPLETE], edge_disposition: SELF, not_applicable_reason: "Self-ownership declaration; cross-system dependencies are represented by the other rows." }
+  - { pillar_id: STAGE-PILLAR-018, direction: BIDIRECTIONAL_PUBLIC_CONTRACT, target_ids: [STUDIO-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-011], requirement_ids: [STAGE-REQ-STUDIO-001], dependency_gate_ids: [STAGE-DEP-ARTIFACT-HANDLE], acceptance_ids: [STAGE-ACC-STUDIO-001], release_gate_ids: [STAGE-GATE-011-DOWNSTREAM], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-019, direction: STAGE_TO_ATELIER_LENS, target_ids: [ATELIER-LENS-ID_PENDING_REGISTRY, CKC-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-010], requirement_ids: [STAGE-REQ-INTAKE-002, STAGE-REQ-INTAKE-004], dependency_gate_ids: [STAGE-DEP-ARTIFACT-HANDLE, STAGE-DEP-ATELIER-CKC-INTAKE], acceptance_ids: [STAGE-ACC-INTAKE-002, STAGE-ACC-INTAKE-004], release_gate_ids: [STAGE-GATE-011-DOWNSTREAM], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-020, direction: STAGE_TO_DISTILLATION_PIPELINE, target_ids: [SKILL-DISTILLATION-LORA-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-028], requirement_ids: [], dependency_gate_ids: [], acceptance_ids: [], release_gate_ids: [], edge_disposition: OPTIONAL, not_applicable_reason: "Only explicit review-gated evidence export is allowed; no P0 Stage release depends on training or promotion." }
+  - { pillar_id: STAGE-PILLAR-021, direction: ACE_TO_STAGE_AND_STAGE_TO_ACE, target_ids: [ACE-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-024], requirement_ids: [STAGE-REQ-AGENT-001, STAGE-REQ-AGENT-003, STAGE-REQ-AGENT-005, STAGE-REQ-AGENT-006, STAGE-REQ-AGENT-008], dependency_gate_ids: [STAGE-DEP-WP1-MODEL-ORCHESTRATION], acceptance_ids: [STAGE-ACC-AGENT-001, STAGE-ACC-AGENT-003, STAGE-ACC-AGENT-005, STAGE-ACC-AGENT-006, STAGE-ACC-AGENT-008], release_gate_ids: [STAGE-GATE-008-AGENT-CONTROL], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-022, direction: STAGE_TO_RAG, target_ids: [RAG-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-025], requirement_ids: [STAGE-REQ-SEARCH-001, STAGE-REQ-SEARCH-002, STAGE-REQ-SEARCH-004], dependency_gate_ids: [STAGE-DEP-ARTIFACT-HANDLE], acceptance_ids: [STAGE-ACC-SEARCH-001, STAGE-ACC-SEARCH-002, STAGE-ACC-SEARCH-004], release_gate_ids: [STAGE-GATE-009-HIGH-VOLUME, STAGE-GATE-011-DOWNSTREAM], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-023, direction: STAGE_TO_INTERNAL_DIAGNOSTICS, target_ids: [INTERNAL-DIAGNOSTICS-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-014], requirement_ids: [STAGE-REQ-RESOURCE-007, STAGE-REQ-RESOURCE-009, STAGE-REQ-RELEASE-006], dependency_gate_ids: [], acceptance_ids: [STAGE-ACC-RESOURCE-007, STAGE-ACC-RESOURCE-009, STAGE-ACC-RELEASE-006], release_gate_ids: [STAGE-GATE-009-HIGH-VOLUME, STAGE-GATE-017-SUPPORT], edge_disposition: ADD, not_applicable_reason: null }
+  - { pillar_id: STAGE-PILLAR-024, direction: PALMISTRY_TO_STAGE_HOST, target_ids: [PALMISTRY-ID_PENDING_REGISTRY], master_spec_edge_ids: [STAGE-EDGE-015], requirement_ids: [STAGE-REQ-RECOVERY-001, STAGE-REQ-RELEASE-006], dependency_gate_ids: [], acceptance_ids: [STAGE-ACC-RECOVERY-001, STAGE-ACC-RELEASE-006], release_gate_ids: [STAGE-GATE-013-FAILURE-RECOVERY, STAGE-GATE-017-SUPPORT], edge_disposition: ADD, not_applicable_reason: null }
+
+proposed_master_spec_edges:
+  - { id: STAGE-EDGE-001, from: FEAT-STAGE, to: PRIM-ArtifactService, relation: consumes_shared_byte_service, requirement_ids: [STAGE-REQ-CAPTURE-007, STAGE-REQ-CAPTURE-008] }
+  - { id: STAGE-EDGE-002, from: FEAT-STAGE, to: PRIM-ArtifactHandle, relation: consumes_opaque_shared_handle, requirement_ids: [STAGE-REQ-CAPTURE-006, STAGE-REQ-CAPTURE-007] }
+  - { id: STAGE-EDGE-003, from: FEAT-STAGE, to: PILLAR-EXECUTION-JOB-RUNTIME, relation: submits_versioned_jobs, requirement_ids: [STAGE-REQ-WP1-001, STAGE-REQ-AGENT-008] }
+  - { id: STAGE-EDGE-004, from: FEAT-STAGE, to: EVENTLEDGER, relation: persists_versioned_events_and_replay, requirement_ids: [STAGE-REQ-STATE-001, STAGE-REQ-RECOVERY-001] }
+  - { id: STAGE-EDGE-005, from: FEAT-STAGE, to: FLIGHT-RECORDER, relation: emits_bounded_diagnostics_and_receipts, requirement_ids: [STAGE-REQ-RELEASE-006] }
+  - { id: STAGE-EDGE-006, from: FEAT-STAGE, to: WP1-MODEL-ORCHESTRATION, relation: consumes_toolgate_model_lanes_process_and_telemetry, requirement_ids: [STAGE-REQ-AGENT-008, STAGE-REQ-WP1-001] }
+  - { id: STAGE-EDGE-007, from: FEAT-STAGE, to: MEDIA-DOWNLOADER, relation: submits_download_runs_with_scoped_credentials, requirement_ids: [STAGE-REQ-DOWNLOAD-003, STAGE-REQ-INTAKE-001] }
+  - { id: STAGE-EDGE-008, from: FEAT-STAGE, to: ASR, relation: submits_caption_fallback_and_consumes_transcript_lineage, requirement_ids: [STAGE-REQ-INTAKE-003] }
+  - { id: STAGE-EDGE-009, from: FEAT-STAGE, to: LOOM, relation: links_operational_records_to_knowledge_graph, requirement_ids: [STAGE-REQ-SEARCH-003] }
+  - { id: STAGE-EDGE-010, from: FEAT-STAGE, to: ATELIER-LENS-CKC, relation: submits_artifact_intake_batches, requirement_ids: [STAGE-REQ-INTAKE-002, STAGE-REQ-INTAKE-004] }
+  - { id: STAGE-EDGE-011, from: FEAT-STAGE, to: STUDIO, relation: exchanges_versioned_capture_and_review_envelopes, requirement_ids: [STAGE-REQ-STUDIO-001] }
+  - { id: STAGE-EDGE-012, from: WP12-EDITORS, to: FEAT-STAGE, relation: consumes_new_public_stage_contract_after_legacy_removal, requirement_ids: [STAGE-REQ-CAPTURE-006, STAGE-REQ-WP12-001] }
+  - { id: STAGE-EDGE-013, from: FEAT-STAGE, to: USERMANUAL, relation: publishes_operator_and_model_workflows, requirement_ids: [STAGE-REQ-MANUAL-001, STAGE-REQ-MANUAL-002] }
+  - { id: STAGE-EDGE-014, from: FEAT-STAGE, to: INTERNAL-DIAGNOSTICS, relation: emits_typed_internal_health_and_resource_state, requirement_ids: [STAGE-REQ-RESOURCE-007, STAGE-REQ-RESOURCE-009] }
+  - { id: STAGE-EDGE-015, from: PALMISTRY, to: FEAT-STAGE, relation: observes_out_of_process_freeze_crash_and_heavy_cpu, requirement_ids: [STAGE-REQ-RECOVERY-001, STAGE-REQ-RELEASE-006] }
+  - { id: STAGE-EDGE-016, from: FEAT-STAGE, to: EXPORT-MATERIALIZE, relation: requests_explicit_external_materialization, requirement_ids: [STAGE-REQ-EXPORT-004] }
+  - { id: STAGE-EDGE-017, from: FEAT-STAGE, to: LOCUS-ID_PENDING_REGISTRY, relation: projects_coordination_readiness_and_stable_refs, requirement_ids: [STAGE-REQ-RELEASE-006] }
+  - { id: STAGE-EDGE-018, from: MICROTASK-ID_PENDING_REGISTRY, to: FEAT-STAGE, relation: invokes_typed_stage_actions_through_wp1, requirement_ids: [STAGE-REQ-AGENT-001, STAGE-REQ-AGENT-004, STAGE-REQ-AGENT-008] }
+  - { id: STAGE-EDGE-019, from: FEAT-STAGE, to: DCC-ID_PENDING_REGISTRY, relation: projects_stage_sessions_jobs_approvals_resources_and_health, requirement_ids: [STAGE-REQ-SHELL-006, STAGE-REQ-RESOURCE-007, STAGE-REQ-RELEASE-006] }
+  - { id: STAGE-EDGE-020, from: FEAT-STAGE, to: FEMS-ID_PENDING_REGISTRY, relation: supplies_bounded_provenance_first_browser_context, requirement_ids: [STAGE-REQ-AGENT-003, STAGE-REQ-MANUAL-002] }
+  - { id: STAGE-EDGE-021, from: SPEC-TO-PROMPT-ID_PENDING_REGISTRY, to: FEAT-STAGE, relation: requests_governed_browser_test_and_capture_evidence, requirement_ids: [STAGE-REQ-AGENT-001, STAGE-REQ-AGENT-002, STAGE-REQ-AGENT-008] }
+  - { id: STAGE-EDGE-022, from: FEAT-STAGE, to: POSTGRES-CRDT-AUTHORITY-ID_PENDING_REGISTRY, relation: persists_versioned_stage_records_and_collaboration_state, requirement_ids: [STAGE-REQ-STATE-001, STAGE-REQ-STATE-008] }
+  - { id: STAGE-EDGE-023, from: FEAT-STAGE, to: LLM-FRIENDLY-DATA-ID_PENDING_REGISTRY, relation: exposes_versioned_model_operable_state_actions_health_and_manual, requirement_ids: [STAGE-REQ-AGENT-001, STAGE-REQ-MANUAL-002] }
+  - { id: STAGE-EDGE-024, from: ACE-ID_PENDING_REGISTRY, to: FEAT-STAGE, relation: compiles_bounded_working_context_and_invokes_attributable_actions, requirement_ids: [STAGE-REQ-AGENT-001, STAGE-REQ-AGENT-005, STAGE-REQ-AGENT-006, STAGE-REQ-AGENT-008] }
+  - { id: STAGE-EDGE-025, from: FEAT-STAGE, to: RAG-ID_PENDING_REGISTRY, relation: supplies_captured_content_with_provenance_staleness_and_source_truth, requirement_ids: [STAGE-REQ-SEARCH-001, STAGE-REQ-SEARCH-002, STAGE-REQ-SEARCH-004] }
+  - { id: STAGE-EDGE-026, from: FEAT-STAGE, to: CALENDAR-ID_PENDING_REGISTRY, relation: optionally_projects_explicit_activity_references, requirement_ids: [] }
+  - { id: STAGE-EDGE-027, from: FEAT-STAGE, to: EXCEL-ID_PENDING_REGISTRY, relation: optionally_exports_typed_structured_artifacts, requirement_ids: [STAGE-REQ-EXPORT-004] }
+  - { id: STAGE-EDGE-028, from: FEAT-STAGE, to: SKILL-DISTILLATION-LORA-ID_PENDING_REGISTRY, relation: optionally_exports_review_gated_evidence_candidates, requirement_ids: [] }
+  - { id: STAGE-EDGE-029, from: FEAT-STAGE, to: RICH-TEXT-ID_PENDING_REGISTRY, relation: hands_off_sanitized_readable_markdown_pdf_artifacts, requirement_ids: [STAGE-REQ-CAPTURE-006, STAGE-REQ-EXPORT-003] }

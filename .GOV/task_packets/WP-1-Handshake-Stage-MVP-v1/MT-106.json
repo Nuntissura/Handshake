@@ -1,0 +1,158 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Handshake-Stage-MVP-v1",
+  "mt_id": "MT-106",
+  "created_at_utc": "2026-07-20T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-MT-106.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-MT-106.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-MT-106.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-004",
+      "MT-006",
+      "MT-007"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Any editor-to-Stage and capture/embed-back workflow selected by the current plan uses a newly specified StageCaptureCoordinator contract returning shared ArtifactHandles without legacy WP-12 aliases.",
+    "allowed_paths": [
+      "BIND_AT_L00_BASELINE"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "another WP's private tables/routes/profiles"
+    ],
+    "acceptance_criteria": [
+      "The selected editor-to-Stage and embed-back journey uses only the new StageCaptureCoordinator request/result and canonical shared ArtifactHandles, with all legacy WP-12 aliases absent.",
+      "[positive] Editor sends stable source/correlation/revision data; StageCaptureCoordinator returns opaque canonical handles consumed by the current public embed-back contract.",
+      "[negative] Reject StageArtifactStore, StageArtifactRefWire, manifest://STGA, stage.jobs.enqueue, legacy routes/types, raw-path identity, and editor access to Stage internals.",
+      "[failure_recovery] Capture/embed failure retains finalized handles and idempotent retry state without duplicating bytes or re-enabling legacy compatibility.",
+      "[concurrency] Parallel editor requests cannot cross-embed handles; duplicate idempotency keys converge on one capture/result lineage."
+    ],
+    "proof_targets": [
+      "current-editor-stage-contract-suite"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "YES",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "WHEN_APPLICABLE",
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted.",
+      "Legacy Stage code (WP-12) must not silently constrain this MT (STAGE-DEC-017).",
+      "Do not duplicate ArtifactStore, WP-1 ToolGate/process/promotion, or Loom authority."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  },
+  "planning_metadata": {
+    "lane": "L19",
+    "kind": "requirement",
+    "requirement_id": "STAGE-REQ-CAPTURE-006",
+    "requirement_priority": "P0",
+    "acceptance_id": "STAGE-ACC-CAPTURE-006",
+    "release_ids": [
+      "STAGE-WIN-BOOTSTRAP-PROD",
+      "STAGE-WP-COMPLETE"
+    ],
+    "production_gate_ids": [
+      "STAGE-GATE-010-DOWNLOAD-CAPTURE",
+      "STAGE-GATE-011-DOWNSTREAM",
+      "STAGE-GATE-012-MIGRATION"
+    ],
+    "dependency_gate_ids": [
+      "STAGE-DEP-ARTIFACT-HANDLE"
+    ],
+    "fixture_ids": [
+      "STAGE-FIX-CAPTURE-006"
+    ],
+    "corpus_refs": [
+      ".GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md",
+      ".GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md",
+      ".GOV/reference/stage_mvp_planning/legacy-stage-disposition-register.yaml"
+    ],
+    "implementation_note": "Planning-stage MT. Exact owned_files, code anchors, and proof_commands are bound at the L00 integration baseline. Deep spec detail lives in corpus_refs; acceptance_criteria carry the provable closure unit and the positive/negative/failure_recovery/concurrency case groups.",
+    "no_context_read_order": [
+      ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json",
+      ".GOV/reference/stage_mvp_planning/index.yaml",
+      ".GOV/reference/stage_mvp_planning/requirements-and-traceability.yaml",
+      ".GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md",
+      ".GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md",
+      ".GOV/reference/stage_mvp_planning/legacy-stage-disposition-register.yaml"
+    ]
+  }
+}

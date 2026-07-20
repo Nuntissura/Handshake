@@ -17,7 +17,19 @@
       "frozen_legacy_migration_reference"
     ]
   },
-  "execution_authority": "NON_EXECUTION_STUB",
+  "execution_authority": "SUPERSEDED_FOLDED_STUB",
+  "supersession": {
+    "status": "SUPERSEDED_FOLDED",
+    "folded_into": "WP-1-Handshake-Stage-MVP-v1",
+    "folded_at_utc": "2026-07-20T00:00:00Z",
+    "operator_decision": "STAGE-DEC-001, STAGE-DEC-017",
+    "reason": "Operator-directed consolidation into the single Stage umbrella WP stub. This stub's outcomes are preserved as lineage in the hardened Stage planning corpus (media-portability lane), NOT as legacy implementation authority. Archived, not deleted.",
+    "outcome_lane": "L14",
+    "planning_topic": "STAGE-PLAN-MEDIA-PORTABILITY",
+    "lineage_ids": ["STAGE-PRES-PORT-001", "STAGE-PRES-PORT-002", "STAGE-PRES-PORT-003", "STAGE-PRES-PORT-004", "STAGE-PRES-PORT-005", "STAGE-PRES-PORT-006"],
+    "requirement_ids": ["STAGE-REQ-CAPTURE-007", "STAGE-REQ-CAPTURE-008", "STAGE-REQ-EXPORT-004", "STAGE-REQ-RECOVERY-004"],
+    "legacy_authority": "NONE_NO_IMPLICIT_COMPATIBILITY"
+  },
   "wp_id": "WP-1-Stage-Media-Artifact-Portability-v1",
   "base_wp_id": "WP-1-Stage-Media-Artifact-Portability",
   "created_at_utc": "2026-03-08T00:00:00Z",

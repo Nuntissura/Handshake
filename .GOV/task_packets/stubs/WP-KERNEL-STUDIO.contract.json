@@ -27,7 +27,7 @@
   },
   "markdown_projection": {
     "path": ".GOV/task_packets/stubs/WP-KERNEL-STUDIO.md",
-    "status": "GENERATED_IN_SYNC",
+    "status": "STALE_REGENERATE_ON_DEMAND (JSON authority updated 2026-07-20 with parity_audit_2026_07_20 block; projection not regenerated)",
     "projection_sha256": null,
     "generated_by": "kernel_builder_studio_activation_prep_2026-07-09"
   },
@@ -92,6 +92,38 @@
     "risks_unknowns": "Very large surface (hundreds of MTs); CRDT for large raster documents; GPU contention across parallel render jobs; undo semantics across CRDT+EventLedger dual state; headless-GPU screenshot readback crash class 0xc0000005 (fall back to AccessKit-tree assertions on headless hosts); internal_diagnostics/Palmistry DEFERRED until WP-KERNEL-012/016 ship. Open contract points in [STU-CON-006] (redo depth, event granularity/coalescing, auto-accept policy, raster authority storage shape, FR-EVT-STUDIO-* registration, plugin capability schema) must be resolved by refinement before the implementing MTs harden.",
     "governance_artifact_stance": "Machine-contract-first (packet.json + MT-*.json authority; Markdown projection only). Studio research corpus is non-normative provenance per [STU-SECTION-002]; Section 14 is sole authority."
   },
+  "parity_audit_2026_07_20": {
+    "authority_note": "Non-normative provenance per [STU-SECTION-002]; Section 14 remains sole authority. These registers are inputs the refinement MUST resolve into Section-14 parity coverage decisions before this stub is promoted to an executable packet.",
+    "method": "Two independent multi-agent workflows (feature-parity gap audit with adversarial corpus verification + 82-scenario workflow-needs audit).",
+    "headline_verdict": "The Studio research corpus is NOT yet exhaustive enough to claim full non-AI parity for any of Photoshop/Illustrator/InDesign/Affinity/Figma. Strongest at single-artifact craft; weakest at team-scale coordination workflows and command/scripting/print/performance option depth.",
+    "registers": {
+      "parity_feature_gaps": ".GOV/reference/studio_app_feature_research/58-parity-feature-gap-register.md",
+      "workflow_needs": ".GOV/reference/studio_app_feature_research/59-workflow-needs-register.md",
+      "bridge_opportunities": ".GOV/reference/studio_app_feature_research/60-bridge-opportunity-register.md",
+      "action_register": ".GOV/reference/studio_app_feature_research/61-parity-audit-action-register.md",
+      "snapshot_distillation": ".GOV/reference/studio_app_feature_research/62-snapshot-distillation-delta.md"
+    },
+    "counts": {
+      "verified_parity_gaps": 58,
+      "critical": 1,
+      "major": 28,
+      "minor": 29,
+      "workflow_needs_total": 113,
+      "workflow_needs_partial_or_uncovered": 41,
+      "bridge_opportunities": 86
+    },
+    "refinement_must_resolve": [
+      "For each of the 58 verified parity gaps: decide Section-14 coverage (already-covered / add-to-Section-14 / out-of-scope-with-reason). The corpus completeness surfaces (49) are leaf-pipeline-only and did not catch these; do not rely on them.",
+      "Figma Sites per-element accessibility panel (the sole CRITICAL gap) is a hard blocker for legally-compliant web output (EAA-class); decide Section-14 accessibility-output posture.",
+      "Cross-app systemic gaps XAPP-01..06: installed command/shortcut inventories, scripting DOM member depth, print-dialog option depth, CJK composition (composite fonts/ruby/kinsoku), performance NFR envelopes, release-currency drift.",
+      "Workflow-needs architecture implication: the 41 partial/uncovered needs cluster into a scale-adaptive review/approval + workflow-state + permission triad layered on the CRDT/EventLedger substrate (NEED-005/009/017/022/045/051/057). Decide whether Section 14 covers these or whether they need spec enrichment; note Studio must serve large-team, small-team, AND solo scales (invisible-for-solo, governable-for-large).",
+      "Bridge opportunities (60): decide which NON-AI differentiators enter Section-14 scope (local-first files, in-document version history/branching, LAN CRDT co-edit, modern automation API, non-destructive node graph, unified codec-forward export, local spot-color, tagged PDF/UA, universal intl text engine, performance-class engine)."
+    ],
+    "held_by_operator_2026_07_20": [
+      "ACTION-A7 record pending operator decisions (CJK/RTL/ME market scope, iPad/web exclusion, accessible-PDF posture, licensing/business model)",
+      "ACTION-A8 vendor-watch re-crawl cadence"
+    ]
+  },
   "microtask_plan": {
     "decomposition_authority": "Section 14 domains; foundation MTs first (kernel binding, canonical contracts, document model, tables/migrations, EventLedger variants, engine traits), then per-domain feature MTs (each feature-group -> one narrow MT), then cross-cutting MTs (model API/MCP, propose-work, history/undo, headless/quiet, operator unification, UserManual, validation/HBR harnesses).",
     "granularity_rule": "No upper MT-count bias; each MT narrow enough for a small/fast coding model and independent per-MT review + crash/session recovery; split when an MT would mix unrelated authority boundaries, broad code-surface families, independent proof commands, or unrelated failure modes.",
@@ -104,6 +136,7 @@
     "may_start_validator": false,
     "required_activation_steps": [
       "create_or_refresh_refinement",
+      "resolve_parity_audit_2026_07_20_registers_into_section14_coverage (58 gaps + 41 workflow needs + bridge decisions; see parity_audit_2026_07_20)",
       "confirm_user_signature_ilja090720260901",
       "resolve_open_contract_points_STU-CON-006",
       "create_official_work_packet_contract",

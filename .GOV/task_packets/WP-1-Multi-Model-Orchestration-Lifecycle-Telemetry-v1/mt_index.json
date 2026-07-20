@@ -1,10 +1,10 @@
 {
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
-  "generated_at_utc": "2026-07-11T03:30:47Z",
+  "generated_at_utc": "2026-07-20T01:19:00Z",
   "total": 17,
   "range": "MT-001..MT-017",
-  "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes. KERNEL_BUILDER HEAD re-proof 2026-07-09: every MT re-verified at HEAD via its declared proof targets on managed PostgreSQL; stale greens from ancestor commits replaced. Deferred gaps captured in MT-017. | INTEGRATION_VALIDATOR per-MT V1 verdicts applied 2026-07-10T21:19:03Z: 001=PASS_V1,002=PASS_V1,004=PASS_V1,005=PASS_V1,006=PASS_V1,007=PASS_V1,008=PASS_V1,010=PASS_V1,011=PASS_V1,012=PASS_V1,015=PASS_V1,016=PASS_V1,003=FAIL_V1,009=FAIL_V1,013=FAIL_V1,014=FAIL_V1; MT-017 DEFERRED (not validated). | V2 remediation 2026-07-11: MT-009 is READY_FOR_VALIDATION after product commit 28e2e5c8 and multi-lens review; MT-014 is BLOCKED by SPEC_CURRENT v02.200 section 4.6.5 persistent model-registry-row requirement. MT-003 and MT-013 remain unchanged FAIL_V1.",
+  "note": "Research-backed Activation Manager MT set. Operator may add, remove, split, or reorder MTs ad hoc; packet.json microtasks.declared_ids must be kept in sync when the MT set changes. INTEGRATION_VALIDATOR per-MT V1 verdicts and independent V2 FAIL verdicts remain immutable historical evidence in the MT contracts. On 2026-07-20 KERNEL_BUILDER remediated MT-003, MT-009, MT-013, MT-014, and MT-017 and moved them to READY_FOR_VALIDATION_V3 with PENDING_V3 validator verdicts; COMPLETED remains validator-only. PASS_V1 rows remain unchanged.",
   "microtasks": [
     {
       "mt_id": "MT-001",
@@ -52,7 +52,7 @@
     },
     {
       "mt_id": "MT-003",
-      "status": "FAIL_V1",
+      "status": "READY_FOR_VALIDATION_V3",
       "depends_on": [
         "MT-002"
       ],
@@ -63,11 +63,15 @@
         "MT-007",
         "MT-009"
       ],
-      "proof_status": "PASS_MT-003_OLLAMA_KILL_EMBEDDED_MODELRUNTIME_DEFAULT_4_ENGINE_FREE_TESTS_PASS_CARGO_CHECK_APP_RUNTIME_PASS_COMMIT_321543ca_REAL_INFERENCE_AND_BOXING_DEFERRED_MT013_MT014 || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: llm_default_boot_resolution_tests 6/6 PASS; llm_client_local_routing_tests 14/14 PASS. Ollama removal verified (no mod/use/type/variant refs; EngineOriginValidator deny-lists daemon origins).",
-      "hbr_status": "PASS_WIRING_SCOPE_FR_BOXING_DEFERRED_MT013",
+      "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: embedded-default, Official-CLI/UserManual, Tauri/app-runtime, real Candle, and strict real llama.cpp embedding gates pass; post-fix adversarial re-audit has no findings; validator completion is pending.",
+      "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
-      "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_TESTS_AND_MT_STATUS; MISSING_DEXTERITY_CONTRACT_BYPASS_CLOSED; LIVE_TAURI_IPC_AND_SCHEDULE_REQUEST_SOURCE_BYPASS_CLOSED; PUBLIC_COORDINATOR_AND_SCHEDULER_CONSTRUCTOR_BYPASS_CLOSED_AFTER_ADVERSARIAL_FAIL_REVIEW_RETRY_PASS; APP_REQUEST_SOURCE_EVIDENCE_RECLASSIFIED_NON_AUTHORITY; EXTERNAL_SPEC_MANIFEST_DRIFT_RECORDED"
+      "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_POST_FIX_REAUDIT_NO_FINDINGS",
+      "adversarial_findings_status": "PASS_V3_FALSE_GREEN_PROOF_FINDINGS_CLOSED",
+      "remediation_v3": {
+        "status": "READY_FOR_VALIDATION_V3",
+        "kb_ready_checklist_receipt": "2026-07-20T01:13:21.386Z"
+      }
     },
     {
       "mt_id": "MT-004",
@@ -172,7 +176,7 @@
     },
     {
       "mt_id": "MT-009",
-      "status": "READY_FOR_VALIDATION",
+      "status": "READY_FOR_VALIDATION_V3",
       "depends_on": [
         "MT-003",
         "MT-004",
@@ -185,16 +189,20 @@
       "blocks": [
         "MT-010"
       ],
-      "proof_status": "READY_FOR_VALIDATION_V2_2026-07-11 product commit 28e2e5c8: real PostgreSQL CRDT atomicity/rollback, real cancellation fence/rollback, mixed convergence, Argus, UserManual, and shared-CRDT regressions passed; V1 FAIL remains in MT-009.validation_v1.",
-      "hbr_status": "PASS_MT009_MIXED_GREEN",
+      "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: durable PostgreSQL/Yjs authority refs, state vectors, mixed backend/native projection, bounded process-ledger drain, cancellation, and routing-policy gates pass; validator completion is pending.",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT009_MIXED_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-      "post_implementation_adversarial_review_status": "PASS_V2_2026-07-11_MULTI_LENS_NO_OPEN_BLOCKERS",
-      "adversarial_findings_status": "V2 PASS; delete-only Yjs remains intentionally fail-closed pending durable author attribution.",
+      "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_NO_FINDINGS",
+      "adversarial_findings_status": "PASS_V3_STRICT_PROVENANCE_AND_REAL_POSTGRES_DRAIN_PROVEN",
       "remediation_v2": {
         "status": "READY_FOR_VALIDATION_V2",
         "product_commit": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
         "v1_verdict_preserved": "FAIL_V1",
-        "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-11T03:30:47.040Z"
+        "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-18T03:23:44.516Z"
+      },
+      "remediation_v3": {
+        "status": "READY_FOR_VALIDATION_V3",
+        "kb_ready_checklist_receipt": "2026-07-20T01:13:33.373Z"
       }
     },
     {
@@ -251,37 +259,45 @@
     },
     {
       "mt_id": "MT-013",
-      "status": "FAIL_V1",
+      "status": "READY_FOR_VALIDATION_V3",
       "depends_on": [
         "MT-003"
       ],
-      "summary": "Embedded ModelRuntime real-load conformance: box the default embedded model-load path under a SandboxAdapter + emit ProcessOwnershipLedger START/STOP (master-spec 3.6.2/4.6.1), and emit Flight Recorder on DisabledLlmClient/fail-closed paths (4.2.3.2(3)); validated with a REAL Candle load. DEFERRED_FROM_MT-003 2026-07-01.",
-      "unlocks": "Closes the master-spec 3.6.2/4.6.1 HARD boxing/ledger gap on the default embedded local model path and the FR-on-error gap.",
+      "summary": "Embedded ModelRuntime real-load conformance: enforce artifact integrity and honest pid-less ProcessOwnershipLedger START/STOP for the no-child/no-guest in-process Candle/llama.cpp path; any actual spawned model process remains SandboxAdapter-owned. Emit Flight Recorder on DisabledLlmClient/fail-closed paths and validate with a REAL Candle load.",
+      "unlocks": "Closes the embedded local model lifecycle-ledger, orphan-reclaim, and FR-on-error gaps without falsely claiming SandboxAdapter boxing for an in-process library load that spawns no OS child or guest.",
       "blocks": [],
-      "proof_status": "PASS_MT013_2026-07-04_REAL_CANDLE_DEFAULT_LOAD_LEDGER_GREEN_LOSSLESS_OVERFLOW_FIX: subagent-discovered fail-open overflow blocker fixed with lossless embedded START/STOP enqueue path and retryable STOP failure. Fresh proofs passed after fix: embedded_model_ledger_tests 8/8, process_ledger_writer overflow preservation 1/1, llm_client_local_routing_tests 14/14, user_manual_behavior_coverage_tests 4/4, frontend cloud/settings Argus 5/5, operator-chat selection/transcript Argus exact 1/1. Required managed-resource proof command passed 1/1 with HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a local cached peft-internal-testing/tiny-random-LlamaForCausalLM snapshot and printed [MT-013_REAL_CANDLE_LEDGER_DUMP] with matching real START/STOP rows, os_pid=null, model_artifact_sha256=49c20f32c6c597480fcaec5df2f86c645eabea765cbea1e67886dbae45e5c992, and stop_reason=llm-client-shutdown. Logs are under ../Handshake_Artifacts/handshake-test/wp1-final-audit/. || HEAD_REPROOF_2026-07-09 (5a52a3e6 + 2e1204f0/01c1ad8b/750b9447/9ea46427), KERNEL_BUILDER, managed PostgreSQL: embedded_model_ledger_tests 8/8 PASS; process_ledger_writer_tests 14/14 PASS. NOT RE-RUN at HEAD: the #[ignore] + candle-runtime-engine REAL-Candle managed-resource proof (needs HANDSHAKE_TEST_CANDLE_MODEL_DIR); its prior evidence stands but is not HEAD-verified. OPEN false-green vector: default embedded load only ledgers when a ledger handle is threaded -> MT-017 AC-14 (corrected design; a naive guard would break 20 green tests).",
-      "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT013_REAL_CANDLE_LEDGER_FR_MANUAL_PROOFS_GREEN",
+      "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: reclaim controls and real Candle proof pass with nonce 5cfe2c2d-2056-4230-9483-64b9ff775cbd, SHA-bound provenance, durable STOP, lease release, and invalid-nonce fail-clean behavior; validator completion is pending.",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-      "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_REVIEW_OVERFLOW_BLOCKER_FIXED_AND_REPROVEN",
-      "adversarial_findings_status": "APPLIED_F1_STOP_GRACEFUL_SHUTDOWN_ORPHAN_RECONCILE_F2_EMBEDDING_FR_F3_AC5_2026-07-04_REAL_PROOF_FALSE_GREEN_REPLACED_LEDGER_START_FAIL_CLOSED_MULTI_EMBEDDING_HANDLE_LOSSLESS_OVERFLOW_FAIL_CLOSED"
+      "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_POST_FIX_REAUDIT_NO_FINDINGS",
+      "adversarial_findings_status": "PASS_V3_STALE_PROOF_PUBLICATION_FINDING_CLOSED",
+      "remediation_v3": {
+        "status": "READY_FOR_VALIDATION_V3",
+        "kb_ready_checklist_receipt": "2026-07-20T01:13:40.778Z"
+      }
     },
     {
       "mt_id": "MT-014",
-      "status": "BLOCKED",
+      "status": "READY_FOR_VALIDATION_V3",
       "depends_on": [
         "MT-003"
       ],
       "summary": "Shared/enumerable/labeled default-LlmClient model registry (UUIDv7->display_name) for MT-008 labeling, MT-012 picker, Work Profiles provider_ref resolution; + LoomSearchV2 embedding-model contract (degrade-not-error on 768-dim mismatch). DEFERRED_FROM_MT-003 2026-07-01.",
       "unlocks": "Unlocks local-model labeling in diagnostics, enumeration in the operator picker, Work Profiles resolution, and crash-free Loom reindex on embedding-dim mismatch.",
       "blocks": [],
-      "proof_status": "BLOCKED_V2_2026-07-11 product commit 28e2e5c8: exact catalog, real-PG Loom dimension-degrade, and Work Profile provider-ref tests passed, but SPEC_CURRENT v02.200 section 4.6.5 requires selected-adapter persistence in a model-registry row; current registry/catalog is in-memory only.",
-      "hbr_status": "PASS_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
+      "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: completion-role selection, durable POST atomicity, fresh real-PostgreSQL/native projection, and directly inspected Argus panel gates pass; validator completion is pending.",
+      "hbr_status": "PASS_HBR_INT_MAN_FOR_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
-      "post_implementation_adversarial_review_status": "FAIL_V2_2026-07-11_ACTIVE_SPEC_PERSISTENT_REGISTRY_BLOCKER",
-      "adversarial_findings_status": "V2 blocker: ModelRegistry remains HashMap-only and ModelCatalog explicitly documents in-memory-only registry durability.",
+      "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_ROLE_SELECTION_ATOMICITY_AND_VISUAL_GATES_GREEN",
+      "adversarial_findings_status": "PASS_V3_V2_SELECTION_AND_MUTATION_ORDER_DEFECTS_CLOSED",
       "remediation_v2": {
-        "status": "BLOCKED_V2",
+        "status": "READY_FOR_VALIDATION_V2",
         "product_commit": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
         "v1_verdict_preserved": "FAIL_V1"
+      },
+      "remediation_v3": {
+        "status": "READY_FOR_VALIDATION_V3",
+        "kb_ready_checklist_receipt": "2026-07-20T01:18:19.901Z"
       }
     },
     {
@@ -316,21 +332,33 @@
     },
     {
       "mt_id": "MT-017",
-      "status": "DEFERRED",
+      "status": "READY_FOR_VALIDATION_V3",
       "depends_on": [
+        "MT-003",
+        "MT-004",
         "MT-006",
+        "MT-007",
         "MT-008",
         "MT-009",
-        "MT-011"
+        "MT-010",
+        "MT-011",
+        "MT-012",
+        "MT-013",
+        "MT-014",
+        "MT-015"
       ],
-      "summary": "Deferred WP-1 hardening backlog from the KERNEL_BUILDER adversarial re-proof at HEAD: enforce-or-remove the unreachable ModelLaneCloudConsentScope::SingleRun (security boundary), CRDT snapshot-compaction + derived state_vector + real mid-stream cancellation proofs, backend<->frontend diagnostics projection contract pin, UserManual self-consistency/surface-existence truthfulness, routing-policy differentiation decision, post-checkpoint lease coverage, cross-platform BYOK leak proof, frontend zeroize. DEFERRED_BY_KERNEL_BUILDER 2026-07-09.",
+      "summary": "WP-1 hardening remediation from the KERNEL_BUILDER adversarial re-proof at HEAD: real ModelLaneCloudConsentScope::SingleRun security semantics, CRDT snapshot-compaction + derived state_vector + real mid-stream cancellation proofs, backend<->frontend diagnostics projection contract pin, UserManual self-consistency/surface-existence truthfulness, routing-policy differentiation, post-checkpoint lease coverage, cross-platform BYOK leak proof, and frontend zeroize.",
       "unlocks": "Closes the evidence-backed gaps that were deliberately not folded into their originating MTs because they need design decisions or touch a security boundary.",
       "blocks": [],
-      "proof_status": "NOT_STARTED",
-      "hbr_status": "NOT_STARTED",
+      "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: all four failed V2 dependencies are remediated; fresh diagnostics and UserManual producer/native chains, real PostgreSQL CRDT/cancellation/routing, and inspected UI proof pass; validator completion is pending.",
+      "hbr_status": "PASS_HBR_INT_SWARM_MAN_VIS_FOR_MT017_REMEDIATION_SCOPE",
       "pre_implementation_adversarial_review_status": "CARRIED_FROM_KERNEL_BUILDER_REPROOF_2026-07-09",
-      "post_implementation_adversarial_review_status": "NOT_STARTED",
-      "adversarial_findings_status": "FINDINGS_CAPTURED_FROM_WP1_HEAD_REPROOF"
+      "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_FINAL_DEPENDENCY_AND_RUNTIME_AUDIT_GREEN",
+      "adversarial_findings_status": "PASS_V3_ALL_V2_DEPENDENCY_BLOCKERS_CLOSED",
+      "remediation_v3": {
+        "status": "READY_FOR_VALIDATION_V3",
+        "kb_ready_checklist_receipt": "2026-07-20T01:18:29.891Z"
+      }
     }
   ]
 }

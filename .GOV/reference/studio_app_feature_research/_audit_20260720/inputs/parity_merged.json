@@ -1,0 +1,654 @@
+[
+  {
+    "app": "Adobe Photoshop (incl. Camera Raw)",
+    "surviving_gaps": [
+      {
+        "title": "Camera Raw Point Color precision color editing absent",
+        "domain": "Camera Raw development / color grading",
+        "severity": "MAJOR",
+        "description": "ACR 16.0+ Point Color (Edit > Color Mixer > Point Color: sample up to 8 color swatches, per-swatch Hue/Sat/Luminance with range control, also available inside masks) is a non-AI flagship color-grading surface. Corpus has only the group-level row photoshop.deep.camera-raw.edit-panel-color-mixer; grep for 'Point Color' returns zero Photoshop hits anywhere in the corpus.",
+        "external_evidence": "https://helpx.adobe.com/camera-raw/using/make-color-tonal-adjustments-camera.html (Point Color section) and ACR Oct 2023 feature summary https://helpx.adobe.com/camera-raw/using/whats-new/2024.html",
+        "search_hints": "Point Color, point-color, color-mixer, make-color-tonal-adjustments",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Grep 'Point Color|point-color' (case-insensitive) across .GOV/reference/studio_app_feature_research/ incl. _source_snapshots/ returned only an unrelated Illustrator gradient-mesh line (52-illustrator-deep-feature-delta.md:161). Group-level row exists: 51-photoshop-deep-feature-delta.md:4079-4087 'photoshop.deep.camera-raw.edit-panel-color-mixer' (HSL per-hue only, sourced from introduction-camera-raw.html); its app_behavior does not mention Point Color. Also zero hits in .GOV/spec/master-spec-v02.201/spec-modules/14-studio-creative-suite.md."
+      },
+      {
+        "title": "HDR editing/output pipeline (ACR HDR mode, gain maps, HDR display) absent",
+        "domain": "Camera Raw + color management / export fidelity",
+        "severity": "MAJOR",
+        "description": "ACR 16+ HDR Output toggle, HDR histogram/preview, gain-map embedding (SDR+HDR in one file), HDR save to AVIF/JPEG XL/JPEG-with-gain-map, and Photoshop's 'Precise color management for HDR display' Technology Preview are entirely missing: corpus-wide greps for 'gain map', 'HDR output', 'HLG' return zero Photoshop/ACR hits. Only legacy 32-bit Merge to HDR Pro / HDR Toning are covered.",
+        "external_evidence": "https://helpx.adobe.com/camera-raw/using/hdr-output.html and https://helpx.adobe.com/camera-raw/using/gain-map.html",
+        "search_hints": "gain map, hdr-output, HDR Output, precise color management, AVIF",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Greps 'gain map|gain-map|HDR Output|hdr-output|HLG' and 'precise color' across the whole corpus returned zero relevant hits. Only legacy 32-bit HDR is row-covered: 51-photoshop-deep-feature-delta.md:3205 (Image > Adjustments > HDR Toning), :3910 (File > Automate > Merge to HDR Pro), :3919 (32-bit HDR editing workflow). Spec module 14 covers only 32-bit float precision ([STU-COL-003] line 1420); no gain-map/HDR-output/HDR-display rows anywhere."
+      },
+      {
+        "title": "Native AVIF and JPEG XL format support missing from format registries",
+        "domain": "File formats / export",
+        "severity": "MAJOR",
+        "description": "Photoshop gained native AVIF + JPEG XL open/save (v26.8 2025, previously via Camera Raw), used for wide-gamut/HDR web delivery. The 66-entry supported-format matrix (51 row import-export-dialogs.supported-format-matrix), 46-file-format-compatibility-registry, and 50-fixture-plan contain zero Photoshop AVIF/JXL entries (only Illustrator AVIF import and Affinity JPEG XL rows exist).",
+        "external_evidence": "https://helpx.adobe.com/photoshop/desktop/save-and-export/export-files-to-different-formats/supported-file-formats-in-photoshop.html; https://gregbenzphotography.com/photoshop/photoshop-now-natively-supports-avif-for-50-smaller-files-than-jpg/; https://www.dpreview.com/forums/threads/avif-and-jpeg-xl-support-added-to-photoshop-june-update.4807521/",
+        "search_hints": "AVIF, JPEG XL, jxl, supported-format-matrix",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Grep 'AVIF|JPEG XL|jxl' corpus-wide: only affinity JPEG XL row (02-affinity-suite-feature-map.md:46), Illustrator AVIF open row (52-illustrator-deep-feature-delta.md:3273), and Illustrator snapshot lines. Photoshop supported-format-matrix row 51-photoshop-deep-feature-delta.md:5513-5516 lists TIFF/PNG/JPEG/GIF/BMP/HEIC/WebP/EXR/HDR/etc. with no AVIF or JPEG XL; zero AVIF/JXL Photoshop hits in 46-file-format-compatibility-registry.md or 50-proprietary-format-fixture-plan.md; zero hits in spec module 14."
+      },
+      {
+        "title": "Print dialog and print color-management surface only one row deep",
+        "domain": "Prepress / professional print output",
+        "severity": "MAJOR",
+        "description": "The entire Photoshop print pipeline is carried by a single row (photoshop.deep.import-export-dialogs.print-dialog) naming option groups. No per-option rows for Photoshop-manages vs printer-manages color, rendering intent choice + Black Point Compensation, hard-proof setup ('Proof' print mode simulating paper color/black ink), printer profile selection, 16-bit printing, printing marks (calibration bars, registration marks, labels), bleed/border/background, position/scaled print size, or Print Selected Area. Corpus's own concern list flags this; confirmed by grep ('rendering intent' appears only inside two channels-and-color rows).",
+        "external_evidence": "https://helpx.adobe.com/photoshop/using/printing-photoshop.html plus sibling leaves (Print with color management, Print part of an image, Print spot colors) under helpx.adobe.com/photoshop/using/",
+        "search_hints": "print-dialog, rendering intent, printer profile, printing marks, hard proof",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Single group row confirmed: 51-photoshop-deep-feature-delta.md:5503-5509 'photoshop.deep.import-export-dialogs.print-dialog' (names option groups only). Grep 'rendering intent|printer profile|printing marks|hard proof|black point compensation': PS hits only in convert-to-profile (51:3939) and soft-proof (51:3961) rows — no per-option print rows (BPC, 16-bit printing, Print Selected Area, calibration bars). Note: spec module 14 does carry normative print/color depth the claim misses — [STU-COL-023] line 1502 (four rendering intents + BPC toggle), line 1083 (print color management: printer profile + rendering intent), line 2762 (print output groups incl. soft-proof, marks, bleed), line 1087 (print presets, print-as-bitmap)."
+      },
+      {
+        "title": "Default keyboard-shortcut inventory never captured (source page is a stub)",
+        "domain": "Workspace / UX capabilities, migration ergonomics",
+        "severity": "MAJOR",
+        "description": "The Keyboard Shortcuts and Menus dialog is covered (51 row panels-and-workspace.keyboard-shortcuts-editor), but the full default-shortcut inventory (hundreds of tool/menu/panel/modifier bindings) was never captured: PSDD-S49 snapshot is recorded as a stub, 29-ledger lists only 3 visible shortcut categories, camera_raw_shortcut_rows=164 is an agent ESTIMATE, and the planned installed-app exports (Edit > Keyboard Shortcuts Summarize, Edit > Menus, Edit > Toolbar) were never executed. A PS-compatible keymap is a switching-cost lever for pro users.",
+        "external_evidence": "https://helpx.adobe.com/photoshop/using/default-keyboard-shortcuts.html (full default shortcut tables by platform)",
+        "search_hints": "default-keyboard-shortcuts, PSDD-S49, Summarize, shortcut",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Verified: 51-photoshop-deep-feature-delta.md:6115-6117 PSDD-S49 note says the default-keyboard-shortcuts page is 'now a stub'; dialog-only row at 51:4826-4834 (keyboard-shortcuts-editor); 29-photoshop-expanded-count-ledger.md:22 keyboard_shortcut_categories_visible_publicly: 3, :32 camera_raw_shortcut_rows_agent_estimate: 164; planned installed export 29:52-57 and 32-adobe-installed-ui-export-playbook.md:53 (status: draft, line 5) — _installed_export_scripts/photoshop-export-inventory.jsx exists but no export output files exist in the corpus. No shortcut-binding inventory rows anywhere."
+      },
+      {
+        "title": "Camera Raw help TOC never leaf-indexed; batch/sync and merge workflows summarized away",
+        "domain": "Camera Raw workflows",
+        "severity": "MAJOR",
+        "description": "Photoshop desktop got a 441-leaf TOC pass; Camera Raw got only a 50-row control-group pass sourced almost entirely from one intro page (PSDD-S24). The separate camera-raw/using help TOC (dozens of leaves) is unindexed, so per-leaf coverage of filmstrip multi-select Sync Settings / copy-paste edit settings, Merge to HDR / Merge to Panorama (incl. HDR pano) from the filmstrip, raw defaults per camera, full ACR preferences (file handling, raw defaults, performance), and per-slider documentation is absent. Grep: no ACR 'sync', 'merge to', or 'panorama' rows exist.",
+        "external_evidence": "https://helpx.adobe.com/support/camera-raw.html (Camera Raw User Guide TOC); merge/sync documented under camera-raw/using pages",
+        "search_hints": "camera-raw, sync settings, merge, filmstrip, raw defaults",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Partly refuted: raw defaults per camera/serial/ISO IS row-covered (51-photoshop-deep-feature-delta.md:4034-4042 camera-iso-defaults), ACR preferences partially (51:4430 acr-preferences-tech-previews, 51:4439 cache-management), filmstrip row exists (51:4385-4391, sort/filter only). Confirmed gaps: grep 'sync settings|merge|panorama|filmstrip' in the camera-raw block — no ACR Sync Settings/copy-paste-settings row, no ACR Merge to HDR/Panorama rows (Photoshop-side Photomerge 51:5270 and Merge to HDR Pro 51:3909 are host-app features); all ~50 ACR rows source from introduction-camera-raw.html/enhance.html (PSDD-S24/S26); no camera-raw/using leaf index exists (06-photoshop-leaf-index.md has no camera-raw leaves)."
+      },
+      {
+        "title": "ACR 2025-2026 non-AI release features beyond the two captured in feature map",
+        "domain": "Camera Raw development",
+        "severity": "MAJOR",
+        "description": "Vendor what's-new (fetched 2026-07-20) lists non-AI additions with zero corpus presence: Anamorphic Desqueeze (18.3), Projection Correction for wide-angle distortion (18.3), Autofocus Points visualization for Canon/Nikon/Sony raws (18.4.1), Color Variance/Variance slider (2025), per-mask Color Grading three-way wheels (18.3.1), mask Feather & Edge sliders (18.3.1), extended Temperature range to 1500K, film-inspired preset packs, ACR WebP import (18.2). Only Vectorscope and Bidirectional gradient mask made it into 01-feature-map; none are in the 51 deep delta.",
+        "external_evidence": "https://helpx.adobe.com/camera-raw/using/whats-new.html",
+        "search_hints": "anamorphic, projection, autofocus, variance, desqueeze",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Grep 'anamorphic|desqueeze|autofocus|variance|projection correction|1500' corpus-wide: zero Photoshop/ACR hits. Captured items confirmed as claimed: 01-photoshop-feature-map.md:107 (Vectorscope), :108 (Bidirectional gradient mask; also 51:4271 mask-linear-gradient mentions bidirectional). Mask Feather sliders appear generically in mask rows (51:4262, 51:4280) but no rows for Anamorphic Desqueeze, Projection Correction, Autofocus Points, Color Variance, per-mask Color Grading wheels, extended 1500K temperature, or ACR WebP import. whats-new.html is a registered source (01:164 PS-S12) but was not re-distilled into the 51 deep delta."
+      },
+      {
+        "title": "UXP plugin/scripting API surface enumerated only at 6-row summary depth",
+        "domain": "Automation / plugin & scripting APIs",
+        "severity": "MAJOR",
+        "description": "Corpus automation section has app/document/layer/actions DOM rows plus one batchPlay row; the vendor UXP reference spans far more (imaging API, text/layer effects objects, UI/panel entrypoints + manifest v5, events/notifications, file system, CORE APIs, execution contexts). Corpus itself records only '18 class pages minimum' with 7 links in the local snapshot, PSDD-S32 notes scripting sub-pages 'not individually inspected', and the batchPlay action catalog export was never run. For a studio replacing Photoshop automation, the semantic surface of these APIs is the parity contract.",
+        "external_evidence": "https://developer.adobe.com/photoshop/uxp/2022/ps_reference/ (full class-by-class UXP DOM reference)",
+        "search_hints": "uxp-dom, batchplay, ps_reference, PSDD-S32, manifest",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Verified 6-row depth: 51-photoshop-deep-feature-delta.md:5299 (uxp-scripting-runtime), :5308 (uxp-dom-app), :5317 (uxp-dom-document), :5326 (uxp-dom-layer), :5335 (uxp-dom-actions), :5344 (uxp-batchplay), plus marketplace row :5083. Source note 51:6066 (PSDD-S31) admits 'some subordinate pages not individually inspected'; no imaging API/text-object/UI-panel/manifest-v5/events/file-system rows. UNVERIFIED detail from the claim: the quoted phrase '18 class pages minimum' was not found anywhere in the corpus (grep '18 class|class pages' hits only the InDesign note 53:4428). No batchPlay catalog export output exists (playbook 32 is status draft)."
+      },
+      {
+        "title": "ExtendScript JavaScript object-model reference not enumerated",
+        "domain": "Automation / legacy scripting",
+        "severity": "MINOR",
+        "description": "Legacy scripting is one row (automation-and-scripting.extendscript-legacy). The Photoshop JavaScript Reference (~100+ classes: ArtLayer, PathItem, ExportOptions*, OpenOptions*, etc.) plus AppleScript/VBScript dictionaries are the compatibility surface for decades of studio .jsx automation; none of it is class-enumerated in the corpus.",
+        "external_evidence": "https://helpx.adobe.com/photoshop/using/scripting.html linking Adobe Photoshop Scripting documentation (JavaScript/AppleScript/VBScript references)",
+        "search_hints": "extendscript-legacy, JavaScript Reference, jsx, ArtLayer",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "One surface row exists: 51-photoshop-deep-feature-delta.md:5290-5293 'photoshop.deep.automation-and-scripting.extendscript-legacy' plus 01-photoshop-feature-map.md:115 (legacy scripting). Grep 'ArtLayer|JavaScript Reference' returns zero corpus feature rows (Photoshop hits only in _source_snapshots/photoshop-scripting-jina.md:780,786 raw text); no class-level enumeration for Photoshop, in contrast to InDesign whose scripting DOM class pages were fetched and verified (53-indesign-deep-feature-delta.md:4428)."
+      },
+      {
+        "title": "Export Color Lookup Tables (3D LUT authoring) absent",
+        "domain": "Color management / grading interchange",
+        "severity": "MINOR",
+        "description": "File > Export > Color Lookup Tables exports the document's adjustment stack as 3DL/CUBE/CSP/ICC device-link LUTs for reuse in video/other apps. The leaf exists in the corpus's own legacy-TOC snapshots (photoshop-scripting-jina.md line 213) but no row/leaf/card carries it; only the Color Lookup adjustment (applying LUTs) is covered.",
+        "external_evidence": "https://helpx.adobe.com/photoshop/using/export-color-lookup-tables.html",
+        "search_hints": "color lookup, export-color-lookup, 3DL, CUBE",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Photoshop-side confirmed absent: only the applying-LUTs row exists (51-photoshop-deep-feature-delta.md:3105-3107 Color Lookup adjustment); the Photoshop leaf appears only in raw snapshots (_source_snapshots/photoshop-scripting-jina.md:213,599 and photoshop-customizing-keyboard-shortcuts-jina.md:213,599). However the capability IS carried by real Affinity feature rows: affinity_photo.desktop.leaf.adjustments-export_3dlut (09-affinity-desktop-delta.md:1471-1476, distilled row + use card 42-affinity-source-distilled-feature-rows.md:247-280, source 54-affinity-deep-feature-delta.md:3176), which the cross-app dedupe model can map to the same Studio primitive. Spec module 14 line 298 covers only applying LUTs, not exporting."
+      },
+      {
+        "title": "Check Spelling and Find/Replace Text absent from type coverage",
+        "domain": "Typography / text engine",
+        "severity": "MINOR",
+        "description": "Edit > Check Spelling (multi-language dictionaries per-layer) and Edit > Find and Replace Text exist in Photoshop; corpus greps for 'spelling' and 'find and replace' return zero Photoshop rows across 06/51 despite 31 type-engine rows.",
+        "external_evidence": "https://helpx.adobe.com/photoshop/using/editing-text.html (Check spelling, Find and replace text sections)",
+        "search_hints": "spelling, find and replace, editing-text",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Photoshop-side confirmed: grep 'spell|find and replace|find-and-replace|editing-text' in 06-photoshop-leaf-index.md and 51-photoshop-deep-feature-delta.md returns zero matches. But the deduped capability is present via other apps and the normative spec: indesign.spell_hyphenation (03-indesign-feature-map.md:41), find-and-replace leaves (07-indesign-leaf-index.md:41, 04-affinity-leaf-index.md:4256-4273), and spec module 14 [STU-TYP-031] line 1383 (Hunspell-class inline spell-check, per-language dictionaries) plus the Find/Change modes table lines 2922-2926 (Text/GREP/Glyph). Photoshop attribution/menu-surface (Edit > Check Spelling, Edit > Find and Replace Text) is unrecorded."
+      },
+      {
+        "title": "Gradient interpolation modes (Perceptual/Linear/Classic) not row-covered",
+        "domain": "Painting / fills",
+        "severity": "MINOR",
+        "description": "Gradient color-interpolation methods (Perceptual, Linear, Classic; plus smoothness) affect visual fidelity of PSD round-trips. The leaf exists in the legacy-TOC snapshot (gradient-interpolation.html) but greps show no Photoshop row; the 51 painting rows cover only the five gradient geometry types. (Illustrator's equivalent IS covered, so cross-app dedupe may mask the Photoshop-side omission.)",
+        "external_evidence": "https://helpx.adobe.com/photoshop/using/gradient-interpolation.html",
+        "search_hints": "gradient-interpolation, perceptual, interpolation",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Photoshop-side confirmed: grep 'gradient-interpolation' hits only raw snapshots (_source_snapshots/photoshop-scripting-jina.md:272,658; photoshop-customizing-keyboard-shortcuts-jina.md:272,658); no Photoshop row. Capability covered cross-app: Illustrator 'Control perceptual interpolation in gradients' leaf + distilled row + use card (22-illustrator-leaf-index.md:2828, 41-illustrator-source-distilled-feature-rows.md:7974, 24-illustrator-feature-use-cards.md:15516, 26-illustrator-figma-provider-posture-map.md:716), and normatively in spec module 14 [STU-COL-011] line 1473 and line 560 (per-gradient perceptual-vs-linear interpolation + dither). The 'Classic' mode name and Photoshop attribution are unrecorded."
+      },
+      {
+        "title": "Legacy CEP/ZXP extension hosting surface unrecorded",
+        "domain": "Plugin ecosystem",
+        "severity": "MINOR",
+        "description": "Corpus covers UXP marketplace and Generator but has zero hits for 'CEP' or 'ZXP'. A large installed base of third-party retouching/export panels still ships as CEP extensions loaded via ExMan. UNVERIFIED: current Photoshop 27.x CEP support status was not confirmed during this audit; verify before treating as a live parity target.",
+        "external_evidence": "https://github.com/Adobe-CEP/CEP-Resources (Adobe CEP extension platform resources)",
+        "search_hints": "CEP, ZXP, extension manager, plugin",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Photoshop-scoped: no Photoshop CEP row exists; grep 'ZXP|extension manager|ExMan' returns zero hits corpus-wide. Correction to the claim's evidence: 'CEP' is NOT zero corpus-wide — InDesign has a real row (53-indesign-deep-feature-delta.md:3804-3810 'C++ SDK and legacy CEP plugins') and Illustrator covers CEP posture (52-illustrator-deep-feature-delta.md:3738, note 52:4614), but neither records Photoshop's CEP/ZXP hosting status. Claim's own UNVERIFIED flag on current Photoshop 27.x CEP support stands — not verified in this audit either."
+      },
+      {
+        "title": "Video timeline sub-features (audio tracks, transitions, clip speed, video groups) unenumerated",
+        "domain": "Video / timeline animation",
+        "severity": "MINOR",
+        "description": "Timeline panel row covers keyframes/tweening only. Photoshop's video timeline also has audio tracks + per-clip audio, drag-and-drop transitions, clip speed/duration, video groups, and interpret-footage; greps for audio/transition/video group return nothing. Master Spec [STU-OVR-015] already scopes clip-editing out, so this is a scope-boundary documentation gap rather than an oversight — but the excluded sub-feature list itself is nowhere recorded.",
+        "external_evidence": "https://helpx.adobe.com/photoshop/using/video-frame-animation-overview.html",
+        "search_hints": "audio, transition, video group, interpret footage, timeline",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Corpus: Timeline panel row 51-photoshop-deep-feature-delta.md:5015-5022 (keyframes/tweening/frame delays/looping only) and render-video row 51:5475; the 14 add-video-and-animation leaves in 06-photoshop-leaf-index.md (lines 22-147) cover frame animation + keyframes only — grep 'audio|transition|video group|interpret footage' finds no timeline sub-feature rows. Scope edge IS explicitly recorded in authority: spec module 14 [STU-OVR-015] line 48 declares footage clip-timeline editing out of Studio scope (owned by engine.director, Spec 11.8) 'as an explicit, intentional scope edge, not an omission'. The itemized excluded sub-feature list (audio tracks, transitions, clip speed, video groups, interpret footage) is nowhere enumerated, as claimed."
+      },
+      {
+        "title": "GPU feature matrix and degradation behavior not researched",
+        "domain": "Performance-class features",
+        "severity": "MINOR",
+        "description": "Corpus covers Preferences: Performance at dialog level only. Adobe documents a per-feature GPU dependency list (which tools require GPU, three GPU modes, fallback behavior when GPU is disabled/unsupported) that defines Photoshop's performance envelope for large-doc pro work; no corpus row captures it (already self-flagged as a corpus concern, still unresolved).",
+        "external_evidence": "https://helpx.adobe.com/photoshop/kb/photoshop-cc-gpu-card-faq.html",
+        "search_hints": "GPU, graphics processor, performance, technology previews",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Refutes 'no corpus row captures it': 06-photoshop-leaf-index.md has leaf rows 'Graphics processor (GPU) card usage' (:2561), 'Resolve graphics processor (GPU) and graphics driver issues' (:3902), 'Check GPU compatibility' (:3938); 51:5850 covers Performance prefs GPU toggle; several 51 rows mark per-feature GPU requirements (:2507, :2518, :2529, :2630, :2777). Spec module 14 normatively defines GPU dependency declaration + graceful degradation ([STU-FX-017]/[STU-FX-018] lines 1705-1707, EFFECT_GPU_UNAVAILABLE). Still true: no distilled row of Adobe's per-feature GPU dependency list / three GPU modes / fallback matrix (the KB FAQ URL appears nowhere), and the leaf rows are unexpanded parity-analysis stubs."
+      },
+      {
+        "title": "Pantone color-book licensing shift (Pantone Connect) unrecorded",
+        "domain": "Prepress / spot color",
+        "severity": "MINOR",
+        "description": "Photoshop removed most bundled Pantone libraries (2022); Pantone spot books now require the Pantone Connect plugin, and unlicensed PANTONE spot data in PSDs renders black. Corpus color-picker row mentions 'spot color libraries' generically with no rows on which books ship, the Connect dependency, or the legacy-file behavior — relevant to spot-plate parity claims.",
+        "external_evidence": "https://helpx.adobe.com/photoshop/kb/pantone-color-books-photoshop.html",
+        "search_hints": "PANTONE, color book, Pantone Connect, spot",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Largely refuted: Illustrator deep row 52-illustrator-deep-feature-delta.md:2829-2832 'swatch-libraries-pantone' explicitly records that current Pantone books require Adobe/Pantone licensing via Pantone Connect (verified source note 52:4610-4611, checked 2026-07-09), and spec module 14 [STU-COL-021] line 1553 normatively records the posture including 'current Photoshop no longer bundles Pantone books and routes them through a licensed plug-in' plus the adapter-based degradation rule. Photoshop-side corpus rows remain generic (01-photoshop-feature-map.md:65 spot libraries; 06-photoshop-leaf-index.md:203 'Spot color libraries' stub leaf); the legacy-PSD 'unlicensed spot data renders black' behavior and the shipped-book inventory are recorded nowhere."
+      }
+    ],
+    "refuted_count": 0,
+    "concerns": [
+      "AI-excluded items confirmed as intentional non-gaps during this audit: Rotate Object (27.6, consumes generative credits per CG Channel), Remove Reflections, Harmonize, Generative Upscale/Fill (Firefly Image 5 / Gemini 3.1 Nano Banana 2), ACR Dust Removal / Remove Extra People / Reflection Removal / enhanced subject detection, Sky Replacement / Select Subject-Sky ML backends.",
+      "Direct helpx.adobe.com fetches still time out (reproduced in this audit); Photoshop's own whats-new page was unfetchable even via Jina proxy (HTTP 422), so the 2026 Photoshop-desktop release sweep relied on the corpus's Jun-18-2026 whats-new capture plus secondary sources (CG Channel, PetaPixel). A vendor-watch/re-crawl mechanism is still missing and Photoshop ships monthly.",
+      "The corpus is materially deeper than its own summary suggests — spot checks eliminated many candidate gaps (Contact Sheet II/PDF Presentation/Fit Image, Save As vs Save a Copy, preset migration, File Info/XMP dialog, Notes panel, Package linked assets, Zoomify-retired, Dynamic Text leaf, adjustment presets, UTE Arabic/Hebrew, WIA-retired). Future gap audits must grep 51-photoshop-deep-feature-delta.md before trusting the domain-summary layer.",
+      "Structural: every gap found here that lands in 51 (deep delta) will remain invisible to the downstream card/row/coverage-matrix pipeline (15/39/49), which only consumes the 441-leaf index; the pipeline split is the single biggest silent-undercount mechanism in the corpus.",
+      "Camera Raw's 50-row section cites one intro page (PSDD-S24) for ~40 rows; its verification strength is materially weaker than the Photoshop-desktop rows even where marked VERIFIED.",
+      "Photoshop on iPad/web remains out of frame by the 00-preamble scope decision; no delta file exists (unlike Affinity's 09). If Handshake targets tablet/web parity later, a separate pass is required.",
+      "Non-AI 27.6 additions (Actions panel redesign, Dynamic Text circular reflow, editable Gradient fills, auto-remove empty layers) appear covered only via the Jun-2026 TOC/whats-new capture at leaf/feature-map level, not in the deep delta; they were not counted as gaps but their option depth is unresearched."
+    ]
+  },
+  {
+    "app": "Adobe Illustrator",
+    "surviving_gaps": [
+      {
+        "title": "East Asian (CJK) composition features missing from deep coverage; Composite Fonts absent entirely",
+        "domain": "Typography and composition engine",
+        "severity": "MAJOR",
+        "description": "Illustrator's East Asian typography surface (enabled via Preferences > Type > Show East Asian Options) includes Composite Fonts (mixing Japanese+Roman fonts as one font), Kinsoku Shori line-breaking sets, Mojikumi spacing sets, Tate-chu-yoko, Warichu, Burasagari, Kurikaeshi Moji Shori, vertical type orientation (Type > Type Orientation), and per-character Aki. The corpus has only 2-3 generic leaf rows (about-adobe-asian-composers, format-japanese-text-mojikumi-kinsoku in 22-illustrator-leaf-index.md lines 3939-3985) and ZERO rows in the 448-row deep delta (52-illustrator-deep-feature-delta.md — grep for kinsoku/mojikumi/warichu/tate-chu/composite font returns no Illustrator matches; those terms match only InDesign files 07/40/53). Composite Fonts is not recorded anywhere on the Illustrator side, at any level. CJK-market studios cannot switch without these; InDesign-side coverage exists but the corpus does not record that Illustrator shares (a subset of) this surface.",
+        "external_evidence": "https://helpx.adobe.com/illustrator/using/formatting-asian-characters.html (Format East Asian characters in Illustrator: composite fonts, kinsoku, mojikumi, tate-chu-yoko, warichu, burasagari); confirmed via 2026-07 web search that composite fonts must be based on Japanese fonts and appear at top of font list.",
+        "search_hints": "kinsoku; mojikumi; composite font; tate-chu-yoko; warichu",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Real leaf rows exist Illustrator-side: 22-illustrator-leaf-index.md lines 3939-3949 (about-adobe-asian-composers), 3961-3993 (three mojikumi/kinsoku rows: format-japanese-text-mojikumi-kinsoku, mojikumi-and-kinsoku-settings, mojikumi-kinsoku-overview) with registry echoes in 46-file-format-compatibility-registry.md lines 6821-6856; vertical type IS covered (52-illustrator-deep-feature-delta.md lines 226-256 Vertical Type/Area/Path tools; 22 line 5558; 36-illustrator-source-distilled-domain-ledger.md line 80); spec 14-studio-creative-suite.md lines 1192-1201 mandates kinsoku/mojikumi via the cjk composer (STU-TYP-009/010). CONFIRMED absent: grep kinsoku|mojikumi|warichu|tate-chu|burasagari|composite font in 52-illustrator-deep-feature-delta.md returns zero rows (448-row deep delta has no CJK option rows); tate-chu-yoko/warichu rows exist only InDesign-side (07-indesign-leaf-index.md lines 3546-3688, 40-indesign-source-distilled-feature-rows.md); 'composite font' matches ONLY raw snapshot _source_snapshots/indesign-uxp-dom-api-jina.md lines 620-623 (InDesign UXP class links, unprocessed) — no feature row for Composite Fonts on any app side, and no tate-chu-yoko/warichu/composite-font mention in spec module 14 (grep empty)."
+      },
+      {
+        "title": "Print dialog per-pane option-level enumeration (Output/Graphics/Advanced/Color Management), incl. In-RIP separations and PPD-driven options",
+        "domain": "Prepress and print output",
+        "severity": "MAJOR",
+        "description": "52-illustrator-deep-feature-delta.md line 1047 records the Print dialog's seven panes as ONE summary row; separations row (3500) covers host-based plates but does not record the Output pane's Composite vs Separations (Host-Based) vs In-RIP Separations mode choice, emulsion/image (up-down, positive-negative), per-ink screening frequency/angle, or convert-all-spots-to-process; Graphics pane (paths flatness slider, fonts download, PostScript level, data format), Advanced pane (print-as-bitmap, overprint preserve/discard/simulate), and Color Management pane (Illustrator-vs-PostScript-printer determines colors, printer profile, rendering intent) are not itemized. PPD selection and printer-resident behaviors appear only via the scripting PrintOptions row (3689). Corpus concern already notes pane-level summarization; this confirms it against live vendor pages and names the specific missing options. Audit-weighted domain (prepress).",
+        "external_evidence": "https://helpx.adobe.com/illustrator/using/printing-color-management.html (Color Management pane: Color Handling 'Let PostScript Printer Determine Colors', rendering intent); https://helpx.adobe.com/illustrator/using/postscript-printing.html (PPD file: resident fonts, media sizes, optimized screen frequencies/angles, resolution); https://helpx.adobe.com/illustrator/using/printing-color-separations.html",
+        "search_hints": "In-RIP; emulsion; rendering intent; flatness; PPD",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Corpus Illustrator-side has only summary rows: 52-illustrator-deep-feature-delta.md lines 1044-1052 (file-print: seven panes as one row), 3497-3505 (print-color-separations, host-based only), 3506-3514 (printer-marks-bleeds), 3689 (scripting PrintOptions mentioning PPD). Grep 'In-RIP|emulsion|flatness' across the whole corpus matches ONLY InDesign rows (53-indesign-deep-feature-delta.md lines 2883, 3398) — zero Illustrator matches; 'flatness' has zero matches anywhere. However spec 14-studio-creative-suite.md lines 1074-1087 (STU-LAY-059) itemizes the Studio print pipeline pane-by-pane including Composite vs separations vs in-RIP separations, flip/negative (emulsion), per-ink screening frequency/angle, PostScript level, font-download policy, printer profile + rendering intent, flattener preset, and print-as-bitmap (line 1087) — InDesign provenance, so the Studio-level surface is largely specified but the Illustrator-side corpus provenance (incl. Illustrator-specific flatness slider and overprint preserve/discard/simulate Advanced options) is not itemized."
+      },
+      {
+        "title": "White Overprint / Discard White Overprint option unrecorded",
+        "domain": "Prepress and print output",
+        "severity": "MINOR",
+        "description": "Illustrator ships a 'Discard White Overprint' option, on by default in BOTH Document Setup and the Print dialog, that strips overprint attributes from white objects (a classic disappearing-white-on-press production failure guard). Zero corpus matches for 'white overprint' in any Illustrator file (grep verified across 52 and the studio_app_feature_research dir). Small surface but it is a data-integrity/press-correctness behavior a parity rebuild must replicate in its overprint pipeline.",
+        "external_evidence": "https://helpx.adobe.com/illustrator/using/white-overprint.html (dedicated vendor page: option in Document Setup and Print dialogs, default on)",
+        "search_hints": "white overprint; Discard White Overprint; overprint white",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "No feature row anywhere: grep 'white overprint|white-overprint|Discard White' across the corpus matches ONLY unprocessed raw snapshot nav-link lists (_source_snapshots/illustrator-tools-jina.md lines 323/676, illustrator-toolbar-jina.md 323/676, illustrator-default-keyboard-shortcuts-jina.md 504/857, illustrator-supported-file-formats[-extra]-jina.md — all bare links to helpx white-overprint.html). Per audit rule this is raw-snapshot-only = PARTIALLY_COVERED. General overprint IS covered (52-illustrator-deep-feature-delta.md line 2992 overprint-attributes, line 1113 Overprint Black, line 1732 Overprint Preview; spec 14 line 1508 STU-COL-026 per-object overprint + black-overprint policy) but the Discard White Overprint behavior is not recorded in any feature row or spec clause (grep 'white' in spec overprint clauses empty)."
+      },
+      {
+        "title": "Scripting DOM member-level itemization and app.executeMenuCommand menu-ID catalog",
+        "domain": "Automation and scripting",
+        "severity": "MAJOR",
+        "description": "Corpus itemizes 138 DOM classes but the 1449 properties / 379 methods exist only as counts (31-illustrator-expanded-count-ledger), so studio-migration script compatibility cannot be audited row-by-row — already flagged as a corpus concern, sharpened here: real-world Illustrator automation additionally leans heavily on app.executeMenuCommand(<menuCommandString>) whose several-hundred-entry menu-ID catalog (documented in the scripting reference and community-maintained lists) is not captured anywhere in the corpus; without it, a large class of field scripts cannot be mapped to Studio commands. This is the single biggest un-itemized automation surface.",
+        "external_evidence": "https://ai-scripting.docsforadobe.dev/ (Illustrator Scripting DOM reference with full property/method tables per class, incl. Application.executeMenuCommand)",
+        "search_hints": "executeMenuCommand; 1449; 379 methods; menuCommandString",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Grep 'executeMenuCommand|menuCommandString' across .GOV/reference/studio_app_feature_research/ (incl. _source_snapshots/) and .GOV/spec/master-spec-v02.201/spec-modules/14-studio-creative-suite.md: zero matches. Properties/methods exist only as counts: 31-illustrator-expanded-count-ledger.md lines 42-45 (public_scripting_object_classes_agent_count: 138, option classes 33, properties 1449, methods 379) — no member-level rows; 52-illustrator-deep-feature-delta.md line 3521 coverage_basis confirms only class-inventory verification. The only menu-command-ID artifact in the corpus is Photoshop-side: 45-source-distilled-tool-registry.md line 6295 (tool.photoshop.psd-domain-automation-extensibility.menu-command-ids.v1) and 34-photoshop-source-distilled-domain-ledger.md line 192; nothing Illustrator-side."
+      },
+      {
+        "title": "Illustrator-native accessible-output posture unrecorded (no tagged PDF; alt text only via Slice Options/SVG)",
+        "domain": "Accessibility output",
+        "severity": "MINOR",
+        "description": "External verification confirms desktop Illustrator (through 2025/2026) CANNOT natively export tagged/PDF-UA PDFs with reading order or headings; the only native alt-text path is per-slice alt text in Slice Options (plus SVG element IDs/titles on export), with accessible-PDF work pushed to Acrobat or InDesign. The corpus's SHALLOW rating is therefore substantively correct — the gap is that this vendor posture is nowhere RECORDED as a verified fact/decision, leaving the parity target ambiguous (Handshake Studio could either mirror the limitation or intentionally exceed it, which is a spec decision worth an explicit artifact). Corpus already has the Slice Options and SVG export rows to anchor this.",
+        "external_evidence": "https://community.adobe.com/questions-652/a-plea-to-adobe-to-help-make-illustrator-pdf-s-accessible-815472 and https://illustrator.uservoice.com/forums/333657-illustrator-desktop-feature-requests/suggestions/31494562 (Illustrator lacks tagged text/reading order/alt text; alt text only after slicing); contrast https://helpx.adobe.com/indesign/using/creating-accessible-pdfs.html",
+        "search_hints": "tagged PDF; alt text; accessib; Slice Options",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Real leaf rows exist: 22-illustrator-leaf-index.md lines 287-308 (accessibility-features-in-illustrator, create-accessible-content) with registry echoes in 46/48/49 (grep create-accessible-content matches those registries), and 52-illustrator-deep-feature-delta.md line 1299 records Slice Options in the Object > Slice row. CONFIRMED absent: grep 'tagged' returns zero Illustrator-side matches — tagged-PDF rows exist only for InDesign (53-indesign-deep-feature-delta.md lines 3496-3499 tagged-pdf-accessibility, 3153) and Affinity (54-affinity-deep-feature-delta.md lines 3702, 4149-4152); no Illustrator row or decision artifact records the vendor posture 'cannot natively export tagged/PDF-UA PDF; alt text only per-slice/SVG', so the parity target (mirror vs exceed) is indeed undecided in the corpus and in spec module 14 (line 2452 STU-PRO-043a covers interactive-PDF tagged output without an Illustrator-posture note)."
+      },
+      {
+        "title": "Illustrator on iPad / on web scope exclusion never recorded as a decision",
+        "domain": "Platform scope",
+        "severity": "MINOR",
+        "description": "Corpus scope statements name only 'Adobe Illustrator desktop'; iPad/web surfaces have zero rows and no recorded exclusion decision (contrast: Affinity got a dedicated desktop-vs-iPad delta file 09). Desktop-only is defensible for studio replacement, but an explicit one-paragraph decision artifact (in the corpus decision/gap notes) would close the audit loop and prevent a later reader from mistaking absence for oversight. Confirmed still-shipping vendor surface, so the decision is live, not moot.",
+        "external_evidence": "https://helpx.adobe.com/support/illustrator-ipad.html (Adobe Illustrator on iPad is a current, separately-documented product surface)",
+        "search_hints": "iPad; illustrator web; apps_in_scope; desktop-only",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "00-preamble.md lines 55-71 apps_in_scope lists only 'Adobe Illustrator desktop'; not_in_scope_yet (lines 72-79) does not mention iPad/web surfaces. Grep 'illustrator.*ipad|illustrator web' in non-snapshot files returns only 27-illustrator-figma-parity-matrix.md line 43 (incidental phrase 'Illustrator web/export animation-adjacent output' in a parity_scope string, generated by _tools/generate-illustrator-figma-research.py line 699) — not a decision artifact. All Illustrator-iPad help URLs appear only in raw snapshots (_source_snapshots/illustrator-toolbar-jina.md lines 114-141 etc.). Contrast: Affinity desktop-vs-iPad got explicit treatment (09-affinity-desktop-delta.md; 08-gap-resolution-notes.md lines 216-218). No recorded exclusion decision exists for Illustrator iPad/web in corpus decision/gap notes (08-gap-resolution-notes.md has no Illustrator iPad entry) or spec module 14."
+      },
+      {
+        "title": "C++ SDK plugin-surface taxonomy (plugin types and suites) not enumerated",
+        "domain": "Plugin/extension surface",
+        "severity": "MINOR",
+        "description": "Corpus records extensibility posture only (ExtendScript + CEP + C++ SDK, no public third-party UXP; ILDEEP-S15) with no enumeration of what the C++ SDK can extend: plugin types (tools, menu commands, live effects, file formats, timers/notifiers, annotators) and the suite architecture (e.g. AIArtSuite, AIDocumentListSuite) that the third-party ecosystem (Astute Graphics et al.) is built on. Handshake ships its own plugin surface, so per-API parity is not required, but a one-page taxonomy of WHAT classes of extension the market currently builds would materially inform Studio plugin-surface scoping (spec 14.14.7 is currently generic).",
+        "external_evidence": "Official Illustrator C++ SDK download and docs at console.adobe.io/downloads/ai; suite/plugin-type architecture described at https://scand.com/company/blog/developing-an-adobe-illustrator-plugin-with-c-and-the-adobe-sdk/",
+        "search_hints": "AIArtSuite; C++ SDK; plugin type; suites",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Grep 'AIArtSuite|plugin type|Astute|suite' (Illustrator SDK sense): zero taxonomy matches anywhere. Only posture rows exist: 52-illustrator-deep-feature-delta.md line 3738 (uxp-posture row: 'ExtendScript/CEP/C++ SDK with no public Illustrator UXP API as of mid-2026') and source note ILDEEP-S15 at line 4614; InDesign has an equivalent posture-only row (53-indesign-deep-feature-delta.md line 3804). No enumeration of C++ plugin types (tools, menu commands, live effects, file formats, timers/notifiers, annotators) or suite architecture on any surface, and spec 14.14 plugin-surface text contains no such taxonomy (grep AIArtSuite in spec: zero)."
+      },
+      {
+        "title": "Edit > Color Settings dialog option depth (working spaces, policies, ACE engine, black point compensation) not itemized Illustrator-side",
+        "domain": "Color management",
+        "severity": "MINOR",
+        "description": "52-illustrator-deep-feature-delta.md line 1143 records 'Edit > Color Settings / Assign Profile' as one row; the dialog's option surface (working RGB/CMYK profiles, color management policies with missing/mismatch prompts, ACE engine choice, rendering intent default, black point compensation, synchronized-suite settings via Bridge) is not itemized — grep for 'black point' matches only Affinity rows. Photoshop-side coverage (51, lines 3928-3961) is deeper for the equivalent dialog, so the studio-level pipeline is mostly recoverable, but Illustrator-side provenance for these options is absent and the corpus's dedup posture does not record that borrowing. Audit-weighted domain (color management), small absolute surface.",
+        "external_evidence": "https://helpx.adobe.com/illustrator/using/printing-color-management.html and Adobe's shared color-settings documentation (same Color Settings dialog across Creative Cloud apps)",
+        "search_hints": "Color Settings; black point; ACE; color management policies",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Illustrator-side single summary row confirmed: 52-illustrator-deep-feature-delta.md lines 1142-1150 (edit-color-settings: 'Configures working color spaces and policies... assigns/removes ICC profiles'), no option itemization; grep 'black point|ACE|color management polic' returns zero Illustrator matches ('black point' hits only Affinity raw-develop tone rows 54:765/922). Deeper equivalent coverage exists elsewhere: Photoshop-side 51-photoshop-deep-feature-delta.md line 3930 (working spaces, policies, advanced conversion options), and spec 14-studio-creative-suite.md line 1502 (STU-COL-023: four rendering intents + independent black-point-compensation toggle) and line 1488 — so the studio-level pipeline is specified, but Illustrator-side provenance (incl. ACE engine choice, missing/mismatch prompts, Bridge-synchronized settings) is unrecorded."
+      },
+      {
+        "title": "Graph tooling option depth: graph data window, graph type dialog, graph designs",
+        "domain": "Data-driven graphics",
+        "severity": "MINOR",
+        "description": "Corpus has 9 graph tool rows and DOM Variable/DataSet classes, and honestly self-rates this MODERATE, but the option surfaces that make Illustrator graphs usable in production are not itemized anywhere: Graph Data window controls (cell style, transpose row/column, switch x/y, import tab-delimited data), Graph Type dialog (value/category axis options, tick marks, column/cluster width, legend placement, add drop shadow), and Graph Design (column designs, marker designs, sliding/repeating scale designs from artwork). A rebuild that ships 'graph tools' without these dialogs loses the actual workflow. Listed to convert the corpus's implicit MODERATE rating into a concrete promotion target.",
+        "external_evidence": "https://helpx.adobe.com/illustrator/using/graphs.html (vendor page covering graph data window, graph type options, and graph designs)",
+        "search_hints": "Graph Data; Graph Type; graph design; transpose; sliding scale",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Claim's 'not itemized anywhere' is overstated: beyond the 9 tool rows (52-illustrator-deep-feature-delta.md lines 796-870) and DOM Variable/DataSet (52:3718), the corpus has real dialog-level rows — 52:1421 (Object > Graph: 'Edits graph type and axes, reopens the data window, and binds custom designs to columns/markers'), leaf rows 22-illustrator-leaf-index.md lines 5107 (Add graph data), 5162 (Change graph types), 5206 (Combine different graph types), 5261 (Reuse graph designs), with distilled rows 41-illustrator-source-distilled-feature-rows.md lines 14686/14848/14980/15140 and use cards in 24-illustrator-feature-use-cards.md (lines 28766+, 29086+). CONFIRMED absent at option level: grep 'transpose|sliding|cell style|tick mark' returns zero matches — Graph Data window controls (transpose, switch x/y, cell style, import), Graph Type dialog options (axis/tick/column-width/legend/shadow), and sliding/repeating scale design mechanics are not itemized in corpus or spec module 14 (spec grep 'graph data|Graph Type': zero)."
+      }
+    ],
+    "refuted_count": 1,
+    "concerns": [
+      "Direct fetches of helpx.adobe.com timed out from this environment (whats-new and release-notes fetch attempts both failed), consistent with the corpus's own SFR-REMAINING-GAP-003; external verification in this audit therefore rests on web-search snippet enumeration plus corpus-held Jina snapshots for some items — the same evidence class the corpus flags for parts of its deep delta.",
+      "Recency is better than the summary implies: the corpus's _source_snapshots/illustrator-release-notes-jina.md covers releases through June 2026 (Illustrator 30.6), and v30 features (font browser leaf, Save in Background, gradient dither, relink-all-instances in 20-feature-map) are present. Residual exposure is only the post-snapshot window (late June/July 2026 updates, e.g. the 30.6+ align/distribute action-recording deltas exist in the snapshot but may lack deep-delta rows) — a re-diff cadence, already a recorded corpus concern, is the fix.",
+      "Precision note: roughly 30 candidate gaps tested against the corpus were confirmed PRESENT (Repeat radial/grid/mirror, Intertwine, slices/image maps/SVG Interactivity, Objects on Path, Puppet Warp, Shaper, bristle brush, envelope distort, Legacy Text Update, threaded text, Tabs, spell check/dictionaries, Appearance of Black, Flattener/Separations Preview panels, Edit Colors incl. Overprint Black, 3D Classic, Contextual Task Bar, keyboard-shortcut editor, WebP/AVIF/HEIC formats, XMP File Info, Actions modal control, dynamic symbols, isolation mode, Trim View/Presentation Mode, Snap to Glyph/Pixel); the corpus is near-complete at the feature-name level and the reported gaps are the survivors.",
+      "The CJK gap's severity is market-dependent: MAJOR if Handshake targets studios doing Japanese/Chinese/Korean work (Illustrator is dominant in JP print/design), MINOR if the target market is Western web/design studios only — operator should set that scope explicitly.",
+      "AI/generative surfaces confirmed excluded per audit rules and correctly recorded in the corpus, including 2026 additions (Turntable GA March 2026, Concept to Vector, Rewrite, Generate Print Bleed) — noted as intentionally excluded, not gaps.",
+      "Three of the ten gaps (print-pane option depth, scripting member-level, graph option depth) sharpen weaknesses the corpus already self-reports; they are included with concrete missing-option lists and vendor URLs so a verifier can convert them into promotion targets rather than re-litigating coverage ratings."
+    ]
+  },
+  {
+    "app": "indesign",
+    "surviving_gaps": [
+      {
+        "title": "Variable font support (axis sliders, style capture, auto optical size) entirely absent",
+        "domain": "Typography/composition engine",
+        "severity": "MAJOR",
+        "description": "InDesign supports OpenType variable fonts with per-axis slider controls (weight, width, slant, optical size) surfaced in the Control, Character, Properties, Character Styles, and Paragraph Styles panels, plus a Type preference that auto-matches Optical Size to font size. Grep of every indesign corpus file returns zero hits for 'variable font'; the 53 deep-delta Character-panel row (line 1550) and OpenType-attributes row (line 1543) enumerate formatting controls without any axis/instance model. Photoshop, Illustrator, and Figma snapshots in the same corpus DO carry variable-font leaves, so this is an InDesign-specific omission with direct impact on style-system and IDML/PDF fidelity planning.",
+        "external_evidence": "https://helpx.adobe.com/indesign/using/using-fonts.html (documents variable fonts with slider controls in Control/Character/Properties/Styles panels and the auto optical-size preference)",
+        "search_hints": "variable font, font axes, optical size, wght, slider",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "InDesign-side absence verified: grep for 'variable font|font axes|wght|optical size|font variation' across all *indesign* corpus files (03/07/17/30/35/40/53 + indesign snapshots) returned zero matches. However the primitive is NOT absent from the corpus as a whole: variable-font hits exist in 51-photoshop-deep-feature-delta.md, 52-illustrator-deep-feature-delta.md, 54-affinity-deep-feature-delta.md, 55-figma-deep-feature-delta.md, 01/06/15, 22/24, 23/25, and .GOV/spec/master-spec-v02.201/spec-modules/14-studio-creative-suite.md already mandates it at [STU-TYP-019] (section '6. Variable Fonts', line 1324-1326: wght/wdth/opsz/slnt/ital axes, named instances, StudioVariable binding) — with provenance 'Photoshop/Illustrator/Affinity/Figma', i.e. no InDesign provenance. Confirmed sub-gaps: no InDesign row for the auto optical-size Type preference (no 'optical' hit in any indesign file; spec line 1326 covers the opsz axis but not auto-matching), and no InDesign style-panel/IDML axis-capture row."
+      },
+      {
+        "title": "OpenType-SVG color/emoji font support and its export caveats not captured",
+        "domain": "Typography/composition engine",
+        "severity": "MINOR",
+        "description": "InDesign supports OpenType-SVG color fonts and emoji fonts (multi-color/gradient glyphs, marked in the font list, inserted via the Glyphs panel), with documented export defects (glyph mispositioning after PDF/SVG export, effects/vertical/path-text issues). No indesign corpus file mentions color fonts, OpenType SVG, or emoji fonts; the fonts-overview leaf exists only as a TOC row. Relevant to render-engine and PDF-export fidelity contracts.",
+        "external_evidence": "https://helpx.adobe.com/fonts/using/ot-svg-color-fonts.html and https://helpx.adobe.com/indesign/using/using-fonts.html (InDesign listed as supporting OpenType SVG color/emoji fonts)",
+        "search_hints": "color font, OpenType SVG, emoji font, ot-svg",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "InDesign-side absence verified: grep 'color font|OpenType SVG|opentype-svg|emoji|ot-svg|svg-in-ot|colr' across all *indesign* files returned zero matches. Corpus-wide the capability exists via Photoshop rows (01-photoshop-feature-map.md, 06-photoshop-leaf-index.md, 15, 39, 51-photoshop-deep-feature-delta.md) and spec module 14 [STU-TYP-018] (line 1320) mandates OpenType-SVG + COLR/CPAL color-font rendering incl. emoji sequences (provenance Photoshop/Illustrator, not InDesign). Confirmed sub-gap: InDesign-specific export defects (glyph mispositioning after PDF/SVG export, effects/vertical/path-text caveats) appear nowhere in the corpus or spec."
+      },
+      {
+        "title": "CJK composite font editor has no feature row anywhere",
+        "domain": "CJK typography",
+        "severity": "MAJOR",
+        "description": "InDesign's composite-font feature (create custom named fonts mixing a CJK base font with different Latin/kana/punctuation/number fonts, with per-class scaling and baseline adjustment) is a core Japanese/CJK publishing capability and is fully scriptable (CompositeFont/CompositeFontEntry DOM classes). The corpus's own UXP DOM snapshot lists these classes (_source_snapshots/indesign-uxp-dom-api-jina.md lines 620-623) but no feature map row, leaf, use card, or deep-delta row exists for composite fonts. Corpus already grades CJK MODERATE, but composite fonts are not even at TOC level. Severity assumes CJK market is in scope (the corpus does carry deep frame-grid/named-grid rows, implying it is); regrade to MINOR if operator excludes CJK.",
+        "external_evidence": "https://developer.adobe.com/indesign/uxp/dom/api/c/composite-font/ (CompositeFont DOM class; UI is Type > Composite Fonts in CJK-enabled InDesign)",
+        "search_hints": "composite font, CompositeFont, kana, Type > Composite",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Only occurrence is a raw link-list mention in _source_snapshots/indesign-uxp-dom-api-jina.md lines 620-623 (CompositeFont/CompositeFontEntries/CompositeFontEntry/CompositeFonts DOM class links). Grep 'composite font|compositefont|kana|Type > Composite' finds no feature-map row, leaf (07), distilled row (40), use card (17), or deep-delta row (53), and no hit in spec module 14. Per audit rule, snapshot-only mention = PARTIALLY_COVERED; the claim's substance (no feature row anywhere) is upheld."
+      },
+      {
+        "title": "CJK inline typography options (ruby, warichu, kenten, shatai, tate-chu-yoko) stop at TOC-leaf level",
+        "domain": "CJK typography",
+        "severity": "MAJOR",
+        "description": "Ruby annotations, warichu (inline split lines), kenten emphasis dots, shatai oblique, and tate-chu-yoko each have multi-tab option dialogs (ruby alone has placement, size, alignment, overhang, and per-character options) but exist in the corpus only as 07 leaf-index TOC rows (e.g. lines 3537-3589) with app_behavior boilerplate. The 53 deep delta enumerates Latin typography at per-dialog-option depth (48 rows) yet contains zero rows for these features; the corpus self-grades CJK as MODERATE and this is the concrete missing surface. Same market-scope contingency as composite fonts.",
+        "external_evidence": "https://helpx.adobe.com/indesign/desktop/language-and-proofing/chinese-japanese-and-korean/add-and-format-ruby-text-annotations.html (plus sibling warichu/kenten/shatai pages, all present as URLs in the corpus TOC snapshot)",
+        "search_hints": "ruby, warichu, kenten, shatai, tate-chu-yoko",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Claim's predicate 'exist only as 07 leaf-index TOC rows' is refuted: all five features also have distilled feature rows in 40-indesign-source-distilled-feature-rows.md (warichu 13178, kashida-area sibling rows 13081+, shatai 13314, tate-chu-yoko 13348) and full use cards in 17-indesign-feature-use-cards.md (warichu 25508, kenten 25706), plus 07-indesign-leaf-index.md rows 3537-3598. However all are templated boilerplate ('Use Apply Shatai to text to create, edit, style, compose...'). Claim's depth point is upheld: grep of 53-indesign-deep-feature-delta.md for 'ruby|warichu|kenten|shatai|tate' matches only false positives ('rotate', 'states'); zero deep option-level rows (placement/size/alignment/overhang dialogs). Spec module 14 covers CJK composers/kinsoku/mojikumi ([STU-TYP-009]/[STU-TYP-010] lines 1192-1201) but not ruby/warichu/kenten/shatai/tate-chu-yoko."
+      },
+      {
+        "title": "Arabic/Hebrew (World-Ready) option depth: kashida, digit types, diacritics, direction controls",
+        "domain": "Middle-East/RTL typography",
+        "severity": "MINOR",
+        "description": "Beyond one 53 row naming the World-Ready composers (line 1409), there are no deep rows for kashida justification options, Arabic/Hindi/Farsi digit selection, diacritic positioning, character/story/table direction, or right-to-left binding behavior. The kashida leaf exists at TOC level only, and the corpus's own DOM snapshot lists KashidasOptions (indesign-uxp-dom-api-jina.md line 970) with no corresponding feature row. MINOR for a web/design-studio target; regrade MAJOR if ME-market publishing is in scope.",
+        "external_evidence": "https://helpx.adobe.com/indesign/desktop/language-and-proofing/arabic-and-hebrew/justify-arabic-text.html (automatic Kashida insertion; sibling pages cover digits, diacritics, direction)",
+        "search_hints": "kashida, diacritic, Arabic, Hebrew, story direction",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Claim's predicate 'kashida leaf exists at TOC level only' is refuted: 40-indesign-source-distilled-feature-rows.md has real rows for kashida justification (line 13081), diacritical marks/coloring (12903), text direction (12972), and digit types (13006), each with a matching use card in 17 (e.g. kashida card at 25312); 53-indesign-deep-feature-delta.md line 1406 has the World-Ready composers deep row; and spec [STU-TYP-009] (line 1192) mandates Kashida justification and diacritic positioning. Upheld portions: rows are boilerplate (no option-level depth: kashida length choices, per-digit-type behavior, table/story direction, RTL binding), and KashidasOptions DOM class exists only in _source_snapshots/indesign-uxp-dom-api-jina.md (line ~970) with no corresponding row."
+      },
+      {
+        "title": "Scripting DOM never distilled below surface level (1,080 API pages count-only)",
+        "domain": "Automation/extensibility",
+        "severity": "MAJOR",
+        "description": "Corpus-acknowledged but consequential enough to re-report: the 30 ledger counts 1,080 DOM API pages and 27 DOM versions, yet no file distills DOM objects/properties/methods/events (Document, Story, TextFrame, preference objects, idleTask/event architecture, menuAction invocation) into rows a work packet can consume. Script-dependent studios (the population most locked into InDesign) cannot be migrated without knowing which DOM surfaces Handshake's automation API must cover; automation parity below panel/folder/event surface is unproven by the corpus's own admission.",
+        "external_evidence": "https://developer.adobe.com/indesign/uxp/dom/api/ (full DOM object index; snapshot exists in corpus as indesign-uxp-dom-api-jina.md but only as a link list)",
+        "search_hints": "DOM API, idleTask, menuActions, CompositeFont, dom/api",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Claim overstates: 53-indesign-deep-feature-delta.md lines 3685-3783 contain ten VERIFIED DOM cluster rows — dom-application (incl. script args/results and doScript, line 3688), dom-document, dom-spread-page, dom-pageitems, dom-text (Story/Paragraph/Word/Character/TextStyleRange + GREP find/change), dom-styles, dom-tables, dom-books-xml, dom-export-prefs, dom-events (menu actions/event listeners, 3775-3783) — plus source note DD line 4428 recording full-body fetches of Application/Document/Spread/Layer/PageItem/Story/Table/PDFExportPreference/EPubExportPreference class pages on 2026-07-09. Upheld portions: 30-indesign-expanded-count-ledger.md line 31 counts 1,080 DOM pages with no per-property/method distillation anywhere; idleTask appears only in the raw snapshot, count ledger, and 45-source-distilled-tool-registry.md seeds marked 'needs_exact_source_page_or_behavior_promotion' (line 10971); menuActions tool-registry entry (45:10972) is likewise an unpromoted seed."
+      },
+      {
+        "title": "UXP platform release-delta capabilities (script args/results, menu APIs, SWC UI) not rowed",
+        "domain": "Automation/extensibility",
+        "severity": "MINOR",
+        "description": "The UXP changelog documents capabilities the corpus's 20 automation rows do not enumerate: passing arguments to UXP scripts and retrieving script results, UXP APIs to add/remove menu items, Spectrum Web Components moving out of beta for plugin UI, and per-version UXP/DOM deltas. These define the plugin-porting surface for third-party developers Handshake would want to attract. Corpus has UXP plugin-lifecycle and .idjs rows but no changelog-level capability tracking.",
+        "external_evidence": "https://developer.adobe.com/indesign/uxp/changelog/",
+        "search_hints": "UXP changelog, script arguments, Spectrum Web Component, add menu items",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Partially refuted: 53-indesign-deep-feature-delta.md row indesign.deep.automation-and-scripting.uxp-script-model (lines 3794-3802) explicitly rows 'UXP scripts (.idjs) support global await, script arguments and results, and debugging'; row dom-events (3775-3783) rows scriptable menu actions and UXP event/menu recipes. Upheld portions: Spectrum Web Components appears only in _source_snapshots/indesign-uxp-dom-api-jina.md line 428 (raw link), the UXP changelog URL only at snapshot lines 17/21/40, and no file tracks per-version UXP/DOM capability deltas or the UXP add/remove-menu-items API as distinct rows."
+      },
+      {
+        "title": "Installed-app command-surface ground truth (menus, panels, tools, shortcut set) never exported",
+        "domain": "Workspace/command surface",
+        "severity": "MAJOR",
+        "description": "Corpus-acknowledged and still open: the planned app.menuActions/app.menus/app.panels/app.toolBoxTools/Show Set exports (script exists at _installed_export_scripts/indesign-export-inventory.jsx) were never run, and 2 of the 3 UNVERIFIED deep-delta rows are exactly the Window-menu panel inventory and Help menu. Until captured, the corpus cannot prove its 87 menu rows / 16 panel rows / 42 tool rows are the complete command surface, which is the completeness bar the audit is graded against. This is the single cheapest closer for the whole InDesign corpus.",
+        "external_evidence": "https://developer.adobe.com/indesign/uxp/dom/api/ (app.menuActions/menus/panels/toolBoxTools are enumerable DOM collections, so the export is mechanically possible)",
+        "search_hints": "app.menuActions, Show Set, toolBoxTools, indesign-export-inventory",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Confirmed: export script exists at _installed_export_scripts/indesign-export-inventory.jsx (collects app.menuActions/app.toolBoxTools, lines 69-73) and 32-adobe-installed-ui-export-playbook.md defines output_location '.GOV/reference/studio_app_feature_research/_installed_exports/' (line 19), but Test-Path on that directory returns False — the export was never run and no installed-export artifact exists anywhere in the corpus. 53-indesign-deep-feature-delta.md carries exactly 3 UNVERIFIED rows (lines 1362-1368 Help/product-info entry points, ~3842-3848 workspace/Window-menu row, 4314-4320 view-custom-fonts), matching the claim that the panel-inventory ground truth is the open verification item."
+      },
+      {
+        "title": "Performance envelope: document scale limits, long-document behavior, per-OS GPU feature set",
+        "domain": "Performance-class features",
+        "severity": "MAJOR",
+        "description": "Corpus self-grades this SHALLOW and external evidence confirms active vendor movement: the 2025/2026 releases ship GPU-accelerated scrolling and image rendering on Windows for HiDPI displays, and the Background Tasks panel row exists but idle-task architecture, documented document/page/pasteboard scale limits, pagination performance for book-length documents, and GPU-vs-CPU preview parity envelopes have no rows. UNVERIFIED as to exact numeric limits (not inspected on a vendor page in this audit) - but the absence of any performance-envelope rows is verified by grep. This matters directly for the 'replace without capability loss on long documents' bar.",
+        "external_evidence": "https://helpx.adobe.com/indesign/using/whats-new.html (GPU on Windows: faster smoother scrolling and image rendering, 2025-2026 releases); https://helpx.adobe.com/indesign/desktop/get-started/system-and-product-info/gpu-performance.html",
+        "search_hints": "GPU, background task, display performance, idle, HiDPI",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Refuted in part: 53-indesign-deep-feature-delta.md has rows Preferences: GPU Performance (line 4164, 'GPU-accelerated display and animated zoom'), Preferences: Display Performance (4154), View > Display Performance (1290), and Background Tasks panel (3609, background PDF export/Publish Online with progress+cancel); 07:2997 GPU leaf and 40:11169 GPU distilled row also exist. Upheld portions (verified by empty greps): no rows for numeric document/page/pasteboard scale limits (the only limit mention anywhere is raw snapshot _source_snapshots/indesign-supported-file-formats-jina.md line 1702, 200x200-inch PDF export cap — snapshot-only), no long-document pagination-performance rows, no per-OS GPU delta rows (2025/2026 Windows GPU scrolling absent), and idle-task architecture only in snapshot/count-ledger."
+      },
+      {
+        "title": "InDesign Server behavioral delta and enterprise automation surface posture-thin",
+        "domain": "Automation/extensibility",
+        "severity": "MINOR",
+        "description": "Headless InDesign Server (template-driven production at scale: SOAP/queue interfaces, multi-instance deployment, server-specific DOM restrictions such as no UI/dialog suppression) is covered by a single 53 row (line 3816) plus one source note. Studios running server-based document factories (variable-data, catalog, financial publishing) would need Handshake's headless/CLI story mapped against this surface; currently there is nothing to seed that work packet from.",
+        "external_evidence": "https://helpx.adobe.com/indesign/desktop/get-started/system-and-product-info/create-deploy-indesign-server-packages.html",
+        "search_hints": "InDesign Server, SOAP, headless, server packages",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Slightly more coverage than claimed: besides the 53 deep row (lines 3813-3822, 'Headless InDesign Server runs the same scripting DOM at scale... licensing and deployment packages'), 40-indesign-source-distilled-feature-rows.md has two rows ('Create and deploy InDesign server packages' line 11141; 'Adobe InDesign Server overview' line 18390) with matching 17 use cards, and 35-indesign-source-distilled-domain-ledger.md lines 139-145 scope server-side rendering/headless processing. Upheld thinness: grep 'SOAP' returns zero hits across the entire corpus (including snapshots); queue interfaces, multi-instance deployment, and server-specific DOM restrictions (no-UI/dialog suppression) have no rows anywhere."
+      },
+      {
+        "title": "Font management depth: Document Fonts folder auto-load, install scopes, font browsing UX",
+        "domain": "Fonts/asset management",
+        "severity": "MINOR",
+        "description": "The fonts.* leaf category (6 leaves) is the least-deepened area of the 53 delta: only Find/Replace Fonts, OpenType attributes, and Adobe Fonts auto-activation have deep rows. Missing at option level: the Document Fonts folder convention (fonts packaged next to an INDD auto-activate for that document only - critical for the Package round-trip workflow the corpus otherwise covers), per-user vs system font install scopes, and font-menu browsing UX (filters, favorites, similar-font matching, preview sizes). Grep confirms zero hits for 'Document Fonts'.",
+        "external_evidence": "https://helpx.adobe.com/indesign/desktop/fonts/install-and-activate-fonts.html (documents installing/activating fonts including document-scoped fonts)",
+        "search_hints": "Document Fonts, install fonts, font preview, activate fonts",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "General surface covered: install-and-activate-fonts has leaf 07:2304, distilled row 40:8686, use card 17:16796, and 53:4304 deep row (Adobe Fonts auto-activation with 'local font install as the offline path'). Upheld sub-gaps (verified by empty greps): 'Document Fonts' returns zero InDesign hits corpus-wide (only Illustrator row 52-illustrator-deep-feature-delta.md:1583, a different missing-fonts feature) — the INDD-adjacent Document Fonts folder convention is unrowed; no rows for per-user vs system install scopes or font-menu browsing UX (searches 'font preview', 'similar font' empty for all *indesign* files)."
+      }
+    ],
+    "refuted_count": 0,
+    "concerns": [
+      "Recency verified good: corpus snapshots (2026-07-05/09) postdate InDesign 21.0 (released 2025-10-28) and spot-checks confirm the 2026 marquee non-AI features (Flex Layout, PDF-to-editable-InDesign conversion, Adobe Express image editing, Projects, MathML styling) all have corpus rows; residual risk is only point releases after 2026-07 plus the already-recorded absence of a release-delta tracking process.",
+      "The three confirmed feature omissions (variable fonts, OT-SVG color fonts, Document Fonts folder) all cluster in the fonts.* leaf category, suggesting that category was indexed but never deepened - a targeted one-category re-pass is cheap and closes three gaps at once.",
+      "Practitioner/plugin-ecosystem blind spot has concrete workflow consequences beyond the recorded single-vendor concern: entire professional workflow classes (database/catalog publishing, imposition, math/technical typesetting) are delivered via the third-party C++/CEP/UXP plugin market the corpus never surveys, so Handshake cannot yet know which plugin-replacing native features studios actually depend on. UNVERIFIED which specific plugins dominate - a field-source pass is needed.",
+      "Whether InDesign exposes a PDF/UA output-standard identifier in the PDF export dialog was NOT_INSPECTED in this audit and is absent from the corpus; verify during tagged-PDF contract promotion since accessibility output is a weighted domain.",
+      "Severity of the two CJK gaps and the ME gap is contingent on Handshake's target-market language scope, which no corpus or spec artifact states explicitly; the corpus carries deep CJK grid/frame-grid rows implying CJK is in scope, so an operator decision recording language-market scope would stabilize these gradings.",
+      "AI features (Generative Expand, AI alt text, Auto Style/Content-Aware Fit and other Sensei-based tools, Express AI surfaces) were treated as intentionally excluded per audit scope and are not reported as gaps."
+    ]
+  },
+  {
+    "app": "Affinity V2 suite (Photo 2, Designer 2, Publisher 2, StudioLink)",
+    "surviving_gaps": [
+      {
+        "title": "No Affinity menu-command or keyboard-shortcut ledger (Adobe apps have one; Affinity has none)",
+        "domain": "Menu commands / keyboard shortcuts / command surface",
+        "severity": "MAJOR",
+        "description": "The corpus builds shortcut_row/menu_command ledgers only for Photoshop/InDesign/Illustrator (files 28-31). Affinity has no equivalent ledger, yet the vendor documents a full default-shortcut listing per app plus a shortcut-customization surface (per-persona reassignment). Hidden/menu-only commands and the default shortcut map are therefore structurally uncovered for Affinity, which blocks migration-parity planning (command palette, keymap presets) that the Adobe lanes already support.",
+        "external_evidence": "https://affinity.help/photo2/en-US.lproj/pages/Workspace/shortcuts.html and https://affinity.help/publisher2/en-US.lproj/pages/Workspace/customizingShortcuts.html (both URLs present in the corpus's own TOC snapshots at .GOV/reference/studio_app_feature_research/_source_snapshots/affinity-photo2-desktop-jina.md lines 328/485 and affinity-publisher2-desktop-jina.md lines 318/426, but never deepened)",
+        "search_hints": "customizingShortcuts, shortcuts.html, shortcut_row, menu_command, Keyboard shortcuts",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Shortcut surface IS covered at feature level: 09-affinity-desktop-delta.md leaf rows affinity_photo.desktop.leaf.workspace-customizingshortcuts (line 3577) and workspace-shortcuts (line 3625), plus designer/publisher twins (lines 5523/5577, 7575/7623); distilled feature rows in 42-affinity-source-distilled-feature-rows.md lines 12151 and 12423 (osd.affinity.affinity-photo.desktop.leaf.workspace-customizingshortcuts.v1 / workspace-shortcuts.v1); and an option-level deep row in 54-affinity-deep-feature-delta.md lines 4747-4755 id affinity.deep.panels-and-workspace.suite-keyboard-shortcut-editor ('Per-persona shortcut reassignment for tools/menus, with import/export; 2.1 blend-mode shortcuts, 2.2 long-press'). CONFIRMED missing part: no Affinity equivalent of the Adobe expanded count ledgers (29/30/31) — grep 'shortcut_row' hits only Adobe files (28-31, 33-36); no per-shortcut/per-menu-command row inventory or count exists for any Affinity app, so the default shortcut map is structurally uncovered while the customization surface is not."
+      },
+      {
+        "title": "Performance preferences option depth absent (RAM usage limit, renderer/WARP selection, display settings)",
+        "domain": "Performance-class features",
+        "severity": "MAJOR",
+        "description": "Corpus self-rates performance SHALLOW: only the hardware-acceleration toggle, benchmark, and ARM64 rows exist. The apps' Preferences > Performance section documents RAM Usage Limit, renderer selection (Default / specific GPU / WARP software rasterizer), and related display-performance settings; none of these options have corpus rows, and there is no explicit negative row recording what Affinity does/doesn't document about document-size limits or caching. Verified via grep: no 'RAM limit', 'renderer', 'WARP', or Performance-preferences rows in 54/09/04.",
+        "external_evidence": "Vendor Preferences page documenting RAM usage limit and renderer options: https://s3-eu-west-1.amazonaws.com/affinity-docs/help/photo/en-US.lproj/pages/Workspace/preferences.html (V1 doc, same dialog family); V2 confirmation of RAM Usage Limit setting: forum.affinity.serif.com topic 152547 and Photo 2 tutorials; hardware acceleration page https://affinity.help/photo2/en-US.lproj/pages/Extras/hardwareAcceleration.html",
+        "search_hints": "RAM usage limit, renderer, WARP, Performance preferences, dithering",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Empty searches: grep 'RAM|WARP|renderer|dithering' across all non-snapshot corpus files returns zero Affinity hits (only Photoshop 51-photoshop-deep-feature-delta.md:5850 'Allocates RAM percentage...' and Illustrator 52:2933); grep 'performance' in 09-affinity-desktop-delta.md returns no matches (no Preferences>Performance leaf row). What exists instead: 54-affinity-deep-feature-delta.md lines 4311-4318 (GPU hardware acceleration toggle, id affinity.deep...gpu-hardware-acceleration, notes 'toggled off in Settings/Preferences > Performance') and line 4326 (benchmark row), plus a generic 'Settings (Preferences)' leaf at 09:3619-3624. No row anywhere for RAM Usage Limit, renderer/WARP selection, or display-performance options, and no explicit negative row."
+      },
+      {
+        "title": "PDF open/import options dialog depth uncovered (interpret path)",
+        "domain": "File-format round-trip / import fidelity",
+        "severity": "MAJOR",
+        "description": "File 54 covers PDF import only as 'pages as layers, JBIG2 decode' (line 3840) and placed-PDF passthrough (line 3666). The vendor's 'Importing PDF documents' page documents an import options dialog (page selection/range, text- and font-handling choices when interpreting PDFs, missing-font substitution behavior). None of these per-option behaviors have rows. Since Handshake weights format round-trips, the interpret-PDF option set (which controls text editability vs fidelity and font fallback) is a real depth gap. Exact option names on the page UNVERIFIED in this audit (affinity.help returns 403/SPA-only to fetchers), but the dedicated vendor page exists and is not deepened in the corpus.",
+        "external_evidence": "https://affinity.help/publisher2/en-US.lproj/pages/GetStarted/importPDF.html (URL present in corpus snapshot affinity-publisher2-desktop-jina.md line 34; direct fetch confirmed 403 during this audit, matching AF-GAP-001)",
+        "search_hints": "importPDF, favour editable, replace missing fonts, page box, PDF options",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Feature-level coverage exists: 09-affinity-desktop-delta.md leaf rows getstarted-importpdf for Designer (4321-4326) and Publisher (6241-6246); iPad leaves in 04-affinity-leaf-index.md (94, 1972, 3568); file-format compatibility records in 46-file-format-compatibility-registry.md lines 7361 and 7523 (compat.feature.affinity...getstarted-importpdf); deep row 54-affinity-deep-feature-delta.md 3840-3843 'PDF import/export (pages as layers, JBIG2 decode)' and placed-PDF passthrough preflight at 54:3669. CONFIRMED missing part: no rows for the import-options dialog itself — greps 'favour editable', 'page box', and Affinity-scoped 'missing font' return zero Affinity hits (missing-font hits are Adobe-only, e.g. 22-illustrator-leaf-index.md:3897). Per-option interpret-PDF behavior (page range, text/font handling, substitution) has no row."
+      },
+      {
+        "title": "Brush-editing dialog depth absent (dynamics ramps, sub-brushes, nozzles, wet edges, stabilizer)",
+        "domain": "Raster painting engine",
+        "severity": "MAJOR",
+        "description": "Corpus enumerates 72 photo tools and mentions 'full brush dynamics' in prose (54 lines 347, 391) but has zero rows on the brush editing dialog itself: per-parameter dynamics controllers/ramps, sub-brushes, nozzle/texture settings, wet edges, accumulation, or the brush stabilizer (rope/window modes). Grep for sub-brush/nozzle/wet edges/stabilizer across all Affinity corpus files returns only the two generic 'brush dynamics' phrases. Painting parity for illustration/retouch studios needs this option surface.",
+        "external_evidence": "https://affinity.help/photo2/en-US.lproj/pages/Painting/pixel_modify.html ('Modifying brushes') and .../Painting/pixel_customBrushes.html, listed in corpus snapshot affinity-photo2-desktop-jina.md lines 232-233 but never deepened",
+        "search_hints": "pixel_modify, sub-brush, nozzle, wet edges, stabiliser",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "The claim's 'zero rows on the brush editing dialog' is overstated: the pixel_modify (Modifying brushes) help leaf has real rows — 09-affinity-desktop-delta.md leaves painting-pixel_modify for Photo (2539-2544) and Designer (4765-4770); feature-use cards fuc.affinity_photo.desktop.leaf.painting-pixel_modify.v0 (16-affinity-feature-use-cards.md:12110) and Designer twin (36530); distilled rows 42:6271 and 18856; offline-parity rows 48:19919 and 22210; coverage rows 49:53145/64582. CONFIRMED missing part: no option-level rows — greps 'sub-brush|nozzle|wet edge|stabiliser|stabilizer' across non-snapshot Affinity files return zero Affinity hits (wet-edges hits are Photoshop-only: 34:120, 45:4194, 51:4882), and 54-affinity-deep-feature-delta.md mentions brush dynamics only in prose (lines 347, 391). Dynamics ramps, sub-brushes, nozzles, wet edges, and the stabilizer have no rows."
+      },
+      {
+        "title": "Soft Proof adjustment has no option-level row (profile, rendering intent, gamut check)",
+        "domain": "Color management / prepress",
+        "severity": "MAJOR",
+        "description": "Soft proofing exists in the corpus only as a name inside the adjustments catalog reference (AFD-S06) and leaf hits in 09 (lines 584, 1076, 3783, 5733). There is no row enumerating the Soft Proof adjustment's options (target ICC profile selection, rendering intent, black point compensation, gamut check overlay). For a prepress-weighted parity audit this is the primary on-screen proofing surface of the suite and is thinner than the neighboring 32-bit preview / OCIO rows, which are option-level.",
+        "external_evidence": "Soft Proof adjustment documented per-app, e.g. https://affinity.help/photo2/en-US.lproj/pages/Adjustments/adjustment_softProof.html (Adjustments category enumerated in corpus 09 with 95 rows; Soft Proof appears by name only)",
+        "search_hints": "Soft Proof, rendering intent, gamut check, softProof",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Claim's 'name-only' framing is wrong: a dedicated deep feature row exists — 54-affinity-deep-feature-delta.md lines 2043-2053 id affinity.deep.layers-and-adjustments.suite-adjustment-soft-proof ('Previews output for a target color space/device as a toggleable adjustment layer, enabling in-stack proofing', primitive_domain prepress, VERIFIED, deepens leaf) — plus leaf rows 09:582/1074/3781/5731, distilled rows 42:13307 and 24326, dedupe-map rows 44:10176/18222, coverage rows 49:59529/69572. CONFIRMED missing part: no option-level enumeration — greps 'rendering intent' and 'gamut' return zero Affinity hits (gamut hits are Photoshop cards/primitive-map diagnostics only, e.g. 05:57, 15:995). Target ICC profile, rendering intent, black point compensation, and gamut-check overlay options have no rows."
+      },
+      {
+        "title": "Shipping-product drift: unified Affinity v3.x has no help-leaf inventory (press-only rows), no patch-level tracking",
+        "domain": "Release currency / v3 successor coverage",
+        "severity": "MAJOR",
+        "description": "The corpus is anchored to V2.6 help leaves; v3 (the product professionals now download, free since Oct 2025) is covered by only 24 press-level rows. The v3 help center and release-notes hub at affinity.studio/help exist with full documentation (release notes for 3.0.x through 3.2.x, plus a 'New features for Affinity 2.x upgraders' page) and are not inventoried at leaf level; patch releases (e.g. 3.2.1) are untracked. Live check 2026-07-20: no v3.3 found via search, so headline coverage through 3.2 is current, but option/dialog depth for v3-only features (Tone Brush, Live Tone Blend Group, bitmap-selection-to-curves, Texture filter, Fine Detail sharpen, Vector Blob/Erase brushes) exists nowhere. Corpus's own AF-GAP-002 records the topic decision but the gap remains open.",
+        "external_evidence": "https://www.affinity.studio/help/release-notes/ (vendor hub; blocks non-browser fetch), https://www.cgchannel.com/2026/04/canva-releases-affinity-3-2/ and https://www.cgchannel.com/2026/03/canva-releases-first-major-update-to-its-free-affinity-software/ (3.1/3.2 feature sets), https://www.affinity.studio/help/introduction-new-features/ (2.x-upgrader feature enumeration page)",
+        "search_hints": "post-2-6, AF-GAP-002, 3.2, Tone Brush, new_surface",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "The claim's assertion that v3-only feature depth 'exists nowhere' is refuted at named-feature level: 54-affinity-deep-feature-delta.md subtopic [SFR-AFFINITY-DEEP-DELTA.post-2-6-unified-relaunch] (lines 4995-5246, 24 rows per header line 25) has individual rows for 3.1 Convert to Curves (5101), Live Tone Blend Groups (5112), non-destructive Tone Brush (5123-5126), 3.2 Texture filter (5178-5181), Vector Blob/Erase brushes (5189-5192), Multi Band Sharpen Fine Detail (5211-5214); index.yaml:496-498 records the recency note. AF-GAP-002 open decision confirmed at 02-affinity-suite-feature-map.md:98-100. CONFIRMED missing parts: rows are press-sourced with no affinity.studio/help leaf inventory (no v3 leaf-index file exists in 00-57), and patch-level tracking is absent — grep '3.2.1' returns no matches. Vendor-hub live check not performed in this audit (UNVERIFIED externally)."
+      },
+      {
+        "title": "V2 maintenance releases 2.6.1-2.6.5 untracked (desktop now at 2.6.5)",
+        "domain": "Release-delta tracking",
+        "severity": "MINOR",
+        "description": "Corpus release-delta rows stop at 2.6.0 (grep for 2.6.1-2.6.5 in file 54 returns nothing). Desktop V2 apps are now at 2.6.5 (iPad 2.6.4). The 2.6.x patches are mostly fixes but include behavior-relevant changes (lens-correction corrections for specific lenses, DOCX import improvements, linked/embedded resource sync fixes, crash fixes in History/Reading Order/Resource Manager) that matter for fixture and round-trip planning against the final V2 baseline.",
+        "external_evidence": "Forum thread 'All 2.6 Release Notes (inc. improvements and major fixes in 2.6.x patches)' at forum.affinity.serif.com topic 228112; Neowin coverage of Affinity Suite 2.6.3 and 2.6.4",
+        "search_hints": "2.6.1, 2.6.5, maintenance, release notes",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Empty search: grep '2\\.6\\.[1-5]' across the entire corpus including _source_snapshots/ returns zero matches. 54-affinity-deep-feature-delta.md release-delta coverage stops at 2.6 (e.g. line 2344 '2.6 added a keyboard shortcut'; source note line 5351 covers 2.2). No 2.6.x maintenance-patch rows exist anywhere. External claim that desktop is at 2.6.5 not independently verified in this audit (UNVERIFIED), but corpus absence is proven."
+      },
+      {
+        "title": "Print dialog color/quality/driver option depth beyond layout models unconfirmed in corpus",
+        "domain": "Print output",
+        "severity": "MINOR",
+        "description": "54 line 4171 covers the four print layout models, ranges, duplex and print-to-PDF from the vendor Print page, but records nothing about the dialog's color handling (printer- vs app-managed color, profile selection on macOS/Windows drivers) or rasterization/quality options. UNVERIFIED whether the vendor Print page documents those sections (affinity.help page content not fetchable in this audit); flagged so a verifier with page access can close or confirm.",
+        "external_evidence": "https://affinity.help/publisher2/en-US.lproj/pages/Publishing/print.html (URL in corpus snapshot affinity-publisher2-desktop-jina.md line 237)",
+        "search_hints": "print dialog, colou?r managed, printer profile, rasteri",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Print dialog has a real option-level deep row — 54-affinity-deep-feature-delta.md lines 4170-4181 id affinity.deep.export-and-formats.publisher-print-models (four layout models, page ranges, paper size, binding, duplex/manual, print-to-PDF; VERIFIED 2026-07-09) — so the surface is not row-less. CONFIRMED missing part: no rows on print color handling or rasterization quality — grep 'printer|colour managed|color managed|rasteri' in 54 returns only PDF-export rows (4149-4163 'printer marks', 'rasterization DPI' for PDF export) and preflight 3669; nothing on printer- vs app-managed color or driver profile selection. Whether the vendor Print page documents those sections remains UNVERIFIED (page not fetched in this audit)."
+      },
+      {
+        "title": "StudioLink failure/licensing states covered by a single row",
+        "domain": "StudioLink cross-app integration",
+        "severity": "MINOR",
+        "description": "Persona/StudioLink switching is deeply covered, but the failure-mode surface (sibling app not installed, not licensed/activated, version-mismatch between Photo/Designer/Publisher, feature availability differences inside hosted personas) has only one row per the corpus's own concern list. For Handshake's equivalent unified-engine design this defines the degraded-state UX contract.",
+        "external_evidence": "StudioLink requirement that licensed Photo 2/Designer 2 be installed is vendor-documented on the Publisher 2 StudioLink help page (https://affinity.help/publisher2/en-US.lproj/ StudioLink topic) and Serif marketing/FAQ for Publisher 2",
+        "search_hints": "StudioLink, sibling, licensed, persona switching",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "The 'single row' framing undercounts: three deep rows in 54-affinity-deep-feature-delta.md record the not-installed/not-licensed state — lines 161-171 (Designer Persona inside Publisher: 'without it the persona stays unavailable'), 172-182 (Photo Persona: 'when Affinity Photo 2 is installed'), 183-193 (StudioLink cross-app persona switching: 'requires the sibling apps to be installed and licensed'), plus native cross-open rows at 3777 and 4270. CONFIRMED missing part: no rows for version-mismatch between sibling apps, activation-state edge cases, or feature-availability differences inside hosted personas — greps 'version mismatch' and 'activat' return zero relevant Affinity hits (only '3.0: free-forever pricing' at 5035). The degraded-state contract beyond install/license presence is uncovered."
+      }
+    ],
+    "refuted_count": 2,
+    "concerns": [
+      "Live-verified this audit: direct affinity.help page fetches return HTTP 403 and Jina-style reads return TOC-only (SPA), reproducing corpus AF-GAP-001 — any per-option deepening pass needs the same ?page= SPA route/tooling file 54 used, or an installed-app lane.",
+      "Name-collision trap re-confirmed live: releasebot.io/updates/affinity and developer.affinity.co surface Affinity CRM (unrelated company); the corpus's AFD-S31 correction was right and future automated Affinity research must domain-pin to serif.com / affinity.help / affinity.studio.",
+      "No Affinity v3.3 found via search as of 2026-07-20; latest identified releases are v3.2 (Apr 2026) with a 3.2.1 patch, and V2 desktop 2.6.5 — so the corpus's headline v3 coverage (through 3.2) is current, but patch-level and help-center-level v3 coverage is absent.",
+      "Corpus records some negative postures (no glyph scaling, no V2 scripting API) but not others that matter for parity planning: no RTL/complex-script shaping (verified externally — third-party RTL Fixer exists because Affinity lacks native RTL), no vertical CJK text, no print separations preview. Recording competitor absences prevents Handshake from mistaking them for requirements or missing chances to exceed the competitor.",
+      "Breadth spot-checks came back clean: symmetry/mirror painting, isometric grids, mesh warp, live 360 projection, blend ranges/blend gamma, placed-PDF passthrough, studio presets, separated window modes, ASE palette import, Apply Image, procedural texture, equations/Voronoi, clone sources, artboards, expand stroke, glyph browser, spell/autocorrect, data-entry expressions are all present in the corpus — the misses in this report are mostly option-depth, command-surface enumeration, and release currency, not whole missing features, consistent with the corpus's own self-assessment.",
+      "Severity calibration: no CRITICAL gaps found — the corpus already captures every professional-output domain at or above help-page level; the reported MAJORs are depth/staleness risks that would surface during command-contract promotion (10-studio-command-contracts.md) rather than absent capabilities."
+    ]
+  },
+  {
+    "app": "Figma (Design, Draw, Dev Mode; FigJam/Slides/Sites/Buzz/Make secondary)",
+    "surviving_gaps": [
+      {
+        "title": "Performance/memory management surface not captured (2GB per-tab limit, Manage memory modal, memory-in-layers-panel)",
+        "domain": "Performance-class features",
+        "severity": "MAJOR",
+        "description": "Figma documents a hard ~2GB memory limit per file/tab (browser and desktop), a 'Manage memory' modal, a 'Show memory in layers panel' toggle, and concrete reduction strategies (component/variant count, hidden layers, image compression, splitting files). The corpus has zero Figma rows on memory limits, large-file behavior, or the memory-diagnostic UI (grep for memory/GPU/large-file across 23/43/55 returns only tangential REST and Sketch-import mentions). This defines the large-document behavior envelope Handshake must beat and the diagnostic UX professionals rely on.",
+        "external_evidence": "https://help.figma.com/hc/en-us/articles/360040528173-Reduce-memory-usage-in-files (2GB/tab limit, Manage memory modal, show-memory-in-layers toggle)",
+        "search_hints": "memory usage, 2GB, out of memory, Manage memory, layers panel memory",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Empty searches: grep -i 'Manage memory|memory usage|out of memory|2GB|2 GB' across entire corpus returned only 51-photoshop-deep-feature-delta.md:5403 (PSB 2 GB, Photoshop not Figma); grep -i 'memory|WebGL|WebGPU|browser requirement' over _source_snapshots/figma-* returned zero hits; grep 'memory' in 55-figma-deep-feature-delta.md returned zero hits. No Figma row or raw snapshot covers memory limits, the Manage memory modal, or the layers-panel memory toggle."
+      },
+      {
+        "title": "Rendering-stack/hardware requirements posture absent (WebGL/WebGPU, hardware acceleration)",
+        "domain": "Performance-class features",
+        "severity": "MINOR",
+        "description": "No corpus rows record Figma's rendering/browser requirements (WebGL2-based canvas renderer, hardware acceleration requirement) or the new WebGPU shader pipeline as an engine-posture fact. Config 2026 shaders are explicitly WebGPU-based per vendor material. PARTIALLY UNVERIFIED: the WebGPU shader claim is vendor-published; the exact current browser-requirements help article was not fetched in this audit and should be confirmed by the verifier.",
+        "external_evidence": "https://www.figma.com/blog/config-2026-recap/ and https://releasebot.io/updates/figma (WebGPU shaders on canvas); help.figma.com browser-requirements article (existence known, not fetched here — verify)",
+        "search_hints": "WebGL, WebGPU, hardware accel, browser requirement, renderer",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Empty searches: grep -i 'WebGL|WebGPU|hardware accel' corpus-wide matched only Affinity rows (09-affinity-desktop-delta.md, 42/44/54, 16-affinity-feature-use-cards.md) — no Figma hits. grep -i 'shader' finds only feature-level mentions: 'shaders' as a Community/Config feature name (26:2418, 23:2214, 33:151, _source_snapshots/figma-release-notes-jina.md:66) and animatable shader properties in Motion (55:3268); no row records the WebGL2/WebGPU engine posture or browser/hardware requirements. External WebGPU-shader claim itself: NOT_INSPECTED in this audit (no web fetch performed)."
+      },
+      {
+        "title": "Figma Sites accessibility settings panel not captured (alt text, semantic HTML tags, ARIA roles, decorative marking)",
+        "domain": "Accessibility output",
+        "severity": "CRITICAL",
+        "description": "Figma Sites has a dedicated per-element Accessibility section in the right sidebar: alt text on images/video (or mark-as-decorative), semantic HTML tag selection (button, nav, etc.), and ARIA role assignment for generic elements, plus an accessibility guidance collection. None of the corpus's 11 Sites rows or any other Figma row covers this (grep 'accessib|alt text|semantic|aria' over figma files returns only the single accessible-prototypes leaf and variant/variable false positives). Web studios cannot ship legally compliant sites (e.g., European Accessibility Act) without this surface, so a Sites-replacement claim without it is a hard blocker.",
+        "external_evidence": "https://help.figma.com/hc/en-us/articles/31242789265431-Improve-the-accessibility-of-your-site and https://help.figma.com/hc/en-us/articles/35895955843735-Figma-Sites-collection-Make-your-Figma-Site-accessible",
+        "search_hints": "accessib, alt text, semantic tag, aria, decorative",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "All 11 Sites deep-delta rows enumerated in 55-figma-deep-feature-delta.md lines 2882-2965 and 3145-3165 (site-file-model, blocks, breakpoints, interactions-presets, code-layers, cms, preview, publish-hosting, design-file-insert, seo-page-settings, republish-unpublish) — none mention accessibility. grep -i 'accessib' over figma files returns only the accessible-prototypes leaf family (23-figma-leaf-index.md:1541, 25:8860, 43:4563 — a different, prototype-focused feature with boilerplate card text) plus nav-chrome footer links to the Accessibility hub in _source_snapshots (e.g. figma-sites-category-jina.md:69, which is page navigation, not article content). grep -i 'alt text|aria|semantic tag|semantic HTML|decorative' returns only InDesign rows (03-indesign-feature-map.md:60,62). Spec check: 14-studio-creative-suite.md covers tagged-PDF/alt-text for layout export (STU-LAY-041, line 1105) but nothing for the Sites per-element accessibility panel."
+      },
+      {
+        "title": "Editor accessibility surface unenumerated (screen-reader support, FigJam Adapt content/focus order, accessibility hub)",
+        "domain": "Accessibility output",
+        "severity": "MINOR",
+        "description": "Vendor documents an editor-side accessibility surface the corpus never rows out: 'Use FigJam with a screen reader', 'Create accessible FigJam boards' (Adapt content setting, focus-order inclusion of stickers/connectors/washi tape), keyboard-driven tool activation (F6 navigation), and an 'Accessibility at Figma' hub. Corpus carries exactly one accessibility leaf (accessible prototypes) with boilerplate card text.",
+        "external_evidence": "https://help.figma.com/hc/en-us/articles/14477051168791-Use-FigJam-with-a-screen-reader ; https://help.figma.com/hc/en-us/articles/14477101678359-Create-accessible-FigJam-boards ; https://help.figma.com/hc/en-us/articles/35063862380311-Accessibility-at-Figma",
+        "search_hints": "screen reader, Adapt content, focus order, accessible prototypes",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Empty searches: grep -i 'screen reader|Adapt content|focus order' corpus-wide matched only Illustrator ('Set up screen reader support', 22-illustrator-leaf-index.md:311, snapshots) and Photoshop (51:5956 accessibility surface row) — zero Figma hits in rows or figma snapshots. The Accessibility hub URL (hc/articles/35063862380311) appears only as unprocessed nav-chrome links in _source_snapshots/figma-*-jina.md footers (e.g. figma-draw-section-jina.md:69). The sole Figma accessibility row remains the accessible-prototypes leaf (23:1541) with boilerplate card text, as the claim states."
+      },
+      {
+        "title": "Color-management conversion and export-profile behavior under-rowed (export-time profile override, convert-on-profile-change, P3 fidelity)",
+        "domain": "Color management",
+        "severity": "MAJOR",
+        "description": "Corpus rows cover the document profile setting (sRGB/Display P3) and picker models, but not: the per-export color-profile dropdown (Same as file / sRGB / Display P3) that changes exported asset encoding, what happens to existing colors when a file's profile is changed (convert vs reinterpret), unmanaged-legacy-file upgrade behavior, and browser/display dependence of P3 preview. Notably, the export-profile dropdown IS present in the corpus's own raw snapshot (_source_snapshots/figma-export-formats-jina.md lines 110-122) but was never distilled into a 55 row — a distillation gap, not a research gap. Export color fidelity is a professional-output requirement.",
+        "external_evidence": "https://help.figma.com/hc/en-us/articles/360039825114 (color management) referenced from Figma's 'Export from design files' article showing the color profile export dropdown",
+        "search_hints": "color profile, Display P3, Same as file, sRGB export",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Present: 55-figma-deep-feature-delta.md:1105-1116 row 'figma.deep.vector-and-draw.document-color-profile' (Document color profile sRGB/Display P3, incl. 'unmanaged legacy behavior as a fallback' clause). Missing from rows but present verbatim in raw snapshot only: export-time color-profile dropdown (Same as file / sRGB / Display P3) at _source_snapshots/figma-export-formats-jina.md:110-122 (verified by direct read). Empty searches for distilled coverage: grep -i 'Same as file' returns zero curated-file hits; convert-vs-reinterpret on profile change and P3 preview browser-dependence appear nowhere. The 'Learn more about color profiles' entry (25:11243) is a boilerplate name-only card. Distillation gap confirmed as claimed."
+      },
+      {
+        "title": "Export-modal option depth not distilled: image resampling, Ignore overlapping layers, Slice tool region export",
+        "domain": "Import/export fidelity",
+        "severity": "MINOR",
+        "description": "Figma's export modal exposes image resampling (Detailed=bicubic vs Basic=nearest-neighbor) for PNG/JPG/PDF, an 'Ignore overlapping layers' toggle with special slice-container semantics, and the Slice tool as a region-export primitive. All of this exists verbatim in the corpus raw snapshots (figma-export-formats-jina.md lines 128-161, figma-export-static-jina.md) but no deep-delta row captures it; the only slice row is the Plugin-API SliceNode. Cheap distillation pass closes it.",
+        "external_evidence": "help.figma.com 'Export from Figma design files' article family (snapshotted in corpus at _source_snapshots/figma-export-formats-jina.md, figma-export-static-jina.md)",
+        "search_hints": "resampling, bicubic, Ignore overlapping, Slice tool",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Exists only in unprocessed raw snapshots: _source_snapshots/figma-export-formats-jina.md:124-161 (Ignore overlapping layers incl. slice-container semantics at lines 128-130; Detailed=bicubic / Basic=nearest-neighbor resampling at lines 138-152) — verified by direct read. grep -i 'resampling|bicubic|Ignore overlapping|nearest.neighbor' over figma files hits only that snapshot; no row in 43/55/46 captures it. Only slice row is Plugin-API SliceNode (55-figma-deep-feature-delta.md:3849-3853 'SliceNode export regions'), matching the claim; no canvas Slice-tool row."
+      },
+      {
+        "title": "Image/video import constraints and format catalog not captured (4096x4096 auto-downscale, PNG/JPEG/HEIC/GIF/TIFF/WebP)",
+        "domain": "Import/export fidelity",
+        "severity": "MAJOR",
+        "description": "Figma silently downscales any imported image whose longest dimension exceeds 4096px, and supports a specific static-format set (PNG, JPEG, HEIC, GIF, TIFF, WEBP; Sites additionally SVG with per-browser TIFF caveat) plus video-fill formats. The corpus has the 'Add images and videos to designs' leaf as a name-only row with boilerplate card text; no row records the 4096 cap, downscale behavior, or the format list (grep '4096|TIFF|WebP|HEIC' returns no figma feature rows). Silent asset degradation on import is a professional fidelity constraint Handshake must document and beat.",
+        "external_evidence": "https://help.figma.com/hc/en-us/articles/360040028034-Add-images-and-videos-to-designs (4096x4096 proportional downscale, supported format list); https://help.figma.com/hc/en-us/articles/33666207487767-Add-images-and-video-to-a-site",
+        "search_hints": "4096, TIFF, WebP, HEIC, add images",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Name-only leaf row exists: 23-figma-leaf-index.md:815 'figma.platform.leaf.360040028034-add-images-and-videos-to-designs' (boilerplate card text, no constraints). FigJam static-format list (PNG, JPEG, HEIC, GIF, TIFF, WEBP + MP4/MOV/WebM video) exists only in raw snapshots: _source_snapshots/figma-figjam-media-jina.md:10,21 and figma-figjam-guide-to-figjam-jina.md:234-236; the corresponding compat record (46-file-format-compatibility-registry.md ~line 8026 'Place images, video, and GIFs in FigJam') carries format_id: format.unspecified. The 4096px auto-downscale cap is fully absent: grep -i '4096|downscale' corpus-wide (incl. _source_snapshots) returns zero hits. 55 image rows (945-1172: fill modes, adjustments, crop) do not cover import constraints."
+      },
+      {
+        "title": "No Figma command/shortcut enumeration ledger (Adobe-style count discipline never applied)",
+        "domain": "Keyboard shortcuts / command enumeration",
+        "severity": "MAJOR",
+        "description": "The corpus's own count methodology (28-adobe-count-methodology.md) enumerates toolbar tools, shortcut rows, and menu commands for Photoshop/Illustrator/InDesign only; Figma has no equivalent ledger of its in-app shortcuts panel, quick-actions command palette entries, or right-click menu commands, so command-level completeness cannot be proven for the app family most central to Handshake's web-studio pitch. Vendor surfaces to enumerate: the in-app keyboard shortcuts panel (Ctrl/Cmd+Shift+?), the quick actions palette, and the 'Select keyboard layout' preference (article 5665442977431) which no corpus row mentions.",
+        "external_evidence": "https://help.figma.com/hc/en-us/articles/360040328653-Keyboard-shortcuts-in-Figma ; https://help.figma.com/hc/en-us/articles/5665442977431-Select-keyboard-layout",
+        "search_hints": "keyboard shortcut, quick actions, keyboard layout, command palette",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Present: 55-figma-deep-feature-delta.md:584-595 row 'figma.deep.design-core.keyboard-shortcut-panel' (built-in shortcut panel, grouped by category, used-highlighting) and 55:596-607 'figma.deep.design-core.quick-actions-palette' (searchable palette running any menu command/plugin) — the two surfaces themselves ARE rowed, contra the claim's implication of zero coverage. Missing: no Figma equivalent of the Adobe count ledgers — 28-adobe-count-methodology.md contains zero 'figma' matches and only 29/30/31 (PS/ID/AI) expanded-count ledgers exist in the directory listing; no per-command/per-shortcut enumeration rows. 'Select keyboard layout' preference: grep -i 'keyboard layout|5665442977431' corpus-wide returns only an Illustrator bug note (illustrator-release-notes-jina.md:1490) — confirmed absent for Figma."
+      },
+      {
+        "title": "Desktop-app-specific surface under-covered (tabs, preferences, cache/recovery, updates, vs-browser delta)",
+        "domain": "Workspace/UX capabilities",
+        "severity": "MINOR",
+        "description": "help.figma.com maintains a desktop-app section (install/updates, tab management, preferences, cache clearing, offline behavior specifics, font agent installation) but the corpus mentions the desktop app only incidentally inside three 55 rows (font sources, MCP local server, plugin hot-reload). Since Handshake is itself a native app, the desktop-vs-browser delta and local cache/recovery behaviors are the most directly transferable Figma evidence and are unrowed. Exact article URLs for the desktop-app guide were not fetched in this audit — verifier should pull the help-center desktop-app section index.",
+        "external_evidence": "help.figma.com desktop-app help section (referenced by 'Use Figma products with a keyboard' F6/Ctrl-F6 desktop bindings and font-agent articles); UNVERIFIED exact section URL — confirm on fetch",
+        "search_hints": "desktop app, font agent, tabs, clear cache",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Contra the claim's 'only incidentally inside three 55 rows': a dedicated leaf exists — 23-figma-leaf-index.md:2058 'figma.platform.leaf.5601429983767-guide-to-the-figma-desktop-app' with card (25:11868) and distilled row (43:6088). However that row is defective boilerplate: feature_name is 'Learn more in the help center.' (43:6094) with generic file-io app_behavior — zero desktop-app substance. Substantive desktop mentions are incidental (55:1389 font agent, 55:2426 MCP local server, 55:4065 plugin hot reload). Tab groups exist only in raw snapshot _source_snapshots/figma-release-notes-jina.md:207-221. Empty searches: grep -i 'clear cache' zero Figma hits; no preferences/updates/offline-specific rows."
+      },
+      {
+        "title": "Sites production depth beyond layout: CMS rich text, website settings, publishing controls (June 2026)",
+        "domain": "Figma Sites",
+        "severity": "MAJOR",
+        "description": "Sites coverage (11 curated rows) captures blocks/breakpoints/CMS-collections/publish posture but the vendor help category is materially deeper: CMS rich-text field editing (article 36165352090775), website settings (favicon/social metadata beyond the per-page SEO row), Sites-specific media format rules, and the June 17 2026 workspace-level web-publishing permission controls that ship after-the-fact governance for published sites. No per-article explosion of the Sites help category (31823555275671) exists to diff against, so remaining Sites features cannot be mechanically audited.",
+        "external_evidence": "https://help.figma.com/hc/en-us/categories/31823555275671-Figma-Sites ; https://help.figma.com/hc/en-us/articles/36165352090775-Work-with-rich-text-fields-in-CMS ; https://help.figma.com/hc/en-us/articles/31242875661591-Edit-website-settings ; figma.com/release-notes June 17 2026 entry",
+        "search_hints": "rich text, CMS, website settings, publish controls, favicon",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Present: 55-figma-deep-feature-delta.md:2932-2941 'CMS content collections' row; 55:3156-3165 republish-unpublish row including 'org admins can gate web publishing'; 55:4695 org-settings row constraining web publishing for Sites/Make; workspace-level Web Publishing (June 17 2026) exists in raw snapshot _source_snapshots/figma-release-notes-jina.md:135-157 only. Missing entirely: CMS rich-text field editing (grep -i 'rich text' → only InDesign RTF snapshot hits), website settings/favicon (grep -i 'favicon|website settings' → only domain-ledger name 38:89, no rows). No per-article Sites help-category explosion exists (55 sources list DEEP-S19/S20/S21/S45/S46 only)."
+      },
+      {
+        "title": "Slides help-category depth rests on 12 curated rows with no per-article inventory",
+        "domain": "Figma Slides",
+        "severity": "MINOR",
+        "description": "Slides has a full help category (deck management, templates/themes, interactive audience elements like polls and alignment scales, speaker-notes workflows, PPTX import AND export, present/rehearse modes) but the corpus carries 12 analyst-selected rows plus one roll-up leaf; PPTX import appears only inside a category-level round_trip row in 46 (line 8035) with format.unspecified refs. Exhaustiveness cannot be diffed against the vendor TOC. Lower weight than Design/Sites for studio replacement, hence MINOR.",
+        "external_evidence": "help.figma.com Figma Slides help category (linked from 'What's new from Config 2026' article); 46-file-format-compatibility-registry.md line 8035 shows PPTX import only at category granularity",
+        "search_hints": "slides, PPTX, presenter notes, poll, alignment scale",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Curated coverage is real and slightly wider than claimed: 55-figma-deep-feature-delta.md rows at 2781 (deck-object-model), 2791, 2801, 2811, 2821, 2831 (polls/alignment scales), 2841 (presenter notes), 2851 (present modes), 2861, 2871-2875 (Deck export PDF/PPTX — PPTX EXPORT is rowed), 3123 (transitions), 3134 (skip/hide), plus plugin Slides node set 3879 and PDF export 4355. Confirmed as claimed: PPTX IMPORT exists only at category granularity — 46-file-format-compatibility-registry.md:8027-8044 (record compat.feature.figma.osd-figma-figma-slides-leaf-category-v1.v1, feature_name at line 8035 includes 'PowerPoint import', format_refs = format.unspecified); 23-figma-leaf-index.md:2148 is the single category-level Slides leaf; no per-article vendor-TOC inventory to diff against."
+      },
+      {
+        "title": "Post-snapshot July 2026 releases not yet reflected (code-backed screens bind to variables; beta rollout status drift)",
+        "domain": "Recent releases / snapshot currency",
+        "severity": "MINOR",
+        "description": "Corpus verification is dated 2026-07-09. Since then: July 16 2026 — code-backed screens imported via Make previews, MCP server, or the Chrome webpage-capture extension now bind colors/type/spacing to existing file variables instead of hardcoding (upgrades the already-rowed 'Turn webpages into editable design layers' leaf and MCP rows); code layers closed-beta 'rolls out starting in July'; 3D transforms rowed as 'announced, not shipped' may have shipped in beta. Config 2026 itself IS captured (Motion, shaders, code layers, 3D-announced all present in 55/snapshots), so this is a refresh pass, not a research hole.",
+        "external_evidence": "https://www.figma.com/release-notes/ (July 16 2026 code-backed screens with variables; June 24 2026 Config entries)",
+        "search_hints": "code layer, 3d-transforms-announced, code-backed, variable binding",
+        "verdict": "CONFIRMED_MISSING",
+        "corpus_evidence": "Corpus-side facts verified: grep 'verified_at' shows all 55 rows dated 2026-07-09 and grep '2026-07-1[0-9]' corpus-wide returns zero hits (nothing newer than 2026-07-09); grep -i 'code-backed' returns zero hits; 3D transforms rowed as announced-not-shipped at 55:3472-3476 ('not shipped as of 2026-07-09'); code layers rowed at 55:2923-2926; Config 2026 entries present in _source_snapshots/figma-release-notes-jina.md:65-67 and webpage-capture leaf at 23:309 — so the base features exist and only the July-16 variable-binding upgrade/rollout status is absent. NOT_INSPECTED: the external July 16 2026 release note itself was not fetched in this audit; the missing-from-corpus verdict rests on corpus dating, not on independent confirmation of the vendor release."
+      },
+      {
+        "title": "Community publishing/marketplace workflows captured only as a single posture row",
+        "domain": "Ecosystem / distribution",
+        "severity": "MINOR",
+        "description": "Publishing plugins/widgets/templates/UI kits to Figma Community, Community profiles, and paid-resource seller workflows are covered by one row ('Community publish and duplicate posture', 55 line 3655) plus the Payments API rows. For studios that distribute or sell design-system assets, the publish/version/update lifecycle is a real workflow. Likely an intentional provider-marketplace posture decision — verify against the corpus's provider-posture rules before treating as a capture defect.",
+        "external_evidence": "https://help.figma.com/hc/en-us/articles/360038510833-Create-a-Community-profile (Community profiles; referenced in corpus release-notes snapshot line 260)",
+        "search_hints": "community publish, community profile, sell resources, paid resource",
+        "verdict": "PARTIALLY_COVERED",
+        "corpus_evidence": "Present: 55-figma-deep-feature-delta.md:3654-3665 'Community publish and duplicate posture' (explicitly 'marketplace fully provider-dependent'); Payments rows 55:4138-4142 (figma.payments plugin monetization) and 55:4421-4425 (Payments API); community category leaf 23-figma-leaf-index.md:2214 and posture-map entry 26:2418; boilerplate name-only row for 'Create a Community profile' at 43-figma-source-distilled-feature-rows.md:6120. Missing: publish/version/update lifecycle, seller workflows, profile management as substantive rows. The row's own 'fully provider-dependent' tag supports the claim's caveat that this may be an intentional provider-marketplace posture decision rather than a capture defect — operator/analyst adjudication needed on posture intent."
+      }
+    ],
+    "refuted_count": 1,
+    "concerns": [
+      "The corpus is fresher than the reader-summary implies: Config 2026 (June 24) is fully represented — Motion (25 rows), shaders, code layers in Design (55 line 2923), and 3D transforms ('announced, not shipped', 55 line 3472) — because verification fetches ran 2026-07-09, after Config. Recency gaps are limited to post-July-9 rollout-status drift.",
+      "Several plausible gap candidates are ALREADY covered and must not be double-reported: sharing-link permission model incl. password links (55 line 3643), interactive components and inline preview (55 lines 2151/2174), seat-type permission matrix (55 line 4639), PPTX import round-trip (46 line 8035, category-level), nudge/rename-layers/copy-paste-properties/arc-tool leaves (23), webpage-to-design-layers import (23 line 309-319). Verifiers should grep 55 and 23 before acting on any claimed gap.",
+      "A cheap distillation pass over the corpus's own _source_snapshots/ (figma-export-formats-jina.md, figma-export-static-jina.md) would close the export-option-depth and export-color-profile gaps without new research — the raw vendor text is already in-repo but never became rows.",
+      "AI-exclusion boundary held correctly for Config 2026: shaders/Weave tools/generative plugins/agent skills+connectors are agent-driven provider-lane features; only their non-AI residue (shader effects as reusable saved fills, code-layer runtime on canvas, animatable shader/material properties — already touched at 55 line 3268) needs posture rows, not parity rows.",
+      "Beta volatility: Motion (open beta), code layers (closed beta), 3D transforms (beta signup) are moving targets; the corpus's own mandate to re-inspect source pages at command-contract promotion time is the right control — apply it to these three surfaces first.",
+      "The 'aria' grep trap: naive substring greps against this corpus produce false positives ('aria' matches variants/variables); gap verifiers should use word-boundary patterns for accessibility terms.",
+      "No dedicated import-export section exists in 55's taxonomy (export rows live under rest-api-and-platform, e.g. line 4334); when promoting export features, expect coverage to be scattered across sections rather than missing outright."
+    ]
+  }
+]

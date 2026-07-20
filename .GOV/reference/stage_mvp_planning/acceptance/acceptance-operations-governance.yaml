@@ -1,0 +1,1531 @@
+schema_id: hsk.stage_acceptance_registry@1
+registry_id: stage-acceptance-operations-governance
+authority: NON_AUTHORITATIVE_REFERENCE
+status: SPECIFIED_UNBOUND
+updated_at: '2026-07-19'
+wp_id: WP-1-Handshake-Stage-MVP-v1
+domains:
+- accessibility
+- localization
+- manual
+- recovery
+- release
+- active_wp
+- supersession
+row_count: 24
+command_binding_rule: UNBOUND is permitted while implementation entrypoints do not exist. Before execution, every UNBOUND command must be replaced
+  by an exact non-interactive repository command with a zero-match guard and declared evidence outputs.
+acceptance:
+- id: STAGE-ACC-RECOVERY-001
+  title: Deduplicated bounded process recovery
+  closure_unit: Each browser, renderer, GPU, network, profile, and host failure enters one deduplicated typed state machine, applies a bounded
+    retry policy, and reaches recovered, quarantined, or explicit failed state.
+  requirement_ids:
+  - STAGE-REQ-RECOVERY-001
+  source_ids:
+  - STAGE-PRES-MVP-010
+  - STAGE-PRES-ASR-003
+  - STAGE-SPEC-010
+  - STAGE-SPEC-018
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-013-FAILURE-RECOVERY
+  dependency_gate_ids: []
+  owner_lane: L21
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - process-failure-injection-fixture-bound
+  - bound-build-id
+  - bound-fixture-id
+  - bound-command-id
+  - bound-process-class
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-RECOVERY-001
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Inject each process class failure and prove one attributable transition sequence, bounded retry count, and stable recovered state.
+    negative:
+    - Duplicate or reordered failure signals cannot create parallel recovery loops, duplicate replacement processes, or false recovered status.
+    failure_recovery:
+    - Exhausting the retry budget stops automatic work, preserves canonical tab/session state, and exposes an operator recovery action.
+    concurrency:
+    - Simultaneous duplicate failure signals and failures in separate process classes retain per-target attribution, share only the intended retry
+      budget, and create no duplicate recovery worker.
+  evidence_types:
+  - process-failure-injection
+  - typed-transition-log
+  - retry-counter-report
+  - final-state-receipt
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - process-failure-injection-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-RECOVERY-002
+  title: Crash-loop quarantine and safe mode
+  closure_unit: Repeated startup or renderer crashes trip a deterministic loop breaker, quarantine the failing scope, offer safe-mode restore
+    choices, and remove or report every orphan.
+  requirement_ids:
+  - STAGE-REQ-RECOVERY-002
+  source_ids: []
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-013-FAILURE-RECOVERY
+  dependency_gate_ids: []
+  owner_lane: L21
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - crash-loop-safe-mode-fixture-bound
+  - bound-build-id
+  - bound-fixture-id
+  - bound-command-id
+  - bound-threshold-policy
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-RECOVERY-002
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - A threshold-crossing crash sequence enters safe mode, identifies the quarantined scope, and completes the selected restore journey without
+      re-triggering the loop.
+    negative:
+    - A single transient crash does not trip global safe mode, while repeated crashes cannot bypass the breaker through restart timing or window
+      duplication.
+    failure_recovery:
+    - If safe-mode restore also fails, Stage remains usable in bounded recovery mode and provides retry, export, reset, and diagnostics choices
+      without deleting canonical state.
+    concurrency:
+    - Concurrent windows crossing the crash threshold elect one breaker decision and one quarantine record without repeatedly relaunching the
+      failing scope.
+  evidence_types:
+  - crash-loop-safe-mode
+  - crash-sequence
+  - breaker-receipt
+  - quarantine-manifest
+  - orphan-cleanup-report
+  - visual-journey
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - crash-loop-safe-mode-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-RECOVERY-003
+  title: System fault injection and reconciliation
+  closure_unit: Disk-full, low-memory, corrupt/locked-profile, database-outage, event-loss/reorder, and interrupted-migration injections each
+    preserve truth, prevent false success, and enter a documented recovery path.
+  requirement_ids:
+  - STAGE-REQ-RECOVERY-003
+  source_ids:
+  - STAGE-PRES-PORT-006
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-013-FAILURE-RECOVERY
+  dependency_gate_ids: []
+  owner_lane: L21
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - system-fault-matrix-fixture-bound
+  - bound-build-id
+  - bound-fixture-id
+  - bound-command-id
+  - bound-fault-id
+  - bound-injection-point
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-RECOVERY-003
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Every declared fault is reproducibly injected at pre-write, mid-write, post-write, and restart boundaries where applicable and produces
+      the expected typed result.
+    negative:
+    - No injected fault may be swallowed, converted to success, repaired by destructive reinitialization, or contaminate another profile/session.
+    failure_recovery:
+    - Restart and retry reconcile partial effects idempotently, or enter safe mode with the exact unresolved records and operator choices visible.
+    concurrency:
+    - Overlapping disk, memory, database, and migration faults serialize or fence recovery so one repair cannot overwrite another fault's unresolved
+      state.
+  evidence_types:
+  - system-fault-matrix
+  - fault-injection-results
+  - invariant-report
+  - restart-reconciliation
+  - safe-mode-receipts
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - system-fault-matrix-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-RECOVERY-004
+  title: Canonical clean-machine restore
+  closure_unit: A clean-machine restore reconstructs canonical Stage records and ArtifactStore references before rematerializing runtime profiles;
+    live browser UDF files are never required as backup authority.
+  requirement_ids:
+  - STAGE-REQ-RECOVERY-004
+  source_ids:
+  - STAGE-PRES-PORT-001
+  - STAGE-PRES-PORT-003
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-013-FAILURE-RECOVERY
+  - STAGE-GATE-014-BACKUP-RESTORE
+  dependency_gate_ids: []
+  owner_lane: L21
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - clean-machine-restore-fixture-bound
+  - bound-build-id
+  - bound-backup-format-version
+  - bound-fixture-id
+  - bound-command-id
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-RECOVERY-004
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Restore a versioned backup on a clean machine and reconcile record counts, hashes, lineage, profiles, and a 3000-tab dormant session without
+      eager renderer startup.
+    negative:
+    - Missing, stale, or corrupt live UDF data cannot override canonical records or cause the restore to report complete.
+    failure_recovery:
+    - Interrupted or partially corrupt restore resumes idempotently or reports exact losses while preserving the source backup and already verified
+      objects.
+    concurrency:
+    - Writes concurrent with backup are excluded or captured by a declared snapshot watermark, and restore reconciles only the canonical committed
+      set.
+  evidence_types:
+  - clean-machine-restore
+  - restore-manifest
+  - counts-and-hashes
+  - lineage-reconciliation
+  - renderer-process-map
+  - loss-report
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - clean-machine-restore-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-ACCESS-001
+  title: Keyboard and screen-reader completion
+  closure_unit: Keyboard-only and screen-reader users complete every P0 native-shell and embedded-content journey with coherent focus, names,
+    roles, values, state, and transition announcements.
+  requirement_ids:
+  - STAGE-REQ-ACCESS-001
+  source_ids: []
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-015-ACCESS-I18N-MANUAL
+  dependency_gate_ids: []
+  owner_lane: L18
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - uia-narrator-journeys-fixture-bound
+  - bound-build-id
+  - bound-fixture-id
+  - bound-command-id
+  - bound-assistive-tech-version
+  - bound-locale
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-ACCESS-001
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Run the P0 journey corpus with keyboard and Narrator/UIA, proving deterministic focus order and actionable announcements across native/embedded
+      boundaries.
+    negative:
+    - Hidden, unloaded, disabled, or offscreen controls are not exposed as actionable, and focus cannot disappear into an unobservable embedded
+      surface.
+    failure_recovery:
+    - Renderer loss or navigation rebuild restores focus to a stable Stage control and announces the failure and available recovery action.
+    concurrency:
+    - Parallel model or background actions cannot steal keyboard/screen-reader focus; every focus mutation remains attributable to its window
+      and action.
+  evidence_types:
+  - uia-narrator-journeys
+  - uia-tree-snapshots
+  - keyboard-traces
+  - announcement-log
+  - journey-results
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - uia-narrator-journeys-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-ACCESS-002
+  title: Accessible visual and input matrix
+  closure_unit: High contrast, text scaling, page zoom, reduced motion, supported DPI/multi-monitor layouts, and IME input retain readable, non-overlapping,
+    discoverable Stage controls and visible state.
+  requirement_ids:
+  - STAGE-REQ-ACCESS-002
+  source_ids: []
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-015-ACCESS-I18N-MANUAL
+  dependency_gate_ids: []
+  owner_lane: L18
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - accessibility-visual-matrix-fixture-bound
+  - bound-build-id
+  - bound-fixture-id
+  - bound-command-id
+  - bound-viewport
+  - bound-dpi
+  - bound-scale
+  - bound-theme
+  - bound-locale
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-ACCESS-002
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Capture and inspect the declared theme, scale, DPI, monitor-transition, reduced-motion, zoom, and IME matrix on all P0 screens and dialogs.
+    negative:
+    - Long labels, extreme supported scale, mixed-DPI movement, and composition text cannot clip critical state, overlap controls, or require
+      animation to understand status.
+    failure_recovery:
+    - Unsupported display transition or render failure returns to the last usable layout and exposes a reset-to-safe-display action without losing
+      workspace state.
+    concurrency:
+    - Concurrent DPI/monitor transitions and background layout updates converge on one non-overlapping layout without losing input composition
+      or control state.
+  evidence_types:
+  - accessibility-visual-matrix
+  - visual-snapshots
+  - layout-metrics
+  - ime-traces
+  - accessibility-verdicts
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - accessibility-visual-matrix-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-I18N-001
+  title: Localized resources and resilient layout
+  closure_unit: Stable resource IDs resolve through BCP-47 locale fallback and plural rules; RTL, locale sorting/search, pseudo-localization,
+    and long strings preserve meaning and layout.
+  requirement_ids:
+  - STAGE-REQ-I18N-001
+  source_ids: []
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-015-ACCESS-I18N-MANUAL
+  dependency_gate_ids: []
+  owner_lane: L18
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - localization-fixture-fixture-bound
+  - bound-build-id
+  - bound-resource-bundle-hash
+  - bound-fixture-id
+  - bound-command-id
+  - bound-locale
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-I18N-001
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Execute representative plural, fallback, RTL, collation, search, pseudo-locale, and long-string fixtures against every operator-visible
+      P0 surface.
+    negative:
+    - Missing resources, invalid locale tags, bidi text, and oversized translations cannot expose raw keys, reverse protected identifiers, or
+      silently use inconsistent sorting.
+    failure_recovery:
+    - A corrupt or incomplete locale pack falls back through the declared chain, records the missing keys, and keeps the current task usable.
+    concurrency:
+    - Parallel locale renders use isolated resource resolution and deterministic caches so RTL, plural, and collation data cannot bleed between
+      sessions.
+  evidence_types:
+  - localization-fixture
+  - resource-coverage
+  - locale-results
+  - rtl-snapshots
+  - collation-report
+  - missing-key-report
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - localization-fixture-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-I18N-002
+  title: Per-session locale coherence
+  closure_unit: Each session applies one attributable locale policy coherently to engine locale, Accept-Language, translation language, search
+    collation, localized errors, and the linked manual.
+  requirement_ids:
+  - STAGE-REQ-I18N-002
+  source_ids: []
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-015-ACCESS-I18N-MANUAL
+  dependency_gate_ids: []
+  owner_lane: L18
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - locale-coherence-suite-fixture-bound
+  - bound-build-id
+  - bound-fixture-id
+  - bound-command-id
+  - bound-session-id
+  - bound-locale
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-I18N-002
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Create concurrent sessions with different BCP-47 policies and prove every declared locale consumer receives its own effective value and
+      fallback chain.
+    negative:
+    - A global locale change or another session cannot leak into an existing session without an explicit policy transition and visible restart/reload
+      requirement.
+    failure_recovery:
+    - If an engine rejects a locale or translation service is unavailable, Stage reports the degraded component, keeps the remaining locale policy
+      coherent, and offers retry.
+    concurrency:
+    - Concurrent sessions with different locales retain distinct engine headers, search collation, translation, errors, and manual locale under
+      simultaneous navigation.
+  evidence_types:
+  - locale-coherence-suite
+  - session-policy-snapshots
+  - request-header-capture
+  - search-results
+  - localized-error-snapshots
+  - manual-locale-proof
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - locale-coherence-suite-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-MANUAL-001
+  title: No-context operator manual journeys
+  closure_unit: A no-context operator can use the shipped UserManual to install, run, navigate, manage sessions/auth limitations/permissions/model
+    control/capture, update, back up, diagnose, and recover Stage.
+  requirement_ids:
+  - STAGE-REQ-MANUAL-001
+  source_ids:
+  - STAGE-DEC-014
+  - STAGE-SPEC-018
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-015-ACCESS-I18N-MANUAL
+  dependency_gate_ids: []
+  owner_lane: L18
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - no-context-manual-journeys-fixture-bound
+  - bound-build-id
+  - bound-manual-version
+  - bound-fixture-id
+  - bound-command-id
+  - bound-locale
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-MANUAL-001
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Fresh operators complete one declared journey per manual topic using only the shipped manual and referenced in-product navigation paths.
+    negative:
+    - The manual contains no stale action IDs, hidden prerequisites, chat-only knowledge, unsafe fallback, or claim of support contradicted by
+      the capability registry.
+    failure_recovery:
+    - Every documented common failure leads to a verified typed error, diagnostics location, recovery action, and escalation evidence path.
+    concurrency:
+    - An update cannot mix manual versions within one journey; parallel readers resolve the manual bound to their running Stage build.
+  evidence_types:
+  - no-context-manual-journeys
+  - manual-build
+  - topic-coverage
+  - journey-results
+  - link-check
+  - capability-claim-diff
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - no-context-manual-journeys-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-MANUAL-002
+  title: No-context model usability journeys
+  closure_unit: A no-context model discovers stable action IDs, canonical state, health, receipts, screenshots, failures, and release evidence
+    through documented structured paths without chat or hidden session context.
+  requirement_ids:
+  - STAGE-REQ-MANUAL-002
+  source_ids:
+  - STAGE-DEC-014
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-015-ACCESS-I18N-MANUAL
+  dependency_gate_ids: []
+  owner_lane: L18
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - model-usability-journeys-fixture-bound
+  - bound-build-id
+  - bound-manual-version
+  - bound-protocol-version
+  - bound-fixture-id
+  - bound-command-id
+  - bound-model-run-id
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-MANUAL-002
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - A fresh model completes inspect, act, verify, diagnose, and evidence-discovery journeys using only the built-in model manual and structured
+      Stage interfaces.
+    negative:
+    - Missing authority, unsupported capability, stale revision, and unavailable evidence are explicit; the model cannot infer success from UI
+      text or hidden context.
+    failure_recovery:
+    - After process restart and action uncertainty, the model locates the durable intent/result receipt, reconciles the postcondition, and resumes
+      without duplicating the action.
+    concurrency:
+    - Parallel no-context models receive actor-attributed state, receipts, screenshots, and evidence and cannot consume another actor's hidden
+      action context.
+  evidence_types:
+  - model-usability-journeys
+  - fresh-model-transcripts
+  - structured-state-captures
+  - action-receipts
+  - failure-diagnostics
+  - evidence-index
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - model-usability-journeys-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-RELEASE-001
+  title: Non-deceptive release promotion gates
+  closure_unit: WebView2 production bootstrap, Servo restricted alpha, Servo arbitrary-web promotion, and unified WP completion retain distinct
+    prerequisites, capability claims, evidence roots, and verdicts.
+  requirement_ids:
+  - STAGE-REQ-RELEASE-001
+  source_ids:
+  - STAGE-DEC-003
+  - STAGE-DEC-005
+  - STAGE-SPEC-001
+  - STAGE-SPEC-003
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-SERVO-RESTRICTED-ALPHA
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN
+  - STAGE-GATE-018-WEBVIEW2-PRODUCTION
+  - STAGE-GATE-021-WP-COMPLETE
+  dependency_gate_ids: []
+  owner_lane: L22
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - promotion-gate-registry-fixture-bound
+  - bound-build-id
+  - bound-gate-registry-version
+  - bound-command-id
+  - bound-release-id
+  - bound-evidence-root-hash
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-RELEASE-001
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Resolve each release slice independently and prove its published capability statement is exactly bounded by its closed gate DAG.
+    negative:
+    - Passing WebView2 cannot imply Servo readiness; restricted Servo cannot imply arbitrary-web security; partial gate closure cannot be presented
+      as WP completion.
+    failure_recovery:
+    - A failed or revoked prerequisite invalidates only dependent release verdicts, records the invalidation, and leaves unrelated development
+      modes explicitly non-production.
+    concurrency:
+    - Concurrent promotion evaluations use immutable evidence roots and produce one deterministic verdict per release slice without cross-slice
+      pass inheritance.
+  evidence_types:
+  - promotion-gate-registry
+  - gate-dag
+  - release-claim-manifests
+  - prerequisite-verdicts
+  - invalidation-test
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - promotion-gate-registry-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-RELEASE-002
+  title: Servo arbitrary-web sandbox block
+  closure_unit: Servo arbitrary-web on Windows remains blocked until an effective default-deny content-process sandbox and independent escape-oriented
+    validation both pass for the exact shipped build.
+  requirement_ids:
+  - STAGE-REQ-RELEASE-002
+  source_ids:
+  - STAGE-DEC-004
+  - STAGE-SPEC-003
+  release_ids:
+  - STAGE-SERVO-ARBITRARY-WEB
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN
+  - STAGE-GATE-019-SERVO-RESTRICTED-ALPHA
+  - STAGE-GATE-020-SERVO-ARBITRARY-WEB
+  - STAGE-GATE-021-WP-COMPLETE
+  dependency_gate_ids: []
+  owner_lane: L09
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - servo-sandbox-proof-fixture-bound
+  - bound-build-id
+  - bound-servo-revision
+  - bound-sandbox-policy-hash
+  - bound-fixture-id
+  - bound-command-id
+  - bound-validator-version
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-RELEASE-002
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Prove filesystem, registry, process, token, network, device, handle, IPC, and broker capabilities are deny-by-default and only required
+      operations are brokered.
+    negative:
+    - Hostile web escape fixtures cannot read or write unauthorized resources, reach undeclared network destinations, spawn uncontrolled processes,
+      or exploit inherited handles.
+    failure_recovery:
+    - Any sandbox regression or validator failure revokes arbitrary-web eligibility and returns Servo to the declared restricted-content mode
+      without silent fallback.
+    concurrency:
+    - Parallel hostile content processes cannot combine broker grants, inherited handles, or shared state to exceed each process's sandbox authority.
+  evidence_types:
+  - servo-sandbox-proof
+  - sandbox-design
+  - token-capability-capture
+  - escape-oriented-results
+  - independent-validator-verdict
+  - revocation-drill
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - servo-sandbox-proof-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-RELEASE-003
+  title: Windows packaging lifecycle matrix
+  closure_unit: Install, repair, upgrade, uninstall, missing or offline runtime, non-admin, enterprise-policy, x64 or ARM64, and retained-data
+    cases complete with explicit state and no unintended data loss.
+  requirement_ids:
+  - STAGE-REQ-RELEASE-003
+  source_ids: []
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN
+  dependency_gate_ids: []
+  owner_lane: L20
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - windows-packaging-matrix-fixture-bound
+  - bound-build-id
+  - bound-package-hash
+  - bound-architecture
+  - bound-os-version
+  - bound-command-id
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-RELEASE-003
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Execute the full packaging matrix on clean and previously installed machines and verify binaries, registrations, runtimes, retained data,
+      and launch health.
+    negative:
+    - Wrong architecture, missing signature or runtime, denied privilege, policy block, or corrupt package cannot yield a partial install reported
+      as healthy.
+    failure_recovery:
+    - Interrupted install or update repairs or rolls back to one launchable version, while uninstall and retain choices remain honored and auditable.
+    concurrency:
+    - Concurrent installer, repair, updater, and launcher processes are locked or fenced so only one package transition owns mutable installation
+      state.
+  evidence_types:
+  - windows-packaging-matrix
+  - package-results
+  - installed-component-inventory
+  - signature-verdicts
+  - retained-data-reconciliation
+  - rollback-receipts
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - windows-packaging-matrix-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-RELEASE-004
+  title: Qualified update and rollback
+  closure_unit: Runtime, engine, and app updates are qualified against exact versions, preserve canonical state through restart, enforce forward-compatibility
+    limits, and provide owner-controlled kill switch and rollback.
+  requirement_ids:
+  - STAGE-REQ-RELEASE-004
+  source_ids:
+  - STAGE-SPEC-020
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN
+  dependency_gate_ids: []
+  owner_lane: L20
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - update-rollback-drill-fixture-bound
+  - bound-from-build-id
+  - bound-to-build-id
+  - bound-component-versions
+  - bound-command-id
+  - bound-policy-version
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-RELEASE-004
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Qualify declared upgrade paths and prove pre/post counts, hashes, sessions, captures, capabilities, and health survive the required restart.
+    negative:
+    - Unknown, incompatible, unsigned, downgraded, or kill-switched components cannot activate or silently migrate state.
+    failure_recovery:
+    - Crash or health failure during activation rolls back to the owned prior version, records the reason, and prevents automatic reactivation
+      until reviewed.
+    concurrency:
+    - Concurrent update checks and activation requests elect one owned transition; stale candidates cannot overwrite a newer qualified or rolled-back
+      version.
+  evidence_types:
+  - update-rollback-drill
+  - qualification-matrix
+  - state-reconciliation
+  - compatibility-verdict
+  - kill-switch-test
+  - rollback-receipt
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - update-rollback-drill-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-RELEASE-005
+  title: Pinned and owned supply chain
+  closure_unit: Every shipped engine, crate, native binary, codec, list, model, and runtime asset has an exact pin or hash, SBOM identity, notice
+    or license record, advisory policy, signature or provenance verdict, and update owner.
+  requirement_ids:
+  - STAGE-REQ-RELEASE-005
+  source_ids:
+  - STAGE-SPEC-020
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN
+  dependency_gate_ids: []
+  owner_lane: L20
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - supply-chain-manifest-fixture-bound
+  - bound-build-id
+  - bound-package-hash
+  - bound-manifest-version
+  - bound-scanner-version
+  - bound-command-id
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-RELEASE-005
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Generate the release manifest from the package and reconcile every shipped component to provenance, hash, SBOM, notices, advisory status,
+      signature, and owner.
+    negative:
+    - An unpinned, unhashed, unsigned, unowned, unlicensed, undeclared, or advisory-blocked component prevents release rather than appearing as
+      an optional gap.
+    failure_recovery:
+    - A post-build advisory or signature revocation marks affected builds ineligible, activates the declared containment path, and identifies
+      the responsible update owner.
+    concurrency:
+    - Parallel manifest generation from the same package is deterministic, while package mutation invalidates in-flight scans instead of producing
+      mixed provenance.
+  evidence_types:
+  - supply-chain-manifest
+  - component-register
+  - hashes
+  - sbom
+  - notices
+  - advisory-verdicts
+  - signatures
+  - owner-map
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - supply-chain-manifest-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-RELEASE-006
+  title: Bounded redacted support bundle
+  closure_unit: The support bundle is versioned, size and time bounded, operator-reviewable before export, secret-redacted, and correlates canonical
+    state, events, processes, profiles, and evidence through stable IDs.
+  requirement_ids:
+  - STAGE-REQ-RELEASE-006
+  source_ids:
+  - STAGE-PRES-MVP-010
+  - STAGE-PRES-ASR-003
+  - STAGE-SPEC-018
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN
+  - STAGE-GATE-017-SUPPORT
+  dependency_gate_ids: []
+  owner_lane: L21
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - diagnostic-bundle-secret-scan-fixture-bound
+  - bound-build-id
+  - bound-bundle-schema-version
+  - bound-fixture-id
+  - bound-command-id
+  - bound-redactor-version
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-RELEASE-006
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Generate bundles for healthy, degraded, crash-loop, and partial-operation fixtures and resolve each included record across the declared
+      correlation graph.
+    negative:
+    - Seeded cookies, tokens, credentials, page content, local paths, and unrelated profile data do not survive redaction or scope filtering.
+    failure_recovery:
+    - Timeout, full disk, or redaction failure yields a typed incomplete bundle that cannot be exported as complete and preserves a safe retry
+      path.
+    concurrency:
+    - Concurrent support bundles remain scope-, profile-, and actor-isolated and cannot share temporary unredacted data or overwrite manifests.
+  evidence_types:
+  - diagnostic-bundle-secret-scan
+  - bundle-manifest
+  - correlation-check
+  - size-time-report
+  - operator-preview
+  - seeded-secret-scan
+  - partial-bundle-test
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - diagnostic-bundle-secret-scan-contract-change
+    - target-build-change
+    - fixture-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-SUPERSESSION-001
+  title: Complete legacy Stage disposition
+  closure_unit: An exact repository inventory gives every older Stage requirement, implementation, prototype, adapter, connector, route, pane,
+    schema, mockup, and test surface a removed, replaced, or explicitly non-runtime lineage disposition under the sole current Stage contract.
+  requirement_ids:
+  - STAGE-REQ-SUPERSESSION-001
+  source_ids:
+  - STAGE-DEC-001
+  - STAGE-DEC-017
+  - STAGE-SPEC-008
+  - STAGE-SPEC-009
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-012-MIGRATION
+  dependency_gate_ids:
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  owner_lane: L01
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - legacy-stage-disposition-audit-fixture-bound
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  - bound-build-id
+  - bound-repository-commit
+  - bound-dependency-baseline
+  - bound-scan-command-id
+  - bound-pattern-set-hash
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-SUPERSESSION-001
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Scan code, migrations, tests, governance, generated bindings, assets, routes, and registered capabilities and reconcile every match to a
+      closed disposition row.
+    negative:
+    - Built, passing, referenced, mocked, hidden, generated, or adapter-wrapped legacy surfaces receive no exemption and cannot remain a runtime
+      authority or compatibility path.
+    failure_recovery:
+    - Any new or unresolved legacy match reopens the migration gate, identifies its owner and consumers, and blocks release until disposition
+      and removal proof are fresh.
+    concurrency:
+    - Parallel inventory scans merge deterministically by canonical path and stable surface ID, and concurrent changes invalidate rather than
+      silently stale the disposition audit.
+  evidence_types:
+  - legacy-stage-disposition-audit
+  - exact-inventory
+  - disposition-register
+  - zero-unresolved-scan
+  - runtime-route-scan
+  - authority-diff
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - legacy-stage-disposition-audit-contract-change
+    - target-build-change
+    - dependency-baseline-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-SUPERSESSION-002
+  title: Conformant salvage and data disposition
+  closure_unit: Salvaged Stage assets pass current contracts without legacy concessions, and every discovered real-data set receives an explicit
+    retain, export, verified one-way import, or delete disposition that preserves no old runtime authority.
+  requirement_ids:
+  - STAGE-REQ-SUPERSESSION-002
+  source_ids:
+  - STAGE-DEC-017
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-012-MIGRATION
+  dependency_gate_ids:
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  owner_lane: L19
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - supersession-and-data-disposition-proof-fixture-bound
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  - bound-build-id
+  - bound-repository-commit
+  - bound-dependency-baseline
+  - bound-command-id
+  - bound-source-data-hash
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-SUPERSESSION-002
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Directly conformance-test each proposed salvage and rehearse every selected real-data disposition with count/hash/lineage reconciliation.
+    negative:
+    - Legacy aliases, schemas, paths, IDs, readers, writers, or dual-write compatibility cannot be retained solely to make salvage or import pass.
+    failure_recovery:
+    - Failed one-way import preserves the source data and verified imported subset, reports per-item disposition, and supports idempotent resume
+      or operator rollback-safe cancellation.
+    concurrency:
+    - Concurrent salvage validation and data import use declared ownership and idempotency keys so no item is dual-written, skipped, or disposed
+      twice.
+  evidence_types:
+  - supersession-and-data-disposition-proof
+  - salvage-conformance
+  - data-discovery
+  - disposition-manifest
+  - import-reconciliation
+  - legacy-authority-zero-scan
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - supersession-and-data-disposition-proof-contract-change
+    - target-build-change
+    - dependency-baseline-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-WP1-001
+  title: WP-1 ownership and Stage consumption
+  closure_unit: Stage consumes versioned WP-1 contracts for model lanes, ToolGate, process cancellation/reap, promotion, EventLedger, Flight Recorder,
+    and Argus without duplicating their ownership or registries.
+  requirement_ids:
+  - STAGE-REQ-WP1-001
+  source_ids:
+  - STAGE-SPEC-005
+  - STAGE-SPEC-006
+  - STAGE-SPEC-007
+  - STAGE-SPEC-012
+  - STAGE-SPEC-013
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-011-DOWNSTREAM
+  - STAGE-GATE-012-MIGRATION
+  - STAGE-GATE-008-AGENT-CONTROL
+  dependency_gate_ids:
+  - STAGE-DEP-WP1-MODEL-ORCHESTRATION
+  owner_lane: L19
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - wp1-ownership-contract-fixture-bound
+  - STAGE-DEP-WP1-MODEL-ORCHESTRATION
+  - bound-stage-build-id
+  - bound-wp1-contract-version
+  - bound-wp1-baseline-commit
+  - bound-wp1-diff-hash
+  - bound-fixture-id
+  - bound-command-id
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-WP1-001
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Consumer conformance fixtures invoke every owned WP-1 capability through its declared version and reconcile Stage correlation IDs to WP-1
+      receipts and telemetry.
+    negative:
+    - Repository and runtime scans prove Stage does not define shadow model lanes, gates, process supervisors, promotion state, ledgers, recorders,
+      or telemetry ownership.
+    failure_recovery:
+    - Unavailable or incompatible WP-1 returns typed blocked/degraded capability, cancels or fences in-flight work, and leaves manual Stage browsing
+      usable without local fallback ownership.
+    concurrency:
+    - Parallel Stage actors consume WP-1 leases, fencing, cancellation, and receipts so no local shadow owner or cross-actor result attribution
+      appears.
+  evidence_types:
+  - wp1-ownership-contract
+  - consumer-schema-results
+  - ownership-scan
+  - receipt-correlation
+  - unavailable-path-results
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - wp1-ownership-contract-contract-change
+    - target-build-change
+    - dependency-baseline-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-WP1-002
+  title: Validated WP-1 dependency baseline
+  closure_unit: Every dependent Stage verdict binds to an operator-approved WP-1 commit, dirty-state/diff hash, contract version, and passing
+    required validator set; observed dirty or failed state never counts as proof.
+  requirement_ids:
+  - STAGE-REQ-WP1-002
+  source_ids:
+  - STAGE-SPEC-012
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-011-DOWNSTREAM
+  - STAGE-GATE-012-MIGRATION
+  - STAGE-GATE-008-AGENT-CONTROL
+  dependency_gate_ids:
+  - STAGE-DEP-WP1-MODEL-ORCHESTRATION
+  owner_lane: L19
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - wp1-entry-gate-fixture-bound
+  - STAGE-DEP-WP1-MODEL-ORCHESTRATION
+  - bound-stage-build-id
+  - bound-wp1-baseline-commit
+  - bound-wp1-dirty-state
+  - bound-wp1-diff-hash
+  - bound-validator-version
+  - bound-command-id
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-WP1-002
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Resolve the exact WP-1 dependency baseline and reproduce all required green checks before enabling dependent Stage acceptance rows.
+    negative:
+    - UNBOUND version, moving branch, unrecorded dirty state, mismatched diff hash, stale evidence, skipped validator, or failed check deterministically
+      blocks the dependency.
+    failure_recovery:
+    - A later WP-1 change invalidates cached Stage evidence through declared triggers and returns dependent capabilities to blocked until revalidated.
+    concurrency:
+    - A WP-1 baseline or dirty-diff change during validation invalidates the in-flight verdict and prevents mixed-baseline evidence from passing.
+  evidence_types:
+  - wp1-entry-gate
+  - baseline-manifest
+  - diff-hash-proof
+  - contract-version-proof
+  - validator-results
+  - invalidation-test
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - wp1-entry-gate-contract-change
+    - target-build-change
+    - dependency-baseline-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-WP12-001
+  title: WP-12 legacy surface removal
+  closure_unit: WP-12 Stage routes, aliases, wire types, panes, connectors, adapters, schemas, and mockups are absent from current runtime authority;
+    any editor integration uses a newly versioned current Stage consumer contract.
+  requirement_ids:
+  - STAGE-REQ-WP12-001
+  source_ids:
+  - STAGE-DEC-017
+  - STAGE-SPEC-013
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-011-DOWNSTREAM
+  - STAGE-GATE-012-MIGRATION
+  - STAGE-GATE-003-NATIVE-SHELL
+  dependency_gate_ids:
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  owner_lane: L19
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - wp12-legacy-surface-removal-fixture-bound
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  - bound-stage-build-id
+  - bound-wp12-baseline-commit
+  - bound-wp12-diff-hash
+  - bound-consumer-contract-version
+  - bound-command-id
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-WP12-001
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Exact WP-12 inventory and runtime scans show every legacy surface removed/replaced, while the selected editor journey passes only through
+      the current public Stage schema.
+    negative:
+    - Legacy WP-12 endpoints, identifiers, panes, bindings, mocks, or compatibility shims cannot resolve, register, serialize, or handle current
+      Stage traffic.
+    failure_recovery:
+    - If the new editor consumer is unavailable or version-incompatible, editor and Stage report a typed integration failure without activating
+      a legacy route.
+    concurrency:
+    - Concurrent editor and Stage windows use only the current consumer contract; no race can register or fall back to a retired WP-12 route.
+  evidence_types:
+  - wp12-legacy-surface-removal
+  - wp12-exact-inventory
+  - zero-legacy-scan
+  - route-registration-scan
+  - current-consumer-conformance
+  - unavailable-path-test
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - wp12-legacy-surface-removal-contract-change
+    - target-build-change
+    - dependency-baseline-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-WP12-002
+  title: WP-12 authority removal and one-way import
+  closure_unit: WP-12 duplicate 16KiB storage and stage.jobs.enqueue authority are removed; discovered real data is dispositioned and any selected
+    one-way import lands in ArtifactStore and current tool/capability contracts with opaque canonical handles.
+  requirement_ids:
+  - STAGE-REQ-WP12-002
+  source_ids:
+  - STAGE-SPEC-005
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-011-DOWNSTREAM
+  - STAGE-GATE-012-MIGRATION
+  dependency_gate_ids:
+  - STAGE-DEP-ARTIFACT-HANDLE
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  owner_lane: L19
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - wp12-data-disposition-and-import-fixture-bound
+  - STAGE-DEP-ARTIFACT-HANDLE
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  - bound-stage-build-id
+  - bound-wp12-baseline-commit
+  - bound-wp12-diff-hash
+  - bound-artifact-handle-version
+  - bound-source-data-hash
+  - bound-command-id
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-WP12-002
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Inventory both legacy authorities, prove removal, and rehearse one-way import fixtures with per-record count, hash, handle, lineage, and
+      capability reconciliation.
+    negative:
+    - No current writer, reader, route, job, test, or migration may create new legacy storage records, consume handle paths directly, or invoke
+      stage.jobs.enqueue.
+    failure_recovery:
+    - Partial import retains source data and finalized ArtifactStore objects, records per-item disposition, and resumes idempotently after the
+      canonical handle dependency is restored.
+    concurrency:
+    - Concurrent or retried imports share idempotency keys and canonical handle finalization so each source item produces at most one current
+      identity.
+  evidence_types:
+  - wp12-data-disposition-and-import
+  - legacy-authority-scan
+  - data-disposition-manifest
+  - one-way-import-results
+  - count-hash-handle-lineage-report
+  - zero-writer-proof
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - wp12-data-disposition-and-import-contract-change
+    - target-build-change
+    - dependency-baseline-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-WP12-003
+  title: Collision-safe WP-12 migration removal
+  closure_unit: WP-12 migrations 0341, 0346, 0348, and 0349 plus their cross-table guards receive collision-safe removal/replacement and any approved
+    one-way data import, with no legacy compatibility window.
+  requirement_ids:
+  - STAGE-REQ-WP12-003
+  source_ids: []
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-011-DOWNSTREAM
+  - STAGE-GATE-012-MIGRATION
+  dependency_gate_ids:
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  owner_lane: L19
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - legacy-stage-removal-rehearsal-fixture-bound
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  - bound-stage-build-id
+  - bound-wp12-baseline-commit
+  - bound-wp12-diff-hash
+  - bound-schema-version
+  - bound-fixture-db-hash
+  - bound-command-id
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-WP12-003
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Rehearse fresh, legacy-populated, partially migrated, collision, and already-current databases and reconcile schema, records, guards, and
+      import dispositions.
+    negative:
+    - Legacy migrations cannot re-run, recreate retired tables/routes, shadow current IDs, or force dual-read/dual-write compatibility into the
+      current schema.
+    failure_recovery:
+    - Interrupted migration resumes or enters rollback-safe mode from durable phase receipts, preserving source data and reporting exact unresolved
+      collisions.
+    concurrency:
+    - Concurrent application instances fence migration ownership and cannot interleave schema phases, recreate retired tables, or double-import
+      a record.
+  evidence_types:
+  - legacy-stage-removal-rehearsal
+  - migration-inventory
+  - database-fixture-results
+  - collision-report
+  - phase-receipts
+  - schema-zero-scan
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - legacy-stage-removal-rehearsal-contract-change
+    - target-build-change
+    - dependency-baseline-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND
+- id: STAGE-ACC-WP12-004
+  title: Canonical Stage worksurface supersession
+  closure_unit: The full current Stage module is the only registered Stage worksurface; the WP-12 Stage pane and ModuleId placeholder are removed
+    or replaced and never retained as compatibility clients.
+  requirement_ids:
+  - STAGE-REQ-WP12-004
+  source_ids:
+  - STAGE-DEC-017
+  release_ids:
+  - STAGE-WIN-BOOTSTRAP-PROD
+  - STAGE-WP-COMPLETE
+  production_gate_ids:
+  - STAGE-GATE-011-DOWNSTREAM
+  - STAGE-GATE-012-MIGRATION
+  - STAGE-GATE-003-NATIVE-SHELL
+  dependency_gate_ids:
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  owner_lane: L05
+  preconditions:
+  - target-build-bound
+  - exact-noninteractive-command-bound
+  - worksurface-supersession-proof-fixture-bound
+  - STAGE-DEP-WP12-LEGACY-REMOVAL
+  - bound-stage-build-id
+  - bound-wp12-baseline-commit
+  - bound-wp12-diff-hash
+  - bound-module-registry-version
+  - bound-command-id
+  - bound-occurred-at
+  fixture_ids:
+  - STAGE-FIX-WP12-004
+  command_ids:
+  - UNBOUND
+  cases:
+    positive:
+    - Launch and navigate the current Stage module through canonical registration and stable action IDs, then prove no legacy pane/module registration
+      remains.
+    negative:
+    - Legacy ModuleId, pane route, saved-layout alias, command, deep link, or compatibility client cannot instantiate or receive current Stage
+      state.
+    failure_recovery:
+    - Opening a saved workspace that references the retired pane produces a clear one-way current-module remap or explicit removal notice without
+      restoring legacy runtime authority.
+    concurrency:
+    - Parallel windows instantiate only the canonical Stage module with separate window state and cannot revive the legacy pane through layout
+      restoration.
+  evidence_types:
+  - worksurface-supersession-proof
+  - module-registry-scan
+  - pane-route-scan
+  - current-stage-journey
+  - saved-layout-migration-test
+  - zero-legacy-instantiation
+  freshness_policy:
+    max_age: release-run
+    revalidation_triggers:
+    - worksurface-supersession-proof-contract-change
+    - target-build-change
+    - dependency-baseline-change
+  pass_rule:
+    selected_min: 1
+    executed_min: 1
+    skipped_only_invalid: true
+    cleanup_required: true
+    redaction_scan_required: true
+  status: SPECIFIED_UNBOUND

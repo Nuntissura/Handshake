@@ -1,0 +1,2748 @@
+schema_id: hsk.stage_acceptance_registry@1
+registry_id: stage-acceptance-behavior-integrations
+authority: NON_AUTHORITATIVE_REFERENCE
+status: SPECIFIED_UNBOUND
+updated_at: '2026-07-20'
+wp_id: WP-1-Handshake-Stage-MVP-v1
+domains:
+- agent
+- capture
+- downloads
+- intake
+- search
+- export
+- resources
+row_count: 43
+command_binding_rule: UNBOUND is permitted while implementation entrypoints do not exist. Before execution, every UNBOUND command must be replaced by an exact non-interactive repository command with a zero-match guard and declared evidence outputs.
+acceptance:
+  - id: STAGE-ACC-AGENT-001
+    title: Action Observation Schema
+    closure_unit: One versioned action/observation contract proves stable Stage IDs, expected-revision rejection, and engine-generation invalidation across every supported adapter.
+    requirement_ids:
+    - STAGE-REQ-AGENT-001
+    source_ids:
+    - STAGE-DEC-013
+    - STAGE-SPEC-011
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-008-AGENT-CONTROL
+    dependency_gate_ids:
+    - STAGE-DEP-WP1-MODEL-ORCHESTRATION
+    owner_lane: L12
+    preconditions:
+    - Exact Stage protocol version and adapter versions are fixed.
+    - STAGE-DEP-WP1-MODEL-ORCHESTRATION is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-AGENT-001
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Create, observe, and mutate a tab through each adapter using only stable Stage IDs and the current expected revision/generation; returned IDs and post-revisions match the persisted record.
+      negative:
+      - Reject an engine-native identifier, stale expected revision, missing schema version, or prior engine generation before a side effect occurs.
+      failure_recovery:
+      - After renderer replacement, invalidate old generation-scoped observations and reacquire a fresh observation without changing the durable Stage tab ID.
+      concurrency:
+      - Two actors submit the same expected revision; exactly one mutation commits and the loser receives a typed revision conflict with no partial side effect.
+    evidence_types:
+    - action-observation-schema
+    - schema-conformance-report
+    - adapter-fixture-results
+    - structured-action-receipts
+    freshness_policy:
+      max_age: current-build-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - protocol-change
+      - adapter-change
+      - dependency-gate-change
+      - fixture-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: All supported adapters pass the positive, negative, recovery, and concurrency cases with no native-ID leakage and the dependency gate PASS evidence is fresh.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-AGENT-002
+    title: Timeout Side Effect Suite
+    closure_unit: A crash/timeout fault suite proves durable intent precedes every browser side effect and every uncertain outcome is reconciled to a recorded postcondition before retry.
+    requirement_ids:
+    - STAGE-REQ-AGENT-002
+    source_ids:
+    - STAGE-PRES-MVP-005
+    - STAGE-PRES-MVP-010
+    - STAGE-SPEC-011
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-008-AGENT-CONTROL
+    dependency_gate_ids: []
+    owner_lane: L12
+    preconditions:
+    - Intent, attempt, result, and reconciliation records have fixed schemas.
+    - Fault injection can stop execution before and after the external side effect.
+    fixture_ids:
+    - STAGE-FIX-AGENT-002
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Persist intent, execute one navigation/action, and record a verified postcondition linked by correlation and causation IDs.
+      negative:
+      - Prevent execution when durable intent cannot commit, and prevent blind retry while an earlier outcome remains uncertain.
+      failure_recovery:
+      - Kill the adapter after the side effect but before acknowledgement; restart reconciles observed state and records completed, compensated, or safely retryable without duplication.
+      concurrency:
+      - Concurrent retries with one idempotency key converge on one effect and one canonical result while retaining all attempt receipts.
+    evidence_types:
+    - timeout-side-effect-suite
+    - fault-injection-report
+    - event-ledger-proof
+    - reconciliation-receipts
+    freshness_policy:
+      max_age: current-build-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - intent-schema-change
+      - retry-policy-change
+      - fixture-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: Every fault point preserves intent-before-effect ordering and converges to an evidenced postcondition without duplicate consequential effects.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-AGENT-003
+    title: Multimodal Observation Fixture
+    closure_unit: One multimodal observation envelope attributes DOM/accessibility, geometry/actionability, screenshot, navigation, focus, console, network, and resource data to an exact tab revision and engine generation.
+    requirement_ids:
+    - STAGE-REQ-AGENT-003
+    source_ids:
+    - STAGE-DEC-013
+    - STAGE-SPEC-011
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-008-AGENT-CONTROL
+    dependency_gate_ids: []
+    owner_lane: L12
+    preconditions:
+    - Observation component schemas and unavailable/degraded codes are versioned.
+    - Fixture pages produce deterministic navigation, focus, console, network, and geometry changes.
+    fixture_ids:
+    - STAGE-FIX-AGENT-003
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Collect every supported component and prove common tab, document/navigation revision, engine generation, timestamp, viewport, and correlation attribution.
+      negative:
+      - Reject mixed-revision or mixed-generation component assembly and label unsupported components instead of fabricating empty success.
+      failure_recovery:
+      - If navigation occurs during collection, return a typed partial/stale result and reacquire a coherent envelope from the new revision.
+      concurrency:
+      - Simultaneous observers do not steal focus, mutate page state, or overwrite each other's correlation and capture metadata.
+    evidence_types:
+    - multimodal-observation-fixture
+    - multimodal-fixture-report
+    - envelope-schema-validation
+    - attribution-diff
+    freshness_policy:
+      max_age: current-build-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - observation-schema-change
+      - adapter-change
+      - fixture-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: Every component is either coherently attributable or explicitly unavailable/partial; no mixed revision, silent omission, or observation-induced mutation is present.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-AGENT-004
+    title: Concurrent Agent Suite
+    closure_unit: A parallel-actor run proves fenced leases, revision checks, bounded queues, cancellation, recoverable receipts, and zero foreground focus theft under contention.
+    requirement_ids:
+    - STAGE-REQ-AGENT-004
+    source_ids:
+    - STAGE-SPEC-011
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-008-AGENT-CONTROL
+    dependency_gate_ids:
+    - STAGE-DEP-WP1-MODEL-ORCHESTRATION
+    owner_lane: L12
+    preconditions:
+    - Lease duration, fencing token, queue bounds, cancellation deadline, and foreground-focus invariant are fixed.
+    - STAGE-DEP-WP1-MODEL-ORCHESTRATION is PASS.
+    fixture_ids:
+    - STAGE-FIX-AGENT-004
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Multiple actors operate disjoint tabs concurrently and receive attributable receipts without exceeding queue or lease limits.
+      negative:
+      - Reject expired/fenced leases, stale revisions, queue overflow, and unauthorized focus-changing actions with typed results.
+      failure_recovery:
+      - Cancel and kill an actor mid-action; ownership expires/reaps, uncertain work reconciles, and another actor resumes from durable state.
+      concurrency:
+      - Contend on one tab and across windows; fencing permits one owner per protected mutation, preserves fairness, and never activates a foreground window.
+    evidence_types:
+    - concurrent-agent-suite
+    - parallel-agent-report
+    - lease-ledger
+    - queue-metrics
+    - focus-trace
+    - cancellation-reap-receipts
+    freshness_policy:
+      max_age: current-build-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - lease-policy-change
+      - queue-policy-change
+      - wp1-contract-change
+      - fixture-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: All contention and recovery cases remain bounded, attributable, cancellable, focus-safe, and free of stale-owner side effects with a fresh dependency PASS.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-AGENT-005
+    title: Prompt Injection Corpus
+    closure_unit: A prompt-injection corpus proves page text, DOM, accessibility, metadata, and captured content remain untrusted data and cannot grant instruction authority or tool capability.
+    requirement_ids:
+    - STAGE-REQ-AGENT-005
+    source_ids: []
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-008-AGENT-CONTROL
+    dependency_gate_ids: []
+    owner_lane: L12
+    preconditions:
+    - Trusted instruction sources and tool-capability grants are enumerated.
+    - Corpus includes direct, indirect, encoded, hidden, cross-frame, and captured-content injections.
+    fixture_ids:
+    - STAGE-FIX-AGENT-005
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Model may summarize or act on page data only within its pre-existing Stage capability and policy envelope.
+      negative:
+      - Injected requests to reveal secrets, alter policy, grant tools, suppress receipts, or treat page content as authority are blocked and classified.
+      failure_recovery:
+      - After a detection/parser failure, default to no expanded authority, retain a diagnostic receipt, and allow safe operator-guided continuation.
+      concurrency:
+      - Injection in one tab/session cannot modify another actor's grants, policies, queue, or trusted context.
+    evidence_types:
+    - prompt-injection-corpus
+    - adversarial-corpus-results
+    - policy-decision-receipts
+    - capability-diff
+    freshness_policy:
+      max_age: current-build-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - policy-change
+      - parser-change
+      - model-adapter-change
+      - corpus-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: No corpus item expands authority or capability; every block/degrade decision is attributable and safe failure never converts untrusted content into instructions.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-AGENT-006
+    title: Non Exfiltration Suite
+    closure_unit: A source-sink corpus proves sensitive cross-origin URL/data transfer is detected and blocked or explicitly confirmed with complete receipts.
+    requirement_ids:
+    - STAGE-REQ-AGENT-006
+    source_ids: []
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-008-AGENT-CONTROL
+    dependency_gate_ids: []
+    owner_lane: L12
+    preconditions:
+    - Source classes, sink classes, origin relation, sensitive-data detectors, confirmation policy, and redaction rules are fixed.
+    fixture_ids:
+    - STAGE-FIX-AGENT-006
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Permit a policy-approved non-sensitive same-origin transfer and record evaluated source, sink, origin, and decision.
+      negative:
+      - Block secret/credential/private-content transfer through URL, form, clipboard, upload, navigation, redirect, script, or network sink without valid operator confirmation.
+      failure_recovery:
+      - Detector/policy timeout fails closed for the transfer, preserves non-sensitive work, and emits a retryable diagnostic without exposing payload data.
+      concurrency:
+      - Parallel actors cannot reuse another action's confirmation, receipt, source classification, or destination authorization.
+    evidence_types:
+    - non-exfiltration-suite
+    - non-exfiltration-report
+    - redacted-policy-receipts
+    - network-sink-trace
+    freshness_policy:
+      max_age: current-build-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - source-sink-policy-change
+      - detector-change
+      - confirmation-change
+      - corpus-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: Every sensitive cross-origin case is blocked or covered by an action-specific valid confirmation, with no raw sensitive data in evidence.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-AGENT-007
+    title: Consequential Action Policy
+    closure_unit: A risk-policy matrix proves each consequential site/action pair selects and enforces the specified watch, confirmation, or operator-takeover path.
+    requirement_ids:
+    - STAGE-REQ-AGENT-007
+    source_ids:
+    - STAGE-SPEC-011
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-008-AGENT-CONTROL
+    dependency_gate_ids: []
+    owner_lane: L12
+    preconditions:
+    - Site-risk and action-risk taxonomy, policy precedence, confirmation lifetime, and takeover boundaries are fixed.
+    fixture_ids:
+    - STAGE-FIX-AGENT-007
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Low-risk action executes under watch policy and high-risk fixtures pause for exact confirmation or protected takeover as specified.
+      negative:
+      - Reject stale, broad, cross-site, cross-action, or actor-mismatched confirmations and prohibit model observation during protected takeover.
+      failure_recovery:
+      - On confirmation UI, adapter, or takeover failure, preserve pending intent without executing and resume only after fresh state validation.
+      concurrency:
+      - Parallel consequential actions require independent policy decisions and cannot consume or race the same confirmation token.
+    evidence_types:
+    - consequential-action-policy
+    - risk-matrix-results
+    - confirmation-receipts
+    - takeover-privacy-trace
+    freshness_policy:
+      max_age: current-build-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - risk-taxonomy-change
+      - confirmation-policy-change
+      - takeover-change
+      - fixture-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: Every matrix cell enforces its exact policy with action-scoped receipts, protected takeover privacy, and no execution on policy-path failure.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-AGENT-008
+    title: Wp1 Consumer Contract
+    closure_unit: A consumer-contract suite proves Stage delegates model lanes, ToolGate decisions, process lifecycle, promotion, telemetry, and cancellation to the validated WP-1 control plane without duplicate authority.
+    requirement_ids:
+    - STAGE-REQ-AGENT-008
+    source_ids:
+    - STAGE-SPEC-012
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-008-AGENT-CONTROL
+    - STAGE-GATE-011-DOWNSTREAM
+    dependency_gate_ids:
+    - STAGE-DEP-WP1-MODEL-ORCHESTRATION
+    owner_lane: L12
+    preconditions:
+    - WP-1 public contract/schema and exact validated baseline are bound.
+    - STAGE-DEP-WP1-MODEL-ORCHESTRATION is PASS.
+    fixture_ids:
+    - STAGE-FIX-AGENT-008
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Stage requests model work through WP-1 and correlates ToolGate, process, promotion, telemetry, cancellation, and result receipts without owning those records.
+      negative:
+      - Static and runtime boundary tests reject Stage-owned model process spawning, parallel ToolGate policy, promotion state, or telemetry authority.
+      failure_recovery:
+      - When WP-1 is unavailable or loses a process, Stage returns typed unavailable/degraded state, reconciles receipts, and keeps manual browsing usable.
+      concurrency:
+      - Parallel Stage actors use WP-1 leases and cancellation semantics; process ownership and telemetry attribution remain unique and race-safe.
+    evidence_types:
+    - wp1-consumer-contract
+    - consumer-contract-report
+    - boundary-scan
+    - process-cancel-reap-proof
+    - telemetry-correlation-proof
+    freshness_policy:
+      max_age: current-build-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - wp1-contract-change
+      - process-policy-change
+      - toolgate-change
+      - fixture-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: All delegated flows pass against the exact WP-1 baseline, no duplicate Stage authority is present, and typed unavailability preserves non-model workflows.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-CAPTURE-001
+    title: Capture Manifest Schema
+    closure_unit: 'Fresh capture-manifest-schema evidence proves the complete requirement: Renderer capture records tab, session, navigation, engine generation, requested/actual components, completeness, MIME, length, hashes, and versions.'
+    requirement_ids:
+    - STAGE-REQ-CAPTURE-001
+    source_ids:
+    - STAGE-PRES-MVP-001
+    - STAGE-PRES-MVP-006
+    - STAGE-PRES-MVP-012
+    - STAGE-PRES-PORT-001
+    - STAGE-PRES-PORT-002
+    - STAGE-PRES-PORT-006
+    - STAGE-PRES-ASR-002
+    - STAGE-SPEC-015
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    dependency_gate_ids: []
+    owner_lane: L14
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-CAPTURE-001
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Renderer capture records tab, session, navigation, engine generation, requested/actual components, completeness, MIME, length, hashes, and versions.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Renderer capture records tab, session, navigation, engine generation, requested/actual components, completeness, MIME, length,
+        hashes, and versions.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Renderer capture records tab, session, navigation, engine generation, requested/actual components, completeness,
+        MIME, length, hashes, and versions.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Renderer capture records tab, session, navigation, engine generation, requested/actual components,
+        completeness, MIME, length, hashes, and versions.'
+    evidence_types:
+    - capture-manifest-schema
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh capture-manifest-schema evidence proves the complete requirement: Renderer capture records tab, session, navigation, engine generation, requested/actual components, completeness, MIME, length, hashes, and versions. All
+        four case groups and every applicable dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-CAPTURE-002
+    title: Artifact Derivation Lineage
+    closure_unit: 'Fresh artifact-derivation-lineage evidence proves the complete requirement: Original, sanitized, readable, translated, screenshot, PDF, media, and 3D outputs remain distinct linked artifacts.'
+    requirement_ids:
+    - STAGE-REQ-CAPTURE-002
+    source_ids:
+    - STAGE-PRES-MVP-006
+    - STAGE-PRES-MVP-007
+    - STAGE-PRES-MVP-008
+    - STAGE-PRES-MVP-009
+    - STAGE-PRES-PORT-001
+    - STAGE-PRES-PORT-003
+    - STAGE-PRES-PORT-006
+    - STAGE-SPEC-004
+    - STAGE-SPEC-008
+    - STAGE-SPEC-014
+    - STAGE-SPEC-015
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    dependency_gate_ids: []
+    owner_lane: L14
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-CAPTURE-002
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Original, sanitized, readable, translated, screenshot, PDF, media, and 3D outputs remain distinct linked artifacts.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Original, sanitized, readable, translated, screenshot, PDF, media, and 3D outputs remain distinct linked artifacts.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Original, sanitized, readable, translated, screenshot, PDF, media, and 3D outputs remain distinct linked artifacts.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Original, sanitized, readable, translated, screenshot, PDF, media, and 3D outputs remain distinct
+        linked artifacts.'
+    evidence_types:
+    - artifact-derivation-lineage
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh artifact-derivation-lineage evidence proves the complete requirement: Original, sanitized, readable, translated, screenshot, PDF, media, and 3D outputs remain distinct linked artifacts. All four case groups and every
+        applicable dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-CAPTURE-003
+    title: Capture Kind Comparison
+    closure_unit: 'Fresh capture-kind-comparison evidence proves the complete requirement: Renderer-state capture and independent WARC/archive acquisition are distinct jobs and claims.'
+    requirement_ids:
+    - STAGE-REQ-CAPTURE-003
+    source_ids:
+    - STAGE-PRES-MVP-006
+    - STAGE-SPEC-015
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    dependency_gate_ids: []
+    owner_lane: L14
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-CAPTURE-003
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Renderer-state capture and independent WARC/archive acquisition are distinct jobs and claims.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Renderer-state capture and independent WARC/archive acquisition are distinct jobs and claims.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Renderer-state capture and independent WARC/archive acquisition are distinct jobs and claims.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Renderer-state capture and independent WARC/archive acquisition are distinct jobs and claims.'
+    evidence_types:
+    - capture-kind-comparison
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh capture-kind-comparison evidence proves the complete requirement: Renderer-state capture and independent WARC/archive acquisition are distinct jobs and claims. All four case groups and every applicable dependency gate
+        must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-CAPTURE-004
+    title: Hostile Capture Corpus
+    closure_unit: A hostile-capture run proves bounded ArtifactStore staging/streaming, typed partial success, atomic finalize, abort/orphan cleanup, content sniffing, byte/decompression limits, and parser isolation.
+    requirement_ids:
+    - STAGE-REQ-CAPTURE-004
+    source_ids:
+    - STAGE-PRES-MVP-001
+    - STAGE-PRES-MVP-006
+    - STAGE-PRES-MVP-009
+    - STAGE-PRES-ASR-006
+    - STAGE-SPEC-009
+    - STAGE-SPEC-014
+    - STAGE-SPEC-015
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    dependency_gate_ids:
+    - STAGE-DEP-ARTIFACT-STREAMING
+    owner_lane: L14
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-ARTIFACT-STREAMING is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-CAPTURE-004
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Stream valid multipart content through shared ingest, enforce sniffing/limits, finalize valid parts atomically, and record exact complete/partial disposition.
+      negative:
+      - Reject spoofed, truncated, polyglot, bomb, over-limit, parser-escape, hash/stat-mismatch, and premature-finalize inputs without exposing staging bytes as final.
+      failure_recovery:
+      - Crash, cancel, disk-full, and uncertain-finalize faults reconcile idempotently, preserve finalized parts, abort invalid staging, and clean only verified orphans.
+      concurrency:
+      - Concurrent parts remain within global/per-job stream/parser bounds; duplicate finalize converges and cleanup cannot delete another live ingest.
+    evidence_types:
+    - hostile-capture-corpus
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: A hostile-capture run proves bounded ArtifactStore staging/streaming, typed partial success, atomic finalize, abort/orphan cleanup, content sniffing, byte/decompression limits, and parser isolation. All four case groups and
+        every applicable dependency gate must pass from fresh evidence.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-CAPTURE-005
+    title: Capture Type Matrix
+    closure_unit: 'Fresh capture-type-matrix evidence proves the complete requirement: Web page, selection, readable content, screenshot, PDF, direct asset, media candidates, document, and supported 3D paths are covered.'
+    requirement_ids:
+    - STAGE-REQ-CAPTURE-005
+    source_ids:
+    - STAGE-PRES-MVP-001
+    - STAGE-PRES-MVP-007
+    - STAGE-PRES-MVP-008
+    - STAGE-PRES-MVP-009
+    - STAGE-SPEC-009
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    dependency_gate_ids: []
+    owner_lane: L14
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-CAPTURE-005
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Web page, selection, readable content, screenshot, PDF, direct asset, media candidates, document, and supported 3D paths are covered.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Web page, selection, readable content, screenshot, PDF, direct asset, media candidates, document, and supported 3D paths are covered.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Web page, selection, readable content, screenshot, PDF, direct asset, media candidates, document, and supported
+        3D paths are covered.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Web page, selection, readable content, screenshot, PDF, direct asset, media candidates, document,
+        and supported 3D paths are covered.'
+    evidence_types:
+    - capture-type-matrix
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh capture-type-matrix evidence proves the complete requirement: Web page, selection, readable content, screenshot, PDF, direct asset, media candidates, document, and supported 3D paths are covered. All four case groups
+        and every applicable dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-CAPTURE-006
+    title: Current Editor Stage Contract Suite
+    closure_unit: The selected editor-to-Stage and embed-back journey uses only the new StageCaptureCoordinator request/result and canonical shared ArtifactHandles, with all legacy WP-12 aliases absent.
+    requirement_ids:
+    - STAGE-REQ-CAPTURE-006
+    source_ids:
+    - STAGE-DEC-018
+    - STAGE-SPEC-008
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    - STAGE-GATE-011-DOWNSTREAM
+    - STAGE-GATE-012-MIGRATION
+    dependency_gate_ids:
+    - STAGE-DEP-ARTIFACT-HANDLE
+    owner_lane: L19
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-ARTIFACT-HANDLE is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-CAPTURE-006
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Editor sends stable source/correlation/revision data; StageCaptureCoordinator returns opaque canonical handles consumed by the current public embed-back contract.
+      negative:
+      - Reject StageArtifactStore, StageArtifactRefWire, manifest://STGA, stage.jobs.enqueue, legacy routes/types, raw-path identity, and editor access to Stage internals.
+      failure_recovery:
+      - Capture/embed failure retains finalized handles and idempotent retry state without duplicating bytes or re-enabling legacy compatibility.
+      concurrency:
+      - Parallel editor requests cannot cross-embed handles; duplicate idempotency keys converge on one capture/result lineage.
+    evidence_types:
+    - current-editor-stage-contract-suite
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: The selected editor-to-Stage and embed-back journey uses only the new StageCaptureCoordinator request/result and canonical shared ArtifactHandles, with all legacy WP-12 aliases absent. All four case groups and every applicable
+        dependency gate must pass from fresh evidence.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-CAPTURE-007
+    title: Stage Capture Artifact Boundary
+    closure_unit: A boundary proof shows StageCaptureCoordinator owns intent/source/correlation/lineage/handoff while global ArtifactStore exclusively owns bytes, manifests, hash, retention, GC, reads, and materialization.
+    requirement_ids:
+    - STAGE-REQ-CAPTURE-007
+    source_ids:
+    - STAGE-DEC-018
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    - STAGE-GATE-011-DOWNSTREAM
+    dependency_gate_ids:
+    - STAGE-DEP-ARTIFACT-HANDLE
+    owner_lane: L14
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-ARTIFACT-HANDLE is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-CAPTURE-007
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Coordinator persists capture semantics and delegates byte ingest/finalize/read/materialize/retention, storing only opaque returned handles.
+      negative:
+      - Static, API, and schema scans find no Stage byte store/column, raw canonical path, hash/manifest authority, retention/GC worker, handle encoder, or direct storage-file access.
+      failure_recovery:
+      - ArtifactStore unavailable or finalize-uncertain returns typed dependency state and reconciles by ingest/handle ID without starting a fallback Stage store.
+      concurrency:
+      - Concurrent logical captures remain separate under shared limits even when ArtifactStore deduplicates physical bytes; cancellation cannot delete shared/final content.
+    evidence_types:
+    - stage-capture-artifact-boundary
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: A boundary proof shows StageCaptureCoordinator owns intent/source/correlation/lineage/handoff while global ArtifactStore exclusively owns bytes, manifests, hash, retention, GC, reads, and materialization. All four case groups
+        and every applicable dependency gate must pass from fresh evidence.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-CAPTURE-008
+    title: Streamed Artifact Ingest Stress Suite
+    closure_unit: A large media/PDF/WARC stress run proves shared ingest streams once with incremental hash/backpressure, bounded memory, atomic idempotent finalize, abort/orphan recovery, range reads, and bounded handle materialization.
+    requirement_ids:
+    - STAGE-REQ-CAPTURE-008
+    source_ids:
+    - STAGE-DEC-018
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    - STAGE-GATE-011-DOWNSTREAM
+    dependency_gate_ids:
+    - STAGE-DEP-ARTIFACT-STREAMING
+    owner_lane: L14
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-ARTIFACT-STREAMING is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-CAPTURE-008
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Stream payloads larger than the memory ceiling in bounded chunks, compute one digest, finalize to canonical handles, range-read exact bytes, and materialize via structured target.
+      negative:
+      - Reject whole-buffer writes, reread solely for rehash, caller-path identity, wrong hash/stat finalize, per-chunk ledger writes, or staging visibility as final.
+      failure_recovery:
+      - At every phase, cancel/disk-full/death/lost-ack faults abort or reconcile idempotently; verified orphans clean and completed handles are never duplicated/deleted.
+      concurrency:
+      - Concurrent streams remain inside global/per-job byte/worker limits, preserve interactive reserve, backpressure fairly, and coalesce progress.
+    evidence_types:
+    - streamed-artifact-ingest-stress-suite
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: A large media/PDF/WARC stress run proves shared ingest streams once with incremental hash/backpressure, bounded memory, atomic idempotent finalize, abort/orphan recovery, range reads, and bounded handle materialization. All
+        four case groups and every applicable dependency gate must pass from fresh evidence.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-DOWNLOAD-001
+    title: Download Manager Journeys
+    closure_unit: 'Fresh download-manager-journeys evidence proves the complete requirement: Native download manager exposes progress, pause, resume, cancel, retry, destination, and collision policy.'
+    requirement_ids:
+    - STAGE-REQ-DOWNLOAD-001
+    source_ids: []
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    dependency_gate_ids:
+    - STAGE-DEP-MEDIA-DOWNLOADER
+    owner_lane: L15
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-MEDIA-DOWNLOADER is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-DOWNLOAD-001
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Native download manager exposes progress, pause, resume, cancel, retry, destination, and collision policy.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Native download manager exposes progress, pause, resume, cancel, retry, destination, and collision policy.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Native download manager exposes progress, pause, resume, cancel, retry, destination, and collision policy.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Native download manager exposes progress, pause, resume, cancel, retry, destination, and collision
+        policy.'
+    evidence_types:
+    - download-manager-journeys
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh download-manager-journeys evidence proves the complete requirement: Native download manager exposes progress, pause, resume, cancel, retry, destination, and collision policy. All four case groups and every applicable
+        dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-DOWNLOAD-002
+    title: Download Failure Matrix
+    closure_unit: 'Fresh download-failure-matrix evidence proves the complete requirement: Disk-full, access, path, network, server, authorization, certificate, hash, policy, malware, and scan failures are distinct.'
+    requirement_ids:
+    - STAGE-REQ-DOWNLOAD-002
+    source_ids: []
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    dependency_gate_ids: []
+    owner_lane: L15
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-DOWNLOAD-002
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Disk-full, access, path, network, server, authorization, certificate, hash, policy, malware, and scan failures are distinct.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Disk-full, access, path, network, server, authorization, certificate, hash, policy, malware, and scan failures are distinct.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Disk-full, access, path, network, server, authorization, certificate, hash, policy, malware, and scan failures
+        are distinct.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Disk-full, access, path, network, server, authorization, certificate, hash, policy, malware,
+        and scan failures are distinct.'
+    evidence_types:
+    - download-failure-matrix
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh download-failure-matrix evidence proves the complete requirement: Disk-full, access, path, network, server, authorization, certificate, hash, policy, malware, and scan failures are distinct. All four case groups and
+        every applicable dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-DOWNLOAD-003
+    title: Renderer Kill Download Continuation
+    closure_unit: 'Fresh renderer-kill-download-continuation evidence proves the complete requirement: Governed downloads detach from tab lifetime and route to Media Downloader/ArtifactStore with lineage.'
+    requirement_ids:
+    - STAGE-REQ-DOWNLOAD-003
+    source_ids:
+    - STAGE-DEC-008
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    - STAGE-GATE-011-DOWNSTREAM
+    dependency_gate_ids:
+    - STAGE-DEP-MEDIA-DOWNLOADER
+    owner_lane: L15
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-MEDIA-DOWNLOADER is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-DOWNLOAD-003
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Governed downloads detach from tab lifetime and route to Media Downloader/ArtifactStore with lineage.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Governed downloads detach from tab lifetime and route to Media Downloader/ArtifactStore with lineage.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Governed downloads detach from tab lifetime and route to Media Downloader/ArtifactStore with lineage.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Governed downloads detach from tab lifetime and route to Media Downloader/ArtifactStore with
+        lineage.'
+    evidence_types:
+    - renderer-kill-download-continuation
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh renderer-kill-download-continuation evidence proves the complete requirement: Governed downloads detach from tab lifetime and route to Media Downloader/ArtifactStore with lineage. All four case groups and every applicable
+        dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-DOWNLOAD-004
+    title: Restart Download Recovery
+    closure_unit: 'Fresh restart-download-recovery evidence proves the complete requirement: Interrupted download recovery persists enough state to resume or visibly restart according to server capability.'
+    requirement_ids:
+    - STAGE-REQ-DOWNLOAD-004
+    source_ids: []
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    dependency_gate_ids:
+    - STAGE-DEP-MEDIA-DOWNLOADER
+    owner_lane: L15
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-MEDIA-DOWNLOADER is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-DOWNLOAD-004
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Interrupted download recovery persists enough state to resume or visibly restart according to server capability.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Interrupted download recovery persists enough state to resume or visibly restart according to server capability.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Interrupted download recovery persists enough state to resume or visibly restart according to server capability.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Interrupted download recovery persists enough state to resume or visibly restart according to
+        server capability.'
+    evidence_types:
+    - restart-download-recovery
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh restart-download-recovery evidence proves the complete requirement: Interrupted download recovery persists enough state to resume or visibly restart according to server capability. All four case groups and every applicable
+        dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-DOWNLOAD-005
+    title: Download Lifecycle Immunity
+    closure_unit: 'Fresh download-lifecycle-immunity evidence proves the complete requirement: Active downloads are never stopped, paused, frozen, or made dormant by tab suspend/unload/archive, resource budgets, machine-wide ceilings, window/tab close, or session dormancy; renderer-bound downloads keep their carrier renderer exempt from suspend/unload until completion or durable job handoff.'
+    requirement_ids:
+    - STAGE-REQ-DOWNLOAD-005
+    source_ids:
+    - STAGE-DEC-019
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    - STAGE-GATE-009-HIGH-VOLUME
+    dependency_gate_ids:
+    - STAGE-DEP-MEDIA-DOWNLOADER
+    owner_lane: L15
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-MEDIA-DOWNLOADER is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-DOWNLOAD-005
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Active downloads are never stopped, paused, frozen, or made dormant by tab suspend/unload/archive, resource budgets, machine-wide ceilings, window/tab close, or session dormancy; renderer-bound downloads keep their carrier renderer exempt from suspend/unload until completion or durable job handoff.'
+      negative:
+      - 'Drive suspend, unload, archive, budget-pressure, machine-wide-ceiling, window-close, and session-dormancy actions against renderer-bound and detached active downloads; none may stop, pause, freeze, or make dormant the download, and false lifecycle-triggered termination cannot produce false success for: Active downloads are never stopped, paused, frozen, or made dormant by lifecycle machinery.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: only explicit operator/job cancellation or genuine external failure terminates a download, and lifecycle machinery is never recorded as the terminal cause.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: multiple concurrent downloads across renderer-bound and detached carriers all survive concurrent lifecycle pressure until completion or durable handoff.'
+    evidence_types:
+    - download-lifecycle-immunity
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh download-lifecycle-immunity evidence proves the complete requirement: no Stage lifecycle mechanism ever stops, pauses, freezes, or makes dormant an active download, and renderer-bound downloads unconditionally protect their carrier renderer until completion or durable handoff. All four case groups and every applicable dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-INTAKE-001
+    title: Downloader Adapter Journeys
+    closure_unit: 'Fresh downloader-adapter-journeys evidence proves the complete requirement: Page media, playlist/channel, gallery/forum, generic video, and direct assets route through existing Downloader schemas.'
+    requirement_ids:
+    - STAGE-REQ-INTAKE-001
+    source_ids:
+    - STAGE-DEC-008
+    - STAGE-PRES-PORT-006
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-011-DOWNSTREAM
+    dependency_gate_ids:
+    - STAGE-DEP-MEDIA-DOWNLOADER
+    owner_lane: L15
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-MEDIA-DOWNLOADER is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-INTAKE-001
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Page media, playlist/channel, gallery/forum, generic video, and direct assets route through existing Downloader schemas.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Page media, playlist/channel, gallery/forum, generic video, and direct assets route through existing Downloader schemas.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Page media, playlist/channel, gallery/forum, generic video, and direct assets route through existing Downloader
+        schemas.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Page media, playlist/channel, gallery/forum, generic video, and direct assets route through
+        existing Downloader schemas.'
+    evidence_types:
+    - downloader-adapter-journeys
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh downloader-adapter-journeys evidence proves the complete requirement: Page media, playlist/channel, gallery/forum, generic video, and direct assets route through existing Downloader schemas. All four case groups and
+        every applicable dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-INTAKE-002
+    title: Project Intake Contract
+    closure_unit: 'Fresh project-intake-contract evidence proves the complete requirement: Destination project and Lens/Atelier/CKC intake expose batch progress, per-item result, idempotency, retry, cancellation, and lineage.'
+    requirement_ids:
+    - STAGE-REQ-INTAKE-002
+    source_ids:
+    - STAGE-DEC-008
+    - STAGE-PRES-PORT-004
+    - STAGE-PRES-ASR-004
+    - STAGE-SPEC-013
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-011-DOWNSTREAM
+    dependency_gate_ids:
+    - STAGE-DEP-ATELIER-CKC-INTAKE
+    owner_lane: L15
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-ATELIER-CKC-INTAKE is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-INTAKE-002
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Destination project and Lens/Atelier/CKC intake expose batch progress, per-item result, idempotency, retry, cancellation, and lineage.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Destination project and Lens/Atelier/CKC intake expose batch progress, per-item result, idempotency, retry, cancellation, and
+        lineage.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Destination project and Lens/Atelier/CKC intake expose batch progress, per-item result, idempotency, retry,
+        cancellation, and lineage.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Destination project and Lens/Atelier/CKC intake expose batch progress, per-item result, idempotency,
+        retry, cancellation, and lineage.'
+    evidence_types:
+    - project-intake-contract
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh project-intake-contract evidence proves the complete requirement: Destination project and Lens/Atelier/CKC intake expose batch progress, per-item result, idempotency, retry, cancellation, and lineage. All four case groups
+        and every applicable dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-INTAKE-003
+    title: Asr Lineage Suite
+    closure_unit: 'Fresh asr-lineage-suite evidence proves the complete requirement: Captions-first and ASR fallback preserve media hash, probe facts, transcript artifacts, timing anchors, and job receipts.'
+    requirement_ids:
+    - STAGE-REQ-INTAKE-003
+    source_ids:
+    - STAGE-PRES-ASR-001
+    - STAGE-PRES-ASR-002
+    - STAGE-PRES-ASR-003
+    - STAGE-PRES-ASR-004
+    - STAGE-PRES-ASR-006
+    - STAGE-SPEC-021
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-011-DOWNSTREAM
+    dependency_gate_ids: []
+    owner_lane: L15
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-INTAKE-003
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Captions-first and ASR fallback preserve media hash, probe facts, transcript artifacts, timing anchors, and job receipts.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Captions-first and ASR fallback preserve media hash, probe facts, transcript artifacts, timing anchors, and job receipts.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Captions-first and ASR fallback preserve media hash, probe facts, transcript artifacts, timing anchors, and
+        job receipts.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Captions-first and ASR fallback preserve media hash, probe facts, transcript artifacts, timing
+        anchors, and job receipts.'
+    evidence_types:
+    - asr-lineage-suite
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh asr-lineage-suite evidence proves the complete requirement: Captions-first and ASR fallback preserve media hash, probe facts, transcript artifacts, timing anchors, and job receipts. All four case groups and every applicable
+        dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-INTAKE-004
+    title: Ckc Boundary Contract
+    closure_unit: 'Fresh ckc-boundary-contract evidence proves the complete requirement: CKC remains a public artifact/lineage consumer and cannot access Stage tables, profiles, cookies, or engine IDs.'
+    requirement_ids:
+    - STAGE-REQ-INTAKE-004
+    source_ids:
+    - STAGE-PRES-PORT-004
+    - STAGE-PRES-ASR-004
+    - STAGE-SPEC-013
+    release_ids:
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-011-DOWNSTREAM
+    dependency_gate_ids:
+    - STAGE-DEP-ATELIER-CKC-INTAKE
+    owner_lane: L19
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-ATELIER-CKC-INTAKE is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-INTAKE-004
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: CKC remains a public artifact/lineage consumer and cannot access Stage tables, profiles, cookies, or engine IDs.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: CKC remains a public artifact/lineage consumer and cannot access Stage tables, profiles, cookies, or engine IDs.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: CKC remains a public artifact/lineage consumer and cannot access Stage tables, profiles, cookies, or engine
+        IDs.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: CKC remains a public artifact/lineage consumer and cannot access Stage tables, profiles, cookies,
+        or engine IDs.'
+    evidence_types:
+    - ckc-boundary-contract
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh ckc-boundary-contract evidence proves the complete requirement: CKC remains a public artifact/lineage consumer and cannot access Stage tables, profiles, cookies, or engine IDs. All four case groups and every applicable
+        dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-STUDIO-001
+    title: Studio Consumer Contract
+    closure_unit: 'Fresh studio-consumer-contract evidence proves the complete requirement: Studio receives reciprocal versioned ArtifactHandle, source/capture lineage, action/correlation, and result envelopes without Stage absorbing Studio authoring
+      authority.'
+    requirement_ids:
+    - STAGE-REQ-STUDIO-001
+    source_ids:
+    - STAGE-PRES-PORT-004
+    - STAGE-PRES-ASR-004
+    - STAGE-SPEC-013
+    - STAGE-SPEC-021
+    release_ids:
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-011-DOWNSTREAM
+    dependency_gate_ids:
+    - STAGE-DEP-ATELIER-CKC-INTAKE
+    owner_lane: L19
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    - STAGE-DEP-ATELIER-CKC-INTAKE is PASS for the tested baseline.
+    fixture_ids:
+    - STAGE-FIX-STUDIO-001
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Studio receives reciprocal versioned ArtifactHandle, source/capture lineage, action/correlation, and result envelopes without Stage absorbing Studio authoring authority.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Studio receives reciprocal versioned ArtifactHandle, source/capture lineage, action/correlation, and result envelopes without
+        Stage absorbing Studio authoring authority.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Studio receives reciprocal versioned ArtifactHandle, source/capture lineage, action/correlation, and result
+        envelopes without Stage absorbing Studio authoring authority.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Studio receives reciprocal versioned ArtifactHandle, source/capture lineage, action/correlation,
+        and result envelopes without Stage absorbing Studio authoring authority.'
+    evidence_types:
+    - studio-consumer-contract
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh studio-consumer-contract evidence proves the complete requirement: Studio receives reciprocal versioned ArtifactHandle, source/capture lineage, action/correlation, and result envelopes without Stage absorbing Studio
+        authoring authority. All four case groups and every applicable dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-SEARCH-001
+    title: Zero Page Activity Search
+    closure_unit: 'Fresh zero-page-activity-search evidence proves the complete requirement: Fuzzy metadata search covers all canonical records without renderer activation.'
+    requirement_ids:
+    - STAGE-REQ-SEARCH-001
+    source_ids:
+    - STAGE-DEC-015
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-011-DOWNSTREAM
+    - STAGE-GATE-009-HIGH-VOLUME
+    dependency_gate_ids: []
+    owner_lane: L16
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-SEARCH-001
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Fuzzy metadata search covers all canonical records without renderer activation.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Fuzzy metadata search covers all canonical records without renderer activation.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Fuzzy metadata search covers all canonical records without renderer activation.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Fuzzy metadata search covers all canonical records without renderer activation.'
+    evidence_types:
+    - zero-page-activity-search
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh zero-page-activity-search evidence proves the complete requirement: Fuzzy metadata search covers all canonical records without renderer activation. All four case groups and every applicable dependency gate must pass
+        from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-SEARCH-002
+    title: Captured Search Truth Labels
+    closure_unit: 'Fresh captured-search-truth-labels evidence proves the complete requirement: Captured full-text search returns artifact/provenance/time/staleness and never silently refetches.'
+    requirement_ids:
+    - STAGE-REQ-SEARCH-002
+    source_ids:
+    - STAGE-DEC-015
+    - STAGE-PRES-MVP-007
+    - STAGE-PRES-ASR-001
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-011-DOWNSTREAM
+    dependency_gate_ids: []
+    owner_lane: L16
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-SEARCH-002
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Captured full-text search returns artifact/provenance/time/staleness and never silently refetches.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Captured full-text search returns artifact/provenance/time/staleness and never silently refetches.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Captured full-text search returns artifact/provenance/time/staleness and never silently refetches.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Captured full-text search returns artifact/provenance/time/staleness and never silently refetches.'
+    evidence_types:
+    - captured-search-truth-labels
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh captured-search-truth-labels evidence proves the complete requirement: Captured full-text search returns artifact/provenance/time/staleness and never silently refetches. All four case groups and every applicable dependency
+        gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-SEARCH-003
+    title: Loom Authority Consistency
+    closure_unit: 'Fresh loom-authority-consistency evidence proves the complete requirement: Loom owns knowledge relations; Stage stores only references and explicit local organization fields.'
+    requirement_ids:
+    - STAGE-REQ-SEARCH-003
+    source_ids:
+    - STAGE-DEC-011
+    - STAGE-PRES-PORT-004
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-011-DOWNSTREAM
+    dependency_gate_ids: []
+    owner_lane: L16
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-SEARCH-003
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Loom owns knowledge relations; Stage stores only references and explicit local organization fields.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Loom owns knowledge relations; Stage stores only references and explicit local organization fields.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Loom owns knowledge relations; Stage stores only references and explicit local organization fields.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Loom owns knowledge relations; Stage stores only references and explicit local organization
+        fields.'
+    evidence_types:
+    - loom-authority-consistency
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh loom-authority-consistency evidence proves the complete requirement: Loom owns knowledge relations; Stage stores only references and explicit local organization fields. All four case groups and every applicable dependency
+        gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-SEARCH-004
+    title: Index Rebuild Suite
+    closure_unit: 'Fresh index-rebuild-suite evidence proves the complete requirement: Index rebuild, corruption recovery, retention, URL normalization, ranking, and semantic-query boundary are deterministic.'
+    requirement_ids:
+    - STAGE-REQ-SEARCH-004
+    source_ids: []
+    release_ids:
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-011-DOWNSTREAM
+    - STAGE-GATE-009-HIGH-VOLUME
+    dependency_gate_ids: []
+    owner_lane: L16
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-SEARCH-004
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Index rebuild, corruption recovery, retention, URL normalization, ranking, and semantic-query boundary are deterministic.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Index rebuild, corruption recovery, retention, URL normalization, ranking, and semantic-query boundary are deterministic.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Index rebuild, corruption recovery, retention, URL normalization, ranking, and semantic-query boundary are
+        deterministic.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Index rebuild, corruption recovery, retention, URL normalization, ranking, and semantic-query
+        boundary are deterministic.'
+    evidence_types:
+    - index-rebuild-suite
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh index-rebuild-suite evidence proves the complete requirement: Index rebuild, corruption recovery, retention, URL normalization, ranking, and semantic-query boundary are deterministic. All four case groups and every applicable
+        dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-EXPORT-001
+    title: Translation Egress Suite
+    closure_unit: 'Fresh translation-egress-suite evidence proves the complete requirement: Local translation is offline for installed pairs; cloud translation requires visible content egress and provider provenance.'
+    requirement_ids:
+    - STAGE-REQ-EXPORT-001
+    source_ids:
+    - STAGE-DEC-015
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    dependency_gate_ids: []
+    owner_lane: L17
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-EXPORT-001
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Local translation is offline for installed pairs; cloud translation requires visible content egress and provider provenance.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Local translation is offline for installed pairs; cloud translation requires visible content egress and provider provenance.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Local translation is offline for installed pairs; cloud translation requires visible content egress and provider
+        provenance.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Local translation is offline for installed pairs; cloud translation requires visible content
+        egress and provider provenance.'
+    evidence_types:
+    - translation-egress-suite
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh translation-egress-suite evidence proves the complete requirement: Local translation is offline for installed pairs; cloud translation requires visible content egress and provider provenance. All four case groups and
+        every applicable dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-EXPORT-002
+    title: Translation Lineage
+    closure_unit: 'Fresh translation-lineage evidence proves the complete requirement: Translation source is immutable and derived artifacts record model/package/version/language/quality facts.'
+    requirement_ids:
+    - STAGE-REQ-EXPORT-002
+    source_ids: []
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    dependency_gate_ids: []
+    owner_lane: L17
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-EXPORT-002
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Translation source is immutable and derived artifacts record model/package/version/language/quality facts.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Translation source is immutable and derived artifacts record model/package/version/language/quality facts.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Translation source is immutable and derived artifacts record model/package/version/language/quality facts.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Translation source is immutable and derived artifacts record model/package/version/language/quality
+        facts.'
+    evidence_types:
+    - translation-lineage
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh translation-lineage evidence proves the complete requirement: Translation source is immutable and derived artifacts record model/package/version/language/quality facts. All four case groups and every applicable dependency
+        gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-EXPORT-003
+    title: Export Kind Suite
+    closure_unit: 'Fresh export-kind-suite evidence proves the complete requirement: Readable Markdown, print-page PDF, and captured-document PDF are distinct sanitized/exported operations.'
+    requirement_ids:
+    - STAGE-REQ-EXPORT-003
+    source_ids:
+    - STAGE-DEC-015
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    dependency_gate_ids: []
+    owner_lane: L17
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-EXPORT-003
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Readable Markdown, print-page PDF, and captured-document PDF are distinct sanitized/exported operations.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Readable Markdown, print-page PDF, and captured-document PDF are distinct sanitized/exported operations.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Readable Markdown, print-page PDF, and captured-document PDF are distinct sanitized/exported operations.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Readable Markdown, print-page PDF, and captured-document PDF are distinct sanitized/exported
+        operations.'
+    evidence_types:
+    - export-kind-suite
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh export-kind-suite evidence proves the complete requirement: Readable Markdown, print-page PDF, and captured-document PDF are distinct sanitized/exported operations. All four case groups and every applicable dependency
+        gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-EXPORT-004
+    title: Export Failure Recovery
+    closure_unit: 'Fresh export-failure-recovery evidence proves the complete requirement: Export is atomic, disk-agnostic, collision-aware, provenance-preserving, and uses ArtifactStore Materialize/Export authority.'
+    requirement_ids:
+    - STAGE-REQ-EXPORT-004
+    source_ids:
+    - STAGE-PRES-PORT-001
+    - STAGE-PRES-PORT-002
+    - STAGE-PRES-PORT-003
+    - STAGE-SPEC-004
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-010-DOWNLOAD-CAPTURE
+    - STAGE-GATE-014-BACKUP-RESTORE
+    dependency_gate_ids: []
+    owner_lane: L17
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-EXPORT-004
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - 'Execute every named supported behavior and prove from canonical state: Export is atomic, disk-agnostic, collision-aware, provenance-preserving, and uses ArtifactStore Materialize/Export authority.'
+      negative:
+      - 'Malformed, unsupported, stale, unauthorized, or boundary-crossing variants cannot produce false success for: Export is atomic, disk-agnostic, collision-aware, provenance-preserving, and uses ArtifactStore Materialize/Export authority.'
+      failure_recovery:
+      - 'Interrupt and restart at each durable boundary; completed truth is preserved and the requirement converges without duplication: Export is atomic, disk-agnostic, collision-aware, provenance-preserving, and uses ArtifactStore Materialize/Export
+        authority.'
+      concurrency:
+      - 'Parallel actors/jobs retain isolated identity, bounded execution, deterministic conflict handling, and attributable receipts while satisfying: Export is atomic, disk-agnostic, collision-aware, provenance-preserving, and uses ArtifactStore
+        Materialize/Export authority.'
+    evidence_types:
+    - export-failure-recovery
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: release-run
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: 'Fresh export-failure-recovery evidence proves the complete requirement: Export is atomic, disk-agnostic, collision-aware, provenance-preserving, and uses ArtifactStore Materialize/Export authority. All four case groups and
+        every applicable dependency gate must pass from fresh evidence.'
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-RESOURCE-001
+    title: 3000 Record Benchmark
+    closure_unit: A cold-start and steady-state benchmark with at least 3000 durable records proves bounded live renderers and virtualized UI under operator-locked CPU, memory, latency, allocation, query, and background-work ceilings.
+    requirement_ids:
+    - STAGE-REQ-RESOURCE-001
+    source_ids:
+    - STAGE-DEC-009
+    - STAGE-SPEC-010
+    - STAGE-SPEC-019
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-009-HIGH-VOLUME
+    dependency_gate_ids: []
+    owner_lane: L07
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-RESOURCE-001
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Cold restore metadata, render visible rows, scroll/filter/reorder/open/close, and verify canonical truth while live renderers stay below the locked ceiling.
+      negative:
+      - Cold restore performs zero eager navigation and zero ArtifactStore payload read/hash/scan/materialize; offscreen records create no renderer/decoded subtree/full per-frame walk.
+      failure_recovery:
+      - Crash/restart restores canonical state without renderer explosion, hierarchy loss, retry storm, or unbounded catch-up.
+      concurrency:
+      - Multiple windows/sessions stay within machine budgets, preserve interactive reserve/fairness, and keep projections correct.
+    evidence_types:
+    - 3000-record-benchmark
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: same-build-hardware-runtime-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+      - runtime-change
+      - hardware-change
+      - threshold-change
+      - corpus-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: A cold-start and steady-state benchmark with at least 3000 durable records proves bounded live renderers and virtualized UI under operator-locked CPU, memory, latency, allocation, query, and background-work ceilings. All four
+        case groups and every applicable dependency gate must pass from fresh evidence.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-RESOURCE-002
+    title: Scheduler Property Suite
+    closure_unit: A scheduler property run proves global/session/window budgets reserve operator-locked interactive capacity and every admission, queue, throttle, eviction, or rejection has a deterministic reason.
+    requirement_ids:
+    - STAGE-REQ-RESOURCE-002
+    source_ids:
+    - STAGE-DEC-010
+    - STAGE-SPEC-019
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-009-HIGH-VOLUME
+    dependency_gate_ids: []
+    owner_lane: L07
+    preconditions:
+    - Exact build, adapter/runtime versions, fixture hash, and requirement-specific policies and numeric thresholds are bound before execution.
+    fixture_ids:
+    - STAGE-FIX-RESOURCE-002
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Admit mixed work below budgets and verify balanced accounting and stable reasoned transitions at all scopes.
+      negative:
+      - Saturate background capacity; interactive reserve remains available and excess work receives exact visible reasons.
+      failure_recovery:
+      - Restart reconstructs reservations/leases, expires stale ownership, and reconciles orphan use without double admission.
+      concurrency:
+      - Adversarial multi-window arrivals cannot starve peers or consume reserve and follow deterministic fairness/tie rules.
+    evidence_types:
+    - scheduler-property-suite
+    - structured-results
+    - fault-recovery-receipts
+    - concurrency-trace
+    freshness_policy:
+      max_age: same-build-hardware-runtime-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - implementation-change
+      - contract-change
+      - fixture-change
+      - dependency-gate-change
+      - runtime-change
+      - hardware-change
+      - threshold-change
+      - corpus-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: A scheduler property run proves global/session/window budgets reserve operator-locked interactive capacity and every admission, queue, throttle, eviction, or rejection has a deterministic reason. All four case groups and every
+        applicable dependency gate must pass from fresh evidence.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-RESOURCE-003
+    title: Protected Work Eviction Suite
+    closure_unit: An eviction suite proves only bounded expiring unsaved-input, active-media/WebRTC, keep-live, operator/test-hold, and model-lease protections delay eviction; metadata never protects, and renderer protection ends at durable download
+      handoff.
+    requirement_ids:
+    - STAGE-REQ-RESOURCE-003
+    source_ids:
+    - STAGE-DEC-010
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-009-HIGH-VOLUME
+    dependency_gate_ids: []
+    owner_lane: L07
+    preconditions:
+    - Protection-kind eligibility, expiry, maximum counts/cost, renewal authority, eviction ordering, and durable-download-handoff boundary are fixed.
+    fixture_ids:
+    - STAGE-FIX-RESOURCE-003
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Each valid protection delays eviction only within its bound and exposes kind, owner, expiry, resource cost, and why-awake attribution.
+      negative:
+      - Pins, bookmarks, folders, labels, stale leases, expired holds, and post-handoff downloads do not protect a renderer; forged/unbounded renewal is rejected.
+      failure_recovery:
+      - On crash or owner loss, stale protections expire/reconcile; unsaved-input recovery state remains durable without forcing indefinite renderer life.
+      concurrency:
+      - Competing protections across windows stay within machine ceilings and deterministic priority/fairness; one actor cannot renew another actor's lease or hold.
+    evidence_types:
+    - protected-work-eviction-suite
+    - protected-work-eviction-report
+    - protection-ledger
+    - durable-handoff-timeline
+    - renderer-lifetime-trace
+    freshness_policy:
+      max_age: current-build-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - protection-policy-change
+      - download-handoff-change
+      - eviction-change
+      - fixture-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: Only eligible live protections delay eviction, all expire within locked bounds, metadata/post-handoff downloads never pin renderers, and restart/contention safely reconcile.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-RESOURCE-004
+    title: Restart Storm Benchmark
+    closure_unit: A restart-storm benchmark proves restore, navigation, capture, and indexing rates stay within locked CPU, memory, disk, network, worker, and interactive-latency budgets.
+    requirement_ids:
+    - STAGE-REQ-RESOURCE-004
+    source_ids:
+    - STAGE-DEC-009
+    - STAGE-DEC-010
+    - STAGE-SPEC-019
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-009-HIGH-VOLUME
+    dependency_gate_ids: []
+    owner_lane: L07
+    preconditions:
+    - At least 3000-record restart corpus and queued navigation/capture/index workload are fixed.
+    - Numeric rate, concurrency, resource, backoff, and interactive-latency limits are operator-locked for the test hardware/runtime.
+    fixture_ids:
+    - STAGE-FIX-RESOURCE-004
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Restart with pending work and verify bounded staged admission, backpressure, jitter/backoff, progress, cancellation, and completion without violating locked limits.
+      negative:
+      - No restore fan-out eagerly navigates records, launches one worker per record, starts capture/index per tab, floods network/disk, or consumes interactive reserve.
+      failure_recovery:
+      - Repeated crash/restart does not multiply queued work, reset retry counts, lose completed checkpoints, or produce synchronized retry storms.
+      concurrency:
+      - Simultaneous windows/sessions and service queues remain fair and globally bounded; interactive navigation preempts/yields background work as specified.
+    evidence_types:
+    - restart-storm-benchmark
+    - cpu-memory-disk-network-profile
+    - queue-rate-trace
+    - retry-checkpoint-ledger
+    - interactive-latency-report
+    freshness_policy:
+      max_age: same-build-hardware-runtime-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - restore-policy-change
+      - queue-change
+      - backoff-change
+      - runtime-change
+      - hardware-change
+      - threshold-change
+      - corpus-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: All locked resource/rate/latency limits pass through repeated restart and multi-window saturation, with no work multiplication, per-record fan-out, or interactive starvation.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-RESOURCE-005
+    title: Background Activity Suite
+    closure_unit: A background-activity suite independently reports renderer attachment and profile-level service-worker/background activity, including resource attribution and termination/clear behavior for each.
+    requirement_ids:
+    - STAGE-REQ-RESOURCE-005
+    source_ids: []
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-009-HIGH-VOLUME
+    dependency_gate_ids: []
+    owner_lane: L07
+    preconditions:
+    - Renderer attachment states and profile-background activity kinds/owners are separately modeled and observable.
+    fixture_ids:
+    - STAGE-FIX-RESOURCE-005
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Exercise attached/detached renderer and service-worker/background activity combinations and verify separate state, owner, resource, why-awake, and control receipts.
+      negative:
+      - Do not infer zero profile activity from no renderer, attribute profile activity to every tab, or claim renderer eviction terminates independent background services.
+      failure_recovery:
+      - After process crash/profile cleanup, reconcile both state classes and report residual/locked activity explicitly rather than silently clearing attribution.
+      concurrency:
+      - Multiple tabs sharing one profile service do not multiply service accounting; multiple profiles remain isolated under simultaneous background activity.
+    evidence_types:
+    - background-activity-suite
+    - background-activity-report
+    - process-resource-trace
+    - why-awake-receipts
+    - profile-isolation-proof
+    freshness_policy:
+      max_age: current-build-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - activity-model-change
+      - engine-adapter-change
+      - attribution-change
+      - fixture-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: Renderer and profile-background activity remain independently truthful, attributable, controllable, and non-duplicated across crash and shared-profile contention.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-RESOURCE-006
+    title: Dormant Host Work Scale Curve
+    closure_unit: A scale curve from 0 to at least 3000 unloaded/archive records proves exactly zero per-record renderer, timer, watcher, poller, subscription, widget/accessibility node, decoded thumbnail, refresher, Loom-sync future, or maintenance
+      task.
+    requirement_ids:
+    - STAGE-REQ-RESOURCE-006
+    source_ids:
+    - STAGE-DEC-009
+    - STAGE-DEC-010
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-009-HIGH-VOLUME
+    dependency_gate_ids: []
+    owner_lane: L07
+    preconditions:
+    - Instrumentation counts each forbidden host-work class by record/source and distinguishes shared bounded services.
+    - Corpora at multiple sizes through at least 3000 unloaded/archive records are hash-fixed.
+    fixture_ids:
+    - STAGE-FIX-RESOURCE-006
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Load durable metadata and visible-row projections through shared bounded services; visible records may acquire only documented viewport-scoped ephemeral work.
+      negative:
+      - For every unloaded/archive record, asserted counts are exactly zero for all named forbidden work classes; background CPU/wakeups do not scale linearly with dormant record count.
+      failure_recovery:
+      - After scroll/filter/close/archive/restart, ephemeral visible/live work is cancelled/released and the affected records return to exact zero dormant work.
+      concurrency:
+      - Multiple windows viewing overlapping subsets share/deduplicate eligible services and do not allocate hidden per-record work in non-visible windows.
+    evidence_types:
+    - dormant-host-work-scale-curve
+    - object-task-allocation-census
+    - timer-watcher-subscription-trace
+    - decoded-thumbnail-cache-report
+    - cpu-wakeup-profile
+    freshness_policy:
+      max_age: same-build-hardware-runtime-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - ui-projection-change
+      - background-service-change
+      - cache-change
+      - runtime-change
+      - corpus-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: Every forbidden per-record count is exactly zero for unloaded/archive records at every corpus size, cleanup returns records to zero, and shared work remains bounded/sublinear.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-RESOURCE-007
+    title: Multi Window Resource Scheduler Suite
+    closure_unit: A simultaneous multi-window/session scheduler suite proves machine-wide renderer/background ceilings, interactive reserve, fairness, expiry, and exact why-awake attribution remain effective.
+    requirement_ids:
+    - STAGE-REQ-RESOURCE-007
+    source_ids:
+    - STAGE-DEC-009
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-009-HIGH-VOLUME
+    dependency_gate_ids: []
+    owner_lane: L07
+    preconditions:
+    - Machine-wide ceilings, per-session/window shares, interactive reserve, fairness/expiry policy, and why-awake vocabulary are operator-locked.
+    - Fixture opens simultaneous windows/sessions with mixed renderers and background jobs.
+    fixture_ids:
+    - STAGE-FIX-RESOURCE-007
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Exercise mixed workloads and verify global/per-scope accounting, admitted/queued/evicted state, expiry, and why-awake owner/reason/resource for every live unit.
+      negative:
+      - No window/session can exceed machine ceiling by local accounting, starve all peers, consume interactive reserve with background work, or retain unattributed/expired work.
+      failure_recovery:
+      - Crash a window/session/worker; reservations and leases reap within locked bounds and surviving scopes continue without leaked capacity.
+      concurrency:
+      - Adversarial arrivals and renewals across scopes satisfy locked fairness and deterministic tie-breaks while maintaining interactive responsiveness.
+    evidence_types:
+    - multi-window-resource-scheduler-suite
+    - multi-window-resource-scheduler-report
+    - machine-accounting-ledger
+    - fairness-expiry-metrics
+    - why-awake-census
+    - process-reap-proof
+    freshness_policy:
+      max_age: same-build-hardware-runtime-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - machine-budget-change
+      - fairness-change
+      - expiry-change
+      - runtime-change
+      - threshold-change
+      - fixture-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: Machine ceilings/reserve/fairness/expiry pass under simultaneous scopes, all live work has exact attribution, and crash cleanup returns capacity within bounds.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-RESOURCE-008
+    title: Projection Allocation Profile
+    closure_unit: A 3000-plus-record projection profile proves tree flattening, filtering, counts, search, accessibility, drag/drop, and bulk views use incremental invalidation or bounded paging with no hidden full-record walk per frame/event.
+    requirement_ids:
+    - STAGE-REQ-RESOURCE-008
+    source_ids:
+    - STAGE-DEC-009
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-009-HIGH-VOLUME
+    dependency_gate_ids: []
+    owner_lane: L07
+    preconditions:
+    - At least 3000-record hierarchical corpus and golden projections/counts are fixed.
+    - Operator-locked per-frame/event work, allocation, latency, page-size, and accessibility-node ceilings are recorded.
+    fixture_ids:
+    - STAGE-FIX-RESOURCE-008
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Mutate one record/subtree and verify only bounded affected projections/counts invalidate while visible/paged results and accessibility semantics match golden truth.
+      negative:
+      - Profiler/query instrumentation finds no full-corpus walk/allocation per frame, pointer move, progress event, row render, accessibility query, drag event, filter keystroke, or sidebar refresh.
+      failure_recovery:
+      - Invalidate/cancel during rapid changes; projections rebuild from canonical state without stale counts, lost offscreen items, hierarchy corruption, or unbounded catch-up.
+      concurrency:
+      - Concurrent updates, search, drag/drop, accessibility, and bulk snapshots use consistent revisions and bounded invalidation without UI-thread starvation.
+    evidence_types:
+    - projection-allocation-profile
+    - golden-projection-diff
+    - ui-frame-event-trace
+    - db-query-counts
+    - accessibility-tree-census
+    freshness_policy:
+      max_age: same-build-hardware-runtime-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: NOT_APPLICABLE
+      revalidation_triggers:
+      - projection-algorithm-change
+      - ui-framework-change
+      - accessibility-change
+      - runtime-change
+      - threshold-change
+      - corpus-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: All projections are canonically correct and every locked work/allocation/latency ceiling passes, with no per-frame/event full-record walk under recovery or contention.
+    status: SPECIFIED_UNBOUND
+  - id: STAGE-ACC-RESOURCE-009
+    title: Background Service Attribution Suite
+    closure_unit: A background-service attribution suite proves service workers, utilities, GPU processes, workflow jobs, migration/reindex, thumbnails, backup, capture, ArtifactStore maintenance, and diagnostics are independently bounded/cancellable/attributed
+      and never invoked per tab or sidebar refresh.
+    requirement_ids:
+    - STAGE-REQ-RESOURCE-009
+    source_ids:
+    - STAGE-DEC-009
+    - STAGE-DEC-018
+    release_ids:
+    - STAGE-WIN-BOOTSTRAP-PROD
+    - STAGE-WP-COMPLETE
+    production_gate_ids:
+    - STAGE-GATE-009-HIGH-VOLUME
+    - STAGE-GATE-017-SUPPORT
+    dependency_gate_ids:
+    - STAGE-DEP-ARTIFACT-STREAMING
+    owner_lane: L07
+    preconditions:
+    - Every named service class has owner, queue, cost dimensions, concurrency/rate limits, cancellation deadline, interactive reserve policy, and why-awake schema.
+    - ArtifactStore health/retention/GC scans are incremental, cursor-based, pausable, and excluded from Stage startup/sidebar paths.
+    - STAGE-DEP-ARTIFACT-STREAMING is PASS.
+    fixture_ids:
+    - STAGE-FIX-RESOURCE-009
+    command_ids:
+    - UNBOUND
+    cases:
+      positive:
+      - Run each service class and verify distinct owner/job, trigger, queue, CPU/memory/disk/network/GPU cost, progress, cancellation, completion, and why-awake receipts under locked bounds.
+      negative:
+      - Opening/refreshing/filtering the sidebar and cold restoring 3000-plus records trigger zero capture, workflow, migration/reindex, thumbnail for offscreen rows, backup, diagnostics sweep, or ArtifactStore payload read/hash/integrity/retention/GC
+        scan; no service starts one worker/task per tab.
+      failure_recovery:
+      - Cancel/crash/restart each service at checkpoints; completed work remains durable, orphan ownership reaps, incremental cursors resume idempotently, and ArtifactStore cleanup never scans/deletes outside verified staged scope.
+      concurrency:
+      - Saturate all service classes across windows; global/per-class bounds, fairness, cancellation deadlines, and interactive reserve hold; hashing occurs once during streaming and progress/EventLedger writes are coalesced rather than per chunk/tab.
+    evidence_types:
+    - background-service-attribution-suite
+    - why-awake-census
+    - queue-and-resource-profile
+    - sidebar-startup-zero-trigger-trace
+    - artifactstore-maintenance-cursor-proof
+    - cancellation-reap-receipts
+    freshness_policy:
+      max_age: same-build-hardware-runtime-only
+      build_binding: EXACT_BUILD
+      fixture_binding: EXACT_FIXTURE_HASH
+      dependency_binding: EXACT_CONTRACT_VERSION
+      revalidation_triggers:
+      - service-registry-change
+      - queue-budget-change
+      - artifactstore-maintenance-change
+      - diagnostics-change
+      - runtime-change
+      - threshold-change
+      - fixture-change
+    pass_rule:
+      selected_min: 1
+      executed_min: 1
+      required_case_groups:
+      - positive
+      - negative
+      - failure_recovery
+      - concurrency
+      all_cases_must_pass: true
+      dependency_gates_must_pass: true
+      skipped_only_invalid: true
+      cleanup_required: true
+      redaction_scan_required: true
+      semantic_rule: Every service is independently bounded, attributable, cancellable, and recoverable; sidebar/cold restore trigger exactly zero forbidden work; no per-tab fan-out occurs; fresh ArtifactStore streaming/maintenance evidence passes.
+    status: SPECIFIED_UNBOUND
+

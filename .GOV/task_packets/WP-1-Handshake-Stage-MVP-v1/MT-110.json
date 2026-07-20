@@ -1,0 +1,158 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Handshake-Stage-MVP-v1",
+  "mt_id": "MT-110",
+  "created_at_utc": "2026-07-20T00:00:00Z",
+  "updated_at_utc": null,
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-MT-110.json",
+    "microtask_projection": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-MT-110.md",
+    "packet_contract": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": ".GOV/task_packets/WP-1-Handshake-Stage-MVP-v1/MT-MT-110.md",
+    "status": "NOT_GENERATED_BY_DEFAULT",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-001",
+      "MT-002",
+      "MT-004",
+      "MT-006",
+      "MT-007"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "WP-1 owns model lanes, ToolGate, process cancellation/reap, promotion, EventLedger, Flight Recorder, and Argus; Stage is a versioned consumer.",
+    "allowed_paths": [
+      "BIND_AT_L00_BASELINE"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "another WP's private tables/routes/profiles"
+    ],
+    "acceptance_criteria": [
+      "Stage consumes versioned WP-1 contracts for model lanes, ToolGate, process cancellation/reap, promotion, EventLedger, Flight Recorder, and Argus without duplicating their ownership or registries.",
+      "[positive] Consumer conformance fixtures invoke every owned WP-1 capability through its declared version and reconcile Stage correlation IDs to WP-1 receipts and telemetry.",
+      "[negative] Repository and runtime scans prove Stage does not define shadow model lanes, gates, process supervisors, promotion state, ledgers, recorders, or telemetry ownership.",
+      "[failure_recovery] Unavailable or incompatible WP-1 returns typed blocked/degraded capability, cancels or fences in-flight work, and leaves manual Stage browsing usable without local fallback ownership.",
+      "[concurrency] Parallel Stage actors consume WP-1 leases, fencing, cancellation, and receipts so no local shadow owner or cross-actor result attribution appears."
+    ],
+    "proof_targets": [
+      "wp1-ownership-contract"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": "CONDITIONAL",
+    "gui_creation_required": "CONDITIONAL",
+    "argus_required": "CONDITIONAL",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": "Bind at implementation: headless/backend MT records typed NOT_APPLICABLE reason; operator-visible behavior requires Argus."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": "YES",
+    "manual_version_bump_required": "WHEN_APPLICABLE",
+    "target_entries": [],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Broad MT scope can hide multiple review targets.",
+      "Markdown MT lists may disagree with packet-declared active/next MT truth.",
+      "Receipt routing may target an old MT if contract identity is omitted.",
+      "Legacy Stage code (WP-12) must not silently constrain this MT (STAGE-DEC-017).",
+      "Do not duplicate ArtifactStore, WP-1 ToolGate/process/promotion, or Loom authority."
+    ],
+    "minimum_controls": [
+      "Exactly one primary proof target per MT unless the packet records why not.",
+      "MT identity must be stable and referenced by receipt correlation.",
+      "Generated projection drift must not wake Coder or Validator by itself."
+    ]
+  },
+  "planning_metadata": {
+    "lane": "L19",
+    "kind": "requirement",
+    "requirement_id": "STAGE-REQ-WP1-001",
+    "requirement_priority": "P0",
+    "acceptance_id": "STAGE-ACC-WP1-001",
+    "release_ids": [
+      "STAGE-WIN-BOOTSTRAP-PROD",
+      "STAGE-WP-COMPLETE"
+    ],
+    "production_gate_ids": [
+      "STAGE-GATE-011-DOWNSTREAM",
+      "STAGE-GATE-012-MIGRATION",
+      "STAGE-GATE-008-AGENT-CONTROL"
+    ],
+    "dependency_gate_ids": [
+      "STAGE-DEP-WP1-MODEL-ORCHESTRATION"
+    ],
+    "fixture_ids": [
+      "STAGE-FIX-WP1-001"
+    ],
+    "corpus_refs": [
+      ".GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md",
+      ".GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md",
+      ".GOV/reference/stage_mvp_planning/legacy-stage-disposition-register.yaml"
+    ],
+    "implementation_note": "Planning-stage MT. Exact owned_files, code anchors, and proof_commands are bound at the L00 integration baseline. Deep spec detail lives in corpus_refs; acceptance_criteria carry the provable closure unit and the positive/negative/failure_recovery/concurrency case groups.",
+    "no_context_read_order": [
+      ".GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json",
+      ".GOV/reference/stage_mvp_planning/index.yaml",
+      ".GOV/reference/stage_mvp_planning/requirements-and-traceability.yaml",
+      ".GOV/reference/stage_mvp_planning/12-active-wp-compatibility.md",
+      ".GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md",
+      ".GOV/reference/stage_mvp_planning/legacy-stage-disposition-register.yaml"
+    ]
+  }
+}

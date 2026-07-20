@@ -1,0 +1,202 @@
+stage_production_gates:
+  id: stage-production-gate-registry
+  wp_id: WP-1-Handshake-Stage-MVP-v1
+  authority: NON_AUTHORITATIVE_REFERENCE
+  status: specified_command_binding_pending_implementation
+  updated_at: "2026-07-19"
+  command_binding_rule: >-
+    Future WP and microtask contracts must bind every command_id to an exact
+    non-interactive repository command with a zero-test guard and declared
+    evidence outputs before execution begins.
+
+gates:
+  - id: STAGE-GATE-001-REQUIREMENT-COVERAGE
+    name: requirement-traceability
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-SERVO-RESTRICTED-ALPHA, STAGE-WP-COMPLETE]
+    prerequisites: []
+    command_id: STAGE-CMD-REQ-COVERAGE
+    proof: "No orphan source, decision, source-disposition, spec-conflict, current product, integration, risk, supersession, or release requirement."
+    evidence: [coverage-report, orphan-report, cycle-report]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-002-ADAPTER-CONFORMANCE
+    name: adapter-conformance
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-SERVO-RESTRICTED-ALPHA, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-001-REQUIREMENT-COVERAGE]
+    command_id: STAGE-CMD-ADAPTER-CONFORMANCE
+    proof: "Fake and target adapters pass invariant command/event, capability-state, stale-generation, cancel, reorder, timeout, shutdown, and no-silent-fallback cases."
+    evidence: [structured-results, adapter-manifests, logs, traces]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-003-NATIVE-SHELL
+    name: native-shell-and-browser-chrome
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-002-ADAPTER-CONFORMANCE]
+    command_id: STAGE-CMD-NATIVE-SHELL
+    proof: "All P0 navigation, history, bookmarks, settings, downloads, permission, popup, focus, keyboard, DPI, and accessibility journeys pass."
+    evidence: [visual-snapshots, uia-snapshots, action-receipts, journey-results]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-004-PERSISTENCE-REPLAY
+    name: persistence-events-and-replay
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-001-REQUIREMENT-COVERAGE]
+    command_id: STAGE-CMD-PERSISTENCE-REPLAY
+    proof: "CAS revisions, fencing, atomic event/outbox, projector replay, schema compatibility, history, recently closed, bulk reconciliation, and restart invariants pass."
+    evidence: [database-invariant-report, event-replay-report, property-test-results]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-005-SESSION-ISOLATION
+    name: session-profile-and-secret-isolation
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-SERVO-RESTRICTED-ALPHA, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-002-ADAPTER-CONFORMANCE]
+    command_id: STAGE-CMD-SESSION-ISOLATION
+    proof: "No cookie/cache/storage/service-worker/permission/history/credential leakage across isolation classes, restart, crash, clear, or cleanup paths."
+    evidence: [canary-matrix, cleanup-receipts, secret-scan]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-006-WEB-SECURITY
+    name: hostile-web-containment
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-SERVO-RESTRICTED-ALPHA, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-002-ADAPTER-CONFORMANCE, STAGE-GATE-005-SESSION-ISOLATION]
+    command_id: STAGE-CMD-WEB-SECURITY
+    proof: "Sandbox/site isolation, bridge denial, permission default-deny, TLS/proxy/private-network policy, parser limits, automation endpoint privacy, and no dangerous engine flags pass."
+    evidence: [threat-model-coverage, negative-security-results, process-boundary-evidence]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-007-AUTH-COMPATIBILITY
+    name: authenticated-site-compatibility
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-005-SESSION-ISOLATION, STAGE-GATE-006-WEB-SECURITY]
+    command_id: STAGE-CMD-AUTH-COMPATIBILITY
+    proof: "YouTube/Google and general authentication journeys pass through supported modes or have an operator-approved explicit limitation compatible with the release claim."
+    evidence: [auth-matrix, takeover-evidence, oauth-receipts, loss-reports]
+    current_state: BLOCKED_BY_WEBVIEW2_GOOGLE_AUTH_AND_UNSELECTED_SUPPORTED_PATH
+
+  - id: STAGE-GATE-008-AGENT-CONTROL
+    name: agent-control-and-non-exfiltration
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-006-WEB-SECURITY]
+    command_id: STAGE-CMD-AGENT-CONTROL
+    proof: "Attribution, leases/fencing, stale rejection, durable intents, unknown-outcome reconciliation, confirmation/takeover, quiet operation, and prompt-injection non-exfiltration pass."
+    evidence: [agent-traces, attack-results, data-flow-receipts, focus-proof]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-009-HIGH-VOLUME
+    name: high-volume-state-and-resource-control
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-004-PERSISTENCE-REPLAY]
+    command_id: STAGE-CMD-HIGH-VOLUME
+    proof: "3000-plus records, 1-to-10000 scale curve, machine-wide multi-window live/background ceilings, zero-per-record dormant work, pin-versus-keep-live separation, incremental projections, canonical bulk actions, lazy restore, service-worker/process attribution, no shared-store hot-path scans, and operator-locked resource/latency targets pass."
+    evidence: [benchmark-series, scale-curve, network-trace, renderer-process-map, host-task-wakeup-profile, multi-window-scheduler-proof, projection-allocation-profile, background-service-attribution, bulk-reconciliation]
+    current_state: TARGETS_REQUIRE_MEASURED_BASELINE_AND_OPERATOR_LOCK
+
+  - id: STAGE-GATE-010-DOWNLOAD-CAPTURE
+    name: downloads-capture-and-artifact-lineage
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-004-PERSISTENCE-REPLAY, STAGE-GATE-006-WEB-SECURITY]
+    command_id: STAGE-CMD-DOWNLOAD-CAPTURE
+    proof: "Download failures/recovery, renderer-versus-archive capture, exact artifacts, sanitization/parser limits, partial success, and lineage pass."
+    evidence: [download-results, capture-manifests, artifact-hash-report, parser-fuzz-report]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-011-DOWNSTREAM
+    name: downloader-asr-loom-editor-and-project-integrations
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-010-DOWNLOAD-CAPTURE]
+    command_id: STAGE-CMD-DOWNSTREAM-INTEGRATIONS
+    proof: "Downloader, ASR, Loom, current editor-to-Stage/embed-back if selected, ArtifactStore, Lens/Atelier/CKC public consumer contracts and failure paths pass without reliance on superseded Stage aliases, panes, connectors, adapters, schemas, or mocks."
+    evidence: [consumer-contract-results, lineage-graph, partial-result-report]
+    current_state: BLOCKED_BY_ACTIVE_WP_BASELINE_AND_CURRENT_CONTRACTS
+
+  - id: STAGE-GATE-012-MIGRATION
+    name: legacy-stage-supersession-removal-and-data-disposition
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-004-PERSISTENCE-REPLAY]
+    command_id: STAGE-CMD-MIGRATION-REHEARSAL
+    proof: "Legacy Stage readers/writers/routes/panes/adapters/connectors/schemas/mocks are removed or replaced, migration collisions and cross-table guards are resolved, and any designated real operator data completes a verified one-way import to the current canonical model without a legacy compatibility window."
+    evidence: [supersession-inventory, legacy-surface-removal-scan, optional-data-import-results, count-hash-reconciliation, rollback-safe-mode-drill]
+    current_state: SPECIFIED_NOT_RUN_PENDING_LEGACY_INVENTORY_AND_DATA_DISCOVERY
+
+  - id: STAGE-GATE-013-FAILURE-RECOVERY
+    name: fault-injection-and-recovery
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-SERVO-RESTRICTED-ALPHA, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-004-PERSISTENCE-REPLAY]
+    command_id: STAGE-CMD-FAILURE-RECOVERY
+    proof: "Process, event, database, disk, memory, profile, network, update, migration, and dependency failures recover or enter safe mode without false success/data loss."
+    evidence: [fault-matrix, recovery-receipts, orphan-cleanup-report, safe-mode-journey]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-014-BACKUP-RESTORE
+    name: backup-restore-and-portability
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-004-PERSISTENCE-REPLAY, STAGE-GATE-012-MIGRATION]
+    command_id: STAGE-CMD-BACKUP-RESTORE
+    proof: "Clean-machine database/artifact/Stage-payload restore, watermark reconciliation, profile rematerialization, corruption cases, and 3000-tab no-storm restore pass."
+    evidence: [restore-manifest, counts-and-hashes, rpo-rto-measurement, portability-loss-report]
+    current_state: TARGETS_REQUIRE_MEASURED_BASELINE_AND_OPERATOR_LOCK
+
+  - id: STAGE-GATE-015-ACCESS-I18N-MANUAL
+    name: accessibility-localization-and-manual
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-003-NATIVE-SHELL]
+    command_id: STAGE-CMD-ACCESS-I18N-MANUAL
+    proof: "Keyboard/screen-reader/high-contrast/scale/IME/RTL/long-string/localized-error and operator/no-context-model manual journeys pass."
+    evidence: [uia-results, visual-evidence, localization-report, manual-journey-results]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN
+    name: packaging-update-and-supply-chain
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-SERVO-RESTRICTED-ALPHA, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-013-FAILURE-RECOVERY]
+    command_id: STAGE-CMD-PACKAGE-SUPPLY-CHAIN
+    proof: "Install/repair/update/uninstall/runtime variants/signatures/SBOM/notices/advisories/restart/rollback/quarantine and package drift pass."
+    evidence: [package-matrix, signatures, sbom, component-register, update-drill]
+    current_state: BLOCKED_BY_PROJECT_WIDE_PACKAGING_BASELINE_DECISION
+
+  - id: STAGE-GATE-017-SUPPORT
+    name: diagnostics-support-and-incident-operations
+    releases: [STAGE-WIN-BOOTSTRAP-PROD, STAGE-SERVO-RESTRICTED-ALPHA, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-013-FAILURE-RECOVERY, STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN]
+    command_id: STAGE-CMD-SUPPORT-DRILL
+    proof: "Health, safe mode, support bundle, secret redaction, incident containment/recovery, evidence discovery, and operator playbooks pass."
+    evidence: [support-bundle, secret-scan, incident-drill, health-schema]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-018-WEBVIEW2-PRODUCTION
+    name: webview2-windows-production
+    releases: [STAGE-WIN-BOOTSTRAP-PROD]
+    prerequisites: [STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-005-SESSION-ISOLATION, STAGE-GATE-006-WEB-SECURITY, STAGE-GATE-007-AUTH-COMPATIBILITY, STAGE-GATE-008-AGENT-CONTROL, STAGE-GATE-009-HIGH-VOLUME, STAGE-GATE-010-DOWNLOAD-CAPTURE, STAGE-GATE-011-DOWNSTREAM, STAGE-GATE-012-MIGRATION, STAGE-GATE-013-FAILURE-RECOVERY, STAGE-GATE-014-BACKUP-RESTORE, STAGE-GATE-015-ACCESS-I18N-MANUAL, STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN, STAGE-GATE-017-SUPPORT]
+    command_id: STAGE-CMD-WEBVIEW2-PRODUCTION
+    proof: "Complete Windows production slice passes on target runtime/hardware and operator approves remaining explicit capability limitations."
+    evidence: [release-evidence-index, operator-verdict]
+    current_state: BLOCKED_BY_PREREQUISITES
+
+  - id: STAGE-GATE-019-SERVO-RESTRICTED-ALPHA
+    name: servo-restricted-alpha
+    releases: [STAGE-SERVO-RESTRICTED-ALPHA]
+    prerequisites: [STAGE-GATE-002-ADAPTER-CONFORMANCE, STAGE-GATE-005-SESSION-ISOLATION, STAGE-GATE-006-WEB-SECURITY, STAGE-GATE-013-FAILURE-RECOVERY, STAGE-GATE-015-ACCESS-I18N-MANUAL, STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN, STAGE-GATE-017-SUPPORT]
+    command_id: STAGE-CMD-SERVO-RESTRICTED-ALPHA
+    proof: "Trusted/allowlisted content restriction, exact pins, compatibility subset, isolation, cleanup, crash/soak, package, update/rollback, diagnostics, and visible limitations pass."
+    evidence: [servo-evidence-index, restriction-bypass-negative-tests]
+    current_state: SPECIFIED_NOT_RUN
+
+  - id: STAGE-GATE-020-SERVO-ARBITRARY-WEB
+    name: servo-arbitrary-web-windows
+    releases: [STAGE-SERVO-ARBITRARY-WEB, STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-019-SERVO-RESTRICTED-ALPHA]
+    command_id: STAGE-CMD-SERVO-ARBITRARY-WEB
+    proof: "Effective default-deny Windows content-process sandbox and independent escape-oriented validation pass for arbitrary hostile web."
+    evidence: [sandbox-design, process-token-capability-evidence, escape-oriented-results]
+    current_state: SECURITY_BLOCKED_BY_UPSTREAM_CAPABILITY
+
+  - id: STAGE-GATE-021-WP-COMPLETE
+    name: unified-stage-wp-complete
+    releases: [STAGE-WP-COMPLETE]
+    prerequisites: [STAGE-GATE-001-REQUIREMENT-COVERAGE, STAGE-GATE-002-ADAPTER-CONFORMANCE, STAGE-GATE-003-NATIVE-SHELL, STAGE-GATE-004-PERSISTENCE-REPLAY, STAGE-GATE-005-SESSION-ISOLATION, STAGE-GATE-006-WEB-SECURITY, STAGE-GATE-007-AUTH-COMPATIBILITY, STAGE-GATE-008-AGENT-CONTROL, STAGE-GATE-009-HIGH-VOLUME, STAGE-GATE-010-DOWNLOAD-CAPTURE, STAGE-GATE-011-DOWNSTREAM, STAGE-GATE-012-MIGRATION, STAGE-GATE-013-FAILURE-RECOVERY, STAGE-GATE-014-BACKUP-RESTORE, STAGE-GATE-015-ACCESS-I18N-MANUAL, STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN, STAGE-GATE-017-SUPPORT, STAGE-GATE-020-SERVO-ARBITRARY-WEB]
+    conditional_prerequisites:
+      - { gate_id: STAGE-GATE-018-WEBVIEW2-PRODUCTION, when: "The operator-approved final WP scope still requires a shippable WebView2 slice rather than a retired/dev-only bootstrap adapter." }
+    command_id: STAGE-CMD-WP-COMPLETE
+    proof: "Current approved scope, complete historical-source dispositions, full requirements, strategic Servo gates, current active-WP consumer contracts, spec/manual/diagnostics, every official MT, and all authoritative status surfaces close from fresh evidence with no legacy Stage runtime authority."
+    evidence: [closure-coverage, validator-verdicts, operator-verdict, synchronized-state-proof]
+    current_state: BLOCKED_BY_PREREQUISITES

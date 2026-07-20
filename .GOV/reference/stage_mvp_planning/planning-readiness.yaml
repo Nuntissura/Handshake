@@ -1,0 +1,187 @@
+stage_planning_readiness:
+  id: stage-planning-readiness
+  wp_id: WP-1-Handshake-Stage-MVP-v1
+  authority: NON_AUTHORITATIVE_REFERENCE
+  updated_at: "2026-07-19"
+  current_phase: PLANNING_AND_RESEARCH_HARDENED_FOR_OPERATOR_REVIEW
+  operator_sequence: >-
+    Master Spec rewrite, old-stub folding, replacement WP stub/refinement,
+    and official microtask creation are explicitly deferred until the
+    operator starts the later authority pass.
+  corpus_state: FULL_FEATURE_PLANNING_CORPUS_INTERNALLY_VALIDATED_OPERATOR_REVIEW_RUNTIME_EVIDENCE_AND_DEPENDENCY_BINDINGS_PENDING
+  production_implementation_state: NOT_STARTED
+  runtime_gate_state: NOT_RUN
+  automatic_wp_mt_generation_state: BLOCKED_PENDING_OPERATOR_REVIEW_AUTHORITY_PASS_EXACT_BASELINES_DEPENDENCY_GATES_COMMAND_BINDINGS_AND_LEGACY_INVENTORY
+
+completed_inputs:
+  - id: STAGE-READY-001
+    item: "Requirement-level lineage and current-direction disposition map for all three Stage-owned source stubs."
+    evidence: .GOV/reference/stage_mvp_planning/01-source-preservation-register.md
+  - id: STAGE-READY-002
+    item: "Current Master Spec conflict/reconciliation map."
+    evidence: .GOV/reference/stage_mvp_planning/11-current-spec-reconciliation.md
+  - id: STAGE-READY-003
+    item: "Read-only product topology, shared-authority reuse, active-WP inspection, and legacy Stage supersession analysis."
+    evidence: .GOV/reference/stage_mvp_planning/15-product-topology-and-active-wp-migration.md
+  - id: STAGE-READY-004
+    item: "Full browser-product and Handshake-native feature requirements with stable IDs."
+    evidence: .GOV/reference/stage_mvp_planning/requirements-and-traceability.yaml
+  - id: STAGE-READY-005
+    item: "Servo/WebView2 architecture and distinct release/promotion slices."
+    evidence: .GOV/reference/stage_mvp_planning/13-production-architecture-and-promotion-gates.md
+  - id: STAGE-READY-006
+    item: "Authenticated-site compatibility and browser-agent security contracts."
+    evidence: .GOV/reference/stage_mvp_planning/16-web-compatibility-auth-and-agent-security.md
+  - id: STAGE-READY-007
+    item: "Persistence, events, concurrency, migration, backup, recovery, and health contracts."
+    evidence: .GOV/reference/stage_mvp_planning/17-production-data-events-recovery-and-portability.md
+  - id: STAGE-READY-008
+    item: "Packaging, update, supply-chain, production-support, and incident contracts."
+    evidence: .GOV/reference/stage_mvp_planning/18-release-packaging-update-and-support.md
+  - id: STAGE-READY-009
+    item: "Stable production gates, fixture/evidence contract, and validation layers."
+    evidence: .GOV/reference/stage_mvp_planning/production-gates.yaml
+  - id: STAGE-READY-010
+    item: "Future WP/refinement/MT schemas, allocator rejects, DAG waves, and status synchronization."
+    evidence: .GOV/reference/stage_mvp_planning/20-future-wp-and-microtask-generation-readiness.md
+  - id: STAGE-READY-011
+    item: "Hardened 3,000-plus-tab resource contract with zero-per-record dormant work, global multi-window ceilings, metadata-only pins, incremental projections, and scale-curve proof."
+    evidence: .GOV/reference/stage_mvp_planning/research/notes/STAGE-RW-011-high-volume-tab-lifecycle.md
+  - id: STAGE-READY-012
+    item: "Complete machine-readable status, boundary, evidence, and current-gap declaration for all 24 Handshake Pillars plus proposed Stage appendix edges."
+    evidence: .GOV/reference/stage_mvp_planning/pillar-compatibility-matrix.yaml
+  - id: STAGE-READY-013
+    item: "Explicit ArtifactStore, WP-1, WP-12, CKC/Atelier, and Media Downloader dependency gates with fail-closed behavior."
+    evidence: .GOV/reference/stage_mvp_planning/dependency-gates.yaml
+  - id: STAGE-READY-014
+    item: "Machine-readable legacy Stage surface disposition seed implementing current-direction supersession."
+    evidence: .GOV/reference/stage_mvp_planning/legacy-stage-disposition-register.yaml
+  - id: STAGE-READY-015
+    item: "Complete requirement-domain-to-production-gate resolution rules, dependency reverse lookup, and future command-binding registry for all 117 requirements."
+    evidence: .GOV/reference/stage_mvp_planning/acceptance-registry.yaml
+  - id: STAGE-READY-016
+    item: "One machine-readable atomic acceptance row for each of the 117 Stage requirements, split into bounded browser-core, behavior/integration, and operations/governance shards."
+    evidence: .GOV/reference/stage_mvp_planning/acceptance/
+  - id: STAGE-READY-017
+    item: "Deterministic future allocator mapped to the canonical Handshake microtask schema/template, with atomicity, traceability, conflict, dependency, evidence, projection, and status-sync rejection rules."
+    evidence: .GOV/reference/stage_mvp_planning/microtask-allocator-contract.yaml
+  - id: STAGE-READY-018
+    item: "Consolidated machine-readable register of 16 production, dependency, activation, acceptance, and authority-drift risks with failure scenarios, controls, and required evidence."
+    evidence: .GOV/reference/stage_mvp_planning/production-risk-register.yaml
+
+locked_decision_ids:
+  - STAGE-DEC-001
+  - STAGE-DEC-002
+  - STAGE-DEC-003
+  - STAGE-DEC-004
+  - STAGE-DEC-005
+  - STAGE-DEC-006
+  - STAGE-DEC-007
+  - STAGE-DEC-008
+  - STAGE-DEC-009
+  - STAGE-DEC-010
+  - STAGE-DEC-011
+  - STAGE-DEC-012
+  - STAGE-DEC-013
+  - STAGE-DEC-014
+  - STAGE-DEC-015
+  - STAGE-DEC-016
+  - STAGE-DEC-017
+  - STAGE-DEC-018
+
+locked_operator_decisions:
+  - id: STAGE-DEC-017
+    resolution: >-
+      The current Stage direction supersedes every older Stage-specific
+      requirement, implementation, prototype, adapter, connector, route,
+      pane, schema, mockup, and test surface regardless of build status. Old
+      assets are lineage/evidence or optional salvage only; real operator data
+      receives an explicit non-loss disposition without legacy runtime authority.
+    evidence: .GOV/reference/stage_mvp_planning/02-decision-register.md
+  - id: STAGE-OPEN-DEC-003
+    resolution: >-
+      RESOLVED_BY_STAGE_DEC_017: the new full Stage module is canonical. The
+      WP-12 Stage pane, ModuleId placeholder, routes, adapters, connectors,
+      wire types, schemas, and mockups are superseded rather than retained as
+      compatibility surfaces. Any editor integration is specified anew.
+    evidence: .GOV/reference/stage_mvp_planning/02-decision-register.md
+  - id: STAGE-DEC-018
+    resolution: >-
+      Keep ArtifactStore as shared global Handshake infrastructure. Stage uses
+      the Stage Capture product/process name and StageCaptureCoordinator,
+      consumes shared opaque ArtifactHandles, and creates no Stage-specific
+      byte store or handle encoding.
+    evidence: .GOV/reference/stage_mvp_planning/02-decision-register.md
+
+operator_decisions_required_before_authority_authoring:
+  - id: STAGE-OPEN-DEC-001
+    question: >-
+      Approve the non-deceptive release split: production-qualified WebView2
+      Windows slice may ship without closing the Servo-strategic umbrella WP.
+    blocks: [future-master-spec, future-refinement, future-wp-closure-semantics]
+    default: NONE
+  - id: STAGE-OPEN-DEC-002
+    question: >-
+      Select the supported authenticated YouTube/Google path or approve an
+      explicit limitation; embedded WebView2 Google authentication is blocked.
+    blocks: [STAGE-GATE-007-AUTH-COMPATIBILITY, STAGE-GATE-018-WEBVIEW2-PRODUCTION]
+    default: NONE
+  - id: STAGE-OPEN-DEC-004
+    question: >-
+      Confirm the project-wide Windows installer/update/signing baseline to
+      which Stage engine/runtime assets must conform.
+    blocks: [STAGE-GATE-016-PACKAGE-SUPPLY-CHAIN]
+    default: NONE
+  - id: STAGE-OPEN-DEC-005
+    question: >-
+      Lock numerical performance, resource, compatibility, RPO/RTO, evidence
+      freshness, and support targets after measured baselines.
+    blocks: [STAGE-GATE-009-HIGH-VOLUME, STAGE-GATE-014-BACKUP-RESTORE]
+    default: NONE
+
+required_revalidation_before_future_generation:
+  - id: STAGE-REVALIDATE-001
+    item: "Record exact approved integration-baseline commits for main, WP-1, WP-12, and CKC."
+  - id: STAGE-REVALIDATE-002
+    item: "Reinspect current product files, public schemas, migrations, test entrypoints, packaging, and UserManual registry after active branches move."
+  - id: STAGE-REVALIDATE-003
+    item: "Bind every requirement to stable acceptance and production gate IDs."
+  - id: STAGE-REVALIDATE-004
+    item: "Bind every future command_id to an exact runnable command with zero-match guard and evidence output."
+  - id: STAGE-REVALIDATE-005
+    item: "Map every STAGE-DEC, STAGE-PRES, and STAGE-SPEC row to STAGE-REQ IDs and future official MTs."
+  - id: STAGE-REVALIDATE-006
+    item: "Resolve WP-12 legacy Stage removal, migration collisions, optional real-data import, and the validated future WP-1 consumer baseline without preserving old Stage compatibility surfaces."
+  - id: STAGE-REVALIDATE-007
+    item: "Run orphan, cycle, file-conflict, migration-collision, gate-coverage, and status-sync schema validators."
+  - id: STAGE-REVALIDATE-008
+    item: "Pass every gate in dependency-gates.yaml, including a globally owned canonical ArtifactHandle and streamed ArtifactStore API."
+  - id: STAGE-REVALIDATE-009
+    item: "Compile the complete 24-Pillar proposed edge matrix into current Master Spec topology/appendix rows during the later authority pass."
+  - id: STAGE-REVALIDATE-010
+    item: "Complete the legacy Stage reader/writer/route/schema/UI/test inventory and replace the catchall disposition with exact rows."
+  - id: STAGE-REVALIDATE-011
+    item: "Run the microtask allocator rejection suite and canonical hsk.microtask_contract@1 schema/packet validators before creating or activating any official Stage MT."
+
+explicitly_untouched_authority_surfaces:
+  - .GOV/spec/master-spec-v02.201/spec-modules/11-shared-dev-platform-and-oss-foundations.md
+  - .GOV/task_packets/stubs/WP-1-Handshake-Stage-MVP-v1.contract.json
+  - .GOV/task_packets/stubs/WP-1-Stage-Media-Artifact-Portability-v1.contract.json
+  - .GOV/task_packets/stubs/WP-1-Stage-ASR-Transcript-Lineage-v1.contract.json
+  - .GOV/roles_shared/records/TASK_BOARD.md
+  - .GOV/roles_shared/records/BUILD_ORDER.md
+  - .GOV/roles_shared/records/wp_traceability_registry.json
+
+readiness_gates:
+  - { id: STAGE-READINESS-GATE-001, name: full-feature-requirement-basis, state: DRAFTED_REQUIRES_OPERATOR_REVIEW }
+  - { id: STAGE-READINESS-GATE-002, name: production-technical-contract-basis, state: DRAFTED_REQUIRES_OPERATOR_REVIEW }
+  - { id: STAGE-READINESS-GATE-003, name: research-source-basis, state: HARDENED_RUNTIME_VALIDATION_PENDING }
+  - { id: STAGE-READINESS-GATE-004, name: exact-integration-baseline, state: BLOCKED_PENDING_FUTURE_REVALIDATION }
+  - { id: STAGE-READINESS-GATE-005, name: authority-authoring, state: DEFERRED_BY_OPERATOR }
+  - { id: STAGE-READINESS-GATE-006, name: automatic-official-mt-generation, state: BLOCKED_PENDING_001_002_004_005_008_009_010_011 }
+  - { id: STAGE-READINESS-GATE-007, name: all-24-pillar-declaration, state: COMPLETE_PROPOSED_AUTHORITY_PROPAGATION_DEFERRED }
+  - { id: STAGE-READINESS-GATE-008, name: shared-artifact-contract, state: BLOCKED_HANDLE_DRIFT_AND_MISSING_STREAMED_INGEST }
+  - { id: STAGE-READINESS-GATE-009, name: active-wp-and-consumer-dependencies, state: BLOCKED_WP1_WP12_CKC_DOWNLOADER }
+  - { id: STAGE-READINESS-GATE-010, name: complete-reverse-trace-and-acceptance-registry, state: COMPLETE_117_ATOMIC_ROWS_ONE_TO_ONE_COMMANDS_AND_RUNTIME_EVIDENCE_PENDING }
+  - { id: STAGE-READINESS-GATE-011, name: legacy-stage-exact-disposition, state: BLOCKED_CATCHALL_BASELINE_AND_REAL_DATA_INVENTORY }
+  - { id: STAGE-READINESS-GATE-012, name: production-risk-control-register, state: COMPLETE_16_RISKS_CONTROLS_SPECIFIED_RUNTIME_EVIDENCE_PENDING }

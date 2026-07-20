@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-003",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-01T19:02:22Z",
+  "updated_at_utc": "2026-07-20T01:19:00Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V1",
+    "status": "READY_FOR_VALIDATION_V3",
     "depends_on": [
       "MT-002"
     ],
@@ -25,25 +25,25 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "PENDING_V3",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-01T19:02:22Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
-    "ready_for_validation_at_utc": "2026-07-01T21:15:18Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
+    "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
     "completed_by": null,
     "blocker": null,
     "missing_resource": null,
-    "proof_status": "PASS_MT-003_REOPENED_2026-07-01: Ollama daemon default removed from the default path; default LlmClient resolves local inference through embedded ModelRuntime (Candle CPU baseline) via new llm::boot seam; fails closed to DisabledLlmClient (no /api/tags probe, no daemon fallback); regression guards fixed (profile.model_id = minted UUIDv7 routes to embedded runtime not fallback; embedding() wired to ModelRuntime::embed). PROOF: 4/4 engine-free tests PASS (tests/llm_default_boot_resolution_tests.rs: no-model->Disabled-never-Ollama; UUIDv7 routing; embedding-via-embed; external_compat retained non-authoritative); cargo check --features app-runtime PASS. Committed feat-branch 321543ca. Pre+post adversarial review 4 lenses each: NO BLOCKER; SOLID + HONEST-DEFERRAL; no false-green. DEFERRED (not faked): real Candle inference via candle_e2e_smoke #[ignore] (heavy toolchain under load); SandboxAdapter+ProcessOwnershipLedger boxing + FR-on-Disabled/embedding-path emission -> MT-013; enumerable/shared model registry (UUIDv7->display_name) + LoomSearchV2 768-dim embedding-model contract (degrade-not-error) -> MT-014. Prior 8+4+2 lane proofs = prior-scope evidence only.",
-    "hbr_status": "PASS_HBR_INT002_INT005_QUIET001_MAN004_FOR_MT003_WIRING_SCOPE; HBR-INT-009 FlightRecorder=WIRED(completion + external_compat), internal_diagnostics+Palmistry=DEFERRED-with-reason(built by WP-KERNEL-012/016); FR-on-Disabled-and-embedding paths + SandboxAdapter/ProcessOwnershipLedger boxing of the embedded load = DEFERRED-to-MT-013 (QUIET-003 in-process routing wiring spawns no process); shared/enumerable registry + Loom embedding contract = DEFERRED-to-MT-014.",
-    "kb_ready_checklist_receipt_id": null,
+    "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: exact embedded-default, Official-CLI HandshakeNative/UserManual, Tauri/app-runtime, generation-fence, duplicate-loser, real Candle, and real llama.cpp gates pass. The llama proof requires successful finite embedding output at the model-derived dimension. Independent post-fix adversarial review reports no findings. Historical V1/V2 verdicts remain preserved; COMPLETED remains validator-only.",
+    "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
+    "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-003:2026-07-20T01:13:21.386Z",
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
     "last_recovery_event_ref": null,
     "last_runtime_status_ref": "PASS: cargo test --test model_lane_launch_tests 8/8 including missing SpawnRequest::with_dexterity_launch rejection before factory creation and public constructor fail-closed proof; cargo test --test model_lane_schema_pg_tests 4/4; exact UserManual schema and launch tests passed. POST_REVIEW_P1_FIXED: public SwarmCoordinator::new now requires Dexterity and fails closed without ModelLaneStore, new_with_model_lane_store requires a concrete ModelLaneStore, legacy no-Dexterity construction is test/test-utils named only, and SwarmSchedulerState::new attaches Dexterity by default. REQUEST_SOURCE_GUARD_EVIDENCE_ONLY: cargo test --manifest-path app/src-tauri/Cargo.toml --lib dexterity_contract passed 5/5, exact production_runtime_without_model_lane_store_fails_closed_for_dexterity_command_spawn passed 1/1, and cargo check --manifest-path app/src-tauri/Cargo.toml --lib passed, proving live Rust Tauri IPC/scheduled request sources attach core-generated Dexterity launch contracts, BYOK scheduled spin-ups require byok_cloud_provider, no-store production request paths fail closed, and test-only helpers do not block production app compilation. App/src-tauri evidence is bypass-closure evidence and does not satisfy WP proof authority. PASS: JSON parse, git diff --check, and hbr-matrix-check after live-path/spec/status patch. BLOCKED_EXTERNAL: spec-current/spec-bundle fail on indexed hash mismatch for spec-modules/04-llm-infrastructure.md.",
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
-    "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
-    "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_TESTS_AND_MT_STATUS; MISSING_DEXTERITY_CONTRACT_BYPASS_CLOSED; LIVE_TAURI_IPC_AND_SCHEDULE_REQUEST_SOURCE_BYPASS_CLOSED; PUBLIC_COORDINATOR_AND_SCHEDULER_CONSTRUCTOR_BYPASS_CLOSED_AFTER_ADVERSARIAL_FAIL_REVIEW_RETRY_PASS; APP_REQUEST_SOURCE_EVIDENCE_RECLASSIFIED_NON_AUTHORITY; EXTERNAL_SPEC_MANIFEST_DRIFT_RECORDED",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_POST_FIX_REAUDIT_NO_FINDINGS",
+    "adversarial_findings_status": "PASS_V3_LLAMA_EMBED_FALSE_GREEN_AND_CANDLE_STALE_PROOF_PUBLICATION_FINDINGS_CLOSED_AND_REPROVEN",
+    "validated_by": null,
+    "validated_at_utc": null
   },
   "scope": {
     "summary": "Normalize launch adapters for local, cloud, CLI, human, subagent, and validator lanes.",
@@ -58,6 +58,11 @@
       "src/backend/handshake_core/src/flight_recorder/event_ledger.rs",
       "src/backend/handshake_core/src/main.rs",
       "src/backend/handshake_core/src/llm/",
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/src/sandbox/adapter.rs",
+      "src/backend/handshake_core/src/sandbox/handshake_native.rs",
+      "src/backend/handshake_core/src/sandbox/mod.rs",
+      "src/backend/handshake_core/src/sandbox/windows_native_jail/adapter.rs",
       "src/backend/handshake_core/Cargo.toml",
       "app/src-tauri/Cargo.toml",
       "app/src-tauri/src/commands/swarm_runtime.rs",
@@ -113,12 +118,13 @@
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact",
       "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact",
-      "REOPENED (engine-free, --features test-utils): negative test proving init_llm_client provider resolution with no local model configured returns DisabledLlmClient and never an Ollama/daemon adapter, and that ProviderRegistry/init_llm_client no longer expose an OllamaAdapter default arm (implementer names the exact test; must fail on zero matching tests).",
-      "REOPENED (engine-free, --features test-utils): test proving the default resolves through LocalModelRuntimeLlmClient with profile().model_id = the registered UUIDv7 and completion routes to the ModelRuntime (fake runtime) rather than the fallback.",
-      "REOPENED (engine-free, --features test-utils): test proving LlmClient::embedding() remains supported via ModelRuntime::embed() after the swap (or an explicit recorded operator waiver).",
-      "REOPENED (engine-free, --features test-utils): test proving the generic external_compat OpenAI-compatible lane (OpenAiCompatAdapter) is retained and non-authoritative.",
-      "REOPENED: cargo check --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime (proves main.rs/init_llm_client compiles; the pg_test suites never build the bin).",
-      "REOPENED DEFERRED-with-reason (heavy host-toolchain build under heavy load; NOT faked green): real embedded inference via cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke, and --features \"test-utils,llama-cpp-runtime-engine\" --test llama_cpp_e2e_smoke."
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests default_boot_with_no_local_model_returns_disabled_never_ollama_daemon -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests default_local_runtime_client_profile_model_id_is_minted_uuid_v7_and_routes_to_runtime -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests default_local_runtime_client_embedding_is_supported_via_model_runtime_embed -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests external_compat_openai_lane_is_retained_and_non_authoritative -- --exact --nocapture",
+      "cargo check --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime",
+      "$env:POSTGRES_TEST_URL='postgresql://postgres@127.0.0.1:5544/handshake'; $env:HANDSHAKE_ARTIFACTS_DIR=(Resolve-Path '../Handshake_Artifacts').Path; $env:HANDSHAKE_TEST_CANDLE_MODEL_DIR='<operator-local-candle-model-dir>'; $env:HANDSHAKE_MT013_REAL_CANDLE_PROOF_NONCE=[guid]::NewGuid().ToString(); cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features candle-runtime-engine,test-utils --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture",
+      "$env:HANDSHAKE_TEST_GGUF_PATH='<operator-local-gguf-path>'; cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features llama-cpp-runtime-engine,test-utils --test llama_cpp_e2e_smoke llama_cpp_e2e_smoke_load_generate_lora_kv_spec_score_embed_unload -- --ignored --exact --nocapture"
     ],
     "risk_if_missed": "Local and cloud models remain separate launch systems and cannot be reasoned about by the coordinator.",
     "reference_only_paths": [
@@ -282,7 +288,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V1",
+  "validator_verdict": "PENDING_V3",
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -300,7 +306,7 @@
     "remediation_plan": "STEP 1 (contract-truth, governance/spec-owner action - Coder MUST NOT edit /.GOV/): In the packet PACKET_ACCEPTANCE_MATRIX and MT-003 AC#15, mark the SandboxAdapter-boxing clause NOT_APPLICABLE with recorded reason 'in-process Candle/llama.cpp library load spawns no OS process/child/guest; master-spec 3.6.2 clause(1) vacuous; the enforced obligation is ProcessOwnershipLedger START-on-load/STOP-on-unload (4.6.1), implemented in src/backend/handshake_core/src/llm/embedded_ledger.rs'. Strike 'box ... under a SandboxAdapter' from proof_status wording. (If the spec owner instead rules that in-process loads MUST be boxed, that is new product work: implement a real SandboxAdapter wrap on the boot.rs load path and add a test that observes the boxed process, then re-handoff.) STEP 2 (product scope): EITHER (a) obtain an Operator scope amendment adding app/src-tauri/src/commands/swarm_runtime.rs, swarm_schedule.rs, swarm_schedule_store.rs, src/lib.rs, Cargo.toml to WP-1 allowed_paths with justification (embedded-engine default feature migration removes candle-runtime-engine from the Tauri shell; ModelLaneStore is wired into the app launch runtime), OR (b) revert the app/src-tauri changes from feat/WP-1 and route them to a WP that owns app-shell launch/IPC authority. The WP cannot merge with an unresolved forbidden-path violation. STEP 3: re-handoff MT-003 to READY_FOR_VALIDATION (Coder MUST NOT self-certify COMPLETED)."
   },
   "remediation_v2": {
-    "status": "IN_PROGRESS_V2",
+    "status": "READY_FOR_VALIDATION_V2",
     "opened_at_utc": "2026-07-11T11:19:45Z",
     "product_baseline": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
     "v1_verdict_preserved": "FAIL_V1",
@@ -336,6 +342,18 @@
         "src/backend/handshake_core/Cargo.lock"
       ]
     },
+    "official_cli_sandbox_scope_amendment": {
+      "decision": "APPROVED_BY_LIVE_OPERATOR_DIRECTIVE_FOR_V2_REMEDIATION",
+      "reason": "The operator directed uninterrupted remediation with full project access. These exact Rust backend paths are the minimum product surface required to replace direct official-CLI process creation with a real attached SandboxAdapter lifecycle while keeping backend launch authority.",
+      "exact_added_allowed_paths": [
+        "src/backend/handshake_core/src/api/mod.rs",
+        "src/backend/handshake_core/src/sandbox/adapter.rs",
+        "src/backend/handshake_core/src/sandbox/handshake_native.rs",
+        "src/backend/handshake_core/src/sandbox/mod.rs",
+        "src/backend/handshake_core/src/sandbox/windows_native_jail/adapter.rs"
+      ],
+      "scope_limit": "No frontend or unrelated sandbox implementation is made MT-003 authority; only the attached-process contract, HandshakeNative implementation/export, official-CLI construction seam, and Windows native attached runtime are included."
+    },
     "required_proof_v2": [
       "git diff --name-only 6519f4e2827840642a6c0401ac31055469f09d3b..HEAD -- app/src-tauri",
       "cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_default_boot_resolution_tests -- --nocapture",
@@ -346,12 +364,16 @@
       "cargo check -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features app-runtime",
       "cargo test -j 1 --manifest-path app/src-tauri/Cargo.toml --lib dexterity_contract -- --nocapture",
       "cargo test -j 1 --manifest-path app/src-tauri/Cargo.toml --lib production_runtime_without_model_lane_store_fails_closed_for_dexterity_command_spawn -- --exact --nocapture",
-      "cargo check -j 1 --manifest-path app/src-tauri/Cargo.toml --lib"
+      "cargo check -j 1 --manifest-path app/src-tauri/Cargo.toml --lib",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib swarm_orchestration::tests::failed_orphan_cleanup_retains_checkout_lease_until_retry_teardown_and_stop -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib swarm_orchestration::tests::terminal_cleanup_waits_for_in_progress_ready_hook_publication_fence -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --lib swarm_orchestration::tests::duplicate_spawn_compensation_never_commits_ready_hook_for_loser -- --exact --nocapture",
+      "cargo test --locked -j 1 --manifest-path app/src-tauri/Cargo.toml --lib commands::swarm_runtime::tests::configured_cloud_lane_builds_a_live_cloud_session -- --exact --nocapture"
     ],
     "adversarial_review_v2": {
-      "status": "FAIL_BLOCKER_OPEN",
+      "status": "PASS_REMEDIATED",
       "lens": "sandbox_authority_process_provenance_and_unwind_lifetime",
-      "reviewed_at_utc": "2026-07-11T14:35:00Z",
+      "reviewed_at_utc": "2026-07-17T13:51:31Z",
       "finding": "Official CLI lanes remain Handshake-spawned subprocesses, but LiveCliSpawner creates the provider executable and Windows taskkill helper directly through std::process::Command instead of the mandatory SandboxAdapter authority. The ledger metadata also claimed sandbox_adapter_id=official_cli_bridge although no such adapter existed. Independent review additionally found that a panic in an on_chunk or cancellation callback could drop Child without terminating it while ActiveProcessLifecycle emitted a STOP row.",
       "authority_evidence": [
         "SPEC_CURRENT v02.200 section 3.5.1 requires every Handshake-spawned process, including helper subprocesses, to pass through SandboxAdapter",
@@ -359,14 +381,117 @@
         "src/backend/handshake_core/src/api/mod.rs constructs LiveCliSpawner with a ledger but no SandboxAdapter",
         "src/backend/handshake_core/src/sandbox/adapter.rs exposes buffered exec and detached ProcessHandle contracts but no attached live-stdout child contract"
       ],
-      "scope_blocker": "A complete production fix requires an attached-process contract and implementation under src/backend/handshake_core/src/sandbox/, production adapter bootstrap/injection, real adapter kill routing, truthful capability metadata, network policy, and exact environment replacement. Those sandbox paths are not currently in MT-003 or packet implementation scope.",
+      "scope_blocker": "RESOLVED_V2: exact sandbox and API paths are authorized by official_cli_sandbox_scope_amendment and the attached-process implementation is present in final product source.",
       "minimum_in_scope_hardening": [
         "Remove the false official_cli_bridge sandbox adapter attribution",
         "Add a child-owning unwind guard that terminates and reaps the process before consuming the reserved STOP permit",
         "Keep complete START/STOP lifecycle capacity reservation before any CLI executable spawn"
       ],
-      "readiness_effect": "MT-003 MUST remain IN_PROGRESS_V2 and MUST NOT be marked READY_FOR_VALIDATION_V2 until the operator authorizes the required sandbox scope and the real adapter path passes runtime and adversarial proof."
+      "readiness_effect": "SATISFIED_V2: authorized scope is recorded, real adapter runtime proofs pass, and no unresolved adversarial blocker remains.",
+      "remediation_evidence": [
+        "LiveCliSpawner selects HandshakeNativeSandboxAdapter and calls spawn_attached_with_stdio; production source guards reject Command::new and taskkill.",
+        "AttachedSandboxProcess owns stdout/stderr, wait, termination/reap, and Drop cleanup; failed reap leaves the START row open for reconciliation instead of emitting a false STOP.",
+        "Startup admission is a bounded Tokio semaphore whose permit remains owned by the blocking Win32 worker through late cancellation cleanup.",
+        "Canonical SystemRoot, ProgramFiles, and ProgramFiles(x86) roots are normalized before ambient-path comparison, preventing protected executable DACL rewrites.",
+        "Official-CLI runtime proofs cover timeout, cancellation, chunk-delivery failure, identity mutation, unsafe environment rejection, ledger preflight, truthful START/STOP metadata, and failed termination with never-EOF pipes."
+      ],
+      "residual_uncertainty": "Windows AppContainer startup duration remains host-load-sensitive but is bounded by a 60-second startup budget and separately tested from invocation timeout; this is not a readiness blocker.",
+      "final_followup_2026_07_18": {
+        "status": "PASS_REMEDIATED_READY_FOR_VALIDATION_ONLY",
+        "risk_tier": "HIGH",
+        "DIFF_ATTACK_SURFACES": [
+          "TrackedSession publication identity, Ready-hook publication, and live_tracked_sessions_after_snapshot reconciliation",
+          "Production try_insert_loading loser branch, rollback_duplicate_after_factory_create, test-only insertion seam, teardown_orphan, and ledger balance"
+        ],
+        "INDEPENDENT_CHECKS_RUN": [
+          "Traced publication_id from TrackingFactory create through Ready publication and verified reconciliation returns the current table generation after lock-free coordinator observation",
+          "Traced production and test duplicate paths through the same atomic insertion decision and rollback helper",
+          "Inspected real second LiveSession creation plus Ready-hook, teardown, unload, START, and STOP counters",
+          "Root locked single-job exact gates passed duplicate 1/1, orphan retention 1/1, Ready fence 1/1, configured cloud generation/ABBA 1/1, and current Tauri lib check PASS"
+        ],
+        "COUNTERFACTUAL_CHECKS": [
+          "Returning the snapshotted TrackedSession would surface an old same-ID publication; final code returns table.get(iid) after coordinator observation",
+          "Removing by instance ID alone would erase a newer publication; final code requires publication_id equality",
+          "Using normal spawn_session for the duplicate test would stop at the early live-instance check; final proof explicitly creates a second LiveSession and injects it post-factory/pre-registry",
+          "Calling rollback directly would bypass the duplicate decision; the seam calls try_insert_loading and only rolls back its loser result"
+        ],
+        "BOUNDARY_PROBES": [
+          "No SessionTable lock is held during coordinator registry lookup",
+          "Live reconciliation returns the current publication and terminal/unknown reconciliation removes only the observed generation",
+          "Production and test duplicate paths share try_insert_loading, rollback_duplicate_after_factory_create, and teardown_orphan",
+          "The deterministic insertion seam is cfg(test)-only"
+        ],
+        "NEGATIVE_PATH_CHECKS": [
+          "Duplicate loser Ready hook remains uncommitted",
+          "Loser teardown and ledger STOP complete before DuplicateInstance is returned; cleanup failure propagates into existing retryable orphan ownership",
+          "Winning entry remains live until explicit cleanup",
+          "Two factory creates reconcile to one Ready commit, two teardowns/unloads, and two START/two STOP rows"
+        ],
+        "INDEPENDENT_FINDINGS": "No blocking finding remains. The intermediate deletion-only patch could return a stale live generation; final source closes that finding by selecting the current table publication after coordinator observation.",
+        "RESIDUAL_UNCERTAINTY": "Reconciliation is point-in-time, so a publication after an unknown/terminal observation may be omitted for one poll, but its newer generation is preserved and no stale generation is returned. The independent runner could not obtain a second duplicate runtime verdict because Windows CreateProcessAsUserW failed with error 1312; root's exact locked gate passed 1/1 and the independent static path trace was direct. Validator-owned verdict and completion remain outstanding."
+      }
     },
-    "readiness_gate": "Remain IN_PROGRESS_V2 until the exact proofs pass at the final product source, the Official CLI SandboxAdapter blocker is remediated under authorized scope, and independent adversarial review finds no unresolved contract or regression blocker."
+    "readiness_gate": "SATISFIED_2026-07-18_FINAL_SOURCE: exact MT-003 lifecycle, generation-reconciliation, post-factory duplicate-compensation, cleanup, Ready-fence, and Tauri compile proofs pass; independent HIGH-risk review found no unresolved blocker.",
+    "ready_for_validation_at_utc": "2026-07-18T04:18:27.218Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
+    "final_source_proof_v2": {
+      "llm_default_boot_resolution_tests": "PASS_7_OF_7",
+      "embedded_model_ledger_tests": "PASS_44_OF_44_AFTER_REAL_RED_42_OF_44_WAS_REPRODUCED_ISOLATED_AND_FULL_SUITE_RERUN_GREEN",
+      "process_ledger_writer_tests": "PASS_27_OF_27",
+      "cloud_official_cli_bridge_tests": "PASS_16_OF_16_ONE_INTENTIONAL_SUBPROCESS_FIXTURE_IGNORED",
+      "llm_client_local_routing_tests": "PASS_16_OF_16",
+      "handshake_native_attached_tests": "PASS_9_OF_9_ONE_INTENTIONAL_HELPER_IGNORED",
+      "windows_attached_contract_tests": "PASS_8_OF_8",
+      "tauri_dexterity_contract": "PASS_5_OF_5",
+      "tauri_production_no_store_fail_closed": "PASS_1_OF_1_FULLY_QUALIFIED_EXACT_TEST_NAME",
+      "backend_app_runtime_check": "PASS",
+      "tauri_lib_check": "PASS",
+      "failed_orphan_cleanup_retains_checkout_lease_until_retry_teardown_and_stop": "PASS_1_OF_1",
+      "terminal_cleanup_waits_for_in_progress_ready_hook_publication_fence": "PASS_1_OF_1",
+      "duplicate_spawn_compensation_never_commits_ready_hook_for_loser": "PASS_1_OF_1_TWO_FACTORY_STARTS_ONE_READY_COMMIT_TWO_TEARDOWNS_TWO_UNLOADS_TWO_STOPS",
+      "configured_cloud_lane_builds_a_live_cloud_session": "PASS_1_OF_1_ABBA_UNLOCK_CURRENT_LIVE_GENERATION_AND_STALE_DELETION_GENERATION_FENCE",
+      "official_cli_spawn_failure_never_reports_exit_zero": "PASS_1_OF_1_FINAL_AUDIT_2026_07_18",
+      "independent_high_risk_followup": "PASS_NO_BLOCKING_FINDINGS_READY_FOR_VALIDATION_ONLY",
+      "source_negative_guards": "PASS_NO_COMMAND_NEW_OR_TASKKILL_IN_PRODUCTION_OFFICIAL_CLI_SOURCE",
+      "warnings": "Existing compiler warnings remain non-fatal and outside this MT closure unit."
+    }
+  },
+  "remediation_v3": {
+    "status": "READY_FOR_VALIDATION_V3",
+    "prepared_by": "KERNEL_BUILDER-20260717-072123",
+    "prepared_at_utc": "2026-07-20T01:19:00Z",
+    "v1_v2_verdicts_preserved": true,
+    "proof_results": {
+      "default_boot_exact_gates": "PASS_4_OF_4",
+      "real_candle_lifecycle": "PASS_1_OF_1_NONCE_5cfe2c2d-2056-4230-9483-64b9ff775cbd",
+      "real_llama_cpp_full_e2e": "PASS_1_OF_1_STRICT_EMBED_OUTPUT_DIMENSION",
+      "app_runtime_and_tauri_checks": "PASS",
+      "official_cli_usermanual_and_lifecycle": "PASS"
+    },
+    "adversarial_review": "PASS_POST_FIX_NO_FINDINGS",
+    "kb_ready_checklist_receipt": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl#2026-07-20T01:13:21.386Z",
+    "validator_boundary": "validator_verdict is PENDING_V3 and completed_by remains null."
+  },
+  "validation_v2": {
+    "verdict": "FAIL_V2",
+    "validated_by": "INTEGRATION_VALIDATOR-20260718-230746",
+    "validated_at_utc": "2026-07-18T23:40:04.194Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "Core default-boot and launch/fencing source paths were independently traced, and llm_default_boot_resolution_tests passed 7/7. The MT still fails MAN-001/MAN-002/MAN-003/MAN-004 because its material official-CLI remediation is absent from the in-product UserManual: the page does not identify HandshakeNative attached-sandbox authority, terminate/reap-before-STOP ordering, or timeout/cancellation/unwind recovery. Existing manual tests assert only generic CliBridge/official-CLI tokens and cannot detect this stale behavior contract.",
+    "remediation_plan": [
+      "Update the relevant UserManual page and behavior registry with the actual attached-sandbox authority, process ownership, timeout/cancellation/unwind cleanup, and failure-recovery behavior.",
+      "Add load-bearing assertions for HandshakeNative/attached process ownership and terminate/reap-before-STOP semantics; generic CliBridge token checks are insufficient.",
+      "Rerun the exact MT-003 boot, official-CLI, lifecycle, generation-fence, duplicate-loser, Tauri bypass-closure, and UserManual proofs serially against a frozen candidate."
+    ],
+    "independent_checks": [
+      "PASS: llm_default_boot_resolution_tests 7/7.",
+      "PASS source trace: official CLI uses HandshakeNative spawn_attached_with_stdio and owns termination/reap before STOP.",
+      "PASS source trace: same-ID insertion and Ready publication use generation fencing.",
+      "INCONCLUSIVE environment run: the combined exact concurrency command was terminated after concurrent Cargo target contention; no pass claim is made for that run."
+    ]
   }
 }
