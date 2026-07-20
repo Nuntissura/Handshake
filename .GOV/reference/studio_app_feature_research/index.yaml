@@ -10,7 +10,7 @@ research_paper:
     Illustrator, and Figma app behavior for rebuilding equivalent capability as
     local-first, no-cloud-required, Handshake-native Rust tools inside the built-in
     Studio module.
-  status: "draft - category maps, generated official-help leaf indexes, per-app deep-feature deltas (51-55), a Handshake integration architecture (56), a deep-delta cross-app overlap map (57), plus the 2026-07-20 adversarial parity audit: parity feature gap register (58), workflow needs register (59), bridge opportunity register (60), action register (61), snapshot distillation delta (62), targeted re-pass delta (63), workflow needs research delta (64), and command/shortcut/scripting-DOM capture (65)"
+  status: "draft - category maps, generated official-help leaf indexes, per-app deep-feature deltas (51-55), a Handshake integration architecture (56), a deep-delta cross-app overlap map (57), plus the 2026-07-20 adversarial parity audit: parity feature gap register (58), workflow needs register (59), bridge opportunity register (60), action register (61), snapshot distillation delta (62), targeted re-pass delta (63), workflow needs research delta (64), command/shortcut/scripting-DOM capture (65), and parity gap closeout delta (66: CJK/RTL/ME + accessibility-EXCEED + print/prepress + automation + performance)"
   updated_at: "2026-07-20"
   repo: Handshake
   location: ".GOV/reference/studio_app_feature_research/"
@@ -590,6 +590,14 @@ topics:
     group_count: 82
     generator: "_tools/generate-parity-audit-repass.py"
     subtopics: [summary, photoshop-shortcuts, illustrator-menu_command_ids, illustrator-shortcuts, indesign-scripting_dom, indesign-shortcuts, affinity-shortcuts, figma-shortcuts]
+  - id: SFR-CLOSE
+    title: "Parity Gap Closeout Delta (2026-07-21)"
+    file: "66-parity-gap-closeout-delta.md"
+    status: draft
+    summary: "Gap-closing research unblocked by operator decisions: CJK typography (33) + RTL/ME/complex-script (24) now in scope, accessibility-EXCEED bar+strategy (23), print/prepress depth (30), automation capability model (26), performance NFR targets (16). Online-source, NON-AI, local-first."
+    row_count: 152
+    generator: "_tools/generate-parity-audit-repass.py"
+    subtopics: [summary, cjk-typography, rtl-me-complex, accessibility-exceed, print-prepress-depth, automation-model-depth, performance-nfr-targets]
   - id: SFR-PRIMITIVES
     title: "Studio Primitive and Engine Module Map"
     file: "05-studio-primitive-map.md"

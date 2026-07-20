@@ -162,8 +162,53 @@ def gen_capture():
     return total
 
 
+LANE_TITLE_CLOSE = {
+    "cjk-typography": "CJK typography full depth (composite fonts / kinsoku / mojikumi / ruby / warichu / kenten / tate-chu-yoko / vertical) — STUDIO-DEC-001 IN SCOPE",
+    "rtl-me-complex": "RTL / Middle-East / complex-script typography (bidi / kashida / digit shaping / Indic / SEA) — STUDIO-DEC-001 IN SCOPE",
+    "accessibility-exceed": "Accessible-output EXCEED bar (PDF/UA-1/2, WCAG 2.2, EN 301 549/EAA, EPUB3, semantic web) + exceed strategy — STUDIO-DEC-003",
+    "print-prepress-depth": "Print / prepress dialog option depth (closes XAPP-03)",
+    "automation-model-depth": "Automation/scripting capability model depth (closes XAPP-02 at capability level)",
+    "performance-nfr-targets": "Production-volume performance NFR targets to beat",
+}
+
+
+def gen_closeout():
+    data = load("gap_closeout.json")
+    total = sum(len(l.get("rows", []) or []) for l in data)
+    for lane in data:
+        for i, r in enumerate(lane.get("rows", []) or [], 1):
+            r["id"] = f"SFR-CLOSE-{lane['lane']}-{i:02d}"
+    fm = (
+        "---\n"
+        "file_id: studio-app-feature-research-parity-gap-closeout-delta\n"
+        "topic_id: SFR-CLOSE\n"
+        'title: "Parity Gap Closeout Delta (2026-07-21)"\n'
+        "status: draft\n"
+        'summary: "Gap-closing research unblocked by operator decisions STUDIO-DEC-001/003: CJK + RTL/ME typography (now in scope), accessibility-EXCEED bar + strategy, print/prepress depth, automation capability model, performance NFR targets. Online-source, NON-AI, local-first."\n'
+        f"sources: {total}\n"
+        f'updated_at: "2026-07-21"\n'
+        "---\n\n"
+    )
+    body = [fm, "## [SFR-CLOSE] Parity Gap Closeout Delta\n"]
+    body.append("### [SFR-CLOSE.summary] Summary\n")
+    body.append(fence({
+        "date": "2026-07-21",
+        "driver": "Operator scope decisions STUDIO-DEC-001 (CJK/RTL/ME IN), STUDIO-DEC-003 (accessibility EXCEED), STUDIO-DEC-004 (local-first open-source full-parity positioning).",
+        "method": "Online-source research, NON-AI, no vendor apps. Each row cites an authoritative source URL. Accessibility lane rows carry an exceed_strategy.",
+        "total_rows": total,
+        "by_lane": {l["lane"]: len(l.get("rows", []) or []) for l in data},
+        "authority": "Reference/provenance only; feeds WP-KERNEL-STUDIO refinement Section-14 coverage decisions.",
+    }) + "\n")
+    for lane in data:
+        body.append(f"### [SFR-CLOSE.{lane['lane']}] {LANE_TITLE_CLOSE.get(lane['lane'], lane['lane'])} ({len(lane.get('rows', []) or [])} rows)\n")
+        body.append(fence({"rows": lane.get("rows", []) or []}) + "\n")
+    write("66-parity-gap-closeout-delta.md", "\n".join(body))
+    return total
+
+
 if __name__ == "__main__":
     a = gen_repass()
     b = gen_workflow()
     c = gen_capture()
-    print("\nSUMMARY  repass_rows:", a, " workflow_capabilities:", b, " capture_groups:", c)
+    d = gen_closeout()
+    print("\nSUMMARY  repass_rows:", a, " workflow_capabilities:", b, " capture_groups:", c, " closeout_rows:", d)

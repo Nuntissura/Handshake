@@ -4,8 +4,8 @@ topic_id: SFR-GAP-NOTES
 title: "Gap Resolution Notes"
 status: draft
 summary: "Resolved, mitigated, and residual evidence gaps for the Studio app feature research corpus."
-sources: 69
-updated_at: "2026-07-20"
+sources: 70
+updated_at: "2026-07-21"
 ---
 
 ## [SFR-GAP-NOTES] Gap Resolution Notes
@@ -297,7 +297,7 @@ remaining_gaps:
     title: "58 verified parity gaps are registered but not yet promoted to feature rows / command contracts."
     status: "mitigated"
     detail: "The 2026-07-20 audit registered 58 adversarially-verified NON-AI parity gaps (58-parity-feature-gap-register.md). They are provenance, not yet distilled into feature rows, Feature Use Cards, or command contracts, and not yet reflected in Section 14 parity coverage."
-    mitigation: "Use 58 as the feature-level gap register the corpus previously lacked. Snapshot distillation (ACTION-A4, 62-snapshot-distillation-delta.md) and the targeted re-pass (ACTION-A5, 63-parity-repass-delta.md, 106 rows) have now closed the highest-value gaps at promotable depth: the CRITICAL Figma Sites accessibility panel, Camera Raw (Point Color/HDR/gain-map/etc.), InDesign variable fonts + OpenType, Affinity option depth, PS AVIF/JXL+HDR, and InDesign CJK composition DOM. Remaining gaps feed WP-KERNEL-STUDIO refinement."
+    mitigation: "Use 58 as the feature-level gap register the corpus previously lacked. Snapshot distillation (ACTION-A4, 62), the targeted re-pass (ACTION-A5, 63, 106 rows), and the 2026-07-21 gap-closeout (66, 152 rows) have now closed the highest-value gaps at promotable depth: CRITICAL Figma Sites accessibility panel; Camera Raw (Point Color/HDR/gain-map); InDesign variable fonts + OpenType; Affinity option depth; PS AVIF/JXL+HDR; the full CJK composition surface (composite fonts/kinsoku/mojikumi/ruby/warichu/kenten/tate-chu-yoko/vertical, XAPP-04) now IN SCOPE per STUDIO-DEC-001; RTL/ME/complex-script; accessibility-EXCEED bar (PDF/UA/WCAG/EAA/EPUB3) per STUDIO-DEC-003; print/prepress option depth (XAPP-03); automation capability model (XAPP-02); and performance NFR targets (XAPP-05). Remaining low-value MINOR gaps + the A3 full-shortcut-table browser fetch feed WP-KERNEL-STUDIO refinement."
     residual_verification_needed: "Per remaining gap: source-page inspection, feature row, command contract, and Section-14 coverage decision. Affinity rows sourced under affinity.help 403 remain UNVERIFIED."
   - id: "SFR-REMAINING-GAP-013"
     title: "Team/production WORKFLOW-level needs were never captured by the feature corpus."
@@ -416,4 +416,5 @@ sources:
   - { id: GAP-S67, path: "63-parity-repass-delta.md", note: "ACTION-A5 targeted re-pass rows (106) closing the CRITICAL + highest-value gaps." }
   - { id: GAP-S68, path: "64-workflow-needs-research-delta.md", note: "ACTION-A6 workflow research (70 capabilities) for review/approval, workflow-state, perf NFR, DAM/PIM, culling/catalog." }
   - { id: GAP-S69, path: "65-command-shortcut-capture.md", note: "ACTION-A3 online command/shortcut/scripting-DOM capture (82 groups; partial, browser-fetch residual)." }
+  - { id: GAP-S70, path: "66-parity-gap-closeout-delta.md", note: "2026-07-21 gap-closeout research (152 rows): CJK + RTL/ME typography (STUDIO-DEC-001), accessibility-EXCEED (STUDIO-DEC-003), print/prepress depth (XAPP-03), automation model (XAPP-02), performance NFR targets." }
 ```
