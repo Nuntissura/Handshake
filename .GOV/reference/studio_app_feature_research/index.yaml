@@ -430,15 +430,14 @@ topics:
     title: "Source Coverage Verification Matrix"
     file: "49-source-coverage-verification-matrix.md"
     status: draft
-    summary: "Generated per-feature matrix that audits source-distilled rows for required planning fields, source reference strength, provider/offline linkage, format linkage, tool linkage, and implementation obligations."
+    summary: "Generated matrix auditing every corpus feature row across BOTH layers (leaf pipeline 39-43 + deep-delta 51-55) for field/source completeness, evidence strength, and implementation obligations. As of 2026-07-21 (ACTION-A1) it covers 5,060 rows (2,730 leaf + 2,330 deep), not just the leaf half. Field/source completeness of existing rows only; does not detect missing features (see 58/59)."
     count_status: SOURCE_DISTILLED_COVERAGE_VERIFICATION_MATRIX
-    coverage_row_count: 2730
-    source_feature_row_count: 2730
-    source_distilled_complete_with_local_snapshot_path: 2730
-    source_distilled_complete_without_local_snapshot_path: 0
-    provider_offline_registry_selected_rows: 1061
-    provider_posture_or_runtime_adjacent_rows: 693
-    missing_required_field_count: 0
+    coverage_row_count: 5060
+    leaf_row_count: 2730
+    deep_delta_row_count: 2330
+    deep_verified_rows: 2326
+    deep_unverified_rows: 4
+    generator: "_tools/generate-source-coverage-verification-matrix.py"
     subtopics: [source-coverage-summary, source-coverage-rows, source-coverage-sources]
   - id: SFR-PROPRIETARY-FORMAT-FIXTURE-PLAN
     title: "Proprietary Format Fixture Plan"

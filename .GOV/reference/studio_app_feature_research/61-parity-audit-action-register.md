@@ -32,12 +32,12 @@ authority: "Reference/provenance tracker only; not a Work Packet or product auth
 actions:
   - id: "ACTION-A1"
     title: "Close the pipeline split (deep-delta rows invisible to coverage matrix)."
-    status: "IN_PROGRESS"
-    detail: "Extend the card/row/coverage generators (_tools/generate-source-coverage-verification-matrix.py and the 15/39-series) to ingest the 2,330 deep-delta rows (51-55) so they enter coverage/planning. Interim annotation landed: 49-source-coverage-verification-matrix.md now carries a LEAF-PIPELINE-ONLY caveat; 08 SFR-REMAINING-GAP-011 records the mechanism."
-    done_this_session:
-      - "49 scope caveat added (leaf-pipeline-only, missing_required_fields is not parity proof)."
-      - "08 SFR-REMAINING-GAP-011 opened."
-    remaining: "Generator code change to parse deep-delta YAML rows and emit deep-row coverage; requires inspecting 51-55 row schema and the existing generator. Non-trivial, deferred to a dedicated generator pass (not rushed)."
+    status: "DONE"
+    detail: "2026-07-21: extended _tools/generate-source-coverage-verification-matrix.py to ingest the deep-delta records (51-55) alongside the leaf rows, each layer assessed on its own schema (deep rows are NOT run through the leaf REQUIRED_FIELDS check). Regenerated 49 now covers 5,060 rows (2,730 leaf + 2,330 deep-delta), reports the two layers distinctly with a scope_and_honesty_note, and surfaces the 4 documented-unreachable deep rows as UNVERIFIED. The interim leaf-pipeline-only caveat is superseded by the honest generated output. 08 SFR-REMAINING-GAP-011 -> resolved."
+    evidence:
+      - "49-source-coverage-verification-matrix.md (5,060 rows: 2,730 leaf + 2,330 deep)"
+      - "_tools/generate-source-coverage-verification-matrix.py (deep-delta ingest)"
+    residual: "A matrix over existing rows still cannot detect a MISSING feature; semantic-omission gaps remain in 58/59 by design."
   - id: "ACTION-A2"
     title: "Create a feature-level gap register."
     status: "DONE"
