@@ -28,8 +28,9 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 
 use handshake_native::backend::knowledge_documents::{
-    BatchOperation, BatchRequest, HskDocumentHeaders, KnowledgeDocumentsClient,
-    KnowledgeDocumentsError, MoveDocumentRequest, SaveDocumentRequest, HISTORY_MAX_LIMIT,
+    BatchOperation, BatchRequest, CreateDocumentRequest, HskDocumentHeaders,
+    KnowledgeDocumentsClient, KnowledgeDocumentsError, MoveDocumentRequest, SaveDocumentRequest,
+    HISTORY_MAX_LIMIT,
 };
 use serde_json::{json, Value};
 
@@ -173,6 +174,33 @@ fn rt() -> tokio::runtime::Runtime {
 // ── AC: load_document deserializes a real DocumentLoadResponse without panicking. ──────────────────
 
 #[test]
+fn explorer_list_preserves_rich_document_id_and_matching_updated_at_token() {
+    let body = json!([{
+        "rich_document_id": "KRD-explorer-1",
+        "title": "Explorer note",
+        "updated_at": "2026-07-16T10:20:30Z"
+    }]);
+    let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", body);
+    let client = KnowledgeDocumentsClient::with_base_url(base_url);
+    let headers = HskDocumentHeaders::for_read("project-tree", "WS-1");
+
+    let documents = rt()
+        .block_on(async { client.list_documents(&headers, "WS-1").await })
+        .expect("authority list");
+    let exchange = server.join().unwrap();
+    assert_eq!(documents.len(), 1);
+    assert_eq!(documents[0].rich_document_id, "KRD-explorer-1");
+    assert_eq!(documents[0].updated_at, "2026-07-16T10:20:30Z");
+    assert!(
+        exchange
+            .captured_request_line
+            .starts_with("GET /knowledge/documents?workspace_id=WS-1"),
+        "explorer must enumerate the RichDocument authority: {}",
+        exchange.captured_request_line
+    );
+}
+
+#[test]
 fn ac_load_document_deserializes_real_backend_shape() {
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", load_response_body());
     let client = KnowledgeDocumentsClient::with_base_url(base_url);
@@ -226,6 +254,51 @@ fn ac_load_document_deserializes_real_backend_shape() {
     assert!(
         !exchange.captured_headers.contains_key("x-hsk-actor-kind"),
         "a read must NOT send x-hsk-actor-kind (least-privileged read-only default)"
+    );
+}
+
+#[test]
+fn create_response_preserves_backend_reused_existing_flag() {
+    let body = json!({
+        "document": {
+            "rich_document_id": "KRD-existing",
+            "workspace_id": "WS-1",
+            "title": "Design Notes"
+        },
+        "created": false,
+        "warnings": []
+    });
+    let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", body);
+    let client = KnowledgeDocumentsClient::with_base_url(base_url);
+    let headers = HskDocumentHeaders::for_operator("session-1", "design-notes");
+    let request = CreateDocumentRequest {
+        workspace_id: "WS-1".into(),
+        title: "Design Notes".into(),
+        create_if_title_absent: true,
+        content_json: None,
+        schema_version: None,
+        project_ref: None,
+        folder_ref: None,
+    };
+
+    let response = rt()
+        .block_on(async { client.create_document(&headers, &request).await })
+        .expect("idempotent create response");
+    let exchange = server.join().unwrap();
+    assert!(
+        !response.created,
+        "frontend must retain backend created=false"
+    );
+    assert_eq!(
+        response.document["rich_document_id"].as_str(),
+        Some("KRD-existing")
+    );
+    assert!(
+        exchange
+            .captured_request_line
+            .starts_with("POST /knowledge/documents"),
+        "the authoritative create route was used: {}",
+        exchange.captured_request_line
     );
 }
 

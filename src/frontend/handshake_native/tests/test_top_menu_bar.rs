@@ -3,7 +3,7 @@
 //! These tests drive the actual shell (not only the `top_menu_bar` module's own unit tests) to prove
 //! the C4 menu-bar behavior the MT-015 contract asks for:
 //!
-//! - the six top-level menus (FILE/EDIT/VIEW/GO/RUN/HELP) render in a horizontal strip at the very top
+//! - the eight top-level menus (FILE/EDIT/VIEW/GO/RUN/HELP/EDITORS/OPERATOR) render in a horizontal strip at the very top
 //!   as live `Role::MenuItem` nodes with stable author_ids (`menu-file`..`menu-help`) — AC1, AC2, AC9;
 //! - opening the GO menu and clicking "Command Palette" sets `command_palette_open` (AC3, AC11);
 //! - opening the GO menu and clicking "Quick Switcher" sets `quick_switcher_open` (AC4);
@@ -26,6 +26,7 @@ use egui_kittest::Harness;
 use handshake_native::accessibility::assert_no_unnamed_interactive;
 use handshake_native::app::{HandshakeApp, HealthDisplayState, ViewMode};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::pane_registry::PaneType;
 use handshake_native::theme::HsTheme;
 use handshake_native::top_menu_bar::{
     MenuBar, MenuBarState, MENU_DEFINITIONS, MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID,
@@ -55,10 +56,40 @@ fn live_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String
     found
 }
 
-// ── AC1 / AC2 / AC9: six top-level menu buttons in the live tree with stable ids + MenuItem role ─────
+fn request_click_by_author(harness: &Harness<'_, HandshakeApp>, author_id: &str) {
+    let target = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(author_id))
+        .unwrap_or_else(|| panic!("AccessKit node '{author_id}' must be mounted"))
+        .accesskit_node()
+        .id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target,
+            data: None,
+        },
+    ));
+}
+
+fn open_operator_leaf(harness: &mut Harness<'static, HandshakeApp>, author_id: &str) {
+    harness.get_by_label("OPERATOR").click();
+    harness.run();
+    assert!(
+        live_author_nodes(harness)
+            .iter()
+            .any(|(candidate, _, _)| candidate == author_id),
+        "OPERATOR must expose {author_id}"
+    );
+    request_click_by_author(harness, author_id);
+    harness.run_steps(3);
+}
+
+// ── AC1 / AC2 / AC9: eight top-level menu buttons in the live tree with stable ids + MenuItem role ───
 
 #[test]
-fn live_shell_has_six_top_level_menus_with_stable_ids() {
+fn live_shell_has_eight_top_level_menus_with_stable_ids() {
     let mut harness = shell_harness();
     harness.run();
 
@@ -70,19 +101,21 @@ fn live_shell_has_six_top_level_menus_with_stable_ids() {
             .unwrap_or_else(|| panic!("{} missing from live tree: {nodes:?}", menu.author_id()));
         assert_eq!(found.1, "MenuItem", "{} role is MenuItem", menu.author_id());
     }
-    // Exactly seven top-level menu buttons (MT-035 added EDITORS; leaf items are not rendered while all
+    // Exactly eight top-level menu buttons; leaf items are not rendered while all
     // menus are closed). The `menu-` prefix matches only the top-level buttons, not the `menu.` leaves.
     let count = nodes
         .iter()
         .filter(|(a, _, _)| a.starts_with("menu-"))
         .count();
     assert_eq!(
-        count, 7,
-        "exactly seven top-level menu buttons in the live tree: {nodes:?}"
+        count, 8,
+        "exactly eight top-level menu buttons in the live tree: {nodes:?}"
     );
-    // The seven menu titles are reachable by label (the mouse-click open path). The Alt+<letter> keyboard
+    // The eight menu titles are reachable by label (the mouse-click open path). The Alt+<letter> keyboard
     // mnemonic open path is proven separately in `alt_letter_mnemonic_opens_each_menu` below (AC2).
-    for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "HELP", "EDITORS"] {
+    for label in [
+        "FILE", "EDIT", "VIEW", "GO", "RUN", "HELP", "EDITORS", "OPERATOR",
+    ] {
         let _ = harness.get_by_label(label);
     }
 }
@@ -107,6 +140,7 @@ fn alt_letter_mnemonic_opens_each_menu() {
         (MenuId::Run, Key::R, "menu.run.swarm-board"),
         (MenuId::Help, Key::H, "menu.help.about"),
         (MenuId::Editors, Key::I, "menu.editors.outline"),
+        (MenuId::Operator, Key::O, "menu.operator.settings"),
     ];
 
     for (menu, key, open_only_leaf) in cases {
@@ -136,6 +170,62 @@ fn alt_letter_mnemonic_opens_each_menu() {
             menu
         );
     }
+}
+
+#[test]
+fn operator_leaves_reach_all_six_exact_destinations_by_author_id() {
+    let mut palette = shell_harness();
+    palette.run();
+    open_operator_leaf(&mut palette, "menu.operator.command-palette");
+    assert!(palette.state().command_palette_open());
+    assert!(live_author_nodes(&palette)
+        .iter()
+        .any(|(id, _, _)| id == "command-palette.dialog"));
+
+    let mut swarm = shell_harness();
+    swarm.run();
+    open_operator_leaf(&mut swarm, "menu.operator.swarm-board");
+    let active_pane = swarm
+        .state()
+        .active_pane()
+        .expect("OPERATOR Swarm route selects a pane");
+    let active_tab = swarm
+        .state()
+        .tab_bar_states()
+        .get(active_pane)
+        .and_then(|tabs| tabs.active())
+        .expect("OPERATOR Swarm route selects an active tab");
+    assert_eq!(active_tab.pane_type, PaneType::Swarm);
+
+    let mut recorder = shell_harness();
+    recorder.run();
+    open_operator_leaf(&mut recorder, "menu.operator.flight-recorder");
+    assert!(live_author_nodes(&recorder)
+        .iter()
+        .any(|(id, role, _)| id == "flight-recorder-pane" && role == "Region"));
+
+    let mut launch = shell_harness();
+    launch.run();
+    open_operator_leaf(&mut launch, "menu.operator.model-session-launch");
+    assert!(launch.state().model_session_launch_dialog_open_for_test());
+    assert!(live_author_nodes(&launch)
+        .iter()
+        .any(|(id, _, _)| id == "model-session-launch.dialog"));
+
+    let mut manual = shell_harness();
+    manual.run();
+    open_operator_leaf(&mut manual, "menu.operator.user-manual");
+    assert!(live_author_nodes(&manual)
+        .iter()
+        .any(|(id, _, _)| id == "manual-pane"));
+
+    let mut settings = shell_harness();
+    settings.run();
+    open_operator_leaf(&mut settings, "menu.operator.settings");
+    assert!(settings.state().settings_open());
+    assert!(live_author_nodes(&settings)
+        .iter()
+        .any(|(id, _, _)| id == "settings.dialog"));
 }
 
 /// AC2 + red-team R3: Alt+<letter> opening one menu CLOSES any other menu (only one popup open at a
@@ -368,6 +458,42 @@ fn disabled_leaves_render_but_do_not_fire() {
 }
 
 #[test]
+fn run_dropdown_opens_the_real_flight_recorder_pane_without_palette_substitution() {
+    let mut harness = shell_harness();
+    harness.run();
+    assert!(
+        !live_author_nodes(&harness)
+            .iter()
+            .any(|(author_id, _, _)| author_id == "flight-recorder-pane"),
+        "Flight Recorder pane should not be mounted before the RUN action"
+    );
+    assert!(!harness.state().command_palette_open());
+
+    harness.get_by_label("RUN").click();
+    harness.run();
+    let open_leaf = live_author_nodes(&harness)
+        .into_iter()
+        .find(|(author_id, _, _)| author_id == "menu.run.flight-recorder")
+        .expect("actual RUN dropdown exposes menu.run.flight-recorder");
+    assert_eq!(open_leaf.1, "MenuItem");
+
+    harness.get_by_label("Open Flight Recorder").click();
+    harness.run_steps(3);
+    assert!(
+        live_author_nodes(&harness)
+            .iter()
+            .any(|(author_id, role, _)| {
+                author_id == "flight-recorder-pane" && role == "Region"
+            }),
+        "clicking the actual RUN dropdown action must mount the Flight Recorder Region"
+    );
+    assert!(
+        !harness.state().command_palette_open(),
+        "RUN dropdown proof must not pass through the command palette"
+    );
+}
+
+#[test]
 fn edit_menu_exposes_code_folding_leaves() {
     let mut harness = shell_harness();
     harness.run();
@@ -474,6 +600,7 @@ fn menubar_widget_returns_command_palette_action() {
         active_code_editor: true,
         active_rich_editor: true,
         editor_can_undo: true,
+        editor_can_cross_pane_undo: true,
         editor_can_redo: true,
         editor_can_paste: true,
         editor_can_nav_back: true,
@@ -499,5 +626,48 @@ fn menubar_widget_returns_command_palette_action() {
         *captured.lock().unwrap(),
         Some(handshake_native::top_menu_bar::MenuBarAction::OpenCommandPalette),
         "the widget returned the OpenCommandPalette action on the leaf click"
+    );
+}
+
+#[test]
+fn editors_menu_route_selection_uses_shared_stage_command() {
+    let state = MenuBarState {
+        theme_is_dark: true,
+        view_mode_is_nsfw: true,
+        project_drawer_open: true,
+        bottom_drawer_open: false,
+        has_active_tab: true,
+        editor_available: true,
+        active_code_editor: false,
+        active_rich_editor: true,
+        editor_can_undo: false,
+        editor_can_cross_pane_undo: false,
+        editor_can_redo: false,
+        editor_can_paste: false,
+        editor_can_nav_back: false,
+        editor_can_nav_forward: false,
+    };
+    use std::sync::{Arc, Mutex};
+    let captured: Arc<Mutex<Option<handshake_native::top_menu_bar::MenuBarAction>>> =
+        Arc::new(Mutex::new(None));
+    let cap = captured.clone();
+    let mut harness = Harness::builder().build_ui(move |ui| {
+        let action = MenuBar::new(state).show(ui);
+        if action.is_some() {
+            *cap.lock().unwrap() = action;
+        }
+    });
+    harness.run();
+    harness.get_by_label("EDITORS").click();
+    harness.run();
+    harness.get_by_label("Route selection to Stage").click();
+    harness.run();
+
+    assert_eq!(
+        *captured.lock().unwrap(),
+        Some(handshake_native::top_menu_bar::MenuBarAction::AppCommand(
+            handshake_native::interop::CMD_ROUTE_TO_STAGE,
+        )),
+        "the dropdown dispatches the same production command as the palette and context menu"
     );
 }

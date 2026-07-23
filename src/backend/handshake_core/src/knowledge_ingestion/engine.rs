@@ -13,8 +13,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 
+use futures_util::stream::{self, StreamExt};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use sqlx::{query, Row};
+use uuid::Uuid;
 
 use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
@@ -23,8 +26,8 @@ use crate::storage::knowledge::{
     KnowledgeSourceKind, KnowledgeSourceRoot, KnowledgeStore, NewKnowledgeSource,
     NewKnowledgeSourceRoot,
 };
-use crate::storage::postgres::PostgresDatabase;
-use crate::storage::Database;
+use crate::storage::postgres::{append_kernel_event_with_executor, PostgresDatabase};
+use crate::storage::{Database, StorageError};
 
 use super::allowlist::{CompiledRootPolicy, RootRegistrationPolicy};
 use super::backpressure::IngestionLimits;
@@ -87,9 +90,49 @@ pub struct RootRegistrationRequest {
 
 /// The ingestion engine. Cheap to construct per request: both handles wrap
 /// pooled connections.
+#[derive(Clone)]
 pub struct IngestionEngine {
     db: Arc<PostgresDatabase>,
     store: KnowledgeIngestionStore,
+}
+
+/// Pure, side-effect-free preparation record for the code-nav batch writer.
+/// Files are hashed and passed through the canonical ingestion extractor before
+/// any PostgreSQL transaction begins; persistence phases consume this record
+/// without re-reading or reinterpreting source bytes.
+pub(crate) struct PreparedCodeNavFile {
+    pub relative_path: String,
+    /// Original UTF-8 payload retained for the downstream code-index batch.
+    /// Keeping the already-read bytes avoids a second filesystem pass and
+    /// ensures indexing uses the exact content that ingestion hashed.
+    pub content: Vec<u8>,
+    pub size_bytes: i64,
+    pub content_hash: String,
+    pub kind: Option<IngestionSourceKind>,
+    pub extraction: ExtractionOutput,
+    pub duration_ms: i64,
+}
+
+pub(crate) fn prepare_code_nav_file(
+    root_kind: KnowledgeRootKind,
+    relative_path: &str,
+    bytes: &[u8],
+    limits: &IngestionLimits,
+) -> IngestionResult<PreparedCodeNavFile> {
+    let normalized = normalize_source_relative_path(relative_path)?;
+    let hashes = compute_content_hashes(bytes);
+    let started = Instant::now();
+    let kind = detect_kind(root_kind, &normalized);
+    let extraction = run_extraction(root_kind, &normalized, bytes, &hashes, limits);
+    Ok(PreparedCodeNavFile {
+        relative_path: normalized,
+        content: bytes.to_vec(),
+        size_bytes: bytes.len() as i64,
+        content_hash: hashes.raw_sha256,
+        kind,
+        extraction,
+        duration_ms: started.elapsed().as_millis() as i64,
+    })
 }
 
 impl IngestionEngine {
@@ -110,6 +153,199 @@ impl IngestionEngine {
 
     pub fn knowledge(&self) -> &PostgresDatabase {
         &self.db
+    }
+
+    pub(crate) async fn prepare_code_nav_files(
+        &self,
+        root: &KnowledgeSourceRoot,
+        fs_anchor: &Path,
+        limits: &IngestionLimits,
+    ) -> IngestionResult<(Vec<PreparedCodeNavFile>, usize)> {
+        let root_dir = if root.repo_relative_path.is_empty() {
+            fs_anchor.to_path_buf()
+        } else {
+            fs_anchor.join(&root.repo_relative_path)
+        };
+        let filter = compile_file_allowlist(&root.allowlist_policy)?;
+        let mut walked = Vec::new();
+        let mut walk_errors = Vec::new();
+        walk_files(&root_dir, &root_dir, &mut walked, &mut walk_errors);
+        if let Some(error) = walk_errors.first() {
+            return Err(IngestionError::Io {
+                path: root_dir.display().to_string(),
+                detail: error.clone(),
+            });
+        }
+        let mut prepared = Vec::new();
+        let mut skipped = 0usize;
+        for (relative, absolute, _) in walked {
+            let normalized = normalize_source_relative_path(&relative)?;
+            if !filter.allows(&normalized) {
+                skipped += 1;
+                continue;
+            }
+            let bytes = std::fs::read(&absolute).map_err(|err| IngestionError::Io {
+                path: absolute.display().to_string(),
+                detail: err.to_string(),
+            })?;
+            prepared.push(prepare_code_nav_file(root.root_kind, &normalized, &bytes, limits)?);
+        }
+        Ok((prepared, skipped))
+    }
+
+    /// Persist prepared code-nav extraction records in one PostgreSQL
+    /// transaction. EventLedger events remain per-file (each source/receipt
+    /// keeps its own immutable evidence id); only the commit boundary is
+    /// shared to remove autocommit latency.
+    pub(crate) async fn persist_code_nav_batch(
+        &self,
+        ctx: &IngestionContext,
+        root: &KnowledgeSourceRoot,
+        run_token: &str,
+        prepared: &[PreparedCodeNavFile],
+    ) -> IngestionResult<Vec<(String, String)>> {
+        ctx.validate()?;
+        let mut tx = self.db.pool().begin().await.map_err(StorageError::from)?;
+        let start_event = NewKernelEvent::builder(
+            ctx.kernel_task_run_id.clone(),
+            ctx.session_run_id.clone(),
+            KernelEventType::ValidationRecorded,
+            ctx.actor.clone(),
+        )
+        .aggregate("knowledge_ingestion_run", run_token)
+        .source_component("knowledge_ingestion")
+        .payload(json!({"kind":"ingestion_run_started","workspace_id":root.workspace_id,"root_id":root.root_id,"run_token":run_token}))
+        .build()
+        .map_err(|err| IngestionError::Kernel(err.to_string()))?;
+        let start_event_id = append_kernel_event_with_executor(&mut *tx, start_event)
+            .await
+            .map_err(IngestionError::from)?
+            .event_id;
+        let result: IngestionResult<Vec<(String, String)>> = async {
+            let mut sources = Vec::with_capacity(prepared.len());
+            for file in prepared {
+            // Resolve the canonical source row before emitting the receipt. The
+            // root/path unique key is the idempotency boundary for re-indexing;
+            // retries must reuse the existing source_id so all child receipts,
+            // spans, and code-index rows continue to point at the same source.
+            let candidate_source_id = format!("KSRC-{}", Uuid::now_v7().simple());
+            let parser_status = match file.extraction.status {
+                ExtractionStatus::Success | ExtractionStatus::Partial => "parsed",
+                ExtractionStatus::Failed => "failed",
+                _ => "pending",
+            };
+            let extraction_status = match file.extraction.status {
+                ExtractionStatus::Success | ExtractionStatus::Partial => "extracted",
+                ExtractionStatus::Failed => "failed",
+                _ => "pending",
+            };
+            let source_id: String = query(
+                "INSERT INTO knowledge_sources (source_id,workspace_id,root_id,source_kind,relative_path,content_hash,size_bytes,provenance,permission_scope,redaction_state,parser_status,extraction_status,last_index_receipt_event_id) VALUES ($1,$2,$3,'file',$4,$5,$6,$7,'workspace',$8,$9,$10,NULL) ON CONFLICT (root_id,relative_path) WHERE relative_path IS NOT NULL DO UPDATE SET workspace_id=EXCLUDED.workspace_id,content_hash=EXCLUDED.content_hash,size_bytes=EXCLUDED.size_bytes,provenance=EXCLUDED.provenance,redaction_state=EXCLUDED.redaction_state,parser_status=EXCLUDED.parser_status,extraction_status=EXCLUDED.extraction_status,stale=FALSE,updated_at=NOW() RETURNING source_id",
+            )
+            .bind(&candidate_source_id)
+            .bind(&root.workspace_id)
+            .bind(&root.root_id)
+            .bind(&file.relative_path)
+            .bind(&file.content_hash)
+            .bind(file.size_bytes)
+            .bind(json!({"discovered_by":"knowledge_code_nav_batch","run_token":run_token}))
+            .bind(file.extraction.redaction_state.as_str())
+            .bind(parser_status)
+            .bind(extraction_status)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(StorageError::from)?
+            .try_get("source_id")
+            .map_err(StorageError::from)?;
+            let receipt_id = new_ingestion_id("KIRC");
+            let event = NewKernelEvent::builder(
+                ctx.kernel_task_run_id.clone(),
+                ctx.session_run_id.clone(),
+                KernelEventType::ValidationRecorded,
+                ctx.actor.clone(),
+            )
+            .aggregate("knowledge_ingestion_receipt", &source_id)
+            .source_component("knowledge_ingestion")
+            .payload(json!({
+                "kind": "extraction_receipt",
+                "workspace_id": root.workspace_id,
+                "root_id": root.root_id,
+                "source_id": source_id,
+                "relative_path": file.relative_path,
+                "status": file.extraction.status.as_str(),
+                "spans_produced": file.extraction.spans.len(),
+                "run_token": run_token,
+            }))
+            .build()
+            .map_err(|err| IngestionError::Kernel(err.to_string()))?;
+            let event_id = append_kernel_event_with_executor(&mut *tx, event)
+                .await
+                .map_err(IngestionError::from)?
+                .event_id;
+            query("UPDATE knowledge_sources SET last_index_receipt_event_id=$1,updated_at=NOW() WHERE source_id=$2")
+                .bind(&event_id)
+                .bind(&source_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(StorageError::from)?;
+            query("INSERT INTO knowledge_ingestion_receipts (receipt_id,workspace_id,source_id,ingestion_run_token,extractor_id,extractor_version,status,error_class,error_detail,spans_produced,spans_failed,redaction_count,content_hash,duration_ms,receipt_event_id) VALUES ($1,$2,$3,$4,'code_file_windows','v1',$5,$6,$7,$8,$9,$10,$11,$12,$13)")
+                .bind(&receipt_id).bind(&root.workspace_id).bind(&source_id).bind(run_token)
+                .bind(file.extraction.status.as_str()).bind(file.extraction.error_class.map(|e| e.as_str()))
+                .bind(&file.extraction.error_detail).bind(file.extraction.spans.len() as i32)
+                .bind(file.extraction.spans_failed).bind(file.extraction.redaction_count as i32)
+                .bind(&file.content_hash).bind(file.duration_ms).bind(&event_id)
+                .execute(&mut *tx).await.map_err(StorageError::from)?;
+            for (index, span) in file.extraction.spans.iter().enumerate() {
+                let span_id = new_ingestion_id("KISP");
+                query("INSERT INTO knowledge_ingestion_spans (span_id,workspace_id,source_id,receipt_id,span_index,anchor_kind,anchor,byte_start,byte_end,content,content_hash,redaction_state,link_candidates) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)")
+                    .bind(&span_id).bind(&root.workspace_id).bind(&source_id).bind(&receipt_id)
+                    .bind(index as i32).bind(span.anchor.kind_str()).bind(span.anchor.to_json())
+                    .bind(span.byte_start).bind(span.byte_end).bind(&span.content)
+                    .bind(hex::encode(Sha256::digest(span.content.as_bytes()))).bind(span.redaction.as_str())
+                    .bind(serde_json::json!(span.link_candidates)).execute(&mut *tx).await.map_err(StorageError::from)?;
+            }
+                sources.push((source_id, file.relative_path.clone()));
+            }
+            let finish_event = NewKernelEvent::builder(
+            ctx.kernel_task_run_id.clone(),
+            ctx.session_run_id.clone(),
+            KernelEventType::ValidationRecorded,
+            ctx.actor.clone(),
+        )
+        .aggregate("knowledge_ingestion_run", run_token)
+        .causation_id(start_event_id.clone())
+        .source_component("knowledge_ingestion")
+        .payload(json!({"kind":"ingestion_run_finished","workspace_id":root.workspace_id,"root_id":root.root_id,"run_token":run_token,"files_ingested":sources.len()}))
+        .build()
+        .map_err(|err| IngestionError::Kernel(err.to_string()))?;
+            append_kernel_event_with_executor(&mut *tx, finish_event)
+                .await
+                .map_err(IngestionError::from)?;
+            Ok(sources)
+        }
+        .await;
+
+        match result {
+            Ok(sources) => {
+                tx.commit().await.map_err(StorageError::from)?;
+                Ok(sources)
+            }
+            Err(error) => {
+                // Roll back all partial source/receipt/span writes before
+                // recording a terminal failure against the already committed
+                // start event. The caller still receives the original error.
+                let _ = tx.rollback().await;
+                self.append_ingestion_failure_receipt(
+                    ctx,
+                    root,
+                    run_token,
+                    &start_event_id,
+                    &error,
+                )
+                .await;
+                Err(error)
+            }
+        }
     }
 
     /// Append one ingestion EventLedger receipt event.
@@ -138,6 +374,42 @@ impl IngestionEngine {
             .map_err(|err| IngestionError::Kernel(err.to_string()))?;
         let stored = self.db.append_kernel_event(event).await?;
         Ok(stored.event_id)
+    }
+
+    /// Close an ingestion pass with a durable terminal failure receipt. This
+    /// is deliberately best-effort: the original storage/IO error remains the
+    /// caller-visible failure, while a healthy ledger records that the started
+    /// pass did not finish successfully.
+    async fn append_ingestion_failure_receipt(
+        &self,
+        ctx: &IngestionContext,
+        root: &KnowledgeSourceRoot,
+        run_token: &str,
+        start_event_id: &str,
+        error: &IngestionError,
+    ) {
+        let mut builder = NewKernelEvent::builder(
+            ctx.kernel_task_run_id.clone(),
+            ctx.session_run_id.clone(),
+            KernelEventType::ValidationRecorded,
+            ctx.actor.clone(),
+        )
+        .aggregate("knowledge_ingestion_run", run_token)
+        .causation_id(start_event_id.to_string())
+        .source_component("knowledge_ingestion")
+        .payload(json!({
+            "kind": "ingestion_run_failed",
+            "workspace_id": root.workspace_id,
+            "root_id": root.root_id,
+            "run_token": run_token,
+            "error": error.to_string(),
+        }));
+        if let Some(correlation_id) = &ctx.correlation_id {
+            builder = builder.correlation_id(correlation_id.clone());
+        }
+        if let Ok(event) = builder.build() {
+            let _ = self.db.append_kernel_event(event).await;
+        }
     }
 
     /// MT-081: enforce the workspace root allowlist, persist the decision
@@ -575,11 +847,20 @@ impl IngestionEngine {
             fs_anchor.join(&root.repo_relative_path)
         };
         if !root_dir.is_dir() {
-            return Err(IngestionError::Io {
+            let error = IngestionError::Io {
                 path: root_dir.display().to_string(),
                 detail: "registered root does not exist on disk under the runtime anchor"
                     .to_string(),
-            });
+            };
+            self.append_ingestion_failure_receipt(
+                ctx,
+                &root,
+                &run_token,
+                &start_event_id,
+                &error,
+            )
+            .await;
+            return Err(error);
         }
 
         let file_filter = compile_file_allowlist(&root.allowlist_policy)?;
@@ -590,6 +871,7 @@ impl IngestionEngine {
         let mut outcomes: Vec<FileIngestOutcome> = Vec::new();
         let mut skipped_by_allowlist = 0usize;
         let mut invalid_paths: Vec<String> = Vec::new();
+        let mut ingest_inputs: Vec<(String, PathBuf, u64)> = Vec::new();
         for (rel_path, abs_path, size) in walked {
             let normalized = match normalize_source_relative_path(&rel_path) {
                 Ok(normalized) => normalized,
@@ -602,19 +884,65 @@ impl IngestionEngine {
                 skipped_by_allowlist += 1;
                 continue;
             }
-            let outcome = self
-                .ingest_file_from_disk(
-                    ctx,
-                    &root,
-                    &normalized,
-                    &abs_path,
-                    size,
-                    &run_token,
-                    limits,
-                    false,
-                )
-                .await?;
-            outcomes.push(outcome);
+            ingest_inputs.push((normalized, abs_path, size));
+        }
+
+        // Extraction and persistence are independent per source. Keep the
+        // canonical walk, allowlist, and stale-source reconciliation ordered,
+        // but overlap bounded file work so a large codebase does not spend the
+        // whole route serially waiting on one pooled connection at a time.
+        // Every future is drained before the first error is returned; this
+        // prevents fail-fast cancellation from leaving sibling source writes
+        // half-completed or receipts missing.
+        let engine = Arc::new(self.clone());
+        let context = ctx.clone();
+        let root_for_tasks = root.clone();
+        let run_token_for_tasks = run_token.clone();
+        let limits_for_tasks = *limits;
+        let ingestion_concurrency = crate::storage::configured_postgres_parallelism();
+        let ingest_results = stream::iter(ingest_inputs)
+            .map(|(normalized, abs_path, size)| {
+                let engine = engine.clone();
+                let context = context.clone();
+                let root = root_for_tasks.clone();
+                let run_token = run_token_for_tasks.clone();
+                async move {
+                    engine
+                        .ingest_file_from_disk(
+                            &context,
+                            &root,
+                            &normalized,
+                            &abs_path,
+                            size,
+                            &run_token,
+                            &limits_for_tasks,
+                            false,
+                        )
+                        .await
+                }
+            })
+            .buffer_unordered(ingestion_concurrency)
+            .collect::<Vec<_>>()
+            .await;
+        let mut first_ingestion_error = None;
+        for result in ingest_results {
+            match result {
+                Ok(outcome) => outcomes.push(outcome),
+                Err(error) => {
+                    first_ingestion_error.get_or_insert(error);
+                }
+            }
+        }
+        if let Some(error) = first_ingestion_error {
+            self.append_ingestion_failure_receipt(
+                ctx,
+                &root,
+                &run_token,
+                &start_event_id,
+                &error,
+            )
+            .await;
+            return Err(error);
         }
 
         // MT-093: deleted/moved detection over the storage layer.

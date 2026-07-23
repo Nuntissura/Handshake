@@ -229,7 +229,8 @@ impl<'a> EditorToolbar<'a> {
                     .add(egui::Button::new("…"))
                     .on_hover_text("More formatting commands");
                 // Stable author_id for the overflow control so a swarm agent can open it.
-                accessibility::emit_interactive_node(ui.ctx(), resp.id, "toolbar-btn-overflow");
+                let overflow_author = crate::rich_editor::scoped_author_id("toolbar-btn-overflow");
+                accessibility::emit_interactive_node(ui.ctx(), resp.id, &overflow_author);
                 egui::Popup::menu(&resp)
                     .id(Id::new(OVERFLOW_POPUP_ID))
                     .show(|ui| {
@@ -239,11 +240,11 @@ impl<'a> EditorToolbar<'a> {
                         for cmd in flat.into_iter().skip(rendered) {
                             let label = command_menu_label(&cmd);
                             let btn = ui.button(label);
-                            accessibility::emit_interactive_node(
-                                ui.ctx(),
-                                btn.id,
-                                &format!("toolbar-overflow-{}", cmd.command_id()),
-                            );
+                            let author = crate::rich_editor::scoped_author_id(format!(
+                                "toolbar-overflow-{}",
+                                cmd.command_id()
+                            ));
+                            accessibility::emit_interactive_node(ui.ctx(), btn.id, &author);
                             if btn.clicked() {
                                 let _ = commands::dispatch(&mut self.ctx, &cmd);
                                 dispatched = true;
@@ -265,7 +266,7 @@ impl<'a> EditorToolbar<'a> {
         // Attach the stable author_id to the (already interactive) button node — egui
         // derives Role::Button + Action::Click from the Button's Sense; we add only the
         // address, through the SAME hook the shell uses (HBR-SWARM).
-        let author = toolbar_button_author_id(&spec.cmd);
+        let author = crate::rich_editor::scoped_author_id(toolbar_button_author_id(&spec.cmd));
         accessibility::emit_interactive_node(ui.ctx(), resp.id, &author);
         if resp.clicked() {
             // STANDALONE dispatch on the local editor state (COMMAND DISPATCH REALITY

@@ -28,7 +28,7 @@ use handshake_native::workspace_settings::default_workspace_settings_state;
 /// AC-005 (completeness): the table's catalog lists EVERY code-editor action and the rich-editor
 /// commands. Every `CodeEditorAction::all()` id appears (prefixed) so no editor chord is unreachable.
 #[test]
-fn catalog_lists_every_code_action_and_rich_commands() {
+fn editor_keybindings_table_lists_every_code_action_and_rich_commands() {
     let catalog = editor_action_catalog();
 
     // Every code-editor action from the live catalog is present (prefixed) — none dropped.

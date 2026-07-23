@@ -8,7 +8,8 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID;
@@ -25,6 +26,7 @@ use handshake_native::runtime_chat::{
     RUNTIME_CHAT_STATUS_AUTHOR_ID,
 };
 use handshake_native::stage_pane::STAGE_PANE_AUTHOR_ID;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 static WGPU_SERIAL_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 

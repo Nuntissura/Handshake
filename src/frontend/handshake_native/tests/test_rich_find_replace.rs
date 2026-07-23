@@ -25,7 +25,12 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
+#[path = "native_gui_support/argus_surface_proof.rs"]
+mod argus_surface_proof;
+use argus_surface_proof::{prove_argus_surface, ArgusMutation};
 
 use handshake_native::rich_editor::document_model::node::BlockNode;
 use handshake_native::rich_editor::document_model::position::DocPosition;
@@ -103,7 +108,7 @@ fn editor_harness_gpu<'a>(state: Arc<Mutex<RichEditorState>>, size: egui::Vec2) 
         })
 }
 
-/// Focus the editor SURFACE (the focusable `rich-editor-surface` node) by sending it an AccessKit
+/// Focus the editor SURFACE (the focusable `editor.rich.text` node) by sending it an AccessKit
 /// Focus action — the same focus an out-of-process agent would request, and the pattern the MT-016
 /// test uses. The Ctrl+F/Ctrl+H input gate requires the editor surface to be focused.
 fn focus_editor(harness: &mut Harness<()>) {
@@ -111,8 +116,8 @@ fn focus_editor(harness: &mut Harness<()>) {
         let root = harness.root();
         let surface = root
             .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
-            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+            .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
+            .expect("the editor surface node carries author_id 'editor.rich.text'");
         surface.focus();
     }
     harness.step();
@@ -303,10 +308,7 @@ fn keystroke_typing_into_find_input_scans_matches() {
     harness.step(); // the host rescans against the typed query
 
     let st = state.lock().unwrap();
-    let panel = st
-        .find_replace
-        .as_ref()
-        .expect("the find panel is open");
+    let panel = st.find_replace.as_ref().expect("the find panel is open");
     assert_eq!(
         panel.query.pattern, "foo",
         "MT-018: the typed keystrokes became the find query"
@@ -337,7 +339,12 @@ fn replace_one_button_click_replaces_active_match_only() {
     let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(820.0, 420.0));
     focus_editor(&mut harness);
     harness.step();
-    assert_eq!(collect_doc_text(&state.lock().unwrap().doc).matches("foo").count(), 5);
+    assert_eq!(
+        collect_doc_text(&state.lock().unwrap().doc)
+            .matches("foo")
+            .count(),
+        5
+    );
 
     click_author_id(&mut harness, "replace-one");
     harness.step();
@@ -477,8 +484,64 @@ fn accesskit_ids_present_when_panel_open() {
             "AC-10: the live tree must contain AccessKit id '{id}' (found: {found:?})"
         );
     }
+    let find_input = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("find-input"))
+        .expect("AC-10: find-input node is present for action capability proof")
+        .accesskit_node();
+    assert!(
+        find_input
+            .data()
+            .supports_action(egui::accesskit::Action::SetValue),
+        "MT-108: rich find-input advertises SetValue for Argus query mutation"
+    );
     println!(
         "AC-10: all required find/replace AccessKit ids present in the live tree: {required:?}"
+    );
+}
+
+#[test]
+fn mt108_argus_rich_find_replace_real_server_loop() {
+    let state = Arc::new(Mutex::new(RichEditorState::new(foo_doc())));
+    {
+        let mut st = state.lock().unwrap();
+        st.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
+        let mut panel = FindReplaceState::open(true);
+        panel.query = FindQuery::literal("foo");
+        panel.rescan(&st.doc);
+        st.find_replace = Some(panel);
+    }
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(800.0, 420.0));
+    focus_editor(&mut harness);
+    harness.step();
+    harness.step();
+
+    prove_argus_surface(
+        &mut harness,
+        "rich find/replace panel",
+        "find-panel",
+        ArgusMutation::SetValue {
+            target: "find-input",
+            value: "bar",
+        },
+        "find-panel",
+        true,
+        |_| {
+            let pattern = state
+                .lock()
+                .unwrap()
+                .find_replace
+                .as_ref()
+                .ok_or_else(|| "rich find panel closed after mutation".to_owned())?
+                .query
+                .pattern
+                .clone();
+            if pattern != "bar" {
+                return Err(format!("expected query 'bar', observed {pattern:?}"));
+            }
+            Ok(serde_json::json!({ "query_pattern": pattern }))
+        },
     );
 }
 

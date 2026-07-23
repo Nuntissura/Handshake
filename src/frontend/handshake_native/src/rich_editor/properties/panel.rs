@@ -135,7 +135,7 @@ impl<'a> PropertiesPanel<'a> {
         ui.ctx()
             .accesskit_node_builder(grid_resp.response.id, move |node| {
                 node.set_role(accesskit::Role::Group);
-                node.set_author_id(author.clone());
+                node.set_author_id(crate::rich_editor::scoped_author_id(author.clone()));
             });
     }
 }

@@ -668,6 +668,16 @@ async fn delete_workspace(
         return Err(map_storage_error(err));
     }
 
+    if let Err(error) = state
+        .flight_recorder
+        .delete_workspace_events(&workspace_id)
+        .await
+    {
+        // PostgreSQL deletion is already committed. Keep DELETE idempotent/successful and leave an
+        // attributable recovery log instead of returning a false 500 after the workspace is gone.
+        tracing::error!(target: "handshake_core", %workspace_id, %error, "workspace deleted but Flight Recorder workspace purge failed");
+    }
+
     tracing::info!(target: "handshake_core", route = "/workspaces/:workspace_id", status = "deleted", workspace_id = %workspace_id, "workspace deleted");
 
     Ok(StatusCode::NO_CONTENT)
@@ -1449,8 +1459,9 @@ mod tests {
     };
     use crate::llm::ollama::InMemoryLlmClient;
     use crate::storage::{
-        tests::optional_postgres_backend_with_pool_from_env, AccessMode, Database, EntityRef,
-        JobKind, JobMetrics, JobState, JobStatusUpdate, NewAiJob, PlannedOperation, SafetyMode,
+        fems_memory, tests::optional_postgres_backend_with_pool_from_env, AccessMode, Database,
+        EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate, NewAiJob, PlannedOperation,
+        SafetyMode,
     };
     use axum::extract::{Path, State};
     use serde_json::json;
@@ -1488,6 +1499,57 @@ mod tests {
             doc_preimage_sha256: doc_hash,
             selection_preimage_sha256: selection_hash,
         }
+    }
+
+    #[tokio::test]
+    async fn delete_workspace_route_atomically_cascades_fems_and_retries_not_found(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let Some(state) = setup_state().await? else {
+            return Ok(());
+        };
+        let workspace = state
+            .storage
+            .create_workspace(
+                &WriteContext::human(Some("fems-delete-route-test".to_owned())),
+                NewWorkspace {
+                    name: format!("fems-delete-route-{}", Uuid::now_v7()),
+                },
+            )
+            .await?;
+        fems_memory::upsert_memory_item(
+            &state.postgres_pool,
+            &workspace.id,
+            &format!("MEM-DELETE-ROUTE-{}", Uuid::now_v7()),
+            &json!({"content": "cascade me"}),
+        )
+        .await?;
+
+        let status = delete_workspace(
+            State(state.clone()),
+            Path(workspace.id.clone()),
+            HeaderMap::new(),
+        )
+        .await
+        .map_err(|(status, Json(body))| format!("delete route failed: {status} {}", body.error))?;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        assert_eq!(
+            fems_memory::count_memory_items(&state.postgres_pool, &workspace.id).await?,
+            0
+        );
+
+        let retry = delete_workspace(
+            State(state.clone()),
+            Path(workspace.id.clone()),
+            HeaderMap::new(),
+        )
+        .await
+        .expect_err("deleting an absent workspace must fail closed");
+        assert_eq!(retry.0, StatusCode::NOT_FOUND);
+        assert_eq!(
+            fems_memory::count_memory_items(&state.postgres_pool, &workspace.id).await?,
+            0
+        );
+        Ok(())
     }
 
     #[tokio::test]

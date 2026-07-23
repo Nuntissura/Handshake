@@ -16,11 +16,17 @@ use std::sync::{
 use std::time::{Duration, Instant};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
-use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::app::{
+    HandshakeApp, HealthDisplayState, NOTES_LOAD_ERROR_AUTHOR_ID, NOTES_LOAD_RETRY_AUTHOR_ID,
+};
 use handshake_native::backend_client::HealthInfo;
-use handshake_native::command_registry::CMD_EDITOR_FILE_SAVE;
+use handshake_native::command_registry::{
+    CMD_EDITOR_FILE_NEW, CMD_EDITOR_FILE_SAVE, CMD_VIEW_OUTLINE,
+};
 use handshake_native::pane_registry::{PaneId, PaneType};
 use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
 
@@ -63,10 +69,21 @@ struct NotesMockServer {
 
 impl NotesMockServer {
     fn spawn() -> Self {
-        Self::spawn_with_first_get_delays(HashMap::new())
+        Self::spawn_scripted(HashMap::new(), HashMap::new())
     }
 
     fn spawn_with_first_get_delays(get_delays: HashMap<String, Duration>) -> Self {
+        Self::spawn_scripted(get_delays, HashMap::new())
+    }
+
+    fn spawn_with_plain_get_failures(get_failures: HashMap<String, usize>) -> Self {
+        Self::spawn_scripted(HashMap::new(), get_failures)
+    }
+
+    fn spawn_scripted(
+        get_delays: HashMap<String, Duration>,
+        get_failures: HashMap<String, usize>,
+    ) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind notes mock server");
         listener
             .set_nonblocking(true)
@@ -76,6 +93,7 @@ impl NotesMockServer {
         let started_requests = Arc::new(Mutex::new(Vec::new()));
         let requests = Arc::new(Mutex::new(Vec::new()));
         let get_delays = Arc::new(get_delays);
+        let get_failures = Arc::new(get_failures);
         let get_counts = Arc::new(Mutex::new(HashMap::<String, usize>::new()));
         let child_handles = Arc::new(Mutex::new(Vec::new()));
         let mut docs = HashMap::new();
@@ -103,6 +121,7 @@ impl NotesMockServer {
         let requests_for_thread = Arc::clone(&requests);
         let state_for_thread = Arc::clone(&state);
         let get_delays_for_thread = Arc::clone(&get_delays);
+        let get_failures_for_thread = Arc::clone(&get_failures);
         let get_counts_for_thread = Arc::clone(&get_counts);
         let child_handles_for_thread = Arc::clone(&child_handles);
         let handle = std::thread::spawn(move || {
@@ -113,27 +132,47 @@ impl NotesMockServer {
                         let requests = Arc::clone(&requests_for_thread);
                         let state = Arc::clone(&state_for_thread);
                         let get_delays = Arc::clone(&get_delays_for_thread);
+                        let get_failures = Arc::clone(&get_failures_for_thread);
                         let get_counts = Arc::clone(&get_counts_for_thread);
                         let child = std::thread::spawn(move || {
                             if let Some(request) = read_request(&mut stream) {
-                                let response = route_request(&request, &state);
                                 started_requests.lock().unwrap().push(request.clone());
-                                if let Some(document_id) =
-                                    document_id_from_plain_path(&request.path)
-                                {
-                                    let request_index = {
+                                let plain_get = (request.method == "GET")
+                                    .then(|| document_id_from_plain_path(&request.path))
+                                    .flatten()
+                                    .map(|document_id| {
                                         let mut counts = get_counts.lock().unwrap();
                                         let count = counts.entry(document_id.clone()).or_insert(0);
                                         let index = *count;
                                         *count += 1;
-                                        index
-                                    };
-                                    if request_index == 0 {
-                                        if let Some(delay) = get_delays.get(&document_id) {
+                                        (document_id, index)
+                                    });
+                                if let Some((document_id, request_index)) = plain_get.as_ref() {
+                                    if *request_index == 0 {
+                                        if let Some(delay) = get_delays.get(document_id) {
                                             std::thread::sleep(*delay);
                                         }
                                     }
                                 }
+                                let response = match plain_get {
+                                    Some((document_id, request_index))
+                                        if request_index
+                                            < get_failures
+                                                .get(&document_id)
+                                                .copied()
+                                                .unwrap_or_default() =>
+                                    {
+                                        (
+                                            "HTTP/1.1 503 Service Unavailable",
+                                            serde_json::json!({
+                                                "detail": format!(
+                                                    "scripted Notes load failure for {document_id}"
+                                                )
+                                            }),
+                                        )
+                                    }
+                                    _ => route_request(&request, &state),
+                                };
                                 requests.lock().unwrap().push(request);
                                 write_json(&mut stream, response.0, response.1);
                             }
@@ -349,6 +388,47 @@ fn paragraph_doc(text: &str) -> serde_json::Value {
     })
 }
 
+fn rich_doc_body(
+    document_id: &str,
+    text: &str,
+    doc_version: u64,
+) -> handshake_native::backend_client::RichDocBody {
+    rich_doc_body_with_content(document_id, paragraph_doc(text), doc_version)
+}
+
+fn rich_doc_body_with_content(
+    document_id: &str,
+    content_json: serde_json::Value,
+    doc_version: u64,
+) -> handshake_native::backend_client::RichDocBody {
+    handshake_native::backend_client::RichDocBody {
+        document_id: document_id.to_owned(),
+        workspace_id: "ws-mt099".to_owned(),
+        doc_version,
+        title: document_id.to_owned(),
+        content_json,
+        crdt_document_id: None,
+        authority_label: "AUTHORITATIVE".to_owned(),
+        owner_actor_kind: Some("operator".to_owned()),
+        owner_actor_id: Some("operator".to_owned()),
+        project_ref: None,
+        folder_ref: None,
+        created_at: "2026-07-17T00:00:00Z".to_owned(),
+        updated_at: "2026-07-17T00:00:00Z".to_owned(),
+    }
+}
+
+fn heading_doc(text: &str) -> serde_json::Value {
+    serde_json::json!({
+        "type": "doc",
+        "content": [{
+            "type": "heading",
+            "attrs": { "level": 1 },
+            "content": [{ "type": "text", "text": text }]
+        }]
+    })
+}
+
 fn read_request(stream: &mut TcpStream) -> Option<RecordedRequest> {
     stream.set_read_timeout(Some(Duration::from_secs(3))).ok()?;
     let mut buf = Vec::new();
@@ -486,7 +566,7 @@ fn focus_rich_editor_surface(harness: &mut Harness<'_, HandshakeApp>) {
     let root = harness.root();
     let surface = root
         .children_recursive()
-        .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
+        .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
         .expect("rich editor surface is present");
     surface.focus();
     harness.step();
@@ -812,6 +892,505 @@ fn switching_notes_does_not_save_with_stale_document_context() {
 }
 
 #[test]
+fn slow_note_get_shows_blank_non_editable_loading_surface_without_demo_content() {
+    let server = NotesMockServer::spawn_with_first_get_delays(HashMap::from([(
+        DOC_ID.to_owned(),
+        Duration::from_millis(350),
+    )]));
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let mut app = ok_app();
+    app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
+    assert!(matches!(
+        app.open_document(DOC_ID),
+        NavDispatchOutcome::Opened { .. }
+    ));
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1180.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+
+    let state = harness
+        .state()
+        .mounted_rich_state_for_document_for_test(DOC_ID);
+    assert_eq!(
+        state.lock().unwrap().block_plain_text(0).as_deref(),
+        Some("")
+    );
+    let loading_label = format!("Loading Notes document {DOC_ID}…");
+    assert!(harness.query_all_by_label(&loading_label).count() >= 1);
+    assert_eq!(
+        harness.query_all_by_label("Heading One").count(),
+        0,
+        "the demo fixture is never rendered while the authoritative GET is pending"
+    );
+    let _ = server.shutdown();
+}
+
+#[test]
+fn outline_retains_exact_launching_note_and_click_targets_that_notes_scroll() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let mut app = ok_app();
+    app.set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
+    assert!(matches!(
+        app.open_document(DOC_ID),
+        NavDispatchOutcome::Opened { .. }
+    ));
+    let pane_id = app.active_pane().expect("active Notes pane").to_string();
+    app.apply_loaded_rich_document_to_view_for_test(
+        &pane_id,
+        rich_doc_body_with_content(DOC_ID, heading_doc("Exact Outline Heading"), 7),
+    )
+    .expect("install heading document");
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1180.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+    assert!(harness
+        .state_mut()
+        .dispatch_palette_action_for_test(CMD_VIEW_OUTLINE));
+    harness.step();
+    let block_id = {
+        let outline = harness.state().mounted_outline_panel_for_test();
+        let outline = outline.lock().unwrap();
+        assert_eq!(outline.roots[0].text, "Exact Outline Heading");
+        outline.roots[0].block_id.clone()
+    };
+    let outline_author_id = format!("outline.heading.{block_id}");
+    harness
+        .get_by(|node| node.author_id() == Some(outline_author_id.as_str()))
+        .click();
+    harness.step();
+    let rich = harness
+        .state()
+        .mounted_rich_state_for_view_for_test(&pane_id, DOC_ID);
+    let rich = rich.lock().unwrap();
+    assert!(
+        rich.pending_scroll_block.as_deref() == Some(&[0][..])
+            || rich.last_consumed_scroll_block.as_deref() == Some(&[0][..]),
+        "the exact launching Notes view receives and either retains or consumes the heading scroll"
+    );
+    assert!(matches!(
+        &rich.selection,
+        handshake_native::rich_editor::document_model::selection::Selection::Text { anchor, head }
+            if anchor.path.as_slice() == [0, 0]
+                && anchor.char_offset == 0
+                && head.path.as_slice() == [0, 0]
+                && head.char_offset == "Exact Outline Heading".chars().count()
+    ));
+}
+
+#[test]
+fn workspace_switch_retires_rich_views_and_discards_stale_delivery() {
+    let mut app = ok_app();
+    app.set_active_project_id_for_test("workspace-a");
+    assert!(app.open_document_in_pane_for_test("pane-b", DOC_ID));
+    let old = app.mounted_rich_state_for_view_for_test("pane-b", DOC_ID);
+    old.lock().unwrap().doc =
+        handshake_native::rich_editor::document_model::node::BlockNode::doc(vec![
+            handshake_native::rich_editor::document_model::node::BlockNode::paragraph(
+                "workspace A",
+            ),
+        ]);
+    app.queue_rich_document_load_result_for_test(
+        DOC_ID,
+        Err("stale workspace A delivery".to_owned()),
+    );
+    app.set_active_project_id_for_test("workspace-b");
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1180.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+    let new = harness
+        .state()
+        .mounted_rich_state_for_view_for_test("pane-b", DOC_ID);
+    assert!(!Arc::ptr_eq(&old, &new));
+    assert_ne!(
+        new.lock().unwrap().block_plain_text(0).as_deref(),
+        Some("workspace A")
+    );
+    assert!(harness
+        .state()
+        .rich_document_load_failure_for_test(DOC_ID)
+        .is_some());
+    assert!(!harness
+        .state()
+        .rich_document_load_failure_for_test(DOC_ID)
+        .unwrap()
+        .contains("stale workspace A delivery"));
+}
+
+#[test]
+fn same_document_split_views_share_document_save_authority_but_keep_view_state_and_ids_independent()
+{
+    let server = NotesMockServer::spawn();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let mut app = ok_app();
+    app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
+    assert!(app.open_document_in_pane_for_test("pane-a", DOC_ID));
+    app.apply_loaded_rich_document_to_view_for_test("pane-a", rich_doc_body(DOC_ID, "pane A", 7))
+        .expect("load pane A view");
+    assert!(app.open_document_in_pane_for_test("pane-b", DOC_ID));
+    app.apply_loaded_rich_document_to_view_for_test("pane-b", rich_doc_body(DOC_ID, "pane B", 7))
+        .expect("load pane B view");
+    let first = app.mounted_rich_state_for_view_for_test("pane-a", DOC_ID);
+    let second = app.mounted_rich_state_for_view_for_test("pane-b", DOC_ID);
+    assert!(!Arc::ptr_eq(&first, &second));
+    assert_ne!(
+        first.lock().unwrap().accessibility_namespace,
+        second.lock().unwrap().accessibility_namespace
+    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+    let first = harness
+        .state()
+        .mounted_rich_state_for_view_for_test("pane-a", DOC_ID);
+    let second = harness
+        .state()
+        .mounted_rich_state_for_view_for_test("pane-b", DOC_ID);
+    assert_eq!(
+        first.lock().unwrap().block_plain_text(0).as_deref(),
+        Some("pane A")
+    );
+    assert_eq!(
+        second.lock().unwrap().block_plain_text(0).as_deref(),
+        Some("pane A"),
+        "the second stale GET body cannot fork/overwrite the shared canonical buffer"
+    );
+    assert!(first.lock().unwrap().save.is_some());
+    assert!(second.lock().unwrap().save.is_none());
+    assert!(first.lock().unwrap().draft.is_some());
+    assert!(second.lock().unwrap().draft.is_none());
+
+    let second_namespace = second
+        .lock()
+        .unwrap()
+        .accessibility_namespace
+        .clone()
+        .expect("secondary view namespace");
+    let second_surface = format!("editor.rich.text--view-{second_namespace}");
+    harness
+        .get_by(|node| node.author_id() == Some(second_surface.as_str()))
+        .focus();
+    harness.step();
+    harness.event(egui::Event::Text("shared ".to_owned()));
+    harness.step();
+    assert_eq!(
+        first.lock().unwrap().block_plain_text(0).as_deref(),
+        Some("shared pane A"),
+        "an edit in pane B is published immediately into pane A's canonical document core"
+    );
+    assert_eq!(
+        second.lock().unwrap().block_plain_text(0).as_deref(),
+        Some("shared pane A")
+    );
+    assert!(harness
+        .state_mut()
+        .open_document_in_pane_for_test("pane-b", DOC_ID));
+    assert_eq!(
+        first.lock().unwrap().block_plain_text(0).as_deref(),
+        Some("shared pane A"),
+        "reopening pane B invalidates only B and preserves pane A's unsaved shared core"
+    );
+    assert!(first.lock().unwrap().save.is_some());
+    harness
+        .state_mut()
+        .apply_loaded_rich_document_to_view_for_test(
+            "pane-b",
+            rich_doc_body(DOC_ID, "stale reload body", 7),
+        )
+        .expect("deliver pane B reload");
+    assert_eq!(
+        second.lock().unwrap().block_plain_text(0).as_deref(),
+        Some("shared pane A"),
+        "pane B's reload response cannot overwrite the retained unsaved shared core"
+    );
+
+    first.lock().unwrap().selection =
+        handshake_native::rich_editor::document_model::selection::Selection::caret(
+            handshake_native::rich_editor::document_model::position::DocPosition::new(
+                vec![0, 0],
+                0,
+            ),
+        );
+    second.lock().unwrap().selection =
+        handshake_native::rich_editor::document_model::selection::Selection::caret(
+            handshake_native::rich_editor::document_model::position::DocPosition::new(
+                vec![0, 0],
+                3,
+            ),
+        );
+    harness.step();
+    assert_ne!(
+        first.lock().unwrap().selection,
+        second.lock().unwrap().selection,
+        "selection remains view-local while document/undo/save authority is shared"
+    );
+
+    let ids: Vec<String> = harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+        .collect();
+    let mut counts = HashMap::<String, usize>::new();
+    for id in &ids {
+        *counts.entry(id.clone()).or_default() += 1;
+    }
+    let duplicates: Vec<_> = counts.iter().filter(|(_, count)| **count > 1).collect();
+    assert!(
+        duplicates.is_empty(),
+        "every live AccessKit author_id must be unique across the whole tree: {duplicates:?}"
+    );
+    assert_eq!(
+        ids.iter()
+            .filter(|id| id.as_str() == "editor.rich.root")
+            .count(),
+        1
+    );
+    assert_eq!(
+        ids.iter()
+            .filter(|id| id.starts_with("editor.rich.root--view-document-"))
+            .count(),
+        1
+    );
+
+    for base in [
+        "properties-header",
+        "rich-editor-export-button",
+        "rich-reading-mode-reading",
+        "toolbar-btn-undo",
+    ] {
+        let expected = format!("{base}--view-{second_namespace}");
+        assert!(
+            ids.iter().any(|id| id == &expected),
+            "secondary pane must publish namespaced {base}; missing {expected}"
+        );
+    }
+    let mut action_namespace = String::from("document-");
+    for byte in format!("{DOC_ID}\0pane-b").as_bytes() {
+        use std::fmt::Write as _;
+        let _ = write!(action_namespace, "{byte:02x}");
+    }
+    let secondary_save = format!("editor.rich.save.{action_namespace}");
+    assert!(ids.iter().any(|id| id == &secondary_save));
+    let secondary_save_node_id = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(secondary_save.as_str()))
+        .expect("secondary namespaced Save action node")
+        .accesskit_node()
+        .id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: secondary_save_node_id,
+            data: None,
+        },
+    ));
+    harness.step();
+    harness.step();
+    wait_for_requests(
+        &server,
+        |requests| save_request_count_for(requests, DOC_ID) >= 1,
+        Duration::from_secs(2),
+    );
+    let save = server
+        .requests()
+        .into_iter()
+        .find(|request| {
+            request.method == "PUT" && request.path == format!("/knowledge/documents/{DOC_ID}/save")
+        })
+        .expect("secondary namespaced Save dispatches one real PUT");
+    assert!(
+        save.body.contains("shared pane A"),
+        "secondary Save must publish pane content before canonical persistence: {}",
+        save.body
+    );
+    let export_button = format!("rich-editor-export-button--view-{second_namespace}");
+    let export_button_node_id = harness
+        .get_by(|node| node.author_id() == Some(export_button.as_str()))
+        .accesskit_node()
+        .id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: export_button_node_id,
+            data: None,
+        },
+    ));
+    harness.step();
+    harness.step();
+    assert!(!first.lock().unwrap().export_picker_open);
+    assert!(second.lock().unwrap().export_picker_open);
+    let picker = format!("export-format-picker--view-{second_namespace}");
+    assert!(harness
+        .root()
+        .children_recursive()
+        .any(|node| node.accesskit_node().author_id() == Some(picker.as_str())));
+    let _ = server.shutdown();
+}
+
+#[test]
+fn reverse_open_order_keeps_pane_a_as_deterministic_unsuffixed_rich_view() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let mut app = ok_app();
+    app.set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
+    assert!(app.open_document_in_pane_for_test("pane-b", DOC_ID));
+    app.apply_loaded_rich_document_to_view_for_test("pane-b", rich_doc_body(DOC_ID, "shared", 7))
+        .expect("load pane B first");
+    assert!(app.open_document_in_pane_for_test("pane-a", DOC_ID));
+    app.apply_loaded_rich_document_to_view_for_test(
+        "pane-a",
+        rich_doc_body(DOC_ID, "stale reverse-order body", 7),
+    )
+    .expect("mark pane A ready without replacing the shared body");
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+    let pane_a = harness
+        .state()
+        .mounted_rich_state_for_view_for_test("pane-a", DOC_ID);
+    let pane_b = harness
+        .state()
+        .mounted_rich_state_for_view_for_test("pane-b", DOC_ID);
+    assert_eq!(pane_a.lock().unwrap().accessibility_namespace, None);
+    assert!(pane_b.lock().unwrap().accessibility_namespace.is_some());
+    assert!(pane_a.lock().unwrap().save.is_some());
+    assert!(pane_b.lock().unwrap().save.is_none());
+    let ids: Vec<String> = harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+        .collect();
+    assert_eq!(ids.iter().filter(|id| *id == "editor.rich.root").count(), 1);
+    assert_eq!(ids.iter().filter(|id| *id == "editor.rich.save").count(), 1);
+}
+
+#[test]
+fn closing_file_backed_note_restores_unsuffixed_untitled_action_authority() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let mut app = ok_app();
+    app.set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
+    assert!(app.open_document_in_pane_for_test("pane-b", DOC_ID));
+    app.apply_loaded_rich_document_to_view_for_test("pane-b", rich_doc_body(DOC_ID, "file", 7))
+        .expect("load file-backed note");
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1180.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+    assert_eq!(
+        harness
+            .root()
+            .children_recursive()
+            .filter(|node| node.accesskit_node().author_id() == Some("editor.rich.save"))
+            .count(),
+        1
+    );
+    assert!(harness.state_mut().close_active_tab_for_test());
+    assert!(harness
+        .state_mut()
+        .dispatch_palette_action_for_test(CMD_EDITOR_FILE_NEW));
+    harness.step();
+    harness.step();
+    assert_eq!(
+        harness
+            .root()
+            .children_recursive()
+            .filter(|node| node.accesskit_node().author_id() == Some("editor.rich.save"))
+            .count(),
+        1,
+        "the base/untitled editor regains canonical action registration index 0"
+    );
+    assert!(harness
+        .root()
+        .children_recursive()
+        .any(|node| node.accesskit_node().author_id() == Some("editor.rich.root")));
+}
+
+#[test]
+fn two_visible_unready_notes_panes_load_without_activating_each_pane() {
+    let server = NotesMockServer::spawn();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let mut app = ok_app();
+    app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
+    assert!(app.open_document_in_pane_for_test("pane-a", DOC_ID));
+    assert!(app.open_document_in_pane_for_test("pane-b", SECOND_DOC_ID));
+    assert_eq!(
+        app.active_pane().map(ToString::to_string).as_deref(),
+        Some("pane-b"),
+        "pane A remains visible but is never re-activated during this proof"
+    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        harness.step();
+        let pane_a = harness
+            .state()
+            .mounted_rich_state_for_view_for_test("pane-a", DOC_ID);
+        let pane_b = harness
+            .state()
+            .mounted_rich_state_for_view_for_test("pane-b", SECOND_DOC_ID);
+        let loaded_a = pane_a.lock().unwrap().block_plain_text(0).as_deref() == Some(INITIAL_TEXT);
+        let loaded_b =
+            pane_b.lock().unwrap().block_plain_text(0).as_deref() == Some(SECOND_INITIAL_TEXT);
+        if loaded_a && loaded_b {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "both visible Notes panes must auto-load"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        harness
+            .state()
+            .active_pane()
+            .map(ToString::to_string)
+            .as_deref(),
+        Some("pane-b"),
+        "the scheduler loads pane A without focus/activation churn"
+    );
+    wait_for_requests(
+        &server,
+        |requests| {
+            document_get_count_for(requests, DOC_ID) >= 1
+                && document_get_count_for(requests, SECOND_DOC_ID) >= 1
+        },
+        Duration::from_secs(2),
+    );
+    let _ = server.shutdown();
+}
+
+#[test]
 fn out_of_order_note_gets_keep_current_document_load() {
     let _wgpu_guard = wgpu_guard();
     let server = NotesMockServer::spawn_with_first_get_delays(HashMap::from([(
@@ -850,6 +1429,27 @@ fn out_of_order_note_gets_keep_current_document_load() {
     wait_for_text(&mut harness, SECOND_INITIAL_TEXT, Duration::from_secs(5));
     assert_single_notes_pane(&harness);
 
+    let first_state = harness
+        .state()
+        .mounted_rich_state_for_document_for_test(DOC_ID);
+    let second_state = harness
+        .state()
+        .mounted_rich_state_for_document_for_test(SECOND_DOC_ID);
+    assert!(
+        !Arc::ptr_eq(&first_state, &second_state),
+        "two Notes document ids must own distinct mounted RichEditorState instances"
+    );
+    assert_eq!(
+        first_state.lock().unwrap().block_plain_text(0).as_deref(),
+        Some(INITIAL_TEXT),
+        "the delayed first GET installs only the first document's retained state"
+    );
+    assert_eq!(
+        second_state.lock().unwrap().block_plain_text(0).as_deref(),
+        Some(SECOND_INITIAL_TEXT),
+        "the second GET remains installed in the second document state after the first completes"
+    );
+
     let requests = server.shutdown();
     assert!(
         document_get_count_for(&requests, DOC_ID) >= 1,
@@ -858,6 +1458,60 @@ fn out_of_order_note_gets_keep_current_document_load() {
     assert!(
         document_get_count_for(&requests, SECOND_DOC_ID) >= 1,
         "the current second note GET was issued and remained deliverable"
+    );
+}
+
+#[test]
+fn mismatched_note_get_identity_fails_closed_without_cross_document_mutation() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let mut app = ok_app();
+    app.set_backend_base_url_for_test("http://127.0.0.1:9", runtime.handle().clone());
+    assert!(matches!(
+        app.open_document(DOC_ID),
+        NavDispatchOutcome::Opened { .. }
+    ));
+    app.apply_loaded_rich_document_for_test(rich_doc_body(DOC_ID, INITIAL_TEXT, 7))
+        .expect("seed requested document through the real installer");
+    app.queue_rich_document_load_result_for_test(
+        DOC_ID,
+        Ok(rich_doc_body(SECOND_DOC_ID, "wrong document body", 13)),
+    );
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1180.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+
+    let failure = harness
+        .state()
+        .rich_document_load_failure_for_test(DOC_ID)
+        .expect("mismatched response is latched as a typed load failure");
+    assert!(failure.contains(DOC_ID) && failure.contains(SECOND_DOC_ID));
+    assert_eq!(
+        harness
+            .state()
+            .mounted_rich_state_for_document_for_test(DOC_ID)
+            .lock()
+            .unwrap()
+            .block_plain_text(0)
+            .as_deref(),
+        Some(INITIAL_TEXT),
+        "the requested document keeps its prior body"
+    );
+    assert_ne!(
+        harness
+            .state()
+            .mounted_rich_state_for_document_for_test(SECOND_DOC_ID)
+            .lock()
+            .unwrap()
+            .block_plain_text(0)
+            .as_deref(),
+        Some("wrong document body"),
+        "the response identity must not select or mutate another document store entry"
     );
 }
 
@@ -916,6 +1570,96 @@ fn same_document_reopen_ignores_stale_get_generation() {
         document_get_count_for(&requests, DOC_ID) >= 2,
         "same-document reopen issues a fresh authoritative GET"
     );
+}
+
+#[test]
+fn failed_note_load_latches_until_explicit_accesskit_retry() {
+    let _wgpu_guard = wgpu_guard();
+    let server =
+        NotesMockServer::spawn_with_plain_get_failures(HashMap::from([(DOC_ID.to_owned(), 1)]));
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    let mut app = ok_app();
+    app.set_backend_base_url_for_test(&server.base_url, runtime.handle().clone());
+    assert!(
+        matches!(app.open_document(DOC_ID), NavDispatchOutcome::Opened { .. }),
+        "opening the note starts the authoritative GET"
+    );
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1180.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    wait_for_author_node(
+        &mut harness,
+        NOTES_LOAD_ERROR_AUTHOR_ID,
+        Duration::from_secs(5),
+    );
+    assert!(
+        find_author_node_exists(&harness, NOTES_LOAD_RETRY_AUTHOR_ID),
+        "the latched load failure exposes an explicit AccessKit Retry action"
+    );
+    let error_label = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(NOTES_LOAD_ERROR_AUTHOR_ID))
+        .and_then(|node| node.accesskit_node().label())
+        .unwrap_or_default();
+    assert!(
+        error_label.contains(DOC_ID) && error_label.contains("5xx"),
+        "the stable error identifies the exact failed document and backend failure: {error_label:?}"
+    );
+
+    // Pump well beyond the response frame. A terminal failure must remain latched and must not turn
+    // each repaint into another GET.
+    for _ in 0..24 {
+        harness.step();
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        document_get_count_for(&server.requests(), DOC_ID),
+        1,
+        "failed Notes load issues exactly one GET until the operator retries"
+    );
+
+    let retry_id = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(NOTES_LOAD_RETRY_AUTHOR_ID))
+        .expect("Retry AccessKit node remains present")
+        .accesskit_node()
+        .id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: retry_id,
+            data: None,
+        },
+    ));
+    harness.step();
+    harness.step();
+    wait_for_requests(
+        &server,
+        |requests| document_get_count_for(requests, DOC_ID) == 2,
+        Duration::from_secs(5),
+    );
+    wait_for_text(&mut harness, INITIAL_TEXT, Duration::from_secs(5));
+    for _ in 0..8 {
+        harness.step();
+    }
+    assert_eq!(
+        document_get_count_for(&server.requests(), DOC_ID),
+        2,
+        "the explicit Retry issues exactly one additional authoritative GET"
+    );
+    assert!(
+        !find_author_node_exists(&harness, NOTES_LOAD_ERROR_AUTHOR_ID),
+        "a successful retry clears the latched error"
+    );
+
+    let _ = server.shutdown();
 }
 
 fn text_from_doc(value: &serde_json::Value) -> String {

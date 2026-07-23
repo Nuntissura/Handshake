@@ -118,8 +118,11 @@ pub fn show_find_panel(
                     find_resp.id,
                     FIND_INPUT_AUTHOR_ID,
                     Some(FIND_INPUT_ROLE),
-                    None,
+                    Some(pattern.clone()),
                 );
+                if let Some(value) = consume_set_value_action(ui, find_resp.id) {
+                    pattern = value;
+                }
                 if pattern != state.query.pattern {
                     state.query.pattern = pattern;
                     state.active = None; // a new query resets the active match (React parity).
@@ -271,6 +274,21 @@ fn input_key_action(ui: &egui::Ui) -> Option<InputKey> {
     })
 }
 
+/// Consume one Argus `SetValue` request targeted at the stable find-input node. The request is folded
+/// into the same `pattern` value that the real TextEdit writes, so the existing query-change path owns
+/// state mutation and re-scan behavior for both operator typing and model-driven editing.
+fn consume_set_value_action(ui: &egui::Ui, node_id: egui::Id) -> Option<String> {
+    let mut value = None;
+    ui.input(|input| {
+        for request in input.accesskit_action_requests(node_id, accesskit::Action::SetValue) {
+            if let Some(accesskit::ActionData::Value(next)) = &request.data {
+                value = Some(next.to_string());
+            }
+        }
+    });
+    value
+}
+
 /// Render one option toggle button (a selectable button showing `label`, pressed when `*flag`).
 /// Flips `*flag` on click, emits the toggle's stable author_id, and returns whether it changed.
 fn toggle(ui: &mut egui::Ui, label: &str, flag: &mut bool, author_id: &str, tooltip: &str) -> bool {
@@ -298,13 +316,17 @@ fn emit_node(
     value: Option<String>,
 ) {
     let author = author_id.to_owned();
+    let is_find_input = author_id == FIND_INPUT_AUTHOR_ID;
     ui.ctx().accesskit_node_builder(id, move |node| {
-        node.set_author_id(author.clone());
+        node.set_author_id(crate::rich_editor::scoped_author_id(author.clone()));
         if let Some(r) = role {
             node.set_role(r);
         }
         if let Some(v) = value.clone() {
             node.set_value(v);
+        }
+        if is_find_input {
+            node.add_action(accesskit::Action::SetValue);
         }
     });
 }

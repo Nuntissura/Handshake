@@ -18,7 +18,7 @@
 //! common year fits in 4-5 — both render as a fixed 6×7 grid). [`month_grid`] returns the 42 cells
 //! (leading/trailing days are `None`) so a kittest can assert the day numbers + the fixed cell count.
 
-use chrono::{Datelike, Days, NaiveDate};
+use chrono::{DateTime, Datelike, Days, NaiveDate, Utc};
 
 use egui::accesskit;
 
@@ -32,6 +32,43 @@ pub const NEXT_DAY_ID: &str = "journal-next-day";
 pub const TODAY_ID: &str = "journal-today";
 pub const CALENDAR_TOGGLE_ID: &str = "journal-calendar-toggle";
 pub const DATE_DISPLAY_ID: &str = "journal-date-display";
+
+/// Stable AccessKit identities for one mounted date-navigation surface. A pane may mount more than
+/// one [`DateNavWidget`] (for example the Calendar overview plus the embedded MT-019 editor), so the
+/// identity set is explicit rather than inferred from DOM order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DateNavAuthorIds {
+    pub prev_day: &'static str,
+    pub next_day: &'static str,
+    pub today: &'static str,
+    pub calendar_toggle: &'static str,
+    pub date_display: &'static str,
+    pub calendar_grid: &'static str,
+    pub calendar_day_prefix: &'static str,
+}
+
+/// Canonical MT-019 editor date-navigation identities.
+pub const JOURNAL_DATE_NAV_AUTHOR_IDS: DateNavAuthorIds = DateNavAuthorIds {
+    prev_day: PREV_DAY_ID,
+    next_day: NEXT_DAY_ID,
+    today: TODAY_ID,
+    calendar_toggle: CALENDAR_TOGGLE_ID,
+    date_display: DATE_DISPLAY_ID,
+    calendar_grid: "journal-calendar-grid",
+    calendar_day_prefix: "journal-calendar-day-",
+};
+
+/// Calendar-overview identities used by the outer Daily Journal panel. These remain distinct from
+/// [`JOURNAL_DATE_NAV_AUTHOR_IDS`] when both widgets are mounted in the same AccessKit tree.
+pub const DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS: DateNavAuthorIds = DateNavAuthorIds {
+    prev_day: "daily-journal-prev-day",
+    next_day: "daily-journal-next-day",
+    today: "daily-journal-today",
+    calendar_toggle: "daily-journal-calendar-toggle",
+    date_display: "daily-journal-date-display",
+    calendar_grid: "daily-journal-calendar-grid",
+    calendar_day_prefix: "daily-journal-calendar-day-",
+};
 
 /// The fixed number of calendar grid rows (MC-004: 6 rows regardless of month, so no popup reflow).
 pub const CALENDAR_ROWS: usize = 6;
@@ -70,6 +107,24 @@ impl DateNav {
     pub fn today_now() -> Self {
         let today = chrono::Local::now().date_naive();
         Self::new(today, today)
+    }
+
+    /// Production constructor using the persisted Calendar view timezone,
+    /// rather than the operating-system process timezone.
+    pub fn today_now_in_timezone(view_tzid: &str) -> Result<Self, String> {
+        let today = today_in_timezone_at(Utc::now(), view_tzid)?;
+        Ok(Self::new(today, today))
+    }
+
+    /// Refresh the Today target after the selected view timezone changes.
+    /// The current selection is intentionally retained until Today is invoked.
+    pub fn set_today_for_timezone_at(
+        &mut self,
+        now_utc: DateTime<Utc>,
+        view_tzid: &str,
+    ) -> Result<NaiveDate, String> {
+        self.today = today_in_timezone_at(now_utc, view_tzid)?;
+        Ok(self.today)
     }
 
     /// The current date as the backend `YYYY-MM-DD` string.
@@ -128,6 +183,15 @@ impl DateNav {
     pub fn month_grid(&self) -> Vec<Option<NaiveDate>> {
         month_grid(self.current.year(), self.current.month())
     }
+}
+
+/// Deterministic Today derivation used by both mounted navigation surfaces and
+/// controlled-clock tests.
+pub fn today_in_timezone_at(now_utc: DateTime<Utc>, view_tzid: &str) -> Result<NaiveDate, String> {
+    let tz: chrono_tz::Tz = view_tzid
+        .parse()
+        .map_err(|_| format!("invalid IANA timezone: {view_tzid}"))?;
+    Ok(now_utc.with_timezone(&tz).date_naive())
 }
 
 /// Compute the FIXED 6×7 calendar grid (42 cells) for `(year, month)`. The first cell is the Sunday on
@@ -195,12 +259,23 @@ pub enum DateNavOutcome {
 pub struct DateNavWidget<'a> {
     nav: &'a mut DateNav,
     palette: &'a HsPalette,
+    author_ids: DateNavAuthorIds,
 }
 
 impl<'a> DateNavWidget<'a> {
     /// Build the widget over a borrowed nav + palette.
     pub fn new(nav: &'a mut DateNav, palette: &'a HsPalette) -> Self {
-        Self { nav, palette }
+        Self {
+            nav,
+            palette,
+            author_ids: JOURNAL_DATE_NAV_AUTHOR_IDS,
+        }
+    }
+
+    /// Select the stable address set for this mounted surface.
+    pub fn with_author_ids(mut self, author_ids: DateNavAuthorIds) -> Self {
+        self.author_ids = author_ids;
+        self
     }
 
     /// Render the header row, returning the navigation outcome. Each control carries a stable AccessKit
@@ -210,7 +285,7 @@ impl<'a> DateNavWidget<'a> {
         ui.horizontal(|ui| {
             // ← Previous day.
             let prev = ui.button("◀");
-            accessibility::emit_interactive_node(ui.ctx(), prev.id, PREV_DAY_ID);
+            accessibility::emit_interactive_node(ui.ctx(), prev.id, self.author_ids.prev_day);
             if prev.clicked() {
                 outcome = DateNavOutcome::Navigated(self.nav.prev_day());
             }
@@ -226,28 +301,32 @@ impl<'a> DateNavWidget<'a> {
                 )
                 .sense(egui::Sense::click()),
             );
-            accessibility::emit_interactive_node(ui.ctx(), date_resp.id, DATE_DISPLAY_ID);
+            accessibility::emit_interactive_node(
+                ui.ctx(),
+                date_resp.id,
+                self.author_ids.date_display,
+            );
             if date_resp.clicked() {
                 self.nav.calendar_open = !self.nav.calendar_open;
             }
 
             // Next day →.
             let next = ui.button("▶");
-            accessibility::emit_interactive_node(ui.ctx(), next.id, NEXT_DAY_ID);
+            accessibility::emit_interactive_node(ui.ctx(), next.id, self.author_ids.next_day);
             if next.clicked() {
                 outcome = DateNavOutcome::Navigated(self.nav.next_day());
             }
 
             // 📅 calendar toggle.
             let cal = ui.button("📅");
-            accessibility::emit_interactive_node(ui.ctx(), cal.id, CALENDAR_TOGGLE_ID);
+            accessibility::emit_interactive_node(ui.ctx(), cal.id, self.author_ids.calendar_toggle);
             if cal.clicked() {
                 self.nav.calendar_open = !self.nav.calendar_open;
             }
 
             // Today.
             let today = ui.button("Today");
-            accessibility::emit_interactive_node(ui.ctx(), today.id, TODAY_ID);
+            accessibility::emit_interactive_node(ui.ctx(), today.id, self.author_ids.today);
             if today.clicked() {
                 outcome = DateNavOutcome::Navigated(self.nav.jump_today());
             }
@@ -293,7 +372,7 @@ impl<'a> DateNavWidget<'a> {
                 }
             });
             // EXACTLY 6 rows × 7 columns (MC-004): iterate the fixed 42-cell grid.
-            egui::Grid::new("journal-calendar-grid")
+            egui::Grid::new(self.author_ids.calendar_grid)
                 .num_columns(CALENDAR_COLS)
                 .spacing(egui::vec2(2.0, 2.0))
                 .show(ui, |ui| {
@@ -318,7 +397,11 @@ impl<'a> DateNavWidget<'a> {
                                 accessibility::emit_interactive_node(
                                     ui.ctx(),
                                     resp.id,
-                                    &format!("journal-calendar-day-{}", date.day()),
+                                    &format!(
+                                        "{}{}",
+                                        self.author_ids.calendar_day_prefix,
+                                        date.day()
+                                    ),
                                 );
                                 if resp.clicked() {
                                     picked = Some(*date);

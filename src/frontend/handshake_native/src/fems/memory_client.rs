@@ -28,8 +28,10 @@
 //! `ace::MemoryPack` JSON and, when no pack is stored yet, a well-formed EMPTY pack (200) — NOT a 404 —
 //! so an empty capsule is never mistaken for a missing route. This client is therefore modeled to DECODE
 //! the real `ace::MemoryPack` item shape directly. [`MemoryClientError::EndpointMissing`] is retained
-//! ONLY as a genuine 404 fallback (a real backend can still 404 — an unrouted build, a mis-configured
-//! base URL, a workspace the route rejects); it is NOT "the designed primary path". On a 404
+//! ONLY as a genuine route-absent 404 fallback (an unrouted build or a mis-configured base URL); it is
+//! NOT "the designed primary path". A structured backend `{"error":"not_found"}` response is a
+//! resource/state error and remains [`MemoryClientError::Http`] rather than being misreported as a
+//! missing product capability. On an unstructured route-absent 404
 //! [`MemoryClient::fetch_pack`] returns that typed blocker (never a panic, never a silent no-op —
 //! RISK-001, RISK-005/MC-002, AC-005), the panel renders a calm banner, and the blocker is surfaced
 //! upward so the WP validator sees it. The end-to-end fetch against the LIVE managed-PG MT-109 route is
@@ -70,6 +72,9 @@
 use std::time::Duration;
 
 use serde::Deserialize;
+use serde_json::Value as JsonValue;
+use sha2::{Digest, Sha256};
+use unicode_normalization::UnicodeNormalization;
 
 use crate::backend_client::{
     shared_http_client, BACKEND_BASE_URL, HSK_HEADER_ACTOR_ID, HSK_HEADER_KERNEL_TASK_RUN_ID,
@@ -84,6 +89,7 @@ pub const MEMORY_PACK_MAX_ITEMS: usize = 24;
 /// (and surfaces an over-budget signal) but NEVER recomputes token estimates — the budget is the
 /// server's authority (per the contract: "treat the token budget as advisory metadata it surfaces").
 pub const MEMORY_PACK_TOKEN_BUDGET: u32 = 500;
+pub const MEMORY_PACK_SCHEMA_VERSION: &str = "hsk.memory_pack@0.1";
 
 /// Read timeout for a single capsule fetch. A bounded timeout so a hung backend cannot stall the editor
 /// frame loop (the fetch runs off the render path on the shared async runtime).
@@ -93,6 +99,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 /// header is the least-privileged read-only actor server-side (the same least-privilege default the
 /// knowledge-documents read path uses), so no write-capable actor-kind is ever attached on this path.
 const FEMS_READ_ACTOR_ID: &str = "native-editor-fems-reader";
+const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // The Pillar 12 MemoryPack model (provenance-first, 3 kinds, <=24 items, <=500 token advisory).
@@ -313,16 +320,23 @@ fn resolve_source_from_refs(refs: &[RawSourceRef]) -> MemorySource {
     MemorySource::default()
 }
 
-/// The deserialized retrieval capsule. This decodes the REAL backend `ace::MemoryPack` JSON: only the
-/// fields the editors surface (`items`, `token_estimate`) are modeled; the other backend pack-level
-/// fields (`schema_version`/`pack_id`/`generated_at`/`determinism_mode`/`memory_policy`/`scope_refs`/
-/// `budgets`/`memory_pack_hash`/`warnings`) are IGNORED by serde (the client does not deny unknown
-/// fields). `token_estimate` is ADVISORY metadata surfaced by the client (never recomputed); `truncated`
+/// The deserialized retrieval capsule. This decodes the REAL backend `ace::MemoryPack` JSON. The client
+/// retains and validates `schema_version`, `pack_id`, and `memory_pack_hash` before tolerant item decode;
+/// presentation-irrelevant fields (`generated_at`/`determinism_mode`/`memory_policy`/`scope_refs`/
+/// `budgets`/`warnings`) remain ignored. `token_estimate` is ADVISORY metadata surfaced by the client
+/// (never recomputed); `truncated`
 /// is `true` if the client clamped the item list to [`MEMORY_PACK_MAX_ITEMS`] after decode (or if the
 /// server already marked it truncated). `truncated`/`context_key` are client-only bookkeeping the
 /// backend pack does not carry (they default).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct MemoryPack {
+    /// Canonical FEMS pack schema. Live HTTP responses must equal
+    /// [`MEMORY_PACK_SCHEMA_VERSION`]; legacy direct fixtures may omit it.
+    #[serde(default)]
+    pub schema_version: String,
+    /// Stable authoritative pack identity. Live HTTP responses must provide a non-empty id.
+    #[serde(default)]
+    pub pack_id: String,
     /// The capsule items (already clamped to <=24 by [`MemoryClient::fetch_pack`]). Decoded via
     /// [`deserialize_tolerant_items`]: an item whose `memory_class` is outside the three rendered kinds
     /// (an unknown/future class such as the backend builder's `"working"`) is SKIPPED with a logged
@@ -341,16 +355,22 @@ pub struct MemoryPack {
     /// can be detected). Defaults to empty if the server omits it.
     #[serde(default)]
     pub context_key: String,
+    /// SHA-256 of the complete canonical backend envelope with this field replaced by JSON null.
+    #[serde(default)]
+    pub memory_pack_hash: String,
 }
 
 impl MemoryPack {
     /// An empty pack (no items), used for the neutral "no relevant memory" render state.
     pub fn empty(context_key: impl Into<String>) -> Self {
         Self {
+            schema_version: String::new(),
+            pack_id: String::new(),
             items: Vec::new(),
             token_estimate: None,
             truncated: false,
             context_key: context_key.into(),
+            memory_pack_hash: String::new(),
         }
     }
 
@@ -559,6 +579,7 @@ pub struct MemoryClient {
     client: reqwest::Client,
     base_url: String,
     session_run_id: String,
+    session_token: Option<String>,
 }
 
 impl Default for MemoryClient {
@@ -583,6 +604,7 @@ impl MemoryClient {
             client: reqwest::Client::new(),
             base_url: base_url.into(),
             session_run_id: "native-editor-session".to_owned(),
+            session_token: None,
         }
     }
 
@@ -593,6 +615,7 @@ impl MemoryClient {
             client,
             base_url: base_url.into(),
             session_run_id: "native-editor-session".to_owned(),
+            session_token: None,
         }
     }
 
@@ -600,6 +623,13 @@ impl MemoryClient {
     /// attributable). Returns `self` for builder-style chaining.
     pub fn with_session_run_id(mut self, session_run_id: impl Into<String>) -> Self {
         self.session_run_id = session_run_id.into();
+        self
+    }
+
+    /// Bind requests to the live native MCP session. Production callers must set this; tests may
+    /// leave it absent when the mock transport intentionally does not enforce authentication.
+    pub fn with_session_token(mut self, session_token: impl Into<String>) -> Self {
+        self.session_token = Some(session_token.into());
         self
     }
 
@@ -617,11 +647,10 @@ impl MemoryClient {
     /// single GET and never a write verb (RISK-008/MC-007, AC-006).
     ///
     /// Behavior contract:
-    /// - A 404 maps to [`MemoryClientError::EndpointMissing`] — the TYPED BLOCKER, never a panic or silent
-    ///   no-op (RISK-001, RISK-005/MC-002, AC-005). This is a GENUINE FALLBACK, not the primary path: the
-    ///   shipped MT-109 route normally returns a 200 pack (a populated pack, or a well-formed EMPTY pack
-    ///   when none is stored yet), so a 404 means the route is genuinely unreachable (an unrouted build, a
-    ///   mis-configured base URL, or a workspace the route rejects).
+    /// - An unstructured 404 maps to [`MemoryClientError::EndpointMissing`] — the TYPED BLOCKER, never a
+    ///   panic or silent no-op (RISK-001, RISK-005/MC-002, AC-005). A structured backend
+    ///   `{"error":"not_found"}` 404 remains [`MemoryClientError::Http`] so an unknown/deleted workspace
+    ///   is never confused with an unrouted product feature.
     /// - A success body is decoded into a [`MemoryPack`], then the item list is DEFENSIVELY CLAMPED to
     ///   [`MEMORY_PACK_MAX_ITEMS`] regardless of what the server returned (truncate + `truncated=true` +
     ///   a logged warning — RISK-002/MC-001, AC-002).
@@ -634,7 +663,7 @@ impl MemoryClient {
     ) -> MemoryResult<MemoryPack> {
         let path = Self::pack_path(workspace_id);
         let url = self.url(&path);
-        let builder = self
+        let mut builder = self
             .client
             .get(&url)
             .query(&context.query_pairs())
@@ -647,6 +676,9 @@ impl MemoryClient {
                 format!("native-editor-fems-{workspace_id}"),
             )
             .header(HSK_HEADER_SESSION_RUN_ID, &self.session_run_id);
+        if let Some(session_token) = &self.session_token {
+            builder = builder.header(HSK_HEADER_SESSION_TOKEN, session_token);
+        }
 
         let resp = builder
             .send()
@@ -654,23 +686,34 @@ impl MemoryClient {
             .map_err(|e| MemoryClientError::Transport(e.to_string()))?;
         let status = resp.status();
 
-        // The TYPED BLOCKER fallback: the shipped MT-109 route normally returns 200 (a populated OR a
-        // well-formed empty pack), so a 404 means the FEMS read route is genuinely unreachable in this
-        // build (unrouted, a bad base URL, or a workspace the route rejects). Surface it as the typed
-        // blocker — never panic, never silently no-op.
-        if status == reqwest::StatusCode::NOT_FOUND {
-            return Err(MemoryClientError::EndpointMissing { probed_path: path });
-        }
-
         if !status.is_success() {
             let code = status.as_u16();
             let body = resp.text().await.unwrap_or_default();
+            if status == reqwest::StatusCode::NOT_FOUND {
+                let canonical_resource_missing = serde_json::from_str::<JsonValue>(&body)
+                    .ok()
+                    .and_then(|value| {
+                        value
+                            .get("error")
+                            .and_then(JsonValue::as_str)
+                            .map(str::to_owned)
+                    })
+                    .is_some_and(|error| error == "not_found");
+                if !canonical_resource_missing {
+                    return Err(MemoryClientError::EndpointMissing { probed_path: path });
+                }
+            }
             return Err(MemoryClientError::Http { status: code, body });
         }
 
-        let mut pack = resp
-            .json::<MemoryPack>()
+        let body = resp
+            .bytes()
             .await
+            .map_err(|e| MemoryClientError::Transport(e.to_string()))?;
+        let envelope: JsonValue =
+            serde_json::from_slice(&body).map_err(|e| MemoryClientError::Decode(e.to_string()))?;
+        validate_authoritative_memory_pack(&envelope)?;
+        let mut pack: MemoryPack = serde_json::from_value(envelope)
             .map_err(|e| MemoryClientError::Decode(e.to_string()))?;
 
         // DEFENSIVE CLAMP (RISK-002/MC-001, AC-002): enforce the <=24 cap client-side regardless of
@@ -678,6 +721,151 @@ impl MemoryClient {
         clamp_pack_items(&mut pack);
         Ok(pack)
     }
+}
+
+fn validate_authoritative_memory_pack(envelope: &JsonValue) -> MemoryResult<()> {
+    let object = envelope
+        .as_object()
+        .ok_or_else(|| MemoryClientError::Decode("MemoryPack envelope must be an object".into()))?;
+    let schema_version = object
+        .get("schema_version")
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| MemoryClientError::Decode("MemoryPack schema_version is required".into()))?;
+    if schema_version != MEMORY_PACK_SCHEMA_VERSION {
+        return Err(MemoryClientError::Decode(format!(
+            "unsupported MemoryPack schema_version {schema_version:?}; expected {MEMORY_PACK_SCHEMA_VERSION}"
+        )));
+    }
+    let pack_id = object
+        .get("pack_id")
+        .and_then(JsonValue::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty() && value.len() <= 256)
+        .ok_or_else(|| MemoryClientError::Decode("MemoryPack pack_id is required".into()))?;
+    if !pack_id
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | ':' | '.'))
+    {
+        return Err(MemoryClientError::Decode(
+            "MemoryPack pack_id contains unsafe characters".into(),
+        ));
+    }
+    let stored_hash = object
+        .get("memory_pack_hash")
+        .and_then(JsonValue::as_str)
+        .filter(|value| {
+            value.len() == 64
+                && value
+                    .chars()
+                    .all(|ch| ch.is_ascii_digit() || ('a'..='f').contains(&ch))
+        })
+        .ok_or_else(|| {
+            MemoryClientError::Decode(
+                "MemoryPack memory_pack_hash must be lowercase SHA-256".into(),
+            )
+        })?;
+    let computed_hash = compute_memory_pack_hash(envelope)?;
+    if computed_hash != stored_hash {
+        return Err(MemoryClientError::Decode(format!(
+            "MemoryPack memory_pack_hash mismatch for pack_id {pack_id}"
+        )));
+    }
+    Ok(())
+}
+
+/// Compute the canonical backend-compatible MemoryPack hash. The hash field itself is replaced by
+/// JSON null, matching `handshake_core::ace::MemoryPack::compute_hash` exactly.
+pub fn compute_memory_pack_hash(envelope: &JsonValue) -> MemoryResult<String> {
+    let mut hash_envelope = envelope.clone();
+    hash_envelope
+        .as_object_mut()
+        .ok_or_else(|| MemoryClientError::Decode("MemoryPack envelope must be an object".into()))?
+        .insert("memory_pack_hash".into(), JsonValue::Null);
+    Ok(sha256_hex(&canonical_json_bytes_nfc(&hash_envelope)))
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn canonical_json_bytes_nfc(value: &JsonValue) -> Vec<u8> {
+    fn write_string(out: &mut String, value: &str) {
+        out.push('"');
+        for ch in value.nfc() {
+            match ch {
+                '"' => out.push_str("\\\""),
+                '\\' => out.push_str("\\\\"),
+                '\u{08}' => out.push_str("\\b"),
+                '\u{0c}' => out.push_str("\\f"),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                ch if (ch as u32) < 0x20 => out.push_str(&format!("\\u{:04X}", ch as u32)),
+                ch if (ch as u32) <= 0x7f => out.push(ch),
+                ch if (ch as u32) <= 0xffff => out.push_str(&format!("\\u{:04X}", ch as u32)),
+                ch => {
+                    let code = (ch as u32) - 0x1_0000;
+                    out.push_str(&format!(
+                        "\\u{:04X}\\u{:04X}",
+                        0xd800 + ((code >> 10) & 0x3ff),
+                        0xdc00 + (code & 0x3ff)
+                    ));
+                }
+            }
+        }
+        out.push('"');
+    }
+    fn write_value(out: &mut String, value: &JsonValue) {
+        match value {
+            JsonValue::Null => out.push_str("null"),
+            JsonValue::Bool(value) => out.push_str(if *value { "true" } else { "false" }),
+            JsonValue::Number(number) => {
+                if let Some(value) = number.as_i64() {
+                    out.push_str(&value.to_string());
+                } else if let Some(value) = number.as_u64() {
+                    out.push_str(&value.to_string());
+                } else if let Some(value) = number.as_f64() {
+                    out.push_str(&format!("{:.6}", if value == 0.0 { 0.0 } else { value }));
+                } else {
+                    out.push_str(&number.to_string());
+                }
+            }
+            JsonValue::String(value) => write_string(out, value),
+            JsonValue::Array(values) => {
+                out.push('[');
+                for (index, value) in values.iter().enumerate() {
+                    if index > 0 {
+                        out.push(',');
+                    }
+                    write_value(out, value);
+                }
+                out.push(']');
+            }
+            JsonValue::Object(map) => {
+                out.push('{');
+                let mut keys = map
+                    .keys()
+                    .map(|key| (key, key.nfc().collect::<String>()))
+                    .collect::<Vec<_>>();
+                keys.sort_by(|(a_raw, a_norm), (b_raw, b_norm)| {
+                    a_norm.cmp(b_norm).then_with(|| a_raw.cmp(b_raw))
+                });
+                for (index, (key, _)) in keys.iter().enumerate() {
+                    if index > 0 {
+                        out.push(',');
+                    }
+                    write_string(out, key);
+                    out.push(':');
+                    write_value(out, &map[*key]);
+                }
+                out.push('}');
+            }
+        }
+    }
+    let mut out = String::new();
+    write_value(&mut out, value);
+    out.into_bytes()
 }
 
 /// Defensively clamp a decoded [`MemoryPack`] to [`MEMORY_PACK_MAX_ITEMS`] items (RISK-002/MC-001,
@@ -711,6 +899,59 @@ mod tests {
 
     use super::*;
     use serde_json::json;
+
+    fn authoritative_envelope(items: JsonValue, pack_id: &str) -> JsonValue {
+        let mut value = json!({
+            "schema_version": MEMORY_PACK_SCHEMA_VERSION,
+            "pack_id": pack_id,
+            "items": items,
+            "token_estimate": 0,
+            "memory_pack_hash": null
+        });
+        let hash = compute_memory_pack_hash(&value).expect("canonical pack hash");
+        value
+            .as_object_mut()
+            .expect("pack object")
+            .insert("memory_pack_hash".into(), json!(hash));
+        value
+    }
+
+    #[test]
+    fn authoritative_empty_and_full_pack_envelopes_validate() {
+        let empty = authoritative_envelope(json!([]), "PACK-empty");
+        validate_authoritative_memory_pack(&empty).expect("empty pack envelope is authoritative");
+
+        let full = authoritative_envelope(
+            json!([{
+                "memory_id": "MEM-1",
+                "memory_class": "semantic",
+                "summary": "fact",
+                "source_refs": []
+            }]),
+            "PACK-full",
+        );
+        validate_authoritative_memory_pack(&full).expect("full pack envelope is authoritative");
+    }
+
+    #[test]
+    fn authoritative_pack_rejects_schema_identity_and_hash_tampering() {
+        let valid = authoritative_envelope(json!([]), "PACK-valid");
+        for field in ["schema_version", "pack_id", "memory_pack_hash"] {
+            let mut changed = valid.clone();
+            changed.as_object_mut().expect("pack object").insert(
+                field.into(),
+                match field {
+                    "schema_version" => json!("fems.memory_pack@0.1"),
+                    "pack_id" => json!(""),
+                    _ => json!("0".repeat(64)),
+                },
+            );
+            assert!(
+                validate_authoritative_memory_pack(&changed).is_err(),
+                "tampered {field} must fail closed"
+            );
+        }
+    }
 
     /// AC-001: a fixture with one episodic, one semantic, one procedural item decodes into the typed
     /// MemoryKind enum.

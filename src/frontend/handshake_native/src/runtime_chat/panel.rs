@@ -1,10 +1,11 @@
+use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
 
 use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
-use crate::theme::{HsPalette, HsTheme};
+use crate::theme::HsPalette;
 
 /// Stable AccessKit author_id for the Runtime Chat pane container.
 pub const RUNTIME_CHAT_PANEL_AUTHOR_ID: &str = "runtime-chat-panel";
@@ -14,10 +15,38 @@ pub const RUNTIME_CHAT_INPUT_AUTHOR_ID: &str = "runtime-chat-input";
 pub const RUNTIME_CHAT_STATUS_AUTHOR_ID: &str = "runtime-chat-status";
 /// Stable AccessKit author_id for the Runtime Chat send button.
 pub const RUNTIME_CHAT_SEND_AUTHOR_ID: &str = "runtime-chat-send";
+/// Stable author_id for one transcript role label.
+pub fn runtime_chat_turn_role_author_id(index: usize) -> String {
+    format!("runtime-chat-turn-{index}-role")
+}
+/// Stable author_id for one transcript body label.
+pub fn runtime_chat_turn_body_author_id(index: usize) -> String {
+    format!("runtime-chat-turn-{index}-body")
+}
 
-const PRODUCTION_CHAT_ENDPOINT: &str = "/api/runtime_chat/messages";
+/// MT-098 names `POST /chat` as the planned native backend bridge. handshake_core currently has no
+/// matching router entry, so a real request to this path receives the router's 404 fallback.
+const PRODUCTION_CHAT_ENDPOINT: &str = "/chat";
+/// Deliberately unsupported method used to ask the composed HTTP router whether `/chat` is registered.
+/// Axum returns 404 when the path is absent and 405 when a path-specific method router exists. Using a
+/// method capability signal keeps a real POST handler's own bare 404 distinct from router absence.
+const ROUTE_CAPABILITY_METHOD: &[u8] = b"HSK-CAPABILITY";
 const ENDPOINT_MISSING_SUMMARY: &str =
     "Runtime Chat endpoint missing. No assistant reply was generated.";
+
+type RuntimeChatDeliveryCell = Arc<Mutex<VecDeque<RuntimeChatDelivery>>>;
+
+#[derive(Debug)]
+struct RuntimeChatDelivery {
+    generation: u64,
+    result: Result<(), ChatSendError>,
+}
+
+#[derive(Debug)]
+struct ActiveRuntimeChatSend {
+    generation: u64,
+    task: tokio::task::JoinHandle<()>,
+}
 
 /// Role of a chat transcript turn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,8 +68,18 @@ pub struct ChatTurn {
 pub enum ChatSendError {
     /// The caller attempted to send an empty/whitespace-only draft.
     EmptyMessage,
+    /// A send is already active. Runtime Chat permits exactly one request at a time so a stale or
+    /// reordered completion cannot clear or overwrite the current request's visible state.
+    AlreadyInFlight { generation: u64 },
     /// The frontend inspected the native backend surface and there is no HTTP chat route to call.
     EndpointMissing { probed_path: String },
+    /// The local backend could not be reached or did not complete the bounded request.
+    Transport { probed_path: String, detail: String },
+    /// The path exists or a non-fallback response was returned, but it rejected the probe.
+    HttpStatus { probed_path: String, status: u16 },
+    /// A success status cannot be treated as a chat round-trip until handshake_core defines a response
+    /// contract. This prevents an unrelated catch-all route from fabricating assistant success.
+    ResponseContractMissing { probed_path: String, status: u16 },
 }
 
 impl ChatSendError {
@@ -58,10 +97,17 @@ impl ChatSendError {
         matches!(self, Self::EmptyMessage)
     }
 
+    pub fn is_already_in_flight(&self) -> bool {
+        matches!(self, Self::AlreadyInFlight { .. })
+    }
+
     pub fn probed_path(&self) -> Option<&str> {
         match self {
-            Self::EmptyMessage => None,
-            Self::EndpointMissing { probed_path } => Some(probed_path),
+            Self::EmptyMessage | Self::AlreadyInFlight { .. } => None,
+            Self::EndpointMissing { probed_path }
+            | Self::Transport { probed_path, .. }
+            | Self::HttpStatus { probed_path, .. }
+            | Self::ResponseContractMissing { probed_path, .. } => Some(probed_path),
         }
     }
 }
@@ -70,51 +116,157 @@ impl fmt::Display for ChatSendError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EmptyMessage => write!(f, "EmptyMessage: Runtime Chat draft is empty"),
+            Self::AlreadyInFlight { generation } => {
+                write!(
+                    f,
+                    "AlreadyInFlight: Runtime Chat send {generation} is still active"
+                )
+            }
             Self::EndpointMissing { probed_path } => {
                 write!(f, "EndpointMissing: {probed_path}")
             }
+            Self::Transport {
+                probed_path,
+                detail,
+            } => write!(f, "Transport: POST {probed_path}: {detail}"),
+            Self::HttpStatus {
+                probed_path,
+                status,
+            } => write!(f, "HttpStatus: POST {probed_path} returned {status}"),
+            Self::ResponseContractMissing {
+                probed_path,
+                status,
+            } => write!(
+                f,
+                "ResponseContractMissing: POST {probed_path} returned {status}"
+            ),
         }
     }
 }
 
 /// Production client for Runtime Chat.
 ///
-/// It intentionally does not target `/api/flight_recorder/runtime_chat_event`: that route records
-/// observability events and is not an assistant chat send/receive route.
+/// It intentionally does not target Flight Recorder runtime-chat event ingestion: observability is not
+/// an assistant chat send/receive route. `send` performs a real, bounded POST off the UI thread. The
+/// current handshake_core router has no `/chat` entry, so its real 404 becomes `EndpointMissing`.
 #[derive(Debug, Clone)]
 pub struct RuntimeChatClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
     probed_path: String,
 }
 
 impl RuntimeChatClient {
-    pub fn production() -> Self {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
+            client: crate::backend_client::shared_http_client(),
+            base_url: base_url.into().trim_end_matches('/').to_owned(),
+            runtime,
             probed_path: PRODUCTION_CHAT_ENDPOINT.to_owned(),
         }
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(crate::backend_client::BACKEND_BASE_URL, runtime)
     }
 
     pub fn probed_path(&self) -> &str {
         &self.probed_path
     }
 
-    pub fn send(&self, message: &str) -> Result<(), ChatSendError> {
+    fn endpoint_url(&self) -> String {
+        format!("{}{}", self.base_url, self.probed_path)
+    }
+
+    /// Dispatch the real local transport probe. The payload uses `prompt`, the authoritative legacy
+    /// `kernel_swarm_chat_generate(instance_id, prompt)` message field, but does not claim that the
+    /// absent HTTP route has a response schema. Completion is delivered to the panel's frame-drained
+    /// queue so the egui thread never blocks on network I/O.
+    fn send(
+        &self,
+        message: &str,
+        generation: u64,
+        delivery: RuntimeChatDeliveryCell,
+        repaint: Option<egui::Context>,
+    ) -> Result<tokio::task::JoinHandle<()>, ChatSendError> {
         if message.trim().is_empty() {
             return Err(ChatSendError::EmptyMessage);
         }
-        Err(ChatSendError::EndpointMissing {
-            probed_path: self.probed_path.clone(),
-        })
+
+        let client = self.client.clone();
+        let url = self.endpoint_url();
+        let probed_path = self.probed_path.clone();
+        let prompt = message.to_owned();
+        let task = self.runtime.spawn(async move {
+            let result = match client
+                .post(&url)
+                .json(&serde_json::json!({ "prompt": prompt }))
+                .send()
+                .await
+            {
+                Err(error) => Err(ChatSendError::Transport {
+                    probed_path: probed_path.clone(),
+                    detail: error.to_string(),
+                }),
+                Ok(response) if response.status() == reqwest::StatusCode::NOT_FOUND => {
+                    // A bare route-handler 404 is byte-for-byte indistinguishable from Axum's
+                    // unmatched-route response. Ask the composed router with a deliberately unsupported
+                    // method instead: absent paths remain 404, while a registered POST method router
+                    // answers 405. Any non-404 probe is conservatively treated as route-present so
+                    // Runtime Chat never claims EndpointMissing without an explicit router signal.
+                    let capability_method = reqwest::Method::from_bytes(ROUTE_CAPABILITY_METHOD)
+                        .expect("static Runtime Chat capability method is valid HTTP");
+                    match client.request(capability_method, &url).send().await {
+                        Ok(capability) if capability.status() == reqwest::StatusCode::NOT_FOUND => {
+                            Err(ChatSendError::EndpointMissing {
+                                probed_path: probed_path.clone(),
+                            })
+                        }
+                        Ok(_) => Err(ChatSendError::HttpStatus {
+                            probed_path: probed_path.clone(),
+                            status: reqwest::StatusCode::NOT_FOUND.as_u16(),
+                        }),
+                        Err(error) => Err(ChatSendError::Transport {
+                            probed_path: probed_path.clone(),
+                            detail: format!("route capability probe failed: {error}"),
+                        }),
+                    }
+                }
+                Ok(response) if response.status().is_success() => {
+                    Err(ChatSendError::ResponseContractMissing {
+                        probed_path: probed_path.clone(),
+                        status: response.status().as_u16(),
+                    })
+                }
+                Ok(response) => Err(ChatSendError::HttpStatus {
+                    probed_path: probed_path.clone(),
+                    status: response.status().as_u16(),
+                }),
+            };
+            delivery
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .push_back(RuntimeChatDelivery { generation, result });
+            if let Some(ctx) = repaint {
+                ctx.request_repaint();
+            }
+        });
+        Ok(task)
     }
 }
 
 /// The live Runtime Chat pane state.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RuntimeChatPanel {
     client: RuntimeChatClient,
     palette: HsPalette,
     draft: String,
     turns: Vec<ChatTurn>,
     last_error: Option<ChatSendError>,
+    deliveries: RuntimeChatDeliveryCell,
+    next_send_generation: u64,
+    active_send: Option<ActiveRuntimeChatSend>,
 }
 
 impl RuntimeChatPanel {
@@ -128,15 +280,26 @@ impl RuntimeChatPanel {
                 body: "Chat backend route is not available in this build.".to_owned(),
             }],
             last_error: None,
+            deliveries: Arc::new(Mutex::new(VecDeque::new())),
+            next_send_generation: 0,
+            active_send: None,
         }
     }
 
-    pub fn production(palette: HsPalette) -> Self {
-        Self::new(RuntimeChatClient::production(), palette)
+    pub fn production(palette: HsPalette, runtime: tokio::runtime::Handle) -> Self {
+        Self::new(RuntimeChatClient::production(runtime), palette)
     }
 
     pub fn set_palette(&mut self, palette: HsPalette) {
         self.palette = palette;
+    }
+
+    /// Replace the transport while preserving the mounted panel/factory identity. Used by the live app
+    /// test seam and by future explicit backend-base reconfiguration.
+    pub fn rebind_client(&mut self, client: RuntimeChatClient) {
+        self.cancel_active_send();
+        self.client = client;
+        self.last_error = None;
     }
 
     pub fn set_draft_for_test(&mut self, draft: impl Into<String>) {
@@ -152,24 +315,92 @@ impl RuntimeChatPanel {
     }
 
     pub fn send_current_message_for_test(&mut self) -> Result<(), ChatSendError> {
-        self.send_current_message()
+        self.send_current_message(None)
     }
 
-    fn send_current_message(&mut self) -> Result<(), ChatSendError> {
+    pub fn drain_deliveries_for_test(&mut self) {
+        self.drain_deliveries();
+    }
+
+    pub fn send_in_flight_for_test(&self) -> bool {
+        self.active_send.is_some()
+    }
+
+    pub fn active_send_generation_for_test(&self) -> Option<u64> {
+        self.active_send.as_ref().map(|active| active.generation)
+    }
+
+    pub fn inject_delivery_for_test(&mut self, generation: u64, result: Result<(), ChatSendError>) {
+        self.deliveries
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .push_back(RuntimeChatDelivery { generation, result });
+    }
+
+    fn cancel_active_send(&mut self) {
+        if let Some(active) = self.active_send.take() {
+            active.task.abort();
+        }
+        self.deliveries
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clear();
+    }
+
+    fn drain_deliveries(&mut self) {
+        loop {
+            let delivered = self
+                .deliveries
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .pop_front();
+            let Some(delivered) = delivered else {
+                return;
+            };
+            let Some(active_generation) = self.active_send.as_ref().map(|active| active.generation)
+            else {
+                continue;
+            };
+            if delivered.generation != active_generation {
+                continue;
+            }
+            self.active_send.take();
+            match delivered.result {
+                Ok(()) => self.last_error = None,
+                Err(error) => self.last_error = Some(error),
+            }
+        }
+    }
+
+    fn send_current_message(
+        &mut self,
+        repaint: Option<egui::Context>,
+    ) -> Result<(), ChatSendError> {
+        if let Some(active) = &self.active_send {
+            return Err(ChatSendError::AlreadyInFlight {
+                generation: active.generation,
+            });
+        }
         let message = self.draft.trim();
         if message.is_empty() {
             let err = ChatSendError::EmptyMessage;
             self.last_error = Some(err.clone());
             return Err(err);
         }
-        match self.client.send(message) {
-            Ok(()) => {
+        self.next_send_generation = self.next_send_generation.wrapping_add(1).max(1);
+        let generation = self.next_send_generation;
+        match self
+            .client
+            .send(message, generation, Arc::clone(&self.deliveries), repaint)
+        {
+            Ok(task) => {
                 self.turns.push(ChatTurn {
                     role: ChatRole::User,
                     body: message.to_owned(),
                 });
                 self.draft.clear();
                 self.last_error = None;
+                self.active_send = Some(ActiveRuntimeChatSend { generation, task });
                 Ok(())
             }
             Err(err) => {
@@ -180,15 +411,40 @@ impl RuntimeChatPanel {
     }
 
     fn endpoint_status_text(&self) -> String {
-        format!(
-            "EndpointMissing: {}; {ENDPOINT_MISSING_SUMMARY}",
-            self.client.probed_path()
-        )
+        if self.active_send.is_some() {
+            return format!(
+                "Probing POST {} through the local handshake_core transport...",
+                self.client.probed_path()
+            );
+        }
+        match &self.last_error {
+            Some(ChatSendError::EndpointMissing { .. }) | None => format!(
+                "EndpointMissing: {}; {ENDPOINT_MISSING_SUMMARY}",
+                self.client.probed_path()
+            ),
+            Some(error) => format!("{error}. No assistant reply was generated."),
+        }
+    }
+
+    fn endpoint_state_label(&self) -> &'static str {
+        if self.active_send.is_some() {
+            return "Probing";
+        }
+        match self.last_error.as_ref() {
+            None | Some(ChatSendError::EndpointMissing { .. }) => "EndpointMissing",
+            Some(ChatSendError::EmptyMessage) => "InputRequired",
+            Some(ChatSendError::AlreadyInFlight { .. }) => "Probing",
+            Some(ChatSendError::Transport { .. }) => "TransportError",
+            Some(ChatSendError::HttpStatus { .. }) => "BackendRejected",
+            Some(ChatSendError::ResponseContractMissing { .. }) => "ContractMissing",
+        }
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui) {
+        self.drain_deliveries();
         let palette = self.palette.clone();
         let endpoint_status = self.endpoint_status_text();
+        let endpoint_state = self.endpoint_state_label();
         let region = egui::Frame::new()
             .fill(palette.surface)
             .stroke(egui::Stroke::new(1.0, palette.border))
@@ -200,7 +456,7 @@ impl RuntimeChatPanel {
                         ui.heading(egui::RichText::new("Runtime Chat").color(palette.text));
                         ui.add_space(6.0);
                         ui.label(
-                            egui::RichText::new("EndpointMissing")
+                            egui::RichText::new(endpoint_state)
                                 .color(palette.error_text)
                                 .background_color(palette.error_bg),
                         );
@@ -233,13 +489,31 @@ impl RuntimeChatPanel {
                             })
                             .inner;
                         ui.ctx().accesskit_node_builder(input.id, |node| {
+                            node.set_role(accesskit::Role::TextInput);
                             node.set_author_id(RUNTIME_CHAT_INPUT_AUTHOR_ID.to_owned());
                             node.set_label("Runtime Chat message".to_owned());
+                            node.set_value(self.draft.clone());
+                            node.add_action(accesskit::Action::Focus);
+                            node.add_action(accesskit::Action::SetValue);
                         });
+                        let mut native_value = None;
+                        ui.input(|state| {
+                            for request in state
+                                .accesskit_action_requests(input.id, accesskit::Action::SetValue)
+                            {
+                                if let Some(accesskit::ActionData::Value(value)) = &request.data {
+                                    native_value = Some(value.to_string());
+                                }
+                            }
+                        });
+                        if let Some(value) = native_value {
+                            self.draft = value;
+                            ui.ctx().request_repaint();
+                        }
                         let send = ui.add_enabled(
-                            draft_ready,
+                            draft_ready && self.active_send.is_none(),
                             egui::Button::new(egui::RichText::new("Send").color(palette.text))
-                                .fill(if draft_ready {
+                                .fill(if draft_ready && self.active_send.is_none() {
                                     palette.accent_soft
                                 } else {
                                     palette.surface
@@ -250,25 +524,34 @@ impl RuntimeChatPanel {
                             node.set_author_id(RUNTIME_CHAT_SEND_AUTHOR_ID.to_owned());
                             node.set_label("Send Runtime Chat message".to_owned());
                         });
-                        if send.clicked() && draft_ready {
-                            let _ = self.send_current_message();
+                        if send.clicked() && draft_ready && self.active_send.is_none() {
+                            let _ = self.send_current_message(Some(ui.ctx().clone()));
                         }
                     });
                     ui.add_space(8.0);
 
-                    for turn in &self.turns {
+                    for (index, turn) in self.turns.iter().enumerate() {
                         let label = match turn.role {
                             ChatRole::User => "You",
                             ChatRole::Assistant => "Assistant",
                             ChatRole::System => "System",
                         };
                         ui.horizontal_wrapped(|ui| {
-                            ui.label(
+                            let role = ui.label(
                                 egui::RichText::new(format!("{label}:"))
                                     .strong()
                                     .color(palette.text),
                             );
-                            ui.label(egui::RichText::new(&turn.body).color(palette.text));
+                            ui.ctx().accesskit_node_builder(role.id, |node| {
+                                node.set_author_id(runtime_chat_turn_role_author_id(index));
+                                node.set_label(format!("{label}:"));
+                            });
+                            let body =
+                                ui.label(egui::RichText::new(&turn.body).color(palette.text));
+                            ui.ctx().accesskit_node_builder(body.id, |node| {
+                                node.set_author_id(runtime_chat_turn_body_author_id(index));
+                                node.set_label(turn.body.clone());
+                            });
                         });
                     }
                     if let Some(err) = &self.last_error {
@@ -292,9 +575,9 @@ impl RuntimeChatPanel {
     }
 }
 
-impl Default for RuntimeChatPanel {
-    fn default() -> Self {
-        Self::production(HsTheme::Dark.palette())
+impl Drop for RuntimeChatPanel {
+    fn drop(&mut self) {
+        self.cancel_active_send();
     }
 }
 

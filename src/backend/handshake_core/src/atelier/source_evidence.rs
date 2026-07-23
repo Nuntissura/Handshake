@@ -547,7 +547,7 @@ pub fn pose_media_anchor_verification_matrix(
                 maturity_status: SourceMaturityStatus::Done,
                 implementation_status: "verified_product_path".to_string(),
                 evidence_refs: vec![
-                    "src/backend/handshake_core/src/atelier/command_corpus.rs".to_string(),
+                    "src/backend/handshake_core/src/atelier/command_corpus.rs".to_string()
                 ],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_command_corpus_tests.rs".to_string(),
@@ -561,9 +561,7 @@ pub fn pose_media_anchor_verification_matrix(
                 product_area: "atelier.comfy".to_string(),
                 maturity_status: SourceMaturityStatus::Done,
                 implementation_status: "verified_product_path".to_string(),
-                evidence_refs: vec![
-                    "src/backend/handshake_core/src/atelier/comfy.rs".to_string()
-                ],
+                evidence_refs: vec!["src/backend/handshake_core/src/atelier/comfy.rs".to_string()],
                 proof_refs: vec![
                     "src/backend/handshake_core/tests/atelier_comfy_tests.rs".to_string()
                 ],
@@ -649,8 +647,7 @@ pub fn pose_media_anchor_verification_matrix(
             NewAnchorVerificationRecord {
                 anchor_id: "ANCHOR-MT-082-external-tools".to_string(),
                 source_id: "MT-082.external-tools-anchor".to_string(),
-                anchor_label: "External tools (ComfyUI) governed intake product module"
-                    .to_string(),
+                anchor_label: "External tools (ComfyUI) governed intake product module".to_string(),
                 expected_product_path: "src/backend/handshake_core/src/atelier/comfy.rs"
                     .to_string(),
                 verification_status: AnchorVerificationStatus::Verified,

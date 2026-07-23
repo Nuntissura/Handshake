@@ -1326,10 +1326,7 @@ impl AtelierStore {
     /// and never echoed into the emitted event. Upsert key is `config_id`, so
     /// re-recording the same id refreshes the config. Emits
     /// `MODEL_CONFIG_RECORDED`.
-    pub async fn record_model_config(
-        &self,
-        new: &NewModelConfig,
-    ) -> AtelierResult<ModelConfig> {
+    pub async fn record_model_config(&self, new: &NewModelConfig) -> AtelierResult<ModelConfig> {
         let api_key_ref = validate_new_model_config(new)?;
 
         let row = sqlx::query(
@@ -1376,10 +1373,7 @@ impl AtelierStore {
     }
 
     /// Fetch a model config by id.
-    pub async fn get_model_config(
-        &self,
-        config_id: &str,
-    ) -> AtelierResult<Option<ModelConfig>> {
+    pub async fn get_model_config(&self, config_id: &str) -> AtelierResult<Option<ModelConfig>> {
         let row = sqlx::query(
             r#"SELECT config_id, base_url, model, api_key_ref, system_prompt,
                       timeout_ms, created_at_utc
@@ -1507,10 +1501,7 @@ impl AtelierStore {
     }
 
     /// Fetch a model apply record by id.
-    pub async fn get_model_apply(
-        &self,
-        apply_id: &str,
-    ) -> AtelierResult<Option<ModelApply>> {
+    pub async fn get_model_apply(&self, apply_id: &str) -> AtelierResult<Option<ModelApply>> {
         let row = sqlx::query(
             r#"SELECT apply_id, suggestion_ref, state, evidence_ref,
                       created_at_utc, updated_at_utc

@@ -33,7 +33,9 @@
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::file_meta::{Encoding, Eol, IndentKind, IndentStyle};
 use handshake_native::code_editor::language_mode::{DetectionSource, LanguageId};

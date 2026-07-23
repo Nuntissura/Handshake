@@ -116,13 +116,40 @@ pub fn render_slash_menu(
     caret_pixel: Option<egui::Pos2>,
 ) -> SlashMenuOutcome {
     let filtered = filter_slash_commands(&state.filter);
-    let anchor = caret_pixel.unwrap_or_else(|| ui.max_rect().left_bottom());
+    let fallback = ui.max_rect().left_top() + egui::vec2(0.0, ui.spacing().interact_size.y);
+    let anchor = caret_pixel.unwrap_or(fallback);
+    let content_rect = ui.ctx().content_rect();
+    let visible_rows = filtered.len().min(SLASH_MENU_MAX_VISIBLE) as f32;
+    let category_headers = filtered
+        .iter()
+        .take(SLASH_MENU_MAX_VISIBLE)
+        .fold((None, 0usize), |(last, count), cmd| {
+            if last == Some(cmd.category) {
+                (last, count)
+            } else {
+                (Some(cmd.category), count + 1)
+            }
+        })
+        .1 as f32;
+    let estimated_height =
+        (row_height(ui) * visible_rows + category_headers * 20.0 + 16.0).min(content_rect.height());
+    let below_y = anchor.y + 4.0;
+    let popup_y = if below_y + estimated_height <= content_rect.bottom() {
+        below_y
+    } else {
+        (anchor.y - estimated_height - 4.0).max(content_rect.top())
+    };
+    let popup_x = anchor.x.clamp(
+        content_rect.left(),
+        (content_rect.right() - 360.0).max(content_rect.left()),
+    );
+    let popup_pos = egui::pos2(popup_x, popup_y);
 
     let mut clicked_index: Option<usize> = None;
 
     egui::Area::new(ui.id().with("slash-menu-area"))
         .order(egui::Order::Foreground)
-        .fixed_pos(anchor + egui::vec2(0.0, 4.0))
+        .fixed_pos(popup_pos)
         .show(ui.ctx(), |ui| {
             let frame = egui::Frame::popup(ui.style());
             let resp = frame
@@ -169,7 +196,7 @@ pub fn render_slash_menu(
             let menu_id = resp.id;
             ui.ctx().accesskit_node_builder(menu_id, |node| {
                 node.set_role(SLASH_MENU_ROLE);
-                node.set_author_id(SLASH_MENU_AUTHOR_ID.to_owned());
+                node.set_author_id(crate::rich_editor::scoped_author_id(SLASH_MENU_AUTHOR_ID));
                 node.set_label("Slash commands".to_owned());
             });
         });
@@ -230,7 +257,7 @@ fn slash_item_row(
     let label = cmd.label.to_owned();
     ui.ctx().accesskit_node_builder(response.id, move |node| {
         node.set_role(SLASH_ITEM_ROLE);
-        node.set_author_id(author);
+        node.set_author_id(crate::rich_editor::scoped_author_id(author));
         node.set_label(label);
         if selected {
             node.set_selected(true);
@@ -294,11 +321,8 @@ pub fn render_slash_prompt(
                 .id(egui::Id::new("slash-prompt.input"));
             let edit_resp = ui.add(edit);
             // Name the input field (egui derived Role::TextInput + actions; add the address).
-            crate::accessibility::emit_interactive_node(
-                ui.ctx(),
-                edit_resp.id,
-                SLASH_PROMPT_INPUT_AUTHOR_ID,
-            );
+            let input_author = crate::rich_editor::scoped_author_id(SLASH_PROMPT_INPUT_AUTHOR_ID);
+            crate::accessibility::emit_interactive_node(ui.ctx(), edit_resp.id, &input_author);
             // Focus the input on first show so the operator can type immediately.
             if edit_resp.lost_focus() {
                 // no-op; keep focus handling minimal (the field requests focus below once).
@@ -308,20 +332,15 @@ pub fn render_slash_prompt(
             ui.add_space(8.0);
             ui.horizontal(|ui| {
                 let ok = ui.button("Insert");
-                crate::accessibility::emit_interactive_node(
-                    ui.ctx(),
-                    ok.id,
-                    SLASH_PROMPT_OK_AUTHOR_ID,
-                );
+                let ok_author = crate::rich_editor::scoped_author_id(SLASH_PROMPT_OK_AUTHOR_ID);
+                crate::accessibility::emit_interactive_node(ui.ctx(), ok.id, &ok_author);
                 if ok.clicked() {
                     outcome = SlashPromptOutcome::Confirm;
                 }
                 let cancel = ui.button("Cancel");
-                crate::accessibility::emit_interactive_node(
-                    ui.ctx(),
-                    cancel.id,
-                    SLASH_PROMPT_CANCEL_AUTHOR_ID,
-                );
+                let cancel_author =
+                    crate::rich_editor::scoped_author_id(SLASH_PROMPT_CANCEL_AUTHOR_ID);
+                crate::accessibility::emit_interactive_node(ui.ctx(), cancel.id, &cancel_author);
                 if cancel.clicked() {
                     outcome = SlashPromptOutcome::Cancel;
                 }
@@ -331,7 +350,9 @@ pub fn render_slash_prompt(
     // The dialog root container node (Role::Dialog, modal) addressable by `slash-prompt-dialog`.
     ctx.accesskit_node_builder(dialog_egui_id, |node| {
         node.set_role(accesskit::Role::Dialog);
-        node.set_author_id(SLASH_PROMPT_DIALOG_AUTHOR_ID.to_owned());
+        node.set_author_id(crate::rich_editor::scoped_author_id(
+            SLASH_PROMPT_DIALOG_AUTHOR_ID,
+        ));
         node.set_modal();
     });
 

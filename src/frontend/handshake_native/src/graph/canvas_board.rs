@@ -103,6 +103,9 @@ pub const GROUP_AUTHOR_ID: &str = "canvas.group";
 pub const EDGE_MODE_AUTHOR_ID: &str = "canvas.edge-mode";
 pub const START_EDGE_AUTHOR_ID: &str = "canvas.start-edge";
 pub const STATUS_AUTHOR_ID: &str = "canvas.status";
+/// Stable AccessKit control for retrying a failed board load through the host's ordinary
+/// `getCanvasBoard` path. It is rendered only while [`LoomCanvasBoard::error`] is present.
+pub const RETRY_AUTHOR_ID: &str = "canvas.retry";
 /// MC-2 fallback: the block-id text field and the `Place` button that place a reference without OS drag.
 pub const PLACE_BLOCK_INPUT_AUTHOR_ID: &str = "canvas.place-block-input";
 pub const PLACE_BLOCK_AUTHOR_ID: &str = "canvas.place-block";
@@ -214,9 +217,19 @@ impl EdgeMode {
     }
 }
 
+/// Resolution state for a block-reference card. Loading is deliberately distinct from a confirmed
+/// unresolved reference: only the latter may offer "Create note from link", and only when the real
+/// source title survived the drag/import boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CanvasLinkResolution {
+    Loading,
+    Resolved,
+    Unresolved { title: Option<String> },
+    Failed { reason: String },
+}
+
 /// One placement card rendered by the board: a block-id REFERENCE positioned on the canvas with its
-/// resolved-once live title + content_type (NEVER copied content). `live_title == None` means the
-/// referenced block could not be resolved -> the card shows `(stale reference)`.
+/// resolved-once live title + content_type (NEVER copied content).
 #[derive(Debug, Clone, PartialEq)]
 pub struct CanvasPlacementCard {
     pub placement_id: String,
@@ -230,6 +243,9 @@ pub struct CanvasPlacementCard {
     /// Live block title resolved ONCE on load via `getLoomBlock` (reference, not copy). `None` => the
     /// block is missing -> "(stale reference)".
     pub live_title: Option<String>,
+    /// Explicit live-resolution phase. This prevents a not-yet-resolved reference from being mistaken
+    /// for a confirmed broken link and prevents an opaque block id from becoming a note title.
+    pub link_resolution: CanvasLinkResolution,
     /// Live block content_type (muted subtitle). `None` when unresolved.
     pub live_content_type: Option<String>,
     /// WP-KERNEL-012 MT-032 (E5 "everything is a Loom block"): the backend-computed content hash read
@@ -271,6 +287,7 @@ impl CanvasPlacementCard {
             z_index: 0,
             group_id: None,
             live_title: None,
+            link_resolution: CanvasLinkResolution::Loading,
             live_content_type: None,
             loom_content_hash: None,
             card_kind: CanvasCardKind::BlockRef,
@@ -283,8 +300,48 @@ impl CanvasPlacementCard {
     /// editor (AC-061-4). A block reference is left as the default [`CanvasCardKind::BlockRef`].
     pub fn as_text_card(mut self, body: impl Into<String>) -> Self {
         self.card_kind = CanvasCardKind::TextCard;
+        self.link_resolution = CanvasLinkResolution::Resolved;
         self.live_body = Some(body.into());
         self
+    }
+
+    pub fn mark_live_resolved(
+        &mut self,
+        title: Option<String>,
+        content_type: String,
+        content_hash: Option<String>,
+    ) {
+        self.live_title = title;
+        self.live_content_type = Some(content_type);
+        self.loom_content_hash = content_hash;
+        self.link_resolution = CanvasLinkResolution::Resolved;
+    }
+
+    pub fn mark_live_unresolved(&mut self, title: Option<String>) {
+        self.live_title = None;
+        self.live_content_type = None;
+        self.loom_content_hash = None;
+        self.link_resolution = CanvasLinkResolution::Unresolved {
+            title: title.filter(|value| !value.trim().is_empty()),
+        };
+    }
+
+    pub fn mark_live_failed(&mut self, reason: impl Into<String>) {
+        self.live_title = None;
+        self.live_content_type = None;
+        self.loom_content_hash = None;
+        self.link_resolution = CanvasLinkResolution::Failed {
+            reason: reason.into(),
+        };
+    }
+
+    pub fn unresolved_link_title(&self) -> Option<&str> {
+        match &self.link_resolution {
+            CanvasLinkResolution::Unresolved { title: Some(title) } if !title.trim().is_empty() => {
+                Some(title.as_str())
+            }
+            _ => None,
+        }
     }
 
     /// The `loom://{workspace_id}/{placed_block_id}` address of the block this card references, when
@@ -300,7 +357,16 @@ impl CanvasPlacementCard {
     pub fn display_title(&self) -> &str {
         match &self.live_title {
             Some(t) if !t.trim().is_empty() => t.as_str(),
-            _ => "(stale reference)",
+            _ => match &self.link_resolution {
+                CanvasLinkResolution::Loading => "(loading reference)",
+                CanvasLinkResolution::Unresolved { title: Some(title) }
+                    if !title.trim().is_empty() =>
+                {
+                    title.as_str()
+                }
+                CanvasLinkResolution::Failed { .. } => "(reference unavailable)",
+                _ => "(stale reference)",
+            },
         }
     }
 
@@ -320,24 +386,45 @@ impl CanvasPlacementCard {
 /// - `has_note`: a free-text [`CanvasCardKind::TextCard`], or a reference whose resolved block is a `note`,
 ///   HAS a backing note to open (Open Note enabled).
 /// - `has_node_id`: a placement with a non-empty `placed_block_id` can be revealed (Reveal Node enabled).
-/// - `unresolved_link`: a block REFERENCE whose block did not resolve (`live_title == None` -> shown as
-///   "(stale reference)") is an unresolved reference a note can be created for (Create-note enabled). A
-///   text card is never an unresolved link. Consistent with the "(stale reference)" the card already
-///   displays. (During the brief window before the first `getLoomBlock` resolve a reference reads as
-///   unresolved — the same as its displayed label.)
+/// - `unresolved_link`: a block REFERENCE whose resolution definitively failed and whose real source
+///   title is retained. Loading and title-less failures stay disabled.
+///
+/// - `can_route_to_stage`: supplied only by a board whose current workspace+canvas projection has been
+///   confirmed by the matching backend delivery. Non-empty strings alone are not authority.
 ///
 /// Keeps the disabled-not-dead-enabled invariant: a disabled entry maps to `None` in
 /// [`crate::context_menu_surfaces::node_action_for_id`].
 pub fn placement_menu_availability(
     card: &CanvasPlacementCard,
+    projection_confirmed: bool,
 ) -> crate::context_menu_surfaces::NodeMenuAvailability {
     let has_block = !card.placed_block_id.is_empty();
     crate::context_menu_surfaces::NodeMenuAvailability {
+        canvas_projection_confirmed: Some(projection_confirmed),
         has_note: card.card_kind.is_text_card()
             || card.live_content_type.as_deref() == Some("note"),
         has_node_id: has_block,
-        unresolved_link: has_block && !card.card_kind.is_text_card() && card.live_title.is_none(),
+        can_route_to_stage: has_block && projection_confirmed,
+        unresolved_link: has_block
+            && !card.card_kind.is_text_card()
+            && card.unresolved_link_title().is_some(),
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CanvasProjectionState {
+    Pending {
+        workspace_id: String,
+        canvas_block_id: String,
+    },
+    Confirmed {
+        workspace_id: String,
+        canvas_block_id: String,
+    },
+    Failed {
+        workspace_id: String,
+        canvas_block_id: String,
+    },
 }
 
 /// A visual-only edge between two placements (board decoration; NOT a `loom_edge`).
@@ -380,12 +467,23 @@ impl CanvasDragPayload {
 /// performs NO network IO (HBR-QUIET — the host spawns the request off the UI thread).
 #[derive(Debug, Clone, PartialEq)]
 pub enum CanvasEvent {
+    /// Retry a failed `getCanvasBoard` load. The widget owns only the visible error/retry surface;
+    /// the host clears/replaces it from the authoritative backend result.
+    Retry,
     /// Persist the viewport (`PUT .../viewport` with `board_state.{pan_x,pan_y,zoom}`). Fired on pan/zoom
     /// RELEASE only (RISK-3 / MC-3), never per frame.
     ViewportChanged { pan_x: f32, pan_y: f32, zoom: f32 },
     /// Place a dropped block as a reference (`POST .../placements`). `x`/`y` are in CANVAS space.
     PlaceBlock {
         placed_block_id: String,
+        x: f32,
+        y: f32,
+    },
+    /// Resolve an Atelier item through the canonical Loom block API, then place that resolved block
+    /// through the ordinary canvas placement API. This preserves the real unresolved panel payload;
+    /// the host performs the network projection and reloads the board from backend truth.
+    ResolveAtelierAndPlace {
+        atelier_ref: crate::interop::AtelierRef,
         x: f32,
         y: f32,
     },
@@ -411,6 +509,15 @@ pub enum CanvasEvent {
     /// all frames). Mutates ONLY the placement record — never the underlying block (reference-not-copy).
     AssignSection {
         placement_id: String,
+        group_id: Option<String>,
+    },
+    /// Persist a completed card-move gesture as one placement mutation. Coordinates and section
+    /// membership travel together so the authoritative reload cannot keep the new section while
+    /// snapping the card back to its pre-drag position (or vice versa).
+    MovePlacement {
+        placement_id: String,
+        x: f32,
+        y: f32,
         group_id: Option<String>,
     },
     /// WP-KERNEL-012 MT-061: a CONTRACT-MANDATED TYPED BLOCKER (binds_backend_api[1] +
@@ -469,6 +576,10 @@ pub enum CanvasEvent {
     NodeMenu {
         placement_id: String,
         block_id: String,
+        source_pane_id: Option<crate::pane_registry::PaneId>,
+        source_workspace_id: String,
+        source_canvas_block_id: String,
+        unresolved_link_title: Option<String>,
         action: crate::context_menu_surfaces::NodeMenuAction,
     },
 }
@@ -491,6 +602,7 @@ pub struct LoomCanvasBoard {
     pub status: String,
     pub loading: bool,
     pub error: Option<String>,
+    projection_state: CanvasProjectionState,
     /// MC-2 fallback input: a block id typed/pasted into the toolbar text field for backends where
     /// OS / inter-panel drag is unavailable. The `Place` button emits the SAME
     /// [`CanvasEvent::PlaceBlock`] the drop path produces, so the place behavior is always reachable.
@@ -523,6 +635,9 @@ pub struct LoomCanvasBoard {
     /// The last canvas surface rect (screen space), recorded each frame so the MC-2 fallback can place
     /// a card at the centre of the currently-visible canvas. `None` until the board has rendered once.
     last_canvas_rect: Option<Rect>,
+    /// Last rendered canvas rect per pane. The shared board can be mounted in multiple panes; retaining
+    /// each rect lets tests and diagnostics address the exact pane instead of whichever rendered last.
+    last_canvas_rect_by_pane: std::collections::HashMap<crate::pane_registry::PaneId, Rect>,
     /// Group-id counter so the `Group` event always gets a unique id even within one process run.
     group_seq: u64,
     /// WP-KERNEL-012 MT-042 (E7): the shared knowledge AccessKit action registry. `None` until the host
@@ -545,14 +660,30 @@ pub struct LoomCanvasBoard {
     /// while the node menu is attached to that placement; `None` after a right-click over empty canvas
     /// (no menu) or once a menu action is confirmed.
     ctx_menu_placement: Option<String>,
+    /// Pane that opened the retained placement menu. Snapshot reconstruction and action dispatch are
+    /// restricted to this pane so shared board mounts never emit duplicate global context-menu ids.
+    ctx_menu_owner_pane_id: Option<crate::pane_registry::PaneId>,
+    /// Exact pane that rendered this shared board instance in the current mount call. The pane factory
+    /// refreshes it immediately before `show`; NodeMenu copies it into the queued event.
+    render_source_pane_id: Option<crate::pane_registry::PaneId>,
+    /// Real source titles supplied by drag payloads, retained until live resolution confirms success or
+    /// failure. Never synthesize a title from an opaque block id.
+    unresolved_title_hints: std::collections::HashMap<String, String>,
+    snapshot_capture_mode: bool,
 }
 
 impl LoomCanvasBoard {
     /// A fresh board for `workspace_id` + `canvas_block_id` (no placements yet — the host loads them).
     pub fn new(workspace_id: impl Into<String>, canvas_block_id: impl Into<String>) -> Self {
+        let workspace_id = workspace_id.into();
+        let canvas_block_id = canvas_block_id.into();
         Self {
-            workspace_id: workspace_id.into(),
-            canvas_block_id: canvas_block_id.into(),
+            projection_state: CanvasProjectionState::Pending {
+                workspace_id: workspace_id.clone(),
+                canvas_block_id: canvas_block_id.clone(),
+            },
+            workspace_id,
+            canvas_block_id,
             placements: Vec::new(),
             visual_edges: Vec::new(),
             pan: Vec2::ZERO,
@@ -571,12 +702,137 @@ impl LoomCanvasBoard {
             editing_buffer: String::new(),
             section_labels: std::collections::BTreeMap::new(),
             last_canvas_rect: None,
+            last_canvas_rect_by_pane: std::collections::HashMap::new(),
             group_seq: 0,
             knowledge_registry: None,
             toolbar_control_ids: std::collections::HashMap::new(),
             pending_knowledge_events: Vec::new(),
             ctx_menu_placement: None,
+            ctx_menu_owner_pane_id: None,
+            render_source_pane_id: None,
+            unresolved_title_hints: std::collections::HashMap::new(),
+            snapshot_capture_mode: false,
         }
+    }
+
+    pub fn set_render_source_pane_id(&mut self, pane_id: crate::pane_registry::PaneId) {
+        self.render_source_pane_id = Some(pane_id);
+    }
+
+    pub fn set_snapshot_capture_mode(&mut self, enabled: bool) {
+        self.snapshot_capture_mode = enabled;
+    }
+
+    #[doc(hidden)]
+    pub fn context_menu_placement_for_test(&self) -> Option<&str> {
+        self.ctx_menu_placement.as_deref()
+    }
+
+    #[doc(hidden)]
+    pub fn context_menu_owner_pane_for_test(&self) -> Option<&crate::pane_registry::PaneId> {
+        self.ctx_menu_owner_pane_id.as_ref()
+    }
+
+    #[doc(hidden)]
+    pub fn canvas_point_to_screen_for_pane(
+        &self,
+        pane_id: &crate::pane_registry::PaneId,
+        canvas: Pos2,
+    ) -> Option<Pos2> {
+        self.last_canvas_rect_by_pane
+            .get(pane_id)
+            .map(|rect| rect.min + self.pan + canvas.to_vec2() * self.zoom)
+    }
+
+    pub fn begin_projection_load(
+        &mut self,
+        workspace_id: impl Into<String>,
+        canvas_block_id: impl Into<String>,
+    ) {
+        let workspace_id = workspace_id.into();
+        let canvas_block_id = canvas_block_id.into();
+        let binding_changed =
+            self.workspace_id != workspace_id || self.canvas_block_id != canvas_block_id;
+        if binding_changed {
+            self.placements.clear();
+            self.visual_edges.clear();
+            self.selected.clear();
+            self.edge_from = None;
+            self.ctx_menu_placement = None;
+            self.ctx_menu_owner_pane_id = None;
+            self.unresolved_title_hints.clear();
+        }
+        self.workspace_id = workspace_id.clone();
+        self.canvas_block_id = canvas_block_id.clone();
+        self.projection_state = CanvasProjectionState::Pending {
+            workspace_id,
+            canvas_block_id,
+        };
+        self.loading = true;
+        self.error = None;
+    }
+
+    pub fn fail_projection(&mut self, message: impl Into<String>) {
+        self.projection_state = CanvasProjectionState::Failed {
+            workspace_id: self.workspace_id.clone(),
+            canvas_block_id: self.canvas_block_id.clone(),
+        };
+        self.loading = false;
+        self.error = Some(message.into());
+    }
+
+    pub fn projection_is_confirmed(&self) -> bool {
+        matches!(
+            &self.projection_state,
+            CanvasProjectionState::Confirmed { workspace_id, canvas_block_id }
+                if workspace_id == &self.workspace_id
+                    && canvas_block_id == &self.canvas_block_id
+                    && !workspace_id.trim().is_empty()
+                    && !canvas_block_id.trim().is_empty()
+        )
+    }
+
+    pub fn remember_unresolved_title_hint(&mut self, block_id: &str, title: Option<&str>) {
+        if let Some(title) = title.map(str::trim).filter(|title| !title.is_empty()) {
+            self.unresolved_title_hints
+                .insert(block_id.to_owned(), title.to_owned());
+        }
+    }
+
+    pub fn apply_live_block_resolution(
+        &mut self,
+        block_id: &str,
+        result: &Result<
+            crate::backend_client::LiveBlock,
+            crate::backend_client::LiveBlockResolveError,
+        >,
+    ) -> bool {
+        let title_hint = self.unresolved_title_hints.get(block_id).cloned();
+        let mut matched = false;
+        for card in self
+            .placements
+            .iter_mut()
+            .filter(|card| card.placed_block_id == block_id)
+        {
+            matched = true;
+            match result {
+                Ok((title, content_type, content_hash)) => card.mark_live_resolved(
+                    title.clone(),
+                    content_type.clone(),
+                    content_hash.clone(),
+                ),
+                Err(crate::backend_client::LiveBlockResolveError::Missing) => {
+                    card.mark_live_unresolved(title_hint.clone())
+                }
+                Err(crate::backend_client::LiveBlockResolveError::Unavailable(reason)) => {
+                    card.mark_live_failed(reason.clone())
+                }
+            }
+        }
+        if result.is_ok() {
+            self.unresolved_title_hints.remove(block_id);
+        }
+        matched
     }
 
     /// WP-KERNEL-012 MT-061: install the per-`group_id` section labels (board section/group metadata) the
@@ -700,6 +956,14 @@ impl LoomCanvasBoard {
                 self.edge_from = None;
             }
         }
+        if self
+            .ctx_menu_placement
+            .as_ref()
+            .is_some_and(|placement_id| !present.contains(placement_id.as_str()))
+        {
+            self.ctx_menu_placement = None;
+            self.ctx_menu_owner_pane_id = None;
+        }
         // WP-KERNEL-012 MT-061: a reload reconciles server truth, so any in-flight resize/move optimistic
         // state is now stale — drop it. Drop an in-place editor whose card no longer exists; keep editing
         // a card that survived the reload (the host applies an edit, refreshes, and may keep editing).
@@ -714,6 +978,10 @@ impl LoomCanvasBoard {
         }
         self.loading = false;
         self.error = None;
+        self.projection_state = CanvasProjectionState::Confirmed {
+            workspace_id: self.workspace_id.clone(),
+            canvas_block_id: self.canvas_block_id.clone(),
+        };
     }
 
     /// WP-KERNEL-012 MT-080 FIX A: mark every placement whose `placed_block_id` the host recorded as a
@@ -844,6 +1112,9 @@ impl LoomCanvasBoard {
     /// event (mutate via the backend client, then re-fetch). The widget performs NO network IO.
     pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<CanvasEvent> {
         let mut event: Option<CanvasEvent> = None;
+        // External DnD outranks every toolbar/card/context event produced later in this frame. The
+        // legacy single-Option return must not overwrite a physical cross-surface drop.
+        let mut external_drop_event: Option<CanvasEvent> = None;
 
         // ── Toolbar strip ─────────────────────────────────────────────────────────────────────────
         // WP-KERNEL-012 MT-042 (IN-042-08 no-duplicate-node): the control author_ids the MT-026 toolbar
@@ -999,6 +1270,15 @@ impl LoomCanvasBoard {
         };
         let status_resp = ui.label(&status_text);
         emit_status_node(ui, status_resp.id, STATUS_AUTHOR_ID, &status_text);
+        if self.error.is_some() {
+            let retry = ui.button("Retry");
+            emit_button_node(ui, retry.id, RETRY_AUTHOR_ID, "Retry canvas load");
+            if retry.clicked() {
+                self.error = None;
+                self.loading = true;
+                event = Some(CanvasEvent::Retry);
+            }
+        }
 
         // ── Canvas surface (fills the remaining rect) ───────────────────────────────────────────────
         let (rect, canvas_resp) =
@@ -1008,6 +1288,9 @@ impl LoomCanvasBoard {
         // Record the canvas rect so the MC-2 fallback can place at the visible centre (toolbar runs
         // before this allocation, so it needs last frame's rect).
         self.last_canvas_rect = Some(rect);
+        if let Some(pane_id) = self.render_source_pane_id.clone() {
+            self.last_canvas_rect_by_pane.insert(pane_id, rect);
+        }
 
         // WP-KERNEL-012 MT-061: derive the section/group frame layer ONCE per frame from the current
         // placements' group_id + the board section labels. Reused by BOTH the drag-stop drop hit-test
@@ -1039,40 +1322,63 @@ impl LoomCanvasBoard {
                 .unwrap_or_else(|| rect.center());
             self.screen_to_canvas(drop_screen, origin)
         };
-        if egui::DragAndDrop::has_payload_of_type::<CanvasDragPayload>(ui.ctx()) {
-            if let Some(payload) = canvas_resp.dnd_release_payload::<CanvasDragPayload>() {
+        let has_canvas_drag_payload =
+            egui::DragAndDrop::has_payload_of_type::<CanvasDragPayload>(ui.ctx());
+        let has_interop_drag_payload =
+            egui::DragAndDrop::has_payload_of_type::<crate::interop::DragPayload>(ui.ctx());
+        // A real dnd_drag_source gesture also makes the canvas response report dragged/drag_stopped.
+        // Keep that external gesture out of the internal card-move/pan state machine; otherwise the
+        // drag-stop viewport event overwrites the already-produced drop event in this single-event API.
+        let external_drag_active = has_canvas_drag_payload || has_interop_drag_payload;
+        if has_canvas_drag_payload {
+            if let Some(payload) = crate::interop::drag_payload::take_released_payload_over::<
+                CanvasDragPayload,
+            >(&canvas_resp)
+            {
                 let canvas_pos = drop_canvas_pos();
+                self.remember_unresolved_title_hint(&payload.block_id, payload.title.as_deref());
                 self.status = format!("Placed {} (reference)", payload.block_id);
-                event = Some(CanvasEvent::PlaceBlock {
+                external_drop_event = Some(CanvasEvent::PlaceBlock {
                     placed_block_id: payload.block_id.clone(),
                     x: canvas_pos.x,
                     y: canvas_pos.y,
                 });
             }
-        } else if egui::DragAndDrop::has_payload_of_type::<crate::interop::DragPayload>(ui.ctx()) {
+        } else if has_interop_drag_payload {
             // WP-KERNEL-012 MT-033 (E5 — CKC drag-in): a CKC/Atelier item (or a Loom block) dragged from
             // the atelier side panel via the cross-surface [`crate::interop::DragPayload`] channel and
-            // RELEASED over the canvas places a block REFERENCE — IFF the payload resolves to a
-            // `placed_block_id` (MT-026: the placement body takes a block id, never an `atelier_item_id`).
-            // An UNRESOLVED atelier item (no `loom_block_id`) is a typed no-op with a visible status — NOT
-            // a fake POST (RISK-3 / MC-3). Reuses the SAME `screen_to_canvas` inverse + `PlaceBlock` event.
-            if let Some(payload) = canvas_resp.dnd_release_payload::<crate::interop::DragPayload>()
+            // RELEASED over the canvas places a block REFERENCE. A payload that already has a
+            // `placed_block_id` uses the MT-026 placement path; an unresolved Atelier item is resolved
+            // through the canonical Loom block API first, then that real block is placed. Neither path
+            // sends an unsupported `atelier_item_id`. Both reuse the SAME `screen_to_canvas` inverse.
+            if let Some(payload) = crate::interop::drag_payload::take_released_payload_over::<
+                crate::interop::DragPayload,
+            >(&canvas_resp)
             {
                 match payload.canvas_drag_payload() {
                     Some(cdp) => {
                         let canvas_pos = drop_canvas_pos();
+                        self.remember_unresolved_title_hint(&cdp.block_id, cdp.title.as_deref());
                         self.status = format!("Placed {} (reference)", cdp.block_id);
-                        event = Some(CanvasEvent::PlaceBlock {
+                        external_drop_event = Some(CanvasEvent::PlaceBlock {
                             placed_block_id: cdp.block_id.clone(),
                             x: canvas_pos.x,
                             y: canvas_pos.y,
                         });
                     }
                     None => {
-                        // A CKC item not yet resolved to a Loom block id cannot be placed (no fake field).
+                        let canvas_pos = drop_canvas_pos();
+                        let crate::interop::DragPayload::AtelierRef(atelier_ref) = payload.as_ref()
+                        else {
+                            unreachable!("only AtelierRef can lack a canvas drag payload")
+                        };
                         self.status =
-                            "Dropped CKC item needs a loom block id before it can be placed on the canvas"
-                                .to_owned();
+                            format!("Resolving {} to a Loom block…", atelier_ref.display_label());
+                        external_drop_event = Some(CanvasEvent::ResolveAtelierAndPlace {
+                            atelier_ref: atelier_ref.clone(),
+                            x: canvas_pos.x,
+                            y: canvas_pos.y,
+                        });
                     }
                 }
             }
@@ -1095,7 +1401,11 @@ impl LoomCanvasBoard {
         //   - A drag on EMPTY canvas pans (unchanged MT-026 behavior).
         // A card-move drag SUPPRESSES the pan + the viewport-persist on release (it persists a section
         // assignment instead, not a viewport). The `resizing` guard keeps a resize from also moving a card.
-        if canvas_resp.drag_started() && self.resizing.is_none() && self.moving.is_none() {
+        if !external_drag_active
+            && canvas_resp.drag_started()
+            && self.resizing.is_none()
+            && self.moving.is_none()
+        {
             // Use the PRESS origin (where the gesture began), not the current pointer — on the frame
             // drag_started() fires the pointer may already have moved off the card toward the drop point.
             let press = ui
@@ -1110,9 +1420,9 @@ impl LoomCanvasBoard {
                 }
             }
         }
-        if canvas_resp.dragged() {
+        if !external_drag_active && canvas_resp.dragged() {
             if let Some(moving_id) = self.moving.clone() {
-                // Move the card optimistically by the canvas-space delta (screen delta / zoom).
+                // Move the card optimistically by egui's per-frame canvas-space delta.
                 let delta = canvas_resp.drag_delta() / self.zoom;
                 if let Some(card) = self
                     .placements
@@ -1128,7 +1438,7 @@ impl LoomCanvasBoard {
                 self.pan += canvas_resp.drag_delta();
             }
         }
-        if canvas_resp.drag_stopped() {
+        if !external_drag_active && canvas_resp.drag_stopped() {
             if let Some(moving_id) = self.moving.take() {
                 // AC-061-3: resolve the drop position to a section. The drop point is the card's CENTRE in
                 // canvas space (where the user released it), so a card landing inside a frame is assigned,
@@ -1156,20 +1466,25 @@ impl LoomCanvasBoard {
                 let target = drop_layer.which_section(drop_pos).map(ToOwned::to_owned);
                 // Reflect the assignment locally so the AccessKit data-group-id updates THIS frame; the
                 // host persists via updateCanvasPlacement and the next getCanvasBoard refresh confirms it.
-                if let Some(card) = self
+                let moved_position = if let Some(card) = self
                     .placements
                     .iter_mut()
                     .find(|p| p.placement_id == moving_id)
                 {
                     card.group_id = target.clone();
-                }
+                    Some((card.x, card.y))
+                } else {
+                    None
+                };
                 self.status = match &target {
                     Some(g) => format!("Assigned {moving_id} to section {g}"),
                     None => format!("Cleared {moving_id} section"),
                 };
                 self.moving_pos = None;
-                event = Some(CanvasEvent::AssignSection {
+                event = moved_position.map(|(x, y)| CanvasEvent::MovePlacement {
                     placement_id: moving_id,
+                    x,
+                    y,
                     group_id: target,
                 });
             } else if self.resizing.is_none() {
@@ -1234,37 +1549,84 @@ impl LoomCanvasBoard {
         }
 
         // ── WP-KERNEL-012 MT-070: node context menu (the MT-070 `show_node_menu` layer, LIVE call
-        // site). A RIGHT-click over a placement attaches the 3-entry node menu (Open Note / Reveal
-        // Node / Create note from link) to the canvas response; a right-click over empty canvas
+        // site). A RIGHT-click over a placement attaches the 4-entry node menu (Open Note / Reveal
+        // Node / Create note from link / Route to Stage) to the canvas response; a right-click over empty canvas
         // detaches it (no menu). A confirmed enabled entry emits [`CanvasEvent::NodeMenu`], which the
         // host feeds through `node_navigation_target` -> `navigation_bus::dispatch` (the LIVE click-through
         // wired in the wave-2/3 remediation). WP-KERNEL-012 MT-080 FIX E: availability is read from the
         // clicked placement's OWN payload ([`placement_menu_availability`]) — a text/note card ENABLES Open
         // Note, a resolvable placement enables Reveal Node, and a stale reference ENABLES Create-note —
         // never a dead handler (a disabled entry maps to `None`).
-        if canvas_resp.secondary_clicked() {
-            self.ctx_menu_placement = canvas_resp
-                .interact_pointer_pos()
+        let secondary_click_pos = canvas_resp
+            .secondary_clicked()
+            .then(|| canvas_resp.interact_pointer_pos())
+            .flatten()
+            .or_else(|| {
+                ui.input(|input| {
+                    input
+                        .pointer
+                        .button_released(egui::PointerButton::Secondary)
+                        .then(|| input.pointer.interact_pos())
+                        .flatten()
+                })
+                .filter(|pos| rect.contains(*pos))
+            });
+        if let Some(screen) = secondary_click_pos {
+            crate::context_menu::request_open(ui.ctx(), canvas_resp.id, screen);
+            self.ctx_menu_placement = Some(screen)
                 .map(|screen| self.screen_to_canvas(screen, origin))
                 .and_then(|p| self.placement_at_canvas(p))
                 .map(|idx| self.placements[idx].placement_id.clone());
+            self.ctx_menu_owner_pane_id = self
+                .ctx_menu_placement
+                .as_ref()
+                .and(self.render_source_pane_id.clone());
+            if self.ctx_menu_placement.is_none() {
+                crate::context_menu::dismiss(ui.ctx(), canvas_resp.id);
+            }
         }
-        if let Some(pid) = self.ctx_menu_placement.clone() {
+        let owns_retained_menu = self.ctx_menu_owner_pane_id.is_some()
+            && self.ctx_menu_owner_pane_id == self.render_source_pane_id;
+        if owns_retained_menu {
+            let Some(pid) = self.ctx_menu_placement.clone() else {
+                self.ctx_menu_owner_pane_id = None;
+                return external_drop_event.or(event);
+            };
             if let Some(card) = self.placements.iter().find(|c| c.placement_id == pid) {
+                if self.snapshot_capture_mode {
+                    crate::context_menu::request_open(
+                        ui.ctx(),
+                        canvas_resp.id,
+                        self.canvas_to_screen(card.canvas_center(), origin),
+                    );
+                }
                 let block_id = card.placed_block_id.clone();
-                let availability = placement_menu_availability(card);
+                let unresolved_link_title = card.unresolved_link_title().map(str::to_owned);
+                let availability =
+                    placement_menu_availability(card, self.projection_is_confirmed());
                 if let Some(action) =
                     crate::context_menu_surfaces::show_node_menu(&canvas_resp, availability)
                 {
                     event = Some(CanvasEvent::NodeMenu {
                         placement_id: pid,
                         block_id,
+                        source_pane_id: self.ctx_menu_owner_pane_id.clone(),
+                        source_workspace_id: self.workspace_id.clone(),
+                        source_canvas_block_id: self.canvas_block_id.clone(),
+                        unresolved_link_title,
                         action,
                     });
                     self.ctx_menu_placement = None;
+                    self.ctx_menu_owner_pane_id = None;
+                } else if !self.snapshot_capture_mode
+                    && !crate::context_menu::is_open(ui.ctx(), canvas_resp.id)
+                {
+                    self.ctx_menu_placement = None;
+                    self.ctx_menu_owner_pane_id = None;
                 }
             } else {
                 self.ctx_menu_placement = None; // placement vanished on a reload — drop the stale menu.
+                self.ctx_menu_owner_pane_id = None;
             }
         }
 
@@ -1311,7 +1673,7 @@ impl LoomCanvasBoard {
             self.pending_knowledge_events.extend(dispatched);
         }
 
-        event
+        external_drop_event.or(event)
     }
 
     /// MT-042: drain the swarm AccessKit dispatches the in-render sync/emit/take loop consumed since the
@@ -1416,10 +1778,13 @@ impl LoomCanvasBoard {
     /// after [`Self::sync_knowledge_registry`]). No-op if no registry is installed.
     pub fn emit_knowledge_accesskit(&self, ui: &egui::Ui) {
         if let Some(registry) = &self.knowledge_registry {
-            registry
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .emit_into_tree(ui);
+            let mut registry = registry.lock().unwrap_or_else(|e| e.into_inner());
+            if registry.state_changed_since_last_surface_push(
+                knowledge_action_registry::KnowledgeSurface::Canvas,
+            ) {
+                ui.ctx().request_repaint();
+            }
+            registry.emit_into_tree(ui);
         }
     }
 
@@ -1583,26 +1948,23 @@ impl LoomCanvasBoard {
                 if other.starts_with(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX)
                     && other.ends_with("#delete") =>
             {
-                let sanitized = other
-                    .trim_start_matches(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX)
-                    .trim_end_matches("#delete");
+                let card_author = other.trim_end_matches("#delete");
                 self.placements
                     .iter()
-                    .find(|c| crate::project_tree::stable_part(&c.placement_id) == sanitized)
+                    .find(|c| {
+                        knowledge_action_registry::canvas_card_author_id(&c.placement_id)
+                            == card_author
+                    })
                     .map(|c| CanvasEvent::RemovePlacement {
                         placement_id: c.placement_id.clone(),
                     })
             }
             other => {
                 // A per-identity `canvas.card.<sanitized_placement_id>` click -> select that card.
-                if let Some(stripped) =
-                    other.strip_prefix(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX)
-                {
-                    if let Some(card) = self
-                        .placements
-                        .iter()
-                        .find(|c| crate::project_tree::stable_part(&c.placement_id) == stripped)
-                    {
+                if other.starts_with(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX) {
+                    if let Some(card) = self.placements.iter().find(|c| {
+                        knowledge_action_registry::canvas_card_author_id(&c.placement_id) == other
+                    }) {
                         let pid = card.placement_id.clone();
                         self.selected.clear();
                         self.selected.insert(pid);
@@ -1734,11 +2096,20 @@ impl LoomCanvasBoard {
                 s
             });
         if let Some(chip) = &chip_text {
-            painter.text(
-                Pos2::new(screen_rect.left() + 8.0, screen_rect.bottom() - 16.0),
-                egui::Align2::LEFT_TOP,
-                chip,
+            // UUID-shaped addresses are longer than a default card. Wrap the full address inside the
+            // card instead of painting through adjacent Canvas content; AccessKit still receives the
+            // same unabridged `chip_text` below.
+            let galley = painter.layout(
+                chip.clone(),
                 egui::FontId::monospace(10.0),
+                palette.accent,
+                (screen_rect.width() - 16.0).max(1.0),
+            );
+            let chip_top =
+                (screen_rect.bottom() - galley.size().y - 6.0).max(screen_rect.top() + 42.0);
+            painter.galley(
+                Pos2::new(screen_rect.left() + 8.0, chip_top),
+                galley,
                 palette.accent,
             );
         }
@@ -2489,7 +2860,11 @@ mod tests {
             !b.try_begin_inline_edit(idx),
             "a BlockRef does NOT open the inline editor"
         );
-        assert_eq!(b.editing_card_id(), None, "no editor open for a block reference");
+        assert_eq!(
+            b.editing_card_id(),
+            None,
+            "no editor open for a block reference"
+        );
         // The host recorded block-001 as a free-text card it created via AddCard -> re-mark on load.
         let mut ids = HashSet::new();
         ids.insert("block-001".to_owned());
@@ -2527,16 +2902,21 @@ mod tests {
     #[test]
     fn placement_menu_availability_reads_payload() {
         // A free-text card: has a backing note (Open Note enabled), not an unresolved link.
-        let text = CanvasPlacementCard::new("p-t", "blk-t", 0.0, 0.0, 200.0, 120.0)
-            .as_text_card("body");
-        let a = placement_menu_availability(&text);
+        let text =
+            CanvasPlacementCard::new("p-t", "blk-t", 0.0, 0.0, 200.0, 120.0).as_text_card("body");
+        let a = placement_menu_availability(&text, true);
         assert!(a.has_note, "a text card has a backing note");
         assert!(a.has_node_id, "a placed card has a node id");
+        assert!(a.can_route_to_stage, "a live board can route to Stage");
         assert!(!a.unresolved_link, "a text card is not an unresolved link");
 
-        // A stale block reference (live_title None -> "(stale reference)"): unresolved link -> Create-note.
-        let stale = CanvasPlacementCard::new("p-s", "blk-s", 0.0, 0.0, 200.0, 120.0);
-        let a = placement_menu_availability(&stale);
+        // Loading is not a confirmed unresolved link and never enables Create-note.
+        let mut stale = CanvasPlacementCard::new("p-s", "blk-s", 0.0, 0.0, 200.0, 120.0);
+        let loading = placement_menu_availability(&stale, true);
+        assert!(!loading.unresolved_link);
+        // A confirmed unresolved reference only enables Create-note when its true title survived.
+        stale.mark_live_unresolved(Some("Missing Note".to_owned()));
+        let a = placement_menu_availability(&stale, true);
         assert!(!a.has_note, "an unresolved reference has no note to open");
         assert!(
             a.unresolved_link,
@@ -2545,11 +2925,155 @@ mod tests {
 
         // A resolved note reference: has a backing note (Open Note), not unresolved.
         let mut resolved = CanvasPlacementCard::new("p-r", "blk-r", 0.0, 0.0, 200.0, 120.0);
-        resolved.live_title = Some("Resolved".to_owned());
-        resolved.live_content_type = Some("note".to_owned());
-        let a = placement_menu_availability(&resolved);
+        resolved.mark_live_resolved(Some("Resolved".to_owned()), "note".to_owned(), None);
+        let a = placement_menu_availability(&resolved, true);
         assert!(a.has_note, "a resolved note reference has a note to open");
         assert!(!a.unresolved_link, "a resolved reference is not unresolved");
+
+        let detached = placement_menu_availability(&resolved, false);
+        assert!(
+            !detached.can_route_to_stage,
+            "an identity-incomplete board cannot advertise a live Stage route"
+        );
+    }
+
+    #[test]
+    fn projection_rebind_disables_stale_route_until_matching_success() {
+        let mut board = LoomCanvasBoard::new("workspace-a", "canvas-a");
+        board.set_board(
+            vec![CanvasPlacementCard::new(
+                "p-a", "blk-a", 0.0, 0.0, 200.0, 120.0,
+            )],
+            Vec::new(),
+            Vec2::ZERO,
+            1.0,
+        );
+        assert!(board.projection_is_confirmed());
+        assert!(placement_menu_availability(&board.placements[0], true).can_route_to_stage);
+
+        board.begin_projection_load("workspace-b", "canvas-b");
+        assert!(
+            board.placements.is_empty(),
+            "A placements are cleared on A -> B"
+        );
+        assert!(!board.projection_is_confirmed());
+        board.fail_projection("B failed");
+        assert!(!board.projection_is_confirmed());
+
+        board.begin_projection_load("workspace-b", "canvas-b");
+        board.set_board(
+            vec![CanvasPlacementCard::new(
+                "p-b", "blk-b", 0.0, 0.0, 200.0, 120.0,
+            )],
+            Vec::new(),
+            Vec2::ZERO,
+            1.0,
+        );
+        assert!(board.projection_is_confirmed());
+        assert!(placement_menu_availability(&board.placements[0], true).can_route_to_stage);
+    }
+
+    #[test]
+    fn same_binding_pending_and_failed_projection_retains_cards_but_disables_every_node_action() {
+        use crate::context_menu_surfaces::{
+            node_action_for_id, node_context_items, NODE_MENU_REQUIRED_IDS,
+        };
+
+        let mut board = LoomCanvasBoard::new("workspace-a", "canvas-a");
+        let mut card = CanvasPlacementCard::new("p-a", "blk-a", 0.0, 0.0, 200.0, 120.0);
+        card.mark_live_resolved(Some("Note A".to_owned()), "note".to_owned(), None);
+        board.set_board(vec![card], Vec::new(), Vec2::ZERO, 1.0);
+
+        for failed in [false, true] {
+            board.begin_projection_load("workspace-a", "canvas-a");
+            if failed {
+                board.fail_projection("backend unavailable");
+            }
+            assert_eq!(
+                board.placements.len(),
+                1,
+                "same-binding refresh retains its card"
+            );
+            assert!(!board.projection_is_confirmed());
+            let availability =
+                placement_menu_availability(&board.placements[0], board.projection_is_confirmed());
+            for item in node_context_items(availability)
+                .iter()
+                .filter(|item| NODE_MENU_REQUIRED_IDS.contains(&item.id))
+            {
+                assert!(!item.enabled, "{} fails closed", item.id);
+                assert_eq!(
+                    item.disabled_reason,
+                    Some("Canvas projection is pending, failed, or stale")
+                );
+                assert_eq!(node_action_for_id(item.id, availability), None);
+            }
+        }
+    }
+
+    #[test]
+    fn unresolved_link_preserves_real_title_and_never_uses_block_id() {
+        let mut board = LoomCanvasBoard::new("workspace", "canvas");
+        board.remember_unresolved_title_hint("opaque-block-42", Some("Actual Missing Note"));
+        board.set_board(
+            vec![CanvasPlacementCard::new(
+                "placement",
+                "opaque-block-42",
+                0.0,
+                0.0,
+                200.0,
+                120.0,
+            )],
+            Vec::new(),
+            Vec2::ZERO,
+            1.0,
+        );
+        assert!(board.apply_live_block_resolution(
+            "opaque-block-42",
+            &Err(crate::backend_client::LiveBlockResolveError::Missing)
+        ));
+        let card = &board.placements[0];
+        assert_eq!(card.unresolved_link_title(), Some("Actual Missing Note"));
+        assert_ne!(card.unresolved_link_title(), Some("opaque-block-42"));
+        assert!(placement_menu_availability(card, true).unresolved_link);
+
+        let mut titleless =
+            CanvasPlacementCard::new("titleless", "opaque-block-99", 0.0, 0.0, 200.0, 120.0);
+        titleless.mark_live_unresolved(None);
+        assert!(!placement_menu_availability(&titleless, true).unresolved_link);
+    }
+
+    #[test]
+    fn unavailable_live_resolution_never_becomes_an_unresolved_create_note_target() {
+        for reason in [
+            "timeout",
+            "transport: connection refused",
+            "GET non-success status 500 Internal Server Error",
+            "decode: invalid JSON",
+        ] {
+            let mut board = LoomCanvasBoard::new("workspace", "canvas");
+            board.remember_unresolved_title_hint("blk", Some("Retained Real Title"));
+            board.set_board(
+                vec![CanvasPlacementCard::new("p", "blk", 0.0, 0.0, 200.0, 120.0)],
+                Vec::new(),
+                Vec2::ZERO,
+                1.0,
+            );
+            assert!(board.apply_live_block_resolution(
+                "blk",
+                &Err(crate::backend_client::LiveBlockResolveError::Unavailable(
+                    reason.to_owned()
+                ))
+            ));
+            let card = &board.placements[0];
+            assert!(matches!(
+                &card.link_resolution,
+                CanvasLinkResolution::Failed { reason: actual } if actual == reason
+            ));
+            assert_eq!(card.display_title(), "(reference unavailable)");
+            assert_eq!(card.unresolved_link_title(), None);
+            assert!(!placement_menu_availability(card, true).unresolved_link);
+        }
     }
 
     /// AC-061-1 clamp: the resize handle clamps the card to the minimum size — w/h can never go below
@@ -2655,27 +3179,39 @@ mod tests {
         );
     }
 
-    /// AssignSection event shape: clearing (drop outside all frames) carries `group_id: None`; assigning
-    /// carries `Some(id)`. (The event the widget emits on a card-move drag-stop.)
+    /// A completed move carries both persisted coordinates and section assignment. Clearing (drop outside
+    /// all frames) carries `group_id: None`; assigning carries `Some(id)`.
     #[test]
-    fn assign_section_event_shape() {
-        let assign = CanvasEvent::AssignSection {
+    fn move_placement_event_shape() {
+        let assign = CanvasEvent::MovePlacement {
             placement_id: "p-1".to_owned(),
+            x: 85.0,
+            y: 110.0,
             group_id: Some("g-a".to_owned()),
         };
-        let clear = CanvasEvent::AssignSection {
+        let clear = CanvasEvent::MovePlacement {
             placement_id: "p-1".to_owned(),
+            x: 12.0,
+            y: -4.0,
             group_id: None,
         };
         match assign {
-            CanvasEvent::AssignSection {
-                group_id: Some(g), ..
-            } => assert_eq!(g, "g-a"),
-            _ => panic!("assign must carry Some(group_id)"),
+            CanvasEvent::MovePlacement {
+                x,
+                y,
+                group_id: Some(g),
+                ..
+            } => assert_eq!((x, y, g.as_str()), (85.0, 110.0, "g-a")),
+            _ => panic!("move-assign must carry coordinates and Some(group_id)"),
         }
         match clear {
-            CanvasEvent::AssignSection { group_id: None, .. } => {}
-            _ => panic!("clear must carry None group_id"),
+            CanvasEvent::MovePlacement {
+                x,
+                y,
+                group_id: None,
+                ..
+            } => assert_eq!((x, y), (12.0, -4.0)),
+            _ => panic!("move-clear must carry coordinates and None group_id"),
         }
     }
 

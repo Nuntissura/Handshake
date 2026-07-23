@@ -239,7 +239,8 @@ impl ChildRegistry {
                     }
                 }
                 ChildStallState::NoBaseline { waited_ms } => {
-                    let edge = watched.last_observation != Some(ObservationDiscriminant::NoBaseline);
+                    let edge =
+                        watched.last_observation != Some(ObservationDiscriminant::NoBaseline);
                     watched.last_observation = Some(ObservationDiscriminant::NoBaseline);
                     if edge {
                         observations.push(ChildObservation {
@@ -521,9 +522,7 @@ mod tests {
             .is_empty());
 
         // The confirmed-only stream never surfaces NoBaseline.
-        assert!(registry
-            .poll(start + Duration::from_millis(400))
-            .is_empty());
+        assert!(registry.poll(start + Duration::from_millis(400)).is_empty());
     }
 
     #[test]
@@ -554,9 +553,7 @@ mod tests {
         // Confirmed-only stream stays empty for the same condition (not a durable stall).
         // (poll() re-polls the same detector; use a later instant so the edge-debounce does not hide it —
         // Suspected never enters the confirmed stream regardless.)
-        assert!(registry
-            .poll(start + Duration::from_millis(400))
-            .is_empty());
+        assert!(registry.poll(start + Duration::from_millis(400)).is_empty());
     }
 
     #[test]

@@ -345,6 +345,74 @@ async fn kanban_move_via_real_tag_edges_reflects_in_requery_and_pg() {
 }
 
 #[tokio::test]
+async fn free_kanban_places_shared_tag_cards_once_each() {
+    let pg = pg_or_skip!();
+    let ws = pg.create_workspace().await;
+
+    let shared_tag = make_block(&pg.db, &ws, "shared", LoomBlockContentType::TagHub).await;
+    let second_tag = make_block(&pg.db, &ws, "second", LoomBlockContentType::TagHub).await;
+    let first = make_block(&pg.db, &ws, "First", LoomBlockContentType::Note).await;
+    let second = make_block(&pg.db, &ws, "Second", LoomBlockContentType::Note).await;
+    // Insert in the reverse of canonical key order so query/HashSet iteration
+    // cannot accidentally satisfy the stable-lane assertion.
+    let mut reversed_tags = [shared_tag.clone(), second_tag.clone()];
+    reversed_tags.sort_by(|a, b| b.cmp(a));
+    for tag in &reversed_tags {
+        add_tag_edge(&pg.db, &ws, &first, tag).await;
+    }
+    add_tag_edge(&pg.db, &ws, &first, &shared_tag).await;
+    add_tag_edge(&pg.db, &ws, &second, &shared_tag).await;
+
+    let definition = BlockViewDefinition {
+        kind: BlockViewKind::Kanban,
+        query: BlockViewQuery {
+            content_type: Some(LoomBlockContentType::Note),
+            ..BlockViewQuery::default()
+        },
+        columns: vec![BlockViewField::Title],
+        group_by: Some(BlockViewGroupBy::Tag),
+        sort: None,
+        calendar_date_field: None,
+    };
+
+    let results = pg
+        .db
+        .query_block_view_results(&ws, &definition, 100, 0)
+        .await
+        .expect("query free Kanban");
+    let lane_keys: Vec<&str> = results
+        .groups
+        .iter()
+        .filter(|lane| lane.key != BLOCK_VIEW_UNTAGGED_LANE)
+        .map(|lane| lane.key.as_str())
+        .collect();
+    let mut expected_keys = vec![shared_tag.as_str(), second_tag.as_str()];
+    expected_keys.sort();
+    assert_eq!(
+        lane_keys, expected_keys,
+        "free-Kanban dynamic lane order is stable by canonical tag id"
+    );
+    let lane = results
+        .groups
+        .iter()
+        .find(|lane| lane.key == shared_tag)
+        .expect("shared dynamic tag lane");
+    let ids: Vec<&str> = lane
+        .blocks
+        .iter()
+        .map(|block| block.block_id.as_str())
+        .collect();
+    assert_eq!(ids.len(), 2, "each card appears once in its dynamic lane");
+    assert_eq!(
+        ids.iter().copied().collect::<std::collections::HashSet<_>>().len(),
+        2,
+        "a free Kanban must not duplicate a card when its lane already exists"
+    );
+    assert!(ids.contains(&first.as_str()));
+    assert!(ids.contains(&second.as_str()));
+}
+
+#[tokio::test]
 async fn calendar_buckets_by_journal_date_with_sql_date_filter() {
     let pg = pg_or_skip!();
     let ws = pg.create_workspace().await;

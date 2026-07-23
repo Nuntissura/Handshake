@@ -241,7 +241,15 @@ pub fn show(
                 .hint_text("Search actions...")
                 .desired_width(f32::INFINITY);
             let edit_response = ui.add(edit);
-            if edit_response.changed() {
+            // Native target-specific SetValue is consumed by this exact TextEdit id. This keeps model
+            // steering independent from global keyboard focus and makes a disappeared palette a no-op.
+            emit_search_node(ui.ctx(), search_egui_id);
+            let native_replacement = crate::mcp::accesskit_string_set_value(ui, search_egui_id);
+            if let Some(replacement) = native_replacement.as_ref() {
+                state.query.clone_from(replacement);
+                ui.ctx().request_repaint();
+            }
+            if edit_response.changed() || native_replacement.is_some() {
                 // Reset the selection to the top whenever the query changes (React parity: onChange ->
                 // setSelectedIndex(0)).
                 state.selected_index = 0;
@@ -255,10 +263,6 @@ pub fn show(
             if edit_response.has_focus() {
                 state.focus_requested = true;
             }
-            // Tag the search node with its stable author_id + a TextInput role (egui already derived the
-            // interactive role/actions for the TextEdit; this only adds the address — like the toggle).
-            emit_search_node(ui.ctx(), search_egui_id);
-
             ui.add_space(6.0);
 
             // Recompute the filtered list AFTER the text edit so a character typed this frame is
@@ -286,10 +290,16 @@ pub fn show(
                                 editor_menu_enable,
                             );
                             let resp = command_row(ui, cmd, is_selected, row_disabled);
+                            let accesskit_clicked = ui.input(|input| {
+                                input
+                                    .accesskit_action_requests(resp.id, accesskit::Action::Click)
+                                    .next()
+                                    .is_some()
+                            });
                             if resp.hovered() {
                                 hovered_index = Some(idx);
                             }
-                            if resp.clicked() && !row_disabled {
+                            if (resp.clicked() || accesskit_clicked) && !row_disabled {
                                 clicked_command = Some(cmd.id.to_owned());
                             }
                         }
@@ -384,6 +394,11 @@ fn command_row(
         }
         if disabled {
             node.set_disabled();
+        } else {
+            // Keep semantic enablement explicit. Overlay/window ancestry can otherwise leave a stale
+            // Disabled bit on a newly enabled dynamic row even though `add_enabled(true, ..)` rendered
+            // it runnable, causing ActionChannel to reject the operator-visible command.
+            node.clear_disabled();
         }
     });
 
@@ -404,6 +419,9 @@ fn emit_dialog_node(ctx: &egui::Context, dialog_id: egui::Id) {
 /// `TextEdit`; this only adds the stable author_id (mirrors [`emit_interactive_node`] for the toggle).
 fn emit_search_node(ctx: &egui::Context, search_id: egui::Id) {
     emit_interactive_node(ctx, search_id, PALETTE_SEARCH_AUTHOR_ID);
+    ctx.accesskit_node_builder(search_id, |node| {
+        node.add_action(accesskit::Action::SetValue);
+    });
 }
 
 /// Emit the palette LIST container node (Role::ListBox, label="Actions").

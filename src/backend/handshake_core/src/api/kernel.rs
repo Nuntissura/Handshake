@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     routing::{get, post},
     Json, Router,
@@ -18,6 +18,7 @@ use crate::kernel::session_spawn_tree_dcc::{
     project_session_spawn_tree_dcc, SessionAnnounceBackBadgeV1, SessionRuntimeState,
     SessionSpawnMode, SessionSpawnRuntimeRecordV1, SessionSpawnTreeDccV1,
 };
+use crate::kernel::KernelEvent;
 use crate::kernel::{
     action_catalog::{kernel002_action_catalog, validate_kernel_action_catalog},
     build_pre_use_dcc_mvp_runtime_surface,
@@ -659,10 +660,46 @@ fn session_runtime_state(state: &ModelSessionState) -> SessionRuntimeState {
     }
 }
 
+/// Read-only EventLedger correlation surface for product diagnostics and native cross-surface proofs.
+/// The aggregate identity is the same authority key supplied by product write routes; callers never
+/// infer persistence from a UI projection or Flight Recorder mirror.
+async fn list_kernel_events_for_aggregate(
+    State(state): State<AppState>,
+    Path((aggregate_type, aggregate_id)): Path<(String, String)>,
+) -> Result<Json<Vec<KernelEvent>>, (StatusCode, Json<ErrorResponse>)> {
+    if aggregate_type.trim().is_empty() || aggregate_id.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                code: "kernel_event_aggregate_required",
+                message: "aggregate_type and aggregate_id must be non-empty".to_owned(),
+            }),
+        ));
+    }
+    let events = state
+        .storage
+        .list_kernel_events_for_aggregate(&aggregate_type, &aggregate_id)
+        .await
+        .map_err(|error| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    code: "kernel_event_read_failed",
+                    message: error.to_string(),
+                }),
+            )
+        })?;
+    Ok(Json(events))
+}
+
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/kernel/trace_projection", get(inspect_trace_projection))
         .route("/kernel/dcc_projection", get(dcc_projection))
+        .route(
+            "/kernel/events/aggregates/:aggregate_type/:aggregate_id",
+            get(list_kernel_events_for_aggregate),
+        )
         .route(
             "/kernel/parallel_swarm/dashboard_projection",
             get(parallel_swarm_dashboard_projection),

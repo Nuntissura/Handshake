@@ -218,8 +218,9 @@ fn clicking_collapse_toggle_flips_rail_open() {
 
 // ── proof_target #4: egui_kittest visual harness — row counts + activity icons ──────────────────────
 
-/// Render the rail with 3 documents + 2 canvases and four panes (the seeded shell). Assert the project
-/// tree renders three document rows + two canvas rows, the quick-links renders four active rows (one per
+/// Render the rail with 3 documents + 2 canvases and the current three-pane editor/chat seed. Assert the
+/// project tree renders three document rows + two canvas rows, the quick-links renders three active rows
+/// (one per
 /// pane), and the activity icon strip renders the four activity buttons — all findable by label in the
 /// live tree (the out-of-process locate path).
 #[test]
@@ -251,14 +252,14 @@ fn rail_renders_tree_quick_links_and_activity_icons() {
         let _ = harness.get_by_label(icon);
     }
 
-    // Quick-links: one active-tab row per pane (the four seeded panes), confirmed via the live tree.
+    // Quick-links: one active-tab row per pane (the three seeded panes), confirmed via the live tree.
     let ids = live_author_ids(&harness);
     let quick_rows = ids
         .iter()
         .filter(|a| a.starts_with("quick-links.pane-"))
         .count();
     assert_eq!(
-        quick_rows, 4,
+        quick_rows, 3,
         "one active quick-link row per seeded pane; got {ids:?}"
     );
     // Three document tree rows + two canvas rows are in the live tree by stable author_id.

@@ -130,7 +130,7 @@ impl ReqwestDraftBackend {
     /// Build a backend against `base_url`.
     pub fn new(base_url: impl Into<String>) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
             session_run_id: super::save_manager::new_session_run_id(),
         }

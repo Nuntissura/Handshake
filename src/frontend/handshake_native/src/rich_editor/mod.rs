@@ -49,6 +49,38 @@ pub mod save;
 pub mod slash_commands;
 pub mod wikilinks;
 
+thread_local! {
+    static ACCESSIBILITY_VIEW_NAMESPACE: std::cell::RefCell<Option<String>> = const {
+        std::cell::RefCell::new(None)
+    };
+}
+
+/// Scope every rich-editor AccessKit author id to the mounted split-pane view. The deterministic
+/// primary view supplies `None` and retains canonical ids; secondary views append `--view-{namespace}`.
+pub fn scoped_author_id(author_id: impl Into<String>) -> String {
+    let author_id = author_id.into();
+    ACCESSIBILITY_VIEW_NAMESPACE.with(|slot| match slot.borrow().as_deref() {
+        Some(namespace) => format!("{author_id}--view-{namespace}"),
+        None => author_id,
+    })
+}
+
+pub struct AccessibilityViewNamespaceGuard(Option<String>);
+
+impl Drop for AccessibilityViewNamespaceGuard {
+    fn drop(&mut self) {
+        let previous = self.0.take();
+        ACCESSIBILITY_VIEW_NAMESPACE.with(|slot| *slot.borrow_mut() = previous);
+    }
+}
+
+pub fn push_accessibility_view_namespace(
+    namespace: Option<String>,
+) -> AccessibilityViewNamespaceGuard {
+    let previous = ACCESSIBILITY_VIEW_NAMESPACE.with(|slot| slot.replace(namespace));
+    AccessibilityViewNamespaceGuard(previous)
+}
+
 /// MT-031 (E5 melt-together): the rich-text editor's thin adapter into the shared
 /// [`crate::interop::InteractionBus`]. The rich editor routes its clipboard + command surface through
 /// the ONE shared bus rather than owning ad-hoc per-pane clipboard state (the contract's AC-7 rule).
@@ -133,6 +165,49 @@ pub mod interop_adapter {
         bus.clipboard_read_text().filter(|t| !t.is_empty())
     }
 
+    /// Paste one shared-bus payload into the mounted rich document. A complete resolved wikilink is
+    /// materialized as the existing persisted `hsLink` atom, with the narrower MT-046
+    /// `[[code:path#symbol]]` producer contract enforced for code references. Every other payload
+    /// retains ordinary lossless text-paste semantics.
+    fn paste_into_rich_state(
+        state: &mut crate::rich_editor::renderer::rich_editor_widget::RichEditorState,
+        text: &str,
+    ) -> bool {
+        // `parse_wikilink` intentionally searches free text for compatibility with the legacy parser,
+        // so gate atom materialization on an exact whole-payload match. Mixed text such as
+        // `see [[code:x#y]] now` must remain lossless plain text rather than dropping its surroundings.
+        if text.trim() == text {
+            let captures = crate::rich_editor::wikilinks::parser::wikilink_regex()
+                .captures(text)
+                .filter(|captures| {
+                    captures
+                        .get(0)
+                        .is_some_and(|found| found.start() == 0 && found.end() == text.len())
+                });
+            if let Some(captures) = captures {
+                let raw_target = captures.get(2).map(|capture| capture.as_str());
+                if let Some(parsed) = crate::rich_editor::wikilinks::parser::parse_wikilink(text)
+                    .filter(|parsed| {
+                        parsed.resolved
+                            && (parsed.kind.ref_kind() != "code"
+                                || raw_target.is_some_and(|raw_target| {
+                                    raw_target == parsed.ref_value
+                                        && crate::interop::cross_ref::is_encodable_code_reference_target(
+                                            raw_target,
+                                        )
+                                }))
+                    })
+                {
+                    return crate::rich_editor::renderer::rich_editor_widget::RichEditorWidget::insert_atelier_embed_at_caret(
+                        state,
+                        parsed.to_hs_link(),
+                    );
+                }
+            }
+        }
+        state.insert_plain_text_for_host(text)
+    }
+
     /// Consume the live rich pane's Ctrl/Cmd+C/X/V shortcuts and route them through the shared bus. This
     /// is the keyboard counterpart to the host menu/palette dispatch and uses the real mounted document
     /// state for both selection materialization and paste insertion.
@@ -214,7 +289,7 @@ pub mod interop_adapter {
                     let Ok(mut state) = state.lock() else {
                         return false;
                     };
-                    return state.insert_plain_text_for_host(&text);
+                    return paste_into_rich_state(&mut state, &text);
                 }
             }
         }
@@ -275,7 +350,7 @@ pub mod interop_adapter {
             let Ok(mut state) = state.lock() else {
                 return false;
             };
-            return state.insert_plain_text_for_host(&text);
+            return paste_into_rich_state(&mut state, &text);
         }
 
         false

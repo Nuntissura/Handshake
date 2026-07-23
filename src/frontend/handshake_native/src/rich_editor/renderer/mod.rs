@@ -18,7 +18,7 @@
 //! - **AccessKit: REUSE the WP-011 `crate::accessibility` live-emission path** — nodes
 //!   are written through `ctx.accesskit_node_builder(id, …)` (the same hook
 //!   `accessibility::live` uses), so they land in the real per-frame tree a swarm agent
-//!   reads out-of-process. The root carries `author_id = "rich-editor-root"` with
+//!   reads out-of-process. The root carries `author_id = "editor.rich.root"` with
 //!   `Role::TextInput` (the AC-10 contract id); each paragraph block carries
 //!   `author_id = format!("re-block-{path_hash}")` with `Role::Paragraph`.
 //! - **NodeId: a DETERMINISTIC hash of the block path** (NOT random — RISK-4 / MC-004),
@@ -40,7 +40,7 @@ use egui::accesskit;
 
 /// The AC-10 author_id for the top-level editor widget (`Role::TextInput`). A swarm agent
 /// addresses the whole editing surface by this stable key.
-pub const RICH_EDITOR_ROOT_AUTHOR_ID: &str = "rich-editor-root";
+pub const RICH_EDITOR_ROOT_AUTHOR_ID: &str = "editor.rich.root";
 
 /// The fixed AccessKit `NodeId` for the root editor container. Chosen in a HIGH band
 /// (>= 1_000_000) deliberately disjoint from the WP-011 shell's small fixed identity

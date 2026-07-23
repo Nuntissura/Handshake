@@ -664,7 +664,8 @@ impl Keymap {
             // ── History / save ──
             KeyBinding::single(m(Key::Z), A::Undo, "Undo"),
             KeyBinding::single(m(Key::Y), A::Redo, "Redo"),
-            KeyBinding::single(ms(Key::Z), A::Redo, "Redo (alt)"),
+            // Ctrl/Cmd+Shift+Z is reserved shell-wide for MT-035 cross-pane undo. It must not fall
+            // through to a local redo when the shared InteractionBus is briefly contended.
             KeyBinding::single(m(Key::S), A::Save, "Save"),
             // ── Line edits ──
             KeyBinding::single(m(Key::Slash), A::ToggleComment, "Toggle comment"),
@@ -765,12 +766,12 @@ impl Keymap {
             .collect()
     }
 
-    /// Merge operator overrides over the default table (the MT `Keymap::from_settings`). Each override's
-    /// chord is parsed and, if valid, APPENDED as a single-chord binding for the named action — appended
-    /// AFTER the defaults so it WINS the single-chord resolver (later bindings overwrite earlier ones in
-    /// [`from_bindings`](Self::from_bindings)). An override whose chord or action name does not parse is
-    /// SKIPPED with a warning (RISK-003 / MC-002 — never a silent wrong binding). The default table is
-    /// the base, so an unspecified action keeps its VS Code default.
+    /// Merge operator overrides over the default table (the MT `Keymap::from_settings`). A valid
+    /// override REPLACES every built-in binding for that action before its new single chord is installed;
+    /// the old default must not remain secretly active. If several persisted rows name the same action,
+    /// the last valid row wins. A chord collision is also deterministic: the newly installed override
+    /// owns the chord and the displaced action remains available through any other binding it has.
+    /// Invalid chord/action names are skipped with a warning and leave the working default intact.
     pub fn from_settings(settings: &super::keymap_settings::KeymapSettings) -> Self {
         let mut bindings = Self::default_vscode().bindings;
         for ov in &settings.overrides {
@@ -779,6 +780,22 @@ impl Keymap {
                 CodeEditorAction::from_name(&ov.action),
             ) {
                 (Ok(chord), Some(action)) => {
+                    if let Some(existing) = bindings
+                        .iter()
+                        .rev()
+                        .find(|binding| binding.second.is_none() && binding.chord == chord)
+                    {
+                        if existing.action != action {
+                            tracing::warn!(
+                                chord = %ov.chord,
+                                action = %ov.action,
+                                existing_action = %existing.action.name(),
+                                "skipping keymap override: chord is already bound"
+                            );
+                            continue;
+                        }
+                    }
+                    bindings.retain(|binding| binding.action != action);
                     bindings.push(KeyBinding::single(chord, action, "Operator override"));
                 }
                 (Err(e), _) => {
@@ -925,5 +942,82 @@ mod tests {
             mac_cmd: false,
         };
         assert_eq!(km.resolve_second(ctrl_k, ctrl_x), None);
+    }
+
+    #[test]
+    fn operator_override_replaces_every_default_for_the_action() {
+        use super::super::keymap_settings::{KeymapOverride, KeymapSettings};
+
+        let default_save = mod_chord(Key::S, false, false);
+        let replacement = mod_chord(Key::P, true, true);
+        let keymap = Keymap::from_settings(&KeymapSettings {
+            overrides: vec![KeymapOverride {
+                action: CodeEditorAction::Save.name().to_owned(),
+                chord: "Mod+Alt+Shift+P".to_owned(),
+            }],
+        });
+
+        assert_eq!(
+            keymap.resolve(default_save),
+            None,
+            "the old default is removed"
+        );
+        assert_eq!(keymap.resolve(replacement), Some(CodeEditorAction::Save));
+        assert_eq!(
+            keymap.bindings_for_action(CodeEditorAction::Save).len(),
+            1,
+            "one action has exactly one effective operator binding"
+        );
+    }
+
+    #[test]
+    fn later_operator_row_for_same_action_wins_without_leaving_prior_chords() {
+        use super::super::keymap_settings::{KeymapOverride, KeymapSettings};
+
+        let keymap = Keymap::from_settings(&KeymapSettings {
+            overrides: vec![
+                KeymapOverride {
+                    action: CodeEditorAction::OpenFind.name().to_owned(),
+                    chord: "Mod+Alt+F".to_owned(),
+                },
+                KeymapOverride {
+                    action: CodeEditorAction::OpenFind.name().to_owned(),
+                    chord: "Mod+Shift+F".to_owned(),
+                },
+            ],
+        });
+
+        assert_eq!(keymap.resolve(mod_chord(Key::F, true, false)), None);
+        assert_eq!(
+            keymap.resolve(mod_chord(Key::F, false, true)),
+            Some(CodeEditorAction::OpenFind)
+        );
+        assert_eq!(
+            keymap.bindings_for_action(CodeEditorAction::OpenFind).len(),
+            1
+        );
+    }
+
+    #[test]
+    fn operator_chord_collision_keeps_both_working_defaults() {
+        use super::super::keymap_settings::{KeymapOverride, KeymapSettings};
+
+        let keymap = Keymap::from_settings(&KeymapSettings {
+            overrides: vec![KeymapOverride {
+                action: CodeEditorAction::OpenReplace.name().to_owned(),
+                chord: "Mod+F".to_owned(),
+            }],
+        });
+
+        assert_eq!(
+            keymap.resolve(mod_chord(Key::F, false, false)),
+            Some(CodeEditorAction::OpenFind),
+            "the occupied chord retains its original command"
+        );
+        assert_eq!(
+            keymap.resolve(mod_chord(Key::H, false, false)),
+            Some(CodeEditorAction::OpenReplace),
+            "the rejected override does not disable the requested action's default"
+        );
     }
 }

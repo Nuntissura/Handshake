@@ -22,7 +22,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child, NodeKind, TextLeaf};
 use handshake_native::rich_editor::inline_tags::{
@@ -388,8 +390,8 @@ fn pt002_type_hash_open_menu_select_commit_chip_live() {
         let root = harness.root();
         let surface = root
             .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
-            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+            .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
+            .expect("the editor surface node carries author_id 'editor.rich.text'");
         surface.focus();
     }
     harness.step();
@@ -482,7 +484,7 @@ fn ac001_mid_word_hash_does_not_open_menu() {
         let root = harness.root();
         let surface = root
             .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
+            .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
             .expect("editor surface");
         surface.focus();
     }
@@ -604,8 +606,8 @@ fn mt020_live_tag_commit_undo_restores_pre_insert_doc() {
         let root = harness.root();
         let surface = root
             .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
-            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+            .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
+            .expect("the editor surface node carries author_id 'editor.rich.text'");
         surface.focus();
     }
     harness.step();

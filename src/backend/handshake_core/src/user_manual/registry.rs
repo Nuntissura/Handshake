@@ -179,6 +179,11 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "Monaco code-lens payload for a file (symbols, references, tests per line).",
         "Identity headers; URL-encoded repo-relative path; workspace_id query.",
         "JSON code-lens payload + staleness + receipt id."),
+    surface!("knowledge.code.workspace_index", SurfaceGroup::CodeNavigation, "POST",
+        "/workspaces/:workspace_id/code-nav/index",
+        "Index a configured local workspace root through the real ingestion and code-index pipelines; bounded per-file fanout keeps the managed PostgreSQL pool responsive and every run finishes with a terminal receipt.",
+        "Required identity headers; JSON {root_path} for the operator-configured local root. Set HANDSHAKE_POSTGRES_MAX_CONNECTIONS (1-64, default 5) before startup for bulk indexing; per-file fanout uses the configured pool minus one reserved control-plane slot (clamped 1-32; max=1 remains serial).",
+        "JSON {symbol_count, files_ingested, files_indexed, files_failed, files_skipped, root_id, index_run_id}; inspect the index-run record and EventLedger receipt on failure or retry."),
     // -- knowledge_documents (api/knowledge_documents.rs) ------------------
     surface!("knowledge.documents.create", SurfaceGroup::RichDocuments, "POST",
         "/knowledge/documents",

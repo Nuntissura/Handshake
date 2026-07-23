@@ -4,6 +4,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
@@ -32,6 +33,7 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/canvases/:canvas_id",
             get(get_canvas)
+                .patch(rename_canvas)
                 .put(update_canvas_graph)
                 .delete(delete_canvas),
         )
@@ -218,6 +220,13 @@ struct UpdateCanvasGraphRequest {
 }
 
 #[derive(Deserialize)]
+struct RenameCanvasRequest {
+    title: String,
+    #[serde(default)]
+    expected_updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize)]
 struct IncomingCanvasNode {
     id: Option<String>,
     kind: String,
@@ -379,6 +388,68 @@ async fn get_canvas(
     Ok(Json(graph_to_response(graph)))
 }
 
+async fn rename_canvas(
+    State(state): State<AppState>,
+    Path(canvas_id): Path<String>,
+    headers: HeaderMap,
+    Json(payload): Json<RenameCanvasRequest>,
+) -> Result<Json<CanvasResponse>, (StatusCode, Json<ErrorResponse>)> {
+    if payload.title.trim().is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: "canvas_title_empty",
+            }),
+        ));
+    }
+    let ctx = match write_context_from_headers(&state, &headers).await {
+        Ok(ctx) => ctx,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                None,
+                None,
+                &err,
+                "/canvases/:canvas_id",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
+    let canvas = match state
+        .storage
+        .rename_canvas(
+            &ctx,
+            &canvas_id,
+            payload.title.trim(),
+            payload.expected_updated_at,
+        )
+        .await
+    {
+        Ok(canvas) => canvas,
+        Err(err) => {
+            record_silent_edit_diagnostic(
+                &state,
+                &headers,
+                None,
+                Some(&ctx),
+                &err,
+                "/canvases/:canvas_id",
+            )
+            .await;
+            return Err(map_storage_error(err));
+        }
+    };
+    Ok(Json(CanvasResponse {
+        id: canvas.id,
+        workspace_id: canvas.workspace_id,
+        title: canvas.title,
+        created_at: canvas.created_at,
+        updated_at: canvas.updated_at,
+    }))
+}
+
 async fn update_canvas_graph(
     State(state): State<AppState>,
     Path(canvas_id): Path<String>,
@@ -501,6 +572,10 @@ async fn ensure_workspace_exists(
 fn map_storage_error(err: StorageError) -> (StatusCode, Json<ErrorResponse>) {
     match err {
         StorageError::NotFound(code) => not_found(code),
+        StorageError::Conflict(code) => (
+            StatusCode::CONFLICT,
+            Json(ErrorResponse { error: code }),
+        ),
         StorageError::Guard(_) | StorageError::Validation("HSK-403-SILENT-EDIT") => (
             StatusCode::FORBIDDEN,
             Json(ErrorResponse {
@@ -527,4 +602,24 @@ fn internal_error(err: impl std::fmt::Display) -> (StatusCode, Json<ErrorRespons
 
 fn not_found(code: &'static str) -> (StatusCode, Json<ErrorResponse>) {
     (StatusCode::NOT_FOUND, Json(ErrorResponse { error: code }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canvas_conflict_maps_to_http_409_with_stable_code() {
+        let (status, Json(body)) =
+            map_storage_error(StorageError::Conflict("canvas_updated_at_conflict"));
+        assert_eq!(status, StatusCode::CONFLICT);
+        assert_eq!(body.error, "canvas_updated_at_conflict");
+    }
+
+    #[test]
+    fn canvas_not_found_maps_to_http_404() {
+        let (status, Json(body)) = map_storage_error(StorageError::NotFound("canvas"));
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(body.error, "canvas");
+    }
 }

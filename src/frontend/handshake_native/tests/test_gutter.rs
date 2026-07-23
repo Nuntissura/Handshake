@@ -31,7 +31,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::gutter::{
     fold_triangle_glyph, DiagnosticSeverity, Gutter, GutterConfig, GutterMarkerKind,
@@ -702,7 +704,7 @@ fn gutter_fold_triangle_glyph_matches_font_coverage_and_is_never_tofu() {
             } else {
                 ("\u{25B6}", '\u{25B6}', ">")
             };
-            let glyph = fold_triangle_glyph(ui, is_open);
+            let glyph = fold_triangle_glyph(ui, is_open, &font);
             let font_has_unicode = ui.fonts_mut(|f| f.has_glyph(&font, unicode_ch));
             let expected = if font_has_unicode { unicode_str } else { ascii };
             assert_eq!(

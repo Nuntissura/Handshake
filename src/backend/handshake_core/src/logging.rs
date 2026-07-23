@@ -3,14 +3,17 @@ use std::{fs, io, path::PathBuf};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub fn init_logging() {
-    let root_dir = match repo_root() {
-        Ok(path) => path,
-        Err(err) => {
-            tracing::error!(target: "handshake_core", error = %err, "failed to resolve repo root for logging");
-            return;
-        }
+    let data_dir = match std::env::var_os("HANDSHAKE_DATA_DIR") {
+        Some(path) => PathBuf::from(path),
+        None => match repo_root() {
+            Ok(path) => path.join("data"),
+            Err(err) => {
+                eprintln!("handshake_core: failed to resolve data root for logging: {err}");
+                return;
+            }
+        },
     };
-    let log_dir = root_dir.join("data").join("logs");
+    let log_dir = data_dir.join("logs");
     let log_dir_result = fs::create_dir_all(&log_dir);
 
     let file_appender = tracing_appender::rolling::never(&log_dir, "handshake_core.log");

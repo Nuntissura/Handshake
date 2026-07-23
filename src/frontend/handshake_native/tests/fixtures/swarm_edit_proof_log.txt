@@ -1,19 +1,54 @@
-[T0001] NOTE MT-043 SwarmEditProof: channel-only agent drives 4 steps via AccessKit dispatch only
-[T0002] NOTE STEP 1: CREATE NOTE — CLICK editor.rich.format-heading-1 (agent-produced heading block), then editor.rich.save
-[T0003] DISPATCH author_id=editor.rich.format-heading-1 action=Click payload=null
-[T0004] RESPONSE tree_change=editor.rich.format-heading-1 Click -> RichDispatch::Format(SetHeading(1)) -> caret block converted to a heading (agent-produced content) db_result=SKIP
-[T0005] DISPATCH author_id=editor.rich.save action=Click payload=null
-[T0006] RESPONSE tree_change=editor.rich.save -> PUT /knowledge/documents/{id}/save (agent-produced heading captured; live row GATED) db_result=GATED:NEEDS_MANAGED_RESOURCE_PROOF
-[T0007] NOTE STEP 1 GATED-half: SELECT FROM knowledge_rich_documents WHERE title LIKE 'SwarmProofNote-%' needs managed PostgreSQL (NEEDS_MANAGED_RESOURCE_PROOF) — proven agent-driven shape, gated row
-[T0008] NOTE STEP 2: EDIT CODE — dispatch a RAW AccessKit Action::SetValue at the resolved code_editor_text node (MT-080); assert the buffer carries the AGENT-PRODUCED code
-[T0009] DISPATCH author_id=code_editor_text action=SetValue payload={"value":"print(\"swarm-proof\")\n"}
-[T0010] RESPONSE tree_change=code_editor_text SetValue -> consume_swarm_text_actions -> buffer carries the agent-produced code (MT-080 swarm-author surface; the live editor_edit DB row is GATED) db_result=PASS
-[T0011] NOTE STEP 2 PASS: MT-080 added SetValue+ReplaceSelectedText to code_editor_text; the prior 'declares ZERO actions' blocker is STALE and removed. The live editor_edit DB row stays NEEDS_MANAGED_RESOURCE_PROOF.
-[T0012] NOTE STEP 3: ADD BACKLINK — dispatch a RAW AccessKit Action::SetValue at the resolved rich wikilink chip (MT-110); assert the hsLink atom carries the AGENT-CHOSEN backlink target refValue
-[T0013] DISPATCH author_id=wikilink-chip action=SetValue payload={"ref_value":"SwarmProofTarget-block"}
-[T0014] RESPONSE tree_change=wikilink-chip SetValue -> consume_swarm_text_actions -> hsLink atom carries the AGENT-CHOSEN backlink target refValue via the MT-035 undo bus (MT-110 wikilink-target-by-id surface; the live loom_edges DB row is GATED) db_result=PASS
-[T0015] NOTE STEP 3 PASS: MT-110 added SetValue+ReplaceSelectedText to the rich text root + SetValue to plain wikilink chips (the MT-080 mirror for the rich pane); the prior 'no rich swarm-edit surface' blocker is CLOSED. The live loom_edges DB row stays NEEDS_MANAGED_RESOURCE_PROOF.
-[T0016] NOTE STEP 4: RUN SEARCH — GATED:SEEDED (result AccessKit surface proven in step4_search_result_surface_is_gated_seeded; live search NEEDS_MANAGED_RESOURCE_PROOF)
-[T0017] DISPATCH author_id=loom-search-v2.search action=Click payload={"query":"SwarmProofNote"}
-[T0018] RESPONSE tree_change=loom-search-v2.search resolves + the result surface renders a loom-search-v2.result.<id> node for a SEEDED hit (SURFACE witness in step4_search_result_surface_is_gated_seeded); the live search round-trip is GATED db_result=GATED:NEEDS_MANAGED_RESOURCE_PROOF
+PROOF_RUNNING attempt_id=31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a generation=1784665815675720200
+[T0001] NOTE authoritative managed-PostgreSQL attempt started
+[T0002] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"note\",\"title\":\"SwarmProofTarget-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a\"}"
+[T0003] RESPONSE tree_change=mounted slash-note request accepted db_result=PASS
+[T0004] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"note\",\"title\":\"SwarmProofNote-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a\"}"
+[T0005] RESPONSE tree_change=mounted slash-note request accepted db_result=PASS
+[T0006] RESPONSE tree_change=exact slash-created source and target rows exist in canonical knowledge_rich_documents db_result=PASS
+[T0007] RESPONSE tree_change=production slash-create navigation mounted the exact source document without test-state rebinding db_result=PASS
+[T0008] DISPATCH author_id=editor.rich.root action=Focus payload=null
+[T0009] RESPONSE tree_change=continuous mounted application state advanced db_result=PASS
+[T0010] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"kind\":\"wikilink\",\"label\":\"SwarmProofTarget-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a\",\"ref_kind\":\"note\",\"ref_value\":\"KRD-019f865f3b2b75539883507d712e8f7a\"}"
+[T0011] RESPONSE tree_change=continuous mounted application state advanced db_result=PASS
+[T0012] DISPATCH author_id=editor.rich.insert-slash-command action=ClickWithPayload payload="{\"code\":\"\",\"kind\":\"code_block\",\"language\":\"rust\"}"
+[T0013] RESPONSE tree_change=continuous mounted application state advanced db_result=PASS
+[T0014] DISPATCH author_id=editor.rich.code-block.open.re-block-513637473 action=Click payload=null
+[T0015] RESPONSE tree_change=exact rich code block opened in the native code editor db_result=PASS
+[T0016] DISPATCH author_id=editor.code.text#document-726963682d636f64652d626c6f636b3a3462353234343264333033313339363633383336333536363333363233373635333733363333333336313635333636343636333633353337333036313632363333363634333936323a31 action=SetValue payload="fn swarm_merge() -> &'static str { \"MT-043\" }\n"
+[T0017] RESPONSE tree_change=agent-authored code entered the exact bound native code buffer db_result=PASS
+[T0018] DISPATCH author_id=editor.code.save.document-726963682d636f64652d626c6f636b3a3462353234343264333033313339363633383336333536363333363233373635333733363333333336313635333636343636333633353337333036313632363333363634333936323a31 action=Click payload=null
+[T0019] RESPONSE tree_change=editor.code.save entered the exact rich-code persistence bridge db_result=PASS
+[T0020] RESPONSE tree_change=exact rich code content binding mounted as rich-code-block:4b52442d3031396638363566336237653736333361653664663635373061626336643962:1 db_result=PASS
+[T0021] DISPATCH author_id=editor.rich.root action=SetValue payload="agent-b-recoverable-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a"
+[T0022] RESPONSE tree_change=second mounted actor applied its independent stale edit db_result=PASS
+[T0023] DISPATCH author_id=editor.rich.save action=Click payload=null
+[T0024] RESPONSE tree_change=actor B stale save intent entered the mounted save manager db_result=PASS
+[T0025] RESPONSE tree_change=loser refetched canonical server document after 409 db_result=PASS
+[T0026] DISPATCH author_id=editor.rich.conflict.keep-server action=Click payload=null
+[T0027] RESPONSE tree_change=mounted conflict UI adopted the refetched server version db_result=PASS
+[T0028] DISPATCH author_id=editor.rich.root action=ReplaceSelectedText payload="agent-b-recoverable-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a"
+[T0029] RESPONSE tree_change=loser merged its recoverable edit into the adopted server document through mounted AccessKit db_result=PASS
+[T0030] DISPATCH author_id=editor.rich.save action=Click payload=null
+[T0031] RESPONSE tree_change=loser submitted the merged winner-plus-loser document db_result=PASS
+[T0032] DISPATCH author_id=search.query action=SetValue payload="SwarmProofNote-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a"
+[T0033] RESPONSE tree_change=continuous mounted search state advanced db_result=PASS
+[T0034] DISPATCH author_id=search.run action=Click payload=null
+[T0035] RESPONSE tree_change=continuous mounted search state advanced db_result=PASS
+[T0036] DISPATCH author_id=search.result.KRD-019f865f3b7e7633ae6df6570abc6d9b action=Click payload=null
+[T0037] RESPONSE tree_change=search result activated on continuous app db_result=PASS
+[T0038] RESPONSE tree_change=both actors have distinct exact-one canonical EventLedger receipts and automatic attributed Flight Recorder rows db_result=PASS
+[T0039] NOTE FLIGHT_RECORDER actor_a={"activity_span_id":null,"actor":"human","actor_id":"mt043-agent-a-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a","capability_id":null,"event_id":"d09022ac-dfb5-4fd4-90fd-2c565286f7eb","event_type":"system","job_id":null,"model_id":null,"model_session_id":null,"payload":{"action":"document_saved","actor_id":"mt043-agent-a-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a","editor_surface":"pane-b","event_family":"native_editor","kind":"document_saved","native_payload":{"actor_kind":"operator","content_hash":"74d38da5e3467b9560cde76beb89f982c9778e30a4f45a042c7aba9582717bd6","correlation_id":"native-editor-save-KRD-019f865f3b7e7633ae6df6570abc6d9b-native-editor-20496-6","document_id":"KRD-019f865f3b7e7633ae6df6570abc6d9b","kernel_task_run_id":"native-editor-doc-KRD-019f865f3b7e7633ae6df6570abc6d9b","save_receipt_event_id":"KE-019f865f-3d86-7fc2-98df-b50bba02650f","session_run_id":"native-editor-20496-6"},"ops":[{"kind":"document_saved","payload":{"actor_kind":"operator","content_hash":"74d38da5e3467b9560cde76beb89f982c9778e30a4f45a042c7aba9582717bd6","correlation_id":"native-editor-save-KRD-019f865f3b7e7633ae6df6570abc6d9b-native-editor-20496-6","document_id":"KRD-019f865f3b7e7633ae6df6570abc6d9b","kernel_task_run_id":"native-editor-doc-KRD-019f865f3b7e7633ae6df6570abc6d9b","save_receipt_event_id":"KE-019f865f-3d86-7fc2-98df-b50bba02650f","session_run_id":"native-editor-20496-6"}}],"pane_id":"pane-b","schema":"hsk.native_editor@0.1","schema_version":"hsk.native_editor@0.1","ts_utc":"2026-07-21T20:30:16.492360500+00:00","workspace_id":"019f865f-3a90-7d82-80ed-4c3e2a137277"},"policy_decision_id":null,"session_span_id":"acc7ddde-7a1f-4738-a3e5-0c37f71db14b","timestamp":"2026-07-21T20:30:16.492360+00:00","trace_id":"acc7ddde-7a1f-4738-a3e5-0c37f71db14b","workflow_id":null,"wsids":["019f865f-3a90-7d82-80ed-4c3e2a137277"]} actor_b={"activity_span_id":null,"actor":"human","actor_id":"mt043-agent-b-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a","capability_id":null,"event_id":"e86aac77-b306-42cd-b5b1-779179df597b","event_type":"system","job_id":null,"model_id":null,"model_session_id":null,"payload":{"action":"document_saved","actor_id":"mt043-agent-b-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a","editor_surface":"pane-b","event_family":"native_editor","kind":"document_saved","native_payload":{"actor_kind":"operator","content_hash":"96a8d2fee38b8336abea128e92ddcc27d7e0611d27ce2c772992b98b5821b029","correlation_id":"native-editor-save-KRD-019f865f3b7e7633ae6df6570abc6d9b-native-editor-20496-11","document_id":"KRD-019f865f3b7e7633ae6df6570abc6d9b","kernel_task_run_id":"native-editor-doc-KRD-019f865f3b7e7633ae6df6570abc6d9b","save_receipt_event_id":"KE-019f865f-3e0a-7121-b9fd-f2dabb18589a","session_run_id":"native-editor-20496-11"},"ops":[{"kind":"document_saved","payload":{"actor_kind":"operator","content_hash":"96a8d2fee38b8336abea128e92ddcc27d7e0611d27ce2c772992b98b5821b029","correlation_id":"native-editor-save-KRD-019f865f3b7e7633ae6df6570abc6d9b-native-editor-20496-11","document_id":"KRD-019f865f3b7e7633ae6df6570abc6d9b","kernel_task_run_id":"native-editor-doc-KRD-019f865f3b7e7633ae6df6570abc6d9b","save_receipt_event_id":"KE-019f865f-3e0a-7121-b9fd-f2dabb18589a","session_run_id":"native-editor-20496-11"}}],"pane_id":"pane-b","schema":"hsk.native_editor@0.1","schema_version":"hsk.native_editor@0.1","ts_utc":"2026-07-21T20:30:16.609079600+00:00","workspace_id":"019f865f-3a90-7d82-80ed-4c3e2a137277"},"policy_decision_id":null,"session_span_id":"0acbc3f2-f80f-45e1-a327-aefde15d53bb","timestamp":"2026-07-21T20:30:16.609079+00:00","trace_id":"0acbc3f2-f80f-45e1-a327-aefde15d53bb","workflow_id":null,"wsids":["019f865f-3a90-7d82-80ed-4c3e2a137277"]}
+[T0040] RESPONSE tree_change=exact canonical loom_edges source->target row exists after final save db_result=PASS
+[T0041] RESPONSE tree_change=mounted graph tree contains source=graph.node.u8-4b52442d3031396638363566336237653736333361653664663635373061626336643962 and target=graph.node.u8-4b52442d3031396638363566336232623735353339383833353037643731326538663761 db_result=PASS
+[T0042] DISPATCH author_id=graph.select-node action=ClickWithPayload payload="{\"block_id\":\"KRD-019f865f3b7e7633ae6df6570abc6d9b\"}"
+[T0043] RESPONSE tree_change=graph selected the exact source block before the cleanup refresh db_result=PASS
+[T0044] DISPATCH author_id=graph.mode.local action=Click payload=null
+[T0045] RESPONSE tree_change=graph entered Local mode through AccessKit db_result=PASS
+[T0046] DISPATCH author_id=graph.mode.global action=Click payload=null
+[T0047] RESPONSE tree_change=graph returned to Global mode and issued a canonical cleanup refresh db_result=PASS
+[T0048] RESPONSE tree_change=document cleanup removed both canonical rows/edges and the refreshed graph tree removed both AccessKit node identities db_result=PASS
+[T0049] RESPONSE tree_change=sidecar-less crash-window cleanup removed the attempt-named canonical workspace within its bounded budget db_result=PASS
+[T0050] NOTE LIVE workspace=019f865f-3a90-7d82-80ed-4c3e2a137277 document=KRD-019f865f3b7e7633ae6df6570abc6d9b block=KRD-019f865f3b7e7633ae6df6570abc6d9b
+[T0051] NOTE FINAL_PERSISTED doc_version=3 code_exact_count=1 backlink_exact_count=1 loser_edit_exact_count=1 content_json={"content":[{"content":[{"text":"agent-b-recoverable-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a","type":"text"},{"attrs":{"label":"SwarmProofTarget-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a","refKind":"note","refValue":"KRD-019f865f3b2b75539883507d712e8f7a","resolved":true},"type":"hsLink"},{"text":"","type":"text"}],"type":"paragraph"},{"attrs":{"language":"rust"},"content":[{"text":"fn swarm_merge() -> &'static str { \"MT-043\" }\n","type":"text"}],"type":"codeBlock"}],"type":"doc"}
+[T0052] NOTE actors=[mt043-agent-a-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a,mt043-agent-b-31944-b9348903-eefa-4323-99d7-ba7cdb07fa8a] winner_receipt=KE-019f865f-3d86-7fc2-98df-b50bba02650f merge_receipt=KE-019f865f-3e0a-7121-b9fd-f2dabb18589a fr_event_ids=[d09022ac-dfb5-4fd4-90fd-2c565286f7eb,e86aac77-b306-42cd-b5b1-779179df597b] result=search.result.KRD-019f865f3b7e7633ae6df6570abc6d9b elapsed_ms=1789
 PROOF_PASS

@@ -49,6 +49,10 @@ pub enum EditAction {
     Insert(String),
     /// Delete one char to the LEFT of the caret (Backspace).
     DeleteBackward,
+    /// Delete one char to the left but do not perform the boundary merge. Used when the operator has
+    /// rebound `merge_backward`: ordinary Backspace still deletes text, while the old structural
+    /// command chord is no longer secretly active at offset zero.
+    DeleteBackwardWithoutMerge,
     /// Delete one char to the RIGHT of the caret (Delete).
     DeleteForward,
     /// Move the caret one char left; `extend` keeps the anchor (Shift).
@@ -180,6 +184,23 @@ pub fn decode_events_excluding_formatting(
     events: &[egui::Event],
     caret_in_list: bool,
 ) -> Vec<EditAction> {
+    decode_events_excluding_formatting_with_keymap(
+        events,
+        caret_in_list,
+        false,
+        &keymap::RichKeymap::default(),
+    )
+}
+
+/// Override-aware form of [`decode_events_excluding_formatting`]. The mounted rich editor passes its
+/// workspace-scoped keymap so a rebound command is consumed at its custom chord and the superseded
+/// default chord falls through normally.
+pub fn decode_events_excluding_formatting_with_keymap(
+    events: &[egui::Event],
+    caret_in_list: bool,
+    caret_at_text_start: bool,
+    rich_keymap: &keymap::RichKeymap,
+) -> Vec<EditAction> {
     let filtered: Vec<egui::Event> = events
         .iter()
         .filter(|ev| {
@@ -190,21 +211,52 @@ pub fn decode_events_excluding_formatting(
                 ..
             } = ev
             {
-                if let Some(cmd) = keymap::resolve_shortcut(modifiers, *key) {
+                if let Some(cmd) = rich_keymap.resolve(modifiers, *key) {
                     // A list-conditional chord outside a list is NOT claimed by the
                     // formatting pass, so it must remain available to the plain decode
                     // (though Tab has no EditAction, this keeps the gate consistent).
                     if keymap::is_list_conditional(&cmd) && !caret_in_list {
                         return true;
                     }
+                    // A rebound MergeBackward on Backspace is structural only at a text boundary;
+                    // inside text, a bare Backspace must keep its ordinary delete behavior. A
+                    // modified custom chord is consumed as an invalid-context no-op instead of
+                    // accidentally deleting text through the plain decoder.
+                    if cmd == FormattingCommand::MergeBackward && !caret_at_text_start {
+                        return *key == egui::Key::Backspace
+                            && !modifiers.ctrl
+                            && !modifiers.alt
+                            && !modifiers.shift
+                            && !modifiers.mac_cmd;
+                    }
                     return false; // claimed by the formatting pass -> drop here
+                }
+                // Undo/Redo were historically also decoded by the plain MT-012 layer. Once their
+                // command is rebound, suppress that legacy default so the override replaces rather
+                // than merely supplements Ctrl/Cmd+Z.
+                let ctrl = modifiers.command || modifiers.ctrl;
+                if *key == egui::Key::Z && ctrl && !modifiers.alt {
+                    if modifiers.shift && rich_keymap.is_overridden("redo") {
+                        return false;
+                    }
+                    if !modifiers.shift && rich_keymap.is_overridden("undo") {
+                        return false;
+                    }
                 }
             }
             true
         })
         .cloned()
         .collect();
-    decode_events(&filtered)
+    let mut actions = decode_events(&filtered);
+    if caret_at_text_start && rich_keymap.is_overridden("merge_backward") {
+        for action in &mut actions {
+            if *action == EditAction::DeleteBackward {
+                *action = EditAction::DeleteBackwardWithoutMerge;
+            }
+        }
+    }
+    actions
 }
 
 /// Apply one [`EditAction`] to the edit context, returning `true` when the document or
@@ -213,8 +265,9 @@ pub fn decode_events_excluding_formatting(
 pub fn apply_action(ctx: &mut EditContext<'_>, action: EditAction) -> bool {
     match action {
         EditAction::Insert(text) => insert_text(ctx, &text),
-        EditAction::DeleteBackward => delete(ctx, true),
-        EditAction::DeleteForward => delete(ctx, false),
+        EditAction::DeleteBackward => delete(ctx, true, true),
+        EditAction::DeleteBackwardWithoutMerge => delete(ctx, true, false),
+        EditAction::DeleteForward => delete(ctx, false, false),
         EditAction::MoveLeft { extend } => move_horizontal(ctx, -1, extend),
         EditAction::MoveRight { extend } => move_horizontal(ctx, 1, extend),
         EditAction::MoveHome { extend } => move_boundary(ctx, true, extend),
@@ -238,6 +291,22 @@ pub fn decode_formatting_commands(
     events: &[egui::Event],
     caret_in_list: bool,
 ) -> Vec<FormattingCommand> {
+    decode_formatting_commands_with_keymap(
+        events,
+        caret_in_list,
+        false,
+        &keymap::RichKeymap::default(),
+    )
+}
+
+/// Override-aware form of [`decode_formatting_commands`] used by the mounted rich editor. Defaults
+/// remain available through the wrapper above for standalone formatting tests.
+pub fn decode_formatting_commands_with_keymap(
+    events: &[egui::Event],
+    caret_in_list: bool,
+    caret_at_text_start: bool,
+    rich_keymap: &keymap::RichKeymap,
+) -> Vec<FormattingCommand> {
     let mut out = Vec::new();
     for ev in events {
         if let egui::Event::Key {
@@ -247,10 +316,13 @@ pub fn decode_formatting_commands(
             ..
         } = ev
         {
-            if let Some(cmd) = keymap::resolve_shortcut(modifiers, *key) {
+            if let Some(cmd) = rich_keymap.resolve(modifiers, *key) {
                 // Suppress list-conditional indent/dedent outside a list (Tab traverses
                 // focus there instead of indenting).
                 if keymap::is_list_conditional(&cmd) && !caret_in_list {
+                    continue;
+                }
+                if cmd == FormattingCommand::MergeBackward && !caret_at_text_start {
                     continue;
                 }
                 out.push(cmd);
@@ -368,12 +440,15 @@ fn insert_text(ctx: &mut EditContext<'_>, text: &str) -> bool {
 /// (merge this block into the previous sibling) — closing MT-012's "Backspace at offset 0
 /// is a no-op" deferral. A forward delete at the leaf end is still a no-op here (forward
 /// cross-block merge is a later E2 pass).
-fn delete(ctx: &mut EditContext<'_>, backward: bool) -> bool {
+fn delete(ctx: &mut EditContext<'_>, backward: bool, merge_at_boundary: bool) -> bool {
     let pos = head(ctx);
     let len = leaf_len(ctx.doc, &pos);
     let offset = pos.char_offset.min(len);
     let (start, end, new_off) = if backward {
         if offset == 0 {
+            if !merge_at_boundary {
+                return false;
+            }
             // At the very start of the block's text -> structural merge into the previous
             // sibling (MT-013 scope expansion), via the command layer (which sets the
             // post-merge caret at the join point). A no-op when there is no previous
@@ -584,6 +659,77 @@ mod tests {
                 EditAction::Undo,
                 EditAction::Redo,
             ]
+        );
+    }
+
+    #[test]
+    fn rich_overrides_replace_legacy_undo_and_boundary_backspace_defaults() {
+        let event = |key, chord: &str| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: crate::code_editor::keymap_settings::KeymapSettings::chord_from_str(chord)
+                .expect("test chord")
+                .modifiers(),
+        };
+        let (keymap, errors) = keymap::RichKeymap::from_overrides([
+            ("undo", "Mod+Alt+Z"),
+            ("merge_backward", "Mod+Alt+Backspace"),
+        ]);
+        assert!(errors.is_empty());
+
+        let old_undo = event(egui::Key::Z, "Mod+Z");
+        assert!(decode_formatting_commands_with_keymap(
+            std::slice::from_ref(&old_undo),
+            false,
+            false,
+            &keymap,
+        )
+        .is_empty());
+        assert!(
+            decode_events_excluding_formatting_with_keymap(&[old_undo], false, false, &keymap,)
+                .is_empty(),
+            "legacy plain Ctrl/Cmd+Z is suppressed after Undo is rebound"
+        );
+        assert_eq!(
+            decode_formatting_commands_with_keymap(
+                &[event(egui::Key::Z, "Mod+Alt+Z")],
+                false,
+                false,
+                &keymap,
+            ),
+            vec![FormattingCommand::Undo]
+        );
+
+        assert_eq!(
+            decode_events_excluding_formatting_with_keymap(
+                &[event(egui::Key::Backspace, "Backspace")],
+                false,
+                true,
+                &keymap,
+            ),
+            vec![EditAction::DeleteBackwardWithoutMerge],
+            "plain Backspace remains a text key but its old boundary command is disabled"
+        );
+        assert_eq!(
+            decode_formatting_commands_with_keymap(
+                &[event(egui::Key::Backspace, "Mod+Alt+Backspace")],
+                false,
+                true,
+                &keymap,
+            ),
+            vec![FormattingCommand::MergeBackward]
+        );
+        assert!(
+            decode_events_excluding_formatting_with_keymap(
+                &[event(egui::Key::Backspace, "Mod+Alt+Backspace")],
+                false,
+                false,
+                &keymap,
+            )
+            .is_empty(),
+            "a structural custom chord in invalid context never falls through to destructive text deletion"
         );
     }
 

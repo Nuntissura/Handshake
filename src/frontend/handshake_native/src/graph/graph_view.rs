@@ -10,8 +10,8 @@
 //!
 //! It binds the REAL PostgreSQL/EventLedger backend through the WP-011
 //! [`crate::backend_client::LoomGraphClient`] (added by this MT alongside the widget): Global mode
-//! enumerates `GET /workspaces/{id}/loom/views/all`; Local mode fetches the focused block's
-//! neighbourhood via `GET /workspaces/{id}/loom/graph-search?q={title}&backlink_depth=2&limit=200`.
+//! loads `GET /workspaces/{id}/loom/graph/global`; Local mode loads the focused block's authoritative
+//! neighbourhood via `GET /workspaces/{id}/loom/graph/local?start_block_id={id}&max_depth=2`.
 //! There is NO Tauri command anywhere (the contract's step-3 "Tauri" reference is the LEGACY
 //! React/webview stack; the KERNEL_BUILDER gate corrected it to backend_client.rs — the same client
 //! MT-008/014/015/017 used).
@@ -29,12 +29,12 @@
 //! ## AccessKit (HBR-SWARM)
 //!
 //! Every toolbar control (`graph.mode.local`, `graph.mode.global`, `graph.zoom.in`, `graph.zoom.out`,
-//! `graph.relayout`) and every rendered node (`graph.node.{sanitized_block_id}`, Role::Button, label =
+//! `graph.relayout`) and every rendered node (`graph.node.{sanitized_block_id}`, Role::TreeItem, label =
 //! title, Action::Click) emits a live AccessKit node through egui's own
 //! [`egui::Context::accesskit_node_builder`] hook so an out-of-process swarm agent can read the graph
-//! and click a node by stable id. Block ids are sanitized to `[a-z0-9-]` via
-//! [`crate::project_tree::stable_part`] before forming the author_id suffix (RISK-3 / MC-3): a raw id
-//! with slashes or colons can never break AccessKit-tree integrity.
+//! and click a node by stable id. Block ids use the collision-safe MT-042 graph identity helper before
+//! forming the author_id suffix (RISK-3 / MC-3): unsafe characters cannot break the AccessKit tree and
+//! distinct raw ids cannot alias after sanitization.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -58,9 +58,9 @@ use crate::theme::HsPalette;
 /// after inverse-transforming the pointer (RISK-4).
 pub const NODE_RADIUS: f32 = 18.0;
 
-/// Hard cap on loaded nodes (RISK-5 / MC-2). A naive O(n^2) repulsion is fine up to a couple hundred
-/// nodes; beyond this the graph clamps and shows a "showing N of M" truncation notice.
-pub const NODE_CAP: usize = 200;
+/// Hard cap on loaded nodes (RISK-5 / MC-2). The layout contract admits up to 1,000 nodes; beyond
+/// this the graph clamps and shows a "showing N of M" truncation notice.
+pub const NODE_CAP: usize = 1_000;
 
 /// Total force-layout iteration budget across all frames (PROOF1 convergence ceiling). Once reached,
 /// layout stops regardless of convergence so it can never animate forever (idle-repaint discipline).
@@ -85,26 +85,23 @@ pub const MODE_GLOBAL_AUTHOR_ID: &str = "graph.mode.global";
 pub const ZOOM_IN_AUTHOR_ID: &str = "graph.zoom.in";
 pub const ZOOM_OUT_AUTHOR_ID: &str = "graph.zoom.out";
 pub const RELAYOUT_AUTHOR_ID: &str = "graph.relayout";
+pub const RETRY_AUTHOR_ID: &str = "graph.retry";
 
 /// Author_id prefix for a graph node. The full id is `graph.node.{sanitized_block_id}`.
-pub const NODE_AUTHOR_ID_PREFIX: &str = "graph.node.";
+pub const NODE_AUTHOR_ID_PREFIX: &str = knowledge_action_registry::GRAPH_NODE_AUTHOR_ID_PREFIX;
 
-/// The stable AccessKit author_id for a graph node, sanitizing `block_id` to `[a-z0-9-]` (RISK-3 /
-/// MC-3). Reuses the shell's [`crate::project_tree::stable_part`] slugger so a block_id with slashes
-/// or colons can never inject an unsafe author_id.
+/// The stable AccessKit author_id for a graph node. MT-042 owns the canonical graph identity mapping,
+/// including collision-safe sanitization for ids containing punctuation or other unsafe characters.
 pub fn node_author_id(block_id: &str) -> String {
-    format!(
-        "{NODE_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
-    )
+    knowledge_action_registry::graph_node_author_id(block_id)
 }
 
-/// Which graph the view is showing. `Local` is the neighbourhood of a focused block (graph-search);
-/// `Global` is the full workspace (views/all). Switching modes triggers a re-fetch + re-layout.
+/// Which graph the view is showing. `Local` is the canonical neighbourhood of a focused block;
+/// `Global` is the canonical full workspace graph. Switching modes triggers a re-fetch + re-layout.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GraphMode {
-    /// Neighbourhood of one focused block. `title` is the graph-search query term (`q=`); `block_id`
-    /// is the focused block whose neighbourhood is shown.
+    /// Neighbourhood of one focused block. `block_id` drives the canonical traversal; `title` remains
+    /// available to the host as the operator-facing label.
     Local { block_id: String, title: String },
     /// The full workspace graph (all blocks).
     Global,
@@ -122,7 +119,7 @@ impl GraphMode {
 /// ## Group-identity fields (WP-KERNEL-012 MT-060)
 ///
 /// `tags` and `folder_path` are the group-identity the MT-060 control panel matches against for tag/folder
-/// GROUP colouring. They default EMPTY because the `views/all` / `graph-search` payload the MT-021 backend
+/// GROUP colouring. They default EMPTY because the canonical `LoomGraph` payload the MT-021 backend
 /// client parses (`backend_client::block_to_node`) carries ONLY `block_id` / `title` / `content_type` — the
 /// backend `LoomBlock` row exposes NO per-node `tag_ids` or `folder_id` output field (verified against
 /// `src/backend/handshake_core/src/storage/loom.rs`: `tag_ids` exists only as a search *filter input*, never
@@ -203,14 +200,17 @@ impl GraphNode {
 /// node's OWN payload (NOT a hardcoded `false`). A `note` content_type node HAS a backing note to open
 /// (Open Note enabled); every graph node has a stable block id to reveal (Reveal Node enabled). A graph
 /// node is a RESOLVED block from the graph query, so it carries no unresolved link (Create-note stays
-/// disabled). This keeps the disabled-not-dead-enabled invariant: a disabled entry maps to `None` in
+/// disabled). Graph view has no live Canvas board context, so Route to Stage remains disabled even for a
+/// stable graph-node id. This keeps the disabled-not-dead-enabled invariant: a disabled entry maps to `None` in
 /// [`crate::context_menu_surfaces::node_action_for_id`], never a dead enabled entry.
 pub fn graph_node_menu_availability(
     node: &GraphNode,
 ) -> crate::context_menu_surfaces::NodeMenuAvailability {
     crate::context_menu_surfaces::NodeMenuAvailability {
+        canvas_projection_confirmed: None,
         has_note: node.content_type == "note",
         has_node_id: !node.block_id.is_empty(),
+        can_route_to_stage: false,
         unresolved_link: false,
     }
 }
@@ -219,6 +219,9 @@ pub fn graph_node_menu_availability(
 /// kept for future colour-by-edge-type but not yet rendered distinctly.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphEdge {
+    /// Canonical persisted Loom edge identity. Synthetic/layout-only edges created with [`Self::new`]
+    /// intentionally leave this absent and are never exposed as actionable `graph.edge.*` nodes.
+    pub edge_id: Option<String>,
     pub source: String,
     pub target: String,
     pub edge_type: String,
@@ -231,6 +234,22 @@ impl GraphEdge {
         edge_type: impl Into<String>,
     ) -> Self {
         Self {
+            edge_id: None,
+            source: source.into(),
+            target: target.into(),
+            edge_type: edge_type.into(),
+        }
+    }
+
+    /// Construct an edge returned by the production Loom graph API with its persisted identity.
+    pub fn with_id(
+        edge_id: impl Into<String>,
+        source: impl Into<String>,
+        target: impl Into<String>,
+        edge_type: impl Into<String>,
+    ) -> Self {
+        Self {
+            edge_id: Some(edge_id.into()),
             source: source.into(),
             target: target.into(),
             edge_type: edge_type.into(),
@@ -273,8 +292,10 @@ pub enum GraphEvent {
     ModeChanged { to_global: bool },
     /// The Re-layout button was pressed; positions were reset and layout restarts.
     Relayout,
+    /// Retry the exact workspace/mode/focus/depth projection after a bounded backend failure.
+    Retry,
     /// WP-KERNEL-012 MT-060: the link-depth slider was released at a new value in Local mode. The host
-    /// re-fires the EXISTING `GET /loom/graph-search?q={focused_title}&limit=&backlink_depth={depth}` and
+    /// re-fires the EXISTING `GET /loom/graph/local?start_block_id={id}&max_depth={depth}` and
     /// replaces the node/edge set (then `set_graph` re-runs the force layout). NO new endpoint. In Global
     /// mode the slider is disabled and this event never fires.
     DepthChanged { depth: u32 },
@@ -298,6 +319,8 @@ pub enum GraphEvent {
     /// stable Loom block id.
     NodeMenu {
         block_id: String,
+        source_pane_id: Option<crate::pane_registry::PaneId>,
+        source_workspace_id: String,
         action: crate::context_menu_surfaces::NodeMenuAction,
     },
 }
@@ -313,6 +336,12 @@ pub struct LoomGraphView {
     /// Total nodes the backend reported (>= `nodes.len()` when truncated to [`NODE_CAP`]). Drives the
     /// "showing N of M" notice (MC-2).
     pub total_available: usize,
+    /// True when the backend returned a valid but deliberately capped projection. Unlike
+    /// `total_available`, the backend response does not disclose the canonical total, so the UI must
+    /// not invent an "N of M" count.
+    pub backend_truncated: bool,
+    /// Count of hub nodes deliberately suppressed by the backend projection policy.
+    pub suppressed_hub_count: usize,
     pub pan: Vec2,
     pub zoom: f32,
     pub selected: Option<String>,
@@ -353,6 +382,8 @@ pub struct LoomGraphView {
     /// drives the SAME viewport-visible set the frame rendered (CTRL-042-06). `None` before the first
     /// render (the whole capped set is visible then). Transient per-frame state (not `Clone` semantics).
     last_canvas_rect: Option<Rect>,
+    /// Last rendered graph canvas rect per pane for exact multi-pane diagnostics and pointer proofs.
+    last_canvas_rect_by_pane: HashMap<crate::pane_registry::PaneId, Rect>,
     /// MT-042: swarm AccessKit dispatches the in-render sync/emit/take loop consumed THIS frame but that
     /// the single-`Option` `show` return cannot carry. The host drains them via
     /// [`Self::drain_knowledge_events`] after `show`. This is the wiring that makes the swarm surface LIVE
@@ -364,6 +395,12 @@ pub struct LoomGraphView {
     /// while the node menu is attached to that node; `None` after a right-click over empty canvas (no
     /// menu) or once a menu action is confirmed.
     ctx_menu_node: Option<String>,
+    /// Pane that opened the retained node menu. Only this mount may reconstruct or dispatch it.
+    ctx_menu_owner_pane_id: Option<crate::pane_registry::PaneId>,
+    /// Exact pane that rendered this shared graph instance. The mount refreshes it immediately before
+    /// `show`, and queued node-menu events retain it across later focus changes.
+    render_source_pane_id: Option<crate::pane_registry::PaneId>,
+    snapshot_capture_mode: bool,
 }
 
 impl Default for LoomGraphView {
@@ -374,6 +411,8 @@ impl Default for LoomGraphView {
             nodes: Vec::new(),
             edges: Vec::new(),
             total_available: 0,
+            backend_truncated: false,
+            suppressed_hub_count: 0,
             pan: Vec2::ZERO,
             zoom: 1.0,
             selected: None,
@@ -389,13 +428,60 @@ impl Default for LoomGraphView {
             groups_discovered: false,
             knowledge_registry: None,
             last_canvas_rect: None,
+            last_canvas_rect_by_pane: HashMap::new(),
             pending_knowledge_events: Vec::new(),
             ctx_menu_node: None,
+            ctx_menu_owner_pane_id: None,
+            render_source_pane_id: None,
+            snapshot_capture_mode: false,
         }
     }
 }
 
 impl LoomGraphView {
+    pub fn set_render_source_pane_id(&mut self, pane_id: crate::pane_registry::PaneId) {
+        self.render_source_pane_id = Some(pane_id);
+    }
+
+    pub fn set_snapshot_capture_mode(&mut self, enabled: bool) {
+        self.snapshot_capture_mode = enabled;
+    }
+
+    #[doc(hidden)]
+    pub fn context_menu_owner_pane_for_test(&self) -> Option<&crate::pane_registry::PaneId> {
+        self.ctx_menu_owner_pane_id.as_ref()
+    }
+
+    #[doc(hidden)]
+    pub fn canvas_rect_for_pane_for_test(
+        &self,
+        pane_id: &crate::pane_registry::PaneId,
+    ) -> Option<Rect> {
+        self.last_canvas_rect_by_pane.get(pane_id).copied()
+    }
+
+    #[doc(hidden)]
+    pub fn node_screen_position_for_pane(
+        &self,
+        pane_id: &crate::pane_registry::PaneId,
+        block_id: &str,
+    ) -> Option<Pos2> {
+        let rect = self.last_canvas_rect_by_pane.get(pane_id)?;
+        let node = self.nodes.iter().find(|node| node.block_id == block_id)?;
+        Some(rect.center() + self.pan + node.pos().to_vec2() * self.zoom)
+    }
+
+    #[doc(hidden)]
+    pub fn node_at_screen_for_pane_for_test(
+        &self,
+        pane_id: &crate::pane_registry::PaneId,
+        screen: Pos2,
+    ) -> Option<&str> {
+        let rect = self.last_canvas_rect_by_pane.get(pane_id)?;
+        self.node_at_screen(screen, rect.center().to_vec2())
+            .map(|index| self.nodes[index].block_id.as_str())
+    }
+
     /// A fresh Global-mode view for `workspace_id`.
     pub fn global(workspace_id: impl Into<String>) -> Self {
         Self {
@@ -408,8 +494,51 @@ impl LoomGraphView {
     /// Replace the node/edge set (e.g. after a backend fetch resolves), clamping to [`NODE_CAP`]
     /// (MC-2) and recording the true total for the truncation notice. Resets layout so the new set
     /// re-seeds + re-converges.
-    pub fn set_graph(&mut self, mut nodes: Vec<GraphNode>, edges: Vec<GraphEdge>) {
+    pub fn set_graph(&mut self, nodes: Vec<GraphNode>, edges: Vec<GraphEdge>) {
+        self.set_graph_projection(nodes, edges, false, 0);
+    }
+
+    /// Clear every workspace-owned projection surface before binding a different workspace. A Local
+    /// focus is workspace-local and cannot be carried forward without an affirmative lookup in the new
+    /// workspace, so the safe initial mode is Global.
+    pub fn reset_for_workspace(&mut self, workspace_id: impl Into<String>) {
+        self.workspace_id = workspace_id.into();
+        self.mode = GraphMode::Global;
+        self.nodes.clear();
+        self.edges.clear();
+        self.total_available = 0;
+        self.backend_truncated = false;
+        self.suppressed_hub_count = 0;
+        self.pan = Vec2::ZERO;
+        self.zoom = 1.0;
+        self.selected = None;
+        self.loading = false;
+        self.error = None;
+        self.visibility.clear();
+        self.group_colors.clear();
+        self.node_degrees.clear();
+        self.controls.groups.clear();
+        self.groups_discovered = false;
+        self.last_canvas_rect = None;
+        self.pending_knowledge_events.clear();
+        self.ctx_menu_node = None;
+        self.ctx_menu_owner_pane_id = None;
+        self.reset_layout();
+    }
+
+    /// Replace the graph while preserving the backend's bounded-projection metadata. A capped response
+    /// is useful runtime data, not a transport failure; this method makes the partiality visible without
+    /// claiming a total the backend did not provide.
+    pub fn set_graph_projection(
+        &mut self,
+        mut nodes: Vec<GraphNode>,
+        edges: Vec<GraphEdge>,
+        backend_truncated: bool,
+        suppressed_hub_count: usize,
+    ) {
         self.total_available = nodes.len();
+        self.backend_truncated = backend_truncated;
+        self.suppressed_hub_count = suppressed_hub_count;
         if nodes.len() > NODE_CAP {
             nodes.truncate(NODE_CAP);
         }
@@ -422,6 +551,14 @@ impl LoomGraphView {
             .collect();
         self.nodes = nodes;
         self.edges = edges;
+        if self
+            .ctx_menu_node
+            .as_ref()
+            .is_some_and(|block_id| !self.nodes.iter().any(|node| node.block_id == *block_id))
+        {
+            self.ctx_menu_node = None;
+            self.ctx_menu_owner_pane_id = None;
+        }
         self.reset_layout();
         self.loading = false;
         self.error = None;
@@ -789,9 +926,34 @@ impl LoomGraphView {
                 event = Some(GraphEvent::Relayout);
             }
 
+            if self.error.is_some() {
+                let retry = ui.button("Retry");
+                emit_toolbar_node(ui, retry.id, RETRY_AUTHOR_ID, "Retry graph request");
+                if retry.clicked() {
+                    event = Some(GraphEvent::Retry);
+                }
+            }
+
             ui.separator();
             // Node count label (AC1: matches the loaded block count; MC-2 truncation notice).
-            let count_label = if self.total_available > self.nodes.len() {
+            let count_label = if self.backend_truncated && self.suppressed_hub_count > 0 {
+                format!(
+                    "showing first {} nodes · backend limit reached · {} hubs suppressed",
+                    self.nodes.len(),
+                    self.suppressed_hub_count
+                )
+            } else if self.backend_truncated {
+                format!(
+                    "showing first {} nodes · backend limit reached",
+                    self.nodes.len()
+                )
+            } else if self.suppressed_hub_count > 0 {
+                format!(
+                    "{} nodes · {} hubs suppressed",
+                    self.nodes.len(),
+                    self.suppressed_hub_count
+                )
+            } else if self.total_available > self.nodes.len() {
                 format!(
                     "showing {} of {} nodes",
                     self.nodes.len(),
@@ -829,7 +991,7 @@ impl LoomGraphView {
         // pure client-side overlay recompute (NO network — AC7 / AC8).
         match controls_event {
             GraphControlsEvent::DepthChanged(depth) if is_local_mode => {
-                // Re-query SIGNAL only: the host re-fires the existing graph-search endpoint with the new
+                // Re-query SIGNAL only: the host re-fires the existing graph/local endpoint with the new
                 // depth and calls set_graph with the result. The host sets `loading=true` when it ACTUALLY
                 // dispatches the runtime-backed request (the MT-021 idle-repaint discipline: the spinner
                 // animates ONLY during a genuine in-flight fetch, never merely because a control changed) —
@@ -850,6 +1012,9 @@ impl LoomGraphView {
         // Record the canvas rect so the in-`show` knowledge sync derives the SAME viewport-visible node
         // set this frame rendered (CTRL-042-06 / MT-042 in-render wiring).
         self.last_canvas_rect = Some(rect);
+        if let Some(pane_id) = self.render_source_pane_id.clone() {
+            self.last_canvas_rect_by_pane.insert(pane_id, rect);
+        }
         let painter = ui.painter_at(rect);
         let center = rect.center().to_vec2();
 
@@ -894,8 +1059,8 @@ impl LoomGraphView {
         }
 
         // ── WP-KERNEL-012 MT-070: node context menu (the MT-070 `show_node_menu` layer, LIVE call
-        // site). A RIGHT-click over a node attaches the 3-entry node menu (Open Note / Reveal Node /
-        // Create note from link) to the canvas response (and selects the node, so the menu visibly
+        // site). A RIGHT-click over a node attaches the 4-entry node menu (Route to Stage / Open Note /
+        // Reveal Node / Create note from link) to the canvas response (and selects the node, so the menu visibly
         // belongs to it); a right-click over empty canvas detaches it. A confirmed enabled entry emits
         // [`GraphEvent::NodeMenu`], which the host feeds through `node_navigation_target` ->
         // `navigation_bus::dispatch` (the LIVE click-through wired in the wave-2/3 remediation).
@@ -903,31 +1068,71 @@ impl LoomGraphView {
         // ([`graph_node_menu_availability`]) — a `note` node ENABLES Open Note, every node enables Reveal
         // Node; a resolved graph node carries no unresolved link (Create-note disabled) — never a dead
         // handler (a disabled entry maps to `None`).
-        if canvas_resp.secondary_clicked() {
-            self.ctx_menu_node = canvas_resp
-                .interact_pointer_pos()
+        let secondary_click_pos = canvas_resp
+            .secondary_clicked()
+            .then(|| canvas_resp.interact_pointer_pos())
+            .flatten()
+            .or_else(|| {
+                ui.input(|input| {
+                    input
+                        .pointer
+                        .button_released(egui::PointerButton::Secondary)
+                        .then(|| input.pointer.interact_pos())
+                        .flatten()
+                })
+                .filter(|pos| rect.contains(*pos))
+            });
+        if let Some(pos) = secondary_click_pos {
+            crate::context_menu::request_open(ui.ctx(), canvas_resp.id, pos);
+            self.ctx_menu_node = Some(pos)
                 .and_then(|p| self.node_at_screen(p, center))
                 .map(|idx| self.nodes[idx].block_id.clone());
+            self.ctx_menu_owner_pane_id = self
+                .ctx_menu_node
+                .as_ref()
+                .and(self.render_source_pane_id.clone());
             if let Some(id) = &self.ctx_menu_node {
                 self.selected = Some(id.clone());
+            } else {
+                crate::context_menu::dismiss(ui.ctx(), canvas_resp.id);
             }
         }
-        if let Some(block_id) = self.ctx_menu_node.clone() {
-            let availability = self
-                .nodes
-                .iter()
-                .find(|n| n.block_id == block_id)
-                .map(graph_node_menu_availability)
-                .unwrap_or(crate::context_menu_surfaces::NodeMenuAvailability {
-                    has_note: false,
-                    has_node_id: !block_id.is_empty(),
-                    unresolved_link: false,
-                });
+        let owns_retained_menu = self.ctx_menu_owner_pane_id.is_some()
+            && self.ctx_menu_owner_pane_id == self.render_source_pane_id;
+        if owns_retained_menu {
+            let Some(block_id) = self.ctx_menu_node.clone() else {
+                self.ctx_menu_owner_pane_id = None;
+                return event;
+            };
+            let Some(node) = self.nodes.iter().find(|node| node.block_id == block_id) else {
+                self.ctx_menu_node = None;
+                self.ctx_menu_owner_pane_id = None;
+                return event;
+            };
+            if self.snapshot_capture_mode {
+                crate::context_menu::request_open(
+                    ui.ctx(),
+                    canvas_resp.id,
+                    self.to_screen(node.pos(), center),
+                );
+            }
+            let availability = graph_node_menu_availability(node);
             if let Some(action) =
                 crate::context_menu_surfaces::show_node_menu(&canvas_resp, availability)
             {
-                event = Some(GraphEvent::NodeMenu { block_id, action });
+                event = Some(GraphEvent::NodeMenu {
+                    block_id,
+                    source_pane_id: self.ctx_menu_owner_pane_id.clone(),
+                    source_workspace_id: self.workspace_id.clone(),
+                    action,
+                });
                 self.ctx_menu_node = None;
+                self.ctx_menu_owner_pane_id = None;
+            } else if !self.snapshot_capture_mode
+                && !crate::context_menu::is_open(ui.ctx(), canvas_resp.id)
+            {
+                self.ctx_menu_node = None;
+                self.ctx_menu_owner_pane_id = None;
             }
         }
 
@@ -966,12 +1171,33 @@ impl LoomGraphView {
             }
         }
 
-        // Nodes + labels + AccessKit. Each node is an addressable Role::Button (Action::Click) the
+        // Nodes + labels + AccessKit. Each registry-backed node is an addressable Role::TreeItem
+        // (Action::Click) the
         // swarm can drive by `graph.node.{id}` (AC6 / HBR-SWARM). MT-060 applies the overlays HERE: a
         // hidden node is skipped (and not addressable); a dimmed node renders at reduced alpha; a node in
         // an enabled group uses the group colour (else the content_type colour); size-by-degree scales the
         // radius by the node's edge degree.
-        for node in &self.nodes {
+        let accesskit_indices: std::collections::HashSet<usize> =
+            if self.knowledge_registry.is_some() {
+                self.visible_node_indices(Some(rect), center)
+                    .into_iter()
+                    .collect()
+            } else {
+                self.nodes
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, node)| {
+                        !self.is_hidden(&node.block_id)
+                            && rect.contains(self.to_screen(node.pos(), center))
+                    })
+                    .map(|(index, _)| index)
+                    .collect()
+            };
+        let accesskit_block_ids: std::collections::HashSet<&str> = accesskit_indices
+            .iter()
+            .map(|index| self.nodes[*index].block_id.as_str())
+            .collect();
+        for (node_index, node) in self.nodes.iter().enumerate() {
             // Skip hidden nodes entirely — not drawn, not labelled, not AccessKit-addressable, not
             // selectable (the hit test already skips them). RISK-6 / MC-6.
             if self.is_hidden(&node.block_id) {
@@ -1015,7 +1241,17 @@ impl LoomGraphView {
                 egui::FontId::proportional(11.0),
                 label_color,
             );
-            emit_node_accesskit(ui, node);
+            // The product registry consumes actions only for the visible + bounded-lookahead set.
+            // Emitting every off-screen node here would advertise targets the registry cannot consume.
+            if accesskit_indices.contains(&node_index) {
+                emit_node_accesskit(
+                    ui,
+                    node,
+                    &self.edges,
+                    &accesskit_block_ids,
+                    self.selected.as_deref() == Some(node.block_id.as_str()),
+                );
+            }
         }
 
         // Loading / error overlay. Loading animates ONLY during a genuine in-flight fetch (the host
@@ -1087,12 +1323,21 @@ impl LoomGraphView {
     /// yet) the whole capped set is visible (it is already bounded to `NODE_CAP`).
     fn visible_node_indices(&self, rect: Option<Rect>, center: Vec2) -> Vec<usize> {
         let Some(rect) = rect else {
-            return (0..self.nodes.len()).collect();
+            return self
+                .nodes
+                .iter()
+                .enumerate()
+                .filter(|(_, node)| !self.is_hidden(&node.block_id))
+                .map(|(index, _)| index)
+                .collect();
         };
         let mut visible = Vec::new();
         let mut offscreen: Vec<(f32, usize)> = Vec::new();
         let view_center = rect.center();
         for (i, node) in self.nodes.iter().enumerate() {
+            if self.is_hidden(&node.block_id) {
+                continue;
+            }
             let screen = self.to_screen(node.pos(), center);
             if rect.contains(screen) {
                 visible.push(i);
@@ -1132,7 +1377,8 @@ impl LoomGraphView {
         let center = last_rect
             .map(|r| r.center().to_vec2())
             .unwrap_or(Vec2::ZERO);
-        for i in self.visible_node_indices(last_rect, center) {
+        let visible = self.visible_node_indices(last_rect, center);
+        for i in visible {
             let node = &self.nodes[i];
             let author = knowledge_action_registry::graph_node_author_id(&node.block_id);
             // value carries the raw block_id so a swarm agent correlates the sanitized author_id to the
@@ -1149,16 +1395,42 @@ impl LoomGraphView {
                 KnowledgeNodeState::present(),
             );
         }
+        // Persisted edges are first-class addressable identities, not only implicit `flow_to`
+        // relations. Every persisted response edge remains addressable even when one endpoint is
+        // outside the viewport projection; never mint a fake identity for synthetic/layout-only edges
+        // whose canonical backend id is absent.
+        for edge in &self.edges {
+            let Some(edge_id) = edge.edge_id.as_deref() else {
+                continue;
+            };
+            reg.upsert(
+                knowledge_action_registry::graph_edge_author_id(edge_id),
+                KAxRole::Link,
+                format!(
+                    "{} edge: {} -> {}",
+                    edge.edge_type, edge.source, edge.target
+                ),
+                Some(format!(
+                    "edge_id={edge_id};source_id={};target_id={};edge_type={}",
+                    edge.source, edge.target, edge.edge_type
+                )),
+                vec!["Focus".to_owned(), "delete".to_owned()],
+                KnowledgeNodeState::present(),
+            );
+        }
     }
 
     /// Emit the knowledge registry's nodes into the live AccessKit tree (call inside the host's `show`,
     /// after [`Self::sync_knowledge_registry`]). No-op if no registry is installed.
     pub fn emit_knowledge_accesskit(&self, ui: &egui::Ui) {
         if let Some(registry) = &self.knowledge_registry {
-            registry
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .emit_into_tree(ui);
+            let mut registry = registry.lock().unwrap_or_else(|e| e.into_inner());
+            if registry.state_changed_since_last_surface_push(
+                knowledge_action_registry::KnowledgeSurface::Graph,
+            ) {
+                ui.ctx().request_repaint();
+            }
+            registry.emit_into_tree(ui);
         }
     }
 
@@ -1189,6 +1461,12 @@ impl LoomGraphView {
                     if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(
                         payload.as_deref(),
                     ) {
+                        if p.block_id.trim().is_empty() {
+                            tracing::warn!(
+                                "knowledge action: graph.open-node carried a blank block_id; ignored"
+                            );
+                            continue;
+                        }
                         self.selected = Some(p.block_id.clone());
                         events.push(GraphEvent::OpenNode {
                             block_id: p.block_id,
@@ -1199,6 +1477,12 @@ impl LoomGraphView {
                     if let Some(p) = knowledge_action_registry::parse_payload::<BlockIdPayload>(
                         payload.as_deref(),
                     ) {
+                        if p.block_id.trim().is_empty() {
+                            tracing::warn!(
+                                "knowledge action: graph.select-node carried a blank block_id; ignored"
+                            );
+                            continue;
+                        }
                         self.selected = Some(p.block_id.clone());
                         events.push(GraphEvent::SelectNode {
                             block_id: p.block_id,
@@ -1209,6 +1493,12 @@ impl LoomGraphView {
                     if let Some(p) = knowledge_action_registry::parse_payload::<AddEdgePayload>(
                         payload.as_deref(),
                     ) {
+                        if p.source_id.trim().is_empty() || p.target_id.trim().is_empty() {
+                            tracing::warn!(
+                                "knowledge action: graph.add-edge carried a blank source_id or target_id; ignored"
+                            );
+                            continue;
+                        }
                         events.push(GraphEvent::AddEdge {
                             source_block_id: p.source_id,
                             target_block_id: p.target_id,
@@ -1219,25 +1509,44 @@ impl LoomGraphView {
                     if let Some(p) = knowledge_action_registry::parse_payload::<EdgeIdPayload>(
                         payload.as_deref(),
                     ) {
+                        if p.edge_id.trim().is_empty() {
+                            tracing::warn!(
+                                "knowledge action: graph.remove-edge carried a blank edge_id; ignored"
+                            );
+                            continue;
+                        }
                         events.push(GraphEvent::RemoveEdge { edge_id: p.edge_id });
                     }
                 }
                 other => {
-                    // A per-identity node click: `graph.node.<sanitized_block_id>` -> open that node. We
-                    // resolve the sanitized author_id back to the real block_id by scanning the live node
-                    // set (the author_id is a sanitized projection, so a reverse map is needed).
-                    if let Some(stripped) =
-                        other.strip_prefix(knowledge_action_registry::GRAPH_NODE_AUTHOR_ID_PREFIX)
-                    {
-                        if let Some(node) = self
-                            .nodes
-                            .iter()
-                            .find(|n| crate::project_tree::stable_part(&n.block_id) == stripped)
-                        {
-                            let block_id = node.block_id.clone();
-                            self.selected = Some(block_id.clone());
-                            events.push(GraphEvent::OpenNode { block_id });
+                    if let Some(focused_author) = other.strip_suffix("#focus") {
+                        if let Some(node) = self.nodes.iter().find(|node| {
+                            knowledge_action_registry::graph_node_author_id(&node.block_id)
+                                == focused_author
+                        }) {
+                            self.selected = Some(node.block_id.clone());
                         }
+                        continue;
+                    }
+                    if let Some(edge_author) = other.strip_suffix("#delete") {
+                        if let Some(edge_id) = self.edges.iter().find_map(|edge| {
+                            let edge_id = edge.edge_id.as_deref()?;
+                            (knowledge_action_registry::graph_edge_author_id(edge_id)
+                                == edge_author)
+                                .then(|| edge_id.to_owned())
+                        }) {
+                            events.push(GraphEvent::RemoveEdge { edge_id });
+                        }
+                        continue;
+                    }
+                    // A per-identity node click opens the exact node whose collision-safe canonical
+                    // author_id matches. Comparing the complete id avoids lossy-slug reverse routing.
+                    if let Some(node) = self.nodes.iter().find(|n| {
+                        knowledge_action_registry::graph_node_author_id(&n.block_id) == other
+                    }) {
+                        let block_id = node.block_id.clone();
+                        self.selected = Some(block_id.clone());
+                        events.push(GraphEvent::OpenNode { block_id });
                     }
                 }
             }
@@ -1302,19 +1611,45 @@ fn emit_toolbar_node(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str) 
     });
 }
 
-/// Emit a graph node's live AccessKit node: Role::Button, label = title, Action::Click (DefaultAction),
+/// Emit a graph node's live AccessKit node: Role::TreeItem, label = title, Action::Click (DefaultAction),
 /// author_id = `graph.node.{sanitized_block_id}` (AC6 / HBR-SWARM). The node has no egui widget of its
 /// own (it is painter-drawn), so we allocate a stable `egui::Id` from its author_id string — the
 /// dynamic-author_id pattern the shell uses for non-fixed-band addressable nodes.
-fn emit_node_accesskit(ui: &egui::Ui, node: &GraphNode) {
+fn emit_node_accesskit(
+    ui: &egui::Ui,
+    node: &GraphNode,
+    edges: &[GraphEdge],
+    emitted_block_ids: &std::collections::HashSet<&str>,
+    selected: bool,
+) {
     let author = node_author_id(&node.block_id);
     let id = egui::Id::new(&author);
     let label = node.title.clone();
+    // Preserve the canonical directed Loom relationships in the accessibility tree. `flow_to` targets
+    // the same stable egui/accesskit ids the destination graph nodes use, so an assistive client or
+    // swarm agent can traverse the populated graph without screen geometry or a second shadow graph.
+    // Only relationships whose destination is in the current projection are emitted (set_graph_projection
+    // already drops dangling edges). The edge type stays in the canonical graph payload; `flow_to` is the
+    // platform accessibility relation for navigating from source to destination.
+    let flow_to: Vec<accesskit::NodeId> = edges
+        .iter()
+        .filter(|edge| {
+            edge.source == node.block_id && emitted_block_ids.contains(edge.target.as_str())
+        })
+        .map(|edge| accesskit::NodeId(egui::Id::new(node_author_id(&edge.target)).value()))
+        .collect();
     ui.ctx().accesskit_node_builder(id, move |n| {
-        n.set_role(accesskit::Role::Button);
+        n.set_role(accesskit::Role::TreeItem);
         n.set_author_id(author.clone());
         n.set_label(label.clone());
         n.add_action(accesskit::Action::Click);
+        n.add_action(accesskit::Action::Focus);
+        if !flow_to.is_empty() {
+            n.set_flow_to(flow_to.clone());
+        }
+        if selected {
+            n.set_selected(true);
+        }
     });
 }
 
@@ -1401,6 +1736,11 @@ mod tests {
             "author_id suffix must be [a-z0-9-]; got '{suffix}'"
         );
         assert!(!suffix.is_empty(), "non-empty suffix");
+        assert_ne!(
+            node_author_id("a/b"),
+            node_author_id("a:b"),
+            "distinct raw block ids must not alias after sanitization"
+        );
     }
 
     /// MC-2 / RISK-5: loading more than NODE_CAP nodes clamps to the cap and records the true total.

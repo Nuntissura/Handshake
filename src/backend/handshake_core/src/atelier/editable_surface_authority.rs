@@ -25,8 +25,7 @@ use super::{AtelierError, AtelierResult, AtelierStore};
 pub mod editable_surface_event_family {
     pub const MODEL_MANUAL_SECTION_WRITTEN: &str =
         "atelier.editable_surface.model_manual_section_written";
-    pub const RETRIEVAL_POLICY_WRITTEN: &str =
-        "atelier.editable_surface.retrieval_policy_written";
+    pub const RETRIEVAL_POLICY_WRITTEN: &str = "atelier.editable_surface.retrieval_policy_written";
 
     pub const ALL: &[&str] = &[MODEL_MANUAL_SECTION_WRITTEN, RETRIEVAL_POLICY_WRITTEN];
 }
@@ -298,8 +297,8 @@ pub fn pg_model_manual_surface(
     let write_store = store;
     ModelManualSurface::new(
         move |section_id: &str| {
-            let record = block_on(read_store.get_model_manual_section(section_id))
-                .map_err(surface_io)?;
+            let record =
+                block_on(read_store.get_model_manual_section(section_id)).map_err(surface_io)?;
             match record {
                 Some(record) => Ok(record.section_text),
                 None => Err(EditableSurfaceError::Io {
@@ -340,13 +339,11 @@ pub fn pg_retrieval_policy_surface(
             let record = block_on(read_store.get_retrieval_policy_value(task_type, parameter))
                 .map_err(surface_io)?;
             match record {
-                Some(record) => u64::try_from(record.value).map_err(|_| {
-                    EditableSurfaceError::Io {
-                        message: format!(
-                            "persisted retrieval policy value {} is negative",
-                            record.value
-                        ),
-                    }
+                Some(record) => u64::try_from(record.value).map_err(|_| EditableSurfaceError::Io {
+                    message: format!(
+                        "persisted retrieval policy value {} is negative",
+                        record.value
+                    ),
                 }),
                 None => {
                     let default_policy = CapsulePolicyTable::default_policy_for(task_type);

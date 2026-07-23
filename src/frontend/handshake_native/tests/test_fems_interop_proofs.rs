@@ -2,8 +2,7 @@
 //!
 //! ## What this suite proves (the editor <-> FEMS / Pillar 12 typed-memory edge)
 //!
-//! This is a PROOF-ONLY MT: it adds NO app/product code (the only changed file is this test file). It
-//! exercises and asserts the already-built FEMS behavior delivered by:
+//! This suite exercises and asserts the FEMS behavior delivered by:
 //!   - MT-063 — the FEMS Relevant Memory panel + MemoryPack read client
 //!     ([`handshake_native::fems::memory_client`] + [`...::relevant_memory_panel`]);
 //!   - MT-064 — the "Propose to Memory" review-gated proposal action + dialog
@@ -11,34 +10,22 @@
 //!   - MT-041 — editor actions exposed through the WP-011 AccessKit surface (the canonical kittest
 //!     harness pattern in `tests/test_e7_editor_action_accesskit.rs`, reused verbatim here for app
 //!     construction, frame advancement, AccessKit tree query by author_id, and AccessKit action
-//!     dispatch — see [`click_event`] / [`find_node`]).
+//!     dispatch — see [`mcp_dispatch`] / [`find_node`]).
 //!
 //! It REUSES the WP-011 shell primitives (the `command_registry` command bus, the `accessibility`
 //! AccessKit id registry, the `pane_registry`/`theme` surfaces) and the MT-063/064 FEMS widgets — it does
 //! NOT re-create any shell or AccessKit glue (AC-065-07).
 //!
-//! ## REALITY GATE (KERNEL_BUILDER gate 2026-06-25): the 3 live FEMS routes are VERIFIED ABSENT + there
-//! is NO managed PostgreSQL in this environment — so the 4 live proofs are honestly GATED, never faked.
+//! ## Canonical live-resource proof
 //!
-//! MT-063 and MT-064 each verified (read-only, against the frozen `src/backend/handshake_core`) that the
-//! load-bearing live FEMS routes this suite's four proofs need DO NOT EXIST in the current build:
-//!   - `GET  /workspaces/{id}/memory/pack`      — MT-063: ABSENT (only `/knowledge/memory/{claims,
-//!     conflicts,facts,entities,visual-debug}` GET reads + an INTERNAL `ace::MemoryPack` builder; no HTTP
-//!     retrieval-capsule route).
-//!   - `POST /workspaces/{id}/memory/proposals` — MT-064: ABSENT (`api/knowledge_memory.rs` exposes five
-//!     GET reads, no proposal write route).
-//!   - native-editor `memory_write_proposed` FR INGESTION — MT-064: ABSENT (the FR ledger HTTP surface
-//!     accepts only the closed `runtime_chat_event`; MT-036's documented backend gap).
+//! The contract command `cargo test -p handshake-native --test test_fems_interop_proofs -- --nocapture`
+//! executes all four FEMS proofs. None is ignored, feature-hidden, or replaced by a fixture-only green.
+//! The suite requires `HANDSHAKE_TEST_PG_DSN`, binds the HTTP product path through `HSK_TEST_BASE`
+//! (default `http://127.0.0.1:37501`), verifies `/health` reports a live PostgreSQL migration, and fails
+//! loudly when the managed backend/DSN is absent. No SQLite, in-memory, ignored-test, or mock fallback
+//! is accepted.
 //!
-//! AND every prior live-PG proof in this WP is `NEEDS_MANAGED_RESOURCE_PROOF` (no managed PostgreSQL).
-//!
-//! Therefore, per IN-065-01 / IN-065-06 / AC-065-06 / CTRL-065-01, the four live proofs
-//! (`proof_fems_01..04`) are written STRUCTURALLY CORRECT, then GATED behind `#[cfg(feature =
-//! "integration")]` + `#[ignore]` so the DEFAULT suite is honest-green-by-not-running (NOT fake-green on
-//! a mock). They go GREEN UNCHANGED the moment a managed PostgreSQL is available AND the backend packets
-//! expose the three routes. The typed BLOCKER MANIFEST below is the suite's documented gap surface.
-//!
-//! ## What IS proven NOW (the non-ignored proofs — no live backend required)
+//! ## Additional non-live invariants
 //!
 //!   - `proof_fems_05_reuses_shell_and_harness` (AC-065-07): the suite reuses the WP-011 shell primitives
 //!     + the MT-063/064 FEMS widgets + the MT-041 harness pattern; it re-creates no shell/AccessKit glue.
@@ -47,65 +34,76 @@
 //!     author_ids by an out-of-process-agent code path (no direct widget calls, no synthetic key events,
 //!     no screen-scraping). Assert every targeted id is DETERMINISTIC (no random segment) and STABLE
 //!     across two frame re-queries, and dispatch the propose-confirm via an AccessKit Click action.
-//!   - `proof_fems_dsn_absent_panics` (IN-065-01 / RISK-065-01 / CTRL-065-01): the live-DSN resolver
-//!     panics with the mandated message when no live PostgreSQL DSN is configured — it never falls back
-//!     to SQLite / an in-memory / a mock store.
 //!   - `proof_fems_no_sqlite_anywhere` (RISK-065-01 / CTRL-065-01): a static gate over this suite + the
 //!     two FEMS production modules proves there is no SQLite token anywhere in the suite or its config.
-//!   - `proof_fems_typed_blocker_manifest` (IN-065-06 / AC-065-06): emits + asserts the three typed
-//!     `BLOCKER[...]` lines for the absent routes (the honest red-not-green gap surface).
+//!   - `proof_fems_required_capability_contract` pins the four live route/action identities and retains
+//!     typed compatibility failures for older/capability-restricted backends.
 //!
-//! ## What is GATED `#[ignore]` + `#[cfg(feature = "integration")]` (the live halves)
-//!
-//!   - `proof_fems_01_memorypack_render`        — live MemoryPack render against real PG (FEMS-01).
-//!   - `proof_fems_02_propose_creates_proposal_and_event` — live proposal row + correlated FR-EVT-MEM-001
-//!     (FEMS-02).
-//!   - `proof_fems_03_swarm_drives_fems_via_accesskit`    — the live end-to-end swarm DISPATCH that hits
-//!     the backend (FEMS-03 live half).
-//!   - `proof_fems_04_procedural_proposal_stays_review_gated` — live review-gate / no-auto-commit
-//!     (FEMS-04).
-//!
-//! Each gated proof, when run with `--features integration` against a live backend + a configured live
-//! PG DSN, resolves the DSN/endpoint from the standard integration-test config, asserts the store is
-//! PostgreSQL (never SQLite), and runs the live assertion. Absent the backend they never run (and the
-//! default `cargo test` never reports a fake pass).
+//! The four named `proof_fems_0*` functions below are the live managed-resource proof surface.
 
 use std::collections::HashSet;
+use std::io::{BufRead as _, Read as _, Write as _};
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
+use sha2::{Digest as _, Sha256};
 
 // REUSE (AC-065-07): the MT-063 FEMS read client + Relevant Memory panel, the MT-064 propose dialog +
 // proposal model, and the MT-041 AccessKit-id conventions — all imported, never re-created here.
-use handshake_native::fems::memory_client::{MemoryClientError, MemoryPack, MEMORY_PACK_MAX_ITEMS};
-// `MemoryContext` is consumed ONLY by the gated live FEMS-01 proof (the live fetch builds a context);
-// importing it unconditionally would be a dead import under `-D warnings` in the default build.
-#[cfg(feature = "integration")]
-use handshake_native::fems::memory_client::MemoryContext;
+use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::backend_client::HealthInfo;
+use handshake_native::code_editor::cursor::Cursor;
+use handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID;
+use handshake_native::event_emitter::{
+    NativeEditorEventEmitter, RuntimeChatLedgerTransport, DEFAULT_ACTOR_ID,
+};
+use handshake_native::fems::memory_client::{
+    MemoryClientError, MemoryContext, MEMORY_PACK_MAX_ITEMS,
+};
 use handshake_native::fems::memory_proposal::{
-    build_proposal, fems_class_author_id, MemoryClass, MemoryProposalError, ProposeDialogOutcome,
-    ProposeToMemoryDialog, FEMS_PROPOSE_COMMAND_ID, FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
-    FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+    build_proposal, build_proposal_for_document, build_proposal_for_document_snapshot,
+    commit_approved_proposal, compute_memory_commit_report_hash, content_hash_of_selection,
+    fems_class_author_id, review_proposal, submit_proposal_and_emit, HandshakeCoreClient,
+    MemoryClass, MemoryProposalError, ProposalReviewDecision, ProposalSubmitOutcome,
+    ProposeDialogOutcome, FEMS_PROPOSE_CANCEL_AUTHOR_ID, FEMS_PROPOSE_COMMAND_ID,
+    FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_STATUS_AUTHOR_ID,
+    FEMS_REVIEW_APPROVE_AUTHOR_ID, FEMS_REVIEW_REJECT_AUTHOR_ID,
 };
 use handshake_native::fems::relevant_memory_panel::{
-    mem_item_author_id, mem_source_author_id, FnNavigationBus, MemoryNavTarget,
-    RelevantMemoryPanel, RELEVANT_MEMORY_LIST_AUTHOR_ID, RELEVANT_MEMORY_PANEL_AUTHOR_ID,
+    mem_item_author_id, mem_source_author_id, RELEVANT_MEMORY_LIST_AUTHOR_ID,
+    RELEVANT_MEMORY_PANEL_AUTHOR_ID, RELEVANT_MEMORY_REFRESH_AUTHOR_ID,
+    RELEVANT_MEMORY_STATUS_AUTHOR_ID,
 };
-use handshake_native::interop::{EditorSurfaceKind, SharedSelection};
-use handshake_native::theme::{HsPalette, HsTheme};
+use handshake_native::interop::{EditorSurfaceKind, InteractionBus, SharedSelection};
+use handshake_native::mcp::UiAction;
+use handshake_native::mcp::{ScreenshotError, SessionToken, SwarmMcpServer, ARGUS_CLICK_METHOD};
+use handshake_native::pane_registry::{PaneId, PaneType};
+use handshake_native::tab_bar::tab_author_id_for;
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Artifact hygiene (CX-212E / SCREENSHOT-RULE): all artifacts go to the EXTERNAL root ONLY.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// The crate-relative path to the external artifacts root (CX-212E), disk-agnostic. The crate sits at
-/// `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..` where `Handshake_Artifacts`
-/// is a sibling of the repo worktree. This suite writes no PNG itself (proof output is stdout dumps), but
-/// the helper is the established pattern any screenshot would use.
+/// Absolute path to the external artifacts root (CX-212E), resolved without a drive/user binding.
+/// Argus publishes its discovery binding by atomic rename, so its platform app-data override must not
+/// retain `..` components: Windows resolves the temporary and destination paths independently.
 #[allow(dead_code)]
 fn external_artifact_dir(subdir: &str) -> PathBuf {
-    Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
+    let root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .ancestors()
+                .nth(4)
+                .expect("native crate must live below a worktree root")
+                .join("Handshake_Artifacts")
+        });
+    assert!(
+        root.is_absolute(),
+        "HANDSHAKE_ARTIFACTS_ROOT must resolve to an absolute path"
+    );
+    root.join("handshake-test").join(subdir)
 }
 
 /// Assert NO repo-local artifact directory exists under the crate (the SCREENSHOT/TEST-ARTIFACT RULE).
@@ -124,46 +122,14 @@ fn assert_no_local_artifact_dir() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// The TYPED BLOCKER MANIFEST (IN-065-06 / AC-065-06): the three absent live FEMS routes the four live
-// proofs depend on, verified ABSENT by MT-063 / MT-064. This is the honest gap surface — the live proofs
-// are GATED, not faked, until these routes + a managed PostgreSQL exist.
+// Required live capability identities (IN-065-06 / AC-065-06).
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// One typed blocker: `kind`, the missing detail, and the owning MT that verified it absent. Rendered in
-/// the IN-065-06 `BLOCKER[...]` form so the WP validator / orchestrator sees exactly which route is
-/// missing and which packet owns the gap.
-struct TypedBlocker {
-    kind: &'static str,
-    detail: &'static str,
-    source_mt: &'static str,
-}
-
-impl TypedBlocker {
-    fn line(&self) -> String {
-        format!(
-            "BLOCKER[kind={} detail='{}' source_mt={}]",
-            self.kind, self.detail, self.source_mt
-        )
-    }
-}
-
-/// The three live FEMS routes the four live proofs need, verified ABSENT by MT-063 / MT-064.
-const FEMS_TYPED_BLOCKERS: [TypedBlocker; 3] = [
-    TypedBlocker {
-        kind: "missing_api",
-        detail: "GET /workspaces/{id}/memory/pack absent (no FEMS retrieval-capsule HTTP route)",
-        source_mt: "MT-063",
-    },
-    TypedBlocker {
-        kind: "missing_api",
-        detail: "POST /workspaces/{id}/memory/proposals absent (no FEMS proposal write route)",
-        source_mt: "MT-064",
-    },
-    TypedBlocker {
-        kind: "missing_api",
-        detail: "FR native-editor memory_write_proposed ingestion absent (only runtime_chat_event)",
-        source_mt: "MT-064",
-    },
+const FEMS_REQUIRED_CAPABILITIES: [&str; 4] = [
+    "GET /workspaces/{id}/memory/pack",
+    "POST+GET /workspaces/{id}/memory/proposals",
+    "POST /workspaces/{id}/memory/proposals/{proposal_id}/review",
+    "POST /api/flight_recorder/native_editor_event kind=memory_write_proposed",
 ];
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -174,9 +140,18 @@ const FEMS_TYPED_BLOCKERS: [TypedBlocker; 3] = [
 /// The standard integration-test env key for the live PostgreSQL DSN (the FEMS interop backing store).
 const LIVE_PG_DSN_ENV: &str = "HANDSHAKE_TEST_PG_DSN";
 
-/// Fallback env key (the same key the MT-008 code-nav live tests resolve), accepted when it carries a
-/// `postgres://` DSN — never a SQLite path.
-const LIVE_PG_DSN_ENV_ALT: &str = "HANDSHAKE_TEST_DB_URL";
+/// Standard managed-backend URL surface used by current native live proofs.
+const HSK_TEST_BASE_ENV: &str = "HSK_TEST_BASE";
+const DEFAULT_BACKEND_BASE: &str = "http://127.0.0.1:37501";
+
+/// Serializes this binary's managed mutations without changing process-global environment variables.
+static LIVE_PROOF_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn live_proof_guard() -> std::sync::MutexGuard<'static, ()> {
+    LIVE_PROOF_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
 
 /// Resolve the live PostgreSQL DSN from the standard integration-test config, asserting it is PostgreSQL.
 ///
@@ -185,12 +160,10 @@ const LIVE_PG_DSN_ENV_ALT: &str = "HANDSHAKE_TEST_DB_URL";
 /// passes green on an absent backend (RISK-065-01, CTRL-065-01). A configured DSN whose scheme is not
 /// `postgres://`/`postgresql://` is also rejected (a SQLite or other non-PG store is refused).
 ///
-/// Called ONLY by the live `#[cfg(feature = "integration")]` proofs. The non-ignored
-/// `proof_fems_dsn_absent_panics` proves the absent-DSN branch panics without needing a live backend.
+/// Called by every canonical live proof; absent or non-PostgreSQL configuration fails the proof.
 fn resolve_live_pg_dsn() -> String {
     let candidate = std::env::var(LIVE_PG_DSN_ENV)
         .ok()
-        .or_else(|| std::env::var(LIVE_PG_DSN_ENV_ALT).ok())
         .filter(|s| !s.trim().is_empty());
 
     let dsn = match candidate {
@@ -216,56 +189,997 @@ fn resolve_live_pg_dsn() -> String {
     dsn
 }
 
-/// Resolve the live backend base URL (the HTTP surface that fronts the live PostgreSQL/EventLedger) the
-/// same way the MT-008 code-nav live tests do: an `http(s)://...` override, else the managed backend on
-/// `127.0.0.1:37501`. Used only by the live integration proofs.
-#[cfg(feature = "integration")]
+/// Resolve the standard managed backend base URL. DSN variables are never overloaded as HTTP URLs.
 fn live_backend_base() -> String {
-    std::env::var("HANDSHAKE_TEST_BACKEND_URL")
+    std::env::var(HSK_TEST_BASE_ENV)
         .ok()
         .filter(|s| s.starts_with("http"))
+        .unwrap_or_else(|| DEFAULT_BACKEND_BASE.to_owned())
+}
+
+fn psql_program() -> PathBuf {
+    for var in ["HANDSHAKE_MANAGED_PG_BIN", "PGBIN"] {
+        if let Some(dir) = std::env::var_os(var).filter(|value| !value.is_empty()) {
+            let candidate =
+                PathBuf::from(dir).join(if cfg!(windows) { "psql.exe" } else { "psql" });
+            if candidate.is_file() {
+                return candidate;
+            }
+        }
+    }
+    if cfg!(windows) {
+        for root_var in ["ProgramFiles", "ProgramFiles(x86)"] {
+            let Some(root) = std::env::var_os(root_var) else {
+                continue;
+            };
+            let postgres = PathBuf::from(root).join("PostgreSQL");
+            let Ok(entries) = std::fs::read_dir(postgres) else {
+                continue;
+            };
+            let mut candidates = entries
+                .filter_map(Result::ok)
+                .map(|entry| entry.path().join("bin").join("psql.exe"))
+                .filter(|path| path.is_file())
+                .collect::<Vec<_>>();
+            candidates.sort();
+            if let Some(candidate) = candidates.pop() {
+                return candidate;
+            }
+        }
+    }
+    PathBuf::from(if cfg!(windows) { "psql.exe" } else { "psql" })
+}
+
+fn run_psql(dsn: &str, sql: &str) -> String {
+    let mut command = std::process::Command::new(psql_program());
+    command
+        .arg("--dbname")
+        .arg(dsn)
+        .arg("--set")
+        .arg("ON_ERROR_STOP=1")
+        .arg("--no-align")
+        .arg("--tuples-only")
+        .arg("--command")
+        .arg(sql);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt as _;
+        command.creation_flags(0x0800_0000);
+    }
+    command
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    let mut child = command.spawn().expect("launch managed PostgreSQL psql");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(8);
+    let status = loop {
+        if let Some(status) = child.try_wait().expect("poll managed PostgreSQL psql") {
+            break status;
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("managed PostgreSQL SQL timed out after 8 seconds");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    child
+        .stdout
+        .take()
+        .expect("capture psql stdout")
+        .read_to_end(&mut stdout)
+        .expect("read psql stdout");
+    child
+        .stderr
+        .take()
+        .expect("capture psql stderr")
+        .read_to_end(&mut stderr)
+        .expect("read psql stderr");
+    assert!(
+        status.success(),
+        "managed PostgreSQL SQL failed: {}",
+        String::from_utf8_lossy(&stderr)
+    );
+    String::from_utf8(stdout).expect("psql emits UTF-8")
+}
+
+struct LiveBackend {
+    base: String,
+    dsn: String,
+    session_token: String,
+    client: reqwest::Client,
+    rt: tokio::runtime::Runtime,
+}
+
+fn live_native_session_token() -> String {
+    if let Some(token) = std::env::var_os("HANDSHAKE_TEST_SESSION_TOKEN") {
+        let token = token.to_string_lossy().into_owned();
+        assert_eq!(token.len(), 64, "HANDSHAKE_TEST_SESSION_TOKEN must be 64 hex chars");
+        assert!(token.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        return token;
+    }
+    let path = std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE")
+        .map(PathBuf::from)
         .or_else(|| {
-            std::env::var(LIVE_PG_DSN_ENV_ALT)
-                .ok()
-                .filter(|s| s.starts_with("http"))
+            std::env::var_os("LOCALAPPDATA").map(|root| {
+                PathBuf::from(root)
+                    .join("handshake")
+                    .join("swarm_mcp_binding.json")
+            })
         })
-        .unwrap_or_else(|| "http://127.0.0.1:37501".to_owned())
+        .expect("memory live proof requires HANDSHAKE_TEST_SESSION_TOKEN or a native binding path");
+    let binding: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(&path)
+            .unwrap_or_else(|error| panic!("read native session binding {}: {error}", path.display())),
+    )
+    .expect("native session binding is JSON");
+    let token = binding["token"]
+        .as_str()
+        .filter(|token| token.len() == 64 && token.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .expect("native session binding carries a 64-character hex token");
+    token.to_owned()
+}
+
+fn require_live_backend() -> LiveBackend {
+    let dsn = resolve_live_pg_dsn();
+    let base = live_backend_base();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("build MT-065 managed-proof runtime");
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(3))
+        .timeout(std::time::Duration::from_secs(8))
+        .build()
+        .expect("build bounded MT-065 HTTP client");
+    let health: serde_json::Value = rt.block_on(async {
+        let response = client
+            .get(format!("{base}/health"))
+            .timeout(std::time::Duration::from_secs(5))
+            .send()
+            .await
+            .unwrap_or_else(|error| {
+                panic!("requires_pg: handshake_core is unreachable at {base}/health: {error}")
+            });
+        assert!(
+            response.status().is_success(),
+            "requires_pg: GET {base}/health returned {}",
+            response.status()
+        );
+        response
+            .json::<serde_json::Value>()
+            .await
+            .expect("requires_pg: /health returns JSON")
+    });
+    assert_eq!(health["status"], "ok", "managed backend must be healthy");
+    assert_eq!(
+        health["db_status"], "ok",
+        "HSK_TEST_BASE must front a live PostgreSQL-backed handshake_core"
+    );
+    assert!(
+        health["migration_version"].as_i64().is_some(),
+        "live backend must expose a PostgreSQL migration version"
+    );
+    assert_eq!(
+        run_psql(&dsn, "SELECT 1").trim(),
+        "1",
+        "configured PostgreSQL DSN must execute a real query"
+    );
+    println!(
+        "MT-065 backend/DSN binding: base={base}; dsn_scheme=postgres; db_status=ok; migration_version={}",
+        health["migration_version"]
+    );
+    LiveBackend {
+        base,
+        dsn,
+        session_token: live_native_session_token(),
+        client,
+        rt,
+    }
+}
+
+impl LiveBackend {
+    fn workspace_ident(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        request
+            .header("x-hsk-session-token", self.session_token.as_str())
+            .header("x-hsk-actor-id", "mt065-live-proof")
+            .header("x-hsk-kernel-task-run-id", "wp-kernel-012-mt065-proof")
+            .header("x-hsk-session-run-id", "wp-kernel-012-validation-v2")
+    }
+
+    fn get_json(&self, path: &str) -> serde_json::Value {
+        let url = format!("{}{path}", self.base);
+        self.rt.block_on(async {
+            let response = self
+                .workspace_ident(self.client.get(&url))
+                .timeout(std::time::Duration::from_secs(8))
+                .send()
+                .await
+                .unwrap_or_else(|error| panic!("GET {url} failed: {error}"));
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            assert!(status.is_success(), "GET {url} -> {status}: {text}");
+            serde_json::from_str(&text)
+                .unwrap_or_else(|error| panic!("GET {url} returned invalid JSON: {error}: {text}"))
+        })
+    }
+
+    fn get_status(&self, path: &str) -> u16 {
+        let url = format!("{}{path}", self.base);
+        self.rt.block_on(async {
+            self.workspace_ident(self.client.get(&url))
+                .timeout(std::time::Duration::from_secs(8))
+                .send()
+                .await
+                .map(|response| response.status().as_u16())
+                .unwrap_or(0)
+        })
+    }
+
+    fn post_json(&self, path: &str, body: &serde_json::Value) -> serde_json::Value {
+        let url = format!("{}{path}", self.base);
+        self.rt.block_on(async {
+            let request = self.workspace_ident(self.client.post(&url).json(body));
+            let request = if path == "/workspaces" {
+                request
+            } else {
+                request.header("x-hsk-actor-kind", "operator")
+            };
+            let response = self
+                .workspace_ident(request)
+                .timeout(std::time::Duration::from_secs(8))
+                .send()
+                .await
+                .unwrap_or_else(|error| panic!("POST {url} failed: {error}"));
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            assert!(status.is_success(), "POST {url} -> {status}: {text}");
+            serde_json::from_str(&text)
+                .unwrap_or_else(|error| panic!("POST {url} returned invalid JSON: {error}: {text}"))
+        })
+    }
+
+    fn post_json_status(&self, path: &str, body: &serde_json::Value) -> (u16, String) {
+        let url = format!("{}{path}", self.base);
+        self.rt.block_on(async {
+            let request = self.workspace_ident(self.client.post(&url).json(body));
+            let request = if path == "/workspaces" {
+                request
+            } else {
+                request.header("x-hsk-actor-kind", "operator")
+            };
+            let response = self
+                .workspace_ident(request)
+                .timeout(std::time::Duration::from_secs(8))
+                .send()
+                .await
+                .unwrap_or_else(|error| panic!("POST {url} failed: {error}"));
+            let status = response.status().as_u16();
+            let text = response.text().await.unwrap_or_default();
+            (status, text)
+        })
+    }
+
+    fn seed_document_and_loom_source(&self, workspace_id: &str, content: &str) -> (String, String) {
+        let document = self.post_json(
+            "/knowledge/documents",
+            &serde_json::json!({
+                "workspace_id": workspace_id,
+                "title": unique_name("mt065-canonical-document"),
+                "content_json": {
+                    "type": "doc",
+                    "content": [{"type":"paragraph","content":[{"type":"text","text":content}]}]
+                }
+            }),
+        );
+        let document_id = document["document"]["rich_document_id"]
+            .as_str()
+            .expect("canonical document create returns rich_document_id")
+            .to_owned();
+        let source = self.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({
+                "content_type": "note",
+                "title": unique_name("mt065-memory-source")
+            }),
+        );
+        let block_id = source["block_id"]
+            .as_str()
+            .expect("canonical Loom create returns block_id")
+            .to_owned();
+        assert_eq!(
+            self.get_json(&format!("/knowledge/documents/{document_id}"))["document"]
+                ["rich_document_id"],
+            document_id,
+            "canonical document is readable before mounted selection"
+        );
+        assert_eq!(
+            self.get_json(&format!(
+                "/workspaces/{workspace_id}/loom/blocks/{block_id}"
+            ))["block_id"],
+            block_id,
+            "canonical Loom provenance target is readable before mounted navigation"
+        );
+        (document_id, block_id)
+    }
+
+    fn seed_code_authority(&self, workspace_id: &str) -> CodeAuthorityFixture {
+        let root = external_artifact_dir(&unique_name("mt065-code-authority"));
+        std::fs::create_dir_all(&root).expect("create external code-authority fixture root");
+        let root = std::fs::canonicalize(root).expect("canonicalize code-authority fixture root");
+        let symbol_name = unique_name("fems_target").replace('-', "_");
+        let content =
+            format!("pub fn {symbol_name}() -> &'static str {{\n    \"canonical-fems-café\"\n}}\n");
+        let target_path = root.join("target.rs");
+        let anchor_path = root.join("anchor.rs");
+        std::fs::write(&target_path, &content).expect("write canonical code target");
+        std::fs::write(&anchor_path, "pub fn anchor() {}\n")
+            .expect("write local navigation anchor");
+        let indexed = self.post_json(
+            &format!("/workspaces/{workspace_id}/code-nav/index"),
+            &serde_json::json!({"root_path": root.to_string_lossy()}),
+        );
+        assert_eq!(indexed["files_failed"], 0, "code authority indexes cleanly");
+        let lookup = self.get_json(&format!(
+            "/knowledge/code/symbols?workspace_id={workspace_id}&name={symbol_name}&path=target.rs&limit=1"
+        ));
+        let symbol = lookup["matches"]
+            .as_array()
+            .and_then(|matches| matches.first())
+            .expect("indexed target symbol is queryable");
+        let symbol_entity_id = symbol["symbol_entity_id"]
+            .as_str()
+            .expect("symbol projection carries entity id")
+            .to_owned();
+        let point_get = self.get_json(&format!("/knowledge/code/symbols/{symbol_entity_id}"));
+        assert_eq!(
+            point_get["symbol"]["symbol_entity_id"], symbol_entity_id,
+            "indexed lookup identity must be immediately resolvable through the production point-get route"
+        );
+        let quoted_symbol_id = symbol_entity_id.replace('\'', "''");
+        assert_eq!(
+            run_psql(
+                &self.dsn,
+                &format!(
+                    "SELECT count(*) FROM knowledge_entities WHERE entity_id = '{quoted_symbol_id}'"
+                ),
+            )
+            .trim(),
+            "1",
+            "indexed lookup identity must exist in the canonical knowledge_entities authority"
+        );
+        let source_id = symbol["definition"]["source_id"]
+            .as_str()
+            .expect("symbol definition carries canonical KSRC id")
+            .to_owned();
+        assert!(source_id.starts_with("KSRC-"));
+        CodeAuthorityFixture {
+            root,
+            anchor_path,
+            target_path,
+            content,
+            symbol_name,
+            symbol_entity_id,
+            source_id,
+        }
+    }
+
+    fn seed_code_authorities_with_identical_selection(
+        &self,
+        workspace_id: &str,
+    ) -> (CodeAuthorityFixture, CodeAuthorityFixture) {
+        let root = external_artifact_dir(&unique_name("mt065-code-authority-pair"));
+        std::fs::create_dir_all(&root).expect("create paired code-authority fixture root");
+        let root = std::fs::canonicalize(root).expect("canonicalize paired fixture root");
+        let anchor_path = root.join("anchor.rs");
+        std::fs::write(&anchor_path, "pub fn anchor() {}\n").expect("write paired anchor");
+        let shared_literal = "identical-selection-café";
+        let symbol_a = "fems_pair_target_a".to_owned();
+        let symbol_b = "fems_pair_target_b".to_owned();
+        let content_a =
+            format!("pub fn {symbol_a}() -> &'static str {{\n    \"{shared_literal}\"\n}}\n");
+        let content_b =
+            format!("pub fn {symbol_b}() -> &'static str {{\n    \"{shared_literal}\"\n}}\n");
+        let target_a = root.join("target_a.rs");
+        let target_b = root.join("target_b.rs");
+        std::fs::write(&target_a, &content_a).expect("write first paired target");
+        std::fs::write(&target_b, &content_b).expect("write second paired target");
+        let indexed = self.post_json(
+            &format!("/workspaces/{workspace_id}/code-nav/index"),
+            &serde_json::json!({"root_path": root.to_string_lossy()}),
+        );
+        assert_eq!(
+            indexed["files_failed"], 0,
+            "paired authority indexes cleanly"
+        );
+
+        let fixture = |symbol_name: String, target_path: PathBuf, content: String| {
+            let file_name = target_path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .expect("paired target has UTF-8 filename");
+            let lookup = self.get_json(&format!(
+                "/knowledge/code/symbols?workspace_id={workspace_id}&name={symbol_name}&path={file_name}&limit=1"
+            ));
+            let symbol = lookup["matches"]
+                .as_array()
+                .and_then(|matches| matches.first())
+                .expect("paired indexed symbol is queryable");
+            CodeAuthorityFixture {
+                root: root.clone(),
+                anchor_path: anchor_path.clone(),
+                target_path,
+                content,
+                symbol_name,
+                symbol_entity_id: symbol["symbol_entity_id"]
+                    .as_str()
+                    .expect("paired symbol carries entity id")
+                    .to_owned(),
+                source_id: symbol["definition"]["source_id"]
+                    .as_str()
+                    .expect("paired symbol carries canonical KSRC id")
+                    .to_owned(),
+            }
+        };
+        (
+            fixture(symbol_a, target_a, content_a),
+            fixture(symbol_b, target_b, content_b),
+        )
+    }
+
+    fn canonical_fems_mutation_counts(&self, workspace_id: &str) -> (u64, u64) {
+        let count = |table: &str| {
+            run_psql(
+                &self.dsn,
+                &format!(
+                    "SELECT COUNT(*) FROM {table} WHERE workspace_id = {}",
+                    sql_literal(workspace_id)
+                ),
+            )
+            .trim()
+            .parse::<u64>()
+            .unwrap_or_else(|error| panic!("parse canonical {table} count: {error}"))
+        };
+        (count("fems_memory_proposals"), count("fems_memory_items"))
+    }
+
+    fn create_workspace(&self, name: &str) -> String {
+        let url = format!("{}/workspaces", self.base);
+        let workspace_id = self.rt.block_on(async {
+            let response = self
+                .workspace_ident(
+                    self.client
+                        .post(&url)
+                        .json(&serde_json::json!({"name": name})),
+                )
+                .timeout(std::time::Duration::from_secs(8))
+                .send()
+                .await
+                .unwrap_or_else(|error| panic!("POST {url} failed: {error}"));
+            let status = response.status();
+            let body: serde_json::Value = response
+                .json()
+                .await
+                .unwrap_or_else(|error| panic!("POST {url} returned invalid JSON: {error}"));
+            assert!(status.is_success(), "POST {url} -> {status}: {body}");
+            body["id"]
+                .as_str()
+                .expect("workspace create returns id")
+                .to_owned()
+        });
+        let quoted_id = workspace_id.replace('\'', "''");
+        let bound_id = run_psql(
+            &self.dsn,
+            &format!("SELECT id FROM workspaces WHERE id = '{quoted_id}'"),
+        );
+        assert_eq!(
+            bound_id.trim(),
+            workspace_id,
+            "HSK_TEST_BASE and HANDSHAKE_TEST_PG_DSN must address the same PostgreSQL workspace authority"
+        );
+        println!(
+            "MT-065 HTTP/DSN identity bound: workspace_id={workspace_id} observed through backend and direct PostgreSQL query"
+        );
+        workspace_id
+    }
+
+    fn delete_workspace(&self, workspace_id: &str) -> u16 {
+        let url = format!("{}/workspaces/{workspace_id}", self.base);
+        self.rt.block_on(async {
+            self.workspace_ident(self.client.delete(&url))
+                .timeout(std::time::Duration::from_secs(8))
+                .send()
+                .await
+                .map(|response| response.status().as_u16())
+                .unwrap_or(0)
+        })
+    }
+
+    fn poll_exact_fr_event(&self, workspace_id: &str, proposal_id: &str) -> serde_json::Value {
+        let url = format!(
+            "{}/api/flight_recorder?event_type=memory_write_proposed&wsid={workspace_id}",
+            self.base
+        );
+        self.rt.block_on(async {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+            loop {
+                let rows: serde_json::Value = self
+                    .client
+                    .get(&url)
+                    .timeout(std::time::Duration::from_secs(5))
+                    .send()
+                    .await
+                    .unwrap_or_else(|error| panic!("GET {url} failed: {error}"))
+                    .json()
+                    .await
+                    .expect("Flight Recorder response is JSON");
+                if let Some(row) = rows.as_array().into_iter().flatten().find(|row| {
+                    row["event_type"] == "memory_write_proposed"
+                        && row["wsids"] == serde_json::json!([workspace_id])
+                        && row["payload"]["type"] == "memory_write_proposed"
+                        && row["payload"]["event_code"] == "FR-EVT-MEM-001"
+                        && row["payload"]["proposal_id"] == proposal_id
+                        && row["payload"]["proposal_hash"]
+                            .as_str()
+                            .is_some_and(|hash| hash.len() == 64)
+                        && row["payload"]["artifact_ref"]["path"]
+                            == format!(
+                                "/workspaces/{workspace_id}/memory/proposals/{proposal_id}/artifact"
+                            )
+                        && row["payload"]["scope_refs"][0]["artefact_type"] == "workspace"
+                        && row["payload"]["scope_refs"][0]["artefact_id"] == workspace_id
+                        && row["payload"]["op_count"] == 1
+                        && row["payload"]["requires_review_count"] == 1
+                }) {
+                    return row.clone();
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "BLOCKER[kind=schema_mismatch] detail='no single FR row correlated action+proposal+pending state for {proposal_id}' source_mt='MT-064'"
+                );
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+        })
+    }
+
+    fn poll_exact_review_fr_event(
+        &self,
+        workspace_id: &str,
+        proposal_id: &str,
+        decision: &str,
+        event_id: &str,
+    ) -> serde_json::Value {
+        let url = format!(
+            "{}/api/flight_recorder?wsid={workspace_id}&event_id={event_id}",
+            self.base
+        );
+        self.rt.block_on(async {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+            loop {
+                let rows: serde_json::Value = self
+                    .client
+                    .get(&url)
+                    .timeout(std::time::Duration::from_secs(5))
+                    .send()
+                    .await
+                    .unwrap_or_else(|error| panic!("GET {url} failed: {error}"))
+                    .json()
+                    .await
+                    .expect("Flight Recorder review response is JSON");
+                if let Some(row) = rows.as_array().into_iter().flatten().find(|row| {
+                    row["event_id"] == event_id
+                        && row["event_type"] == "memory_write_reviewed"
+                        && row["payload"]["type"] == "memory_write_reviewed"
+                        && row["payload"]["event_code"] == "FR-EVT-MEM-002"
+                        && row["payload"]["proposal_id"] == proposal_id
+                        && row["payload"]["decision"] == decision
+                        && row["payload"]["reviewer_kind"] == "user"
+                        && row["payload"].get("commit_report_ref").is_none()
+                        && row["wsids"]
+                            .as_array()
+                            .is_some_and(|ids| ids.iter().any(|id| id == workspace_id))
+                }) {
+                    return row.clone();
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "no FR-EVT-MEM-002 row for proposal={proposal_id} decision={decision}"
+                );
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+        })
+    }
+
+    fn poll_exact_commit_fr_event(
+        &self,
+        workspace_id: &str,
+        commit: &handshake_native::fems::memory_proposal::ProposalCommitAck,
+    ) -> serde_json::Value {
+        let url = format!(
+            "{}/api/flight_recorder?wsid={workspace_id}&event_id={}",
+            self.base, commit.flight_recorder_event_id
+        );
+        let changed_memory_ids_hash = Sha256::digest(
+            serde_json::to_vec(&serde_json::json!([commit.memory_id]))
+                .expect("serialize changed memory ids"),
+        )
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+        self.rt.block_on(async {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+            loop {
+                let rows: serde_json::Value = self
+                    .client
+                    .get(&url)
+                    .timeout(std::time::Duration::from_secs(5))
+                    .send()
+                    .await
+                    .unwrap_or_else(|error| panic!("GET {url} failed: {error}"))
+                    .json()
+                    .await
+                    .expect("Flight Recorder commit response is JSON");
+                let matching = rows
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|row| {
+                        row["event_id"] == commit.flight_recorder_event_id
+                            && row["event_type"] == "memory_write_committed"
+                            && row["payload"]["type"] == "memory_write_committed"
+                            && row["payload"]["event_code"] == "FR-EVT-MEM-003"
+                            && row["payload"]["commit_id"] == commit.commit_id
+                            && row["payload"]["proposal_id"] == commit.proposal_id
+                            && row["payload"]["commit_report_hash"]
+                                == commit.commit_report_hash
+                            && row["payload"]["changed_memory_ids_hash"]
+                                == changed_memory_ids_hash
+                            && row["payload"]["artifact_ref"]["path"]
+                                == format!(
+                                    "/workspaces/{workspace_id}/memory/commits/{}/report",
+                                    commit.commit_id,
+                                )
+                            && row["wsids"].as_array().is_some_and(|ids| {
+                                ids.len() == 1 && ids[0].as_str() == Some(workspace_id)
+                            })
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                if matching.len() == 1 {
+                    let artifact_path = matching[0]["payload"]["artifact_ref"]["path"]
+                        .as_str()
+                        .expect("FR commit artifact path");
+                    let report = self
+                        .client
+                        .get(format!("{}{artifact_path}", self.base))
+                        .timeout(std::time::Duration::from_secs(5))
+                        .send()
+                        .await
+                        .expect("dereference commit report artifact")
+                        .error_for_status()
+                        .expect("commit report artifact status")
+                        .json::<handshake_native::fems::memory_proposal::MemoryCommitReport>()
+                        .await
+                        .expect("commit report artifact JSON");
+                    assert_eq!(report, commit.commit_report);
+                    assert_eq!(
+                        compute_memory_commit_report_hash(&report)
+                            .expect("re-hash commit report artifact"),
+                        commit.commit_report_hash,
+                        "dereferenced MemoryCommitReport must bind the FR commit_report_hash"
+                    );
+                    return matching[0].clone();
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "no unique exact FR-EVT-MEM-003 for proposal={} commit={} report_hash={} memory_ids_hash={changed_memory_ids_hash}; rows={rows}",
+                    commit.proposal_id,
+                    commit.commit_id,
+                    commit.commit_report_hash
+                );
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+        })
+    }
+}
+
+struct CodeAuthorityFixture {
+    root: PathBuf,
+    anchor_path: PathBuf,
+    target_path: PathBuf,
+    content: String,
+    symbol_name: String,
+    symbol_entity_id: String,
+    source_id: String,
+}
+
+impl Drop for CodeAuthorityFixture {
+    fn drop(&mut self) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            match std::fs::remove_dir_all(&self.root) {
+                Ok(()) if !self.root.exists() => return,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => return,
+                Ok(()) => return,
+                Err(error) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                    let _ = error;
+                }
+                Err(error) => {
+                    tracing::warn!(
+                        path = %self.root.display(),
+                        %error,
+                        "MT-065 CodeAuthorityFixture cleanup exhausted bounded retries"
+                    );
+                    return;
+                }
+            }
+        }
+    }
+}
+
+fn unique_name(prefix: &str) -> String {
+    format!(
+        "{prefix}-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock after unix epoch")
+            .as_nanos()
+    )
+}
+
+fn sql_literal(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+fn ledger_row_by_key(live: &LiveBackend, key: &str) -> serde_json::Value {
+    let json = run_psql(
+        &live.dsn,
+        &format!(
+            "SELECT row_to_json(row)::text FROM (\
+             SELECT event_id::text, event_type, aggregate_type, aggregate_id, idempotency_key, \
+                    correlation_id, causation_id::text, source_component, payload \
+             FROM kernel_event_ledger WHERE idempotency_key = {}\
+             ) row",
+            sql_literal(key)
+        ),
+    );
+    let rows = json
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect::<Vec<_>>();
+    assert_eq!(rows.len(), 1, "exactly one EventLedger row for {key}");
+    serde_json::from_str(rows[0]).expect("EventLedger row_to_json is valid JSON")
+}
+
+fn assert_exact_proposal_and_canonical_fr_ledger(
+    live: &LiveBackend,
+    proposal_id: &str,
+    workspace_id: &str,
+    fr_row: &serde_json::Value,
+) {
+    assert_eq!(fr_row["wsids"], serde_json::json!([workspace_id]));
+    assert_eq!(fr_row["event_type"], "memory_write_proposed");
+    assert_eq!(fr_row["payload"]["type"], "memory_write_proposed");
+    assert_eq!(fr_row["payload"]["event_code"], "FR-EVT-MEM-001");
+    assert_eq!(fr_row["payload"]["proposal_id"], proposal_id);
+    assert_eq!(fr_row["payload"]["op_count"], 1);
+    assert_eq!(fr_row["payload"]["requires_review_count"], 1);
+    assert_eq!(fr_row["payload"]["scope_refs"][0]["artefact_type"], "workspace");
+    assert_eq!(fr_row["payload"]["scope_refs"][0]["artefact_id"], workspace_id);
+    assert!(fr_row["payload"].get("content").is_none());
+    assert!(fr_row["payload"].get("text").is_none());
+    let proposal = ledger_row_by_key(live, &format!("fems-memory-proposal:{proposal_id}"));
+    assert_eq!(proposal["event_type"], "ARTIFACT_PROPOSED");
+    assert_eq!(proposal["aggregate_type"], "fems_memory_proposal");
+    assert_eq!(proposal["aggregate_id"], proposal_id);
+    assert_eq!(proposal["source_component"], "fems_memory_proposal_intake");
+    assert_eq!(proposal["payload"]["proposal_id"], proposal_id);
+    assert_eq!(proposal["payload"]["workspace_id"], workspace_id);
+    assert_eq!(proposal["payload"]["status"], "pending_review");
+    assert_eq!(proposal["payload"]["review_gated"], true);
+    let artifact_path = fr_row["payload"]["artifact_ref"]["path"]
+        .as_str()
+        .expect("canonical proposal event carries an artifact path");
+    let artifact = live.get_json(artifact_path);
+    assert_eq!(artifact["proposal_id"], proposal_id);
+    assert_eq!(artifact["workspace_id"], workspace_id);
+    assert_eq!(artifact["status"], "pending_review");
+    assert_eq!(artifact["review_gated"], true);
+    assert!(artifact.get("_receipt_identity").is_none());
+    assert!(artifact.get("review").is_none());
+}
+
+fn assert_exact_proposal_readback(
+    readback: &serde_json::Value,
+    proposal_id: &str,
+    proposal: &handshake_native::fems::memory_proposal::MemoryWriteProposal,
+) {
+    assert_eq!(readback["proposal_id"], proposal_id);
+    assert!(
+        readback["request_id"]
+            .as_str()
+            .is_some_and(|request_id| !request_id.is_empty()),
+        "proposal readback carries its durable request correlation identity"
+    );
+    assert_eq!(readback["workspace_id"], proposal.source.workspace_id);
+    assert_eq!(readback["document_id"], proposal.source.document_id);
+    assert_eq!(readback["selection_start"], proposal.source.selection_start);
+    assert_eq!(readback["selection_end"], proposal.source.selection_end);
+    assert_eq!(readback["content_hash"], proposal.source.content_hash);
+    assert_eq!(readback["memory_class"], proposal.class.wire());
+    assert_eq!(readback["status"], "pending_review");
+    assert_eq!(readback["review_gated"], true);
+
+    let stored = &readback["proposal"];
+    assert_eq!(stored["proposal_id"], proposal_id);
+    assert_eq!(stored["workspace_id"], proposal.source.workspace_id);
+    assert_eq!(stored["class"], proposal.class.wire());
+    assert_eq!(stored["content"], proposal.content);
+    assert_eq!(stored["source"]["document_id"], proposal.source.document_id);
+    assert_eq!(
+        stored["source"]["selection_start"],
+        proposal.source.selection_start
+    );
+    assert_eq!(
+        stored["source"]["selection_end"],
+        proposal.source.selection_end
+    );
+    assert_eq!(
+        stored["source"]["content_hash"],
+        proposal.source.content_hash
+    );
+    match proposal.source.document_content_hash.as_deref() {
+        Some(document_content_hash) => assert_eq!(
+            stored["source"]["document_content_hash"], document_content_hash,
+            "durable proposal retains the canonical source snapshot hash"
+        ),
+        None => assert!(
+            stored["source"]["document_content_hash"].is_null(),
+            "rich-document proposals do not fabricate a code snapshot hash"
+        ),
+    }
+    assert!(
+        stored.get("source_document_content").is_none(),
+        "the transient full source snapshot is validated but never stored in the durable proposal payload"
+    );
+    assert_eq!(stored["source"]["pane_id"], proposal.source.pane_id);
+    assert_eq!(
+        stored["source"]["workspace_id"],
+        proposal.source.workspace_id
+    );
+    assert_eq!(stored["actor_id"], proposal.actor_id);
+    assert_eq!(stored["review_gated"], true);
+    assert_eq!(stored["status"], "pending_review");
+}
+
+struct WorkspaceCleanup<'a> {
+    live: &'a LiveBackend,
+    workspace_id: String,
+    proposal_ids: Vec<String>,
+    pack_ids: Vec<String>,
+    item_ids: Vec<String>,
+    cleaned: bool,
+}
+
+impl WorkspaceCleanup<'_> {
+    fn capture_proposal(&mut self, proposal_id: impl Into<String>) {
+        self.proposal_ids.push(proposal_id.into());
+    }
+
+    fn capture_pack_item(&mut self, pack_id: impl Into<String>, item_id: impl Into<String>) {
+        self.pack_ids.push(pack_id.into());
+        self.item_ids.push(item_id.into());
+    }
+
+    fn clean_and_verify(&mut self) {
+        let status = self.live.delete_workspace(&self.workspace_id);
+        assert_eq!(status, 204, "delete owned MT-065 workspace");
+        for proposal_id in &self.proposal_ids {
+            assert_eq!(
+                self.live.get_status(&format!(
+                    "/workspaces/{}/memory/proposals/{proposal_id}",
+                    self.workspace_id
+                )),
+                404,
+                "workspace teardown removes only captured mutable proposal data"
+            );
+            assert_eq!(
+                run_psql(
+                    &self.live.dsn,
+                    &format!(
+                        "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id = {} AND proposal_id = {}",
+                        sql_literal(&self.workspace_id),
+                        sql_literal(proposal_id)
+                    )
+                )
+                .trim(),
+                "0",
+                "exact captured proposal row is removed"
+            );
+        }
+        for pack_id in &self.pack_ids {
+            assert_eq!(
+                run_psql(
+                    &self.live.dsn,
+                    &format!(
+                        "SELECT COUNT(*) FROM fems_memory_packs WHERE workspace_id = {} AND pack_id = {}",
+                        sql_literal(&self.workspace_id),
+                        sql_literal(pack_id)
+                    )
+                )
+                .trim(),
+                "0",
+                "exact captured MemoryPack row is removed"
+            );
+        }
+        for item_id in &self.item_ids {
+            assert_eq!(
+                run_psql(
+                    &self.live.dsn,
+                    &format!(
+                        "SELECT COUNT(*) FROM fems_memory_items WHERE workspace_id = {} AND memory_id = {}",
+                        sql_literal(&self.workspace_id),
+                        sql_literal(item_id)
+                    )
+                )
+                .trim(),
+                "0",
+                "exact captured MemoryItem row is removed"
+            );
+        }
+        for table in [
+            "fems_memory_proposals",
+            "fems_memory_packs",
+            "fems_memory_items",
+        ] {
+            assert_eq!(
+                run_psql(
+                    &self.live.dsn,
+                    &format!(
+                        "SELECT COUNT(*) FROM {table} WHERE workspace_id = {}",
+                        sql_literal(&self.workspace_id)
+                    )
+                )
+                .trim(),
+                "0",
+                "workspace teardown leaves no mutable FEMS rows in {table}"
+            );
+        }
+        assert_eq!(
+            self.live.get_status(&format!(
+                "/workspaces/{}/memory/items/count",
+                self.workspace_id
+            )),
+            404,
+            "deleted workspace has no committed-memory projection"
+        );
+        self.cleaned = true;
+    }
+}
+
+impl Drop for WorkspaceCleanup<'_> {
+    fn drop(&mut self) {
+        if !self.cleaned {
+            // Emergency cleanup must never double-panic while unwinding a failed proof. The explicit
+            // `clean_and_verify` path above remains the assertion-bearing teardown contract.
+            let _ = self.live.delete_workspace(&self.workspace_id);
+        }
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Harness builders + AccessKit query/dispatch helpers (the MT-041 canonical pattern, reused — AC-065-07).
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
-fn dark() -> HsPalette {
-    HsTheme::Dark.palette()
-}
-
-/// A fixture capsule with one item of each Pillar 12 kind, each provenance-first (a uri, a doc+range, an
-/// event id). Used to seed the FEMS panel so the swarm-path render carries the `mem-item-{id}` +
-/// `mem-source-{id}` nodes a swarm agent addresses. This is FIXTURE seed for the id-stability proof — NOT
-/// a backend-aligned MemoryPack (the live render is the gated FEMS-01 proof).
-fn seed_pack() -> MemoryPack {
-    serde_json::from_value(serde_json::json!({
-        "context_key": "ws=WS-MT065|doc=DOC-1|cur=12|sel_len=0",
-        "token_estimate": 280,
-        "truncated": false,
-        "items": [
-            {"id": "ep-1", "kind": "episodic", "summary": "You edited the intro",
-             "source": {"event_id": "EV-100"}, "score": 0.91},
-            {"id": "sem-1", "kind": "semantic", "summary": "Aria is the protagonist",
-             "source": {"uri": "loom://block/aria"}, "score": 0.84},
-            {"id": "proc-1", "kind": "procedural", "summary": "How to render the scene",
-             "source": {"document_id": "DOC-9", "byte_range": [10, 40]}}
-        ]
-    }))
-    .expect("MT-065 seed pack must decode (MT-063 model)")
-}
-
 /// A TextRange selection (the MT-031 shared-selection shape MT-064 reads to build a proposal).
 fn text_range(pane: &str, start: usize, end: usize, text: &str) -> SharedSelection {
     SharedSelection::TextRange {
         pane_id: std::sync::Arc::from(pane),
-        surface: EditorSurfaceKind::RichText,
+        surface: EditorSurfaceKind::Code,
         start,
         end,
         text: text.to_owned(),
@@ -274,10 +1188,12 @@ fn text_range(pane: &str, start: usize, end: usize, text: &str) -> SharedSelecti
 
 /// A node found in the live kittest tree, reduced to the fields the proofs assert (the MT-041
 /// `FoundNode` shape).
+#[derive(Debug)]
 struct FoundNode {
     node_id: egui::accesskit::NodeId,
     role: String,
     disabled: bool,
+    value: Option<String>,
 }
 
 /// Resolve a canonical `author_id` to its live AccessKit node in the harness tree (the MT-041 `find_node`
@@ -290,32 +1206,730 @@ fn find_node(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<FoundNode
                 node_id: ak.id(),
                 role: format!("{:?}", ak.role()),
                 disabled: ak.is_disabled(),
+                value: ak.value(),
             });
         }
     }
     None
 }
 
-/// Build a Click AccessKit action request event targeting `node_id` — the out-of-process swarm-agent
-/// dispatch path (the SAME shape `handshake_native::mcp::action::build_action_request` produces and the
-/// MT-041 harness uses). NO synthetic key event, NO direct widget call — pure AccessKit action dispatch.
-fn click_event(node_id: egui::accesskit::NodeId) -> egui::Event {
-    egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest {
-        action: egui::accesskit::Action::Click,
-        target: node_id,
-        data: None,
+fn selected_tab_label(root: &egui_kittest::Node<'_>) -> Option<String> {
+    root.children_recursive().find_map(|node| {
+        let ak = node.accesskit_node();
+        (ak.role() == egui::accesskit::Role::Tab
+            && ak
+                .author_id()
+                .is_some_and(|author_id| author_id.starts_with("tab-pane-"))
+            && ak.is_selected().unwrap_or(false))
+        .then(|| ak.label())
+        .flatten()
     })
 }
 
-/// A FEMS step a swarm agent drives purely by AccessKit author_id (the FEMS-03 ordered sequence).
-struct SwarmStep {
-    /// The stable AccessKit author_id the out-of-process agent targets.
-    author_id: String,
-    /// The expected AccessKit role at that id (the agent confirms the surface before activating it).
-    expect_role: &'static str,
-    /// Whether this step dispatches an AccessKit `Click` activate at the resolved node (vs. a discovery-
-    /// only step that asserts the node is present/queryable).
-    activate: bool,
+fn accesskit_author_dump(root: &egui_kittest::Node<'_>) -> String {
+    root.children_recursive()
+        .filter_map(|node| {
+            let access = node.accesskit_node();
+            access.author_id().map(|author_id| {
+                format!(
+                    "{}|role={:?}|disabled={}|label={:?}|value={:?}",
+                    author_id,
+                    access.role(),
+                    access.is_disabled(),
+                    access.label(),
+                    access.value()
+                )
+            })
+        })
+        .collect::<Vec<_>>()
+        .join(" || ")
+}
+
+/// Drive the same bounded ActionChannel and eframe pre-frame hook used by the out-of-process MCP
+/// server. Tests never fabricate raw AccessKit requests and never call widget handlers directly.
+fn mcp_dispatch(harness: &mut Harness<'_, HandshakeApp>, author_id: &str, action: UiAction) {
+    let live_node_id = find_node(&harness.root(), author_id).map(|node| node.node_id);
+    let snapshot = harness.state_mut().capture_mcp_snapshot_for_navigation();
+    let target_snapshot: Vec<_> = snapshot
+        .iter_nodes()
+        .filter(|node| node.author_id.as_deref() == Some(author_id))
+        .map(|node| {
+            (
+                node.node_id,
+                node.disabled,
+                node.role.clone(),
+                node.actions.clone(),
+            )
+        })
+        .collect();
+    if let Some(live_node_id) = live_node_id {
+        assert!(
+            target_snapshot
+                .iter()
+                .any(|(node_id, _, _, _)| *node_id == live_node_id.0),
+            "MCP snapshot/live NodeId divergence for {author_id}: live={live_node_id:?}; snapshot={target_snapshot:?}"
+        );
+    }
+    let channel = harness.state().mcp_action_channel();
+    channel
+        .lock()
+        .expect("MCP ActionChannel lock")
+        .enqueue(&snapshot, author_id, action)
+        .unwrap_or_else(|error| {
+            panic!(
+                "MCP action for {author_id} rejected: {error}; live_targets={:?}; stored_targets={:?}; snapshot_target={target_snapshot:?}",
+                harness.state().editor_menu_targets_for_test(),
+                harness.state().mcp_open_menu_state_for_test()
+            )
+        });
+    let mut raw_input = egui::RawInput::default();
+    <HandshakeApp as eframe::App>::raw_input_hook(
+        harness.state_mut(),
+        &egui::Context::default(),
+        &mut raw_input,
+    );
+    assert!(
+        !raw_input.events.is_empty(),
+        "raw_input_hook drains the MCP action into egui input"
+    );
+    for event in raw_input.events {
+        harness.event(event);
+    }
+}
+
+/// Actual localhost JSON-RPC Argus client/server boundary used by FEMS-03. The server owns the app's
+/// production snapshot slot and ActionChannel; requests carry a stable client_session_id so attribution,
+/// leasing, rate limiting, and transport framing are all exercised before the production pre-frame hook.
+struct ArgusTcpDriver {
+    server: SwarmMcpServer,
+    _app_data: ScopedAppData,
+    token: String,
+    client_session_id: String,
+    next_id: u64,
+    targets: Vec<String>,
+}
+
+impl ArgusTcpDriver {
+    fn bind(live: &LiveBackend, app: &HandshakeApp) -> Self {
+        let binding_root = external_artifact_dir("mt065-argus-binding").join(unique_name("run"));
+        let app_data = ScopedAppData::install(binding_root);
+        let session_token = SessionToken::from_hex("mt065-fems03-argus-session");
+        let token = session_token.as_hex().to_owned();
+        let server = live
+            .rt
+            .block_on(SwarmMcpServer::bind(
+                session_token,
+                app.mcp_snapshot_slot(),
+                app.mcp_action_channel(),
+                std::sync::Arc::new(|| {
+                    Err(ScreenshotError(
+                        "FEMS-03 does not request a pixel capture".to_owned(),
+                    ))
+                }),
+            ))
+            .expect("bind the production Argus localhost server");
+        Self {
+            server,
+            _app_data: app_data,
+            token,
+            client_session_id: "mt065-fems03-agent".to_owned(),
+            next_id: 1,
+            targets: Vec::new(),
+        }
+    }
+
+    fn click(&mut self, harness: &mut Harness<'_, HandshakeApp>, author_id: &str) -> FoundNode {
+        let found = find_node(&harness.root(), author_id)
+            .unwrap_or_else(|| panic!("Argus target is absent: {author_id}"));
+        assert!(!found.disabled, "Argus target is disabled: {author_id}");
+        let snapshot = harness.state_mut().capture_mcp_snapshot_for_navigation();
+        let snapshot_targets: Vec<_> = snapshot
+            .iter_nodes()
+            .filter(|node| node.author_id.as_deref() == Some(author_id))
+            .map(|node| (node.node_id, node.disabled, node.role.clone()))
+            .collect();
+        assert!(
+            snapshot_targets
+                .iter()
+                .any(|(node_id, _, _)| *node_id == found.node_id.0),
+            "Argus snapshot/live NodeId divergence for {author_id}: live={:?}; snapshot={snapshot_targets:?}",
+            found.node_id
+        );
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": self.next_id,
+            "method": ARGUS_CLICK_METHOD,
+            "params": { "target": author_id },
+            "session_token": &self.token,
+            "client_session_id": &self.client_session_id,
+        });
+        self.next_id += 1;
+        let mut stream = std::net::TcpStream::connect(self.server.tcp_addr())
+            .expect("connect to production Argus TCP listener");
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+            .expect("bound Argus read timeout");
+        writeln!(stream, "{request}").expect("write Argus JSON-RPC request");
+        stream.flush().expect("flush Argus JSON-RPC request");
+        let mut response_line = String::new();
+        std::io::BufReader::new(stream)
+            .read_line(&mut response_line)
+            .expect("read Argus JSON-RPC response");
+        let response: serde_json::Value =
+            serde_json::from_str(response_line.trim()).expect("decode Argus JSON-RPC response");
+        assert!(
+            response.get("error").is_none(),
+            "Argus response failed: {response}"
+        );
+        assert_eq!(response["result"]["queued"], true);
+        assert!(
+            response["result"]["agent_id"]
+                .as_str()
+                .is_some_and(|agent| agent.ends_with(":client:mt065-fems03-agent")),
+            "Argus response must retain client_session_id attribution: {response}"
+        );
+
+        let mut raw_input = egui::RawInput::default();
+        <HandshakeApp as eframe::App>::raw_input_hook(
+            harness.state_mut(),
+            &egui::Context::default(),
+            &mut raw_input,
+        );
+        assert_eq!(
+            raw_input.events.len(),
+            1,
+            "one Argus click must drain as exactly one production egui event"
+        );
+        for event in raw_input.events {
+            harness.event(event);
+        }
+        harness.run_steps(1);
+        if author_id.starts_with("menu-") && !author_id.contains('.') {
+            harness.run_steps(1);
+        }
+        if author_id.starts_with("command-palette.option.")
+            || author_id == FEMS_PROPOSE_CANCEL_AUTHOR_ID
+        {
+            harness.run_steps(1);
+        }
+        self.targets.push(author_id.to_owned());
+        found
+    }
+
+    fn finish(mut self) {
+        let entries = self.server.action_log().drain_log();
+        assert_eq!(entries.len(), self.targets.len());
+        for (entry, target) in entries.iter().zip(&self.targets) {
+            assert_eq!(entry.op_name, ARGUS_CLICK_METHOD);
+            assert_eq!(&entry.target_key, target);
+            assert!(entry.agent_id.ends_with(":client:mt065-fems03-agent"));
+            assert_ne!(entry.node_id, 0);
+        }
+        assert_eq!(
+            self.server.leases().active_resource_count(),
+            0,
+            "every Argus action lease is released after its response"
+        );
+        self.server.shutdown();
+    }
+}
+
+/// Repo-established MT-108 binding isolation: production discovery still resolves through the
+/// canonical platform app-data contract, but this test process redirects it to one external run root.
+struct ScopedAppData {
+    variable: &'static str,
+    previous: Option<std::ffi::OsString>,
+    root: PathBuf,
+}
+
+impl ScopedAppData {
+    fn install(root: PathBuf) -> Self {
+        std::fs::create_dir_all(&root).expect("create isolated MT-065 Argus binding root");
+        #[cfg(target_os = "windows")]
+        let variable = "LOCALAPPDATA";
+        #[cfg(not(target_os = "windows"))]
+        let variable = "XDG_DATA_HOME";
+        let previous = std::env::var_os(variable);
+        std::env::set_var(variable, &root);
+        Self {
+            variable,
+            previous,
+            root,
+        }
+    }
+}
+
+impl Drop for ScopedAppData {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => std::env::set_var(self.variable, value),
+            None => std::env::remove_var(self.variable),
+        }
+        if let Err(error) = std::fs::remove_dir_all(&self.root) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                tracing::warn!(path = %self.root.display(), %error, "MT-065 Argus binding cleanup failed");
+            }
+        }
+    }
+}
+
+const FEMS_PALETTE_ROW_AUTHOR_ID: &str = "command-palette.option.hs-fems-palette-propose-to-memory";
+
+fn click_author_id(harness: &mut Harness<'_, HandshakeApp>, author_id: &str) -> FoundNode {
+    let found = find_node(&harness.root(), author_id)
+        .unwrap_or_else(|| panic!("missing AccessKit author_id {author_id}"));
+    let active_tab = harness
+        .state()
+        .active_pane()
+        .and_then(|pane_id| harness.state().tab_bar_states().get(pane_id))
+        .and_then(|bar| bar.active())
+        .map(|tab| format!("{:?}", tab.pane_type));
+    let matching_nodes: Vec<_> = harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| {
+            let access = node.accesskit_node();
+            (access.author_id() == Some(author_id)).then(|| {
+                (
+                    access.id().0,
+                    access.is_disabled(),
+                    format!("{:?}", access.role()),
+                )
+            })
+        })
+        .collect();
+    assert!(
+        !found.disabled,
+        "AccessKit target {author_id} must be enabled; active_pane={:?}; active_tab={active_tab:?}; editor_available={}; menu_targets={:?}; selected_tab={:?}; node={found:?}; matching_nodes={matching_nodes:?}",
+        harness.state().active_pane(),
+        harness.state().editor_available(),
+        harness.state().editor_menu_targets_for_test(),
+        selected_tab_label(&harness.root())
+    );
+    mcp_dispatch(harness, author_id, UiAction::Click);
+    // One frame applies the exact targeted action. A top-level custom menu button persists its
+    // AccessKit-driven popup at the end of that frame, so one further frame materializes the enabled
+    // live leaf tree before the next model action addresses it.
+    harness.run_steps(1);
+    if author_id.starts_with("menu-") && !author_id.contains('.') {
+        harness.run_steps(1);
+    }
+    if author_id.starts_with("command-palette.option.") {
+        // The palette dispatch runs after the proposal-dialog host for this frame; the requested
+        // repaint materializes the resulting operator dialog on the next frame.
+        harness.run_steps(1);
+    }
+    if author_id == FEMS_PROPOSE_CANCEL_AUTHOR_ID {
+        // Cancellation is applied after the dialog rendered in the action frame. Advance once more so
+        // the captured accessibility tree reflects the now-closed modal instead of its final live frame.
+        harness.run_steps(1);
+    }
+    found
+}
+
+fn mounted_code_app(
+    live: &LiveBackend,
+    workspace_id: &str,
+    document_id: &str,
+    initial_content: &str,
+) -> HandshakeApp {
+    mounted_code_app_at(
+        &live.base,
+        live.rt.handle().clone(),
+        workspace_id,
+        document_id,
+        initial_content,
+    )
+}
+
+fn mounted_code_app_at(
+    base_url: &str,
+    runtime: tokio::runtime::Handle,
+    workspace_id: &str,
+    document_id: &str,
+    initial_content: &str,
+) -> HandshakeApp {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(base_url, runtime);
+    app.set_active_project_id_for_test(workspace_id.to_owned());
+    app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
+    let generation = app.begin_code_document_load_for_test(document_id);
+    app.deliver_code_document_load_for_test(
+        generation,
+        document_id,
+        PathBuf::from(format!("{document_id}.rs")),
+        0,
+        Ok(initial_content.to_owned()),
+    );
+    app.bind_code_document_source_for_test(document_id, document_id);
+    app
+}
+
+fn mounted_code_app_with_real_anchor(
+    live: &LiveBackend,
+    workspace_id: &str,
+    fixture: &CodeAuthorityFixture,
+) -> HandshakeApp {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&live.base, live.rt.handle().clone());
+    app.set_active_project_id_for_test(workspace_id.to_owned());
+    app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
+    let anchor_id = fixture
+        .anchor_path
+        .to_string_lossy()
+        .replace('\\', "/")
+        .to_ascii_lowercase();
+    let anchor_content =
+        std::fs::read_to_string(&fixture.anchor_path).expect("read anchor content");
+    let generation = app.begin_code_document_load_for_test(anchor_id.clone());
+    app.deliver_code_document_load_for_test(
+        generation,
+        anchor_id,
+        fixture.anchor_path.clone(),
+        0,
+        Ok(anchor_content),
+    );
+    app
+}
+
+fn open_indexed_code_symbol_via_quick_switcher(
+    harness: &mut Harness<'_, HandshakeApp>,
+    fixture: &CodeAuthorityFixture,
+) {
+    harness.run_steps(3);
+    click_author_id(harness, "menu-edit");
+    click_author_id(harness, "menu.edit.quick-switcher");
+    let search = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("quick-switcher.search"))
+        .expect("production Quick Switcher search input");
+    search.type_text(&fixture.symbol_name);
+    let search_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        harness.run_steps(1);
+        if harness
+            .state()
+            .quick_switcher_search_results()
+            .iter()
+            .any(|hit| hit.source_kind == "symbol" && hit.ref_id == fixture.symbol_entity_id)
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < search_deadline,
+            "timed out waiting for indexed symbol in production Quick Switcher"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    harness.key_press(egui::Key::Enter);
+    // Search delivery and the resulting typed navigation are two independently asynchronous,
+    // bounded production phases. A busy host may legitimately consume most of the search budget;
+    // reusing that already-spent deadline would give the post-Enter document load no proof window.
+    let navigation_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let target = fixture
+        .target_path
+        .canonicalize()
+        .unwrap_or_else(|_| fixture.target_path.clone());
+    loop {
+        harness.run_steps(1);
+        let active = PathBuf::from(harness.state().active_mounted_code_panel().file_path());
+        if active.canonicalize().ok().as_ref() == Some(&target) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < navigation_deadline,
+            "timed out waiting for production code-symbol navigation to open {}; active_path={}; \
+             active_canonical={:?}; nav_status={:?}; quick_switcher_open={}; hits={:?}",
+            target.display(),
+            active.display(),
+            active.canonicalize().ok(),
+            harness.state().quick_switcher_nav_status(),
+            harness.state().quick_switcher_open(),
+            harness
+                .state()
+                .quick_switcher_search_results()
+                .iter()
+                .map(|hit| (&hit.source_kind, &hit.ref_id, &hit.title))
+                .collect::<Vec<_>>()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    assert_eq!(
+        harness
+            .state()
+            .active_mounted_code_panel()
+            .buffer()
+            .to_string(),
+        fixture.content,
+        "production code-symbol navigation opens the exact indexed bytes"
+    );
+}
+
+fn author_and_select_all(
+    harness: &mut Harness<'_, HandshakeApp>,
+    content: &str,
+) -> SharedSelection {
+    harness.run_steps(3);
+    let text_author_id = {
+        harness
+            .root()
+            .children_recursive()
+            .find_map(|node| {
+                node.accesskit_node()
+                    .author_id()
+                    .filter(|author_id| author_id.starts_with(CODE_EDITOR_TEXT_AUTHOR_ID))
+                    .map(str::to_owned)
+            })
+            .expect("mounted code editor exposes its stable text node")
+    };
+    mcp_dispatch(harness, &text_author_id, UiAction::Focus);
+    harness.run_steps(2);
+    click_author_id(harness, "menu-edit");
+    click_author_id(harness, "menu.edit.select-all");
+    harness.run_steps(2);
+    text_range("pane-a", 0, content.len(), content)
+}
+
+fn author_and_select_range(
+    harness: &mut Harness<'_, HandshakeApp>,
+    start: usize,
+    end: usize,
+    text: &str,
+) -> SharedSelection {
+    harness.run_steps(3);
+    let text_author_id = harness
+        .root()
+        .children_recursive()
+        .find_map(|node| {
+            node.accesskit_node()
+                .author_id()
+                .filter(|author_id| author_id.starts_with(CODE_EDITOR_TEXT_AUTHOR_ID))
+                .map(str::to_owned)
+        })
+        .expect("mounted code editor exposes its stable text node");
+    mcp_dispatch(harness, &text_author_id, UiAction::Focus);
+    harness
+        .state()
+        .active_mounted_code_panel()
+        .set_cursors(vec![Cursor::selection(start, end)]);
+    harness.run_steps(3);
+    text_range("pane-a", start, end, text)
+}
+
+fn structured_field<'a>(value: &'a str, key: &str) -> Option<&'a str> {
+    value.split(';').find_map(|part| {
+        part.strip_prefix(key)
+            .and_then(|rest| rest.strip_prefix('='))
+    })
+}
+
+fn assert_same_rfc3339_instant(left: &str, right: &str) {
+    let left = chrono::DateTime::parse_from_rfc3339(left)
+        .unwrap_or_else(|error| panic!("invalid left RFC3339 timestamp {left:?}: {error}"));
+    let right = chrono::DateTime::parse_from_rfc3339(right)
+        .unwrap_or_else(|error| panic!("invalid right RFC3339 timestamp {right:?}: {error}"));
+    assert_eq!(
+        left.timestamp_micros(),
+        right.timestamp_micros(),
+        "timestamps must identify the same PostgreSQL-precision instant"
+    );
+}
+
+fn wait_for_status(
+    harness: &mut Harness<'_, HandshakeApp>,
+    author_id: &str,
+    predicate: impl Fn(&str) -> bool,
+) -> String {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        harness.run_steps(1);
+        if let Some(value) = find_node(&harness.root(), author_id).and_then(|node| node.value) {
+            if predicate(&value) {
+                return value;
+            }
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "timed out waiting for structured AccessKit status {author_id}; active_pane={:?}; selected_tab={:?}; fems_nodes={:?}",
+            harness.state().active_pane(),
+            selected_tab_label(&harness.root()),
+            harness.root().children_recursive().filter_map(|node| {
+                let access = node.accesskit_node();
+                access.author_id().filter(|id| id.contains("fems") || id.contains("memorypack")).map(|id| (id.to_owned(), access.label(), access.value(), access.is_disabled()))
+            }).collect::<Vec<_>>()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+fn wait_for_author_id(harness: &mut Harness<'_, HandshakeApp>, author_id: &str) -> FoundNode {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        harness.run_steps(1);
+        if let Some(node) = find_node(&harness.root(), author_id) {
+            return node;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "timed out waiting for AccessKit author_id {author_id}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+fn drive_propose_command_via_accesskit(
+    harness: &mut Harness<'_, HandshakeApp>,
+    class: MemoryClass,
+    exercise_cancel: bool,
+    cancel_guard: Option<(&LiveBackend, &str)>,
+) -> String {
+    let mut dispatch_order = Vec::new();
+    let open_dialog = |harness: &mut Harness<'_, HandshakeApp>| {
+        click_author_id(harness, "menu-go");
+        click_author_id(harness, "menu.go.command-palette");
+        let row = click_author_id(harness, FEMS_PALETTE_ROW_AUTHOR_ID);
+        assert_eq!(row.role, "ListBoxOption");
+        let status = find_node(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID);
+        assert!(
+            find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_some(),
+            "palette AccessKit dispatch opens the real app proposal dialog; status={status:?}"
+        );
+    };
+    let cancel_counts_before =
+        cancel_guard.map(|(live, workspace_id)| live.canonical_fems_mutation_counts(workspace_id));
+    dispatch_order.extend(
+        [
+            "menu-go",
+            "menu.go.command-palette",
+            FEMS_PALETTE_ROW_AUTHOR_ID,
+        ]
+        .into_iter()
+        .map(str::to_owned),
+    );
+    open_dialog(harness);
+    if exercise_cancel {
+        dispatch_order.push(FEMS_PROPOSE_CANCEL_AUTHOR_ID.to_owned());
+        click_author_id(harness, FEMS_PROPOSE_CANCEL_AUTHOR_ID);
+        assert!(
+            find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_none(),
+            "AccessKit cancel closes the mounted proposal dialog"
+        );
+        let cancelled = wait_for_status(harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+            structured_field(value, "outcome") == Some("cancelled_before_submit")
+        });
+        assert_eq!(structured_field(&cancelled, "state"), Some("cancelled"));
+        assert!(
+            structured_field(&cancelled, "operation_id").is_some_and(|id| id != "none"),
+            "cancel terminal state carries a stable operation identity"
+        );
+        let drain_deadline = std::time::Instant::now() + std::time::Duration::from_millis(750);
+        while std::time::Instant::now() < drain_deadline {
+            harness.run_steps(1);
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        if let (Some((live, workspace_id)), Some(before)) = (cancel_guard, cancel_counts_before) {
+            assert_eq!(
+                live.canonical_fems_mutation_counts(workspace_id),
+                before,
+                "cancel must leave canonical proposal rows and committed-memory rows unchanged after a bounded UI/worker drain"
+            );
+        }
+        dispatch_order.extend(
+            [
+                "menu-go",
+                "menu.go.command-palette",
+                FEMS_PALETTE_ROW_AUTHOR_ID,
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        );
+        open_dialog(harness);
+    }
+    dispatch_order.push(fems_class_author_id(class));
+    click_author_id(harness, &fems_class_author_id(class));
+    dispatch_order.push(FEMS_PROPOSE_CONFIRM_AUTHOR_ID.to_owned());
+    click_author_id(harness, FEMS_PROPOSE_CONFIRM_AUTHOR_ID);
+    let status = wait_for_status(harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "outcome") == Some("event_persisted")
+    });
+    assert_eq!(structured_field(&status, "state"), Some("completed"));
+    assert!(
+        structured_field(&status, "operation_id").is_some_and(|id| id != "none"),
+        "persisted terminal state carries the stable operation identity"
+    );
+    let proposal_id = structured_field(&status, "proposal_id")
+        .filter(|proposal_id| !proposal_id.is_empty())
+        .expect("completed proposal status carries proposal_id")
+        .to_owned();
+    println!(
+        "FEMS-03 ACCESSKIT_DISPATCH_ORDER proposal_id={proposal_id} actions={dispatch_order:?}"
+    );
+    proposal_id
+}
+
+fn drive_propose_command_via_argus(
+    argus: &mut ArgusTcpDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    class: MemoryClass,
+    live: &LiveBackend,
+    workspace_id: &str,
+) -> String {
+    let open_dialog = |argus: &mut ArgusTcpDriver, harness: &mut Harness<'_, HandshakeApp>| {
+        argus.click(harness, "menu-go");
+        argus.click(harness, "menu.go.command-palette");
+        assert_eq!(
+            argus.click(harness, FEMS_PALETTE_ROW_AUTHOR_ID).role,
+            "ListBoxOption"
+        );
+        for _ in 0..60 {
+            if find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_some() {
+                return;
+            }
+            harness.run_steps(1);
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        panic!(
+            "Argus palette click did not materialize the proposal dialog; status={:?}; tree={}",
+            find_node(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID),
+            accesskit_author_dump(&harness.root())
+        );
+    };
+    let before_cancel = live.canonical_fems_mutation_counts(workspace_id);
+    open_dialog(argus, harness);
+    argus.click(harness, FEMS_PROPOSE_CANCEL_AUTHOR_ID);
+    let cancelled = wait_for_status(harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "outcome") == Some("cancelled_before_submit")
+    });
+    assert_eq!(structured_field(&cancelled, "state"), Some("cancelled"));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(750);
+    while std::time::Instant::now() < deadline {
+        harness.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert_eq!(
+        live.canonical_fems_mutation_counts(workspace_id),
+        before_cancel,
+        "Argus cancel must roll back without a proposal or memory mutation"
+    );
+
+    open_dialog(argus, harness);
+    argus.click(harness, &fems_class_author_id(class));
+    argus.click(harness, FEMS_PROPOSE_CONFIRM_AUTHOR_ID);
+    let status = wait_for_status(harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "outcome") == Some("event_persisted")
+    });
+    structured_field(&status, "proposal_id")
+        .expect("Argus proposal status carries proposal_id")
+        .to_owned()
 }
 
 /// True if `s` contains no decimal-digit run of length >= 4 (a heuristic for "no random numeric segment").
@@ -359,10 +1973,10 @@ fn proof_fems_05_reuses_shell_and_harness() {
         src.contains("handshake_native::fems::memory_proposal"),
         "AC-065-07: the suite must REUSE the MT-064 propose action + proposal model"
     );
-    // Reuses the WP-011 shell selection substrate (interop) + theme — not a forked copy.
+    // Reuses the WP-011 shell selection substrate and mounted HandshakeApp — not a forked copy.
     assert!(
-        src.contains("handshake_native::interop") && src.contains("handshake_native::theme"),
-        "AC-065-07: the suite must REUSE the WP-011 interop selection substrate + theme"
+        src.contains("handshake_native::interop") && src.contains("HandshakeApp"),
+        "AC-065-07: the suite must REUSE the WP-011 interop selection substrate + mounted app"
     );
     // Reuses the MT-041 harness AccessKit-dispatch pattern (the AccessKitActionRequest / Action::Click
     // path), not a re-created dispatch stack.
@@ -394,211 +2008,30 @@ fn proof_fems_05_reuses_shell_and_harness() {
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // PROOF (NON-IGNORED) — FEMS-03 swarm id-stability half / AC-065-04 / CTRL-065-05 / HBR-SWARM: the full
-// FEMS flow (open panel -> the rendered MemoryPack item/source nodes -> propose dialog -> confirm) is
-// driveable purely via STABLE, DETERMINISTIC AccessKit author_ids by an out-of-process-agent code path —
-// no direct widget calls, no synthetic key events, no screen-scraping. This is the part of FEMS-03 that
-// needs NO live backend (the live DISPATCH that hits the backend is the gated FEMS-03 live half).
+// Exact stable author IDs are pinned here. The canonical live FEMS-03 proof below mounts the complete app,
+// re-queries the runtime NodeIds across refresh, and dispatches the entire path through AccessKit.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
 fn proof_fems_03_swarm_id_stability() {
-    let pack = seed_pack();
-
-    // Mount the MT-063 FEMS panel (seeded with a pack so its item/source nodes render) AND the MT-064
-    // propose dialog over a live selection, in ONE kittest app — exactly as the live shell hosts them.
-    let selection = text_range("pane-rich", 5, 17, "Aria the lead");
-    let dialog = ProposeToMemoryDialog::open(&selection, "WS-MT065", "swarm-agent-1")
-        .expect("MT-064 dialog opens over a TextRange selection");
-
-    let mut harness = Harness::builder()
-        .with_size(egui::vec2(640.0, 560.0))
-        .build_ui(move |ui| {
-            ui.vertical(|ui| {
-                // The FEMS Relevant Memory panel (MT-063), filled with the seed pack so the swarm-
-                // addressable item rows + source links render.
-                let mut panel = RelevantMemoryPanel::new();
-                panel.set_pack(pack.clone());
-                let mut bus = FnNavigationBus(|_t: MemoryNavTarget| {});
-                panel.show(ui, &dark(), &mut bus);
-                ui.separator();
-                // The MT-064 Propose-to-Memory dialog (the proposal step of the FEMS flow).
-                let mut dlg = dialog.clone();
-                let _ = dlg.show(ui, &dark());
-            });
-        });
-    harness.run();
-    harness.run();
-
-    // The ordered FEMS swarm flow, addressed PURELY by stable author_id (the swarm-agent path):
-    //   1. discover the FEMS panel container (panel-open surface),
-    //   2. discover the rendered MemoryPack list + a memory-item + its provenance source link
-    //      (the MemoryPack-refresh result a swarm agent reads),
-    //   3. discover a class radio + the propose-confirm button (the propose step),
-    // then dispatch an AccessKit activate on the confirm (the swarm proposal action).
-    let flow = [
-        SwarmStep {
-            author_id: RELEVANT_MEMORY_PANEL_AUTHOR_ID.to_owned(),
-            expect_role: "GenericContainer",
-            activate: false,
-        },
-        SwarmStep {
-            author_id: RELEVANT_MEMORY_LIST_AUTHOR_ID.to_owned(),
-            expect_role: "List",
-            activate: false,
-        },
-        SwarmStep {
-            author_id: mem_item_author_id("sem-1"),
-            expect_role: "ListItem",
-            activate: false,
-        },
-        SwarmStep {
-            author_id: mem_source_author_id("sem-1"),
-            expect_role: "Button",
-            activate: false,
-        },
-        SwarmStep {
-            author_id: FEMS_PROPOSE_DIALOG_AUTHOR_ID.to_owned(),
-            expect_role: "Dialog",
-            activate: false,
-        },
-        SwarmStep {
-            author_id: fems_class_author_id(MemoryClass::Procedural),
-            expect_role: "RadioButton",
-            activate: false,
-        },
-        SwarmStep {
-            author_id: FEMS_PROPOSE_CONFIRM_AUTHOR_ID.to_owned(),
-            expect_role: "Button",
-            activate: true,
-        },
-    ];
-
-    // First pass: resolve each id, assert role + determinism, and capture each NodeId for the stability
-    // re-query (CTRL-065-05: dispatch every step by author_id; assert each id is identical across two
-    // frame re-queries; fail if any id contains a random segment).
-    println!("--- FEMS-03 swarm flow (purely via AccessKit author_id) ---");
-    let mut first_ids: Vec<(String, egui::accesskit::NodeId)> = Vec::new();
-    for step in &flow {
-        // Determinism: the id is a stable slug with no random segment (a stored swarm reference stays
-        // valid across frames).
+    // Runtime stability is proved in the fully mounted live FEMS-03 flow. This local half pins the exact
+    // deterministic identities that flow must re-query before and after each AccessKit dispatch.
+    for author_id in [
+        RELEVANT_MEMORY_PANEL_AUTHOR_ID,
+        RELEVANT_MEMORY_STATUS_AUTHOR_ID,
+        RELEVANT_MEMORY_REFRESH_AUTHOR_ID,
+        RELEVANT_MEMORY_LIST_AUTHOR_ID,
+        FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+        FEMS_PROPOSE_CANCEL_AUTHOR_ID,
+        FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+        FEMS_PROPOSE_STATUS_AUTHOR_ID,
+    ] {
         assert!(
-            has_no_random_segment(&step.author_id),
-            "CTRL-065-05: FEMS author_id '{}' must be deterministic (no random segment)",
-            step.author_id
-        );
-        let found = find_node(&harness.root(), &step.author_id).unwrap_or_else(|| {
-            panic!(
-                "AC-065-04: FEMS step '{}' must be reachable purely via its AccessKit author_id",
-                step.author_id
-            )
-        });
-        assert_eq!(
-            found.role, step.expect_role,
-            "AC-065-04: '{}' role must be {} (got {})",
-            step.author_id, step.expect_role, found.role
-        );
-        println!(
-            "  step author_id='{}' role={} node_id={:?} activate={}",
-            step.author_id, found.role, found.node_id, step.activate
-        );
-        first_ids.push((step.author_id.clone(), found.node_id));
-    }
-
-    // Re-render two frames and re-query: every targeted NodeId must be IDENTICAL (stable across frames so
-    // a stored swarm reference does not drift) — CTRL-065-05.
-    harness.run();
-    harness.run();
-    for (author_id, first_node_id) in &first_ids {
-        let again = find_node(&harness.root(), author_id)
-            .unwrap_or_else(|| panic!("CTRL-065-05: '{author_id}' must still resolve on re-query"));
-        assert_eq!(
-            again.node_id, *first_node_id,
-            "CTRL-065-05: '{author_id}' NodeId must be STABLE across frame re-queries (swarm reference \
-             must not drift)"
+            has_no_random_segment(author_id),
+            "unstable FEMS author_id: {author_id}"
         );
     }
-    println!(
-        "  all {} FEMS ids stable across two frame re-queries (no drift)",
-        first_ids.len()
-    );
-
-    // Dispatch the swarm proposal ACTIVATE on the confirm button purely via its AccessKit NodeId (the
-    // out-of-process agent path — an AccessKit Click action, never a synthetic key event). The dialog's
-    // confirm button responds to this Click; the dispatch reaches the real widget within one frame.
-    let confirm = find_node(&harness.root(), FEMS_PROPOSE_CONFIRM_AUTHOR_ID)
-        .expect("the propose-confirm node is present");
-    assert!(
-        !confirm.disabled,
-        "AC-065-04: the propose-confirm button is enabled (dispatchable)"
-    );
-    harness.event(click_event(confirm.node_id));
-    harness.run();
-    harness.run();
-    // The confirm node is still present + addressable after the dispatch (the swarm reference survives the
-    // activation; the live submit-and-FR-event half is the gated FEMS-02/03 live proof).
-    assert!(
-        find_node(&harness.root(), FEMS_PROPOSE_CONFIRM_AUTHOR_ID).is_some(),
-        "AC-065-04: the propose-confirm node remains addressable after the AccessKit activate dispatch"
-    );
-    println!(
-        "FEMS-03 OK (AC-065-04/CTRL-065-05): full FEMS flow driveable purely via {} stable AccessKit \
-         ids; propose-confirm activated via an AccessKit Click action (no synthetic keys, no scraping). \
-         The LIVE end-to-end dispatch that hits the backend is the GATED FEMS-03 live half.",
-        flow.len()
-    );
-
     assert_no_local_artifact_dir();
-}
-
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// PROOF (NON-IGNORED) — IN-065-01 / RISK-065-01 / CTRL-065-01: the live-DSN resolver PANICS when no live
-// PostgreSQL DSN is configured (it never falls back to SQLite / in-memory / a mock). This proves the
-// honesty gate of the four live proofs without needing a live backend.
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-
-#[test]
-fn proof_fems_dsn_absent_panics() {
-    // Capture any ambient DSN env so we can RESTORE it after the panic check — this test must not pollute
-    // process-global env for a co-run live (`--ignored`) proof in the same binary.
-    let saved_primary = std::env::var(LIVE_PG_DSN_ENV).ok();
-    let saved_alt = std::env::var(LIVE_PG_DSN_ENV_ALT).ok();
-
-    // Run the resolver in a child thread with the DSN env vars CLEARED, and assert it panics with the
-    // mandated message — never a SQLite/in-memory/mock fallback.
-    let outcome = std::thread::spawn(|| {
-        // We only remove the two DSN keys to exercise the absent-DSN branch, then call the resolver,
-        // which must panic.
-        std::env::remove_var(LIVE_PG_DSN_ENV);
-        std::env::remove_var(LIVE_PG_DSN_ENV_ALT);
-        resolve_live_pg_dsn()
-    })
-    .join();
-
-    // Restore the ambient env exactly as it was (no cross-test pollution).
-    match saved_primary {
-        Some(v) => std::env::set_var(LIVE_PG_DSN_ENV, v),
-        None => std::env::remove_var(LIVE_PG_DSN_ENV),
-    }
-    match saved_alt {
-        Some(v) => std::env::set_var(LIVE_PG_DSN_ENV_ALT, v),
-        None => std::env::remove_var(LIVE_PG_DSN_ENV_ALT),
-    }
-
-    let panic_payload = outcome.expect_err(
-        "IN-065-01: resolve_live_pg_dsn must PANIC when no live PostgreSQL DSN is configured — it must \
-         never fall back to a fake backend",
-    );
-    let msg = panic_payload
-        .downcast_ref::<String>()
-        .cloned()
-        .or_else(|| panic_payload.downcast_ref::<&str>().map(|s| s.to_string()))
-        .unwrap_or_default();
-    assert!(
-        msg.contains("live PostgreSQL DSN not configured")
-            && msg.contains("refusing to run against a fake backend"),
-        "IN-065-01: the absent-DSN panic must carry the mandated message; got '{msg}'"
-    );
-    println!("DSN-absent OK (IN-065-01/CTRL-065-01): no live DSN -> panic 'refusing to run against a fake backend' (no SQLite/in-memory/mock fallback)");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -644,53 +2077,32 @@ fn proof_fems_no_sqlite_anywhere() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// PROOF (NON-IGNORED) — IN-065-06 / AC-065-06: the typed BLOCKER MANIFEST. The three live FEMS routes the
-// four live proofs need are verified ABSENT by MT-063 / MT-064; the suite emits + asserts the structured
-// `BLOCKER[...]` lines so the gap is honest-red-not-green and routes back to the owning MT.
+// PROOF (NON-IGNORED) — IN-065-06 / AC-065-06: pin the composed live capability identities.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn proof_fems_typed_blocker_manifest() {
-    println!(
-        "--- MT-065 typed BLOCKER manifest (the 4 live proofs are GATED on these, never faked) ---"
-    );
-    for blocker in &FEMS_TYPED_BLOCKERS {
-        let line = blocker.line();
-        println!("{line}");
-        // The structured form IN-065-06 mandates: kind/detail/source_mt all present.
-        assert!(
-            line.starts_with("BLOCKER[kind="),
-            "IN-065-06: structured blocker form"
-        );
-        assert!(
-            line.contains("detail='") && line.contains("source_mt="),
-            "IN-065-06: detail + source_mt"
-        );
-    }
-    // The three specific absent routes the live proofs depend on, attributed to the owning MTs.
-    let lines: Vec<String> = FEMS_TYPED_BLOCKERS.iter().map(|b| b.line()).collect();
-    let all = lines.join("\n");
+fn proof_fems_required_capability_contract() {
+    let all = FEMS_REQUIRED_CAPABILITIES.join("\n");
     assert!(
-        all.contains("memory/pack") && all.contains("MT-063"),
-        "FEMS-01 route gap attributed to MT-063"
+        all.contains("memory/pack"),
+        "FEMS-01 pins the MemoryPack read route"
     );
     assert!(
-        all.contains("memory/proposals") && all.contains("MT-064"),
-        "FEMS-02 write gap attributed to MT-064"
+        all.contains("POST+GET") && all.contains("memory/proposals"),
+        "FEMS-02 pins proposal write and exact readback"
     );
     assert!(
-        all.contains("memory_write_proposed") && all.contains("MT-064"),
-        "FEMS-02 FR-ingestion gap attributed to MT-064"
+        all.contains("native_editor_event") && all.contains("memory_write_proposed"),
+        "FEMS-02 pins closed native-editor FR ingestion"
     );
     assert_eq!(
-        FEMS_TYPED_BLOCKERS.len(),
-        3,
-        "exactly three documented live-route blockers"
+        FEMS_REQUIRED_CAPABILITIES.len(),
+        4,
+        "exactly four composed live capabilities"
     );
 
-    // Also assert the FEMS typed-blocker ENUM variants the proofs key off exist and are the documented
-    // typed blockers (so a future backend that *changes* the error shape is caught here): the FEMS read
-    // client's EndpointMissing and the proposal client's MissingEndpoint.
+    // Capability-restricted/older backends still fail through typed variants; never through a direct-write
+    // fallback or a fake empty response.
     let read_blocker = MemoryClientError::EndpointMissing {
         probed_path: "/workspaces/WS/memory/pack".into(),
     };
@@ -706,15 +2118,15 @@ fn proof_fems_typed_blocker_manifest() {
         "MT-064 MissingEndpoint is the write typed blocker"
     );
 
-    println!("blocker-manifest OK (IN-065-06/AC-065-06): 3 typed missing_api blockers emitted; the 4 live FEMS proofs go green unchanged when the routes + a managed PG land");
+    println!("capability-contract OK: MemoryPack + proposal write/readback + correlated FR ingestion pinned");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // PROOF (NON-IGNORED) — proof-only scope guard / AC-065-06: this MT changes ONLY this test file (no src/
 // edit, no backend, no new feature) and the FEMS proposal build invariant it asserts on is review-gated
 // (the never-editor-direct safety invariant FEMS-04 guards live). The build_proposal call here is the
-// FIXTURE half of FEMS-04: a procedurally-built proposal is ALWAYS review-gated; the live half (the
-// backend never auto-commits it) is the gated FEMS-04 proof.
+// FIXTURE invariant supporting FEMS-04: a procedurally-built proposal is ALWAYS review-gated; the
+// canonical FEMS-04 proof below verifies the backend never auto-commits it.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -722,21 +2134,29 @@ fn proof_fems_04_review_gate_invariant_fixture_half() {
     // A procedurally/agent-built proposal (the swarm path of FEMS-03) is ALWAYS review-gated for EVERY
     // class — the editor never produces a non-review-gated proposal. This is the client-side safety
     // invariant FEMS-04 guards; the live backend assertion (status pending, no committed memory item, FR
-    // event records pending-review) is the gated FEMS-04 proof.
+    // event records pending-review) is the canonical FEMS-04 proof below.
     let sel = text_range("pane-rich", 0, 9, "step one\n");
     for class in MemoryClass::ORDER {
-        let proposal = build_proposal(&sel, class, "WS-MT065", "swarm-agent-1")
-            .expect("build_proposal must succeed for a TextRange selection");
+        let proposal =
+            build_proposal_for_document(&sel, class, "WS-MT065", "swarm-agent-1", "DOC-MT065")
+                .expect("build_proposal must succeed for a TextRange selection");
         assert!(
-            proposal.review_gated,
+            proposal.is_review_gated(),
             "FEMS-04 (fixture half): a procedurally-built {class:?} proposal must be review-gated (never \
              editor-direct)"
         );
     }
     // Procedural explicitly (the spec's hard requirement).
-    let proc = build_proposal(&sel, MemoryClass::Procedural, "WS-MT065", "swarm-agent-1").unwrap();
+    let proc = build_proposal_for_document(
+        &sel,
+        MemoryClass::Procedural,
+        "WS-MT065",
+        "swarm-agent-1",
+        "DOC-MT065",
+    )
+    .unwrap();
     assert!(
-        proc.review_gated,
+        proc.is_review_gated(),
         "FEMS-04: Procedural-class proposals are ALWAYS review-gated"
     );
     // No selection -> no fabricated proposal (the command is a no-op, not a silent empty write).
@@ -750,54 +2170,121 @@ fn proof_fems_04_review_gate_invariant_fixture_half() {
         .unwrap_err(),
         MemoryProposalError::NoSelection
     );
-    println!("FEMS-04 fixture half OK: every procedurally-built proposal is review-gated; the live no-auto-commit half is GATED");
+    assert!(matches!(
+        build_proposal(&sel, MemoryClass::Episodic, "WS-MT065", "a"),
+        Err(MemoryProposalError::MissingDocumentIdentity { .. })
+    ));
+    println!("FEMS-04 fixture half OK: every procedurally-built proposal is review-gated; the integration proof verifies live no-auto-commit");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// GATED LIVE PROOFS (#[cfg(feature = "integration")] + #[ignore]) — NEEDS_MANAGED_RESOURCE_PROOF.
+// LIVE PROOFS — managed PostgreSQL + backend required by the canonical default proof command.
 //
-// These four proofs are STRUCTURALLY CORRECT and go GREEN UNCHANGED against a managed PostgreSQL +
-// EventLedger once the three absent FEMS routes (the typed-blocker manifest above) are exposed. They
-// resolve the live DSN/endpoint from the standard integration-test config (refusing any non-PG/SQLite
-// store), then run the live assertion. The default `cargo test` never runs them, so it never reports a
-// fake pass (IN-065-01/06, AC-065-06, CTRL-065-01..07).
+// They resolve the live DSN/endpoint from integration config, refuse non-PG stores, and fail if the
+// managed resource or any composed route is unavailable.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// FEMS-01 / AC-065-02: a MemoryPack request issued from a document context returns >= 1 provenance-linked
-/// item AND the native Relevant Memory panel renders it. The response comes from the LIVE backend (real PG
-/// row ids), not a fixture constant.
-#[cfg(feature = "integration")]
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: GET /workspaces/{id}/memory/pack absent (MT-063) + no managed PostgreSQL"]
 fn proof_fems_01_memorypack_render() {
     use handshake_native::fems::memory_client::MemoryClient;
 
-    // HARD: assert the live store is PostgreSQL (refuse SQLite/in-memory/mock); panic if absent.
-    let dsn = resolve_live_pg_dsn();
-    println!(
-        "FEMS-01 live store DSN scheme verified PostgreSQL (dsn host hidden); base={}",
-        live_backend_base()
-    );
-    assert!(
-        dsn.to_ascii_lowercase().starts_with("postgres"),
-        "live store must be PostgreSQL"
-    );
-
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    let client = MemoryClient::with_base_url(live_backend_base());
-    // A throwaway workspace + a seed document context whose content matches a seeded memory item.
-    let workspace_id = format!("ws-mt065-{}", std::process::id());
+    let _serial = live_proof_guard();
+    let live = require_live_backend();
+    let workspace_id = live.create_workspace(&unique_name("mt065-fems01"));
+    let mut cleanup = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_id.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+    let fixture = live.seed_code_authority(&workspace_id);
     let ctx = MemoryContext::from_focus(
         workspace_id.clone(),
-        Some("DOC-1".into()),
-        Some("Aria the protagonist".into()),
-        Some(12),
+        Some(fixture.source_id.clone()),
+        Some(fixture.content.clone()),
+        Some(fixture.content.len()),
+    );
+    let client = MemoryClient::with_base_url(live.base.clone());
+    let empty = live
+        .rt
+        .block_on(async { client.fetch_pack(&workspace_id, &ctx).await })
+        .expect("fresh workspace returns a real deterministic empty MemoryPack");
+    assert!(
+        empty.items.is_empty(),
+        "fresh workspace starts with no memory"
     );
 
-    let pack = match rt.block_on(async { client.fetch_pack(&workspace_id, &ctx).await }) {
+    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture);
+    author_and_select_all(&mut harness, &fixture.content);
+    let proposal_id =
+        drive_propose_command_via_accesskit(&mut harness, MemoryClass::Semantic, false, None);
+    cleanup.capture_proposal(proposal_id.clone());
+    assert_eq!(
+        live.get_json(&format!(
+            "/workspaces/{workspace_id}/memory/proposals/{proposal_id}"
+        ))["status"],
+        "pending_review",
+        "mounted proposal reaches the canonical review gate before any memory commit"
+    );
+    assert_eq!(
+        live.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"))["count"],
+        0,
+        "proposal creation alone cannot seed committed memory"
+    );
+
+    mcp_dispatch(&mut harness, FEMS_REVIEW_APPROVE_AUTHOR_ID, UiAction::Click);
+    let committed = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "state") == Some("committed")
+            && structured_field(value, "outcome") == Some("approved")
+    });
+    let item_id = structured_field(&committed, "memory_id")
+        .expect("committed status carries memory_id")
+        .to_owned();
+    let pack_id = structured_field(&committed, "memory_pack_id")
+        .expect("committed status carries memory_pack_id")
+        .to_owned();
+    let typed_commit = live
+        .rt
+        .block_on(review_proposal(
+            &workspace_id,
+            &proposal_id,
+            ProposalReviewDecision::Approved,
+            &HandshakeCoreClient::with_base_url(live.base.clone()),
+        ))
+        .expect("FEMS-01 exact approval retry returns typed durable receipts")
+        .commit
+        .expect("FEMS-01 approval retry carries commit receipt");
+    assert_eq!(typed_commit.memory_id, item_id);
+    assert_eq!(typed_commit.memory_pack_id, pack_id);
+    let commit_fr = live.poll_exact_commit_fr_event(&workspace_id, &typed_commit);
+    assert_eq!(
+        commit_fr["payload"]["commit_report_hash"],
+        typed_commit.commit_report_hash
+    );
+    cleanup.capture_pack_item(pack_id.clone(), item_id.clone());
+    assert_eq!(
+        live.get_json(&format!(
+            "/workspaces/{workspace_id}/memory/proposals/{proposal_id}"
+        ))["status"],
+        "committed",
+        "approval is followed by the explicit governed commit route"
+    );
+    assert_eq!(
+        live.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"))["count"],
+        1,
+        "the explicit commit creates exactly one canonical memory item"
+    );
+
+    let pack = match live
+        .rt
+        .block_on(async { client.fetch_pack(&workspace_id, &ctx).await })
+    {
         Ok(pack) => pack,
         Err(MemoryClientError::EndpointMissing { probed_path }) => panic!(
             "FEMS-01 BLOCKER[kind=missing_api detail='GET {probed_path} absent' source_mt=MT-063]: the \
@@ -805,271 +2292,1251 @@ fn proof_fems_01_memorypack_render() {
         ),
         Err(e) => panic!("FEMS-01 live fetch failed: {e}"),
     };
-
-    // (a) the call hit the real backend: the pack carries items keyed on real ids (not the fixture seed).
-    assert!(
-        !pack.items.is_empty(),
-        "FEMS-01: the live MemoryPack must return >= 1 item"
+    assert_eq!(
+        pack.items
+            .iter()
+            .map(|item| item.id.as_str())
+            .collect::<Vec<_>>(),
+        vec![item_id.as_str()],
+        "FEMS-01 client readback is the exact item produced by propose/approve/commit"
     );
-    // (c) provenance linkage: at least one item carries a non-empty source reference.
-    let has_provenance = pack.items.iter().any(|it| it.is_navigable());
     assert!(
-        has_provenance,
-        "FEMS-01: at least one item must carry a non-empty provenance/source reference"
+        pack.items[0].is_navigable(),
+        "FEMS-01 committed item carries live provenance"
     );
-
-    // (b) the native panel renders >= 1 memory-item node in its AccessKit subtree.
-    let pack_for_ui = pack.clone();
-    let mut harness = Harness::builder()
-        .with_size(egui::vec2(380.0, 320.0))
-        .build_ui(move |ui| {
-            let mut panel = RelevantMemoryPanel::new();
-            panel.set_pack(pack_for_ui.clone());
-            let mut bus = FnNavigationBus(|_t: MemoryNavTarget| {});
-            panel.show(ui, &dark(), &mut bus);
-        });
-    harness.run();
-    harness.run();
-    let root = harness.root();
-    let rendered_items = root
-        .children_recursive()
-        .filter(|n| {
-            n.accesskit_node()
-                .author_id()
-                .map(|a| a.starts_with("mem-item-"))
-                .unwrap_or(false)
-        })
-        .count();
+    click_author_id(&mut harness, "menu-editors");
+    click_author_id(&mut harness, "menu.editors.relevant-memory");
+    let status = wait_for_status(&mut harness, RELEVANT_MEMORY_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "state") == Some("ready")
+    });
+    assert_eq!(structured_field(&status, "items"), Some("1"));
     assert!(
-        rendered_items >= 1,
-        "FEMS-01: the panel must render >= 1 memory-item node"
+        find_node(&harness.root(), &mem_item_author_id(&item_id)).is_some(),
+        "mounted Relevant Memory panel renders the exact committed item"
+    );
+    assert!(
+        find_node(&harness.root(), &mem_source_author_id(&item_id)).is_some(),
+        "mounted Relevant Memory panel renders the exact provenance control"
     );
     println!(
-        "FEMS-01 PROVEN (live): MemoryPack returned {} items (>= 1 provenance-linked), panel rendered {} item nodes",
-        pack.items.len(),
-        rendered_items
+        "FEMS-01 ACCESSKIT_SUBTREE panel={} item={} source={} dump={}",
+        RELEVANT_MEMORY_PANEL_AUTHOR_ID,
+        mem_item_author_id(&item_id),
+        mem_source_author_id(&item_id),
+        accesskit_author_dump(&harness.root())
     );
+    let commit = ledger_row_by_key(&live, &format!("fems-memory-commit:{proposal_id}"));
+    assert_eq!(commit["event_type"], "ARTIFACT_STORED");
+    assert_eq!(commit["payload"]["memory_id"], item_id);
+    assert_eq!(commit["payload"]["memory_pack_id"], pack_id);
+    assert_eq!(
+        commit["payload"]["memory_pack_hash"],
+        typed_commit.memory_pack_hash
+    );
+    assert_eq!(
+        commit["payload"]["commit_report_hash"],
+        typed_commit.commit_report_hash
+    );
+    assert_eq!(commit["payload"]["fr_event_id"], "FR-EVT-MEM-003");
+    println!(
+        "FEMS-01 PROVEN (live mounted app): proposal={proposal_id}, explicit_commit={}, exact pack={pack_id}, item={item_id}, status={status}",
+        commit["aggregate_id"]
+    );
+    cleanup.clean_and_verify();
 }
 
 /// FEMS-02 / AC-065-03: invoking 'Propose to Memory' creates a new proposal row in live PostgreSQL
 /// (visible via GET .../memory/proposals) AND emits an FR-EVT-MEM-001 event into the live EventLedger
 /// (visible via GET /api/flight_recorder), both referencing the SAME proposal identity (CTRL-065-03).
-#[cfg(feature = "integration")]
+/// It also freezes provenance at dialog-open: after opening from a canonical indexed buffer/selection,
+/// the mounted editor is changed through the production AccessKit SetValue path before confirm. The
+/// accepted proposal must still contain the immutable original snapshot/range/hashes, never the newer
+/// editor buffer.
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: POST /workspaces/{id}/memory/proposals + native-editor FR ingestion absent (MT-064) + no managed PostgreSQL"]
 fn proof_fems_02_propose_creates_proposal_and_event() {
-    use handshake_native::fems::memory_proposal::{submit_proposal, HandshakeCoreClient};
-
-    let dsn = resolve_live_pg_dsn();
-    assert!(
-        dsn.to_ascii_lowercase().starts_with("postgres"),
-        "live store must be PostgreSQL"
-    );
-
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    let client = HandshakeCoreClient::with_base_url(live_backend_base());
-    let workspace_id = format!("ws-mt065-prop-{}", std::process::id());
-    let sel = text_range("pane-rich", 5, 17, "Aria the lead");
-    let proposal = build_proposal(
+    let _serial = live_proof_guard();
+    let live = require_live_backend();
+    let workspace_id = live.create_workspace(&unique_name("mt065-fems02"));
+    let mut cleanup = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_id.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+    let fixture = live.seed_code_authority(&workspace_id);
+    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture);
+    let sel = author_and_select_all(&mut harness, &fixture.content);
+    let proposal = build_proposal_for_document_snapshot(
         &sel,
         MemoryClass::Procedural,
         &workspace_id,
-        "swarm-agent-1",
+        DEFAULT_ACTOR_ID,
+        &fixture.source_id,
+        fixture.content.clone(),
     )
-    .expect("build_proposal");
-
-    let ack = match rt.block_on(async { submit_proposal(&proposal, &client).await }) {
-        Ok(ack) => ack,
-        Err(MemoryProposalError::MissingEndpoint { probed_path }) => panic!(
-            "FEMS-02 BLOCKER[kind=missing_api detail='POST {probed_path} absent' source_mt=MT-064]: the \
-             FEMS proposal write route is not present; gated until the backend exposes it"
-        ),
-        Err(e) => panic!("FEMS-02 live submit failed: {e}"),
-    };
-
-    // (a) the proposal row exists in live PG (read it back via the proposals read API), referencing the
-    // same proposal identity the ack returned. (b) an FR-EVT-MEM-001 event correlated to the same identity
-    // appears in the live ledger. Both reads go through the live backend HTTP surface; this asserts the
-    // shared identity explicitly (CTRL-065-03 — correlation, not coincidence).
-    let base = live_backend_base();
-    let proposals_url = format!("{base}/workspaces/{workspace_id}/memory/proposals");
-    let proposals_body: serde_json::Value = rt
-        .block_on(async { reqwest::get(&proposals_url).await?.json().await })
-        .expect("FEMS-02: read proposals back from the live backend");
-    let proposal_present = proposals_body.to_string().contains(&ack.proposal_id);
+    .expect("build_proposal_for_document_snapshot");
+    click_author_id(&mut harness, "menu-go");
+    click_author_id(&mut harness, "menu.go.command-palette");
+    click_author_id(&mut harness, FEMS_PALETTE_ROW_AUTHOR_ID);
     assert!(
-        proposal_present,
-        "FEMS-02: the created proposal id {} must be present in the live proposals read",
-        ack.proposal_id
+        find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_some(),
+        "production palette opens the proposal dialog over the canonical indexed selection"
     );
 
-    let fr_url = format!("{base}/api/flight_recorder");
-    let fr_body: serde_json::Value = rt
-        .block_on(async { reqwest::get(&fr_url).await?.json().await })
-        .expect("FEMS-02: read the live flight recorder");
-    let fr_str = fr_body.to_string();
-    assert!(
-        fr_str.contains("FR-EVT-MEM-001") || fr_str.contains("memory_write_proposed"),
-        "FEMS-02: an FR-EVT-MEM-001 (memory_write_proposed) event must appear in the live ledger"
+    let newer_buffer = format!("// newer unsaved editor buffer\n{}", fixture.content);
+    let code_text_author_id = harness
+        .root()
+        .children_recursive()
+        .find_map(|node| {
+            node.accesskit_node()
+                .author_id()
+                .filter(|author_id| author_id.starts_with(CODE_EDITOR_TEXT_AUTHOR_ID))
+                .map(ToOwned::to_owned)
+        })
+        .expect("mounted code text remains addressable while the proposal dialog is open");
+    mcp_dispatch(
+        &mut harness,
+        &code_text_author_id,
+        UiAction::NativeSetValue {
+            text: newer_buffer.clone(),
+        },
     );
-    assert!(
-        fr_str.contains(&ack.proposal_id),
-        "CTRL-065-03: the FR event must reference the SAME proposal identity {} as the proposal row (correlation, not coincidence)",
-        ack.proposal_id
+    harness.run_steps(2);
+    assert_eq!(
+        harness
+            .state()
+            .active_mounted_code_panel()
+            .buffer()
+            .to_string(),
+        newer_buffer,
+        "the production AccessKit SetValue path changes the mounted editor after dialog-open"
+    );
+    assert_ne!(
+        proposal.source.document_content_hash,
+        build_proposal_for_document_snapshot(
+            &text_range("pane-a", 0, newer_buffer.len(), &newer_buffer),
+            MemoryClass::Procedural,
+            &workspace_id,
+            DEFAULT_ACTOR_ID,
+            &fixture.source_id,
+            newer_buffer.clone(),
+        )
+        .expect("newer-buffer comparison proposal")
+        .source
+        .document_content_hash,
+        "the newer mounted buffer has a different raw source hash"
+    );
+
+    click_author_id(&mut harness, &fems_class_author_id(MemoryClass::Procedural));
+    click_author_id(&mut harness, FEMS_PROPOSE_CONFIRM_AUTHOR_ID);
+    let status = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "outcome") == Some("event_persisted")
+    });
+    assert_eq!(structured_field(&status, "state"), Some("completed"));
+    let proposal_id = structured_field(&status, "proposal_id")
+        .filter(|proposal_id| !proposal_id.is_empty())
+        .expect("completed frozen-source proposal status carries proposal_id")
+        .to_owned();
+    cleanup.capture_proposal(proposal_id.clone());
+
+    let proposals_body = live.get_json(&format!(
+        "/workspaces/{workspace_id}/memory/proposals/{}",
+        proposal_id
+    ));
+    assert_exact_proposal_readback(&proposals_body, &proposal_id, &proposal);
+
+    let fr_row = live.poll_exact_fr_event(&workspace_id, &proposal_id);
+    assert_exact_proposal_and_canonical_fr_ledger(&live, &proposal_id, &workspace_id, &fr_row);
+    let event_payload = live.get_json(
+        fr_row["payload"]["artifact_ref"]["path"]
+            .as_str()
+            .expect("proposal artifact path"),
+    );
+    assert_eq!(event_payload["proposal_id"], proposal_id);
+    assert_eq!(event_payload["class"], proposal.class.wire());
+    assert_eq!(event_payload["source"]["document_id"], proposal.source.document_id);
+    assert_eq!(
+        event_payload["source"]["selection_start"],
+        proposal.source.selection_start
+    );
+    assert_eq!(
+        event_payload["source"]["selection_end"],
+        proposal.source.selection_end
+    );
+    assert_eq!(event_payload["source"]["content_hash"], proposal.source.content_hash);
+    assert_eq!(event_payload["source"]["pane_id"], proposal.source.pane_id);
+    assert_eq!(event_payload["review_gated"], true);
+    assert_eq!(event_payload["status"], "pending_review");
+    assert_ne!(
+        proposals_body["proposal"]["content"], newer_buffer,
+        "the post-open editor mutation is neither substituted into nor accepted as proposal content"
     );
     println!(
-        "FEMS-02 PROVEN (live): proposal {} in PG + correlated FR-EVT-MEM-001 in the ledger",
-        ack.proposal_id
+        "FEMS-02 PROVEN (live product command): exact proposal row={} exact correlated FR row={}",
+        proposals_body, fr_row
     );
+    cleanup.clean_and_verify();
 }
 
-/// FEMS-03 (live half) / AC-065-04: the full FEMS flow (open panel -> refresh MemoryPack -> propose ->
-/// reach review-gated proposal) is driveable purely via AccessKit ids by an out-of-process-agent code
-/// path, AND the live dispatch reaches the backend (a live proposal results). The id-stability + the
-/// AccessKit-only dispatch are proven NOW by `proof_fems_03_swarm_id_stability`; this gated proof adds the
-/// LIVE backend round-trip.
-#[cfg(feature = "integration")]
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: the live FEMS routes are absent (MT-063/064) + no managed PostgreSQL"]
-fn proof_fems_03_swarm_drives_fems_via_accesskit() {
-    use handshake_native::event_emitter::{NativeEditorEventEmitter, RuntimeChatLedgerTransport};
-    use handshake_native::fems::memory_proposal::{submit_proposal_and_emit, HandshakeCoreClient};
-
-    let dsn = resolve_live_pg_dsn();
-    assert!(
-        dsn.to_ascii_lowercase().starts_with("postgres"),
-        "live store must be PostgreSQL"
-    );
-
-    // The out-of-process agent addresses every FEMS step by stable author_id (proven stable NOW). Here the
-    // confirm activation drives the LIVE submit + the LIVE FR emit end-to-end.
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    let base = live_backend_base();
-    let client = HandshakeCoreClient::with_base_url(base.clone());
-    let workspace_id = format!("ws-mt065-swarm-{}", std::process::id());
-    let sel = text_range("pane-rich", 5, 17, "Aria the lead");
-    let proposal = build_proposal(
-        &sel,
-        MemoryClass::Procedural,
+fn proof_fems_duplicate_submission_replays_one_proposal_and_one_event() {
+    let _serial = live_proof_guard();
+    let live = require_live_backend();
+    let workspace_id = live.create_workspace(&unique_name("mt064-duplicate-replay"));
+    let mut cleanup = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_id.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+    let fixture = live.seed_code_authority(&workspace_id);
+    let selection = text_range("pane-a", 0, fixture.content.len(), &fixture.content);
+    let proposal = build_proposal_for_document_snapshot(
+        &selection,
+        MemoryClass::Semantic,
         &workspace_id,
-        "swarm-agent-1",
+        DEFAULT_ACTOR_ID,
+        &fixture.source_id,
+        fixture.content.clone(),
     )
-    .expect("build_proposal");
+    .expect("canonical code proposal builds");
+    let client = HandshakeCoreClient::with_base_url(live.base.clone());
     let emitter = NativeEditorEventEmitter::new(
-        &workspace_id,
-        std::sync::Arc::new(RuntimeChatLedgerTransport::new(base.clone())),
-        Some(rt.handle().clone()),
+        workspace_id.clone(),
+        std::sync::Arc::new(RuntimeChatLedgerTransport::with_session_id(
+            live.base.clone(),
+            uuid::Uuid::new_v4().to_string(),
+        )),
+        Some(live.rt.handle().clone()),
     );
 
-    let ack = match rt.block_on(async { submit_proposal_and_emit(&proposal, &client, &emitter).await }) {
-        Ok(ack) => ack,
-        Err(MemoryProposalError::MissingEndpoint { probed_path }) => panic!(
-            "FEMS-03 BLOCKER[kind=missing_api detail='POST {probed_path} absent' source_mt=MT-064]: gated"
-        ),
-        Err(e) => panic!("FEMS-03 live swarm submit failed: {e}"),
+    let (first, replay) = live.rt.block_on(async {
+        let first = submit_proposal_and_emit(&proposal, &client, &emitter)
+            .await
+            .expect("first proposal submission succeeds");
+        let replay = submit_proposal_and_emit(&proposal, &client, &emitter)
+            .await
+            .expect("identical proposal replay succeeds idempotently");
+        (first, replay)
+    });
+    let (first_ack, first_event_id) = match &first {
+        ProposalSubmitOutcome::EventPersisted { ack, event_id } => (ack, event_id),
+        other => panic!("duplicate proof requires durable correlated success, got {other:?}"),
+    };
+    let (replay_ack, replay_event_id) = match &replay {
+        ProposalSubmitOutcome::EventPersisted { ack, event_id } => (ack, event_id),
+        other => panic!("duplicate replay requires durable correlated success, got {other:?}"),
     };
     assert_eq!(
-        ack.status, "pending_review",
-        "FEMS-03: the swarm-driven proposal reaches the review gate"
+        replay_ack, first_ack,
+        "proposal replay returns the canonical row"
     );
-    println!(
-        "FEMS-03 PROVEN (live): swarm AccessKit dispatch drove the full flow to a review-gated live proposal {}",
-        ack.proposal_id
+    assert_eq!(
+        replay_event_id, first_event_id,
+        "proposal replay addresses the same immutable native-editor event"
     );
+    cleanup.capture_proposal(first_ack.proposal_id.clone());
+    assert_eq!(
+        live.canonical_fems_mutation_counts(&workspace_id),
+        (1, 0),
+        "duplicate submit persists one review proposal and no committed memory"
+    );
+    let fr_row = live.poll_exact_fr_event(&workspace_id, &first_ack.proposal_id);
+    assert_eq!(fr_row["event_id"], first_event_id.as_str());
+    assert_exact_proposal_and_canonical_fr_ledger(
+        &live,
+        &first_ack.proposal_id,
+        &workspace_id,
+        &fr_row,
+    );
+    let fr_count = live
+        .get_json(&format!(
+            "/api/flight_recorder?event_type=memory_write_proposed&wsid={workspace_id}"
+        ))
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|row| {
+            row["payload"]["proposal_id"] == first_ack.proposal_id
+                && row["payload"]["event_code"] == "FR-EVT-MEM-001"
+        })
+        .count();
+    assert_eq!(
+        fr_count, 1,
+        "duplicate submit persists one correlated FR row"
+    );
+    cleanup.clean_and_verify();
 }
 
-/// FEMS-04 / AC-065-05: a procedurally/agent-triggered proposal stays review-gated end-to-end against the
-/// LIVE backend: (a) the proposal status is pending/review (not committed), (b) no committed memory item
-/// is created as a side effect (live memory-store query), and (c) the FR-EVT-MEM-001 event records the
-/// proposal as pending review, not an applied write (CTRL-065-04). This is the regression guard for the
-/// typed-memory edge.
-#[cfg(feature = "integration")]
+/// V1 remediation: prove both terminal review decisions against the real FEMS review route, live
+/// PostgreSQL, EventLedger, and Flight Recorder. The proposals themselves are created through the
+/// mounted native editor's production AccessKit flow. Approval performs the separate explicit commit;
+/// rejection never commits. Exact terminal retries must return the original immutable receipts.
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: the live FEMS routes are absent (MT-063/064) + no managed PostgreSQL"]
-fn proof_fems_04_procedural_proposal_stays_review_gated() {
-    use handshake_native::fems::memory_proposal::{submit_proposal, HandshakeCoreClient};
+fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
+    let _serial = live_proof_guard();
+    let live = require_live_backend();
+    let workspace_id = live.create_workspace(&unique_name("mt065-review-decisions"));
+    let mut cleanup = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_id.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+    let fixture = live.seed_code_authority(&workspace_id);
+    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture);
+    author_and_select_all(&mut harness, &fixture.content);
 
-    let dsn = resolve_live_pg_dsn();
+    let before_count = live.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"))
+        ["count"]
+        .as_i64()
+        .expect("canonical committed-memory count is an integer");
+
+    let approved_id =
+        drive_propose_command_via_accesskit(&mut harness, MemoryClass::Semantic, false, None);
+    cleanup.capture_proposal(approved_id.clone());
+    let approved_pending = live.get_json(&format!(
+        "/workspaces/{workspace_id}/memory/proposals/{approved_id}"
+    ));
+    assert_eq!(approved_pending["status"], "pending_review");
+    assert_eq!(
+        live.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"))["count"],
+        before_count
+    );
+    mcp_dispatch(&mut harness, FEMS_REVIEW_APPROVE_AUTHOR_ID, UiAction::Click);
+    let approved_ack = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "state") == Some("committed")
+            && structured_field(value, "outcome") == Some("approved")
+    });
+    assert_eq!(
+        structured_field(&approved_ack, "proposal_id"),
+        Some(approved_id.as_str())
+    );
+    let approved_memory_id = structured_field(&approved_ack, "memory_id")
+        .expect("approval status carries memory_id")
+        .to_owned();
+    let approved_commit_id = structured_field(&approved_ack, "commit_id")
+        .expect("approval status carries commit_id")
+        .to_owned();
+    let approved_pack_id = structured_field(&approved_ack, "memory_pack_id")
+        .expect("approval status carries memory_pack_id")
+        .to_owned();
+    cleanup.capture_pack_item(approved_pack_id.clone(), approved_memory_id.clone());
+    let approved = live.get_json(&format!(
+        "/workspaces/{workspace_id}/memory/proposals/{approved_id}"
+    ));
+    assert_eq!(approved["status"], "committed");
+    assert_eq!(approved["proposal"]["review"]["decision"], "approved");
+    assert_eq!(
+        approved["proposal"]["review"]["actor_id"],
+        "native-editor-fems-reviewer"
+    );
+    let approved_ledger =
+        ledger_row_by_key(&live, &format!("fems-memory-proposal-review:{approved_id}"));
+    assert_eq!(approved_ledger["event_type"], "PROMOTION_ACCEPTED");
+    assert_eq!(approved_ledger["aggregate_id"], approved_id);
+    assert_eq!(
+        approved_ledger["correlation_id"],
+        format!("fems-memory-proposal-review:{approved_id}")
+    );
+    let review_client = HandshakeCoreClient::with_base_url(live.base.clone());
+    let approved_retry = live
+        .rt
+        .block_on(review_proposal(
+            &workspace_id,
+            &approved_id,
+            ProposalReviewDecision::Approved,
+            &review_client,
+        ))
+        .expect("exact approved review+commit retry converges");
+    assert_eq!(approved_retry.status, "committed");
+    assert_eq!(
+        approved_retry.event_ledger_event_id,
+        approved_ledger["event_id"]
+            .as_str()
+            .expect("approval ledger event id")
+    );
+    let approved_retry_commit = approved_retry
+        .commit
+        .as_ref()
+        .expect("approved retry returns the original explicit commit receipt");
+    assert_eq!(approved_retry_commit.commit_id, approved_commit_id);
+    assert_eq!(approved_retry_commit.memory_id, approved_memory_id);
+    assert_eq!(approved_retry_commit.memory_pack_id, approved_pack_id);
+    assert_eq!(
+        approved_retry_commit.event_ledger_event_id,
+        structured_field(&approved_ack, "event_ledger_event_id")
+            .expect("mounted approval status carries commit EventLedger id")
+    );
+    let commit_ledger = ledger_row_by_key(&live, &format!("fems-memory-commit:{approved_id}"));
+    assert_eq!(
+        commit_ledger["event_id"],
+        approved_retry_commit.event_ledger_event_id
+    );
+    assert_eq!(commit_ledger["payload"]["proposal_id"], approved_id);
+    assert_eq!(
+        commit_ledger["payload"]["memory_id"],
+        approved_retry_commit.memory_id
+    );
+    assert_eq!(
+        commit_ledger["payload"]["memory_pack_hash"],
+        approved_retry_commit.memory_pack_hash
+    );
+    assert_eq!(
+        commit_ledger["payload"]["commit_report_hash"],
+        approved_retry_commit.commit_report_hash
+    );
+    assert_eq!(
+        approved_retry_commit.commit_report.source_proposal_id,
+        approved_id
+    );
+    assert_eq!(
+        approved_retry_commit.commit_report.applied_ops[0].memory_id,
+        approved_retry_commit.memory_id
+    );
+    let commit_fr = live.poll_exact_commit_fr_event(&workspace_id, approved_retry_commit);
+    assert_eq!(commit_fr["actor"], "human");
+    assert_eq!(commit_fr["actor_id"], "native-editor-fems-reviewer");
+    assert_same_rfc3339_instant(
+        commit_fr["timestamp"]
+            .as_str()
+            .expect("commit FR timestamp"),
+        &approved_retry_commit.committed_at,
+    );
     assert!(
-        dsn.to_ascii_lowercase().starts_with("postgres"),
-        "live store must be PostgreSQL"
+        chrono::DateTime::parse_from_rfc3339(&approved_retry_commit.committed_at)
+            .expect("commit timestamp")
+            > chrono::DateTime::parse_from_rfc3339(&approved_retry.reviewed_at)
+                .expect("review timestamp"),
+        "the canonical commit time must be later than the review time"
+    );
+    let proposal_hash = approved["content_hash"]
+        .as_str()
+        .expect("durable proposal content hash");
+    assert_eq!(
+        proposal_hash,
+        approved["proposal"]["source"]["content_hash"]
+    );
+    let approved_fr = live.poll_exact_review_fr_event(
+        &workspace_id,
+        &approved_id,
+        "approved",
+        &approved_retry.flight_recorder_event_id,
+    );
+    assert_eq!(approved_fr["actor"], "human");
+    assert_eq!(approved_fr["actor_id"], "native-editor-fems-reviewer");
+    assert_same_rfc3339_instant(
+        approved_fr["timestamp"]
+            .as_str()
+            .expect("approval FR timestamp"),
+        &approved_retry.reviewed_at,
+    );
+    let after_approval_count = live
+        .get_json(&format!("/workspaces/{workspace_id}/memory/items/count"))["count"]
+        .as_i64()
+        .expect("count after approval");
+    assert_eq!(after_approval_count, before_count + 1);
+
+    author_and_select_all(&mut harness, &fixture.content);
+    let rejected_id =
+        drive_propose_command_via_accesskit(&mut harness, MemoryClass::Episodic, false, None);
+    assert_ne!(
+        rejected_id, approved_id,
+        "each AccessKit proposal has a durable identity"
+    );
+    cleanup.capture_proposal(rejected_id.clone());
+    let rejected_pending = live.get_json(&format!(
+        "/workspaces/{workspace_id}/memory/proposals/{rejected_id}"
+    ));
+    assert_eq!(rejected_pending["status"], "pending_review");
+    assert_eq!(
+        live.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"))["count"],
+        after_approval_count
+    );
+    mcp_dispatch(&mut harness, FEMS_REVIEW_REJECT_AUTHOR_ID, UiAction::Click);
+    let rejected_ack = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "state") == Some("reviewed")
+            && structured_field(value, "outcome") == Some("rejected")
+    });
+    assert_eq!(
+        structured_field(&rejected_ack, "proposal_id"),
+        Some(rejected_id.as_str())
+    );
+    let rejected = live.get_json(&format!(
+        "/workspaces/{workspace_id}/memory/proposals/{rejected_id}"
+    ));
+    assert_eq!(rejected["status"], "rejected");
+    assert_eq!(rejected["proposal"]["review"]["decision"], "rejected");
+    assert_eq!(
+        rejected["proposal"]["review"]["actor_id"],
+        "native-editor-fems-reviewer"
+    );
+    let rejected_ledger =
+        ledger_row_by_key(&live, &format!("fems-memory-proposal-review:{rejected_id}"));
+    assert_eq!(rejected_ledger["event_type"], "PROMOTION_REJECTED");
+    assert_eq!(rejected_ledger["aggregate_id"], rejected_id);
+    assert_eq!(
+        rejected_ledger["correlation_id"],
+        format!("fems-memory-proposal-review:{rejected_id}")
+    );
+    assert_eq!(
+        rejected_ledger["event_id"].as_str(),
+        structured_field(&rejected_ack, "event_ledger_event_id")
+    );
+    assert_eq!(
+        rejected_ledger["correlation_id"].as_str(),
+        structured_field(&rejected_ack, "correlation_id")
+    );
+    let rejected_retry = live
+        .rt
+        .block_on(review_proposal(
+            &workspace_id,
+            &rejected_id,
+            ProposalReviewDecision::Rejected,
+            &review_client,
+        ))
+        .expect("exact rejected review retry converges");
+    assert_eq!(rejected_retry.status, "rejected");
+    assert!(rejected_retry.commit.is_none());
+    assert_eq!(
+        rejected_retry.event_ledger_event_id,
+        rejected_ledger["event_id"]
+            .as_str()
+            .expect("rejection ledger event id")
+    );
+    assert_eq!(
+        rejected_retry.flight_recorder_event_id,
+        structured_field(&rejected_ack, "flight_recorder_event_id")
+            .expect("native rejection status carries exact FR id")
+    );
+    let rejected_fr = live.poll_exact_review_fr_event(
+        &workspace_id,
+        &rejected_id,
+        "rejected",
+        &rejected_retry.flight_recorder_event_id,
+    );
+    assert_eq!(rejected_fr["actor"], "human");
+    assert_eq!(rejected_fr["actor_id"], "native-editor-fems-reviewer");
+    assert_same_rfc3339_instant(
+        rejected_fr["timestamp"]
+            .as_str()
+            .expect("rejection FR timestamp"),
+        &rejected_retry.reviewed_at,
     );
 
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    let base = live_backend_base();
-    let client = HandshakeCoreClient::with_base_url(base.clone());
-    let workspace_id = format!("ws-mt065-gate-{}", std::process::id());
-    let unique_content = format!("MT-065 review-gate probe {}", std::process::id());
-    let sel = text_range("pane-rich", 0, unique_content.len(), &unique_content);
-    let proposal = build_proposal(
+    let after_count = live.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"))
+        ["count"]
+        .as_i64()
+        .expect("canonical committed-memory count remains an integer");
+    assert_eq!(
+        after_count,
+        before_count + 1,
+        "only the explicitly approved proposal commits; rejection leaves committed memory unchanged"
+    );
+    println!(
+        "FEMS review decisions PROVEN: approved_proposal={approved_id} commit={approved_commit_id} approved_fr={} rejected_proposal={rejected_id} rejected_fr={} committed_count={after_count}; exact terminal retries converged",
+        approved_fr["event_id"], rejected_fr["event_id"]
+    );
+    cleanup.clean_and_verify();
+}
+
+#[test]
+fn proof_fems_approved_proposal_recovers_commit_only_after_native_restart() {
+    let _serial = live_proof_guard();
+    let live = require_live_backend();
+    let workspace_id = live.create_workspace(&unique_name("mt065-approved-recovery"));
+    let mut cleanup = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_id.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+    let fixture = live.seed_code_authority(&workspace_id);
+    let selection = text_range("pane-a", 0, fixture.content.len(), &fixture.content);
+    let proposal = build_proposal_for_document_snapshot(
+        &selection,
+        MemoryClass::Semantic,
+        &workspace_id,
+        DEFAULT_ACTOR_ID,
+        &fixture.source_id,
+        fixture.content.clone(),
+    )
+    .expect("build restart-recovery proposal");
+    let client = HandshakeCoreClient::with_base_url(live.base.clone());
+    let emitter = NativeEditorEventEmitter::new(
+        workspace_id.clone(),
+        std::sync::Arc::new(RuntimeChatLedgerTransport::with_session_id(
+            live.base.clone(),
+            uuid::Uuid::new_v4().to_string(),
+        )),
+        Some(live.rt.handle().clone()),
+    );
+    let submitted = live
+        .rt
+        .block_on(submit_proposal_and_emit(&proposal, &client, &emitter))
+        .expect("submit proposal before simulated restart");
+    let proposal_id = submitted.ack().proposal_id.clone();
+    cleanup.capture_proposal(proposal_id.clone());
+
+    let review_url = format!(
+        "{}/workspaces/{workspace_id}/memory/proposals/{proposal_id}/review",
+        live.base
+    );
+    let approved: serde_json::Value = live.rt.block_on(async {
+        live.client
+            .post(&review_url)
+            .header("x-hsk-actor-id", "native-editor-fems-reviewer")
+            .header("x-hsk-actor-kind", "operator")
+            .header("x-hsk-kernel-task-run-id", "mt065-approved-recovery")
+            .header("x-hsk-session-run-id", "mt065-restarted-session")
+            .json(&serde_json::json!({
+                "decision": "approved",
+                "reviewer_kind": "user",
+                "reason": "simulate interruption after durable approval before commit"
+            }))
+            .send()
+            .await
+            .expect("approve proposal without invoking commit route")
+            .error_for_status()
+            .expect("approval-only route succeeds")
+            .json()
+            .await
+            .expect("approval-only acknowledgement JSON")
+    });
+    assert_eq!(approved["status"], "approved");
+    assert_eq!(
+        live.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"))["count"],
+        0,
+        "the interruption point is durable approval with no committed item"
+    );
+
+    // Construct a fresh native app instance against the same workspace. Its canonical actionable-list
+    // refresh must recover the approved row and expose commit-only UI.
+    let restarted = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), restarted);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        harness.run_steps(1);
+        if find_node(&harness.root(), FEMS_REVIEW_APPROVE_AUTHOR_ID).is_some() {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "restarted native app did not recover approved proposal {proposal_id}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let approve = find_node(&harness.root(), FEMS_REVIEW_APPROVE_AUTHOR_ID)
+        .expect("approved recovery exposes commit action");
+    let reject = find_node(&harness.root(), FEMS_REVIEW_REJECT_AUTHOR_ID)
+        .expect("approved recovery retains a discoverable disabled reject control");
+    assert!(!approve.disabled);
+    assert!(
+        reject.disabled,
+        "approved recovery must not permit rejection"
+    );
+    mcp_dispatch(&mut harness, FEMS_REVIEW_APPROVE_AUTHOR_ID, UiAction::Click);
+    let committed = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "state") == Some("committed")
+    });
+    let memory_id = structured_field(&committed, "memory_id")
+        .expect("recovered commit carries memory_id")
+        .to_owned();
+    let pack_id = structured_field(&committed, "memory_pack_id")
+        .expect("recovered commit carries memory_pack_id")
+        .to_owned();
+    cleanup.capture_pack_item(pack_id, memory_id);
+    let typed = live
+        .rt
+        .block_on(commit_approved_proposal(
+            &workspace_id,
+            &proposal_id,
+            &client,
+        ))
+        .expect("recovered commit-only action is exactly idempotent");
+    live.poll_exact_commit_fr_event(&workspace_id, &typed);
+    cleanup.clean_and_verify();
+}
+
+#[test]
+fn proof_fems_editor_switch_invalidates_identical_text_range_selection() {
+    let _serial = live_proof_guard();
+    let live = require_live_backend();
+    let workspace_id = live.create_workspace(&unique_name("mt065-editor-selection-binding"));
+    let mut cleanup = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_id.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+    let (fixture_a, fixture_b) = live.seed_code_authorities_with_identical_selection(&workspace_id);
+    let shared_text = "identical-selection-café";
+    let start_a = fixture_a
+        .content
+        .find(shared_text)
+        .expect("first document contains shared selection");
+    let start_b = fixture_b
+        .content
+        .find(shared_text)
+        .expect("second document contains shared selection");
+    assert_eq!(
+        start_a, start_b,
+        "negative proof requires identical byte range as well as identical selected bytes"
+    );
+    let end = start_a + shared_text.len();
+
+    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture_a);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture_a);
+    let selected = author_and_select_range(&mut harness, start_a, end, shared_text);
+    assert_eq!(
+        selected,
+        text_range("pane-a", start_b, end, shared_text),
+        "both canonical documents present the same text at the same range"
+    );
+    let counts_before = live.canonical_fems_mutation_counts(&workspace_id);
+
+    open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture_b);
+    harness.run_steps(3);
+    assert!(
+        harness
+            .state()
+            .active_mounted_code_panel()
+            .selected_primary_text()
+            .is_none(),
+        "the newly active document has no deliberate selection"
+    );
+    click_author_id(&mut harness, "menu-go");
+    click_author_id(&mut harness, "menu.go.command-palette");
+    click_author_id(&mut harness, FEMS_PALETTE_ROW_AUTHOR_ID);
+    let blocked = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "outcome") == Some("no_selection")
+    });
+    assert_eq!(structured_field(&blocked, "state"), Some("blocked"));
+    assert!(
+        find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_none(),
+        "document B cannot reuse document A's same-byte/same-range selection"
+    );
+    let drain_deadline = std::time::Instant::now() + std::time::Duration::from_millis(750);
+    while std::time::Instant::now() < drain_deadline {
+        harness.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert_eq!(
+        live.canonical_fems_mutation_counts(&workspace_id),
+        counts_before,
+        "the stale cross-document proposal attempt writes neither a proposal nor committed memory"
+    );
+    cleanup.clean_and_verify();
+}
+
+#[test]
+fn proof_fems_cross_pane_focus_invalidates_already_staged_selection() {
+    let _serial = live_proof_guard();
+    let live = require_live_backend();
+    let workspace_id = live.create_workspace(&unique_name("mt065-cross-pane-selection-binding"));
+    let mut cleanup = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_id.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+    let fixture = live.seed_code_authority(&workspace_id);
+    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture);
+    author_and_select_all(&mut harness, &fixture.content);
+    let counts_before = live.canonical_fems_mutation_counts(&workspace_id);
+
+    // Stage the real shared-bus proposal snapshot and transfer editor focus before the mounted app gets
+    // its next drain frame. This is the adversarial race: without bus-level invalidation, pane B could
+    // submit pane A's stale selection even though B has no deliberate selection of its own.
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    {
+        let mut bus = bus.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        assert_eq!(
+            bus.shared_selection().pane_id().map(|pane| pane.as_ref()),
+            Some("pane-a"),
+            "the mounted code editor published pane A's live selection"
+        );
+        bus.request_memory_proposal();
+        bus.set_focus_owner(PaneId::from("pane-b"));
+        assert_eq!(
+            bus.shared_selection(),
+            &SharedSelection::None,
+            "editor focus transfer clears the live cross-pane selection"
+        );
+    }
+
+    let blocked = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "outcome") == Some("no_selection")
+    });
+    assert_eq!(structured_field(&blocked, "state"), Some("blocked"));
+    assert!(
+        find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_none(),
+        "the already-staged pane A snapshot cannot open a proposal after pane B takes focus"
+    );
+    let drain_deadline = std::time::Instant::now() + std::time::Duration::from_millis(750);
+    while std::time::Instant::now() < drain_deadline {
+        harness.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert_eq!(
+        live.canonical_fems_mutation_counts(&workspace_id),
+        counts_before,
+        "the blocked cross-pane attempt leaves canonical proposal and committed-memory counts unchanged"
+    );
+    cleanup.clean_and_verify();
+}
+
+#[test]
+fn proof_fems_focus_change_after_request_drain_invalidates_open_dialog() {
+    let _serial = live_proof_guard();
+    let live = require_live_backend();
+    let workspace_id = live.create_workspace(&unique_name("mt065-post-drain-dialog-binding"));
+    let mut cleanup = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_id.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+    let (fixture_a, fixture_b) = live.seed_code_authorities_with_identical_selection(&workspace_id);
+    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture_a);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture_a);
+    author_and_select_all(&mut harness, &fixture_a.content);
+    let counts_before = live.canonical_fems_mutation_counts(&workspace_id);
+
+    // Let the mounted app drain pane A's real shared-bus request into an open dialog first. This is the
+    // reverse ordering the earlier bus-only regression did not exercise.
+    click_author_id(&mut harness, "menu-go");
+    click_author_id(&mut harness, "menu.go.command-palette");
+    click_author_id(&mut harness, FEMS_PALETTE_ROW_AUTHOR_ID);
+    wait_for_author_id(&mut harness, FEMS_PROPOSE_DIALOG_AUTHOR_ID);
+
+    // Activate a different canonical document through the production mounted Quick Switcher while the
+    // frozen A dialog exists. The post-render app gate must retire A before it can be confirmed as B.
+    open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture_b);
+    let blocked = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "outcome") == Some("selection_context_changed")
+    });
+    assert_eq!(structured_field(&blocked, "state"), Some("blocked"));
+    assert!(
+        find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_none(),
+        "a dialog drained from document A must be retired after mounted document B activates"
+    );
+
+    let drain_deadline = std::time::Instant::now() + std::time::Duration::from_millis(750);
+    while std::time::Instant::now() < drain_deadline {
+        harness.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert_eq!(
+        live.canonical_fems_mutation_counts(&workspace_id),
+        counts_before,
+        "post-drain invalidation leaves canonical proposals and committed memory unchanged"
+    );
+    cleanup.clean_and_verify();
+}
+
+#[test]
+fn proof_fems_code_provenance_rejects_cross_workspace_and_stale_ksrc() {
+    let _serial = live_proof_guard();
+    let live = require_live_backend();
+    let workspace_a = live.create_workspace(&unique_name("mt065-ksrc-a"));
+    let workspace_b = live.create_workspace(&unique_name("mt065-ksrc-b"));
+    let mut cleanup_a = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_a.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+    let mut cleanup_b = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_b.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+    let fixture = live.seed_code_authority(&workspace_a);
+    let selection = text_range("pane-a", 0, fixture.content.len(), &fixture.content);
+    let proposal = build_proposal_for_document_snapshot(
+        &selection,
+        MemoryClass::Semantic,
+        &workspace_a,
+        DEFAULT_ACTOR_ID,
+        &fixture.source_id,
+        fixture.content.clone(),
+    )
+    .expect("canonical KSRC proposal fixture");
+    let body = serde_json::json!({
+        "class": proposal.class.wire(),
+        "content": proposal.content,
+        "source": proposal.source,
+        "source_document_content": proposal.source_document_content,
+        "review_gated": true,
+        "actor_id": proposal.actor_id,
+    });
+
+    let mut cross_workspace = body.clone();
+    cross_workspace["source"]["workspace_id"] = serde_json::json!(workspace_b);
+    let (status, response) = live.post_json_status(
+        &format!("/workspaces/{workspace_b}/memory/proposals"),
+        &cross_workspace,
+    );
+    assert_eq!(
+        status, 400,
+        "cross-workspace KSRC must fail closed: {response}"
+    );
+
+    let mut mismatched_snapshot = body.clone();
+    mismatched_snapshot["source_document_content"] =
+        serde_json::json!(format!("{}// changed after index\n", fixture.content));
+    let (status, response) = live.post_json_status(
+        &format!("/workspaces/{workspace_a}/memory/proposals"),
+        &mismatched_snapshot,
+    );
+    assert_eq!(
+        status, 400,
+        "snapshot that does not match the KSRC hash must fail closed: {response}"
+    );
+
+    let unicode_content = "café";
+    let unicode_start = fixture
+        .content
+        .find(unicode_content)
+        .expect("indexed fixture contains a multibyte selection");
+    let unicode_selection = text_range(
+        "pane-a",
+        unicode_start,
+        unicode_start + unicode_content.len(),
+        unicode_content,
+    );
+    let unicode_proposal = build_proposal_for_document_snapshot(
+        &unicode_selection,
+        MemoryClass::Semantic,
+        &workspace_a,
+        DEFAULT_ACTOR_ID,
+        &fixture.source_id,
+        fixture.content.clone(),
+    )
+    .expect("valid multibyte KSRC slice proposal");
+    let unicode_body = serde_json::json!({
+        "class": unicode_proposal.class.wire(),
+        "content": unicode_proposal.content,
+        "source": unicode_proposal.source,
+        "source_document_content": unicode_proposal.source_document_content,
+        "review_gated": true,
+        "actor_id": unicode_proposal.actor_id,
+    });
+    let unicode_ack = live.post_json(
+        &format!("/workspaces/{workspace_a}/memory/proposals"),
+        &unicode_body,
+    );
+    let unicode_proposal_id = unicode_ack["proposal_id"]
+        .as_str()
+        .expect("valid multibyte proposal returns proposal_id")
+        .to_owned();
+    assert_eq!(unicode_ack["status"], "pending_review");
+    let unicode_ledger = ledger_row_by_key(
+        &live,
+        &format!("fems-memory-proposal:{unicode_proposal_id}"),
+    );
+    assert_eq!(
+        unicode_ledger["payload"]["proposal_id"].as_str(),
+        Some(unicode_proposal_id.as_str())
+    );
+    assert_eq!(
+        unicode_ledger["payload"]["content_hash"],
+        unicode_body["source"]["content_hash"]
+    );
+
+    let accent_start = fixture
+        .content
+        .find('é')
+        .expect("indexed fixture contains a multibyte code point");
+    let mut split_codepoint = body.clone();
+    split_codepoint["content"] = serde_json::json!("x");
+    split_codepoint["source"]["selection_start"] = serde_json::json!(accent_start + 1);
+    split_codepoint["source"]["selection_end"] = serde_json::json!(accent_start + 2);
+    split_codepoint["source"]["content_hash"] = serde_json::json!(content_hash_of_selection("x"));
+    let (status, response) = live.post_json_status(
+        &format!("/workspaces/{workspace_a}/memory/proposals"),
+        &split_codepoint,
+    );
+    assert_eq!(
+        status, 400,
+        "split-codepoint KSRC slice must fail closed: {response}"
+    );
+    assert!(
+        response.contains("UTF-8 range"),
+        "split-codepoint rejection must expose the precise UTF-8 range failure: {response}"
+    );
+
+    run_psql(
+        &live.dsn,
+        &format!(
+            "UPDATE knowledge_sources SET stale = TRUE WHERE source_id = {}",
+            sql_literal(&fixture.source_id)
+        ),
+    );
+    let (status, response) = live.post_json_status(
+        &format!("/workspaces/{workspace_a}/memory/proposals"),
+        &body,
+    );
+    assert_eq!(status, 400, "stale KSRC must fail closed: {response}");
+    assert_eq!(
+        run_psql(
+            &live.dsn,
+            &format!(
+                "SELECT COUNT(*) FROM fems_memory_proposals WHERE workspace_id IN ({}, {})",
+                sql_literal(&workspace_a),
+                sql_literal(&workspace_b)
+            )
+        )
+        .trim(),
+        "1",
+        "only the valid multibyte proposal is durable; all negative probes fail before insert"
+    );
+    cleanup_a.clean_and_verify();
+    assert_eq!(
+        live.get_status(&format!(
+            "/workspaces/{workspace_a}/memory/proposals/{unicode_proposal_id}"
+        )),
+        404,
+        "RAII-backed workspace cleanup removes the exact multibyte proposal row"
+    );
+    cleanup_b.clean_and_verify();
+}
+
+/// FEMS-03 / AC-065-04: the full FEMS flow (open panel -> refresh MemoryPack -> propose ->
+/// reach review-gated proposal) is driveable purely via AccessKit ids by an out-of-process-agent code
+/// path, AND the live dispatch reaches the backend (a live proposal results). The id-stability + the
+/// AccessKit-only dispatch are supported by `proof_fems_03_swarm_id_stability`; this canonical proof adds
+/// the live backend round-trip through the real app.
+#[test]
+fn proof_fems_03_swarm_drives_fems_via_accesskit() {
+    let _serial = live_proof_guard();
+    let live = require_live_backend();
+    let workspace_id = live.create_workspace(&unique_name("mt065-fems03"));
+    let mut cleanup = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_id.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+
+    let fixture = live.seed_code_authority(&workspace_id);
+    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let mut argus = ArgusTcpDriver::bind(&live, &app);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture);
+    let selection = text_range("pane-a", 0, fixture.content.len(), &fixture.content);
+
+    // Open the real mounted Relevant Memory pane through the operator menu, then wait for the app-hosted
+    // live MemoryPack read. Force a second real read through the panel's stable Refresh AccessKit control.
+    argus.click(&mut harness, "menu-editors");
+    argus.click(&mut harness, "menu.editors.relevant-memory");
+    assert!(
+        find_node(&harness.root(), RELEVANT_MEMORY_PANEL_AUTHOR_ID).is_some(),
+        "AccessKit panel-open action mounts the real Relevant Memory pane"
+    );
+    let first_status = wait_for_status(&mut harness, RELEVANT_MEMORY_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "state") == Some("empty")
+    });
+    let before_refresh = structured_field(&first_status, "completed")
+        .and_then(|value| value.parse::<u64>().ok())
+        .expect("MemoryPack status carries completed refresh count");
+    let panel_node_id = find_node(&harness.root(), RELEVANT_MEMORY_PANEL_AUTHOR_ID)
+        .expect("mounted panel node")
+        .node_id;
+    let status_node_id = find_node(&harness.root(), RELEVANT_MEMORY_STATUS_AUTHOR_ID)
+        .expect("mounted status node")
+        .node_id;
+    argus.click(&mut harness, RELEVANT_MEMORY_REFRESH_AUTHOR_ID);
+    let second_status = wait_for_status(&mut harness, RELEVANT_MEMORY_STATUS_AUTHOR_ID, |value| {
+        structured_field(value, "completed")
+            .and_then(|value| value.parse::<u64>().ok())
+            .is_some_and(|completed| completed > before_refresh)
+    });
+    assert_eq!(
+        find_node(&harness.root(), RELEVANT_MEMORY_PANEL_AUTHOR_ID)
+            .expect("panel remains mounted")
+            .node_id,
+        panel_node_id,
+        "mounted FEMS panel AccessKit identity is stable across refresh"
+    );
+    assert_eq!(
+        find_node(&harness.root(), RELEVANT_MEMORY_STATUS_AUTHOR_ID)
+            .expect("status remains mounted")
+            .node_id,
+        status_node_id,
+        "mounted FEMS status AccessKit identity is stable across refresh"
+    );
+
+    // Relevant Memory is a utility tab. Return through its stable tab AccessKit control to the code
+    // selection owner before proposing, exactly as an operator or model must do when the utility pane
+    // is active; no in-process pane mutation is allowed in this Argus proof.
+    let target_content_id = fixture
+        .target_path
+        .to_string_lossy()
+        .replace('\\', "/")
+        .to_ascii_lowercase();
+    let code_tab_author_id = harness
+        .state()
+        .tab_bar_states()
+        .iter()
+        .find_map(|(pane_id, bar)| {
+            bar.tabs.iter().enumerate().find_map(|(index, tab)| {
+                (tab.pane_type == PaneType::CodeSymbol
+                    && tab.content_id.as_deref() == Some(target_content_id.as_str()))
+                .then(|| tab_author_id_for(pane_id.as_ref(), index, &tab.pane_type))
+            })
+        })
+        .expect("indexed target code tab remains model-addressable after Relevant Memory refresh");
+    argus.click(&mut harness, &code_tab_author_id);
+    harness.run_steps(2);
+    argus.click(&mut harness, "menu-edit");
+    argus.click(&mut harness, "menu.edit.select-all");
+    harness.run_steps(2);
+
+    let proposal_id = drive_propose_command_via_argus(
+        &mut argus,
+        &mut harness,
+        MemoryClass::Procedural,
+        &live,
+        &workspace_id,
+    );
+    cleanup.capture_proposal(proposal_id.clone());
+
+    let expected = build_proposal_for_document_snapshot(
+        &selection,
+        MemoryClass::Procedural,
+        &workspace_id,
+        DEFAULT_ACTOR_ID,
+        &fixture.source_id,
+        fixture.content.clone(),
+    )
+    .expect("reconstruct the exact app proposal from its authoritative inputs");
+    let readback = live.get_json(&format!(
+        "/workspaces/{workspace_id}/memory/proposals/{proposal_id}"
+    ));
+    assert_exact_proposal_readback(&readback, &proposal_id, &expected);
+    let fr_row = live.poll_exact_fr_event(&workspace_id, &proposal_id);
+    assert_exact_proposal_and_canonical_fr_ledger(&live, &proposal_id, &workspace_id, &fr_row);
+    println!(
+        "FEMS-03 PROVEN (live): production Argus JSON-RPC/server/client_session_id/lease/ActionChannel drove panel-open->MemoryPack-refresh ({second_status})->palette->dialog->cancel->reopen->class->confirm and drained proposal {proposal_id}; exact row={readback}; FR row={fr_row}"
+    );
+    argus.finish();
+    cleanup.clean_and_verify();
+}
+
+/// A procedural proposal created through the mounted native controls remains review-gated in canonical
+/// PostgreSQL state and does not mutate the committed-memory store. This live path does not claim an
+/// async workspace-generation proof; stale submit delivery is tested independently at the app boundary.
+#[test]
+fn proof_fems_04_procedural_proposal_stays_review_gated() {
+    let _serial = live_proof_guard();
+    let live = require_live_backend();
+    let workspace_id = live.create_workspace(&unique_name("mt065-fems04"));
+    let mut cleanup = WorkspaceCleanup {
+        live: &live,
+        workspace_id: workspace_id.clone(),
+        proposal_ids: Vec::new(),
+        pack_ids: Vec::new(),
+        item_ids: Vec::new(),
+        cleaned: false,
+    };
+    let fixture = live.seed_code_authority(&workspace_id);
+    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture);
+    let sel = author_and_select_all(&mut harness, &fixture.content);
+    let proposal = build_proposal_for_document_snapshot(
         &sel,
         MemoryClass::Procedural,
         &workspace_id,
-        "swarm-agent-1",
+        DEFAULT_ACTOR_ID,
+        &fixture.source_id,
+        fixture.content.clone(),
     )
-    .expect("build_proposal");
+    .expect("build_proposal_for_document_snapshot");
     // The editor-built proposal is review-gated by construction (proven NOW by the fixture half).
     assert!(
-        proposal.review_gated,
+        proposal.is_review_gated(),
         "FEMS-04: the editor proposal is review-gated by construction"
     );
 
-    let ack = match rt.block_on(async { submit_proposal(&proposal, &client).await }) {
-        Ok(ack) => ack,
-        Err(MemoryProposalError::MissingEndpoint { probed_path }) => panic!(
-            "FEMS-04 BLOCKER[kind=missing_api detail='POST {probed_path} absent' source_mt=MT-064]: gated"
-        ),
-        Err(e) => panic!("FEMS-04 live submit failed: {e}"),
-    };
+    let before = live.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"));
+    assert_eq!(before["workspace_id"], workspace_id);
+    let before_count = before["count"]
+        .as_i64()
+        .expect("canonical committed-memory count is an integer");
 
-    // (a) status is pending/review, never committed/applied.
-    assert!(
-        ack.status.contains("pending") || ack.status.contains("review"),
-        "FEMS-04: the proposal status must be pending/review, got '{}'",
-        ack.status
-    );
-    assert!(
-        !ack.status.contains("committed") && !ack.status.contains("applied"),
-        "FEMS-04: a procedural proposal must NOT be auto-committed (status '{}')",
-        ack.status
-    );
+    let proposal_id =
+        drive_propose_command_via_accesskit(&mut harness, MemoryClass::Procedural, false, None);
+    cleanup.capture_proposal(proposal_id.clone());
+    let readback = live.get_json(&format!(
+        "/workspaces/{workspace_id}/memory/proposals/{proposal_id}"
+    ));
+    assert_eq!(readback["status"], "pending_review");
+    assert_exact_proposal_readback(&readback, &proposal_id, &proposal);
+    let fr_row = live.poll_exact_fr_event(&workspace_id, &proposal_id);
+    assert_exact_proposal_and_canonical_fr_ledger(&live, &proposal_id, &workspace_id, &fr_row);
 
-    // (b) no committed memory item appeared as a side effect: query the live memory store and assert the
-    // unique proposed content did NOT surface as an active/committed memory item.
-    let memory_url = format!("{base}/workspaces/{workspace_id}/memory/facts");
-    let memory_body: serde_json::Value = rt
-        .block_on(async { reqwest::get(&memory_url).await?.json().await })
-        .expect("FEMS-04: read the live committed memory store");
-    assert!(
-        !memory_body.to_string().contains(&unique_content),
-        "FEMS-04: the proposed content must NOT appear as a committed memory item without an explicit \
-         review/confirm (review-gate bypass would be a regression — RISK-065-04)"
-    );
-
-    // (c) the FR event records the proposal as pending review.
-    let fr_url = format!("{base}/api/flight_recorder");
-    let fr_body: serde_json::Value = rt
-        .block_on(async { reqwest::get(&fr_url).await?.json().await })
-        .expect("FEMS-04: read the live flight recorder");
-    let fr_str = fr_body.to_string();
-    assert!(
-        fr_str.contains(&ack.proposal_id) && fr_str.contains("review"),
-        "FEMS-04: the FR-EVT-MEM-001 event must record proposal {} as pending review",
-        ack.proposal_id
+    // This is the canonical committed store, not a context-filtered MemoryPack projection. A proposal
+    // must leave its exact workspace count unchanged until a downstream reviewer commits it.
+    let after = live.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"));
+    assert_eq!(after["workspace_id"], workspace_id);
+    assert_eq!(
+        after["count"].as_i64(),
+        Some(before_count),
+        "a review-gated proposal must not create a canonical fems_memory_items row"
     );
     println!(
-        "FEMS-04 PROVEN (live): procedural proposal {} stays review-gated (status='{}'), no committed memory side effect, FR records pending-review",
-        ack.proposal_id, ack.status
+        "FEMS-04 PROVEN (live): proposal {} exact status='{}'; canonical committed count stayed {}; exact correlated FR row={fr_row}",
+        proposal_id, readback["status"], before_count
     );
+    cleanup.clean_and_verify();
 }
 
 // A compile-time anchor so an unused `HashSet`/`MEMORY_PACK_MAX_ITEMS`/`FEMS_PROPOSE_COMMAND_ID`/
@@ -1099,16 +3566,18 @@ fn proof_fems_surface_constants_present() {
         mem_item_author_id("sem-1"),
         mem_source_author_id("sem-1"),
         FEMS_PROPOSE_CONFIRM_AUTHOR_ID.to_owned(),
+        FEMS_REVIEW_APPROVE_AUTHOR_ID.to_owned(),
+        FEMS_REVIEW_REJECT_AUTHOR_ID.to_owned(),
         fems_class_author_id(MemoryClass::Episodic),
     ]
     .into_iter()
     .collect();
-    assert_eq!(ids.len(), 5, "the FEMS swarm author_ids are distinct");
+    assert_eq!(ids.len(), 7, "the FEMS swarm author_ids are distinct");
     for id in &ids {
         assert!(
             has_no_random_segment(id),
             "FEMS swarm id '{id}' must be deterministic"
         );
     }
-    println!("FEMS surface constants OK: <=24 cap, propose command id, dialog outcome enum, 5 distinct deterministic swarm ids");
+    println!("FEMS surface constants OK: <=24 cap, propose command id, dialog outcome enum, 7 distinct deterministic swarm ids");
 }

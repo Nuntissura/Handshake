@@ -16,7 +16,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::{
     CodeEditorPanel, Minimap, CODE_EDITOR_MINIMAP_AUTHOR_ID, CODE_EDITOR_OUTLINE_AUTHOR_ID,

@@ -27,6 +27,14 @@ pub const OPERATION_WATCHDOG_POLL_INTERVAL: Duration = Duration::from_millis(250
 /// backend becomes visible before the reqwest request timeout finishes.
 pub const BACKEND_OPERATION_STALL_DEADLINE: Duration = Duration::from_secs(2);
 
+/// Absolute lifetime ceiling for production backend operations registered with the watchdog.
+///
+/// The shared backend client has a five-second timeout for the health and layout requests that use
+/// this registration. Matching that bound here means a request that keeps reporting synthetic
+/// progress cannot evade diagnostics forever, while the shorter two-second progress-gap deadline
+/// still reports a silent socket first.
+pub const BACKEND_OPERATION_MAX_TOTAL_RUNTIME: Duration = Duration::from_secs(5);
+
 /// Closed allowlist of operation kinds. The discriminant is the only operation identity written into
 /// the diagnostic event; names, command lines, arguments, and paths never enter the ring payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -360,6 +368,20 @@ static GLOBAL_OPERATION_WATCHDOG_THREAD: OnceLock<()> = OnceLock::new();
 
 pub fn global_operation_watchdog() -> &'static OperationWatchdog {
     GLOBAL_OPERATION_WATCHDOG.get_or_init(OperationWatchdog::default)
+}
+
+/// Register a production backend operation with both diagnostic bounds enabled.
+///
+/// Keeping this in the diagnostics owner prevents individual app call sites from accidentally
+/// reverting to the uncapped `register` API. The returned handle still completes/deregisters in the
+/// normal RAII path.
+pub fn register_backend_operation() -> OperationHandle {
+    global_operation_watchdog().register_with_runtime_cap(
+        OperationCode::BackendCall,
+        BACKEND_OPERATION_STALL_DEADLINE,
+        None,
+        Some(BACKEND_OPERATION_MAX_TOTAL_RUNTIME),
+    )
 }
 
 pub fn start_global_operation_watchdog() {

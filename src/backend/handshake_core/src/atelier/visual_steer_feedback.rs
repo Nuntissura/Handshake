@@ -13,17 +13,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::Row;
 
-use crate::kernel::visual_debugging_loop::{
-    validate_visual_debugging_loop, VisualDebuggingLoopV1,
-};
+use crate::kernel::visual_debugging_loop::{validate_visual_debugging_loop, VisualDebuggingLoopV1};
 
 use super::{AtelierError, AtelierResult, AtelierStore};
 
 pub mod visual_steer_event_family {
     /// A visual threshold breach was converted into a STEER feedback record
     /// (MT-156).
-    pub const VISUAL_STEER_FEEDBACK_RECORDED: &str =
-        "atelier.visual_steer.feedback_recorded";
+    pub const VISUAL_STEER_FEEDBACK_RECORDED: &str = "atelier.visual_steer.feedback_recorded";
 
     pub const ALL: &[&str] = &[VISUAL_STEER_FEEDBACK_RECORDED];
 }

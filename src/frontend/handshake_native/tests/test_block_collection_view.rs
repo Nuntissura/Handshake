@@ -22,15 +22,11 @@
 //!
 //! ## Backend reality (Spec-Realism Gate / MT-022/023/024/026 pattern)
 //!
-//! AC1-AC8 against REAL Handshake-managed PostgreSQL with seeded `view_def` blocks (table/kanban/
-//! calendar) + result blocks are the `#[ignore]`d `*_live_pg` integration tests gated behind the
-//! `integration` feature; absent a seeded backend they are NEEDS_MANAGED_RESOURCE_PROOF (run with
-//! `cargo test --features integration --test test_block_collection_view -- --ignored` against a live,
-//! seeded backend). They NEVER fake PG. The request builders are proven WITHOUT a backend below (the
-//! VERIFIED routes/bodies — POST-not-GET for results, top-level add_tags/remove_tags, the wrapped
-//! `{definition}` PATCH), and the table/kanban/calendar rendering + sort-event + card-move-event +
-//! create-event behaviors are proven STANDALONE here + in the lib unit tests with seeded in-memory
-//! results (the native projection of a real `queryBlockViewResults`).
+//! AC1-AC8 have a non-ignored `integration` proof that creates an isolated workspace, seeds real Loom
+//! blocks/tag edges/journals and table/kanban/calendar `view_def` rows, drives the production
+//! [`BlockViewClient`] reads/writes, mounts every returned projection through the real widget, proves a
+//! visible Retry recovery, then deletes the workspace and verifies fresh absence. It requires only the
+//! standard managed backend at `HSK_TEST_BASE`; no pre-seeded ids or unrelated workspace state.
 //!
 //! ## Artifact hygiene (CX-212E)
 //!
@@ -43,9 +39,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
-use handshake_native::backend_client::BlockViewClient;
+use handshake_native::backend_client::{BlockViewClient, BLOCK_VIEW_ACTOR_ID};
 use handshake_native::graph::block_collection_view::{
     calendar_day_author_id, calendar_entry_author_id, kanban_card_author_id, kanban_lane_author_id,
     table_row_author_id, table_sort_author_id, BlockCollectionView, BlockViewDefinition,
@@ -53,9 +51,22 @@ use handshake_native::graph::block_collection_view::{
     BlockViewResults, BlockViewSort, BlockViewSortDirection, LoomBlockRow,
     BLOCK_VIEW_UNTAGGED_LANE, CALENDAR_DAY_AUTHOR_ID_PREFIX, CALENDAR_ENTRY_AUTHOR_ID_PREFIX,
     KIND_KANBAN_AUTHOR_ID, KIND_TABLE_AUTHOR_ID, NEW_VIEW_AUTHOR_ID, NEW_VIEW_CONFIRM_AUTHOR_ID,
-    NEW_VIEW_TITLE_AUTHOR_ID, TABLE_ROW_AUTHOR_ID_PREFIX,
+    NEW_VIEW_TITLE_AUTHOR_ID, RETRY_AUTHOR_ID, TABLE_ROW_AUTHOR_ID_PREFIX,
 };
 use handshake_native::theme::HsTheme;
+
+#[cfg(feature = "integration")]
+mod interconnect_support;
+#[cfg(feature = "integration")]
+use handshake_native::app::{HandshakeApp, HealthDisplayState};
+#[cfg(feature = "integration")]
+use handshake_native::backend_client::HealthInfo;
+#[cfg(feature = "integration")]
+use handshake_native::editor_pane_factories::{
+    placeholder_pane_type, BLOCK_COLLECTIONS_PANE_LABEL,
+};
+#[cfg(feature = "integration")]
+use handshake_native::pane_registry::{DirtyState, LockState, PaneAuthority, PaneId, PaneRecord};
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic.
 fn external_artifact_dir(subdir: &str) -> PathBuf {
@@ -216,7 +227,7 @@ fn harness_for<'a>(
 }
 
 /// Collect every author_id present in the live AccessKit tree.
-fn author_ids(harness: &Harness<'_, ()>) -> HashSet<String> {
+fn author_ids<T>(harness: &Harness<'_, T>) -> HashSet<String> {
     let mut ids = HashSet::new();
     for node in harness.root().children_recursive() {
         if let Some(a) = node.accesskit_node().author_id() {
@@ -227,7 +238,7 @@ fn author_ids(harness: &Harness<'_, ()>) -> HashSet<String> {
 }
 
 /// Read a node's AccessKit `label` by author_id.
-fn label_for(harness: &Harness<'_, ()>, author_id: &str) -> Option<String> {
+fn label_for<T>(harness: &Harness<'_, T>, author_id: &str) -> Option<String> {
     for node in harness.root().children_recursive() {
         let ak = node.accesskit_node();
         if ak.author_id() == Some(author_id) {
@@ -238,7 +249,7 @@ fn label_for(harness: &Harness<'_, ()>, author_id: &str) -> Option<String> {
 }
 
 /// The screen-space center of a node addressed by author_id (for live pointer drag).
-fn center_of(harness: &Harness<'_, ()>, author_id: &str) -> Option<egui::Pos2> {
+fn center_of<T>(harness: &Harness<'_, T>, author_id: &str) -> Option<egui::Pos2> {
     harness
         .root()
         .children_recursive()
@@ -248,7 +259,7 @@ fn center_of(harness: &Harness<'_, ()>, author_id: &str) -> Option<egui::Pos2> {
 
 /// Click the node addressed by `author_id` (kittest has no `click_at(pos)`; it clicks the node's own
 /// rect via the AccessKit Click action). Panics if no such node exists.
-fn click_author_id(harness: &Harness<'_, ()>, author_id: &str) {
+fn click_author_id<T>(harness: &Harness<'_, T>, author_id: &str) {
     let node = harness
         .root()
         .children_recursive()
@@ -259,7 +270,7 @@ fn click_author_id(harness: &Harness<'_, ()>, author_id: &str) {
 
 /// Focus + type into the text field addressed by `author_id` (its hint text is NOT an AccessKit label,
 /// so it can't be found by `get_by_label`; address it by its stable author_id instead).
-fn type_into_author_id(harness: &Harness<'_, ()>, author_id: &str, text: &str) {
+fn type_into_author_id<T>(harness: &Harness<'_, T>, author_id: &str, text: &str) {
     let node = harness
         .root()
         .children_recursive()
@@ -323,6 +334,30 @@ fn table_renders_three_rows_with_titles() {
 
     println!("PROOF2/AC1/AC9: 3 table rows with non-empty title cells + controls present");
     assert_no_local_artifact_dir();
+}
+
+#[test]
+fn backend_error_exposes_stable_retry_event() {
+    let host = shared(BlockCollectionView::new("ws-test", "view-table"));
+    host.lock()
+        .unwrap()
+        .set_error("backend unreachable (HTTP 503)");
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let events_ck = Arc::clone(&events);
+    let mut harness = harness_for(host, events);
+    harness.run();
+
+    assert!(author_ids(&harness).contains(RETRY_AUTHOR_ID));
+    assert_eq!(
+        label_for(&harness, RETRY_AUTHOR_ID).as_deref(),
+        Some("Retry")
+    );
+    click_author_id(&harness, RETRY_AUTHOR_ID);
+    harness.run();
+    assert!(matches!(
+        events_ck.lock().unwrap().last(),
+        Some(BlockViewEvent::Retry)
+    ));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -508,7 +543,7 @@ fn kanban_card_drag_emits_card_move_then_requery_lands_card() {
         let t = s as f32 / steps as f32;
         let p = card_center + (lane_b_center - card_center) * t;
         harness.hover_at(p);
-        harness.run();
+        harness.step();
     }
     harness.drop_at(lane_b_center);
     harness.run();
@@ -1099,7 +1134,8 @@ fn group_by_and_full_query_survive_update_round_trip() {
         }
     });
     // Parse the loaded definition the way getBlockView does.
-    let mut def = handshake_native::backend_client::definition_from_json(&loaded);
+    let mut def = handshake_native::backend_client::definition_from_json(&loaded)
+        .expect("canonical definition parses");
     assert_eq!(
         def.group_by,
         Some(BlockViewGroupBy::Tag),
@@ -1179,9 +1215,11 @@ fn group_by_field_round_trips_and_native_kanban_defaults_to_tag() {
     // zero lanes). Parse a field-grouped view, serialize, and assert the field-variant shape survives.
     let loaded = serde_json::json!({
         "kind": "kanban",
-        "group_by": { "kind": "field", "field": "content_type" }
+        "group_by": { "kind": "field", "field": "content_type" },
+        "query": {}
     });
-    let def = handshake_native::backend_client::definition_from_json(&loaded);
+    let def = handshake_native::backend_client::definition_from_json(&loaded)
+        .expect("canonical field-grouped definition parses");
     assert_eq!(
         def.group_by,
         Some(BlockViewGroupBy::Field {
@@ -1236,8 +1274,11 @@ fn parse_results_from_real_shape() {
         "blocks": [
             {
                 "block_id": "blk-1",
+                "workspace_id": "ws-1",
                 "title": "First",
+                "original_filename": null,
                 "content_type": "note",
+                "journal_date": null,
                 "created_at": "2026-01-01T00:00:00Z",
                 "updated_at": "2026-02-01T00:00:00Z",
                 "pinned": true,
@@ -1246,15 +1287,21 @@ fn parse_results_from_real_shape() {
             },
             {
                 "block_id": "blk-2",
+                "workspace_id": "ws-1",
                 "title": null,
                 "original_filename": "file.md",
                 "content_type": "file",
+                "journal_date": null,
                 "created_at": "2026-01-02T00:00:00Z",
-                "updated_at": "2026-02-02T00:00:00Z"
+                "updated_at": "2026-02-02T00:00:00Z",
+                "pinned": false,
+                "favorite": false,
+                "derived": { "backlink_count": 0, "mention_count": 0, "tag_count": 0 }
             }
         ]
     });
-    let results = handshake_native::backend_client::results_from_json(&v);
+    let results = handshake_native::backend_client::results_from_json(&v)
+        .expect("canonical table results parse");
     assert_eq!(results.blocks.len(), 2);
     assert_eq!(results.total_returned, 2);
     assert_eq!(results.blocks[0].display_title(), "First");
@@ -1274,12 +1321,16 @@ fn parse_kanban_groups_from_real_shape() {
         "total_returned": 2,
         "blocks": [],
         "groups": [
-            { "key": "tag-a", "blocks": [{ "block_id": "b1", "title": "A", "content_type": "note",
-              "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z" }] },
+            { "key": "tag-a", "blocks": [{ "block_id": "b1", "workspace_id": "ws-1",
+              "title": "A", "original_filename": null, "content_type": "note", "journal_date": null,
+              "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
+              "pinned": false, "favorite": false,
+              "derived": { "backlink_count": 0, "mention_count": 0, "tag_count": 1 } }] },
             { "key": "__untagged__", "blocks": [] }
         ]
     });
-    let results = handshake_native::backend_client::results_from_json(&v);
+    let results = handshake_native::backend_client::results_from_json(&v)
+        .expect("canonical kanban results parse");
     assert_eq!(results.groups.len(), 2);
     assert_eq!(results.groups[0].key, "tag-a");
     assert_eq!(results.groups[0].blocks.len(), 1);
@@ -1296,7 +1347,8 @@ fn parse_definition_from_real_shape() {
         "sort": { "field": "title", "direction": "asc" },
         "query": { "date_from": "2026-03-01T00:00:00Z", "date_to": "2026-03-31T00:00:00Z" }
     });
-    let def = handshake_native::backend_client::definition_from_json(&v);
+    let def = handshake_native::backend_client::definition_from_json(&v)
+        .expect("canonical calendar definition parses");
     assert_eq!(def.kind, BlockViewKind::Calendar);
     assert_eq!(def.calendar_date_field, Some(BlockViewField::JournalDate));
     assert_eq!(
@@ -1312,72 +1364,1083 @@ fn parse_definition_from_real_shape() {
 
 #[test]
 fn parse_empty_results_is_empty_not_error() {
-    // AC10: a missing blocks/groups parses to an empty result, never an error.
-    let v = serde_json::json!({ "kind": "table", "total_returned": 0 });
-    let results = handshake_native::backend_client::results_from_json(&v);
+    // AC10: an explicit canonical empty blocks array is empty; omitted groups is valid because the
+    // backend skips serialization of an empty groups vector.
+    let v = serde_json::json!({ "kind": "table", "total_returned": 0, "blocks": [] });
+    let results = handshake_native::backend_client::results_from_json(&v)
+        .expect("canonical explicit empty results parse");
     assert!(results.blocks.is_empty());
     assert!(results.groups.is_empty());
 }
 
-// ══════════════════════════════════════════════════════════════════════════════════════════════════
-// LIVE-PG (gated): NEEDS_MANAGED_RESOURCE_PROOF without a seeded backend. Never fakes PG. Run with:
-//   cargo test --features integration --test test_block_collection_view -- --ignored
-// against a live Handshake-managed PostgreSQL seeded with view_def blocks (table/kanban/calendar) and
-// result blocks. The host's HANDSHAKE_TEST_WS / view ids are read from env so the test is portable.
-// ══════════════════════════════════════════════════════════════════════════════════════════════════
-
-/// AC1 against REAL PostgreSQL: load a seeded table-kind view_def + query its results, asserting >= 1
-/// row comes back. This is the end-to-end proof the request builders + parsers are wired to a real
-/// backend; absent a seeded DB it is NEEDS_MANAGED_RESOURCE_PROOF.
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a seeded table-kind view_def block + >= 1 result block"]
-#[cfg(feature = "integration")]
-fn table_view_loads_from_live_pg() {
-    let ws =
-        std::env::var("HANDSHAKE_TEST_WS").expect("set HANDSHAKE_TEST_WS to a seeded workspace id");
-    let view_id = std::env::var("HANDSHAKE_TEST_TABLE_VIEW")
-        .expect("set HANDSHAKE_TEST_TABLE_VIEW to a seeded table view_def block id");
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let client = BlockViewClient::production(rt.handle().clone());
-
-    let record_cell: handshake_native::backend_client::BlockViewRecordCell =
-        Arc::new(Mutex::new(None));
-    client.fetch_view(&ws, &view_id, Arc::clone(&record_cell));
-    // `block_on_cell` already unwraps the delivery `Result`, so it returns the value directly.
-    let record = block_on_cell(&record_cell);
-    assert_eq!(
-        record.definition.kind,
-        BlockViewKind::Table,
-        "seeded view must be table-kind"
-    );
-
-    let results_cell: handshake_native::backend_client::BlockViewResultsCell =
-        Arc::new(Mutex::new(None));
-    client.query_results(&ws, &view_id, 100, 0, Arc::clone(&results_cell));
-    let results = block_on_cell(&results_cell);
+fn malformed_successful_collection_payloads_fail_closed() {
     assert!(
-        !results.blocks.is_empty(),
-        "AC1: a seeded table view must return >= 1 row from PG"
+        handshake_native::backend_client::results_from_json(
+            &serde_json::json!({ "kind": "table", "total_returned": 0 })
+        )
+        .is_err(),
+        "missing required blocks array must not become fake empty success"
     );
     assert!(
-        !results.blocks[0].display_title().is_empty(),
-        "AC1: the title cell is non-empty"
+        handshake_native::backend_client::results_from_json(
+            &serde_json::json!({ "kind": "future", "total_returned": 0, "blocks": [] })
+        )
+        .is_err(),
+        "unknown kind must not become table"
     );
-
-    println!(
-        "AC1 LIVE-PG: table view {view_id} loaded {} rows from real PG",
-        results.blocks.len()
+    assert!(
+        handshake_native::backend_client::definition_from_json(
+            &serde_json::json!({ "kind": "table" })
+        )
+        .is_err(),
+        "missing required query must reject the definition"
+    );
+    assert!(
+        handshake_native::backend_client::definition_from_json(
+            &serde_json::json!({ "kind": "table", "query": {}, "columns": ["title", "unknown"] })
+        )
+        .is_err(),
+        "one malformed member must reject the whole definition"
     );
 }
 
-/// Drain a delivery cell, spinning the runtime until the off-thread task lands (LIVE-PG helper).
+#[test]
+fn malformed_successful_create_payloads_fail_closed() {
+    use handshake_native::backend_client::create_block_view_id_from_json;
+
+    let canonical = serde_json::json!({
+        "block": { "block_id": "view-new", "content_type": "view_def" },
+        "definition": { "kind": "table", "query": {} }
+    });
+    assert_eq!(
+        create_block_view_id_from_json(&canonical).expect("canonical create response"),
+        "view-new"
+    );
+    for malformed in [
+        serde_json::json!({
+            "block": { "block_id": "", "content_type": "view_def" },
+            "definition": { "kind": "table", "query": {} }
+        }),
+        serde_json::json!({
+            "block": { "block_id": "   ", "content_type": "view_def" },
+            "definition": { "kind": "table", "query": {} }
+        }),
+        serde_json::json!({
+            "block": { "block_id": "view-new", "content_type": "note" },
+            "definition": { "kind": "table", "query": {} }
+        }),
+        serde_json::json!({
+            "block": { "block_id": "view-new", "content_type": "view_def" }
+        }),
+    ] {
+        assert!(
+            create_block_view_id_from_json(&malformed).is_err(),
+            "malformed successful create response must fail closed: {malformed}"
+        );
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// LIVE-PG: isolated, self-seeding, non-ignored product-client + mounted-widget round trip.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
 #[cfg(feature = "integration")]
-fn block_on_cell<T: Clone>(cell: &Arc<Mutex<Option<Result<T, String>>>>) -> T {
+struct LiveWorkspaceCleanup<'a> {
+    backend: &'a interconnect_support::LiveBackend,
+    workspace_id: String,
+    cleaned: bool,
+}
+
+#[cfg(feature = "integration")]
+impl LiveWorkspaceCleanup<'_> {
+    fn assert_cleaned_and_absent(&mut self) {
+        let status = self.backend.delete_workspace(&self.workspace_id);
+        assert!(
+            matches!(status, 200 | 202 | 204 | 404),
+            "managed-PG workspace cleanup returned HTTP {status}"
+        );
+        let workspaces = self.backend.get_json("/workspaces");
+        let rows = workspaces
+            .as_array()
+            .expect("GET /workspaces returns the canonical workspace list");
+        assert!(
+            rows.iter()
+                .all(|row| row.get("id").and_then(|id| id.as_str())
+                    != Some(self.workspace_id.as_str())),
+            "cleanup must remove the isolated workspace from a fresh canonical list read"
+        );
+        self.cleaned = true;
+    }
+}
+
+#[cfg(feature = "integration")]
+impl Drop for LiveWorkspaceCleanup<'_> {
+    fn drop(&mut self) {
+        if !self.cleaned {
+            let _ = self.backend.delete_workspace(&self.workspace_id);
+        }
+    }
+}
+
+#[cfg(feature = "integration")]
+fn block_on_cell_result<T: Clone>(
+    cell: &Arc<Mutex<Option<Result<T, String>>>>,
+) -> Result<T, String> {
     for _ in 0..200 {
         if let Some(slot) = cell.lock().unwrap().clone() {
-            return slot.expect("live-PG op must succeed");
+            return slot;
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
-    panic!("live-PG op did not land within 10s");
+    panic!("managed-PG product-client operation did not land within 10s");
+}
+
+#[cfg(feature = "integration")]
+fn block_on_cell<T: Clone>(cell: &Arc<Mutex<Option<Result<T, String>>>>) -> T {
+    block_on_cell_result(cell).expect("managed-PG product-client operation must succeed")
+}
+
+#[cfg(feature = "integration")]
+fn live_fetch_view(
+    client: &BlockViewClient,
+    workspace_id: &str,
+    view_id: &str,
+) -> handshake_native::backend_client::BlockViewRecordData {
+    let cell: handshake_native::backend_client::BlockViewRecordCell = Arc::new(Mutex::new(None));
+    client.fetch_view(workspace_id, view_id, Arc::clone(&cell));
+    block_on_cell(&cell)
+}
+
+#[cfg(feature = "integration")]
+fn live_query_view(
+    client: &BlockViewClient,
+    workspace_id: &str,
+    view_id: &str,
+) -> BlockViewResults {
+    let cell: handshake_native::backend_client::BlockViewResultsCell = Arc::new(Mutex::new(None));
+    client.query_results(workspace_id, view_id, 100, 0, Arc::clone(&cell));
+    block_on_cell(&cell)
+}
+
+#[cfg(feature = "integration")]
+fn live_create_view(
+    client: &BlockViewClient,
+    workspace_id: &str,
+    title: &str,
+    definition: &BlockViewDefinition,
+) -> String {
+    let cell: handshake_native::backend_client::BlockViewOpCell = Arc::new(Mutex::new(None));
+    let generation = Arc::new(std::sync::atomic::AtomicU64::new(1));
+    client.create_view(
+        workspace_id,
+        title,
+        definition,
+        Arc::clone(&generation),
+        1,
+        Arc::clone(&cell),
+    );
+    let delivery = (0..200)
+        .find_map(|_| {
+            let delivery = cell.lock().unwrap().clone();
+            if delivery.is_none() {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            delivery
+        })
+        .expect("managed-PG create delivery did not land within 10s");
+    assert_eq!(delivery.workspace_id, workspace_id);
+    assert_eq!(delivery.generation, 1);
+    assert!(delivery.expected_bound_view_id.is_none());
+    let view_id = delivery.result.expect("managed-PG create must succeed");
+    assert!(!view_id.is_empty(), "created view id must be non-empty");
+    view_id
+}
+
+#[cfg(feature = "integration")]
+fn live_dispatch(
+    client: &BlockViewClient,
+    workspace_id: &str,
+    spec: handshake_native::backend_client::RequestSpec,
+    view_id: &str,
+) {
+    let cell: handshake_native::backend_client::BlockViewOpCell = Arc::new(Mutex::new(None));
+    let generation = Arc::new(std::sync::atomic::AtomicU64::new(1));
+    client.dispatch(
+        spec,
+        workspace_id,
+        view_id.to_owned(),
+        Arc::clone(&generation),
+        1,
+        Arc::clone(&cell),
+    );
+    let delivery = (0..200)
+        .find_map(|_| {
+            let delivery = cell.lock().unwrap().clone();
+            if delivery.is_none() {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            delivery
+        })
+        .expect("managed-PG mutation delivery did not land within 10s");
+    assert_eq!(delivery.workspace_id, workspace_id);
+    assert_eq!(delivery.generation, 1);
+    assert_eq!(delivery.expected_bound_view_id.as_deref(), Some(view_id));
+    assert_eq!(
+        delivery.result.expect("managed-PG mutation must succeed"),
+        view_id
+    );
+}
+
+#[cfg(feature = "integration")]
+fn lane<'a>(results: &'a BlockViewResults, key: &str) -> &'a BlockViewLane {
+    results
+        .groups
+        .iter()
+        .find(|lane| lane.key == key)
+        .unwrap_or_else(|| panic!("expected lane '{key}' in {:?}", results.groups))
+}
+
+#[cfg(feature = "integration")]
+fn mount_collection_pane(app: &mut HandshakeApp, workspace_id: &str) {
+    let pane_id = PaneId::from("pane-a");
+    let pane_type = placeholder_pane_type(BLOCK_COLLECTIONS_PANE_LABEL);
+    app.pane_registry().lock().unwrap().insert(PaneRecord::new(
+        pane_id.clone(),
+        pane_type.clone(),
+        workspace_id,
+        None,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    let bar = app
+        .tab_bar_states_mut()
+        .get_mut(&pane_id)
+        .expect("seeded pane-a tab bar");
+    bar.tabs = vec![handshake_native::tab_bar::TabState::new(pane_type)];
+    bar.active_index = 0;
+    app.set_active_pane_for_test(Some(pane_id));
+}
+
+#[cfg(feature = "integration")]
+fn await_app_collection(
+    harness: &mut Harness<'_, HandshakeApp>,
+    expected_view_id: &str,
+) -> BlockViewDefinition {
+    for _ in 0..200 {
+        harness.step();
+        let view = harness.state().mounted_block_collection_view();
+        let ready = if let Ok(view) = view.lock() {
+            if view.view_block_id == expected_view_id
+                && !view.loading
+                && !view.in_flight
+                && view.error.is_none()
+            {
+                view.definition.clone()
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(definition) = ready {
+            harness.run_steps(2);
+            return definition;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("mounted HandshakeApp did not load view {expected_view_id} within 10s");
+}
+
+#[test]
+#[cfg(feature = "integration")]
+fn stale_collection_operation_delivery_cannot_rebind_a_to_b() {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.bind_active_project_for_integration_test("ws-a".to_owned());
+    mount_collection_pane(&mut app, "ws-a");
+    app.bind_block_collection_view_for_test("view-a");
+    let generation_a = app.block_collection_generation_for_test();
+    app.bind_block_collection_view_for_test("view-b");
+    assert!(app.block_collection_generation_for_test() > generation_a);
+    app.deliver_block_collection_op_delivery_for_test(
+        handshake_native::backend_client::BlockViewOpDelivery {
+            workspace_id: "ws-a".to_owned(),
+            generation: generation_a,
+            expected_bound_view_id: Some("view-a".to_owned()),
+            result: Ok("view-a".to_owned()),
+        },
+    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+    let mounted = harness.state().mounted_block_collection_view();
+    let view = mounted.lock().unwrap();
+    assert_eq!(view.view_block_id, "view-b");
+    assert_eq!(view.workspace_id, "ws-a");
+}
+
+#[test]
+#[cfg(feature = "integration")]
+fn old_workspace_create_delivery_cannot_switch_current_workspace_view() {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.bind_active_project_for_integration_test("ws-a".to_owned());
+    mount_collection_pane(&mut app, "ws-a");
+    app.bind_block_collection_view_for_test("view-a");
+    app.bind_active_project_for_integration_test("ws-b".to_owned());
+    app.bind_block_collection_view_for_test("view-b");
+    let current_generation = app.block_collection_generation_for_test();
+    app.deliver_block_collection_op_delivery_for_test(
+        handshake_native::backend_client::BlockViewOpDelivery {
+            workspace_id: "ws-a".to_owned(),
+            generation: current_generation,
+            expected_bound_view_id: None,
+            result: Ok("created-in-ws-a".to_owned()),
+        },
+    );
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+    let mounted = harness.state().mounted_block_collection_view();
+    let view = mounted.lock().unwrap();
+    assert_eq!(view.view_block_id, "view-b");
+    assert_eq!(view.workspace_id, "ws-b");
+}
+
+/// AC1-AC10 / PROOF2-PROOF6 against REAL Handshake-managed PostgreSQL. The test owns every row it
+/// creates, drives the production `BlockViewClient` transport, mounts the returned projections through
+/// the real `BlockCollectionView`, and leaves no workspace behind. Feature-gated, but deliberately NOT
+/// ignored: the integration command cannot silently pass while omitting the required resource proof.
+#[test]
+#[cfg(feature = "integration")]
+fn block_collection_views_live_pg_self_seed_full_round_trip() {
+    let receipt_dir = external_artifact_dir("wp-kernel-012-mt-027");
+    let receipt_path = receipt_dir.join("managed-pg-receipt.json");
+    match std::fs::remove_file(&receipt_path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => panic!("remove stale MT-027 success receipt before proof: {error}"),
+    }
+    let live = interconnect_support::require_reachable_backend();
+    let unique = format!(
+        "mt027-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after unix epoch")
+            .as_nanos()
+    );
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("block-view product-client runtime");
+    let client = BlockViewClient::new(live.base.clone(), rt.handle().clone());
+
+    // Fresh canonical state: no fixture ids and no leaked rows from another run.
+    let initial = live.get_json(&format!("/workspaces/{workspace_id}/loom/views/all"));
+    let initial_blocks = initial
+        .get("blocks")
+        .and_then(|value| value.as_array())
+        .map_or(0, Vec::len);
+    assert_eq!(initial_blocks, 0, "isolated workspace starts empty");
+
+    let seed_block = |content_type: &str, title: &str| {
+        let block = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({ "content_type": content_type, "title": title }),
+        );
+        block["block_id"]
+            .as_str()
+            .expect("block create returns block_id")
+            .to_owned()
+    };
+    let tag_a = seed_block("tag_hub", &format!("{unique}-lane-a"));
+    let tag_b = seed_block("tag_hub", &format!("{unique}-lane-b"));
+    let alpha = seed_block("note", &format!("{unique}-Alpha"));
+    let middle = seed_block("note", &format!("{unique}-Middle"));
+    let zulu = seed_block("note", &format!("{unique}-Zulu"));
+    for (source, target) in [(&alpha, &tag_a), (&zulu, &tag_b)] {
+        live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/edges"),
+            &serde_json::json!({
+                "source_block_id": source,
+                "target_block_id": target,
+                "edge_type": "tag",
+                "created_by": "user"
+            }),
+        );
+    }
+
+    let journal_id = |date: &str| {
+        let value = live.put_json(
+            &format!("/workspaces/{workspace_id}/loom/journals/{date}"),
+            &serde_json::json!({}),
+        );
+        value
+            .get("block")
+            .unwrap_or(&value)
+            .get("block_id")
+            .and_then(|id| id.as_str())
+            .expect("journal create returns block_id")
+            .to_owned()
+    };
+    let march_one = journal_id("2026-03-01");
+    let march_two = journal_id("2026-03-02");
+    let april_one = journal_id("2026-04-01");
+
+    // Create all three real view_def rows through the product client. No fixture helper creates the
+    // feature under proof, so create persistence and the canonical x-hsk write transport are exercised.
+    let mut table_def = BlockViewDefinition::of_kind(BlockViewKind::Table);
+    table_def.query.content_type = Some("note".to_owned());
+    table_def.columns = vec![BlockViewField::Title, BlockViewField::Updated];
+    let table_id = live_create_view(
+        &client,
+        &workspace_id,
+        &format!("{unique}-table"),
+        &table_def,
+    );
+
+    let mut kanban_def = BlockViewDefinition::of_kind(BlockViewKind::Kanban);
+    kanban_def.query.content_type = Some("note".to_owned());
+    kanban_def.group_by = Some(BlockViewGroupBy::Tag);
+    let kanban_id = live_create_view(
+        &client,
+        &workspace_id,
+        &format!("{unique}-kanban"),
+        &kanban_def,
+    );
+
+    let mut calendar_def = BlockViewDefinition::of_kind(BlockViewKind::Calendar);
+    calendar_def.query.content_type = Some("journal".to_owned());
+    calendar_def.calendar_date_field = Some(BlockViewField::JournalDate);
+    let calendar_id = live_create_view(
+        &client,
+        &workspace_id,
+        &format!("{unique}-calendar"),
+        &calendar_def,
+    );
+    assert_eq!(
+        HashSet::from([table_id.clone(), kanban_id.clone(), calendar_id.clone()]).len(),
+        3,
+        "new-view creation returns three exact distinct persisted ids"
+    );
+
+    // Failure + visible Retry + recovery: force one real product-client connection failure, mount the
+    // error, drive its stable AccessKit button, then recover the same saved view through the live client.
+    let bad_client = BlockViewClient::new("http://127.0.0.1:9", rt.handle().clone());
+    let bad_cell: handshake_native::backend_client::BlockViewRecordCell =
+        Arc::new(Mutex::new(None));
+    bad_client.fetch_view(&workspace_id, &table_id, Arc::clone(&bad_cell));
+    let failure = block_on_cell_result(&bad_cell).expect_err("forced backend failure must surface");
+    let retry_host = shared(BlockCollectionView::new(
+        workspace_id.clone(),
+        table_id.clone(),
+    ));
+    retry_host.lock().unwrap().set_error(failure);
+    let retry_events = Arc::new(Mutex::new(Vec::new()));
+    let retry_events_ck = Arc::clone(&retry_events);
+    let mut retry_harness = harness_for(Arc::clone(&retry_host), retry_events);
+    retry_harness.run();
+    assert!(
+        author_ids(&retry_harness).contains(RETRY_AUTHOR_ID),
+        "backend failure exposes stable bcv.retry AccessKit control"
+    );
+    click_author_id(&retry_harness, RETRY_AUTHOR_ID);
+    retry_harness.run();
+    assert!(
+        matches!(
+            retry_events_ck.lock().unwrap().last(),
+            Some(BlockViewEvent::Retry)
+        ),
+        "Retry control emits the host recovery event"
+    );
+    let recovered_record = live_fetch_view(&client, &workspace_id, &table_id);
+    let recovered_results = live_query_view(&client, &workspace_id, &table_id);
+    retry_host
+        .lock()
+        .unwrap()
+        .set_loaded(recovered_record.definition, recovered_results);
+    retry_harness.run();
+    assert!(
+        !author_ids(&retry_harness).contains(RETRY_AUTHOR_ID),
+        "successful fresh load clears the failure/retry overlay"
+    );
+
+    // AC1/PROOF2: exact three note rows, non-empty title + updated cells, mounted AccessKit controls.
+    let table_record = live_fetch_view(&client, &workspace_id, &table_id);
+    let table_results = live_query_view(&client, &workspace_id, &table_id);
+    assert_eq!(table_results.total_returned, 3);
+    let table_host = shared(BlockCollectionView::new(
+        workspace_id.clone(),
+        table_id.clone(),
+    ));
+    table_host
+        .lock()
+        .unwrap()
+        .set_loaded(table_record.definition.clone(), table_results.clone());
+    let table_events = Arc::new(Mutex::new(Vec::new()));
+    let table_events_ck = Arc::clone(&table_events);
+    let mut table_harness = harness_for(Arc::clone(&table_host), table_events);
+    table_harness.run();
+    let table_ids = author_ids(&table_harness);
+    for block_id in [&alpha, &middle, &zulu] {
+        let row_id = table_row_author_id(block_id);
+        assert!(table_ids.contains(&row_id), "missing live row {row_id}");
+        let label = label_for(&table_harness, &row_id).expect("live row label");
+        assert!(label.contains(&unique), "title cell is non-empty: {label}");
+        assert!(label.contains('T'), "updated_at cell is non-empty: {label}");
+    }
+
+    // AC2/PROOF3: drive the real header twice, persist both sorts, and prove backend order each time.
+    click_author_id(&table_harness, &table_sort_author_id(BlockViewField::Title));
+    table_harness.run();
+    let asc = match table_events_ck.lock().unwrap().last().cloned() {
+        Some(BlockViewEvent::Sort { sort }) => sort,
+        other => panic!("live title click must emit Sort, got {other:?}"),
+    };
+    let mut sorted_def = table_record.definition.clone();
+    sorted_def.sort = Some(asc);
+    live_dispatch(
+        &client,
+        &workspace_id,
+        client.update_view_request(&workspace_id, &table_id, &sorted_def),
+        &table_id,
+    );
+    let asc_results = live_query_view(&client, &workspace_id, &table_id);
+    let asc_titles: Vec<&str> = asc_results
+        .blocks
+        .iter()
+        .map(LoomBlockRow::display_title)
+        .collect();
+    assert_eq!(
+        asc_titles,
+        vec![
+            format!("{unique}-Alpha"),
+            format!("{unique}-Middle"),
+            format!("{unique}-Zulu")
+        ]
+    );
+    table_host
+        .lock()
+        .unwrap()
+        .set_loaded(sorted_def.clone(), asc_results);
+    table_harness.run();
+    click_author_id(&table_harness, &table_sort_author_id(BlockViewField::Title));
+    table_harness.run();
+    let desc = match table_events_ck.lock().unwrap().last().cloned() {
+        Some(BlockViewEvent::Sort { sort }) => sort,
+        other => panic!("second live title click must emit Sort, got {other:?}"),
+    };
+    assert_eq!(desc.direction, BlockViewSortDirection::Desc);
+    sorted_def.sort = Some(desc);
+    live_dispatch(
+        &client,
+        &workspace_id,
+        client.update_view_request(&workspace_id, &table_id, &sorted_def),
+        &table_id,
+    );
+    let desc_results = live_query_view(&client, &workspace_id, &table_id);
+    assert_eq!(
+        desc_results.blocks[0].display_title(),
+        format!("{unique}-Zulu")
+    );
+    let fresh_client = BlockViewClient::new(live.base.clone(), rt.handle().clone());
+    assert_eq!(
+        live_fetch_view(&fresh_client, &workspace_id, &table_id)
+            .definition
+            .sort,
+        Some(desc),
+        "fresh product client observes persisted descending sort"
+    );
+
+    // AC3/AC4/PROOF4: mount real lanes, then mutate tag authority and prove the source lane loses the card.
+    let kanban_record = live_fetch_view(&client, &workspace_id, &kanban_id);
+    let kanban_results = live_query_view(&client, &workspace_id, &kanban_id);
+    assert!(lane(&kanban_results, &tag_a)
+        .blocks
+        .iter()
+        .any(|b| b.block_id == alpha));
+    assert!(lane(&kanban_results, &tag_b)
+        .blocks
+        .iter()
+        .any(|b| b.block_id == zulu));
+    assert!(lane(&kanban_results, BLOCK_VIEW_UNTAGGED_LANE)
+        .blocks
+        .iter()
+        .any(|b| b.block_id == middle));
+    let kanban_host = shared(BlockCollectionView::new(
+        workspace_id.clone(),
+        kanban_id.clone(),
+    ));
+    kanban_host
+        .lock()
+        .unwrap()
+        .set_loaded(kanban_record.definition, kanban_results);
+    let mut kanban_harness = harness_for(kanban_host, Arc::new(Mutex::new(Vec::new())));
+    kanban_harness.run();
+    let kanban_ids = author_ids(&kanban_harness);
+    for required in [
+        kanban_lane_author_id(&tag_a),
+        kanban_lane_author_id(&tag_b),
+        kanban_lane_author_id(BLOCK_VIEW_UNTAGGED_LANE),
+        kanban_card_author_id(&alpha),
+    ] {
+        assert!(
+            kanban_ids.contains(&required),
+            "missing live Kanban node {required}"
+        );
+    }
+    live_dispatch(
+        &client,
+        &workspace_id,
+        client.card_move_request(
+            &workspace_id,
+            &alpha,
+            std::slice::from_ref(&tag_b),
+            std::slice::from_ref(&tag_a),
+        ),
+        &kanban_id,
+    );
+    let moved = live_query_view(&fresh_client, &workspace_id, &kanban_id);
+    assert!(
+        moved
+            .groups
+            .iter()
+            .find(|lane| lane.key == tag_a)
+            .map_or(true, |lane| !lane
+                .blocks
+                .iter()
+                .any(|b| b.block_id == alpha)),
+        "backend source lane loses the moved card (and may disappear when empty)"
+    );
+    assert!(
+        lane(&moved, &tag_b)
+            .blocks
+            .iter()
+            .any(|b| b.block_id == alpha),
+        "fresh backend re-query places the moved card in the target lane"
+    );
+
+    // AC5/AC6/PROOF5: real journal rows bucket by journal_date; range PATCH persists and excludes April.
+    let calendar_record = live_fetch_view(&client, &workspace_id, &calendar_id);
+    let calendar_results = live_query_view(&client, &workspace_id, &calendar_id);
+    assert_eq!(calendar_results.total_returned, 3);
+    let calendar_host = shared(BlockCollectionView::new(
+        workspace_id.clone(),
+        calendar_id.clone(),
+    ));
+    calendar_host
+        .lock()
+        .unwrap()
+        .set_loaded(calendar_record.definition.clone(), calendar_results.clone());
+    let mut calendar_harness = harness_for(calendar_host, Arc::new(Mutex::new(Vec::new())));
+    calendar_harness.run();
+    let calendar_ids = author_ids(&calendar_harness);
+    for (date, block_id) in [
+        ("2026-03-01", &march_one),
+        ("2026-03-02", &march_two),
+        ("2026-04-01", &april_one),
+    ] {
+        assert!(calendar_ids.contains(&calendar_day_author_id(date)));
+        assert!(calendar_ids.contains(&calendar_entry_author_id(block_id)));
+    }
+    let mut ranged_def = calendar_record.definition;
+    ranged_def.query.date_from = Some("2026-03-01".to_owned());
+    ranged_def.query.date_to = Some("2026-03-31".to_owned());
+    live_dispatch(
+        &client,
+        &workspace_id,
+        client.update_view_request(&workspace_id, &calendar_id, &ranged_def),
+        &calendar_id,
+    );
+    let ranged = live_query_view(&fresh_client, &workspace_id, &calendar_id);
+    let ranged_ids: HashSet<&str> = ranged.blocks.iter().map(|b| b.block_id.as_str()).collect();
+    assert_eq!(ranged.total_returned, 2);
+    assert!(ranged_ids.contains(march_one.as_str()));
+    assert!(ranged_ids.contains(march_two.as_str()));
+    assert!(!ranged_ids.contains(april_one.as_str()));
+    let persisted_range = live_fetch_view(&fresh_client, &workspace_id, &calendar_id).definition;
+    assert_eq!(
+        persisted_range.query.date_from.as_deref(),
+        Some("2026-03-01")
+    );
+    assert_eq!(persisted_range.query.date_to.as_deref(), Some("2026-03-31"));
+
+    // AC7: kind change is a persisted full-definition update, observable from a fresh client.
+    sorted_def.kind = BlockViewKind::Calendar;
+    sorted_def.calendar_date_field = Some(BlockViewField::Updated);
+    live_dispatch(
+        &client,
+        &workspace_id,
+        client.update_view_request(&workspace_id, &table_id, &sorted_def),
+        &table_id,
+    );
+    let switched = live_fetch_view(&fresh_client, &workspace_id, &table_id);
+    assert_eq!(switched.definition.kind, BlockViewKind::Calendar);
+    assert_eq!(
+        live_query_view(&fresh_client, &workspace_id, &table_id).kind_str,
+        "calendar"
+    );
+
+    // Product-pane closure: mount the real HandshakeApp + BlockCollectionPaneMount, drive its visible
+    // Retry control and host event queue, and let drive_collections_pane own every client dispatch,
+    // generation check, completion pair, and reload below.
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(rt.handle().clone());
+    app.bind_active_project_for_integration_test(workspace_id.clone());
+    app.set_block_collection_backend_base_url_for_test(live.base.clone());
+    mount_collection_pane(&mut app, &workspace_id);
+    let mounted = app.mounted_block_collection_view();
+    let mounted_events = app.mounted_block_collection_events();
+    {
+        let mut view = mounted.lock().unwrap();
+        view.bind_loading_view(workspace_id.clone(), table_id.clone());
+        view.set_error("forced mounted-host recovery proof");
+    }
+    let mut app_harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    app_harness.step();
+    assert!(author_ids(&app_harness).contains(RETRY_AUTHOR_ID));
+    click_author_id(&app_harness, RETRY_AUTHOR_ID);
+    app_harness.step();
+    let mounted_table = await_app_collection(&mut app_harness, &table_id);
+    assert_eq!(mounted_table.kind, BlockViewKind::Calendar);
+    let mounted_ids = author_ids(&app_harness);
+    for required in [
+        KIND_TABLE_AUTHOR_ID,
+        KIND_KANBAN_AUTHOR_ID,
+        NEW_VIEW_AUTHOR_ID,
+        handshake_native::graph::block_collection_view::STATUS_AUTHOR_ID,
+        handshake_native::graph::block_collection_view::CALENDAR_DATE_FROM_AUTHOR_ID,
+        handshake_native::graph::block_collection_view::CALENDAR_DATE_TO_AUTHOR_ID,
+    ] {
+        assert!(
+            mounted_ids.contains(required),
+            "mounted control missing: {required}"
+        );
+    }
+
+    // Actual host kind + sort mutations: the queue is drained by drive_collections_pane and each write
+    // is followed by its generation-stamped authoritative definition/results reload.
+    mounted_events
+        .lock()
+        .unwrap()
+        .push(BlockViewEvent::KindChange {
+            kind: BlockViewKind::Table,
+        });
+    app_harness.step();
+    assert_eq!(
+        await_app_collection(&mut app_harness, &table_id).kind,
+        BlockViewKind::Table
+    );
+    mounted_events.lock().unwrap().push(BlockViewEvent::Sort {
+        sort: BlockViewSort {
+            field: BlockViewField::Title,
+            direction: BlockViewSortDirection::Asc,
+        },
+    });
+    app_harness.step();
+    assert_eq!(
+        await_app_collection(&mut app_harness, &table_id).sort,
+        Some(BlockViewSort {
+            field: BlockViewField::Title,
+            direction: BlockViewSortDirection::Asc,
+        })
+    );
+
+    // Actual host Kanban mutation. Rebind via visible Retry, then enqueue the typed card event the real
+    // drag surface emits; fresh backend state proves the host did not mutate lanes locally.
+    {
+        let mut view = mounted.lock().unwrap();
+        view.bind_loading_view(workspace_id.clone(), kanban_id.clone());
+        view.set_error("force mounted Kanban reload");
+    }
+    app_harness.step();
+    click_author_id(&app_harness, RETRY_AUTHOR_ID);
+    app_harness.step();
+    await_app_collection(&mut app_harness, &kanban_id);
+    let live_kanban_ids = author_ids(&app_harness);
+    assert!(live_kanban_ids.contains(&kanban_card_author_id(&middle)));
+    mounted_events
+        .lock()
+        .unwrap()
+        .push(BlockViewEvent::CardMove {
+            block_id: middle.clone(),
+            add_tags: vec![tag_a.clone()],
+            remove_tags: Vec::new(),
+        });
+    app_harness.step();
+    await_app_collection(&mut app_harness, &kanban_id);
+    assert!(lane(
+        &live_query_view(&fresh_client, &workspace_id, &kanban_id),
+        &tag_a
+    )
+    .blocks
+    .iter()
+    .any(|block| block.block_id == middle));
+
+    // Actual host calendar mutation and complete live AccessKit control surface.
+    {
+        let mut view = mounted.lock().unwrap();
+        view.bind_loading_view(workspace_id.clone(), calendar_id.clone());
+        view.set_error("force mounted Calendar reload");
+    }
+    app_harness.step();
+    click_author_id(&app_harness, RETRY_AUTHOR_ID);
+    app_harness.step();
+    await_app_collection(&mut app_harness, &calendar_id);
+    mounted_events
+        .lock()
+        .unwrap()
+        .push(BlockViewEvent::DateRange {
+            date_from: Some("2026-03-01".to_owned()),
+            date_to: Some("2026-04-30".to_owned()),
+        });
+    app_harness.step();
+    let mounted_calendar = await_app_collection(&mut app_harness, &calendar_id);
+    assert_eq!(
+        mounted_calendar.query.date_to.as_deref(),
+        Some("2026-04-30")
+    );
+    assert_eq!(
+        live_query_view(&fresh_client, &workspace_id, &calendar_id).total_returned,
+        3
+    );
+
+    // Actual host create + unbound-create failure recovery. The failed title/kind intent is retained;
+    // clicking the same visible Retry after restoring the live base replays createBlockView and loads it.
+    let host_create_title = format!("{unique}-host-created");
+    mounted_events
+        .lock()
+        .unwrap()
+        .push(BlockViewEvent::CreateView {
+            title: host_create_title,
+            kind: BlockViewKind::Table,
+        });
+    app_harness.step();
+    let mut host_created_id = None;
+    for _ in 0..200 {
+        app_harness.step();
+        let view = mounted.lock().unwrap();
+        if !view.loading
+            && !view.in_flight
+            && view.error.is_none()
+            && !view.view_block_id.is_empty()
+            && view.view_block_id != calendar_id
+        {
+            host_created_id = Some(view.view_block_id.clone());
+            break;
+        }
+        drop(view);
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    let host_created_id = host_created_id.expect("mounted host create did not resolve within 10s");
+    assert!(
+        mounted.lock().unwrap().create_retry_intent().is_none(),
+        "a successful create clears create-specific retry state so a later load failure reloads its id"
+    );
+    assert_eq!(
+        live_fetch_view(&fresh_client, &workspace_id, &host_created_id)
+            .definition
+            .kind,
+        BlockViewKind::Table
+    );
+
+    app_harness
+        .state()
+        .set_block_collection_backend_base_url_for_test("http://127.0.0.1:9");
+    let retry_create_title = format!("{unique}-retry-created");
+    mounted_events
+        .lock()
+        .unwrap()
+        .push(BlockViewEvent::CreateView {
+            title: retry_create_title.clone(),
+            kind: BlockViewKind::Kanban,
+        });
+    app_harness.step();
+    for _ in 0..200 {
+        app_harness.step();
+        if mounted.lock().unwrap().error.is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    assert!(mounted.lock().unwrap().error.is_some());
+    // The async completion is drained after this frame's pane render. Publish two more frames so the
+    // mounted error state and its stable Retry node are present in the AccessKit tree before interaction.
+    app_harness.run_steps(2);
+    assert!(author_ids(&app_harness).contains(RETRY_AUTHOR_ID));
+    app_harness
+        .state()
+        .set_block_collection_backend_base_url_for_test(live.base.clone());
+    // Queue a second Retry in the same frame as the visible AccessKit activation. The host must dispatch
+    // exactly one create POST; the second event observes in_flight and is rejected.
+    mounted_events.lock().unwrap().push(BlockViewEvent::Retry);
+    click_author_id(&app_harness, RETRY_AUTHOR_ID);
+    app_harness.step();
+    let mut retry_created_id = None;
+    for _ in 0..200 {
+        app_harness.step();
+        let view = mounted.lock().unwrap();
+        if !view.loading
+            && !view.in_flight
+            && view.error.is_none()
+            && !view.view_block_id.is_empty()
+        {
+            retry_created_id = Some(view.view_block_id.clone());
+            break;
+        }
+        drop(view);
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    let retry_created_id =
+        retry_created_id.expect("mounted create Retry did not resolve within 10s");
+    assert_ne!(retry_created_id, host_created_id);
+    assert_eq!(
+        live_fetch_view(&fresh_client, &workspace_id, &retry_created_id)
+            .definition
+            .kind,
+        BlockViewKind::Kanban
+    );
+    let all_after_retry = live.get_json(&format!("/workspaces/{workspace_id}/loom/views/all"));
+    let retry_title_count = all_after_retry
+        .get("blocks")
+        .and_then(serde_json::Value::as_array)
+        .expect("views/all returns blocks")
+        .iter()
+        .filter(|block| {
+            block
+                .get("content_type")
+                .and_then(serde_json::Value::as_str)
+                == Some("view_def")
+                && block.get("title").and_then(serde_json::Value::as_str)
+                    == Some(retry_create_title.as_str())
+        })
+        .count();
+    assert_eq!(
+        retry_title_count, 1,
+        "duplicate queued Retry events must persist exactly one view with the retained title"
+    );
+
+    // Flight Recorder shares the busy managed-PG backend with parallel WP proofs. Use an explicit
+    // bounded read here rather than the fixture helper's general 5s CRUD timeout; the endpoint remains
+    // real and identity-stamped, while transient backend contention cannot erase completed actor proof.
+    let recorder_url = format!("{}/api/flight_recorder?wsid={workspace_id}", live.base);
+    let attributed_events = rt.block_on(async {
+        let response = handshake_native::backend_client::build_backend_client()
+            .get(&recorder_url)
+            .header("x-hsk-actor-id", "mt046-live-pg")
+            .header("x-hsk-kernel-task-run-id", "mt046-live-pg-run")
+            .header("x-hsk-session-run-id", "mt046-live-pg-sess")
+            .header("x-hsk-actor-kind", "operator")
+            .timeout(std::time::Duration::from_secs(30))
+            .send()
+            .await
+            .unwrap_or_else(|error| panic!("GET {recorder_url} failed: {error}"));
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        assert!(
+            status.is_success(),
+            "GET Flight Recorder -> {status}: {text}"
+        );
+        serde_json::from_str::<serde_json::Value>(&text)
+            .unwrap_or_else(|error| panic!("Flight Recorder response not JSON ({error}): {text}"))
+    });
+    let attributed_events = attributed_events
+        .as_array()
+        .expect("Flight Recorder returns an event array");
+    let native_events: Vec<_> = attributed_events
+        .iter()
+        .filter(|event| {
+            event.get("actor_id").and_then(serde_json::Value::as_str) == Some(BLOCK_VIEW_ACTOR_ID)
+        })
+        .collect();
+    assert!(
+        native_events.iter().any(|event| {
+            let payload = &event["payload"];
+            payload.get("type").and_then(serde_json::Value::as_str) == Some("loom_block_created")
+                && payload
+                    .get("content_type")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("view_def")
+        }),
+        "a canonical create event must carry top-level native actor attribution"
+    );
+    assert!(
+        native_events.iter().any(|event| {
+            event["payload"]["fields_changed"]
+                .as_array()
+                .is_some_and(|fields| {
+                    fields
+                        .iter()
+                        .any(|field| field.as_str() == Some("view_definition"))
+                })
+        }),
+        "definition updates must carry top-level native actor attribution"
+    );
+    assert!(native_events.iter().any(|event| {
+        let payload = &event["payload"];
+        payload["fields_changed"]
+            .as_array()
+            .is_some_and(|fields| fields.iter().any(|field| field.as_str() == Some("tags")))
+            && payload["tags_added"].is_array()
+            && payload["tags_removed"].is_array()
+    }), "card moves must retain canonical tag payload arrays and top-level native actor attribution");
+
+    cleanup.assert_cleaned_and_absent();
+
+    // Receipt only after every persistence, retry, mounted AccessKit, cleanup, and fresh-absence check.
+    std::fs::create_dir_all(&receipt_dir).expect("create external MT-027 receipt directory");
+    let receipt = serde_json::json!({
+        "schema_id": "hsk.mt027_managed_pg_proof@1",
+        "workspace_id": workspace_id,
+        "view_ids": { "table": table_id, "kanban": kanban_id, "calendar": calendar_id },
+        "block_ids": {
+            "notes": [alpha, middle, zulu],
+            "tags": [tag_a, tag_b],
+            "journals": [march_one, march_two, april_one]
+        },
+        "proofs": [
+            "product-client-create-fetch-query",
+            "mounted-accesskit-table-kanban-calendar",
+            "visible-retry-recovery",
+            "sort-asc-desc-persistence",
+            "kanban-tag-move-source-loss-target-gain",
+            "calendar-range-persistence",
+            "kind-switch-persistence",
+            "mounted-handshake-app-host-dispatch",
+            "flight-recorder-native-actor-attribution",
+            "workspace-cleanup-fresh-list-absence"
+        ]
+    });
+    std::fs::write(
+        receipt_path,
+        serde_json::to_vec_pretty(&receipt).expect("serialize managed-PG receipt"),
+    )
+    .expect("write external managed-PG receipt");
+    assert_no_local_artifact_dir();
 }

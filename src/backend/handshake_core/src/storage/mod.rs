@@ -10,7 +10,7 @@ use crate::workspace_safety::MergeBackArtifact;
 
 use crate::kernel::{
     crdt::{persistence::CrdtUpdateRecordV1, snapshot::CrdtSnapshotRecordV1},
-    KernelEvent, KernelSessionLease, NewKernelEvent, SessionRun, SessionRunState,
+    KernelEvent, KernelEventType, KernelSessionLease, NewKernelEvent, SessionRun, SessionRunState,
 };
 
 use crate::ai_ready_data::records::{
@@ -2218,7 +2218,9 @@ pub trait Database: Send + Sync {
         _embedding: Option<&[f32]>,
         _embedding_model: Option<&str>,
     ) -> StorageResult<()> {
-        Err(StorageError::NotImplemented("loom search v2 reindex backend"))
+        Err(StorageError::NotImplemented(
+            "loom search v2 reindex backend",
+        ))
     }
 
     /// WP-KERNEL-009 MT-264 LoomSearchV2: hybrid Postgres-native search fusing
@@ -2340,6 +2342,31 @@ pub trait Database: Send + Sync {
         _placement: NewLoomCanvasPlacement,
     ) -> StorageResult<LoomCanvasPlacement> {
         Err(StorageError::NotImplemented("loom canvas board backend"))
+    }
+
+    /// Atomically import the Stage reference as RichDocument/Loom authority and
+    /// place it on a Canvas, serialized by its canonical provenance key.
+    async fn create_stage_canvas_card(
+        &self,
+        _ctx: &WriteContext,
+        _card: NewLoomCanvasStageCard,
+    ) -> StorageResult<LoomCanvasStageCard> {
+        Err(StorageError::NotImplemented(
+            "loom Stage canvas card backend",
+        ))
+    }
+
+    /// Remove only the complete authority tuple created by an exact Stage card
+    /// request. The implementation is atomic, idempotent, and fail-closed on
+    /// any identity/provenance mismatch.
+    async fn compensate_stage_canvas_card(
+        &self,
+        _ctx: &WriteContext,
+        _card: CompensateLoomCanvasStageCard,
+    ) -> StorageResult<LoomCanvasStageCompensation> {
+        Err(StorageError::NotImplemented(
+            "loom Stage canvas card compensation backend",
+        ))
     }
 
     /// Move / resize / (re)group a placement.
@@ -2873,6 +2900,15 @@ pub trait Database: Send + Sync {
     async fn create_canvas(&self, ctx: &WriteContext, canvas: NewCanvas) -> StorageResult<Canvas>;
     async fn list_canvases(&self, workspace_id: &str) -> StorageResult<Vec<Canvas>>;
     async fn get_canvas_with_graph(&self, canvas_id: &str) -> StorageResult<CanvasGraph>;
+    /// Rename a canvas, optionally guarded by the caller's last-seen `updated_at`. A stale timestamp
+    /// returns [`StorageError::Conflict`] instead of overwriting a concurrent edit.
+    async fn rename_canvas(
+        &self,
+        ctx: &WriteContext,
+        canvas_id: &str,
+        title: &str,
+        expected_updated_at: Option<DateTime<Utc>>,
+    ) -> StorageResult<Canvas>;
     async fn update_canvas_graph(
         &self,
         ctx: &WriteContext,
@@ -3024,6 +3060,14 @@ pub trait Database: Send + Sync {
         &self,
         aggregate_type: &str,
         aggregate_id: &str,
+    ) -> StorageResult<Vec<KernelEvent>>;
+    /// Return the bounded durable native-editor mirror backlog in ledger order. A pending row is
+    /// excluded once the same aggregate has a completion receipt, so the periodic reconciler never
+    /// rescans all historical native-editor events after every backend restart.
+    async fn list_pending_native_editor_mirrors(
+        &self,
+        after_event_sequence: i64,
+        limit: i64,
     ) -> StorageResult<Vec<KernelEvent>>;
     async fn append_kernel_crdt_update(
         &self,
@@ -3471,7 +3515,13 @@ pub async fn init_control_plane_storage_with_config(
 ) -> Result<ControlPlaneStorage, StorageError> {
     match config.mode {
         ControlPlaneStorageMode::PostgresPrimary => {
-            let db = postgres::PostgresDatabase::connect(&config.database_url, 5).await?;
+            // Keep the conservative default for ordinary operator traffic, but
+            // let bounded bulk/index routes opt into a larger shared pool via
+            // explicit runtime configuration. Invalid values fail closed to
+            // the default rather than changing safety unexpectedly.
+            let max_connections = configured_postgres_max_connections();
+            let db =
+                postgres::PostgresDatabase::connect(&config.database_url, max_connections).await?;
             db.run_migrations().await?;
             let postgres_pool = db.pool().clone();
             Ok(ControlPlaneStorage {
@@ -3480,6 +3530,22 @@ pub async fn init_control_plane_storage_with_config(
             })
         }
     }
+}
+
+/// Configured PostgreSQL pool size used by bounded bulk routes. One connection
+/// is reserved for control-plane health/finalization work.
+pub fn configured_postgres_max_connections() -> u32 {
+    std::env::var("HANDSHAKE_POSTGRES_MAX_CONNECTIONS")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|value| (1..=64).contains(value))
+        .unwrap_or(5)
+}
+
+pub fn configured_postgres_parallelism() -> usize {
+    configured_postgres_max_connections()
+        .saturating_sub(1)
+        .clamp(1, 32) as usize
 }
 
 pub async fn init_storage_with_config(

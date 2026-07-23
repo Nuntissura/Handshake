@@ -19,7 +19,8 @@
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::code_editor::HighlightScope;
@@ -30,6 +31,7 @@ use handshake_native::settings_editor_section::{
     SYNTAX_PALETTE_MODE_AUTHOR_ID,
 };
 use handshake_native::workspace_settings::{SyntaxPalette, SyntaxPaletteMode};
+use screenshot_harness::ScreenshotHarness as Harness;
 
 /// Serialize the `.wgpu()` screenshot test (the documented Windows-wgpu concurrent-device hazard).
 static WGPU_SERIAL_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -83,14 +85,20 @@ fn open_settings_searched(
     query: &str,
     palette_mode: SyntaxPaletteMode,
 ) -> Harness<'static, HandshakeApp> {
-    let mut app = ok_app();
-    app.set_workspace_syntax_palette_for_test(SyntaxPalette {
-        mode: palette_mode,
-        custom: Default::default(),
-    });
+    let app = ok_app();
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
+    harness.run();
+    // Opening settings performs the normal persisted GET. Seed the requested palette after that
+    // load so this test exercises the live Custom controls instead of having the fixture overwritten
+    // by the default remote settings response.
+    harness
+        .state_mut()
+        .set_workspace_syntax_palette_for_test(SyntaxPalette {
+            mode: palette_mode,
+            custom: Default::default(),
+        });
     harness.run();
     if !query.is_empty() {
         let search = harness.get_by_label("Search settings");

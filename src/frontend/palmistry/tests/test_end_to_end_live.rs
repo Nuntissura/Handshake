@@ -624,15 +624,13 @@ fn live_palmistry_confirms_freeze_of_frozen_handshake_shaped_child() {
     //    (+ the 300ms poll cadence), so allow a generous-but-bounded window.
     let deadline = Instant::now() + Duration::from_secs(30);
     let freeze_record = loop {
-        let found = SurvivorStore::open(&survivor_dir)
-            .ok()
-            .and_then(|store| {
-                store
-                    .records()
-                    .iter()
-                    .find(|stored| stored.record.kind == SurvivorRecordKind::Freeze)
-                    .map(|stored| (stored.record.clone(), stored.path.clone()))
-            });
+        let found = SurvivorStore::open(&survivor_dir).ok().and_then(|store| {
+            store
+                .records()
+                .iter()
+                .find(|stored| stored.record.kind == SurvivorRecordKind::Freeze)
+                .map(|stored| (stored.record.clone(), stored.path.clone()))
+        });
         if let Some(found) = found {
             break found;
         }

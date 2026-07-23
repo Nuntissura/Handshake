@@ -51,8 +51,8 @@ use pg_proof_support::{require_live_backend, LiveBackend};
 
 use handshake_native::rich_editor::document_model::node::TransclusionNode;
 use handshake_native::rich_editor::document_model::{
-    from_json_value, to_content_json_value, BlockNode, Child, DocPosition, HeadingLevel, HsLinkNode,
-    NodeKind, Selection, TextLeaf, UndoManager,
+    from_json_value, to_content_json_value, BlockNode, Child, DocPosition, HeadingLevel,
+    HsLinkNode, NodeKind, Selection, TextLeaf, UndoManager,
 };
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -62,8 +62,10 @@ use handshake_native::rich_editor::document_model::{
 /// The native block document (heading + paragraph + bullet list + code block) every E2-11 proof binds.
 /// Built THROUGH `handshake_native::rich_editor::document_model::node::BlockNode`, not hand-built JSON.
 fn e2_11_doc() -> BlockNode {
-    let list_item =
-        BlockNode::with_children(NodeKind::ListItem, vec![Child::Block(BlockNode::paragraph("li"))]);
+    let list_item = BlockNode::with_children(
+        NodeKind::ListItem,
+        vec![Child::Block(BlockNode::paragraph("li"))],
+    );
     let list = BlockNode::with_children(NodeKind::BulletList, vec![Child::Block(list_item)]);
     let mut code = BlockNode::new(NodeKind::CodeBlock);
     code.children.push(Child::Text(TextLeaf::new("let x = 1;")));
@@ -82,10 +84,22 @@ fn parity_block_document_model_native() {
     // through `document_model::from_json_value` — proving the native model round-trips its own output.
     let doc = e2_11_doc();
     let wire = to_content_json_value(&doc);
-    assert_eq!(wire["type"], "doc", "E2-11: native serialize emits a bare doc node");
-    let back = from_json_value(&wire).expect("E2-11: native model must deserialize its own content_json");
-    assert_eq!(back, doc, "E2-11: the block document survives a native serialize/deserialize round-trip");
-    let kinds: Vec<NodeKind> = back.children.iter().filter_map(Child::as_block).map(|b| b.kind).collect();
+    assert_eq!(
+        wire["type"], "doc",
+        "E2-11: native serialize emits a bare doc node"
+    );
+    let back =
+        from_json_value(&wire).expect("E2-11: native model must deserialize its own content_json");
+    assert_eq!(
+        back, doc,
+        "E2-11: the block document survives a native serialize/deserialize round-trip"
+    );
+    let kinds: Vec<NodeKind> = back
+        .children
+        .iter()
+        .filter_map(Child::as_block)
+        .map(|b| b.kind)
+        .collect();
     assert!(kinds.contains(&NodeKind::Heading(HeadingLevel::new(1))));
     assert!(kinds.contains(&NodeKind::Paragraph));
     assert!(kinds.contains(&NodeKind::BulletList));
@@ -106,11 +120,17 @@ fn parity_block_document_model() {
     );
     let doc_id = created_doc_id(&created);
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-    let reloaded = from_json_value(&doc_root(&loaded))
-        .expect("E2-11: the reloaded content_json must deserialize through the native document_model");
+    let reloaded = from_json_value(&doc_root(&loaded)).expect(
+        "E2-11: the reloaded content_json must deserialize through the native document_model",
+    );
     let node_count = count_native_nodes(&reloaded);
-    assert!(node_count >= 4, "E2-11: the reloaded doc must carry >= 4 native nodes (got {node_count})");
-    println!("E2-11 PASS: block document model round-tripped {node_count} native nodes through real PG");
+    assert!(
+        node_count >= 4,
+        "E2-11: the reloaded doc must carry >= 4 native nodes (got {node_count})"
+    );
+    println!(
+        "E2-11 PASS: block document model round-tripped {node_count} native nodes through real PG"
+    );
     mark_pass("E2-11");
 }
 
@@ -136,9 +156,14 @@ fn parity_wysiwyg_heading_render_native() {
     // The native renderer maps heading level -> distinct egui TextStyle size; distinct native levels are
     // what drive distinct sizes. Serialize then deserialize back through the native model and assert the
     // three distinct heading levels survive as typed `HeadingLevel`s.
-    let back = from_json_value(&wire).expect("E2-12: native model deserializes its heading content_json");
+    let back =
+        from_json_value(&wire).expect("E2-12: native model deserializes its heading content_json");
     let levels = native_heading_levels(&back);
-    assert_eq!(levels, vec![1, 2, 3], "E2-12: native model must carry 3 distinct heading levels (got {levels:?})");
+    assert_eq!(
+        levels,
+        vec![1, 2, 3],
+        "E2-12: native model must carry 3 distinct heading levels (got {levels:?})"
+    );
     // Proving the clamp honesty: a level-6 request is NOT a distinct native variant (it clamps to 3).
     assert_eq!(
         HeadingLevel::new(6).get(),
@@ -159,9 +184,14 @@ fn parity_wysiwyg_heading_render() {
     );
     let doc_id = created_doc_id(&created);
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-    let reloaded = from_json_value(&doc_root(&loaded)).expect("E2-12: reload deserializes through native model");
+    let reloaded = from_json_value(&doc_root(&loaded))
+        .expect("E2-12: reload deserializes through native model");
     let levels = native_heading_levels(&reloaded);
-    assert_eq!(levels, vec![1, 2, 3], "E2-12: H1-H3 (3 distinct native heading levels) must persist (got {levels:?})");
+    assert_eq!(
+        levels,
+        vec![1, 2, 3],
+        "E2-12: H1-H3 (3 distinct native heading levels) must persist (got {levels:?})"
+    );
     println!("E2-12 PASS: 3 distinct native heading levels {levels:?} render at distinct sizes through real PG");
     mark_pass("E2-12");
 }
@@ -174,12 +204,19 @@ fn parity_wysiwyg_heading_render() {
 /// cell (1,1) carrying `marker`.
 fn e2_13_doc(marker: &str) -> BlockNode {
     let cell = |text: &str| {
-        BlockNode::with_children(NodeKind::TableCell, vec![Child::Block(BlockNode::paragraph(text))])
+        BlockNode::with_children(
+            NodeKind::TableCell,
+            vec![Child::Block(BlockNode::paragraph(text))],
+        )
     };
     let row = |a: &str, b: &str, c: &str| {
         BlockNode::with_children(
             NodeKind::TableRow,
-            vec![Child::Block(cell(a)), Child::Block(cell(b)), Child::Block(cell(c))],
+            vec![
+                Child::Block(cell(a)),
+                Child::Block(cell(b)),
+                Child::Block(cell(c)),
+            ],
         )
     };
     let table = BlockNode::with_children(
@@ -198,12 +235,21 @@ fn parity_table_insert_cell_native() {
     let marker = "parity-e2-13-cell-1-1";
     let doc = e2_13_doc(marker);
     let wire = to_content_json_value(&doc);
-    let back = from_json_value(&wire).expect("E2-13: native model deserializes its own table content_json");
-    assert_eq!(back, doc, "E2-13: the 3x3 table survives a native serialize/deserialize round-trip");
+    let back = from_json_value(&wire)
+        .expect("E2-13: native model deserializes its own table content_json");
+    assert_eq!(
+        back, doc,
+        "E2-13: the 3x3 table survives a native serialize/deserialize round-trip"
+    );
     // Read cell (1,1) back through the native tree (table -> row[1] -> cell[1] -> paragraph -> text).
     let text = native_all_text(&back);
-    assert!(text.contains(marker), "E2-13: cell (1,1) text '{marker}' must read back from the native table");
-    println!("E2-13 NATIVE PASS: 3x3 table cell (1,1) round-tripped through the native document_model");
+    assert!(
+        text.contains(marker),
+        "E2-13: cell (1,1) text '{marker}' must read back from the native table"
+    );
+    println!(
+        "E2-13 NATIVE PASS: 3x3 table cell (1,1) round-tripped through the native document_model"
+    );
 }
 
 #[test]
@@ -218,7 +264,8 @@ fn parity_table_insert_cell() {
     );
     let doc_id = created_doc_id(&created);
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-    let reloaded = from_json_value(&doc_root(&loaded)).expect("E2-13: reload deserializes through native model");
+    let reloaded = from_json_value(&doc_root(&loaded))
+        .expect("E2-13: reload deserializes through native model");
     assert!(
         native_all_text(&reloaded).contains(marker),
         "E2-13: cell (1,1) text '{marker}' must read back through the native model from the persisted table"
@@ -250,15 +297,25 @@ fn parity_embed_image_resolve_native() {
     let doc = e2_14_doc(asset_id);
     let wire = to_content_json_value(&doc);
     let link = &wire["content"][0]["content"][1];
-    assert_eq!(link["type"], "hsLink", "E2-14: the embed serializes as a native hsLink atom");
+    assert_eq!(
+        link["type"], "hsLink",
+        "E2-14: the embed serializes as a native hsLink atom"
+    );
     assert_eq!(link["attrs"]["refKind"], "HS_images");
     assert_eq!(link["attrs"]["refValue"], asset_id);
     // Deserialize back through the native model and confirm the embed target survives.
     let back = from_json_value(&wire).expect("E2-14: native model deserializes the hsLink embed");
-    assert_eq!(back, doc, "E2-14: the embed atom survives a native round-trip");
+    assert_eq!(
+        back, doc,
+        "E2-14: the embed atom survives a native round-trip"
+    );
     // The native embed resolves its bytes via `save::export::asset_content_url` (the same URL builder the
     // renderer uses) — assert it targets the verified `/assets/{id}/content` route.
-    let url = handshake_native::rich_editor::save::export::asset_content_url("http://base", "ws-1", asset_id);
+    let url = handshake_native::rich_editor::save::export::asset_content_url(
+        "http://base",
+        "ws-1",
+        asset_id,
+    );
     assert!(
         url.ends_with(&format!("/workspaces/ws-1/assets/{asset_id}/content")),
         "E2-14: the native asset-content URL must target /assets/{{id}}/content (got {url})"
@@ -274,11 +331,21 @@ fn parity_embed_image_resolve() {
         .expect("E2-14 requires_pg: set HSK_TEST_ASSET_ID to a real PG-stored asset id");
     // The native embed (HsLinkNode HS_images) resolves by GETting the asset BYTES through the native
     // `save::export::asset_content_url` builder (base stripped for the shared client path).
-    let full = handshake_native::rich_editor::save::export::asset_content_url(&be.base, &be.workspace_id, &asset_id);
+    let full = handshake_native::rich_editor::save::export::asset_content_url(
+        &be.base,
+        &be.workspace_id,
+        &asset_id,
+    );
     let path = full.strip_prefix(&be.base).unwrap_or(&full);
     let bytes = be.get_bytes(path);
-    assert!(!bytes.is_empty(), "E2-14: the embedded asset must resolve to non-empty bytes");
-    println!("E2-14 PASS: [[HS_images:{asset_id}]] embed resolved {} bytes from real PG", bytes.len());
+    assert!(
+        !bytes.is_empty(),
+        "E2-14: the embedded asset must resolve to non-empty bytes"
+    );
+    println!(
+        "E2-14 PASS: [[HS_images:{asset_id}]] embed resolved {} bytes from real PG",
+        bytes.len()
+    );
     mark_pass("E2-14");
 }
 
@@ -308,12 +375,16 @@ fn parity_wikilink_persisted_native() {
     assert_eq!(link["attrs"]["refKind"], "note");
     assert_eq!(link["attrs"]["refValue"], block_id);
     // Deserialize back to the typed HsLinkNode and confirm the target block id survives.
-    let back = from_json_value(&wire).expect("E2-15: native model deserializes the wikilink hsLink atom");
+    let back =
+        from_json_value(&wire).expect("E2-15: native model deserializes the wikilink hsLink atom");
     let restored = back.children[0]
         .as_block()
         .and_then(|p| p.children.iter().find_map(Child::as_hs_link))
         .expect("E2-15: the reloaded doc carries a typed hsLink node");
-    assert_eq!(restored.ref_value, block_id, "E2-15: the wikilink resolves to the linked block id");
+    assert_eq!(
+        restored.ref_value, block_id,
+        "E2-15: the wikilink resolves to the linked block id"
+    );
     assert_eq!(restored.ref_kind, "note");
     println!("E2-15 NATIVE PASS: wikilink [[note:{block_id}]] typed hsLink node round-trips through document_model");
 }
@@ -329,7 +400,10 @@ fn parity_wikilink_persisted() {
         .as_str()
         .expect("E2-15: native hsLink carries a refValue")
         .to_owned();
-    let block = be.get_json(&format!("/workspaces/{}/loom/blocks/{restored_ref}", be.workspace_id));
+    let block = be.get_json(&format!(
+        "/workspaces/{}/loom/blocks/{restored_ref}",
+        be.workspace_id
+    ));
     assert!(
         block.get("block_id").and_then(|v| v.as_str()) == Some(restored_ref.as_str())
             || block.get("id").and_then(|v| v.as_str()) == Some(restored_ref.as_str()),
@@ -361,16 +435,26 @@ fn parity_transclusion_read_through_native() {
     let doc = e2_16_doc(block_id);
     let wire = to_content_json_value(&doc);
     let node = &wire["content"][0]["content"][1];
-    assert_eq!(node["type"], "loomTransclusion", "E2-16: the transclusion serializes as a native atom");
+    assert_eq!(
+        node["type"], "loomTransclusion",
+        "E2-16: the transclusion serializes as a native atom"
+    );
     assert_eq!(node["attrs"]["refValue"], block_id);
-    assert!(node.get("content").is_none(), "E2-16: a transclusion atom stores ONLY the reference, never the body");
+    assert!(
+        node.get("content").is_none(),
+        "E2-16: a transclusion atom stores ONLY the reference, never the body"
+    );
     // Deserialize back to the typed TransclusionNode and confirm the source reference survives.
-    let back = from_json_value(&wire).expect("E2-16: native model deserializes the loomTransclusion atom");
+    let back =
+        from_json_value(&wire).expect("E2-16: native model deserializes the loomTransclusion atom");
     let restored = back.children[0]
         .as_block()
         .and_then(|p| p.children.iter().find_map(Child::as_transclusion))
         .expect("E2-16: the reloaded doc carries a typed loomTransclusion node");
-    assert_eq!(restored.ref_value, block_id, "E2-16: the transclusion references the source block id");
+    assert_eq!(
+        restored.ref_value, block_id,
+        "E2-16: the transclusion references the source block id"
+    );
     println!("E2-16 NATIVE PASS: transclusion atom (ref_value only, no body) round-trips through document_model");
 }
 
@@ -381,14 +465,23 @@ fn parity_transclusion_read_through() {
     let block_id = be.require_block_id();
     // The native TransclusionNode stores ONLY the ref; the read-through MUST call the REAL /transclusion
     // endpoint. Take the ref from the native atom, then resolve it live.
-    let ref_value = to_content_json_value(&e2_16_doc(&block_id))["content"][0]["content"][1]["attrs"]
-        ["refValue"]
+    let ref_value = to_content_json_value(&e2_16_doc(&block_id))["content"][0]["content"][1]
+        ["attrs"]["refValue"]
         .as_str()
         .expect("E2-16: native transclusion carries a refValue")
         .to_owned();
-    let resolved = be.get_json(&format!("/workspaces/{}/loom/blocks/{ref_value}/transclusion", be.workspace_id));
-    let resolved_flag = resolved.get("resolved").and_then(|v| v.as_bool()).unwrap_or(false);
-    let has_content = resolved.get("content_json").map(|c| !c.is_null()).unwrap_or(false);
+    let resolved = be.get_json(&format!(
+        "/workspaces/{}/loom/blocks/{ref_value}/transclusion",
+        be.workspace_id
+    ));
+    let resolved_flag = resolved
+        .get("resolved")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let has_content = resolved
+        .get("content_json")
+        .map(|c| !c.is_null())
+        .unwrap_or(false);
     assert!(
         resolved_flag && has_content,
         "E2-16: the transclusion read-through must return resolved=true + content_json (got {resolved})"
@@ -401,7 +494,9 @@ fn parity_transclusion_read_through() {
 // E2-17: slash command — '/' menu 'heading' inserts a heading node
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-use handshake_native::rich_editor::slash_commands::executor::{execute_slash_command, SlashExecContext, SlashExecOutcome};
+use handshake_native::rich_editor::slash_commands::executor::{
+    execute_slash_command, SlashExecContext, SlashExecOutcome,
+};
 use handshake_native::rich_editor::slash_commands::registry::SLASH_COMMANDS;
 use handshake_native::rich_editor::slash_commands::SlashMenuState;
 
@@ -442,13 +537,18 @@ fn e2_17_run_slash_heading(marker: &str) -> BlockNode {
 fn parity_slash_command_heading_native() {
     let marker = "E2-17-HEADING";
     let doc = e2_17_run_slash_heading(marker);
-    let block = doc.children[0].as_block().expect("E2-17: doc has a first block");
+    let block = doc.children[0]
+        .as_block()
+        .expect("E2-17: doc has a first block");
     assert_eq!(
         block.kind,
         NodeKind::Heading(HeadingLevel::new(2)),
         "E2-17: the slash command converted the paragraph to a Heading(2)"
     );
-    assert!(native_all_text(&doc).contains(marker), "E2-17: the heading text '{marker}' survives the '/head' trigger removal");
+    assert!(
+        native_all_text(&doc).contains(marker),
+        "E2-17: the heading text '{marker}' survives the '/head' trigger removal"
+    );
     println!("E2-17 NATIVE PASS: slash command 'heading' inserted a native Heading(2) node via slash_commands::executor");
 }
 
@@ -471,9 +571,14 @@ fn parity_slash_command_heading() {
         &serde_json::json!({ "expected_version": version, "content_json": content_json }),
     );
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-    let reloaded = from_json_value(&doc_root(&loaded)).expect("E2-17: reload deserializes through native model");
-    let has_h2 = native_heading_levels(&reloaded).contains(&2) && native_all_text(&reloaded).contains(marker);
-    assert!(has_h2, "E2-17: the native slash-inserted Heading(2) '{marker}' must persist");
+    let reloaded = from_json_value(&doc_root(&loaded))
+        .expect("E2-17: reload deserializes through native model");
+    let has_h2 = native_heading_levels(&reloaded).contains(&2)
+        && native_all_text(&reloaded).contains(marker);
+    assert!(
+        has_h2,
+        "E2-17: the native slash-inserted Heading(2) '{marker}' must persist"
+    );
     println!("E2-17 PASS: native slash command 'heading' inserted + persisted a Heading(2) node");
     mark_pass("E2-17");
 }
@@ -487,7 +592,10 @@ fn parity_slash_command_heading() {
 /// in `document_model`).
 fn e2_18_doc() -> BlockNode {
     let mut doc = BlockNode::doc(vec![BlockNode::paragraph("body")]);
-    doc.attrs.insert("parity_key".to_string(), serde_json::Value::from("parity_value"));
+    doc.attrs.insert(
+        "parity_key".to_string(),
+        serde_json::Value::from("parity_value"),
+    );
     doc
 }
 
@@ -495,7 +603,10 @@ fn e2_18_doc() -> BlockNode {
 fn parity_properties_panel_native() {
     let doc = e2_18_doc();
     let wire = to_content_json_value(&doc);
-    assert_eq!(wire["attrs"]["parity_key"], "parity_value", "E2-18: the doc property serializes into content_json attrs");
+    assert_eq!(
+        wire["attrs"]["parity_key"], "parity_value",
+        "E2-18: the doc property serializes into content_json attrs"
+    );
     // The native model must NOT drop the property on reload (RISK-3 unknown-attr preservation).
     let back = from_json_value(&wire).expect("E2-18: native model deserializes the doc property");
     assert_eq!(
@@ -517,7 +628,8 @@ fn parity_properties_panel() {
     );
     let doc_id = created_doc_id(&created);
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-    let reloaded = from_json_value(&doc_root(&loaded)).expect("E2-18: reload deserializes through native model");
+    let reloaded = from_json_value(&doc_root(&loaded))
+        .expect("E2-18: reload deserializes through native model");
     assert_eq!(
         reloaded.attrs.get("parity_key").and_then(|v| v.as_str()),
         Some("parity_value"),
@@ -541,9 +653,16 @@ fn e2_19_find_replace() -> BlockNode {
     let mut history = UndoManager::new();
     let mut selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
     let matches = scan(&doc, &FindQuery::literal("foo")).matches;
-    assert_eq!(matches.len(), 1, "E2-19: the native scanner must find exactly one 'foo'");
+    assert_eq!(
+        matches.len(),
+        1,
+        "E2-19: the native scanner must find exactly one 'foo'"
+    );
     let replaced = replace_all(&mut doc, &mut history, &mut selection, &matches, "bar");
-    assert_eq!(replaced, 1, "E2-19: replace_all must replace the single match");
+    assert_eq!(
+        replaced, 1,
+        "E2-19: replace_all must replace the single match"
+    );
     doc
 }
 
@@ -551,7 +670,10 @@ fn e2_19_find_replace() -> BlockNode {
 fn parity_rich_find_replace_native() {
     let doc = e2_19_find_replace();
     let text = native_all_text(&doc);
-    assert!(text.contains("bar here") && !text.contains("foo here"), "E2-19: native find/replace rewrote 'foo' -> 'bar' (got '{text}')");
+    assert!(
+        text.contains("bar here") && !text.contains("foo here"),
+        "E2-19: native find/replace rewrote 'foo' -> 'bar' (got '{text}')"
+    );
     println!("E2-19 NATIVE PASS: rich find 'foo' -> replace 'bar' via find_replace::scanner::scan + replace_all");
 }
 
@@ -573,9 +695,13 @@ fn parity_rich_find_replace() {
         &serde_json::json!({ "expected_version": version, "content_json": content_json }),
     );
     let loaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
-    let reloaded = from_json_value(&doc_root(&loaded)).expect("E2-19: reload deserializes through native model");
+    let reloaded = from_json_value(&doc_root(&loaded))
+        .expect("E2-19: reload deserializes through native model");
     let text = native_all_text(&reloaded);
-    assert!(text.contains("bar here") && !text.contains("foo here"), "E2-19: native find/replace must persist");
+    assert!(
+        text.contains("bar here") && !text.contains("foo here"),
+        "E2-19: native find/replace must persist"
+    );
     println!("E2-19 PASS: native rich-doc find 'foo' -> replace 'bar' persisted through real PG");
     mark_pass("E2-19");
 }
@@ -601,7 +727,10 @@ fn parity_daily_note_native() {
         journal_date: Some(date.to_string()),
     };
     let title = block.display_title(date);
-    assert!(title.contains(date), "E2-20: the native daily-note title must carry the date '{date}' (got '{title}')");
+    assert!(
+        title.contains(date),
+        "E2-20: the native daily-note title must carry the date '{date}' (got '{title}')"
+    );
     println!("E2-20 NATIVE PASS: journal_store::JournalBlock::display_title derived '{title}' for {date}");
 }
 
@@ -615,11 +744,18 @@ fn parity_daily_note() {
         &serde_json::json!({}),
     );
     // Parse the created block through the native JournalBlock model and confirm its title carries the date.
-    let block_value = journal.get("block").cloned().unwrap_or_else(|| journal.clone());
-    let block: JournalBlock = serde_json::from_value(block_value)
-        .expect("E2-20: the journal response must deserialize through the native JournalBlock model");
+    let block_value = journal
+        .get("block")
+        .cloned()
+        .unwrap_or_else(|| journal.clone());
+    let block: JournalBlock = serde_json::from_value(block_value).expect(
+        "E2-20: the journal response must deserialize through the native JournalBlock model",
+    );
     let title = block.display_title(date);
-    assert!(title.contains(date), "E2-20: the daily-journal block title must carry the date '{date}' (got '{title}')");
+    assert!(
+        title.contains(date),
+        "E2-20: the daily-journal block title must carry the date '{date}' (got '{title}')"
+    );
     println!("E2-20 PASS: daily note created for {date} with the date in its native title");
     mark_pass("E2-20");
 }
@@ -638,28 +774,53 @@ fn parity_save_to_html_native() {
     ]);
     // The native HTML exporter (`save::export::export_document`) renders the doc to an HTML projection.
     let assets = AssetByteSource::new();
-    let out = export_document(&doc, ExportFormat::HtmlReferenceLinked, "ws-1", "http://base", "parity-e2-21", &assets)
-        .expect("E2-21: the native HTML exporter must succeed");
+    let out = export_document(
+        &doc,
+        ExportFormat::HtmlReferenceLinked,
+        "ws-1",
+        "http://base",
+        "parity-e2-21",
+        &assets,
+    )
+    .expect("E2-21: the native HTML exporter must succeed");
     let html = out.as_str();
-    assert!(!html.is_empty(), "E2-21: the native HTML export must be non-empty");
-    assert!(html.contains("hello html"), "E2-21: the native HTML export must render the paragraph text");
-    println!("E2-21 NATIVE PASS: save::export::export_document rendered {} chars of HTML", html.len());
+    assert!(
+        !html.is_empty(),
+        "E2-21: the native HTML export must be non-empty"
+    );
+    assert!(
+        html.contains("hello html"),
+        "E2-21: the native HTML export must render the paragraph text"
+    );
+    println!(
+        "E2-21 NATIVE PASS: save::export::export_document rendered {} chars of HTML",
+        html.len()
+    );
 }
 
 #[test]
 #[ignore = "requires_pg: live handshake_core + PostgreSQL + HSK_TEST_WORKSPACE_ID (GET /knowledge/documents/{id}/projection)"]
 fn parity_save_to_html() {
     let be = require_live_backend();
-    let content_json = to_content_json_value(&BlockNode::doc(vec![BlockNode::paragraph("hello html")]));
+    let content_json =
+        to_content_json_value(&BlockNode::doc(vec![BlockNode::paragraph("hello html")]));
     let created = be.post_json(
         "/knowledge/documents",
         &serde_json::json!({ "workspace_id": be.workspace_id, "title": "parity-e2-21", "content_json": content_json }),
     );
     let doc_id = created_doc_id(&created);
     // The REAL projection route returns JSON { rich_document_id, projection: "<rendered string>" }.
-    let resp = be.get_json(&format!("/knowledge/documents/{doc_id}/projection?format=html"));
-    let html = resp.get("projection").and_then(|p| p.as_str()).unwrap_or("");
-    assert!(!html.is_empty(), "E2-21: HTML projection must be non-empty (got {resp})");
+    let resp = be.get_json(&format!(
+        "/knowledge/documents/{doc_id}/projection?format=html"
+    ));
+    let html = resp
+        .get("projection")
+        .and_then(|p| p.as_str())
+        .unwrap_or("");
+    assert!(
+        !html.is_empty(),
+        "E2-21: HTML projection must be non-empty (got {resp})"
+    );
     println!("E2-21 PASS: HTML projection returned {} chars", html.len());
     mark_pass("E2-21");
 }
@@ -668,11 +829,11 @@ fn parity_save_to_html() {
 // E2-22: draft recovery — write a draft, drop in-process state, reload, content restored
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-use std::sync::Arc;
-use std::time::Duration;
 use handshake_native::rich_editor::save::draft_manager::{
     DraftManager, ReqwestDraftBackend, RichDocumentDraft, RichDocumentDraftLoad,
 };
+use std::sync::Arc;
+use std::time::Duration;
 
 #[test]
 fn parity_draft_recovery_native() {
@@ -689,10 +850,22 @@ fn parity_draft_recovery_native() {
     let t0 = Instant::now();
     mgr.mark_dirty(t0);
     let dispatched = mgr.maybe_upsert(draft_content.clone(), t0 + Duration::from_secs(3600), false);
-    assert!(dispatched, "E2-22: the native DraftManager must dispatch a debounced draft upsert");
-    let upsert = mgr.last_upsert.as_ref().expect("E2-22: the DraftManager records the upsert it dispatched");
-    assert_eq!(upsert.content_json, draft_content, "E2-22: the draft upsert carries the unsaved content");
-    assert_eq!(upsert.base_doc_version, 1, "E2-22: the draft upsert bases on the loaded server version");
+    assert!(
+        dispatched,
+        "E2-22: the native DraftManager must dispatch a debounced draft upsert"
+    );
+    let upsert = mgr
+        .last_upsert
+        .as_ref()
+        .expect("E2-22: the DraftManager records the upsert it dispatched");
+    assert_eq!(
+        upsert.content_json, draft_content,
+        "E2-22: the draft upsert carries the unsaved content"
+    );
+    assert_eq!(
+        upsert.base_doc_version, 1,
+        "E2-22: the draft upsert bases on the loaded server version"
+    );
 
     // Simulate the crash + reopen: a fresh GET /draft (staged headlessly) restores the draft content.
     mgr.deliver_load_for_test(Ok(RichDocumentDraftLoad {
@@ -704,10 +877,21 @@ fn parity_draft_recovery_native() {
             content_json: Some(draft_content.clone()),
         }),
     }));
-    assert!(mgr.drain_load(), "E2-22: the staged draft must become available after the simulated crash");
-    assert!(mgr.banner_visible(), "E2-22: the recovery banner must be offered");
-    let restored = mgr.restore_draft().expect("E2-22: restore_draft must return the recovered content");
-    assert_eq!(restored, draft_content, "E2-22: the restored draft content must equal the unsaved edit");
+    assert!(
+        mgr.drain_load(),
+        "E2-22: the staged draft must become available after the simulated crash"
+    );
+    assert!(
+        mgr.banner_visible(),
+        "E2-22: the recovery banner must be offered"
+    );
+    let restored = mgr
+        .restore_draft()
+        .expect("E2-22: restore_draft must return the recovered content");
+    assert_eq!(
+        restored, draft_content,
+        "E2-22: the restored draft content must equal the unsaved edit"
+    );
     println!("E2-22 NATIVE PASS: DraftManager wrote a draft + restored it after a simulated crash (in-process)");
 }
 
@@ -724,19 +908,30 @@ fn parity_draft_recovery() {
     let doc_id = created_doc_id(&created);
     let base_version = created_doc_version(&created);
     let base_sha = created_content_sha256(&created);
-    let draft_content = to_content_json_value(&BlockNode::doc(vec![BlockNode::paragraph("parity-e2-22-draft-content")]));
+    let draft_content = to_content_json_value(&BlockNode::doc(vec![BlockNode::paragraph(
+        "parity-e2-22-draft-content",
+    )]));
     be.put_json(
         &format!("/knowledge/documents/{doc_id}/draft"),
         &serde_json::json!({ "base_doc_version": base_version, "base_content_sha256": base_sha, "content_json": draft_content }),
     );
     // Simulate the crash: a fresh GET must restore the draft from PG, and it must deserialize through the
     // native RichDocumentDraftLoad model.
-    let restored: RichDocumentDraftLoad = serde_json::from_value(be.get_json(&format!("/knowledge/documents/{doc_id}/draft")))
-        .expect("E2-22: the draft GET must deserialize through the native RichDocumentDraftLoad model");
-    let draft = restored.draft.expect("E2-22: a draft must be restored after the simulated crash");
-    let body = draft.content_json.expect("E2-22: the restored draft must carry content_json");
+    let restored: RichDocumentDraftLoad =
+        serde_json::from_value(be.get_json(&format!("/knowledge/documents/{doc_id}/draft")))
+            .expect(
+            "E2-22: the draft GET must deserialize through the native RichDocumentDraftLoad model",
+        );
+    let draft = restored
+        .draft
+        .expect("E2-22: a draft must be restored after the simulated crash");
+    let body = draft
+        .content_json
+        .expect("E2-22: the restored draft must carry content_json");
     assert!(
-        serde_json::to_string(&body).unwrap().contains("parity-e2-22-draft-content"),
+        serde_json::to_string(&body)
+            .unwrap()
+            .contains("parity-e2-22-draft-content"),
         "E2-22: the draft content must be restored after a simulated crash (got {body})"
     );
     println!("E2-22 PASS: draft recovered after a simulated crash (PG-backed draft store + native model)");

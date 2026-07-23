@@ -14,15 +14,14 @@
 //!   chip emits [`DailyJournalEvent::OpenDocument`] navigation ONLY — the panel never writes ActivitySpan
 //!   data).
 //!
-//! ## Typed-blocker empty-states (the designed primary path in this build)
+//! ## Typed-blocker empty-states
 //!
-//! Because handshake_core has NO `/calendar/` routes (VERIFIED — Calendar = Pillar 2), the
-//! [`crate::interop::CalendarInteropService`] event + activity reads return
-//! [`crate::interop::InteropError::EndpointUnavailable`]. This panel renders the typed empty-states for
+//! The live Calendar routes normally populate the event chip and activity strip. If either route is
+//! unavailable, [`crate::interop::CalendarInteropService`] returns
+//! [`crate::interop::InteropError::EndpointUnavailable`], and this panel renders typed empty-states for
 //! both the CalendarEvent chip ([`crate::interop::InteropError::EVENT_UNAVAILABLE_MSG`]) and the activity
-//! strip ([`crate::interop::InteropError::ACTIVITY_UNAVAILABLE_MSG`]) WHILE the daily-note header + nav stay
-//! fully functional — the panel never dies on the absent calendar routes (AC-4). It never fabricates an
-//! event or a span.
+//! strip ([`crate::interop::InteropError::ACTIVITY_UNAVAILABLE_MSG`]) while the daily-note header + nav stay
+//! functional (AC-4). It never fabricates an event or a span.
 //!
 //! ## AccessKit (HBR-SWARM) — the contract-named author_ids
 //!
@@ -45,7 +44,9 @@ use egui::accesskit;
 
 use crate::accessibility;
 use crate::interop::{ActivitySpan, CalendarEvent, DocId, InteropError};
-use crate::rich_editor::daily_notes::date_nav::{DateNav, DateNavOutcome, DateNavWidget};
+use crate::rich_editor::daily_notes::date_nav::{
+    DateNav, DateNavOutcome, DateNavWidget, DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS,
+};
 use crate::theme::HsPalette;
 
 /// The outer panel container author_id (`Role::GenericContainer`).
@@ -54,10 +55,50 @@ pub const DAILY_JOURNAL_PANEL_AUTHOR_ID: &str = "daily-journal-panel";
 pub const DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID: &str = "daily-journal-date-header";
 /// The linked-CalendarEvent chip author_id (`Role::Button`; present only when an event resolves).
 pub const DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID: &str = "daily-journal-calendar-event-chip";
+pub const DAILY_JOURNAL_NORMALIZATION_BADGE_AUTHOR_ID: &str =
+    "daily-journal-calendar-normalization-badge";
+pub const DAILY_JOURNAL_LEGACY_BADGE_AUTHOR_ID: &str = "daily-journal-calendar-legacy-badge";
 /// The read-only activity correlation strip author_id (`Role::List`).
 pub const DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID: &str = "daily-journal-activity-strip";
 /// The per-item read-only document chip author_id PREFIX (`daily-journal-activity-item-{doc_id}`).
 pub const DAILY_JOURNAL_ACTIVITY_ITEM_AUTHOR_ID_PREFIX: &str = "daily-journal-activity-item-";
+pub const CALENDAR_EVENT_PANE_AUTHOR_ID: &str = "calendar-event-pane";
+pub const CALENDAR_EVENT_DETAILS_TAB_AUTHOR_ID: &str = "calendar-event-tab-details";
+pub const CALENDAR_EVENT_NOTES_TAB_AUTHOR_ID: &str = "calendar-event-tab-notes";
+pub const CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID: &str = "calendar-event-tab-activity";
+pub const CALENDAR_EVENT_DETAILS_AUTHOR_ID: &str = "calendar-event-details";
+pub const CALENDAR_EVENT_NOTES_AUTHOR_ID: &str = "calendar-event-notes";
+pub const CALENDAR_EVENT_ACTIVITY_AUTHOR_ID: &str = "calendar-event-activity";
+pub const CALENDAR_EVENT_NORMALIZATION_BADGE_AUTHOR_ID: &str = "calendar-event-normalization-badge";
+pub const CALENDAR_EVENT_LEGACY_BADGE_AUTHOR_ID: &str = "calendar-event-legacy-badge";
+
+fn emit_status_badge(ui: &mut egui::Ui, text: &str, author_id: &'static str, palette: &HsPalette) {
+    let response = ui.label(
+        egui::RichText::new(text)
+            .small()
+            .strong()
+            .color(palette.accent),
+    );
+    ui.ctx().accesskit_node_builder(response.id, move |node| {
+        node.set_role(accesskit::Role::Label);
+        node.set_author_id(author_id.to_owned());
+        node.set_label(text.to_owned());
+    });
+}
+
+pub fn calendar_event_span_author_id(span_id: &str) -> String {
+    format!(
+        "calendar-event-span-{}",
+        crate::project_tree::stable_part(span_id)
+    )
+}
+
+pub fn calendar_event_primary_doc_author_id(doc_id: &DocId) -> String {
+    format!(
+        "calendar-event-primary-doc-{}",
+        crate::project_tree::stable_part(doc_id.as_str())
+    )
+}
 
 /// The stable AccessKit author_id for one read-only activity document chip
 /// (`daily-journal-activity-item-{doc_id}`). The `doc_id` is sanitized to `[a-z0-9-]` (the same
@@ -79,8 +120,48 @@ pub enum ActivityCorrelation {
     NoEvent,
     /// The spans were read (read-only). May be empty (an event with no edits).
     Spans(Vec<ActivitySpan>),
-    /// The typed blocker: the `/calendar/activity-spans` route is absent — show the empty-state.
-    Unavailable,
+    /// The typed failure: the `/calendar/activity-spans` read failed — show the exact activity-only
+    /// recovery state without changing the already-resolved calendar event.
+    Failed(CalendarReadFailure),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CalendarProjectionState {
+    Idle,
+    WaitingForDailyNote,
+    DailyNoteError,
+    Loading,
+    NoEvent,
+    Event,
+    Failed(CalendarReadFailure),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CalendarReadFailure {
+    EndpointUnavailable,
+    RetryExhausted,
+    InvalidResponse,
+    RequestFailed,
+}
+
+impl CalendarReadFailure {
+    pub fn event_message(&self) -> &'static str {
+        match self {
+            Self::EndpointUnavailable => InteropError::EVENT_UNAVAILABLE_MSG,
+            Self::RetryExhausted => "Calendar event request failed after bounded retries",
+            Self::InvalidResponse => "Calendar event response was invalid",
+            Self::RequestFailed => "Calendar event request failed",
+        }
+    }
+
+    pub fn activity_message(&self) -> &'static str {
+        match self {
+            Self::EndpointUnavailable => InteropError::ACTIVITY_UNAVAILABLE_MSG,
+            Self::RetryExhausted => "Activity correlation request failed after bounded retries",
+            Self::InvalidResponse => "Activity correlation response was invalid",
+            Self::RequestFailed => "Activity correlation request failed",
+        }
+    }
 }
 
 /// The state the daily journal panel renders (set by the host from the [`crate::interop::CalendarInteropService`]
@@ -89,12 +170,12 @@ pub enum ActivityCorrelation {
 pub struct DailyJournalState {
     /// The date navigation (REUSED MT-019 [`DateNav`] — prev/next/today + calendar popup).
     pub nav: DateNav,
-    /// The resolved CalendarEvent for the date, when one resolves. `None` => render the unavailable chip
-    /// empty-state (the typed-blocker reality in this build).
+    /// The resolved CalendarEvent for the date, when one resolves. `None` means either no event exists
+    /// for the selected day or the typed unavailable state is active (distinguished below).
     pub event: Option<CalendarEvent>,
-    /// Whether the CalendarEvent read hit the typed blocker (so the chip shows the unavailable empty-state
-    /// rather than a blank). Distinct from `event: None` with no blocker (an event simply not found).
-    pub event_unavailable: bool,
+    /// One closed projection state. Contradictory combinations such as loading + failed or no-event +
+    /// unavailable cannot be represented.
+    pub projection: CalendarProjectionState,
     /// The read-only activity correlation for the resolved event.
     pub activity: ActivityCorrelation,
 }
@@ -105,24 +186,71 @@ impl DailyJournalState {
         Self {
             nav,
             event: None,
-            event_unavailable: false,
+            projection: CalendarProjectionState::Idle,
             activity: ActivityCorrelation::NoEvent,
         }
     }
 
-    /// Apply the typed-blocker outcome for both calendar reads (the designed primary path in this build):
-    /// the CalendarEvent chip + the activity strip both show their unavailable empty-states, while the
-    /// daily-note header + nav stay functional.
-    pub fn set_calendar_unavailable(&mut self) {
+    /// Select `date` and clear Calendar-derived rows from the previously selected day. The host calls
+    /// this before issuing the new `(workspace, date)` request, so rapid navigation never displays a
+    /// previous day's event or ActivitySpans while the current request is in flight.
+    pub fn prepare_date(&mut self, date: chrono::NaiveDate) {
+        self.nav.navigate_to(date);
         self.event = None;
-        self.event_unavailable = true;
-        self.activity = ActivityCorrelation::Unavailable;
+        self.projection = CalendarProjectionState::WaitingForDailyNote;
+        self.activity = ActivityCorrelation::NoEvent;
     }
 
-    /// Apply a resolved event + its read-only spans (the live path once the `/calendar/` routes land).
+    pub fn begin_calendar_load(&mut self, date: chrono::NaiveDate) {
+        self.nav.navigate_to(date);
+        self.event = None;
+        self.projection = CalendarProjectionState::Loading;
+        self.activity = ActivityCorrelation::NoEvent;
+    }
+
+    pub fn set_daily_note_error(&mut self) {
+        self.event = None;
+        self.projection = CalendarProjectionState::DailyNoteError;
+        self.activity = ActivityCorrelation::NoEvent;
+    }
+
+    /// Apply a successful empty event list for the selected day. This is terminal success, not a
+    /// failure and not an in-flight state.
+    pub fn set_no_event(&mut self) {
+        self.event = None;
+        self.projection = CalendarProjectionState::NoEvent;
+        self.activity = ActivityCorrelation::NoEvent;
+    }
+
+    /// Apply the typed-blocker outcome for the CalendarEvent read: the event chip + activity strip both
+    /// show unavailable empty-states, while the daily-note header + nav stay functional.
+    pub fn set_calendar_unavailable(&mut self) {
+        self.set_calendar_failure(CalendarReadFailure::EndpointUnavailable);
+    }
+
+    pub fn set_calendar_failure(&mut self, failure: CalendarReadFailure) {
+        self.event = None;
+        self.projection = CalendarProjectionState::Failed(failure.clone());
+        self.activity = ActivityCorrelation::Failed(failure);
+    }
+
+    /// Apply an ActivitySpan-only typed blocker without discarding the already resolved CalendarEvent.
+    /// The event-to-daily-note binding and its navigation chip remain usable while only the correlation
+    /// strip reports that activity data is unavailable.
+    pub fn set_activity_unavailable(&mut self, event: CalendarEvent) {
+        self.set_activity_failure(event, CalendarReadFailure::EndpointUnavailable);
+    }
+
+    pub fn set_activity_failure(&mut self, event: CalendarEvent, failure: CalendarReadFailure) {
+        self.event = Some(event);
+        self.projection = CalendarProjectionState::Event;
+        self.activity = ActivityCorrelation::Failed(failure);
+    }
+
+    /// Apply a resolved event + its read-only spans from the live `/calendar/` routes.
     pub fn set_event_with_spans(&mut self, event: CalendarEvent, spans: Vec<ActivitySpan>) {
         self.event = Some(event);
-        self.event_unavailable = false;
+        self.projection = CalendarProjectionState::Event;
         self.activity = ActivityCorrelation::Spans(spans);
     }
 }
@@ -153,6 +281,251 @@ pub enum DailyJournalEvent {
 /// read-only activity strip, and returns the [`DailyJournalEvent`] the host drains to the command bus. It
 /// holds NO IO and NO mutation path on calendar/activity data.
 pub struct DailyJournalPanel;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CalendarEventDetailTab {
+    #[default]
+    Details,
+    Notes,
+    Activity,
+}
+
+/// Content-addressed CalendarEvent destination. It renders the exact event already resolved by the
+/// journal loader and never substitutes a different event when the requested id is unavailable.
+pub struct CalendarEventDetailPanel;
+
+impl CalendarEventDetailPanel {
+    pub fn show(
+        ui: &mut egui::Ui,
+        event_id: &str,
+        state: &DailyJournalState,
+        active_tab: &mut CalendarEventDetailTab,
+        palette: &HsPalette,
+    ) -> DailyJournalEvent {
+        let mut outcome = DailyJournalEvent::None;
+        let response = ui
+            .scope_builder(
+                egui::UiBuilder::new().id_salt(egui::Id::new(CALENDAR_EVENT_PANE_AUTHOR_ID)),
+                |ui| {
+                    ui.label(
+                        egui::RichText::new("Calendar Event")
+                            .heading()
+                            .strong()
+                            .color(palette.text),
+                    );
+                    ui.horizontal(|ui| {
+                        for (tab, label, author_id) in [
+                            (
+                                CalendarEventDetailTab::Details,
+                                "Details",
+                                CALENDAR_EVENT_DETAILS_TAB_AUTHOR_ID,
+                            ),
+                            (
+                                CalendarEventDetailTab::Notes,
+                                "Notes",
+                                CALENDAR_EVENT_NOTES_TAB_AUTHOR_ID,
+                            ),
+                            (
+                                CalendarEventDetailTab::Activity,
+                                "Activity",
+                                CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+                            ),
+                        ] {
+                            let button = ui.selectable_label(*active_tab == tab, label);
+                            accessibility::emit_interactive_node(ui.ctx(), button.id, author_id);
+                            if button.clicked() {
+                                *active_tab = tab;
+                            }
+                        }
+                    });
+                    ui.separator();
+
+                    let Some(event) = state.event.as_ref().filter(|event| event.id == event_id)
+                    else {
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "Calendar event details unavailable for {event_id}"
+                            ))
+                            .color(palette.text_subtle)
+                            .italics(),
+                        );
+                        return;
+                    };
+
+                    match *active_tab {
+                        CalendarEventDetailTab::Details => {
+                            if event.is_legacy_incomplete() {
+                                emit_status_badge(
+                                    ui,
+                                    "Legacy temporal data — reimport required",
+                                    CALENDAR_EVENT_LEGACY_BADGE_AUTHOR_ID,
+                                    palette,
+                                );
+                            } else if event.has_dst_normalization() {
+                                emit_status_badge(
+                                    ui,
+                                    "DST overlap normalized",
+                                    CALENDAR_EVENT_NORMALIZATION_BADGE_AUTHOR_ID,
+                                    palette,
+                                );
+                            }
+                            let body = format!(
+                                "{}\nEvent ID: {}\n{}",
+                                event.title,
+                                event.id,
+                                event.temporal_summary()
+                            );
+                            let details = ui.label(egui::RichText::new(&body).color(palette.text));
+                            let value = body.clone();
+                            ui.ctx().accesskit_node_builder(details.id, move |node| {
+                                node.set_role(accesskit::Role::GenericContainer);
+                                node.set_author_id(CALENDAR_EVENT_DETAILS_AUTHOR_ID.to_owned());
+                                node.set_label("Calendar event details".to_owned());
+                                node.set_value(value.clone());
+                            });
+                        }
+                        CalendarEventDetailTab::Notes => {
+                            let notes = ui
+                                .scope_builder(
+                                    egui::UiBuilder::new()
+                                        .id_salt(egui::Id::new(CALENDAR_EVENT_NOTES_AUTHOR_ID)),
+                                    |ui| match &event.daily_note_doc_id {
+                                        Some(doc_id) => {
+                                            ui.label(
+                                                egui::RichText::new("Primary document")
+                                                    .color(palette.text_subtle),
+                                            );
+                                            let button = ui.button(doc_id.as_str());
+                                            accessibility::emit_interactive_node(
+                                                ui.ctx(),
+                                                button.id,
+                                                &calendar_event_primary_doc_author_id(doc_id),
+                                            );
+                                            if button.clicked() {
+                                                outcome =
+                                                    DailyJournalEvent::OpenDocument(doc_id.clone());
+                                            }
+                                        }
+                                        None => {
+                                            ui.label(
+                                                egui::RichText::new("No primary document linked")
+                                                    .color(palette.text_subtle)
+                                                    .italics(),
+                                            );
+                                        }
+                                    },
+                                )
+                                .response;
+                            let doc_value = event
+                                .daily_note_doc_id
+                                .as_ref()
+                                .map(|id| id.as_str().to_owned())
+                                .unwrap_or_default();
+                            ui.ctx().accesskit_node_builder(notes.id, move |node| {
+                                node.set_role(accesskit::Role::GenericContainer);
+                                node.set_author_id(CALENDAR_EVENT_NOTES_AUTHOR_ID.to_owned());
+                                node.set_label("Calendar event notes".to_owned());
+                                node.set_value(doc_value.clone());
+                            });
+                        }
+                        CalendarEventDetailTab::Activity => {
+                            let activity = ui
+                                .scope_builder(
+                                    egui::UiBuilder::new()
+                                        .id_salt(egui::Id::new(CALENDAR_EVENT_ACTIVITY_AUTHOR_ID)),
+                                    |ui| match &state.activity {
+                                        ActivityCorrelation::Spans(spans) if spans.is_empty() => {
+                                            ui.label(
+                                                egui::RichText::new("No activity correlated")
+                                                    .color(palette.text_subtle)
+                                                    .italics(),
+                                            );
+                                        }
+                                        ActivityCorrelation::Spans(spans) => {
+                                            for span in spans.iter().filter(|span| {
+                                                span.calendar_event_id.as_deref() == Some(event_id)
+                                            }) {
+                                                let span_value = format!(
+                                                    "{} — {}",
+                                                    span.started_utc.to_rfc3339(),
+                                                    span.ended_utc
+                                                        .map(|ended| ended.to_rfc3339())
+                                                        .unwrap_or_else(|| "In progress".to_owned())
+                                                );
+                                                let span_row = ui.label(
+                                                    egui::RichText::new(format!(
+                                                        "{}  {}",
+                                                        span.span_id, span_value
+                                                    ))
+                                                    .color(palette.text),
+                                                );
+                                                let span_author =
+                                                    calendar_event_span_author_id(&span.span_id);
+                                                let span_label = span.span_id.clone();
+                                                ui.ctx().accesskit_node_builder(
+                                                    span_row.id,
+                                                    move |node| {
+                                                        node.set_role(accesskit::Role::ListItem);
+                                                        node.set_author_id(span_author.clone());
+                                                        node.set_label(span_label.clone());
+                                                        node.set_value(span_value.clone());
+                                                    },
+                                                );
+                                                ui.indent(&span.span_id, |ui| {
+                                                    for doc_id in &span.edited_doc_ids {
+                                                        let button = ui.button(doc_id.as_str());
+                                                        accessibility::emit_interactive_node(
+                                                            ui.ctx(),
+                                                            button.id,
+                                                            &activity_item_author_id(doc_id),
+                                                        );
+                                                        if button.clicked() {
+                                                            outcome =
+                                                                DailyJournalEvent::OpenDocument(
+                                                                    doc_id.clone(),
+                                                                );
+                                                        }
+                                                    }
+                                                });
+                                            }
+                                        }
+                                        ActivityCorrelation::Failed(failure) => {
+                                            ui.label(
+                                                egui::RichText::new(failure.activity_message())
+                                                    .color(palette.text_subtle)
+                                                    .italics(),
+                                            );
+                                        }
+                                        ActivityCorrelation::NoEvent => {
+                                            ui.label(
+                                                egui::RichText::new("No activity correlated")
+                                                    .color(palette.text_subtle)
+                                                    .italics(),
+                                            );
+                                        }
+                                    },
+                                )
+                                .response;
+                            ui.ctx().accesskit_node_builder(activity.id, move |node| {
+                                node.set_role(accesskit::Role::List);
+                                node.set_author_id(CALENDAR_EVENT_ACTIVITY_AUTHOR_ID.to_owned());
+                                node.set_label("Calendar event activity".to_owned());
+                            });
+                        }
+                    }
+                },
+            )
+            .response;
+        let value = event_id.to_owned();
+        ui.ctx().accesskit_node_builder(response.id, move |node| {
+            node.set_role(accesskit::Role::GenericContainer);
+            node.set_author_id(CALENDAR_EVENT_PANE_AUTHOR_ID.to_owned());
+            node.set_label("Calendar event".to_owned());
+            node.set_value(value.clone());
+        });
+        outcome
+    }
+}
 
 impl DailyJournalPanel {
     /// Render the daily journal panel into `ui`, returning the action the host should route to the command
@@ -187,7 +560,9 @@ impl DailyJournalPanel {
                     });
 
                 // The MT-019 date nav (prev/next/today + calendar popup) — NOT a second date-picker.
-                let nav_outcome = DateNavWidget::new(&mut state.nav, palette).show(ui);
+                let nav_outcome = DateNavWidget::new(&mut state.nav, palette)
+                    .with_author_ids(DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS)
+                    .show(ui);
                 if let DateNavOutcome::Navigated(date) = nav_outcome {
                     event = DailyJournalEvent::DateNavigated(date);
                 }
@@ -195,7 +570,27 @@ impl DailyJournalPanel {
                 ui.separator();
 
                 // ── Linked CalendarEvent chip (Role::Button) — present only when an event resolves ───────
-                if let Some(ev) = &state.event {
+                if state.projection == CalendarProjectionState::WaitingForDailyNote {
+                    ui.label(
+                        egui::RichText::new("Waiting for daily note…")
+                            .color(palette.text_subtle)
+                            .italics(),
+                    );
+                } else if state.projection == CalendarProjectionState::DailyNoteError {
+                    ui.label(
+                        egui::RichText::new(
+                            "Calendar binding paused; see the daily-note error below",
+                        )
+                        .color(palette.text_subtle)
+                        .italics(),
+                    );
+                } else if state.projection == CalendarProjectionState::Loading {
+                    ui.label(
+                        egui::RichText::new("Loading calendar event and activity…")
+                            .color(palette.text_subtle)
+                            .italics(),
+                    );
+                } else if let Some(ev) = &state.event {
                     let chip_label = if ev.title.trim().is_empty() {
                         format!("Calendar event {}", ev.id)
                     } else {
@@ -213,11 +608,26 @@ impl DailyJournalPanel {
                     if chip_resp.clicked() {
                         event = DailyJournalEvent::FocusCalendarEvent(ev.id.clone());
                     }
-                } else if state.event_unavailable {
-                    // The typed-blocker empty-state for the absent /calendar/events route (AC-4). The
-                    // daily-note header + nav above stay functional — the panel does not die here.
+                    if ev.is_legacy_incomplete() {
+                        emit_status_badge(
+                            ui,
+                            "Legacy temporal data — reimport required",
+                            DAILY_JOURNAL_LEGACY_BADGE_AUTHOR_ID,
+                            palette,
+                        );
+                    } else if ev.has_dst_normalization() {
+                        emit_status_badge(
+                            ui,
+                            "DST overlap normalized",
+                            DAILY_JOURNAL_NORMALIZATION_BADGE_AUTHOR_ID,
+                            palette,
+                        );
+                    }
+                } else if let CalendarProjectionState::Failed(failure) = &state.projection {
+                    // The typed-blocker empty-state for an unavailable /calendar/events read (AC-4).
+                    // The daily-note header + nav above stay functional — the panel does not die here.
                     ui.label(
-                        egui::RichText::new(InteropError::EVENT_UNAVAILABLE_MSG)
+                        egui::RichText::new(failure.event_message())
                             .color(palette.text_subtle)
                             .italics(),
                     );
@@ -236,6 +646,32 @@ impl DailyJournalPanel {
                                     .color(palette.text_subtle)
                                     .small(),
                             );
+                            if state.projection == CalendarProjectionState::WaitingForDailyNote {
+                                ui.label(
+                                    egui::RichText::new("Waiting for daily note…")
+                                        .color(palette.text_subtle)
+                                        .italics(),
+                                );
+                                return;
+                            }
+                            if state.projection == CalendarProjectionState::DailyNoteError {
+                                ui.label(
+                                    egui::RichText::new(
+                                        "Activity correlation paused until the daily note opens",
+                                    )
+                                    .color(palette.text_subtle)
+                                    .italics(),
+                                );
+                                return;
+                            }
+                            if state.projection == CalendarProjectionState::Loading {
+                                ui.label(
+                                    egui::RichText::new("Loading activity correlation…")
+                                        .color(palette.text_subtle)
+                                        .italics(),
+                                );
+                                return;
+                            }
                             match &state.activity {
                                 ActivityCorrelation::Spans(spans) => {
                                     let doc_ids: Vec<DocId> = collect_edited_doc_ids(spans);
@@ -271,11 +707,11 @@ impl DailyJournalPanel {
                                         });
                                     }
                                 }
-                                ActivityCorrelation::Unavailable => {
-                                    // The typed-blocker empty-state for the absent /calendar/activity-spans
-                                    // route (AC-3 / AC-4). Never fabricates a span.
+                                ActivityCorrelation::Failed(failure) => {
+                                    // Typed empty-state for an unavailable /calendar/activity-spans read
+                                    // (AC-3 / AC-4). Never fabricates a span.
                                     ui.label(
-                                        egui::RichText::new(InteropError::ACTIVITY_UNAVAILABLE_MSG)
+                                        egui::RichText::new(failure.activity_message())
                                             .color(palette.text_subtle)
                                             .italics(),
                                     );
@@ -334,6 +770,7 @@ pub fn collect_edited_doc_ids(spans: &[ActivitySpan]) -> Vec<DocId> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::interop::calendar_interop::CalendarEventTemporal;
     use chrono::{NaiveDate, Utc};
 
     fn d(y: i32, m: u32, day: u32) -> NaiveDate {
@@ -349,8 +786,27 @@ mod tests {
             span_id: id.to_owned(),
             calendar_event_id: Some("E-1".to_owned()),
             started_utc: Utc::now(),
-            ended_utc: Utc::now(),
+            ended_utc: Some(Utc::now()),
             edited_doc_ids: docs.iter().map(|s| DocId((*s).to_owned())).collect(),
+        }
+    }
+
+    fn timed_event(daily_note_doc_id: Option<DocId>) -> CalendarEvent {
+        let now = Utc::now();
+        CalendarEvent {
+            id: "E-1".into(),
+            title: "Block".into(),
+            temporal: CalendarEventTemporal::Timed {
+                start_utc: now,
+                end_utc: now + chrono::Duration::hours(1),
+                start_local: now.naive_utc().to_string(),
+                end_local: (now + chrono::Duration::hours(1)).naive_utc().to_string(),
+                tzid: "UTC".into(),
+                was_floating: false,
+                normalization_note: None,
+            },
+            daily_note_doc_id,
+            view_tzid: "UTC".into(),
         }
     }
 
@@ -378,30 +834,55 @@ mod tests {
         let mut state = DailyJournalState::new(nav(d(2026, 6, 21)));
         state.set_calendar_unavailable();
         assert!(state.event.is_none());
-        assert!(
-            state.event_unavailable,
-            "the chip shows the unavailable empty-state"
+        assert_eq!(
+            state.projection,
+            CalendarProjectionState::Failed(CalendarReadFailure::EndpointUnavailable)
         );
-        assert_eq!(state.activity, ActivityCorrelation::Unavailable);
+        assert_eq!(
+            state.activity,
+            ActivityCorrelation::Failed(CalendarReadFailure::EndpointUnavailable)
+        );
+    }
+
+    #[test]
+    fn set_activity_unavailable_preserves_resolved_event() {
+        let mut state = DailyJournalState::new(nav(d(2026, 6, 21)));
+        let ev = timed_event(Some(DocId("DOC-2026-06-21".into())));
+        state.set_activity_unavailable(ev.clone());
+        assert_eq!(state.event.as_ref(), Some(&ev));
+        assert_eq!(state.projection, CalendarProjectionState::Event);
+        assert_eq!(
+            state.activity,
+            ActivityCorrelation::Failed(CalendarReadFailure::EndpointUnavailable)
+        );
     }
 
     #[test]
     fn set_event_with_spans_holds_read_only_view() {
         let mut state = DailyJournalState::new(nav(d(2026, 6, 21)));
-        let ev = CalendarEvent {
-            id: "E-1".into(),
-            title: "Block".into(),
-            start_utc: Utc::now(),
-            end_utc: Utc::now(),
-            all_day: false,
-            daily_note_doc_id: None,
-        };
+        let ev = timed_event(None);
         state.set_event_with_spans(ev.clone(), vec![span("S1", &["DOC-A"])]);
         assert_eq!(state.event.as_ref().unwrap().id, "E-1");
-        assert!(!state.event_unavailable);
+        assert_eq!(state.projection, CalendarProjectionState::Event);
         match &state.activity {
             ActivityCorrelation::Spans(s) => assert_eq!(s.len(), 1),
             other => panic!("expected Spans, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn successful_empty_event_list_is_terminal_no_event_not_loading() {
+        let mut state = DailyJournalState::new(nav(d(2026, 6, 21)));
+        state.prepare_date(d(2026, 6, 21));
+        assert_eq!(
+            state.projection,
+            CalendarProjectionState::WaitingForDailyNote
+        );
+        state.begin_calendar_load(d(2026, 6, 21));
+        assert_eq!(state.projection, CalendarProjectionState::Loading);
+        state.set_no_event();
+        assert_eq!(state.projection, CalendarProjectionState::NoEvent);
+        assert!(state.event.is_none());
+        assert_eq!(state.activity, ActivityCorrelation::NoEvent);
     }
 }

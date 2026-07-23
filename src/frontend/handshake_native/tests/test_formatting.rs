@@ -493,7 +493,9 @@ fn capability_gate_enables_when_server_supports_formatting() {
 
 #[test]
 fn alt_shift_f_kittest_reflow() {
-    use egui_kittest::Harness;
+    #[path = "native_gui_support/screenshot_harness.rs"]
+    mod screenshot_harness;
+    use screenshot_harness::ScreenshotHarness as Harness;
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)

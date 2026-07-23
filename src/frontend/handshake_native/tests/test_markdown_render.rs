@@ -43,7 +43,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::backend_client::WikiProjection;
 use handshake_native::graph::wiki_page_panel::{
@@ -135,6 +137,7 @@ fn markdown_projection(rendered: &str) -> WikiProjection {
         staleness_hash: "h1".to_owned(),
         rebuild_status: "fresh".to_owned(),
         page_type: Some("concept".to_owned()),
+        overlays: Vec::new(),
         staleness_verdict: serde_json::json!({ "state": "fresh" }),
     }
 }

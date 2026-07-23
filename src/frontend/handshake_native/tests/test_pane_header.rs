@@ -22,7 +22,9 @@ use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::module_switcher::ModuleId;
 use handshake_native::pane_header::module_label_for_tab;
-use handshake_native::pane_registry::{LockState, PaneId, PaneType};
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+};
 use handshake_native::tab_bar::{TabBarState, TabState, USERMANUAL_DIAGNOSTICS_TAB_STABLE_ID};
 use std::sync::Arc;
 
@@ -32,6 +34,28 @@ fn ok_app() -> HandshakeApp {
         db_status: "ok".to_string(),
         migration_version: Some(1),
     }))
+}
+
+/// Tests that exercise the legacy 2x2 shell contract seed pane-d explicitly. The product default is
+/// intentionally the MT-098 three-pane editor/editor/chat worksurface; a four-pane assertion must not
+/// silently redefine that default.
+fn app_with_explicit_fourth_pane() -> HandshakeApp {
+    let mut app = ok_app();
+    let pane_id: PaneId = Arc::from("pane-d");
+    app.pane_registry().lock().unwrap().insert(PaneRecord::new(
+        pane_id.clone(),
+        PaneType::FontManager,
+        "default-project",
+        None,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    app.tab_bar_states_mut().insert(
+        pane_id.clone(),
+        TabBarState::new(pane_id, vec![TabState::new(PaneType::FontManager)]),
+    );
+    app
 }
 
 /// One live AccessKit node summary: (author_id, role, label, selected, description).
@@ -59,8 +83,10 @@ fn live_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<LiveNode> {
 fn live_all_four_panes_emit_independent_lock_buttons_with_pane_prefix() {
     // AC: all four panes render their own independent strips/headers; each lock button carries the
     // correct `pane-{pane_id}-lock` id (the pane prefix), proving headers are not shared/duplicated.
-    let mut harness =
-        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    let mut harness = Harness::builder().build_state(
+        |ctx, app: &mut HandshakeApp| app.ui(ctx),
+        app_with_explicit_fourth_pane(),
+    );
     harness.run();
 
     let nodes = live_nodes(&harness);
@@ -110,7 +136,7 @@ fn title_node(
 fn live_header_title_binds_to_active_tab_label() {
     // AC: the pane header title matches TAB_LABEL_BY_ID[active_tab]. The title is an addressable
     // Role::Label (author_id `pane-{pane_id}-title`) carrying the active tab's short label. Seed:
-    // pane-a active tab = Workspace, pane-c = MediaDownloader -> "Media Downloader". Read the title
+    // pane-a active tab = Code Symbol, pane-c = Chat. Read the title
     // node by its stable id (unambiguous, the way a model would).
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
@@ -121,17 +147,19 @@ fn live_header_title_binds_to_active_tab_label() {
     assert_eq!(role_a, "Label", "pane-a title is a Role::Label");
     assert_eq!(
         label_a.as_deref(),
-        Some("Workspace"),
-        "pane-a title bound to active tab Workspace"
+        Some("Code Symbol"),
+        "pane-a title bound to active tab Code Symbol"
     );
 
     let (_role_c, label_c) = title_node(&harness, "pane-c").expect("pane-c title node live");
     assert_eq!(
         label_c.as_deref(),
-        Some("Media Downloader"),
-        "pane-c title bound to active tab Media Downloader"
+        Some("Chat"),
+        "pane-c title bound to active tab Chat"
     );
-    println!("PASS: header title nodes bound to active-tab labels (Workspace, Media Downloader)");
+    println!(
+        "PASS: header title nodes bound to current default active-tab labels (Code Symbol, Chat)"
+    );
 }
 
 #[test]
@@ -150,9 +178,10 @@ fn live_header_title_retitles_on_tab_click() {
     );
     app.tab_bar_states_mut().insert(pane_a.clone(), bar);
 
-    let mut harness =
-        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
-    harness.set_size(egui::Vec2::new(1200.0, 800.0));
+    app.set_atelier_panel_open(false);
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1200.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run();
 
     // Before: active tab is Workspace.
@@ -196,21 +225,23 @@ fn live_header_title_retitles_on_tab_click() {
 #[test]
 fn live_tab_chip_carries_module_badge_in_description() {
     // AC: each tab chip shows a module/type badge. The badge is mirrored into the tab node's AccessKit
-    // description as `module: <LABEL>`. The seed shell starts on the MAIN module; pane-a's Workspace
-    // tab is in MAIN, so its description must contain "module: MAIN".
-    let mut harness =
-        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    // description as `module: <LABEL>`. MT-098's editor-first seed puts CodeSymbol in pane-a; its
+    // primary module is CKC, so its description must contain "module: CKC".
+    let mut harness = Harness::builder().build_state(
+        |ctx, app: &mut HandshakeApp| app.ui(ctx),
+        app_with_explicit_fourth_pane(),
+    );
     harness.run();
 
     let nodes = live_nodes(&harness);
-    let workspace_tab = nodes
+    let code_tab = nodes
         .iter()
         .find(|(a, role, _, _, _)| a == "tab-pane-a-0" && role == "Tab")
-        .expect("pane-a tab 0 (Workspace) present");
-    let desc = workspace_tab.4.as_deref().unwrap_or_default();
+        .expect("pane-a tab 0 (Code) present");
+    let desc = code_tab.4.as_deref().unwrap_or_default();
     assert!(
-        desc.contains("module: MAIN"),
-        "Workspace tab description carries its MAIN module badge; got {desc:?}"
+        desc.contains("module: CKC"),
+        "Code tab description carries its CKC module badge; got {desc:?}"
     );
     println!("PASS: tab chip carries the module badge in its description ({desc:?})");
 }
@@ -293,8 +324,10 @@ fn live_lock_button_click_toggles_pane_lock_state() {
 fn live_locking_one_pane_does_not_affect_other_panes() {
     // AC (independence): locking pane-a must leave pane-b/c/d Unlocked — proves lock_requests target
     // the clicked pane only, not all panes.
-    let mut harness =
-        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    let mut harness = Harness::builder().build_state(
+        |ctx, app: &mut HandshakeApp| app.ui(ctx),
+        app_with_explicit_fourth_pane(),
+    );
     harness.set_size(egui::Vec2::new(1200.0, 800.0));
     harness.run();
 

@@ -118,6 +118,9 @@ pub type UndoAsyncFn =
 /// pane state (RISK-3 / MC-3) — this struct stores them opaquely.
 #[derive(Clone)]
 pub struct UndoAction {
+    /// Stable identity for an asynchronous compensating action. The shared bus uses this to keep the
+    /// undo/redo ring transition provisional until the backend reports success or failure.
+    pub async_action_id: Option<String>,
     /// A short human/agent-readable description (shown in the "Show Undo History" inspector — MC-5).
     pub description: String,
     /// The synchronous undo closure (restore the previous pane snapshot). Always present.
@@ -135,6 +138,7 @@ impl std::fmt::Debug for UndoAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UndoAction")
             .field("description", &self.description)
+            .field("async_action_id", &self.async_action_id)
             .field("undo_fn", &"<fn>")
             .field("redo_fn", &"<fn>")
             .field(
@@ -154,6 +158,7 @@ impl UndoAction {
     /// re-apply a snapshot; they should capture `Weak` back-refs to the pane state (RISK-3 / MC-3).
     pub fn sync(description: impl Into<String>, undo_fn: UndoFn, redo_fn: UndoFn) -> Self {
         Self {
+            async_action_id: None,
             description: description.into(),
             undo_fn,
             redo_fn,
@@ -167,6 +172,7 @@ impl UndoAction {
     /// compensating backend calls the bus dispatches onto the tokio runtime. The previous-placement
     /// snapshot must be captured by the async closures AT CONSTRUCTION TIME (RISK-2 / MC-2).
     pub fn async_compensating(
+        async_action_id: impl Into<String>,
         description: impl Into<String>,
         undo_fn: UndoFn,
         redo_fn: UndoFn,
@@ -174,6 +180,7 @@ impl UndoAction {
         redo_async_fn: UndoAsyncFn,
     ) -> Self {
         Self {
+            async_action_id: Some(async_action_id.into()),
             description: description.into(),
             undo_fn,
             redo_fn,
@@ -345,6 +352,21 @@ impl CrossPaneUndoRing {
         Some(action)
     }
 
+    fn take_undo(&mut self) -> Option<UndoAction> {
+        self.ring.pop_back()
+    }
+
+    fn commit_undo(&mut self, action: UndoAction) {
+        self.redo_ring.push_back(action);
+    }
+
+    fn restore_undo(&mut self, action: UndoAction) {
+        self.ring.push_back(action);
+        while self.ring.len() > self.cap {
+            self.ring.pop_front();
+        }
+    }
+
     pub fn peek_undo(&self) -> Option<&UndoAction> {
         self.ring.back()
     }
@@ -354,6 +376,21 @@ impl CrossPaneUndoRing {
         let action = self.redo_ring.pop_back()?;
         self.ring.push_back(action.clone());
         Some(action)
+    }
+
+    fn take_redo(&mut self) -> Option<UndoAction> {
+        self.redo_ring.pop_back()
+    }
+
+    fn commit_redo(&mut self, action: UndoAction) {
+        self.ring.push_back(action);
+        while self.ring.len() > self.cap {
+            self.ring.pop_front();
+        }
+    }
+
+    fn restore_redo(&mut self, action: UndoAction) {
+        self.redo_ring.push_back(action);
     }
 
     pub fn peek_redo(&self) -> Option<&UndoAction> {
@@ -373,6 +410,11 @@ impl CrossPaneUndoRing {
     /// True when there is at least one cross-pane action to undo.
     pub fn can_undo(&self) -> bool {
         !self.ring.is_empty()
+    }
+
+    /// True when there is at least one cross-pane action to redo.
+    pub fn can_redo(&self) -> bool {
+        !self.redo_ring.is_empty()
     }
 
     /// The most recent `n` cross-pane entries' descriptions, newest first (MC-5 inspector).
@@ -397,6 +439,19 @@ pub struct UnifiedUndoScope {
     pane_rings: HashMap<PaneId, PaneUndoRing>,
     /// The single cross-pane ring (POLICY-2).
     cross_pane_ring: CrossPaneUndoRing,
+    pending_cross_pane: HashMap<String, PendingCrossPaneAction>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AsyncUndoDirection {
+    Undo,
+    Redo,
+}
+
+#[derive(Debug, Clone)]
+struct PendingCrossPaneAction {
+    direction: AsyncUndoDirection,
+    action: UndoAction,
 }
 
 impl UnifiedUndoScope {
@@ -406,6 +461,7 @@ impl UnifiedUndoScope {
         Self {
             pane_rings: HashMap::new(),
             cross_pane_ring: CrossPaneUndoRing::new(),
+            pending_cross_pane: HashMap::new(),
         }
     }
 
@@ -462,7 +518,19 @@ impl UnifiedUndoScope {
 
     /// Pop the most recent cross-pane action for undo (Ctrl+Shift+Z — POLICY-2). The caller invokes it.
     pub fn pop_undo_cross_pane(&mut self) -> Option<UndoAction> {
-        self.cross_pane_ring.pop_undo()
+        let action = self.cross_pane_ring.take_undo()?;
+        if let Some(action_id) = action.async_action_id.clone() {
+            self.pending_cross_pane.insert(
+                action_id,
+                PendingCrossPaneAction {
+                    direction: AsyncUndoDirection::Undo,
+                    action: action.clone(),
+                },
+            );
+        } else {
+            self.cross_pane_ring.commit_undo(action.clone());
+        }
+        Some(action)
     }
 
     pub fn cross_pane_undo_requires_runtime(&self) -> bool {
@@ -472,9 +540,55 @@ impl UnifiedUndoScope {
             .unwrap_or(false)
     }
 
+    /// True while a backend-touching cross-pane undo/redo is waiting for its canonical completion.
+    /// The bus serializes these transitions so out-of-order network completions cannot reorder history.
+    pub fn cross_pane_async_pending(&self) -> bool {
+        !self.pending_cross_pane.is_empty()
+    }
+
     /// Pop the most recently undone cross-pane action for redo.
     pub fn pop_redo_cross_pane(&mut self) -> Option<UndoAction> {
-        self.cross_pane_ring.pop_redo()
+        let action = self.cross_pane_ring.take_redo()?;
+        if let Some(action_id) = action.async_action_id.clone() {
+            self.pending_cross_pane.insert(
+                action_id,
+                PendingCrossPaneAction {
+                    direction: AsyncUndoDirection::Redo,
+                    action: action.clone(),
+                },
+            );
+        } else {
+            self.cross_pane_ring.commit_redo(action.clone());
+        }
+        Some(action)
+    }
+
+    /// Resolve one provisional async cross-pane transition. Success commits the action to the opposite
+    /// ring; failure restores it to the original ring so a transport/backend error never loses undo
+    /// history. A mismatched id/direction is ignored and leaves the pending record intact.
+    pub fn complete_cross_pane_async(
+        &mut self,
+        action_id: &str,
+        direction: AsyncUndoDirection,
+        success: bool,
+    ) -> bool {
+        let Some(pending) = self.pending_cross_pane.get(action_id) else {
+            return false;
+        };
+        if pending.direction != direction {
+            return false;
+        }
+        let pending = self
+            .pending_cross_pane
+            .remove(action_id)
+            .expect("pending action checked above");
+        match (direction, success) {
+            (AsyncUndoDirection::Undo, true) => self.cross_pane_ring.commit_undo(pending.action),
+            (AsyncUndoDirection::Undo, false) => self.cross_pane_ring.restore_undo(pending.action),
+            (AsyncUndoDirection::Redo, true) => self.cross_pane_ring.commit_redo(pending.action),
+            (AsyncUndoDirection::Redo, false) => self.cross_pane_ring.restore_redo(pending.action),
+        }
+        true
     }
 
     pub fn cross_pane_redo_requires_runtime(&self) -> bool {
@@ -519,11 +633,17 @@ impl UnifiedUndoScope {
         self.cross_pane_ring.can_undo()
     }
 
+    /// True when the cross-pane ring can redo.
+    pub fn can_redo_cross_pane(&self) -> bool {
+        self.cross_pane_ring.can_redo()
+    }
+
     /// True when the WHOLE scope holds no actions (every pane ring empty AND the cross-pane ring empty).
     /// The POLICY-3 proof asserts a fresh scope is empty.
     pub fn is_empty(&self) -> bool {
         self.cross_pane_ring.undo_len() == 0
             && self.cross_pane_ring.redo_len() == 0
+            && self.pending_cross_pane.is_empty()
             && self
                 .pane_rings
                 .values()
@@ -610,6 +730,30 @@ mod tests {
         (redo.redo_fn)();
         assert_eq!(*log.lock().unwrap(), vec!["x", "x-redo"]);
         assert!(scope.pop_redo_local(&p).is_none(), "nothing left to redo");
+    }
+
+    #[test]
+    fn cross_pane_redo_availability_tracks_the_cross_ring() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let mut scope = UnifiedUndoScope::new();
+        assert!(!scope.can_redo_cross_pane(), "fresh scope cannot redo");
+        scope.push_cross_pane(logging_action("cross", log));
+        assert!(
+            !scope.can_redo_cross_pane(),
+            "a new action is undoable, not redoable"
+        );
+        let action = scope.pop_undo_cross_pane().expect("cross action to undo");
+        (action.undo_fn)();
+        assert!(
+            scope.can_redo_cross_pane(),
+            "an undone cross action is redoable"
+        );
+        let action = scope.pop_redo_cross_pane().expect("cross action to redo");
+        (action.redo_fn)();
+        assert!(
+            !scope.can_redo_cross_pane(),
+            "redo consumes cross redo availability"
+        );
     }
 
     /// (c) POLICY-5: pushing past a cap-5 pane ring drops the oldest (5 entries, not 6).
@@ -749,6 +893,7 @@ mod tests {
         let calls = Arc::new(AtomicUsize::new(0));
         let undo_calls = calls.clone();
         let action = UndoAction::async_compensating(
+            "canvas-action-1",
             "place canvas block",
             Arc::new(UndoResult::ok),
             Arc::new(UndoResult::ok),
@@ -777,5 +922,70 @@ mod tests {
             1,
             "the async compensating closure actually ran"
         );
+    }
+
+    #[test]
+    fn failed_async_cross_pane_undo_restores_original_undo_record() {
+        let mut scope = UnifiedUndoScope::new();
+        scope.push_cross_pane(UndoAction::async_compensating(
+            "canvas-failed-undo",
+            "canvas placement",
+            Arc::new(UndoResult::ok),
+            Arc::new(UndoResult::ok),
+            Arc::new(|| Box::pin(async { UndoResult::err("delete failed") })),
+            Arc::new(|| Box::pin(async { UndoResult::ok() })),
+        ));
+
+        let pending = scope
+            .pop_undo_cross_pane()
+            .expect("async action begins undo");
+        assert_eq!(
+            pending.async_action_id.as_deref(),
+            Some("canvas-failed-undo")
+        );
+        assert_eq!(scope.cross_pane_ring.undo_len(), 0);
+        assert_eq!(scope.cross_pane_ring.redo_len(), 0);
+        assert!(
+            !scope.is_empty(),
+            "provisional action remains authoritative history"
+        );
+
+        assert!(scope.complete_cross_pane_async(
+            "canvas-failed-undo",
+            AsyncUndoDirection::Undo,
+            false,
+        ));
+        assert_eq!(scope.cross_pane_ring.undo_len(), 1);
+        assert_eq!(scope.cross_pane_ring.redo_len(), 0);
+    }
+
+    #[test]
+    fn failed_async_cross_pane_redo_restores_original_redo_record() {
+        let mut scope = UnifiedUndoScope::new();
+        scope.push_cross_pane(UndoAction::async_compensating(
+            "canvas-failed-redo",
+            "canvas placement",
+            Arc::new(UndoResult::ok),
+            Arc::new(UndoResult::ok),
+            Arc::new(|| Box::pin(async { UndoResult::ok() })),
+            Arc::new(|| Box::pin(async { UndoResult::err("recreate failed") })),
+        ));
+        scope.pop_undo_cross_pane().expect("async undo begins");
+        assert!(scope.complete_cross_pane_async(
+            "canvas-failed-redo",
+            AsyncUndoDirection::Undo,
+            true,
+        ));
+        assert_eq!(scope.cross_pane_ring.redo_len(), 1);
+
+        scope.pop_redo_cross_pane().expect("async redo begins");
+        assert_eq!(scope.cross_pane_ring.redo_len(), 0);
+        assert!(scope.complete_cross_pane_async(
+            "canvas-failed-redo",
+            AsyncUndoDirection::Redo,
+            false,
+        ));
+        assert_eq!(scope.cross_pane_ring.undo_len(), 0);
+        assert_eq!(scope.cross_pane_ring.redo_len(), 1);
     }
 }

@@ -30,7 +30,7 @@
 //! - AC-4 (POLICY-4 canvas compensating): the compensating-DELETE REQUEST SHAPE against the verified
 //!   MT-026 placement route is proven without a live backend. The live host drain registers a
 //!   cross-pane compensating undo after a created-placement response, and the full create -> undo ->
-//!   reload round-trip remains NEEDS_MANAGED_RESOURCE_PROOF (real PG, `#[ignore]`d).
+//!   reload round-trip is proven against managed PostgreSQL whenever the integration feature is selected.
 //! - AC-5 (POLICY-5 cap): 201 pushes to a cap-200 ring -> 200; 51 to cap-50 cross-pane -> 50.
 //! - AC-6 (undo-count indicator): the `render_undo_count_indicator` helper emits
 //!   `undo-count-{pane_id}` with the correct count in a kittest AccessKit dump, and the live pane header
@@ -40,7 +40,9 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
@@ -52,7 +54,9 @@ use handshake_native::interop::{render_undo_count_indicator, undo_count_author_i
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
-use handshake_native::stage_pane::{push_route_to_stage_undo, StageContent, StagePane};
+use handshake_native::stage_pane::{
+    push_route_to_stage_undo, EmbedBackOutcome, StageContent, StagePane,
+};
 use handshake_native::undo_stack::{
     PaneUndoRing, UndoAction, UndoResult, UnifiedUndoScope, CROSS_PANE_RING_CAP, PANE_RING_CAP,
 };
@@ -72,19 +76,105 @@ fn assert_no_local_artifact_dir() {
     }
 }
 
+#[cfg(feature = "integration")]
+fn mt035_proof_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    request
+        .header("x-hsk-actor-id", "mt035-live-pg")
+        .header("x-hsk-actor-kind", "operator")
+        .header("x-hsk-kernel-task-run-id", "WP-KERNEL-012-MT-035")
+        .header("x-hsk-session-run-id", "MT-035-integration")
+}
+
+#[cfg(feature = "integration")]
+fn mt035_workspace_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    request
+        .header("x-hsk-actor-id", "mt035-live-pg")
+        .header("x-hsk-actor-kind", "human")
+}
+
+#[cfg(feature = "integration")]
+struct Mt035WorkspaceCleanup {
+    base: String,
+    workspace_id: String,
+    armed: bool,
+}
+
+#[cfg(feature = "integration")]
+impl Mt035WorkspaceCleanup {
+    async fn cleanup(&mut self, client: &reqwest::Client) {
+        let response = mt035_workspace_headers(
+            client.delete(format!("{}/workspaces/{}", self.base, self.workspace_id)),
+        )
+        .send()
+        .await
+        .expect("delete owned MT-035 workspace");
+        assert_eq!(response.status(), reqwest::StatusCode::NO_CONTENT);
+        self.armed = false;
+    }
+}
+
+#[cfg(feature = "integration")]
+impl Drop for Mt035WorkspaceCleanup {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        let base = self.base.clone();
+        let workspace_id = self.workspace_id.clone();
+        let _ = std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("MT-035 cleanup runtime");
+            runtime.block_on(async move {
+                let client = reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(5))
+                    .build()
+                    .expect("MT-035 cleanup client");
+                let _ = mt035_workspace_headers(
+                    client.delete(format!("{base}/workspaces/{workspace_id}")),
+                )
+                .send()
+                .await;
+            });
+        })
+        .join();
+    }
+}
+
+#[cfg(feature = "integration")]
+async fn mt035_dispatch_created_placement(
+    client: &handshake_native::backend_client::CanvasBoardClient,
+    spec: handshake_native::backend_client::RequestSpec,
+) -> handshake_native::backend_client::CreatedCanvasPlacement {
+    let cell: handshake_native::backend_client::CanvasBoardCreateCell = Arc::new(Mutex::new(None));
+    client.dispatch_created_placement(spec, Arc::clone(&cell));
+    for _ in 0..600 {
+        if let Some(result) = cell.lock().unwrap().take() {
+            return result.expect("managed-PG placement create");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    panic!("managed-PG placement create did not resolve within six seconds");
+}
+
 fn pane(id: &str) -> PaneId {
     Arc::from(id)
 }
 
 fn sync_action(tag: &'static str, log: Arc<Mutex<Vec<String>>>) -> UndoAction {
     let undo_log = log.clone();
+    let redo_log = log;
     UndoAction::sync(
         tag,
         Arc::new(move || {
             undo_log.lock().unwrap().push(tag.to_owned());
             UndoResult::ok()
         }),
-        Arc::new(UndoResult::ok),
+        Arc::new(move || {
+            redo_log.lock().unwrap().push(format!("redo:{tag}"));
+            UndoResult::ok()
+        }),
     )
 }
 
@@ -131,7 +221,7 @@ fn focus_code_text_surface(harness: &Harness<'_, HandshakeApp>) {
         .root()
         .children_recursive()
         .find(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_TEXT_AUTHOR_ID))
-        .expect("the mounted code_editor_text TextInput node must be present");
+        .expect("the mounted editor.code.text TextInput node must be present");
     node.focus();
 }
 
@@ -285,6 +375,7 @@ fn registered_undo_command_dispatches_local_first() {
         "edit",
     );
     bus.set_focus_owner(code_pane.clone());
+    bus.push_undo_cross_pane(sync_action("cross", Arc::new(Mutex::new(Vec::new()))));
 
     // Dispatch the Ctrl+Z command by id (the keybind resolves to this id via matching_keybind_command).
     let ctrl_z =
@@ -301,10 +392,15 @@ fn registered_undo_command_dispatches_local_first() {
         before.to_string(),
         "the registered Ctrl+Z command reverted the focused code pane"
     );
+    assert_eq!(
+        bus.undo_scope().cross_pane_undo_count(),
+        1,
+        "a local action wins and leaves cross-pane history untouched"
+    );
 }
 
 #[test]
-fn registered_undo_command_does_not_consume_cross_pane_when_local_empty() {
+fn registered_undo_command_falls_back_to_cross_pane_when_local_empty() {
     let ctx = egui::Context::default();
     let log = Arc::new(Mutex::new(Vec::new()));
     let code_pane = pane("pane-code");
@@ -316,14 +412,163 @@ fn registered_undo_command_does_not_consume_cross_pane_when_local_empty() {
     assert!(bus.dispatch_command(&ctx, handshake_native::interop::CMD_UNDO));
     assert_eq!(
         *log.lock().unwrap(),
-        Vec::<&str>::new(),
-        "Ctrl+Z is local-only; Ctrl+Shift+Z owns cross-pane undo"
+        vec!["cross"],
+        "Ctrl+Z falls back to cross-pane history when focused local history is empty"
     );
     assert_eq!(
         bus.undo_scope().cross_pane_undo_count(),
-        1,
-        "cross-pane action remains available for the dedicated cross-pane command"
+        0,
+        "fallback consumed the cross-pane action"
     );
+}
+
+#[test]
+fn registered_undo_and_redo_fall_back_to_cross_pane_without_focus_owner() {
+    let ctx = egui::Context::default();
+    let mut bus = InteractionBus::new();
+    bus.register_undo_commands();
+    bus.push_undo_cross_pane(sync_action(
+        "cross-without-focus",
+        Arc::new(Mutex::new(Vec::new())),
+    ));
+
+    assert!(bus.dispatch_command(&ctx, handshake_native::interop::CMD_UNDO));
+    assert!(
+        bus.undo_scope().can_redo_cross_pane(),
+        "no-owner Undo reaches the cross-pane ring"
+    );
+    assert!(bus.dispatch_command(&ctx, handshake_native::interop::CMD_REDO));
+    assert!(
+        bus.undo_scope().can_undo_cross_pane(),
+        "no-owner Redo reaches the cross-pane ring"
+    );
+}
+
+fn assert_cross_only_surface_redo_ignores_same_pane_code_redo(
+    pane_type: PaneType,
+    surface: &'static str,
+) {
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    // One physical pane first hosted Code (leaving a local redo), then switched its active surface to
+    // a cross-only surface. The PaneId intentionally stays identical: this is the production tab-switch
+    // boundary that previously let hidden Code history steal Canvas/Stage redo.
+    let pane_id = PaneId::from(format!("pane-code-then-{surface}"));
+    app.pane_registry()
+        .lock()
+        .expect("registry")
+        .insert(PaneRecord::new(
+            pane_id.clone(),
+            pane_type,
+            DEFAULT_PROJECT_ID,
+            Some(format!("{surface}-active")),
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+    app.set_active_pane_for_test(Some(pane_id.clone()));
+
+    let ctx = egui::Context::default();
+    let bus = InteractionBus::get_or_init(&ctx);
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let local_undo_log = log.clone();
+    let local_redo_log = log.clone();
+    let cross_undo_log = log.clone();
+    let cross_redo_log = log.clone();
+    InteractionBus::with_try_lock(&bus, |bus| {
+        bus.push_undo_local(
+            pane_id.clone(),
+            UndoAction::sync(
+                "code-local",
+                Arc::new(move || {
+                    local_undo_log.lock().unwrap().push("undo:code".to_owned());
+                    UndoResult::ok()
+                }),
+                Arc::new(move || {
+                    local_redo_log.lock().unwrap().push("redo:code".to_owned());
+                    UndoResult::ok()
+                }),
+            ),
+        );
+        bus.set_focus_owner(pane_id.clone());
+        assert!(bus.undo(&pane_id).expect("seed code redo").ok);
+
+        bus.push_undo_cross_pane(UndoAction::sync(
+            "surface-cross",
+            Arc::new(move || {
+                cross_undo_log.lock().unwrap().push("undo:cross".to_owned());
+                UndoResult::ok()
+            }),
+            Arc::new(move || {
+                cross_redo_log.lock().unwrap().push("redo:cross".to_owned());
+                UndoResult::ok()
+            }),
+        ));
+        assert!(bus.undo_cross_pane().expect("seed cross redo").ok);
+    })
+    .expect("seed shared undo scope");
+    log.lock().unwrap().clear();
+
+    assert!(app.dispatch_palette_action_for_test_with_ctx(
+        &ctx,
+        handshake_native::command_registry::CMD_EDITOR_EDIT_REDO,
+    ));
+    assert_eq!(
+        *log.lock().unwrap(),
+        vec!["redo:cross"],
+        "active {surface} cross redo wins over stale Code local redo"
+    );
+    InteractionBus::with_try_lock(&bus, |bus| {
+        assert!(
+            bus.undo_scope().can_redo_local(&pane_id),
+            "stale Code local redo remains untouched"
+        );
+        assert_eq!(bus.focus_owner(), Some(&pane_id));
+        assert!(bus.focus_owner_is_cross_only());
+        assert!(bus.undo_cross_pane().expect("seed keyboard cross redo").ok);
+    })
+    .expect("inspect shared undo scope");
+    log.lock().unwrap().clear();
+
+    InteractionBus::with_try_lock(&bus, |bus| {
+        bus.register_undo_commands();
+        assert!(bus.dispatch_command(&ctx, handshake_native::interop::CMD_REDO));
+        assert!(bus.undo_scope().can_redo_local(&pane_id));
+    })
+    .expect("dispatch registered Ctrl+Y command");
+    assert_eq!(
+        *log.lock().unwrap(),
+        vec!["redo:cross"],
+        "registered Ctrl+Y on {surface} also preserves same-pane stale Code redo"
+    );
+}
+
+#[test]
+fn canvas_active_menu_redo_ignores_stale_code_local_redo() {
+    assert_cross_only_surface_redo_ignores_same_pane_code_redo(PaneType::AtelierEditor, "canvas");
+}
+
+#[test]
+fn stage_active_menu_redo_ignores_stale_code_local_redo() {
+    assert_cross_only_surface_redo_ignores_same_pane_code_redo(
+        PaneType::Placeholder(handshake_native::editor_pane_factories::STAGE_PANE_LABEL.to_owned()),
+        "stage",
+    );
+}
+
+#[test]
+fn redo_falls_back_to_cross_pane_when_local_redo_is_empty() {
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let code_pane = pane("pane-code");
+    let mut bus = InteractionBus::new();
+    bus.set_focus_owner(code_pane.clone());
+    bus.push_undo_cross_pane(sync_action("cross", log.clone()));
+    assert!(bus.undo_cross_pane().expect("cross undo").ok);
+    assert!(bus.redo(&code_pane).expect("local-first redo fallback").ok);
+    assert_eq!(*log.lock().unwrap(), vec!["cross", "redo:cross"]);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -335,8 +580,8 @@ fn focus_rich_surface(harness: &Harness<'_, ()>) {
     let node = harness
         .root()
         .children_recursive()
-        .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
-        .expect("the rich-editor-surface interactive node must be present");
+        .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
+        .expect("the editor.rich.text interactive node must be present");
     node.focus();
 }
 
@@ -573,7 +818,7 @@ fn rich_undo_coalesce_keeps_one_entry_reverting_the_whole_burst() {
 // - Canvas placement/card creation responses now register push_canvas_placement_undo through the mounted
 //   app drain after the backend-minted placement id is known.
 // - The canvas compensating DELETE request shape passes below; the full create -> undo -> reload absence
-//   proof still needs a managed PostgreSQL run.
+//   proof is complemented by the managed-PostgreSQL integration run below.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -678,6 +923,110 @@ fn code_pane_backspace_records_undo_and_shell_undo_reverts_live() {
 }
 
 #[test]
+fn mounted_replace_all_batch_is_one_ctrl_z_step_and_restarts_continuation_after_undo() {
+    let (app, _rt) = mt035_editor_shell();
+    let code_panel = app.mounted_code_panel();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+
+    let count = handshake_native::code_editor::REPLACE_ALL_CAP + 25;
+    let before = "x ".repeat(count);
+    code_panel.set_text(&before);
+    code_panel.open_find(true);
+    code_panel.set_find_query("x");
+    code_panel.set_replace_text("y");
+    assert_eq!(
+        code_panel.replace_all(),
+        handshake_native::code_editor::REPLACE_ALL_CAP
+    );
+    harness.run_steps(2);
+
+    let pane_id = PaneId::from("pane-a");
+    let undo_depth =
+        InteractionBus::with_try_lock(&InteractionBus::get_or_init(&harness.ctx), |bus| {
+            bus.local_undo_count(&pane_id)
+        })
+        .expect("inspect mounted Replace All undo depth");
+    assert_eq!(
+        undo_depth, 1,
+        "one effective Replace All batch stages exactly one unified undo snapshot"
+    );
+    assert_eq!(
+        code_panel
+            .find_state()
+            .expect("replace bar remains mounted")
+            .replace_all_remaining,
+        25
+    );
+
+    focus_code_text_surface(&harness);
+    harness.run_steps(1);
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.run_steps(2);
+    assert_eq!(
+        code_panel.buffer().to_string(),
+        before,
+        "mounted Ctrl+Z reverts the complete Replace All batch in one step"
+    );
+
+    // Undo changes the buffer version. A subsequent batch must discard the pre-undo continuation,
+    // re-search the restored document, and expose the same bounded remainder from a fresh plan.
+    assert_eq!(
+        code_panel.replace_all(),
+        handshake_native::code_editor::REPLACE_ALL_CAP
+    );
+    harness.run_steps(2);
+    assert_eq!(
+        code_panel
+            .find_state()
+            .expect("replace bar remains mounted after fresh batch")
+            .replace_all_remaining,
+        25,
+        "post-undo Replace All restarted consistently from the restored live document"
+    );
+}
+
+#[test]
+fn settings_overlay_keeps_ctrl_z_from_mutating_editor_history() {
+    let (mut app, _rt) = mt035_editor_shell();
+    app.open_settings();
+    let pane_id = PaneId::from("pane-a");
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+
+    InteractionBus::with_try_lock(&InteractionBus::get_or_init(&harness.ctx), |bus| {
+        bus.set_focus_owner(pane_id.clone());
+        bus.push_undo_local(
+            pane_id.clone(),
+            sync_action("must-remain-while-settings-open", log.clone()),
+        );
+    })
+    .expect("seed editor undo while Settings owns keyboard input");
+
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.run_steps(2);
+
+    assert!(
+        harness.state().settings_open(),
+        "Settings remains the active overlay"
+    );
+    assert!(
+        log.lock().unwrap().is_empty(),
+        "Settings Ctrl+Z did not invoke editor undo"
+    );
+    let depth = InteractionBus::with_try_lock(&InteractionBus::get_or_init(&harness.ctx), |bus| {
+        bus.local_undo_count(&pane_id)
+    })
+    .expect("inspect editor undo after Settings Ctrl+Z");
+    assert_eq!(depth, 1, "Settings Ctrl+Z leaves editor history untouched");
+}
+
+#[test]
 fn canvas_created_placement_response_registers_cross_pane_undo_in_live_shell() {
     let (mut app, _rt) = mt035_editor_shell();
     app.deliver_canvas_created_placement_for_test(
@@ -690,6 +1039,7 @@ fn canvas_created_placement_response_registers_cross_pane_undo_in_live_shell() {
             y: 50.0,
             w: 200.0,
             h: 120.0,
+            created_by_request: true,
         },
         "canvas: place block",
         false, // WP-KERNEL-012 MT-080 FIX A: a place-block reference, not a free-text card.
@@ -723,18 +1073,30 @@ fn ctrl_shift_z_reverts_route_to_stage() {
     let mut bus = InteractionBus::new();
     bus.register_undo_commands();
 
-    // BEFORE: the stage is empty. Route a selection to it (the cross-pane action), then record the undo.
-    let previous = stage.lock().unwrap().content.clone();
-    assert_eq!(previous, StageContent::Empty);
-    let routed = StageContent::Selection("hello".to_owned(), "DOC-7".to_owned());
-    stage.lock().unwrap().set_content(routed.clone());
-    push_route_to_stage_undo(
-        &mut bus,
-        &stage,
-        previous.clone(),
-        routed.clone(),
-        "route to stage",
+    // BEFORE: the stage already holds a prior correlated route. Route a new selection, then record the
+    // complete snapshots so undo/redo proves causal identity cannot drift away from its content.
+    stage.lock().unwrap().set_content_correlated(
+        StageContent::Selection("before".to_owned(), "DOC-before".to_owned()),
+        Some("cause-before".to_owned()),
     );
+    // A post-save ledger receipt may be pending when this route snapshot is taken. Route history must
+    // not capture that async status: after the shell acknowledges/drops its exact receipt, undo/redo
+    // cannot fabricate a retry surface that would start a new capture.
+    stage.lock().unwrap().last_embed_back = Some(EmbedBackOutcome::LedgerPending {
+        artifact_id: "artifact-before".to_owned(),
+        sha256: "a".repeat(64),
+        target_pane: "pane-before".to_owned(),
+        event_id: "event-before".to_owned(),
+        error: "pending acknowledgement".to_owned(),
+    });
+    let previous = stage.lock().unwrap().route_snapshot();
+    let routed = StageContent::Selection("hello".to_owned(), "DOC-7".to_owned());
+    stage
+        .lock()
+        .unwrap()
+        .set_content_correlated(routed.clone(), Some("cause-next".to_owned()));
+    let next = stage.lock().unwrap().route_snapshot();
+    push_route_to_stage_undo(&mut bus, &stage, previous, next, "route to stage");
 
     assert_eq!(
         stage.lock().unwrap().content,
@@ -747,7 +1109,7 @@ fn ctrl_shift_z_reverts_route_to_stage() {
         "one cross-pane action recorded"
     );
 
-    // Ctrl+Shift+Z (the cross-pane undo command) reverts the stage to EMPTY.
+    // Ctrl+Shift+Z restores both content and the prior causal identity.
     let ctrl_shift_z = handshake_native::interop::default_keybind_for(
         handshake_native::interop::CMD_UNDO_CROSS_PANE,
     )
@@ -757,18 +1119,33 @@ fn ctrl_shift_z_reverts_route_to_stage() {
         Some(handshake_native::interop::CMD_UNDO_CROSS_PANE)
     );
     assert!(bus.dispatch_command(&ctx, handshake_native::interop::CMD_UNDO_CROSS_PANE));
-    assert_eq!(
-        stage.lock().unwrap().content,
-        StageContent::Empty,
-        "AC-2: Ctrl+Shift+Z reverted the route-to-stage cross-pane action"
-    );
+    {
+        let stage = stage.lock().unwrap();
+        assert_eq!(
+            stage.content,
+            StageContent::Selection("before".to_owned(), "DOC-before".to_owned()),
+            "AC-2: Ctrl+Shift+Z restored the exact prior Stage route"
+        );
+        assert_eq!(stage.causal_action_id.as_deref(), Some("cause-before"));
+        assert!(
+            stage.last_embed_back.is_none(),
+            "undo must not time-travel LedgerPending without the shell-owned exact receipt"
+        );
+    }
     // Redo re-routes it.
     assert!(bus.redo_cross_pane().is_some());
-    assert_eq!(
-        stage.lock().unwrap().content,
-        routed,
-        "cross-pane redo re-routed the selection"
-    );
+    {
+        let stage = stage.lock().unwrap();
+        assert_eq!(
+            stage.content, routed,
+            "cross-pane redo re-routed the selection"
+        );
+        assert_eq!(stage.causal_action_id.as_deref(), Some("cause-next"));
+        assert!(
+            stage.last_embed_back.is_none(),
+            "redo must not fabricate an async LedgerPending status"
+        );
+    }
 }
 
 /// Cross-pane undo is INDEPENDENT of any pane's local-first ring: a focused pane with its OWN local
@@ -800,6 +1177,7 @@ fn cross_pane_ring_is_independent_of_local_rings() {
 fn async_cross_pane_undo_without_runtime_does_not_advance_history() {
     let mut bus = InteractionBus::new();
     bus.push_undo_cross_pane(UndoAction::async_compensating(
+        "canvas-no-runtime",
         "canvas placement",
         Arc::new(UndoResult::ok),
         Arc::new(UndoResult::ok),
@@ -815,6 +1193,135 @@ fn async_cross_pane_undo_without_runtime_does_not_advance_history() {
         bus.undo_scope().cross_pane_undo_count(),
         1,
         "failed async dispatch does not move the action to redo history"
+    );
+}
+
+#[test]
+fn backend_touching_cross_pane_transitions_are_serialized_until_reconciled() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("parked runtime");
+    let mut bus = InteractionBus::new();
+    bus.set_undo_runtime(runtime.handle().clone());
+    let pending_async: handshake_native::undo_stack::UndoAsyncFn = Arc::new(|| {
+        Box::pin(async {
+            std::future::pending::<()>().await;
+            UndoResult::ok()
+        })
+    });
+    for action_id in ["canvas-serial-1", "canvas-serial-2"] {
+        bus.push_undo_cross_pane(UndoAction::async_compensating(
+            action_id,
+            action_id,
+            Arc::new(UndoResult::ok),
+            Arc::new(UndoResult::ok),
+            Arc::clone(&pending_async),
+            Arc::clone(&pending_async),
+        ));
+    }
+
+    let first = bus.undo_cross_pane().expect("first async undo dispatches");
+    assert!(first.ok && first.error.is_none());
+    let blocked = bus
+        .undo_cross_pane()
+        .expect("second input receives a typed in-flight result");
+    assert!(!blocked.ok);
+    assert!(blocked
+        .error
+        .as_deref()
+        .is_some_and(|error| error.contains("already in flight")));
+    assert_eq!(
+        bus.undo_scope().cross_pane_undo_count(),
+        1,
+        "the second action remains in authoritative undo order until the first reconciles"
+    );
+}
+
+#[test]
+fn canvas_compensation_failure_is_attributed_to_origin_board_across_a_b_a() {
+    use handshake_native::undo_stack::AsyncUndoDirection;
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("parked runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    {
+        let registry = app.pane_registry();
+        registry.lock().unwrap().insert(PaneRecord::new(
+            PaneId::from("pane-a"),
+            PaneType::AtelierEditor,
+            "ws-a",
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+        let bar = app
+            .tab_bar_states_mut()
+            .get_mut(&PaneId::from("pane-a"))
+            .expect("pane-a tab bar");
+        bar.tabs = vec![handshake_native::tab_bar::TabState::new(
+            PaneType::AtelierEditor,
+        )];
+        bar.active_index = 0;
+    }
+    app.begin_canvas_request_for_test("ws-a", "canvas-a");
+    let board = app.mounted_canvas_board();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    InteractionBus::with_try_lock(&bus, |bus| {
+        bus.set_undo_runtime(runtime.handle().clone());
+        let pending: handshake_native::undo_stack::UndoAsyncFn = Arc::new(|| {
+            Box::pin(async {
+                std::future::pending::<()>().await;
+                UndoResult::ok()
+            })
+        });
+        bus.push_undo_cross_pane(UndoAction::async_compensating(
+            "canvas-a-action",
+            "canvas A action",
+            Arc::new(UndoResult::ok),
+            Arc::new(UndoResult::ok),
+            Arc::clone(&pending),
+            pending,
+        ));
+        assert!(bus.undo_cross_pane().expect("dispatch A undo").ok);
+    })
+    .expect("bus lock");
+    harness.state().deliver_canvas_compensation_for_test(
+        "canvas-a-action",
+        AsyncUndoDirection::Undo,
+        "ws-a",
+        "canvas-a",
+        Err("A compensation failed".to_owned()),
+    );
+
+    harness
+        .state_mut()
+        .begin_canvas_request_for_test("ws-b", "canvas-b");
+    harness.step();
+    assert!(
+        board.lock().unwrap().error.as_deref() != Some("A compensation failed"),
+        "a late Canvas A failure must not paint the currently mounted Canvas B"
+    );
+
+    harness
+        .state_mut()
+        .begin_canvas_request_for_test("ws-a", "canvas-a");
+    harness.step();
+    assert_eq!(
+        board.lock().unwrap().error.as_deref(),
+        Some("A compensation failed"),
+        "returning to Canvas A restores its attributable compensation failure"
     );
 }
 
@@ -1036,7 +1543,7 @@ fn live_shell_header_undo_count_tracks_shared_bus_depth() {
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-4 — POLICY-4 canvas compensating undo. The request-SHAPE binding is proven here without a live
-// backend; the round-trip against real PG is NEEDS_MANAGED_RESOURCE_PROOF (ignored by default).
+// backend; the integration-feature proof below runs the round-trip against real PostgreSQL.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
 /// The compensating-undo request shape: a canvas placement undo must DELETE the created placement via the
@@ -1073,57 +1580,201 @@ fn canvas_compensating_undo_uses_verified_delete_route() {
         .ends_with("/workspaces/ws-1/loom/canvas-boards/canvas-9/placements"));
 }
 
-/// AC-4 full round-trip: place a canvas block, Ctrl+Shift+Z to issue the compensating DELETE, reload the
-/// board, assert the placement is ABSENT. NEEDS_MANAGED_RESOURCE_PROOF — requires a live
-/// Handshake-managed PostgreSQL with a seeded canvas block; never fakes PG. Run with:
-///   cargo test -p handshake-native --features integration -- --ignored canvas_placement_undo_round_trip
+/// AC-4 full round-trip: self-seed an owned workspace, two canonical blocks, a Canvas, and two
+/// placements against Handshake-managed PostgreSQL. Drive the real shell Ctrl+Shift+Z consumer, then
+/// prove the exact owned placement is absent after a fresh board reload while the unrelated placement
+/// remains. Run with `cargo test --features integration --test test_undo_scope -- --test-threads=1`.
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a seeded canvas block; the placement create + compensating DELETE round-trip touches real PG"]
+#[cfg(feature = "integration")]
 fn canvas_placement_undo_round_trip_live_pg() {
-    use handshake_native::backend_client::CanvasBoardClient;
-    use handshake_native::graph::interop_adapter::push_canvas_placement_undo;
+    use handshake_native::backend_client::{CanvasBoardClient, CreatedCanvasPlacement};
 
-    let rt = tokio::runtime::Builder::new_multi_thread()
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
         .enable_all()
         .build()
-        .unwrap();
-    let client = Arc::new(CanvasBoardClient::production(rt.handle().clone()));
-    let mut bus = InteractionBus::new();
-    bus.set_undo_runtime(rt.handle().clone());
-    bus.register_undo_commands();
-
-    // The operator/seed supplies these via env when running the gated proof.
-    let ws = std::env::var("HSK_TEST_WORKSPACE_ID").expect("seed: HSK_TEST_WORKSPACE_ID");
-    let canvas = std::env::var("HSK_TEST_CANVAS_BLOCK_ID").expect("seed: HSK_TEST_CANVAS_BLOCK_ID");
-    let block = std::env::var("HSK_TEST_PLACED_BLOCK_ID").expect("seed: HSK_TEST_PLACED_BLOCK_ID");
-
-    // (1) Place the block (POST .../placements) and capture the created placement_id from the reload.
-    let place = client.place_block_request(&ws, &canvas, &block, 40.0, 40.0, 200.0, 120.0);
-    let cell: handshake_native::backend_client::CanvasBoardOpCell = Arc::new(Mutex::new(None));
-    client.dispatch(place, cell.clone());
-    // (Real harness would poll `cell` + re-fetch the board to read the new placement_id; left to the
-    // seeded operator run — this body documents the exact round-trip the gated proof performs.)
-    let placement_id =
-        std::env::var("HSK_TEST_PLACEMENT_ID").expect("seed/derive: HSK_TEST_PLACEMENT_ID");
-
-    // (2) Record the compensating cross-pane undo (snapshot of the placement captured NOW — RISK-2).
-    push_canvas_placement_undo(
-        &mut bus,
-        client.clone(),
-        ws.clone(),
-        canvas.clone(),
-        placement_id.clone(),
-        block.clone(),
-        (40.0, 40.0, 200.0, 120.0),
-        "place canvas block",
+        .expect("MT-035 integration runtime");
+    let base = std::env::var("HSK_TEST_BASE")
+        .or_else(|_| std::env::var("HANDSHAKE_TEST_DB_URL"))
+        .unwrap_or_else(|_| "http://127.0.0.1:37501".to_owned());
+    let http = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(2))
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .expect("bounded MT-035 integration client");
+    let suffix = format!(
+        "{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
     );
 
-    // (3) Ctrl+Shift+Z -> the compensating DELETE fires; the placement must be ABSENT on reload.
-    let result = bus.undo_cross_pane().expect("a cross-pane canvas undo");
-    assert!(result.ok, "the compensating undo dispatched: {result:?}");
-    // A real harness re-fetches the board and asserts `placement_id` is gone. Documented as the gated
-    // assertion; the request-shape proof above (`canvas_compensating_undo_uses_verified_delete_route`)
-    // proves the binding without a live backend.
+    let (workspace_id, canvas_id, owned, unrelated, mut cleanup) = runtime.block_on(async {
+        assert!(http
+            .get(format!("{base}/health"))
+            .send()
+            .await
+            .expect("live handshake_core health")
+            .status()
+            .is_success());
+        let workspace: serde_json::Value =
+            mt035_workspace_headers(http.post(format!("{base}/workspaces")))
+                .json(&serde_json::json!({"name": format!("MT-035-{suffix}")}))
+                .send()
+                .await
+                .expect("create MT-035 workspace")
+                .json()
+                .await
+                .expect("workspace JSON");
+        let workspace_id = workspace["id"].as_str().expect("workspace id").to_owned();
+        let cleanup = Mt035WorkspaceCleanup {
+            base: base.clone(),
+            workspace_id: workspace_id.clone(),
+            armed: true,
+        };
+
+        let import_block = |name: String, bytes_b64: &'static str| {
+            mt035_proof_headers(http.post(format!("{base}/workspaces/{workspace_id}/loom/import")))
+                .json(&serde_json::json!({
+                    "bytes_b64": bytes_b64,
+                    "original_filename": name,
+                    "mime": "text/plain"
+                }))
+        };
+        let first: serde_json::Value =
+            import_block(format!("mt035-owned-{suffix}.txt"), "bXQwMzUtb3duZWQ=")
+                .send()
+                .await
+                .expect("import owned block")
+                .json()
+                .await
+                .expect("owned import JSON");
+        let second: serde_json::Value = import_block(
+            format!("mt035-unrelated-{suffix}.txt"),
+            "bXQwMzUtdW5yZWxhdGVk",
+        )
+        .send()
+        .await
+        .expect("import unrelated block")
+        .json()
+        .await
+        .expect("unrelated import JSON");
+        let first_block = first["block_id"].as_str().expect("owned block id");
+        let second_block = second["block_id"].as_str().expect("unrelated block id");
+
+        let canvas: serde_json::Value = http
+            .post(format!(
+                "{base}/workspaces/{workspace_id}/loom/canvas-boards"
+            ))
+            .json(&serde_json::json!({"title": format!("MT-035 Canvas {suffix}")}))
+            .send()
+            .await
+            .expect("create MT-035 canvas")
+            .json()
+            .await
+            .expect("canvas JSON");
+        let canvas_id = canvas["block_id"].as_str().expect("canvas id").to_owned();
+        let client = CanvasBoardClient::new(&base, runtime.handle().clone());
+        let owned = mt035_dispatch_created_placement(
+            &client,
+            client.place_block_request(
+                &workspace_id,
+                &canvas_id,
+                first_block,
+                40.0,
+                40.0,
+                200.0,
+                120.0,
+            ),
+        )
+        .await;
+        let unrelated = mt035_dispatch_created_placement(
+            &client,
+            client.place_block_request(
+                &workspace_id,
+                &canvas_id,
+                second_block,
+                300.0,
+                40.0,
+                200.0,
+                120.0,
+            ),
+        )
+        .await;
+        (workspace_id, canvas_id, owned, unrelated, cleanup)
+    });
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    app.set_backend_base_url_for_test(&base, runtime.handle().clone());
+    {
+        let board = app.mounted_canvas_board();
+        let mut board = board.lock().unwrap();
+        board.workspace_id = workspace_id.clone();
+        board.canvas_block_id = canvas_id.clone();
+    }
+    app.deliver_canvas_created_placement_for_test(
+        &workspace_id,
+        &canvas_id,
+        CreatedCanvasPlacement {
+            created_by_request: true,
+            ..owned.clone()
+        },
+        "canvas: place owned MT-035 block",
+        false,
+    )
+    .expect("register owned placement through production host drain");
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    let mut modifiers = egui::Modifiers::COMMAND;
+    modifiers.ctrl = true;
+    modifiers.shift = true;
+    harness.key_press_modifiers(modifiers, egui::Key::Z);
+
+    let mut fresh_board = serde_json::Value::Null;
+    for _ in 0..100 {
+        harness.step();
+        fresh_board = runtime.block_on(async {
+            http.get(format!(
+                "{base}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
+            ))
+            .send()
+            .await
+            .expect("fresh board after Ctrl+Shift+Z")
+            .json()
+            .await
+            .expect("fresh board JSON")
+        });
+        let rows = fresh_board["placements"].as_array().expect("placements");
+        if rows
+            .iter()
+            .all(|row| row["placement_id"].as_str() != Some(owned.placement_id.as_str()))
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    let rows = fresh_board["placements"].as_array().expect("placements");
+    assert!(
+        rows.iter()
+            .all(|row| row["placement_id"].as_str() != Some(owned.placement_id.as_str())),
+        "Ctrl+Shift+Z compensating DELETE removes the exact owned placement: {fresh_board}"
+    );
+    assert!(
+        rows.iter()
+            .any(|row| { row["placement_id"].as_str() == Some(unrelated.placement_id.as_str()) }),
+        "the unrelated canonical placement survives the exact compensation: {fresh_board}"
+    );
+
+    drop(harness);
+    runtime.block_on(cleanup.cleanup(&http));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1173,7 +1824,10 @@ fn undo_scope_type_around_line_op_keeps_all_three_entries_live() {
     harness.event(egui::Event::Text("X".to_owned()));
     harness.run_steps(2);
     let s1 = code_panel.buffer().to_string();
-    assert_ne!(s1, s0, "the first typed char mutated the mounted code buffer");
+    assert_ne!(
+        s1, s0,
+        "the first typed char mutated the mounted code buffer"
+    );
 
     // (2) TOGGLE COMMENT — a NON-typing line-op entry E2. Driven DETERMINISTICALLY through the panel's
     // real action handler `CodeEditorPanel::dispatch_action(CodeEditorAction::ToggleComment)` — the EXACT
@@ -1198,7 +1852,10 @@ fn undo_scope_type_around_line_op_keeps_all_three_entries_live() {
     harness.event(egui::Event::Text("Y".to_owned()));
     harness.run_steps(2);
     let s3 = code_panel.buffer().to_string();
-    assert_ne!(s3, s2, "the second typed char mutated the mounted code buffer");
+    assert_ne!(
+        s3, s2,
+        "the second typed char mutated the mounted code buffer"
+    );
 
     // PROOF (FIX A): all THREE entries survive — the line-op entry was NOT clobbered by the coalescer.
     let depth = InteractionBus::with_try_lock(&InteractionBus::get_or_init(&harness.ctx), |b| {
@@ -1298,7 +1955,10 @@ fn undo_scope_rich_focused_idle_frames_take_no_doc_snapshot() {
         .unwrap()
         .block_plain_text(0)
         .unwrap_or_default();
-    assert_ne!(edited, "Hello", "the typed char mutated the doc (got {edited:?})");
+    assert_ne!(
+        edited, "Hello",
+        "the typed char mutated the doc (got {edited:?})"
+    );
 
     let snapshots_after_edit = state.lock().unwrap().doc_snapshot_count();
     assert_eq!(

@@ -11,7 +11,22 @@ use handshake_native::app::{
     HandshakeApp, MODEL_SESSION_LAUNCH_FOLDER_AUTHOR_ID, MODEL_SESSION_LAUNCH_MODEL_AUTHOR_ID,
     MODEL_SESSION_LAUNCH_PROVIDER_CLOUD_AUTHOR_ID, MODEL_SESSION_LAUNCH_PROVIDER_LOCAL_AUTHOR_ID,
     MODEL_SESSION_LAUNCH_START_AUTHOR_ID, MODEL_SESSION_LAUNCH_STATUS_AUTHOR_ID,
-    MODEL_SESSION_LAUNCH_WRAPPER_AUTHOR_ID, TERMINAL_LAUNCH_STATUS_AUTHOR_ID,
+    MODEL_SESSION_LAUNCH_WRAPPER_AUTHOR_ID, NOTES_LOAD_ERROR_AUTHOR_ID, NOTES_LOAD_RETRY_AUTHOR_ID,
+    TERMINAL_LAUNCH_STATUS_AUTHOR_ID,
+};
+use handshake_native::graph::block_collection_view::RETRY_AUTHOR_ID as BCV_RETRY_AUTHOR_ID;
+use handshake_native::graph::wiki_page_panel::{
+    CANCEL_AUTHOR_ID_PREFIX as WIKI_CANCEL_AUTHOR_ID_PREFIX,
+    CONTENT_AUTHOR_ID_PREFIX as WIKI_CONTENT_AUTHOR_ID_PREFIX,
+    EDIT_AREA_AUTHOR_ID_PREFIX as WIKI_EDIT_AREA_AUTHOR_ID_PREFIX,
+    EDIT_AUTHOR_ID_PREFIX as WIKI_EDIT_AUTHOR_ID_PREFIX,
+    ERROR_AUTHOR_ID_PREFIX as WIKI_ERROR_AUTHOR_ID_PREFIX,
+    METADATA_AUTHOR_ID_PREFIX as WIKI_METADATA_AUTHOR_ID_PREFIX,
+    REBUILD_AUTHOR_ID_PREFIX as WIKI_REBUILD_AUTHOR_ID_PREFIX,
+    RETRY_AUTHOR_ID_PREFIX as WIKI_RETRY_AUTHOR_ID_PREFIX,
+    SAVE_AUTHOR_ID_PREFIX as WIKI_SAVE_AUTHOR_ID_PREFIX,
+    STALE_AUTHOR_ID_PREFIX as WIKI_STALE_AUTHOR_ID_PREFIX,
+    TITLE_AUTHOR_ID_PREFIX as WIKI_TITLE_AUTHOR_ID_PREFIX,
 };
 use handshake_native::graph::{
     MODE_GLOBAL_AUTHOR_ID as GRAPH_MODE_GLOBAL_AUTHOR_ID,
@@ -20,14 +35,15 @@ use handshake_native::graph::{
     ZOOM_OUT_AUTHOR_ID as GRAPH_ZOOM_OUT_AUTHOR_ID,
 };
 use handshake_native::manual_content_editors::{
-    agent_tool_rows, editors_manual_section, CONFLICT_KEEP_SERVER_AUTHOR_ID,
+    agent_tool_rows, editors_manual_section, ArgusAutomationStatus, CONFLICT_KEEP_SERVER_AUTHOR_ID,
     CONFLICT_KEEP_YOURS_AUTHOR_ID, CONFLICT_KEEP_YOURS_CONFIRM_AUTHOR_ID,
     CONFLICT_OPEN_MERGE_AUTHOR_ID, DIAGNOSTIC_TOOL_HEADINGS, DRAFT_BANNER_AUTHOR_ID,
-    DRAFT_DISCARD_AUTHOR_ID, DRAFT_RESTORE_AUTHOR_ID, EXPORT_FORMAT_PICKER_AUTHOR_ID,
-    FLIGHT_RECORDER_MENU_AUTHOR_ID, FLIGHT_RECORDER_PALETTE_AUTHOR_ID,
-    FOLDER_TREE_COLOR_AUTHOR_ID_PATTERN, FOLDER_TREE_NODE_AUTHOR_ID_PATTERN,
-    FOLDER_TREE_RETRY_AUTHOR_ID, INFERENCE_LAB_MENU_AUTHOR_ID, INFERENCE_LAB_PALETTE_AUTHOR_ID,
-    MODEL_SESSION_LAUNCH_MENU_AUTHOR_ID, MODEL_SESSION_LAUNCH_PALETTE_AUTHOR_ID,
+    DRAFT_DISCARD_AUTHOR_ID, DRAFT_RESTORE_AUTHOR_ID, E8_PERFORMANCE_INTERCONNECTION_HEADING,
+    EXPORT_FORMAT_PICKER_AUTHOR_ID, FLIGHT_RECORDER_MENU_AUTHOR_ID,
+    FLIGHT_RECORDER_PALETTE_AUTHOR_ID, FOLDER_TREE_COLOR_AUTHOR_ID_PATTERN,
+    FOLDER_TREE_NODE_AUTHOR_ID_PATTERN, FOLDER_TREE_RETRY_AUTHOR_ID, INFERENCE_LAB_MENU_AUTHOR_ID,
+    INFERENCE_LAB_PALETTE_AUTHOR_ID, MODEL_SESSION_LAUNCH_MENU_AUTHOR_ID,
+    MODEL_SESSION_LAUNCH_PALETTE_AUTHOR_ID, MT108_ARGUS_EVIDENCE_MATRIX,
     RICH_EDITOR_EXPORT_BUTTON_AUTHOR_ID, SETTINGS_DIAGNOSTICS_SECTION_AUTHOR_ID,
     TAGS_SEARCH_AUTHOR_ID, TAG_HUB_ADD_TAG_AUTHOR_ID_PATTERN, TAG_HUB_MEMBER_AUTHOR_ID_PATTERN,
     TAG_HUB_TITLE_AUTHOR_ID_PATTERN, TAG_ROW_AUTHOR_ID_PATTERN, TERMINAL_MENU_AUTHOR_ID,
@@ -50,7 +66,12 @@ use handshake_native::manual_pane::{
 };
 use handshake_native::theme::HsPalette;
 
-const REAL_MCP_TOOLS: &[&str] = &["list_widgets", "click_widget", "set_value", "screenshot"];
+const REAL_MCP_TOOLS: &[&str] = &[
+    handshake_native::mcp::ARGUS_INSPECT_METHOD,
+    handshake_native::mcp::ARGUS_CLICK_METHOD,
+    handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
+    handshake_native::mcp::ARGUS_SCREENSHOT_METHOD,
+];
 const GRAPH_NODE_AUTHOR_ID_PATTERN: &str = "graph.node.{block_id}";
 
 fn mt104_headings() -> impl Iterator<Item = &'static str> {
@@ -66,6 +87,225 @@ fn topic_body<'a>(section: &'a ManualSection, heading: &str) -> &'a str {
         .unwrap_or_else(|| panic!("MT-104 manual topic '{heading}' must exist"))
         .body
         .as_str()
+}
+
+fn canonical_tool_name(name: &str) -> &str {
+    match name {
+        "list_widgets" => handshake_native::mcp::ARGUS_INSPECT_METHOD,
+        "click_widget" => handshake_native::mcp::ARGUS_CLICK_METHOD,
+        "set_value" => handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
+        "screenshot" => handshake_native::mcp::ARGUS_SCREENSHOT_METHOD,
+        canonical => canonical,
+    }
+}
+
+fn manual_body_contains(body: &str, expected: &str) -> bool {
+    fn replace_token(input: &str, legacy: &str, canonical: &str) -> String {
+        let mut output = String::with_capacity(input.len());
+        let mut copied_through = 0;
+        for (start, _) in input.match_indices(legacy) {
+            let end = start + legacy.len();
+            let is_identifier = |ch: char| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '.');
+            let before = input[..start]
+                .chars()
+                .next_back()
+                .is_some_and(is_identifier);
+            let after = input[end..].chars().next().is_some_and(is_identifier);
+            if before || after {
+                continue;
+            }
+            output.push_str(&input[copied_through..start]);
+            output.push_str(canonical);
+            copied_through = end;
+        }
+        output.push_str(&input[copied_through..]);
+        output
+    }
+
+    let canonical = replace_token(
+        expected,
+        "list_widgets",
+        handshake_native::mcp::ARGUS_INSPECT_METHOD,
+    );
+    let canonical = replace_token(
+        &canonical,
+        "click_widget",
+        handshake_native::mcp::ARGUS_CLICK_METHOD,
+    );
+    let canonical = replace_token(
+        &canonical,
+        "set_value",
+        handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
+    );
+    let canonical = replace_token(
+        &canonical,
+        "screenshot",
+        handshake_native::mcp::ARGUS_SCREENSHOT_METHOD,
+    );
+    body.contains(&canonical)
+}
+
+#[test]
+fn mt045_mt046_manual_covers_large_documents_interconnection_settings_and_menu() {
+    let section = editors_manual_section();
+    let body = topic_body(&section, E8_PERFORMANCE_INTERCONNECTION_HEADING);
+
+    for needle in [
+        "10,000-line buffer",
+        "1,000 blocks",
+        "KNOWLEDGE_RICH_DOCUMENT_SAVED",
+        "persisted cyclic-5",
+        "1,000-node/~2,000-edge LoomGraphView",
+        "unavailable RSS sample",
+        "settings-editor-word-wrap",
+        "settings-editor-minimap",
+        "menu.view.open-code-editor",
+        "menu.view.open-rich-note",
+        "menu.edit.quick-switcher",
+        "DragPayload",
+        "LoomCanvasBoard",
+        "FindReplaceState",
+        "LoomSearchV2",
+        "QuickSwitcher",
+        "RichEditorState/CodeEditorPanel",
+        "test_perf_large_rich",
+        "test_interconnect_*",
+        "Handshake_Artifacts/wp-kernel-012/mt-046/measurements",
+        "scenario catalogs, not current runtime verdicts",
+    ] {
+        assert!(
+            manual_body_contains(body, needle),
+            "MT-045/046 manual must document {needle:?}"
+        );
+    }
+}
+
+#[test]
+fn mt025_wiki_projection_manual_uses_exact_runtime_accesskit_patterns() {
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Wiki Projection");
+
+    for prefix in [
+        WIKI_TITLE_AUTHOR_ID_PREFIX,
+        WIKI_CONTENT_AUTHOR_ID_PREFIX,
+        WIKI_METADATA_AUTHOR_ID_PREFIX,
+        WIKI_EDIT_AUTHOR_ID_PREFIX,
+        WIKI_EDIT_AREA_AUTHOR_ID_PREFIX,
+        WIKI_SAVE_AUTHOR_ID_PREFIX,
+        WIKI_CANCEL_AUTHOR_ID_PREFIX,
+        WIKI_REBUILD_AUTHOR_ID_PREFIX,
+        WIKI_STALE_AUTHOR_ID_PREFIX,
+        WIKI_ERROR_AUTHOR_ID_PREFIX,
+        WIKI_RETRY_AUTHOR_ID_PREFIX,
+    ] {
+        let expected = format!("{prefix}{{sanitized_projection_id}}");
+        assert!(
+            body.contains(&expected),
+            "Wiki Projection manual must document the exact runtime AccessKit pattern {expected:?}"
+        );
+    }
+
+    assert!(
+        !body.contains("wiki-page."),
+        "the obsolete nonexistent wiki-page.* selector namespace must not return"
+    );
+}
+
+#[test]
+fn mt033_ckc_stage_manual_is_no_context_and_matches_runtime_ids() {
+    let section = editors_manual_section();
+    let interop = topic_body(&section, "Interop Edges");
+    for required in [
+        "VIEW > Toggle Atelier / CKC Panel",
+        "menu.view.toggle-atelier",
+        "atelier-side-panel",
+        "atelier-batch-*",
+        "atelier-item-*",
+        "AccessKit 0.21.1 has no StartDrag action",
+        "Click on the atelier-item-* ListItem",
+        "atelier-corpus-*",
+        "GET /atelier/intake/batches",
+        "atelier-character-list-blocker",
+        "atelier-moodboard-list-blocker",
+        "atelier-items-retry-*",
+        "editor.rich.text",
+        "empty paragraph with no text leaf",
+        "EDITORS > View: Stage",
+        "menu.editors.stage",
+        "EDITORS > Capture and embed from Stage",
+        "menu.editors.embed-stage-capture",
+        "Route selection to Stage",
+        "menu.editors.route-to-stage",
+        "one docked stage-pane Role::GenericContainer",
+        "rich-editor.route-to-stage",
+        "Route to Stage",
+        "ctx-menu.ctxmenu-node-route-to-stage",
+        "only when the clicked node has a stable id and its mounted board has",
+        "matching workspace + canvas projection confirmed by a completed board load",
+        "pending, failed, rebound, or stale projections",
+        "Graph-view nodes do not carry a live Canvas board route",
+        "Use argus.inspect to read the current disabled state before argus.click",
+        "stage-route-status",
+        "stage-capture-embed-back",
+        "stage-embed-back-status",
+        "privileged create -> exact-byte descriptor/content retrieval",
+        "Job History",
+        "EventLedger",
+        "Retry exact EventLedger receipt",
+        "LedgerPending",
+        "HsLink is already saved",
+        "instead of starting a new capture or minting a new receipt",
+        "same immutable event_id",
+        "does not insert another hsLink",
+        "No Stage-specific setting exists",
+        "rich-editor-interop-status",
+        "cargo test -p handshake-native --test test_ckc_embed -- --nocapture",
+        "cargo test -p handshake-native --features integration --test test_ckc_embed -- --nocapture",
+        "self-seed PostgreSQL",
+        "workspace_id plus canvas_id",
+        "late success/failure for board A cannot reload or paint board B",
+    ] {
+        assert!(
+            interop.contains(required),
+            "MT-033 no-context manual must contain runtime fact '{required}'"
+        );
+    }
+    let canvas = topic_body(&section, "Canvas");
+    for required in [
+        "ResolveAtelierAndPlace",
+        "PUT /atelier/intake/items/{item_id}/loom-projection",
+        "batch-items response carries loom_block_id",
+        "accepts only that backend-provided identity",
+        "never fabricates a Loom block",
+        "posts only placed_block_id",
+        "freshly reloads the board",
+    ] {
+        assert!(
+            canvas.contains(required),
+            "Canvas manual must remain consistent with MT-033 runtime: '{required}'"
+        );
+    }
+}
+
+#[test]
+fn mt088_manual_documents_backend_down_operation_and_recovery() {
+    let section = editors_manual_section();
+    let diagnostics = topic_body(&section, "internal_diagnostics");
+    for required in [
+        "Disconnected/degraded state",
+        "BackendUnreachable",
+        "BackendRecovered",
+        "1.5 seconds",
+        "10 seconds",
+        "fixed safety bounds, not operator preferences",
+        "keep editing local buffers",
+        "verify BackendRecovered before retrying a mutation",
+    ] {
+        assert!(
+            diagnostics.contains(required),
+            "MT-088 no-context manual must contain runtime/recovery fact '{required}'"
+        );
+    }
 }
 
 fn row_by_id() -> HashMap<&'static str, handshake_native::manual_pane::AgentToolRow> {
@@ -212,9 +452,43 @@ fn mt104_topics_exist_and_include_no_context_runtime_facts() {
             "Flight Recorder",
             &[
                 "Tier 1",
-                "GET /events",
+                "OPERATOR -> Open Flight Recorder",
+                "RUN -> Open Flight Recorder",
+                "GET /api/flight_recorder",
+                "wsid=<active workspace>",
+                "with only",
+                "menu.operator.flight-recorder",
                 "menu.run.flight-recorder",
                 "command-palette.option.hs-flight-palette-open",
+                "flight-recorder.refresh",
+                "flight-recorder.load-failure",
+                "flight-recorder.quarantine-status",
+                "flight-recorder.error-ring",
+                "FR-EVT-MEM-001 memory_write_proposed",
+                "FR-EVT-MEM-002 memory_write_reviewed",
+                "FR-EVT-MEM-003 memory_write_committed",
+                "FR-EVT-MEM-004 memory_pack_built",
+                "FR-EVT-MEM-005",
+                "memory_item_status_changed",
+                "settings-editor-flight-recorder-posture",
+                "The native POST envelope is closed",
+                "actor_kind=optional human|agent|system",
+                "payload=an object no larger than 64 KiB",
+                "document_saved={document_id:string",
+                "route_to_stage={content_kind:string,causal_action_id?:non-empty string}",
+                "manifest_ref:string,causal_action_id?:non-empty string",
+                "memory_write_proposed={action:memory_write_proposed",
+                "status:pending_review",
+                "edited_document_ids:non-empty string[]",
+                "target_kind:work_packet|microtask",
+                "Accepted storage rows use",
+                "13 accepted actions",
+                "memory_write_proposed",
+                "locus_reverse_lookup",
+                "malformed native-editor or FEMS candidates",
+                "latest 20",
+                "never reuses the last model-launch request",
+                "pending-mirror receipt and reconciler",
             ],
         ),
         (
@@ -251,7 +525,7 @@ fn mt104_topics_exist_and_include_no_context_runtime_facts() {
         let body = topic_body(&section, heading);
         for needle in needles {
             assert!(
-                body.contains(needle),
+                manual_body_contains(body, needle),
                 "topic '{heading}' must include concrete runtime fact '{needle}'"
             );
         }
@@ -419,12 +693,16 @@ fn mt104_agent_tool_reference_adds_real_terminal_model_diagnostics_rows() {
             .get(author_id)
             .unwrap_or_else(|| panic!("agent-tool row '{author_id}' must exist"));
         assert_eq!(row.surface, surface, "row '{author_id}' surface");
-        assert_eq!(row.mcp_tool, tool, "row '{author_id}' tool");
+        assert_eq!(
+            row.mcp_tool,
+            canonical_tool_name(tool),
+            "row '{author_id}' tool"
+        );
     }
 
     assert_eq!(
         rows.get(TERMINAL_MENU_AUTHOR_ID).unwrap().mcp_tool,
-        "click_widget",
+        handshake_native::mcp::argus::ARGUS_CLICK_METHOD,
         "terminal menu item must be runnable into terminal-launch-status"
     );
 
@@ -499,7 +777,11 @@ fn mt020_agent_tool_reference_covers_save_draft_and_export_controls() {
             .get(author_id)
             .unwrap_or_else(|| panic!("MT-020 agent-tool row '{author_id}' must exist"));
         assert_eq!(row.surface, surface, "MT-020 row '{author_id}' surface");
-        assert_eq!(row.mcp_tool, tool, "MT-020 row '{author_id}' tool");
+        assert_eq!(
+            row.mcp_tool,
+            canonical_tool_name(tool),
+            "MT-020 row '{author_id}' tool"
+        );
     }
 }
 
@@ -634,7 +916,11 @@ fn wave6_agent_tool_reference_adds_view_open_surface_rows() {
             .get(author_id)
             .unwrap_or_else(|| panic!("wave-6 VIEW open-surface row '{author_id}' must exist"));
         assert_eq!(row.surface, surface, "row '{author_id}' surface");
-        assert_eq!(row.mcp_tool, tool, "row '{author_id}' tool");
+        assert_eq!(
+            row.mcp_tool,
+            canonical_tool_name(tool),
+            "row '{author_id}' tool"
+        );
     }
 }
 
@@ -644,7 +930,7 @@ fn mt104_terminal_menu_author_id_is_live_clickable_run_leaf() {
     let terminal = rows
         .get(TERMINAL_MENU_AUTHOR_ID)
         .expect("terminal agent-tool row exists");
-    assert_eq!(terminal.mcp_tool, "click_widget");
+    assert_eq!(terminal.mcp_tool, handshake_native::mcp::ARGUS_CLICK_METHOD);
     assert_eq!(terminal.surface, ManualSurface::Terminal);
 
     let mut harness: Harness<HandshakeApp> = Harness::builder()
@@ -702,6 +988,79 @@ fn mt104_agent_tool_reference_rejects_raw_command_stable_ids() {
 }
 
 #[test]
+fn operator_and_fems_agent_rows_cover_live_visibility_controls() {
+    let row_ids: HashSet<&str> = agent_tool_rows().iter().map(|row| row.author_id).collect();
+    for author_id in [
+        "menu-operator",
+        "menu.operator.command-palette",
+        "menu.operator.swarm-board",
+        "menu.operator.flight-recorder",
+        "menu.operator.model-session-launch",
+        "menu.operator.user-manual",
+        "menu.operator.settings",
+        "flight-recorder.refresh",
+        "flight-recorder.load-failure",
+        "flight-recorder.quarantine-status",
+        "flight-recorder.error-ring",
+        "fems-propose-dialog",
+        "fems-class-episodic",
+        "fems-class-semantic",
+        "fems-class-procedural",
+        "fems-propose-confirm",
+        "fems-propose-cancel",
+        "fems-propose-status",
+        "fems-review-approve",
+        "fems-review-reject",
+        "fems-review-status",
+        "fems-review-refresh-retry",
+    ] {
+        assert!(
+            row_ids.contains(author_id),
+            "agent-tool index must include live operator/FEMS id '{author_id}'"
+        );
+    }
+
+    let section = editors_manual_section();
+    let fems = topic_body(&section, "Relevant Memory (FEMS)");
+    for unreachable in [
+        "event_rejected",
+        "event_persistence_failed",
+        "event_persistence_timeout",
+    ] {
+        assert!(
+            !fems.contains(unreachable),
+            "manual must not present unreachable frontend proposal outcome '{unreachable}'"
+        );
+    }
+}
+
+#[test]
+fn notes_load_recovery_manual_matches_latched_runtime_contract() {
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Opening Editing and Saving Notes");
+    for required in [
+        NOTES_LOAD_ERROR_AUTHOR_ID,
+        NOTES_LOAD_RETRY_AUTHOR_ID,
+        "does not spin an automatic GET/repaint retry loop",
+        "issues one new GET",
+        "another retry requires another explicit click",
+    ] {
+        assert!(
+            body.contains(required),
+            "Notes load recovery manual must document runtime contract '{required}'"
+        );
+    }
+
+    let rows = row_by_id();
+    let retry = rows
+        .get(NOTES_LOAD_RETRY_AUTHOR_ID)
+        .expect("Notes load Retry agent-tool row exists");
+    assert_eq!(retry.surface, ManualSurface::RichText);
+    assert_eq!(retry.mcp_tool, handshake_native::mcp::ARGUS_CLICK_METHOD);
+    assert!(retry.description.contains(NOTES_LOAD_ERROR_AUTHOR_ID));
+}
+
+#[test]
 fn mt069_manual_agent_rows_cover_file_edit_go_menu_leaves() {
     let row_ids: HashSet<&str> = agent_tool_rows().iter().map(|row| row.author_id).collect();
     for author_id in handshake_native::top_menu_bar::EDITOR_MENU_LEAF_AUTHOR_IDS {
@@ -724,7 +1083,8 @@ fn mt069_manual_agent_rows_cover_file_edit_go_menu_leaves() {
             .get(author_id)
             .unwrap_or_else(|| panic!("missing MT-069 menu row {author_id}"));
         assert_eq!(
-            row.mcp_tool, "click_widget",
+            row.mcp_tool,
+            handshake_native::mcp::ARGUS_CLICK_METHOD,
             "menu leaf {author_id} must be driven by the real click_widget tool"
         );
     }
@@ -750,7 +1110,8 @@ fn mt021_agent_tool_reference_covers_graph_toolbar_controls() {
             "MT-021 graph toolbar row '{author_id}' must be grouped under the Graph surface"
         );
         assert_eq!(
-            row.mcp_tool, "click_widget",
+            row.mcp_tool,
+            handshake_native::mcp::ARGUS_CLICK_METHOD,
             "MT-021 graph toolbar row '{author_id}' must be driven by click_widget"
         );
     }
@@ -853,6 +1214,7 @@ fn wave5_body_marker(heading: &str) -> &'static str {
     match heading {
         "Code Editor" => "VS Code-parity native code pane",
         "Rich Text Editor" => "Obsidian/Notion-parity native Notes pane",
+        "Wiki Projection" => "dedicated generated Loom wiki-page surface",
         "Knowledge Graph" => "Loom graph view",
         "Folder Tree" => "The Folder Tree is the native Obsidian-style folder surface",
         "Tags and Tag Hubs" => {
@@ -864,7 +1226,7 @@ fn wave5_body_marker(heading: &str) -> &'static str {
         "Daily Journal" => "date-addressed note surface",
         "Diff and Merge" => "VS Code-style side-by-side and inline diffs",
         "Internationalization" => "SINGLE shared Unicode text-mechanics",
-        "Menu Bar and Commands" => "six top-level dropdowns",
+        "Menu Bar and Commands" => "eight top-level dropdowns",
         "Editor Settings" => "Editor preferences live in the Settings dialog",
         "Signature Help, Rename, and Quick Fix" => {
             "The code editor has VS Code-parity symbol-intelligence actions"
@@ -916,17 +1278,24 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
         "Knowledge Graph" => &[
             "graph.open-node",
             "view.graph",
-            "backlink_depth",
+            "max_depth",
             "graph.mode.local",
             "graph.mode.global",
             "graph.zoom.in",
             "graph.zoom.out",
             "graph.relayout",
+            "graph.retry",
             "graph.node.{block_id}",
+            "TreeItem",
             "GET /workspaces/{id}/loom/views/all",
-            "GET /workspaces/{id}/loom/graph-search",
-            "LoomGraphView::set_graph",
-            "NEEDS_MANAGED_RESOURCE_PROOF",
+            "GET /workspaces/{id}/loom/graph/global",
+            "GET /workspaces/{id}/loom/graph/local",
+            "start_block_id",
+            "max_depth",
+            "truncated",
+            "suppressed_hub_ids",
+            "LoomGraphView::set_graph_projection",
+            "graph_view_live_pg_self_seeds_local_global",
             "0 nodes",
             "Graph error:",
             "list_widgets",
@@ -943,7 +1312,8 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "PATCH /workspaces/{id}/loom/folders/{folder_id}",
             "Change color",
             "No folders",
-            "NEEDS_MANAGED_RESOURCE_PROOF",
+            "folder_tree_live_pg_self_seeded_round_trip",
+            "cleanup_verified=true",
         ],
         "Tags and Tag Hubs" => &[
             "menu.view.open-tags",
@@ -960,18 +1330,73 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "tag-hub.add-tag.{block_id}",
             "TagsPanelEvent::OpenTag",
             "No tags",
-            "NEEDS_MANAGED_RESOURCE_PROOF",
+            "tags_tag_hub_live_pg_self_seeds_mounted_round_trip",
         ],
         "Canvas" => &[
             "canvas.add-card",
+            "canvas.retry",
             "getCanvasBoard",
             "cross-pane MT-035 compensating undo",
             "DELETE /workspaces/{id}/loom/canvas-placements/{placement_id}",
             "Inline text-card edit remains a typed blocker",
         ],
         "Search" => &[
-            "loom-search-v2.query",
+            "search.query",
+            "loom-search-v2.save-view",
+            "semantic_available",
+            "POST /workspaces/{workspace_id}/loom/views/definitions",
+            "reloadable view block id",
+            "Workspace switches clear results, facets, errors, save receipts, and pending deliveries",
             "menu.edit.find-all",
+            "find-in-files.query",
+            "find-in-files.preview-replace",
+            "find-in-files.apply",
+            "/workspaces/{workspace_id}/loom/graph-search",
+            "find-in-files.result.{hex(source_kind UTF-8 bytes)}.{hex(ref_id UTF-8 bytes)}",
+            "find-in-files.result.646f63756d656e74.4b52442d313a2f666f6f3f783d31",
+            "find-in-files.result.e69687e6a1a3.72c3a973756dc3a92fe69db1e4baac",
+            "hex-encoded",
+            "list_widgets instead of guessing",
+            "PaneType::LoomWikiPage",
+            "PaneType::LoomBlock",
+            "PaneType::CodeSymbol",
+            "PaneType::KernelDcc at WP:{wp_id}",
+            "PaneType::KernelDcc at MT:{wp_id}:{mt_id}",
+            "PaneType::UserManual at page_slug",
+            "dedicated Wiki Page projection placeholder pane",
+            "block.content_type is view_def",
+            "dedicated Block Collections placeholder pane",
+            "View error: ...",
+            BCV_RETRY_AUTHOR_ID,
+            "clears stale deliveries",
+            "rebinds the same view id",
+            "one bounded definition fetch plus one bounded result query",
+            "/workspaces/{workspace_id}/search-bookmarks",
+            "bookmark-v1 followed by one .{utf8_len}-{hex(component UTF-8 bytes)} frame",
+            "never lowercases semantic content",
+            "case-sensitive Foo/foo and Unicode-only 文/東 searches",
+            "find-in-files.bookmark-restore.{hex(bookmark_id UTF-8 bytes)}",
+            "find-in-files.bookmark-remove.{hex(bookmark_id UTF-8 bytes)}",
+            "73617665643ae696872f31",
+            "find-in-files.bookmark-retry",
+            "find-in-files.preview.{hex(document_id UTF-8 bytes)}",
+            "find-in-files.preview.4b52442de696872f31",
+            "/knowledge/documents/{id}/save",
+            "expected_version",
+            "CommittedWithoutReceipt",
+            "reloads the document to reverify both identities immediately before save",
+            "automatically re-runs the same search",
+            "Cancel is cooperative between saves",
+            "Search never overlaps Apply",
+            "result click/open_requests shell target",
+            "exact id/title/content/version",
+            "production Bookmark Search saves for case-sensitive case variants",
+            "UI Restore-all-fields",
+            "second fresh-remount absence",
+            "fresh GET /workspaces list absence and a failed graph-search refetch",
+            "every graph-search page emits LoomSearchExecuted",
+            "internal_diagnostics = DEFERRED-with-reason",
+            "Palmistry = DEFERRED-with-reason",
             "quick-switcher.dialog",
             "command-palette.search",
         ],
@@ -981,6 +1406,13 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "outgoing.section.resolved",
             "backlinks-panel",
             "backlinks-refresh",
+            "sticky typed indexing failure",
+            "same source document",
+            "Invalidation state is workspace-stamped",
+            "bounded revision window",
+            "latest revision per workspace",
+            "workspace plus normalized title",
+            "successful off-workspace create is cached",
             "backlink-{source_document_id}",
             "code-symbol-search",
             "code-symbol-search-input",
@@ -996,6 +1428,16 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "lookup_symbols_by_name_path",
             "GET /knowledge/code/symbols?workspace_id=&name=&path=&limit=1",
             "visible line range contains line_start",
+            "same normalized title or alias",
+            "add_local_alias is the sole alias source",
+            "A restart or fresh resolver seed restores titles but cannot restore aliases",
+            "not durable backend alias coverage",
+            "status says Created only when created=true",
+            "Opened existing/reused when created=false",
+            "scoped by origin pane plus source content",
+            "A new B intent cancels B-old only",
+            "GET /knowledge/documents?workspace_id=...",
+            "Rename disables reentry",
             "unresolved chip",
             "note-refs-panel",
             "block_id",
@@ -1014,7 +1456,11 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "Flight Recorder/EventLedger = NOT_APPLICABLE-with-reason",
             "internal_diagnostics = DEFERRED-with-reason",
             "Palmistry = DEFERRED-with-reason",
-            "NEEDS_MANAGED_RESOURCE_PROOF",
+            "live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof",
+            "ReqwestWikilinkBackend/WikilinkRuntime",
+            "MT-032-canvas-live-B.png",
+            "every already-mounted backlink panel",
+            "typed indexing failure",
             "typed backend-shape gap",
         ],
         "Daily Journal" => &[
@@ -1023,10 +1469,27 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "journal-start-writing",
             "journal-document-link-gap",
             "view.journal",
-            "PUT /loom/journals/:date",
+            "PUT /workspaces/:workspace_id/loom/journals/:date",
             "PUT /knowledge/documents/:id/save",
-            "NEEDS_MANAGED_RESOURCE_PROOF",
+            "managed-backend proof starts with the navigated date absent",
+            "one durable journal identity that reopens idempotently",
             "EndpointUnavailable",
+            "workspace-plus-date request",
+            "rapid navigation discards late responses",
+            "Settings > Appearance > Calendar timezone",
+            "workspace-plus-date-plus-view-timezone request",
+            "validated IANA tzid per workspace",
+            "[start_date, end_date_exclusive)",
+            "23-hour and 25-hour days",
+            "timed midnight-exclusive endings",
+            "nonexistent DST-gap local times are rejected",
+            "explicit earlier/later-offset normalization note",
+            "Today is derived in that persisted view timezone",
+            "daily-journal-calendar-normalization-badge",
+            "calendar-event-legacy-badge",
+            "Legacy temporal data",
+            "reimport from the calendar source",
+            "without ended_utc is rendered as In progress",
         ],
         "Diff and Merge" => &[
             "view.diff-merge",
@@ -1040,8 +1503,29 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "conflict",
         ],
         "Internationalization" => &["text_intl", "UAX#29", "grapheme"],
+        "Wiki Projection" => &[
+            "menu.view.open-wiki-projection",
+            "view.wiki-projection",
+            "workspace id, projection id, and pane generation",
+            "last-good rebuild preservation",
+            "no dedicated preference",
+            "generated live ids",
+        ],
         "Menu Bar and Commands" => &[
             "menu-file",
+            "menu-editors, Alt+I",
+            "menu-operator, Alt+O",
+            "menu.operator.command-palette",
+            "menu.operator.swarm-board",
+            "menu.operator.flight-recorder",
+            "menu.operator.model-session-launch",
+            "menu.operator.user-manual",
+            "menu.operator.settings",
+            "command-palette.dialog",
+            "flight-recorder-pane",
+            "model-session-launch.dialog",
+            "manual-pane",
+            "settings.dialog",
             "menu.edit.undo",
             "Open Editor Surfaces",
             "menu.view.open-code-editor",
@@ -1050,6 +1534,7 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "menu.view.open-block-collections",
             "command-palette.option.hs-view-palette-code-editor",
             "command-palette.option.hs-view-palette-rich-note",
+            "command-palette.option.hs-view-palette-wiki-projection",
             "command-palette.option.hs-view-palette-graph",
             "command-palette.option.hs-view-palette-folders",
             "command-palette.option.hs-view-palette-tags",
@@ -1065,10 +1550,19 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
         ],
         "Editor Settings" => &[
             "settings-editor-font-size",
+            "settings-editor-minimap",
+            "settings-editor-sticky-scroll",
+            "settings-editor-line-height",
+            "settings-editor-reading-mode-default",
+            "settings-editor-wiki-projection-posture",
+            "settings-editor-flight-recorder-posture",
+            "workspace filter is runtime-derived",
+            "no dedicated preference",
             "settings-syntax-palette-mode",
             "PUT /workspaces/:id/settings",
             "mounted code editor and rich editor",
             "repaints the mounted code editor",
+            "settings.persist.retry",
         ],
         "Signature Help, Rename, and Quick Fix" => &[
             "Signature help",
@@ -1097,10 +1591,56 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "relevant-memory-list",
             "menu.editors.relevant-memory",
             "command-palette.option.hs-view-palette-relevant-memory",
+            "editor.fems.memorypack-refresh",
+            "editor.fems.memorypack-status",
+            "pending_review",
+            "FR-EVT-MEM-001",
+            "FR-EVT-MEM-002",
+            "FR-EVT-MEM-003",
+            "FR-EVT-MEM-004",
+            "FR-EVT-MEM-005",
+            "fems-propose-dialog",
+            "fems-class-episodic",
+            "fems-class-semantic",
+            "fems-class-procedural",
             "fems-propose-confirm",
-            "EndpointMissing",
+            "fems-propose-cancel",
+            "fems-propose-status",
+            "fems-review-approve",
+            "fems-review-reject",
+            "fems-review-status",
+            "fems-review-refresh-retry",
+            "state=committed;outcome=approved",
+            "memory_id",
+            "commit_id",
+            "memory_pack_id",
+            "commit_report_hash",
+            "separate explicit approved-proposal commit route",
+            "Exact retries",
+            "event_ledger_event_id",
+            "flight_recorder_event_id",
+            "KSRC-* KnowledgeSource",
+            "knowledge_code_files",
+            "full-buffer SHA-256",
+            "canonical proposal-row count",
+            "identical range",
+            "Relevant Memory utility tab",
+            "outcome=reentry_blocked",
+            "late delivery is discarded",
         ],
         other => panic!("unknown wave-5 surface topic '{other}'"),
+    }
+}
+
+#[test]
+fn mt067_calendar_temporal_manual_documents_lossless_local_date_workflow() {
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Daily Journal");
+    for needle in wave5_needles("Daily Journal") {
+        assert!(
+            manual_body_contains(body, needle),
+            "MT-067 Daily Journal manual must include concrete temporal fact '{needle}'"
+        );
     }
 }
 
@@ -1115,23 +1655,36 @@ fn mt021_knowledge_graph_manual_documents_live_ids_and_recovery() {
         GRAPH_ZOOM_IN_AUTHOR_ID,
         GRAPH_ZOOM_OUT_AUTHOR_ID,
         GRAPH_RELAYOUT_AUTHOR_ID,
+        "graph.retry",
         GRAPH_NODE_AUTHOR_ID_PATTERN,
+        "encoded injectively",
         "GET /workspaces/{id}/loom/views/all",
-        "GET /workspaces/{id}/loom/graph-search",
+        "GET /workspaces/{id}/loom/graph/global",
+        "GET /workspaces/{id}/loom/graph/local",
+        "start_block_id",
+        "max_depth",
+        "truncated",
+        "suppressed_hub_ids",
         "ModeChanged",
         "AddEdge",
         "RemoveEdge",
-        "LoomGraphView::set_graph",
-        "NEEDS_MANAGED_RESOURCE_PROOF",
-        "Handshake-managed PostgreSQL/EventLedger",
+        "LoomGraphView::set_graph_projection",
+        "graph_view_live_pg_self_seeds_local_global",
+        "real pre-seed 0-node Global projection",
+        "bounded typed transport failure",
+        "cleanup guard removes the seeded workspace",
+        "missing backend fails that proof",
         "0 nodes",
         "Graph error:",
         "list_widgets",
         "switch graph.mode.local / graph.mode.global",
         "click graph.relayout",
+        "click graph.retry",
+        "A -> B -> A",
+        "Palmistry",
     ] {
         assert!(
-            body.contains(needle),
+            manual_body_contains(body, needle),
             "MT-021 Knowledge Graph manual must document '{needle}'"
         );
     }
@@ -1159,13 +1712,15 @@ fn mt022_folder_tree_manual_documents_live_ids_routes_and_recovery() {
         "Change color",
         "No folders",
         "Retry",
-        "NEEDS_MANAGED_RESOURCE_PROOF",
-        "Handshake-managed PostgreSQL/EventLedger",
+        "Handshake-managed PostgreSQL backend",
+        "Flight Recorder/EventLedger",
+        "folder_tree_live_pg_self_seeded_round_trip",
+        "cleanup_verified=true",
         "list_widgets",
         "click_widget",
     ] {
         assert!(
-            body.contains(needle),
+            manual_body_contains(body, needle),
             "MT-022 Folder Tree manual must document '{needle}'"
         );
     }
@@ -1195,7 +1750,7 @@ fn mt022_agent_tool_reference_covers_folder_tree_controls() {
             .get(author_id)
             .unwrap_or_else(|| panic!("missing MT-022 agent-tool row '{author_id}'"));
         assert_eq!(row.surface, ManualSurface::Knowledge);
-        assert_eq!(row.mcp_tool, tool);
+        assert_eq!(row.mcp_tool, canonical_tool_name(tool));
         assert_eq!(row.action_label, label);
     }
 }
@@ -1228,7 +1783,7 @@ fn mt023_tags_manual_documents_live_ids_routes_and_recovery() {
         "click_widget",
     ] {
         assert!(
-            body.contains(needle),
+            manual_body_contains(body, needle),
             "MT-023 Tags manual must document '{needle}'"
         );
     }
@@ -1254,8 +1809,38 @@ fn mt023_agent_tool_reference_covers_tags_controls() {
             .get(author_id)
             .unwrap_or_else(|| panic!("missing MT-023 agent-tool row '{author_id}'"));
         assert_eq!(row.surface, ManualSurface::Knowledge);
-        assert_eq!(row.mcp_tool, tool);
+        assert_eq!(row.mcp_tool, canonical_tool_name(tool));
         assert_eq!(row.action_label, label);
+    }
+}
+
+#[test]
+fn mt024_sidebar_manual_documents_runtime_routes_ids_and_recovery() {
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Wikilinks and Backlinks");
+
+    for needle in [
+        "EDITORS > Open Sidebar",
+        "menu.editors.sidebar",
+        "view.sidebar",
+        "Pins, Favorites, Backlinks, and Unlinked Mentions",
+        "PUT /pin-order {pin_order:null}",
+        "PATCH {pinned:false}",
+        "PATCH {favorite:false}",
+        "sidebar.pin.{encoded_block_id}",
+        "sidebar.favorite.{encoded_block_id}",
+        "sidebar.backlink.{encoded_block_id}",
+        "sidebar.unlinked.{encoded_block_id}",
+        "sidebar.breadcrumb.{index}",
+        "injective u8-hex",
+        "five-entry breadcrumb",
+        "own loading/error state and Retry",
+        "There is no sidebar preference in the WP contract",
+    ] {
+        assert!(
+            manual_body_contains(body, needle),
+            "MT-024 sidebar manual must document '{needle}'"
+        );
     }
 }
 
@@ -1278,7 +1863,7 @@ fn mt032_agent_tool_reference_covers_fixed_backlinks_controls() {
             .get(author_id)
             .unwrap_or_else(|| panic!("missing MT-032 agent-tool row '{author_id}'"));
         assert_eq!(row.surface, ManualSurface::Interop);
-        assert_eq!(row.mcp_tool, tool);
+        assert_eq!(row.mcp_tool, canonical_tool_name(tool));
         assert_eq!(row.action_label, label);
     }
 }
@@ -1288,8 +1873,8 @@ fn wave5_surface_topics_exist_and_carry_real_no_context_facts() {
     let section = editors_manual_section();
     assert_eq!(
         WP_SURFACE_HEADINGS.len(),
-        16,
-        "one dedicated topic per native editor surface (13 wave-5 + 3 MT-035 surfacing topics)"
+        17,
+        "one dedicated topic per native editor surface (14 wave-5 + 3 MT-035 surfacing topics)"
     );
     for heading in WP_SURFACE_HEADINGS {
         let body = topic_body(&section, heading);
@@ -1300,7 +1885,7 @@ fn wave5_surface_topics_exist_and_carry_real_no_context_facts() {
         );
         for needle in wave5_needles(heading) {
             assert!(
-                body.contains(needle),
+                manual_body_contains(body, needle),
                 "wave-5 topic '{heading}' must include concrete runtime fact '{needle}'"
             );
         }
@@ -1320,17 +1905,29 @@ fn wave6_editor_settings_topic_documents_live_font_and_palette_effects() {
     );
     assert!(
         body.contains(
-            "Custom syntax palette also repaints the mounted code editor and minimap syntax rows"
+            "Muted, Standard, and Custom palette selections repaint the mounted code editor and minimap"
         ),
-        "Editor Settings topic must document the live Custom syntax-palette effect"
+        "Editor Settings topic must document every live syntax-palette mode"
     );
     assert!(
-        body.contains("gutter line numbers still use their base sizing"),
-        "Editor Settings topic must keep the cosmetic scope edge explicit"
+        body.contains("Gutter line-number and fold glyphs use the same live editor font size"),
+        "Editor Settings topic must document live gutter font sizing"
     );
     assert!(
         !body.contains("does not yet apply a live font size"),
         "Editor Settings topic must not keep the old stale inert-font-size claim"
+    );
+    assert!(
+        body.contains("code keybindings, and rich keybindings apply to the mounted editors"),
+        "Editor Settings topic must document both live runtime keymaps"
+    );
+    assert!(
+        !body.contains("no live rich keymap seam"),
+        "Editor Settings topic must not retain the retired rich-keymap blocker"
+    );
+    assert!(
+        body.contains("settings.persist.error") && body.contains("settings.persist.retry"),
+        "Editor Settings topic must document visible persistence failure and exact retry recovery"
     );
     assert!(
         !body.to_lowercase().contains("sqlite"),
@@ -1413,9 +2010,157 @@ fn mt035_surfacing_topics_present_with_substantive_bodies() {
         );
         for needle in wave5_needles(heading) {
             assert!(
-                body.contains(needle),
+                manual_body_contains(body, needle),
                 "MT-035 topic '{heading}' must include concrete runtime fact '{needle}'"
             );
         }
+    }
+}
+
+#[test]
+fn mt108_manual_documents_replace_cap_watchdog_recovery_and_three_tier_posture() {
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Residual Hardening and Argus Evidence");
+    for needle in [
+        "1000 matches per click",
+        "click Replace All again",
+        "normal undo command reverses it",
+        "progress-gap deadline",
+        "hard total-runtime cap",
+        "register_backend_operation",
+        "Completion clears the active stalled count",
+        "Tier 1 Flight Recorder",
+        "Tier 2 internal_diagnostics is WIRED",
+        "Tier 3 Palmistry is WIRED",
+        "hsk.native_gui.screenshot_marker@2",
+        "HANDSHAKE_GPU_SCREENSHOT=1",
+        "tests/run_mt108_argus_proof.ps1",
+        "hsk.native_gui.external_process_receipt@2",
+        "STARTED row with child PID, exact command, start, deadline",
+        "terminal RECLAIMED",
+        "RECLAIM_FAILED",
+        "EXTERNAL_PROCESS_TIMEOUT",
+        "hsk.native_gui.argus_surface_evidence@4",
+        "seven screenshot markers",
+        "scenario, correlation id, and PID",
+        "sixteen STARTED/COMPLETED lifecycle rows",
+        "test_mt108_argus_aggregate",
+        "six rows fail closure",
+        "BLOCKED/TIMEOUT/FAILED/RECLAIM_FAILED receipt means the run is not successful",
+        "Handshake_Artifacts\\handshake-cargo-target",
+        "Handshake_Artifacts\\handshake-test\\native_gui",
+        "x->x and x->xx terminate",
+        "run_id and outcome_id",
+        "argus-seven-surface.jsonl",
+    ] {
+        assert!(
+            body.contains(needle),
+            "MT-108 no-context manual must document '{needle}'"
+        );
+    }
+}
+
+#[test]
+fn mt108_argus_evidence_matrix_covers_exactly_the_seven_contract_surfaces() {
+    let expected = [
+        "find bar",
+        "formatting toolbar",
+        "slash menu",
+        "outline pane",
+        "rich find/replace panel",
+        "runtime chat pane",
+        "diagnostics panel",
+    ];
+    assert_eq!(MT108_ARGUS_EVIDENCE_MATRIX.len(), expected.len());
+    assert_eq!(
+        MT108_ARGUS_EVIDENCE_MATRIX
+            .iter()
+            .map(|row| row.surface)
+            .collect::<Vec<_>>(),
+        expected
+    );
+    for row in MT108_ARGUS_EVIDENCE_MATRIX {
+        assert!(!row.inspect_author_id.is_empty());
+        assert!(!row.steer_author_id.is_empty());
+        assert!(
+            matches!(
+                row.steer_method,
+                handshake_native::mcp::ARGUS_CLICK_METHOD
+                    | handshake_native::mcp::ARGUS_SET_VALUE_METHOD
+            ),
+            "{} uses a canonical bounded Argus mutation method",
+            row.surface
+        );
+        assert!(row.proof_binary.starts_with("test_"));
+        assert!(row.proof_test.starts_with("mt108_argus_"));
+        assert_eq!(
+            row.automation_status,
+            ArgusAutomationStatus::CanonicalServerLoop,
+            "every matrix row must route through the canonical server loop"
+        );
+    }
+
+    let section = editors_manual_section();
+    let body = topic_body(&section, "Residual Hardening and Argus Evidence");
+    for row in MT108_ARGUS_EVIDENCE_MATRIX {
+        for needle in [
+            row.surface,
+            row.inspect_author_id,
+            row.steer_method,
+            row.steer_author_id,
+            row.proof_binary,
+            row.proof_test,
+        ] {
+            assert!(
+                body.contains(needle),
+                "rendered MT-108 matrix must include {needle}"
+            );
+        }
+    }
+    assert!(body.contains("fresh re-inspect, then argus.screenshot"));
+    assert!(body.contains("real localhost SwarmMcpServer binding"));
+    assert!(body.contains("client_session_id-derived agent_id"));
+    assert!(body.contains("argus-seven-surface.jsonl"));
+    assert!(
+        !body.contains("argus.argus."),
+        "canonical Argus tool names must remain idempotent in the rendered manual"
+    );
+}
+
+#[test]
+fn mt108_supervisor_is_hard_bounded_and_invokes_the_mandatory_verifier() {
+    let runner = include_str!("run_mt108_argus_proof.ps1");
+    for needle in [
+        "WaitForExit($PerProcessTimeoutSeconds * 1000)",
+        "$process.Kill($true)",
+        "taskkill.exe",
+        "'/PID', $process.Id, '/T', '/F'",
+        "EXTERNAL_PROCESS_TIMEOUT",
+        "PROCESS_TREE_RECLAIMED",
+        "PROCESS_TREE_RECLAIM_FAILED",
+        "hsk.native_gui.external_process_receipt@2",
+        "child_pid",
+        "owned_process_tree_pids",
+        "command_arguments",
+        "deadline_at_utc",
+        "Assert-FinalProcessReceipts",
+        "successful_processes=8",
+        "RunId '$RunId' is not fresh",
+        "Resolve-ExternalPath",
+        "external_process_receipts.jsonl",
+        "test_find_bar_accesskit",
+        "test_formatting_toolbar",
+        "test_slash_commands",
+        "test_outline",
+        "test_rich_find_replace",
+        "test_runtime_chat_pane",
+        "test_diagnostics_panel",
+        "test_mt108_argus_aggregate",
+        "mt108_verify_argus_evidence_exact_seven",
+    ] {
+        assert!(
+            runner.contains(needle),
+            "MT-108 runner must retain '{needle}'"
+        );
     }
 }

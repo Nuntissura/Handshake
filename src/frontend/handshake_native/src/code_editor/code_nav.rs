@@ -84,6 +84,72 @@ pub struct CodeSymbolNavProjection {
     pub staleness: Option<CodeStaleness>,
 }
 
+/// Select the symbol that represents `identifier` from a prefix lookup response.
+///
+/// The backend orders prefix matches by entity key, so `lookup_symbols("add")` may return a sibling
+/// such as `address` before the exact `add` symbol. Semantic actions must bind the identifier under the
+/// caret, not whichever prefix sibling sorts first. A prefix-only response is therefore a miss. When
+/// multiple files define the exact same display name, this path has no source context with which to
+/// disambiguate them, so it also returns a miss instead of binding an arbitrary backend-order winner.
+pub fn preferred_symbol_for_identifier(
+    symbols: Vec<CodeSymbolNavProjection>,
+    identifier: &str,
+) -> Option<CodeSymbolNavProjection> {
+    preferred_symbol_for_identifier_in_file(symbols, identifier, "")
+}
+
+/// Select one exact symbol for a semantic action, using the active document path to disambiguate
+/// same-name definitions when possible. Backend symbol keys carry repo-relative paths while a mounted
+/// editor may hold an absolute path, so a component-boundary suffix match is intentional. If zero or
+/// multiple candidates still match, return `None` rather than present an arbitrary correlation as fact.
+pub fn preferred_symbol_for_identifier_in_file(
+    symbols: Vec<CodeSymbolNavProjection>,
+    identifier: &str,
+    current_file_path: &str,
+) -> Option<CodeSymbolNavProjection> {
+    let exact_matches: Vec<_> = symbols
+        .into_iter()
+        .filter(|symbol| symbol.display_name == identifier)
+        .collect();
+    if exact_matches.len() == 1 {
+        return exact_matches.into_iter().next();
+    }
+    // A Rust type and its inherent `impl` projection intentionally share a display name and source
+    // file. The backend exposes the latter with `symbol_kind = "impl"`; a bare identifier names the
+    // declaration, while the impl is a fallback only when no declaration projection exists. Duplicate
+    // declarations remain ambiguous and continue through the fail-closed file matching below.
+    let declaration_matches: Vec<_> = exact_matches
+        .iter()
+        .filter(|symbol| !symbol.symbol_kind.eq_ignore_ascii_case("impl"))
+        .cloned()
+        .collect();
+    let candidates = if declaration_matches.is_empty() {
+        exact_matches
+    } else {
+        declaration_matches
+    };
+    if candidates.len() == 1 {
+        return candidates.into_iter().next();
+    }
+    let mut current = current_file_path.replace('\\', "/");
+    while let Some(stripped) = current.strip_prefix("./") {
+        current = stripped.to_owned();
+    }
+    #[cfg(windows)]
+    current.make_ascii_lowercase();
+    let mut same_file = candidates.into_iter().filter(|symbol| {
+        let Some(mut candidate) = symbol_file_path(&symbol.symbol_key) else {
+            return false;
+        };
+        candidate = candidate.replace('\\', "/");
+        #[cfg(windows)]
+        candidate.make_ascii_lowercase();
+        current == candidate || current.ends_with(&format!("/{candidate}"))
+    });
+    let selected = same_file.next()?;
+    same_file.next().is_none().then_some(selected)
+}
+
 /// A symbol's definition span (1-based line range), as the backend's `definition` object carries it.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 pub struct CodeSymbolDefinition {
@@ -355,13 +421,14 @@ pub fn staleness_marker_for(symbol: &CodeSymbolNavProjection) -> Option<GutterMa
     ))
 }
 
-/// A short-lived cache of `lookup_symbols(prefix)` results keyed by the exact prefix string, with a
-/// [`LOOKUP_CACHE_TTL`] expiry (RISK-002 / MC-004). A single-entry cache (the editor only ever has one
-/// active prefix at a time) keeps it trivial + lock-cheap. Stored behind a `Mutex` by the panel.
+/// A short-lived cache of `lookup_symbols(workspace_id, prefix)` results keyed by the exact workspace
+/// and prefix, with a [`LOOKUP_CACHE_TTL`] expiry (RISK-002 / MC-004). A single-entry cache (the editor
+/// only ever has one active prefix at a time) keeps it trivial + lock-cheap. Stored behind a `Mutex` by
+/// the panel.
 #[derive(Debug, Clone, Default)]
 pub struct CodeNavCache {
-    /// The cached `(prefix, matches, fetched_at)`. `None` until the first lookup is cached.
-    entry: Option<(String, Vec<CodeSymbolNavProjection>, Instant)>,
+    /// The cached `(workspace_id, prefix, matches, fetched_at)`. `None` until first populated.
+    entry: Option<(String, String, Vec<CodeSymbolNavProjection>, Instant)>,
 }
 
 impl CodeNavCache {
@@ -370,20 +437,31 @@ impl CodeNavCache {
         Self::default()
     }
 
-    /// Return the cached matches for `prefix` iff the cache holds that exact prefix and the entry has
-    /// not expired (RISK-002). A miss / expiry returns `None` so the caller hits the backend.
-    pub fn get(&self, prefix: &str) -> Option<Vec<CodeSymbolNavProjection>> {
+    /// Return cached matches iff both workspace and prefix match and the entry has not expired.
+    pub fn get(&self, workspace_id: &str, prefix: &str) -> Option<Vec<CodeSymbolNavProjection>> {
         match &self.entry {
-            Some((p, matches, at)) if p == prefix && at.elapsed() < LOOKUP_CACHE_TTL => {
+            Some((workspace, p, matches, at))
+                if workspace == workspace_id && p == prefix && at.elapsed() < LOOKUP_CACHE_TTL =>
+            {
                 Some(matches.clone())
             }
             _ => None,
         }
     }
 
-    /// Store `matches` for `prefix`, stamped now. Replaces any previous entry (single-slot cache).
-    pub fn put(&mut self, prefix: impl Into<String>, matches: Vec<CodeSymbolNavProjection>) {
-        self.entry = Some((prefix.into(), matches, Instant::now()));
+    /// Store matches for one workspace + prefix, stamped now. Replaces the single previous entry.
+    pub fn put(
+        &mut self,
+        workspace_id: impl Into<String>,
+        prefix: impl Into<String>,
+        matches: Vec<CodeSymbolNavProjection>,
+    ) {
+        self.entry = Some((workspace_id.into(), prefix.into(), matches, Instant::now()));
+    }
+
+    /// Invalidate the cached backend response, for example when the panel swaps CodeNav clients.
+    pub fn clear(&mut self) {
+        self.entry = None;
     }
 }
 
@@ -719,19 +797,31 @@ mod tests {
     }
 
     #[test]
-    fn cache_hits_within_ttl_and_respects_prefix() {
+    fn cache_hits_within_ttl_and_respects_workspace_prefix_and_clear() {
         let mut cache = CodeNavCache::new();
-        assert!(cache.get("ad").is_none(), "empty cache misses");
+        assert!(cache.get("ws-a", "ad").is_none(), "empty cache misses");
         let matches = vec![CodeSymbolNavProjection {
             display_name: "add".into(),
             ..Default::default()
         }];
-        cache.put("ad", matches.clone());
+        cache.put("ws-a", "ad", matches.clone());
         assert_eq!(
-            cache.get("ad").map(|m| m.len()),
+            cache.get("ws-a", "ad").map(|m| m.len()),
             Some(1),
-            "same prefix hits"
+            "same workspace and prefix hit"
         );
-        assert!(cache.get("xyz").is_none(), "different prefix misses");
+        assert!(
+            cache.get("ws-b", "ad").is_none(),
+            "same prefix in another workspace misses"
+        );
+        assert!(
+            cache.get("ws-a", "xyz").is_none(),
+            "different prefix misses"
+        );
+        cache.clear();
+        assert!(
+            cache.get("ws-a", "ad").is_none(),
+            "explicit invalidation misses"
+        );
     }
 }

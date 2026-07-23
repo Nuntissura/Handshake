@@ -6,8 +6,9 @@
 //! 1. an **action channel** ([`action`]) that turns a model's `author_id`-addressed request
 //!    (`click` / `focus` / `set_value` / `select` / `scroll`) into a real `accesskit::ActionRequest`
 //!    bound to the widget's STABLE `NodeId`, and
-//! 2. an **MCP-style tool surface** ([`tools`]) — `list_widgets`, `click_widget`, `set_value`,
-//!    `screenshot` — dispatched through a JSON-RPC 2.0 subset so an external/in-process agent speaks
+//! 2. an **MCP-style tool surface** ([`tools`]) — canonical `argus.inspect`, `argus.click`,
+//!    `argus.set_value`, and `argus.screenshot` methods (with legacy aliases) — dispatched through a
+//!    JSON-RPC 2.0 subset so an external/in-process agent speaks
 //!    the same protocol Claude Code and other MCP clients already use, and
 //! 3. a **screenshot adapter** ([`screenshot`]) that captures a focus-safe PNG of the window, and
 //! 4. an **out-of-process transport** ([`server`]) — a localhost TCP listener AND a Windows named pipe,
@@ -23,7 +24,7 @@
 //! consumes an already-parsed [`McpRequest`] and returns an [`McpResponse`], touching no socket — so the
 //! exact steering semantics proven by the in-process unit tests are what the socket/pipe transport
 //! exposes byte-for-byte. The over-the-wire integration test BINDS the real TCP listener, CONNECTS a
-//! client over the socket, and proves an HMAC-authed `list_widgets` + `click_widget` round-trips and
+//! client over the socket, and proves HMAC-authed Argus inspect + click round-trips and
 //! steers the running shell.
 //!
 //! ## Screenshot: two sources
@@ -35,17 +36,15 @@
 //! focus-safe by construction) to prove a real, decodable PNG flows through the tool. See the handoff
 //! DEVIATION notes for what is and is not provable in this headless environment.
 //!
-//! ## Why `set_value` is Focus + characters, NOT `Action::SetValue`
+//! ## Target-safe `argus.set_value`
 //!
-//! The contract body asked the `set_value` tool to dispatch `accesskit::Action::SetValue`. MT-026
-//! already proved (and its test asserts) that **egui 0.33 text inputs do not emit `SetValue`** — they
-//! are steered out-of-process by FOCUSING the field and feeding synthetic characters (the path the
-//! MT-001 toolkit spike proved: "typed 10 synthetic chars"). Dispatching `SetValue` to an egui text
-//! input is a no-op. So [`UiAction::SetValue`] resolves to a Focus action plus a text payload the
-//! caller feeds as `egui::Event::Text`; this is the steering path that actually changes the widget,
-//! honoring the contract's INTENT (set a text widget's value by stable id) over its mistaken mechanic.
+//! [`UiAction::SetValue`] dispatches one AccessKit `SetValue` request to the resolved node. Numeric
+//! widgets receive `ActionData::NumericValue`; string-valued widgets receive `ActionData::Value` and
+//! consume it at their real backing widget. This avoids global keyboard/text events, so concurrent
+//! requests cannot overlap and a stale/unmounted target cannot modify whichever field has focus.
 
 pub mod action;
+pub mod argus;
 pub mod attribution;
 pub mod binding;
 pub mod layout_guard;
@@ -56,14 +55,21 @@ pub mod session;
 pub mod tools;
 
 pub use action::{
-    build_action_request, resolve_target, ActionChannel, ActionError, ActionOutcome, UiAction,
-    DEFAULT_ACTION_CAPACITY, MAX_ACTIONS_PER_BURST,
+    accesskit_string_set_value, build_action_request, resolve_target, ActionChannel, ActionError,
+    ActionOutcome, ActionReceipt, ActionReceiptStatus, UiAction, DEFAULT_ACTION_CAPACITY,
+    MAX_ACTIONS_PER_BURST,
+};
+pub use argus::{
+    ArgusMethod, ARGUS_CLICK_METHOD, ARGUS_INSPECT_METHOD, ARGUS_SCREENSHOT_METHOD,
+    ARGUS_SET_VALUE_METHOD, LEGACY_CLICK_METHOD, LEGACY_INSPECT_METHOD, LEGACY_SCREENSHOT_METHOD,
+    LEGACY_SET_VALUE_METHOD,
 };
 pub use attribution::{
     agent_id_for_token, ActionLog, AttributedAction, ACTION_LOG_CAPACITY, AGENT_ID_HEX_LEN,
 };
 pub use binding::{
-    binding_path, remove_binding, write_binding, BindingError, McpBinding, BINDING_FILE_NAME,
+    binding_path, remove_binding, restore_binding_if_current, write_binding, BindingError,
+    McpBinding, BINDING_FILE_NAME,
 };
 pub use layout_guard::LayoutGuard;
 pub use leases::{LeaseError, LeaseGuard, LeaseKind, LeaseRegistry, DEFAULT_LEASE_TIMEOUT};

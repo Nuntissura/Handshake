@@ -27,13 +27,14 @@
 //! The contract scope text proposes `PUT /canvas/{id}/graph` with a `CanvasNodeInput{atelier_item_id}`.
 //! MT-026 VERIFIED the real canvas route is `POST .../canvas-boards/{block_id}/placements` whose body is
 //! `{placed_block_id, x, y, w, h}` — there is NO `atelier_item_id` field. So a canvas drop reuses the
-//! existing [`crate::graph::canvas_board::CanvasDragPayload`] (`{block_id, title?}`); the atelier item's
-//! `loom_block_id` (the everything-is-a-block MT-032 layer) is the `placed_block_id`. An atelier item
-//! that has NOT yet been resolved to a loom block id ([`AtelierRef::loom_block_id`] is `None`) CANNOT be
-//! placed on the canvas — [`DragPayload::canvas_drag_payload`] returns `None` and the host surfaces a
-//! typed "needs a loom block id" state rather than POSTing an unsupported field (RISK-3 / MC-3).
+//! existing [`crate::graph::canvas_board::CanvasDragPayload`] (`{block_id, title?}`) when the Atelier
+//! item already carries a `loom_block_id`. If it does not, [`DragPayload::canvas_drag_payload`] returns
+//! `None` and the canvas host resolves a deterministic real Loom file block through the supported block
+//! GET/POST before sending that block's id as `placed_block_id`. Neither path sends an unsupported
+//! `atelier_item_id` field (RISK-3 / MC-3).
 
 use serde::{Deserialize, Serialize};
+use std::{any::Any, sync::Arc};
 
 /// The CKC/Atelier `hsLink` `refKind` family — the values a dropped CKC item's embed atom carries so it
 /// is discriminable from the media-render kinds (`images`/`video`/`album`/`slideshow`,
@@ -104,9 +105,9 @@ pub struct AtelierRef {
     /// The display label (shown on the embed chip / canvas card; `refValue` is the stable id).
     pub label: String,
     /// The Loom block id this atelier item resolves to (MT-032 "everything is a block"), when known.
-    /// `Some` => the item is placeable on the canvas as a `loom://` block reference; `None` => the item
-    /// has NOT been resolved to a block id yet, so a canvas drop is a typed "needs a loom block id"
-    /// no-op (RISK-3 / MC-3) rather than POSTing an unsupported `atelier_item_id` field.
+    /// `Some` => the item converts directly to a canvas `loom://` block reference; `None` => the panel
+    /// has not fabricated resolution and the canvas host must resolve the item through the canonical
+    /// Loom block API before placement (RISK-3 / MC-3).
     pub loom_block_id: Option<String>,
 }
 
@@ -192,6 +193,33 @@ pub enum DragPayload {
     PlainText(String),
 }
 
+/// Take a typed drag payload physically released over `response`.
+///
+/// The normal egui path requires `contains_pointer()`. Native and headless input streams may deliver
+/// the mouse release and `PointerGone` in one frame, leaving only `latest_pos()` even though the release
+/// occurred inside the target. The bounded rectangle fallback preserves that real drop while retaining
+/// typed, take-once payload semantics.
+pub fn take_released_payload_over<Payload>(response: &egui::Response) -> Option<Arc<Payload>>
+where
+    Payload: Any + Send + Sync,
+{
+    if let Some(payload) = response.dnd_release_payload::<Payload>() {
+        return Some(payload);
+    }
+    let released_over_rect = response.ctx.input(|input| {
+        input.pointer.any_released()
+            && input
+                .pointer
+                .latest_pos()
+                .is_some_and(|position| response.rect.contains(position))
+    });
+    if released_over_rect {
+        egui::DragAndDrop::take_payload::<Payload>(&response.ctx)
+    } else {
+        None
+    }
+}
+
 impl DragPayload {
     /// Convert an `AtelierRef` payload into the inline `hsLink` atom that gets inserted into a rich
     /// document at the caret (the rich-text drop path). `refKind` is the CKC kind, `refValue` is the
@@ -217,9 +245,10 @@ impl DragPayload {
     /// Convert this payload into the canvas board's [`crate::graph::canvas_board::CanvasDragPayload`]
     /// (a block-id reference), or `None` when it cannot be placed as a block.
     ///
-    /// - An `AtelierRef` is placeable ONLY when it carries a `loom_block_id` (MT-026: the placement body
-    ///   takes a `placed_block_id`, never an `atelier_item_id`); an unresolved atelier item returns
-    ///   `None` so the host shows a typed "needs a loom block id" state, NOT a fake POST (RISK-3 / MC-3).
+    /// - An `AtelierRef` is directly placeable only when it carries a `loom_block_id` (MT-026: the
+    ///   placement body takes a `placed_block_id`, never an `atelier_item_id`). An unresolved item
+    ///   returns `None` from this conversion so the canvas host can resolve it through the canonical
+    ///   Loom block API before placing the resulting real block.
     /// - A `LoomBlockRef` is always placeable (it already carries the block id).
     /// - Plain text is not a block reference -> `None`.
     pub fn canvas_drag_payload(&self) -> Option<crate::graph::canvas_board::CanvasDragPayload> {
@@ -329,12 +358,12 @@ mod tests {
             .is_none());
     }
 
-    /// RISK-3 / MC-3: an UNRESOLVED atelier item (no `loom_block_id`) is NOT placeable on the canvas
-    /// (returns `None`), so the host never POSTs an unsupported `atelier_item_id`. A resolved item + a
-    /// LoomBlockRef ARE placeable as block references.
+    /// RISK-3 / MC-3: this direct conversion rejects an unresolved Atelier item (no
+    /// `loom_block_id`), so no caller can POST an unsupported `atelier_item_id`. The canvas host owns
+    /// canonical resolution; a resolved item and a `LoomBlockRef` convert directly.
     #[test]
     fn canvas_drag_payload_requires_a_loom_block_id() {
-        // Unresolved atelier item -> no canvas placement.
+        // Unresolved Atelier item -> no direct CanvasDragPayload; the host resolves it first.
         let unresolved =
             DragPayload::AtelierRef(AtelierRef::new("item-1", AtelierItemKind::Media, "Pic"));
         assert!(

@@ -21,6 +21,8 @@ use handshake_core::{
     workflows, AppState,
 };
 use std::{
+    fs::OpenOptions,
+    io::{self, Write},
     net::SocketAddr,
     path::{Path, PathBuf},
     sync::Arc,
@@ -38,7 +40,7 @@ async fn main() {
 }
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let addr: SocketAddr = ([127, 0, 0, 1], 37501).into();
+    let requested_addr = backend_listen_addr()?;
 
     logging::init_logging();
 
@@ -226,9 +228,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .nest("/api", api_routes)
         .layer(cors);
 
-    tracing::info!(target: "handshake_core", listen_addr = %addr, "handshake_core started");
-
-    let listener = TcpListener::bind(addr).await?;
+    let listener = TcpListener::bind(requested_addr).await?;
+    let actual_addr = listener.local_addr()?;
+    write_backend_listen_report(actual_addr)?;
+    tracing::info!(target: "handshake_core", listen_addr = %actual_addr, "handshake_core started");
     let serve_result = axum::serve(listener, app).await;
 
     // Best-effort teardown when the serve loop ends: stop the cluster only if
@@ -237,6 +240,57 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         tracing::warn!(target: "handshake_core::managed_postgres", error = %err, "managed PostgreSQL stop failed at shutdown");
     }
     serve_result?;
+    Ok(())
+}
+
+fn backend_listen_addr() -> Result<SocketAddr, io::Error> {
+    let value = std::env::var("HANDSHAKE_BACKEND_LISTEN_ADDR")
+        .unwrap_or_else(|_| "127.0.0.1:37501".to_owned());
+    let addr = value.parse::<SocketAddr>().map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("invalid HANDSHAKE_BACKEND_LISTEN_ADDR={value:?}: {error}"),
+        )
+    })?;
+    if !addr.ip().is_loopback() {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!("HANDSHAKE_BACKEND_LISTEN_ADDR must be loopback-only, got {addr}"),
+        ));
+    }
+    Ok(addr)
+}
+
+fn write_backend_listen_report(addr: SocketAddr) -> Result<(), io::Error> {
+    let Some(path) = std::env::var_os("HANDSHAKE_BACKEND_LISTEN_REPORT_FILE").map(PathBuf::from)
+    else {
+        return Ok(());
+    };
+    if !path.is_absolute() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "HANDSHAKE_BACKEND_LISTEN_REPORT_FILE must be absolute",
+        ));
+    }
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut report = options.open(&path)?;
+    serde_json::to_writer(
+        &mut report,
+        &serde_json::json!({
+            "schema_id": "handshake.backend-listen-report.v1",
+            "pid": std::process::id(),
+            "listen_addr": addr.to_string(),
+        }),
+    )
+    .map_err(io::Error::other)?;
+    report.write_all(b"\n")?;
+    report.sync_all()?;
     Ok(())
 }
 
@@ -314,14 +368,18 @@ fn init_janitor_config() -> JanitorConfig {
 }
 
 async fn init_flight_recorder() -> Result<Arc<DuckDbFlightRecorder>, Box<dyn std::error::Error>> {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root_dir = manifest_dir
-        .parent()
-        .and_then(Path::parent)
-        .and_then(Path::parent)
-        .map(Path::to_path_buf)
-        .ok_or("failed to resolve repo root")?;
-    let data_dir = root_dir.join("data");
+    let data_dir = if let Some(configured) = std::env::var_os("HANDSHAKE_DATA_DIR") {
+        PathBuf::from(configured)
+    } else {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let root_dir = manifest_dir
+            .parent()
+            .and_then(Path::parent)
+            .and_then(Path::parent)
+            .map(Path::to_path_buf)
+            .ok_or("failed to resolve repo root")?;
+        root_dir.join("data")
+    };
     if !data_dir.exists() {
         std::fs::create_dir_all(&data_dir)?;
     }

@@ -132,7 +132,8 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 /// A LoomBlock's content kind. Mirrors `storage::loom::LoomBlockContentType` (verified READ-ONLY:
-/// `note | file | annotated_file | tag_hub | journal | canvas | view_def`). The [`Self::Unknown`]
+/// `note | file | annotated_file | tag_hub | journal | canvas | view_def | ckc_moodboard |
+/// ckc_character`). The [`Self::Unknown`]
 /// `#[serde(other)]` catch-all makes an unrecognized backend variant deserialize to `Unknown` instead
 /// of failing the whole response (RISK-1 / MC-1 — forward-compatible against new content types).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -145,6 +146,8 @@ pub enum LoomBlockContentType {
     Journal,
     Canvas,
     ViewDef,
+    CkcMoodboard,
+    CkcCharacter,
     /// Any content_type this client build does not know (a backend that added a variant). Tolerated
     /// (never a deserialization panic); a widget treats it as a generic block.
     #[serde(other)]
@@ -1321,6 +1324,8 @@ mod tests {
             ("journal", LoomBlockContentType::Journal),
             ("canvas", LoomBlockContentType::Canvas),
             ("view_def", LoomBlockContentType::ViewDef),
+            ("ckc_moodboard", LoomBlockContentType::CkcMoodboard),
+            ("ckc_character", LoomBlockContentType::CkcCharacter),
         ] {
             let parsed: LoomBlockContentType = serde_json::from_value(json!(raw)).unwrap();
             assert_eq!(parsed, expect, "{raw} must map to its known variant");

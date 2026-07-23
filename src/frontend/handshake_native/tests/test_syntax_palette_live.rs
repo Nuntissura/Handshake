@@ -21,7 +21,7 @@ use handshake_native::workspace_settings::{SyntaxPalette, SyntaxPaletteMode};
 /// modes, the color matches the corresponding built-in table; Custom (no overrides) falls back to
 /// Standard for every scope.
 #[test]
-fn every_mode_resolves_every_scope() {
+fn syntax_palette_live_every_mode_resolves_every_scope() {
     // Muted.
     let muted = SyntaxPalette {
         mode: SyntaxPaletteMode::Muted,

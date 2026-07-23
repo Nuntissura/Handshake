@@ -643,6 +643,7 @@ fn pane_type_key(pane_type: &PaneType) -> String {
     match pane_type {
         PaneType::Workspace => "Workspace",
         PaneType::LoomDailyJournal => "LoomDailyJournal",
+        PaneType::CalendarEvent => "CalendarEvent",
         PaneType::LoomBlock => "LoomBlock",
         PaneType::LoomWikiPage => "LoomWikiPage",
         PaneType::AtelierEditor => "AtelierEditor",

@@ -25,7 +25,7 @@ pub mod keymap;
 pub mod toolbar;
 
 pub use commands::{dispatch, is_mark_active, CommandContext, CommandError, FormattingCommand};
-pub use keymap::{is_list_conditional, resolve_shortcut};
+pub use keymap::{is_list_conditional, resolve_shortcut, RichKeymap};
 pub use toolbar::{
     all_toolbar_commands, is_command_active, toolbar_button_author_id, EditorToolbar,
     TOOLBAR_BTN_AUTHOR_PREFIX,

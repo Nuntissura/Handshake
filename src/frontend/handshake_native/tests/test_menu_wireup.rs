@@ -30,7 +30,9 @@
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
@@ -38,7 +40,8 @@ use handshake_native::command_registry::{
     self, CommandKind, CMD_EDITOR_EDIT_REDO, CMD_EDITOR_EDIT_UNDO, CMD_EDITOR_FILE_SAVE,
     CMD_EDITOR_GO_TO_DEFINITION, CMD_VIEW_CANVAS, CMD_VIEW_CODE_EDITOR, CMD_VIEW_DIFF_MERGE,
     CMD_VIEW_FIND_IN_FILES, CMD_VIEW_GRAPH, CMD_VIEW_JOURNAL, CMD_VIEW_LOOM_SEARCH,
-    CMD_VIEW_RICH_NOTE, CMD_WORKBENCH_QUICK_OPEN, EDITOR_GO_NAV_PENDING_IDS,
+    CMD_VIEW_RICH_NOTE, CMD_VIEW_WIKI_PROJECTION, CMD_WORKBENCH_QUICK_OPEN,
+    EDITOR_GO_NAV_PENDING_IDS,
 };
 use handshake_native::interop::InteractionBus;
 use handshake_native::pane_registry::{
@@ -265,6 +268,16 @@ fn file_save_dispatches_editor_save_path() {
         "precondition: activate the mounted rich editor pane without binding a backend document id"
     );
     let rich_state = app.mounted_rich_state();
+    rich_state.lock().unwrap().save = Some(
+        handshake_native::rich_editor::save::save_manager::SaveManager::new(
+            std::sync::Arc::new(handshake_native::backend_client::RichDocSaveBackend::new(
+                "http://127.0.0.1:1",
+            )),
+            None,
+            "KRD-menu-save-proof",
+            1,
+        ),
+    );
     let mut harness = shell_harness(app);
     harness.run_steps(3);
 
@@ -740,7 +753,7 @@ fn keyboard_ctrl_c_code_then_ctrl_v_rich_inserts_through_interaction_bus() {
         "precondition: activate the mounted rich editor pane before Ctrl+V"
     );
     harness.run_steps(3);
-    click_author_id(&mut harness, "rich-editor-surface");
+    click_author_id(&mut harness, "editor.rich.text");
     harness.run_steps(2);
     harness.event(egui::Event::Key {
         key: egui::Key::V,
@@ -801,7 +814,7 @@ fn keyboard_ctrl_v_with_stale_code_selection_targets_focused_rich_pane() {
         guard.cache_clipboard(ClipboardPayload::PlainText("bus-payload".to_owned()));
     }
 
-    click_author_id(&mut harness, "rich-editor-surface");
+    click_author_id(&mut harness, "editor.rich.text");
     harness.run_steps(2);
     {
         let bus = InteractionBus::get_or_init(&harness.ctx);
@@ -881,7 +894,7 @@ fn palette_edit_copy_then_paste_inserts_into_focused_editor_buffer() {
         );
     }
 
-    click_author_id(&mut harness, "rich-editor-surface");
+    click_author_id(&mut harness, "editor.rich.text");
     harness.run_steps(2);
     {
         let bus = InteractionBus::get_or_init(&harness.ctx);
@@ -996,8 +1009,9 @@ fn manual_documented_file_edit_go_rows_render_live_menu_items() {
             .get(author_id)
             .unwrap_or_else(|| panic!("manual row missing for dynamic menu leaf {author_id}"));
         assert_eq!(
-            row.mcp_tool, "click_widget",
-            "manual row {author_id} must use the real click_widget tool"
+            row.mcp_tool,
+            handshake_native::mcp::argus::ARGUS_CLICK_METHOD,
+            "manual row {author_id} must use the canonical Argus click tool"
         );
     }
 
@@ -1089,6 +1103,7 @@ fn go_nav_items_render_enabled_and_registered() {
 fn editors_menu_renders_node_id_98_and_dispatches_real_commands() {
     use handshake_native::command_registry::{
         CMD_EDITOR_QUICK_FIX, CMD_EDITOR_RENAME_SYMBOL, CMD_VIEW_OUTLINE, CMD_VIEW_RELEVANT_MEMORY,
+        CMD_VIEW_STAGE,
     };
     use handshake_native::quick_switcher::ShellNavigator;
 
@@ -1129,6 +1144,7 @@ fn editors_menu_renders_node_id_98_and_dispatches_real_commands() {
         "menu.editors.relevant-memory",
         "menu.editors.outgoing-links",
         "menu.editors.stage",
+        "menu.editors.embed-stage-capture",
         "menu.editors.sidebar",
         "menu.editors.journal",
         "menu.editors.format-document",
@@ -1147,6 +1163,15 @@ fn editors_menu_renders_node_id_98_and_dispatches_real_commands() {
             "{leaf} is ENABLED while the mounted code editor is active (honest enable predicate)"
         );
     }
+    let route_to_stage = nodes
+        .iter()
+        .find(|(author_id, _, _)| author_id == "menu.editors.route-to-stage")
+        .unwrap_or_else(|| panic!("EDITORS route-to-Stage leaf missing: {nodes:?}"));
+    assert_eq!(route_to_stage.1, "MenuItem");
+    assert!(
+        route_to_stage.2,
+        "Route selection to Stage is honestly disabled while a code editor, not a rich note, is active"
+    );
 
     // ── Code-editor commands FIRST (the code editor is the active target). ──
     // Quick Fix is the deterministic panel-state proof: dispatching CMD_EDITOR_QUICK_FIX reaches the mounted
@@ -1183,6 +1208,17 @@ fn editors_menu_renders_node_id_98_and_dispatches_real_commands() {
     assert!(
         dispatch_palette_live(&mut harness, CMD_VIEW_RELEVANT_MEMORY),
         "EDITORS > View: Relevant Memory routed to the real view.relevant-memory open command"
+    );
+    assert!(
+        dispatch_palette_live(&mut harness, CMD_VIEW_STAGE),
+        "EDITORS > View: Stage routed to the live Stage capture/create/retrieve/embed surface"
+    );
+    harness.run_steps(2);
+    assert!(
+        live_author_nodes(&harness).iter().any(
+            |(author_id, _, _)| author_id == handshake_native::stage_pane::STAGE_PANE_AUTHOR_ID
+        ),
+        "the EDITORS Stage route mounts the addressable live stage-pane"
     );
 }
 
@@ -1286,6 +1322,16 @@ fn palette_save_live_row_click_reaches_active_rich_save_manager() {
         "precondition: activate the mounted rich editor pane"
     );
     let rich_state = app.mounted_rich_state();
+    rich_state.lock().unwrap().save = Some(
+        handshake_native::rich_editor::save::save_manager::SaveManager::new(
+            std::sync::Arc::new(handshake_native::backend_client::RichDocSaveBackend::new(
+                "http://127.0.0.1:1",
+            )),
+            None,
+            "KRD-palette-save-proof",
+            1,
+        ),
+    );
     let mut harness = shell_harness(app);
     harness.run_steps(2);
     assert!(
@@ -1651,8 +1697,13 @@ fn editor_menu_catalog_has_the_contract_ids() {
     }
     // MT-069 REMEDIATION: the original 22 plus the 9 GO code-navigation shell commands (definition /
     // references / workspace-symbol / line / next+prev diagnostic / back / forward / symbol-in-file),
-    // plus the four code-folding commands rendered under EDIT. MT-035 adds Rename Symbol + Quick Fix (37).
-    assert_eq!(menu.len(), 37, "exactly 37 EditorMenu commands wired (35 + MT-035 rename/quick-fix)");
+    // plus the four code-folding commands rendered under EDIT. MT-035 adds Rename Symbol + Quick Fix;
+    // the current contract also carries the two mounted editor-surface open commands (39 total).
+    assert_eq!(
+        menu.len(),
+        39,
+        "exactly 39 current EditorMenu commands wired"
+    );
 }
 
 // ── WP-KERNEL-012 MT-069 REMEDIATION: FILE > Export Document reaches the REAL export path ──────────────
@@ -1711,7 +1762,9 @@ fn file_export_click_yields_export_bytes_not_save_manager_state() {
             .map(|it| it.flatten().map(|entry| entry.path()).collect())
             .unwrap_or_default();
         harness.get_by_label("FILE").click();
-        harness.run();
+        // The mounted editor has legitimate background repaint sources; bounded frames are sufficient
+        // to expose the menu tree without requiring global quiescence.
+        harness.run_steps(2);
         click_author_id(&mut harness, author_id);
         harness.run_steps(2);
         let after: HashSet<std::path::PathBuf> = std::fs::read_dir(&export_dir)
@@ -2088,6 +2141,7 @@ fn view_open_editor_surface_entries_open_real_panes() {
     for author in [
         "menu.view.open-code-editor",
         "menu.view.open-rich-note",
+        "menu.view.open-wiki-projection",
         "menu.view.open-knowledge-graph",
         "menu.view.open-folders",
         "menu.view.open-tags",
@@ -2167,6 +2221,119 @@ fn view_open_code_editor_opens_code_pane() {
 }
 
 #[test]
+fn view_open_wiki_projection_without_active_page_opens_truthful_discovery() {
+    let (app, _rt) = editor_shell();
+    let mut harness = shell_harness(app);
+    harness.run_steps(3);
+
+    harness.get_by_label("VIEW").click();
+    harness.run();
+    click_author_id(&mut harness, "menu.view.open-wiki-projection");
+    harness.run_steps(2);
+
+    assert!(harness.state().quick_switcher_open());
+    assert_eq!(
+        harness.state().quick_switcher_nav_status(),
+        Some("No active wiki projection. Choose a wiki page from Quick Switcher.")
+    );
+    assert!(
+        live_author_ids(&harness)
+            .iter()
+            .all(|author| author != "wiki-page.empty"),
+        "menu fallback must never create the formerly accepted unusable empty wiki pane"
+    );
+}
+
+#[test]
+fn view_open_wiki_projection_ignores_prior_workspace_binding() {
+    let (app, _rt) = editor_shell();
+    let mut harness = shell_harness(app);
+    harness.run_steps(3);
+    {
+        let binding = harness.state().mounted_wiki_binding_for_test();
+        *binding.lock().unwrap() = Some((
+            handshake_native::backend_client::WikiPaneIdentity {
+                workspace_id: "prior-workspace".to_owned(),
+                projection_id: "prior-workspace-projection".to_owned(),
+                pane_generation: 4,
+            },
+            handshake_native::graph::wiki_page_panel::LoomWikiPagePanel::new(
+                "prior-workspace",
+                "prior-workspace-projection",
+            ),
+        ));
+    }
+
+    harness.get_by_label("VIEW").click();
+    harness.run();
+    click_author_id(&mut harness, "menu.view.open-wiki-projection");
+    harness.run_steps(2);
+
+    assert_eq!(harness.state().active_project_id(), DEFAULT_PROJECT_ID);
+    assert!(harness.state().quick_switcher_open());
+    assert_eq!(
+        harness.state().quick_switcher_nav_status(),
+        Some("No active wiki projection. Choose a wiki page from Quick Switcher.")
+    );
+    assert!(
+        harness.state().tab_bar_states().values().all(|bar| {
+            bar.tabs
+                .iter()
+                .all(|tab| tab.content_id.as_deref() != Some("prior-workspace-projection"))
+        }),
+        "a binding from the prior workspace must not open under the active workspace"
+    );
+    assert!(
+        live_author_ids(&harness)
+            .iter()
+            .all(|author| author != "wiki-page.empty"),
+        "cross-workspace fallback must remain truthful discovery"
+    );
+}
+
+#[test]
+fn palette_view_wiki_projection_reopens_concrete_bound_projection() {
+    let (app, _rt) = editor_shell();
+    let mut harness = shell_harness(app);
+    harness.run_steps(2);
+    {
+        let binding = harness.state().mounted_wiki_binding_for_test();
+        *binding.lock().unwrap() = Some((
+            handshake_native::backend_client::WikiPaneIdentity {
+                workspace_id: DEFAULT_PROJECT_ID.to_owned(),
+                projection_id: "projection-menu-proof".to_owned(),
+                pane_generation: 9,
+            },
+            handshake_native::graph::wiki_page_panel::LoomWikiPagePanel::new(
+                DEFAULT_PROJECT_ID,
+                "projection-menu-proof",
+            ),
+        ));
+    }
+
+    assert!(dispatch_palette_live(
+        &mut harness,
+        CMD_VIEW_WIKI_PROJECTION
+    ));
+    let target = harness.state().active_pane().cloned().unwrap();
+    let opened = harness
+        .state()
+        .tab_bar_states()
+        .get(&target)
+        .map(|bar| {
+            bar.tabs.iter().any(|tab| {
+                tab.pane_type
+                    == PaneType::Placeholder(
+                        handshake_native::editor_pane_factories::WIKI_PAGE_PANE_LABEL.to_owned(),
+                    )
+                    && tab.content_id.as_deref() == Some("projection-menu-proof")
+            })
+        })
+        .unwrap_or(false);
+    assert!(opened, "palette route must carry a concrete projection id");
+}
+
+#[test]
 fn view_open_editor_surface_entries_render_each_real_surface() {
     let cases: Vec<(&str, Option<PaneType>, &str)> = vec![
         (
@@ -2177,7 +2344,7 @@ fn view_open_editor_surface_entries_render_each_real_surface() {
         (
             "menu.view.open-rich-note",
             Some(PaneType::LoomWikiPage),
-            "rich-editor-root",
+            "editor.rich.root",
         ),
         (
             "menu.view.open-knowledge-graph",
@@ -2208,7 +2375,7 @@ fn view_open_editor_surface_entries_render_each_real_surface() {
         (
             "menu.view.open-loom-search",
             Some(PaneType::LoomSearchV2),
-            "loom-search-v2.query",
+            "search.query",
         ),
         (
             "menu.view.open-find-in-files",
@@ -2263,14 +2430,10 @@ fn palette_view_open_commands_render_each_new_real_surface() {
         (
             CMD_VIEW_RICH_NOTE,
             PaneType::LoomWikiPage,
-            "rich-editor-root",
+            "editor.rich.root",
         ),
         (CMD_VIEW_CANVAS, PaneType::AtelierEditor, "canvas.add-card"),
-        (
-            CMD_VIEW_LOOM_SEARCH,
-            PaneType::LoomSearchV2,
-            "loom-search-v2.query",
-        ),
+        (CMD_VIEW_LOOM_SEARCH, PaneType::LoomSearchV2, "search.query"),
         (
             CMD_VIEW_FIND_IN_FILES,
             PaneType::FindInFiles,
@@ -2308,7 +2471,7 @@ fn palette_view_open_rows_are_cataloged_live_and_clickable() {
             CMD_VIEW_RICH_NOTE,
             "command-palette.option.hs-view-palette-rich-note",
             Some(PaneType::LoomWikiPage),
-            "rich-editor-root",
+            "editor.rich.root",
         ),
         (
             CMD_VIEW_GRAPH,
@@ -2328,7 +2491,7 @@ fn palette_view_open_rows_are_cataloged_live_and_clickable() {
             CMD_VIEW_LOOM_SEARCH,
             "command-palette.option.hs-view-palette-loom-search",
             Some(PaneType::LoomSearchV2),
-            "loom-search-v2.query",
+            "search.query",
         ),
         (
             CMD_VIEW_FIND_IN_FILES,

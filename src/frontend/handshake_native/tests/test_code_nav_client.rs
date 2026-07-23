@@ -8,24 +8,44 @@
 //!    prove the CodeNavClient's transformation surface without a backend.
 //!
 //! 2. LIVE-BACKEND (`--features integration`, AC-001/002/003): the CodeNavClient binds the REAL running
-//!    handshake_core code-nav API. The binding-level proof (the client constructs the verified request,
-//!    the live backend ACCEPTS it with the correct nav headers, the response parses into the typed
-//!    projections) runs against the managed backend on 127.0.0.1:37501. The CONTENT assertions
-//!    (`lookup_symbols('add')` returns a populated symbol with `symbol_kind`, `get_symbol` returns a
-//!    definition, `get_references` returns a caller/callee) require an INDEXED-CODE workspace seeded
-//!    into PostgreSQL. Seeding the code index requires the backend's internal `CodeIndexEngine`
-//!    (cross-crate, forbidden to this frontend test crate) OR a multi-step ingestion-pipeline drive
-//!    that is out of MT-008's scope. The binding test below proves the transport end-to-end against the
-//!    live backend; the content assertions are documented as a NEEDS_MANAGED_RESOURCE_PROOF blocker in
-//!    the MT handoff (KERNEL_BUILDER Spec-Realism Gate sub-rule 2 — the binding is REAL, never mocked;
-//!    only the seeded-symbol assertions are an honest deferred blocker).
+//!    handshake_core code-nav API backed by Handshake-managed PostgreSQL. The existing
+//!    `mt249_code_intelligence_fixture` seeds `add` plus its `caller` through the real CodeIndexEngine
+//!    and prints the base URL, workspace id, and symbol entity id. The runner supplies those values as
+//!    `HANDSHAKE_TEST_DB_URL`, `HANDSHAKE_TEST_WORKSPACE_ID`, and
+//!    `HANDSHAKE_TEST_CODE_SYMBOL_ENTITY_ID`. Missing fixture values are a hard test failure when the
+//!    integration feature is explicitly enabled; empty results and typed 404s are never accepted as
+//!    populated-content proof.
 
 use handshake_native::code_editor::code_nav::{
-    code_symbol_staleness_label, markdown_for_symbol, staleness_marker_for, symbol_file_path,
-    CodeNavCache, CodeStaleness, CodeSymbolDefinition, CodeSymbolLookupResponse,
-    CodeSymbolNavProjection, CompletionItem, CompletionKind,
+    code_symbol_staleness_label, markdown_for_symbol, preferred_symbol_for_identifier,
+    preferred_symbol_for_identifier_in_file, staleness_marker_for, symbol_file_path, CodeNavCache,
+    CodeStaleness, CodeSymbolDefinition, CodeSymbolLookupResponse, CodeSymbolNavProjection,
+    CompletionItem, CompletionKind,
 };
 use handshake_native::code_editor::gutter::{DiagnosticSeverity, GutterMarkerKind};
+
+fn spawn_code_nav_response(response: Vec<u8>) -> (String, std::thread::JoinHandle<()>) {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind code-nav negative-path server");
+    let base_url = format!(
+        "http://{}",
+        listener.local_addr().expect("server local address")
+    );
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept code-nav request");
+        let mut buffer = [0_u8; 2048];
+        let _ = stream.read(&mut buffer);
+        if !response.is_empty() {
+            stream
+                .write_all(&response)
+                .expect("write code-nav response");
+            stream.flush().expect("flush code-nav response");
+        }
+    });
+    (base_url, server)
+}
 
 // ── STANDALONE: the ported code-intelligence transformation surface ───────────────────────────────
 
@@ -214,120 +234,364 @@ fn lookup_response_parses_exact_backend_body_shape() {
 }
 
 #[test]
-fn lookup_cache_respects_prefix_and_caching() {
+fn lookup_cache_respects_workspace_prefix_and_client_invalidation() {
     let mut cache = CodeNavCache::new();
-    assert!(cache.get("ad").is_none());
+    assert!(cache.get("ws-a", "ad").is_none());
     cache.put(
+        "ws-a",
         "ad",
         vec![CodeSymbolNavProjection {
             display_name: "add".into(),
             ..Default::default()
         }],
     );
-    assert_eq!(cache.get("ad").map(|m| m.len()), Some(1));
-    assert!(cache.get("xy").is_none(), "different prefix misses");
+    assert_eq!(cache.get("ws-a", "ad").map(|m| m.len()), Some(1));
+    assert!(
+        cache.get("ws-b", "ad").is_none(),
+        "the same prefix cannot reuse another workspace's symbols"
+    );
+    assert!(cache.get("ws-a", "xy").is_none(), "different prefix misses");
+    cache.clear();
+    assert!(
+        cache.get("ws-a", "ad").is_none(),
+        "client-change invalidation clears the old response"
+    );
+}
+
+#[test]
+fn exact_identifier_wins_over_earlier_prefix_sibling() {
+    let selected = preferred_symbol_for_identifier(
+        vec![
+            CodeSymbolNavProjection {
+                symbol_entity_id: "ent-address".into(),
+                display_name: "address".into(),
+                ..Default::default()
+            },
+            CodeSymbolNavProjection {
+                symbol_entity_id: "ent-add".into(),
+                display_name: "add".into(),
+                ..Default::default()
+            },
+        ],
+        "add",
+    )
+    .expect("prefix response contains the exact identifier");
+    assert_eq!(selected.symbol_entity_id, "ent-add");
+    assert_eq!(selected.display_name, "add");
+}
+
+#[test]
+fn prefix_sibling_without_exact_identifier_is_not_a_semantic_match() {
+    let selected = preferred_symbol_for_identifier(
+        vec![CodeSymbolNavProjection {
+            symbol_entity_id: "ent-address".into(),
+            display_name: "address".into(),
+            ..Default::default()
+        }],
+        "add",
+    );
+    assert!(
+        selected.is_none(),
+        "semantic actions must not bind `add` to the prefix sibling `address`"
+    );
+}
+
+#[test]
+fn duplicate_exact_identifiers_are_rejected_as_ambiguous_in_any_backend_order() {
+    let in_math = CodeSymbolNavProjection {
+        symbol_entity_id: "ent-math-add".into(),
+        symbol_key: "function:src/math.rs#add".into(),
+        display_name: "add".into(),
+        definition: Some(CodeSymbolDefinition {
+            source_id: Some("source-math".into()),
+            line_start: Some(3),
+            line_end: Some(3),
+        }),
+        ..Default::default()
+    };
+    let in_utils = CodeSymbolNavProjection {
+        symbol_entity_id: "ent-utils-add".into(),
+        symbol_key: "function:src/utils.rs#add".into(),
+        display_name: "add".into(),
+        definition: Some(CodeSymbolDefinition {
+            source_id: Some("source-utils".into()),
+            line_start: Some(17),
+            line_end: Some(17),
+        }),
+        ..Default::default()
+    };
+
+    for symbols in [
+        vec![in_math.clone(), in_utils.clone()],
+        vec![in_utils, in_math],
+    ] {
+        assert!(
+            preferred_symbol_for_identifier(symbols, "add").is_none(),
+            "an exact duplicate name across source files must not resolve from backend order"
+        );
+    }
+}
+
+#[test]
+fn duplicate_exact_identifier_prefers_the_active_document_source_in_any_backend_order() {
+    let in_math = CodeSymbolNavProjection {
+        symbol_entity_id: "ent-math-add".into(),
+        symbol_key: "function:src/math.rs#add".into(),
+        display_name: "add".into(),
+        ..Default::default()
+    };
+    let in_utils = CodeSymbolNavProjection {
+        symbol_entity_id: "ent-utils-add".into(),
+        symbol_key: "function:src/utils.rs#add".into(),
+        display_name: "add".into(),
+        ..Default::default()
+    };
+
+    for symbols in [
+        vec![in_math.clone(), in_utils.clone()],
+        vec![in_utils.clone(), in_math],
+    ] {
+        let selected =
+            preferred_symbol_for_identifier_in_file(symbols, "add", r"D:\workspace\src\utils.rs")
+                .expect("the active document path disambiguates the exact symbol");
+        assert_eq!(selected.symbol_entity_id, "ent-utils-add");
+    }
+}
+
+#[test]
+fn direct_declaration_beats_same_file_inherent_impl_in_any_backend_order() {
+    let declaration = CodeSymbolNavProjection {
+        symbol_entity_id: "ent-struct".into(),
+        symbol_key: "rust:src/model.rs#Model".into(),
+        display_name: "Model".into(),
+        symbol_kind: "struct".into(),
+        ..Default::default()
+    };
+    let inherent_impl = CodeSymbolNavProjection {
+        symbol_entity_id: "ent-inherent-impl".into(),
+        symbol_key: "rust:src/model.rs#impl Model~inherent".into(),
+        display_name: "Model".into(),
+        symbol_kind: "impl".into(),
+        ..Default::default()
+    };
+
+    for symbols in [
+        vec![declaration.clone(), inherent_impl.clone()],
+        vec![inherent_impl, declaration],
+    ] {
+        let selected =
+            preferred_symbol_for_identifier_in_file(symbols, "Model", r"D:\workspace\src\model.rs")
+                .expect("the unique direct declaration disambiguates its inherent impl projection");
+        assert_eq!(selected.symbol_entity_id, "ent-struct");
+    }
+}
+
+#[test]
+fn lone_impl_projection_remains_a_valid_fallback() {
+    let selected = preferred_symbol_for_identifier_in_file(
+        vec![CodeSymbolNavProjection {
+            symbol_entity_id: "ent-inherent-impl".into(),
+            symbol_key: "rust:src/model.rs#impl Model~inherent".into(),
+            display_name: "Model".into(),
+            symbol_kind: "impl".into(),
+            ..Default::default()
+        }],
+        "Model",
+        r"D:\workspace\src\model.rs",
+    )
+    .expect("an impl remains usable when no declaration projection exists");
+    assert_eq!(selected.symbol_entity_id, "ent-inherent-impl");
+}
+
+#[test]
+fn duplicate_same_file_declarations_remain_ambiguous() {
+    let declarations = ["ent-struct-a", "ent-struct-b"].map(|entity_id| CodeSymbolNavProjection {
+        symbol_entity_id: entity_id.into(),
+        symbol_key: format!("rust:src/model.rs#Model-{entity_id}"),
+        display_name: "Model".into(),
+        symbol_kind: "struct".into(),
+        ..Default::default()
+    });
+    assert!(
+        preferred_symbol_for_identifier_in_file(
+            declarations.into_iter().collect(),
+            "Model",
+            r"D:\workspace\src\model.rs",
+        )
+        .is_none(),
+        "two same-file declarations must not resolve from backend order"
+    );
+}
+
+#[tokio::test]
+async fn code_nav_http_500_is_typed_error_not_empty_success() {
+    use handshake_native::code_editor::code_nav::CodeNavClient;
+
+    let (base_url, server) = spawn_code_nav_response(
+        b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            .to_vec(),
+    );
+    let error = CodeNavClient::new(base_url)
+        .lookup_symbols("ws-negative", "add", 5)
+        .await
+        .expect_err("HTTP 500 must not become an empty successful lookup");
+    server.join().expect("500 server exits");
+    assert!(error.to_string().contains("non-success"));
+}
+
+#[tokio::test]
+async fn code_nav_malformed_json_is_typed_error_not_empty_success() {
+    use handshake_native::code_editor::code_nav::CodeNavClient;
+
+    let body = b"{not-json";
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(),
+        String::from_utf8_lossy(body)
+    );
+    let (base_url, server) = spawn_code_nav_response(response.into_bytes());
+    let error = CodeNavClient::new(base_url)
+        .lookup_symbols("ws-negative", "add", 5)
+        .await
+        .expect_err("malformed JSON must not become an empty successful lookup");
+    server.join().expect("malformed server exits");
+    assert!(error.to_string().to_ascii_lowercase().contains("parse"));
+}
+
+#[tokio::test]
+async fn code_nav_dropped_connection_is_typed_error_not_empty_success() {
+    use handshake_native::code_editor::code_nav::CodeNavClient;
+
+    let (base_url, server) = spawn_code_nav_response(Vec::new());
+    let error = CodeNavClient::new(base_url)
+        .lookup_symbols("ws-negative", "add", 5)
+        .await
+        .expect_err("dropped connection must not become an empty successful lookup");
+    server.join().expect("drop server exits");
+    assert!(!error.to_string().trim().is_empty());
 }
 
 // ── LIVE-BACKEND (--features integration): the REAL handshake_core code-nav binding ────────────────
 //
-// These hit the managed backend on 127.0.0.1:37501. They prove the CodeNavClient's transport is
-// genuinely consumed end-to-end against the live backend (correct URL + nav headers + envelope parse).
-// The CONTENT assertions (populated symbols) need a code-indexed workspace; see the module header for
-// the NEEDS_MANAGED_RESOURCE_PROOF blocker on seeding.
+// These consume the ready values printed by the real managed-PostgreSQL fixture. The integration feature
+// is the explicit resource gate; once enabled, every required value and every populated result is strict.
 
 #[cfg(feature = "integration")]
 mod live_backend {
     use handshake_native::code_editor::code_nav::CodeNavClient;
 
-    fn backend_base() -> String {
-        std::env::var("HANDSHAKE_TEST_DB_URL")
-            .ok()
-            .filter(|s| s.starts_with("http"))
-            .unwrap_or_else(|| "http://127.0.0.1:37501".to_owned())
+    struct Fixture {
+        base_url: String,
+        workspace_id: String,
+        symbol_entity_id: String,
     }
 
-    /// AC-001 (binding): `lookup_symbols` against the LIVE backend returns Ok (the request is accepted
-    /// with the correct nav headers + URL and the `matches` envelope parses). With no indexed-code
-    /// workspace the matches may be empty — the CONTENT assertion (`symbol_kind` populated) is the
-    /// documented NEEDS_MANAGED_RESOURCE_PROOF blocker (seeding requires the cross-crate CodeIndexEngine).
-    #[tokio::test]
-    async fn ac001_lookup_symbols_binds_live_backend() {
-        let client = CodeNavClient::new(backend_base());
-        // A workspace id need not exist for the binding proof: the backend validates headers + parses
-        // the query before the workspace lookup, so a 200 with a `matches` array proves the transport.
-        let result = client.lookup_symbols("ws-mt008-probe", "add", 5).await;
-        match result {
-            Ok(matches) => {
-                println!(
-                    "AC-001 binding: lookup_symbols accepted by live backend; matches={}",
-                    matches.len()
-                );
-                // CONTENT assertion (deferred blocker — needs a seeded indexed-code workspace):
-                if let Some(first) = matches.first() {
-                    assert!(
-                        !first.symbol_kind.is_empty(),
-                        "AC-001 content: a returned symbol has a populated symbol_kind"
-                    );
-                    println!("AC-001 content PROVEN: symbol_kind={}", first.symbol_kind);
-                } else {
-                    println!(
-                        "AC-001 content DEFERRED (NEEDS_MANAGED_RESOURCE_PROOF): no indexed-code \
-                         workspace seeded; binding proven, content assertion gated on seeding"
-                    );
-                }
-            }
-            Err(e) => panic!("AC-001 binding FAILED against live backend: {e}"),
+    fn required_env(name: &str) -> String {
+        std::env::var(name)
+            .unwrap_or_else(|_| panic!("MT-008 live proof requires {name} from the ready fixture"))
+    }
+
+    fn fixture() -> Fixture {
+        let base_url = required_env("HANDSHAKE_TEST_DB_URL");
+        assert!(
+            base_url.starts_with("http://") || base_url.starts_with("https://"),
+            "HANDSHAKE_TEST_DB_URL must be the fixture HTTP base URL; got {base_url:?}"
+        );
+        Fixture {
+            base_url,
+            workspace_id: required_env("HANDSHAKE_TEST_WORKSPACE_ID"),
+            symbol_entity_id: required_env("HANDSHAKE_TEST_CODE_SYMBOL_ENTITY_ID"),
         }
     }
 
-    /// AC-002 (binding): `get_symbol` against the LIVE backend. A non-existent entity id returns an
-    /// error (404), proving the route + headers; the populated-definition CONTENT assertion needs a
-    /// seeded symbol (deferred blocker).
+    /// AC-001: the native client consumes the populated real-backend lookup result.
     #[tokio::test]
-    async fn ac002_get_symbol_binds_live_backend() {
-        let client = CodeNavClient::new(backend_base());
-        // A real seeded entity id would assert display_name + definition.line_start; absent seeding we
-        // prove the binding: the route exists and responds (a 404 on a missing id is a real response).
-        let result = client.get_symbol("ent-nonexistent-mt008").await;
-        // Either Ok(empty default) on a 200, or Err on a 404 — both prove the route is bound. A hang /
-        // wrong URL would be a transport error with a connection message, which we treat as a failure.
-        match result {
-            Ok(resp) => println!(
-                "AC-002 binding: get_symbol 200 (display_name={:?}); content DEFERRED without seeding",
-                resp.symbol.display_name
-            ),
-            Err(e) => {
-                let msg = e.to_string();
-                assert!(
-                    msg.contains("non-success") || msg.contains("404"),
-                    "AC-002 binding: expected a real HTTP response (404 for a missing id), got {msg}"
-                );
-                println!("AC-002 binding: get_symbol route responded ({msg}); content DEFERRED");
-            }
-        }
+    async fn ac001_lookup_symbols_returns_populated_live_symbol() {
+        let fixture = fixture();
+        let client = CodeNavClient::new(&fixture.base_url);
+        let matches = client
+            .lookup_symbols(&fixture.workspace_id, "add", 5)
+            .await
+            .expect("AC-001 live lookup succeeds");
+        let add = matches
+            .iter()
+            .find(|symbol| symbol.display_name == "add")
+            .expect("AC-001 lookup returns the seeded add symbol");
+        assert_eq!(add.symbol_entity_id, fixture.symbol_entity_id);
+        assert!(
+            !add.symbol_kind.trim().is_empty(),
+            "symbol_kind is populated"
+        );
+        assert!(
+            add.definition
+                .as_ref()
+                .and_then(|definition| definition.line_start)
+                .unwrap_or_default()
+                > 0,
+            "definition.line_start is populated"
+        );
+        assert!(add.staleness.is_some(), "served staleness is populated");
+        println!(
+            "AC-001 populated live symbol: id={} display_name={} symbol_kind={} definition.line_start={:?}",
+            add.symbol_entity_id,
+            add.display_name,
+            add.symbol_kind,
+            add.definition.as_ref().and_then(|definition| definition.line_start)
+        );
     }
 
-    /// AC-003 (binding): `get_references` against the LIVE backend route. Content (>=1 caller/callee)
-    /// needs a seeded symbol with edges (deferred blocker); the binding is proven by a real response.
+    /// AC-002: detail returns the seeded symbol and its definition span.
     #[tokio::test]
-    async fn ac003_get_references_binds_live_backend() {
-        let client = CodeNavClient::new(backend_base());
-        let result = client.get_references("ent-nonexistent-mt008").await;
-        match result {
-            Ok(refs) => println!(
-                "AC-003 binding: get_references 200 (total={}); content DEFERRED without seeding",
-                refs.total()
-            ),
-            Err(e) => {
-                let msg = e.to_string();
-                assert!(
-                    msg.contains("non-success") || msg.contains("404"),
-                    "AC-003 binding: expected a real HTTP response, got {msg}"
-                );
-                println!(
-                    "AC-003 binding: get_references route responded ({msg}); content DEFERRED"
-                );
-            }
-        }
+    async fn ac002_get_symbol_returns_populated_live_definition() {
+        let fixture = fixture();
+        let client = CodeNavClient::new(&fixture.base_url);
+        let response = client
+            .get_symbol(&fixture.symbol_entity_id)
+            .await
+            .expect("AC-002 live symbol detail succeeds");
+        assert_eq!(response.symbol.symbol_entity_id, fixture.symbol_entity_id);
+        assert_eq!(response.symbol.display_name, "add");
+        assert!(!response.symbol.symbol_kind.trim().is_empty());
+        let line_start = response
+            .symbol
+            .definition
+            .as_ref()
+            .and_then(|definition| definition.line_start)
+            .expect("AC-002 definition.line_start is populated");
+        assert!(line_start > 0);
+        println!(
+            "AC-002 populated live hover/detail: display_name={} definition.line_start={line_start}",
+            response.symbol.display_name
+        );
+    }
+
+    /// AC-003: `add` has the real indexed `caller` incoming edge.
+    #[tokio::test]
+    async fn ac003_get_references_returns_populated_live_caller() {
+        let fixture = fixture();
+        let client = CodeNavClient::new(&fixture.base_url);
+        let references = client
+            .get_references(&fixture.symbol_entity_id)
+            .await
+            .expect("AC-003 live references succeeds");
+        assert!(references.total() >= 1, "at least one caller or callee");
+        assert!(
+            references
+                .callers
+                .iter()
+                .any(|caller| caller.display_name == "caller"),
+            "the seeded caller appears in callers: {:?}",
+            references
+                .callers
+                .iter()
+                .map(|caller| caller.display_name.as_str())
+                .collect::<Vec<_>>()
+        );
+        println!(
+            "AC-003 populated live references: callers={} callees={} total={}",
+            references.callers.len(),
+            references.callees.len(),
+            references.total()
+        );
     }
 }

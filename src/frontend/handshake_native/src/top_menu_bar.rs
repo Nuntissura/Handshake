@@ -47,6 +47,7 @@
 //!   ────── Open Editor Surfaces (WP-KERNEL-012 wave-6 — real OPEN routes for the mounted editors)
 //!   Open Code Editor        ENABLED -> OpenViewSurface(view.code-editor)   opens PaneType::CodeSymbol
 //!   Open Rich Note          ENABLED -> OpenViewSurface(view.rich-note)     opens PaneType::LoomWikiPage
+//!   Open Wiki Projection    ENABLED -> OpenViewSurface(view.wiki-projection) opens the generated Wiki Page pane
 //!   Open Knowledge Graph    ENABLED -> OpenViewSurface(view.graph)         opens the Graph View pane
 //!   Open Folders            ENABLED -> OpenViewSurface(view.folders)       opens the Loom folder tree
 //!   Open Block Collections  ENABLED -> OpenViewSurface(view.block-collections) opens saved views
@@ -79,9 +80,9 @@
 //!
 //! ## Stable AccessKit ids (out-of-process steering — HBR-VIS)
 //!
-//! The menu count is FIXED at seven (MT-035 added `Editors`), so — like the module switcher — each
+//! The menu count is FIXED at eight (`Editors` plus the operator control menu), so each
 //! TOP-LEVEL menu button gets a fixed `NodeId` in a dedicated fresh band ([`MENU_BAR_NODE_ID_BASE`] =
-//! 92..=98; ids 98=`Editors`, 99 free before the pane id base 100), strictly below the
+//! 92..=99; ids 98=`Editors`, 99=`Operator`), strictly below the
 //! pane id base (100) and disjoint from every other declared identity (theme toggle 10, chrome 20/21,
 //! dividers 30/31, scrollbar rails 40..43, project-tab strip 50, module buttons 51..56, tab-bar
 //! containers 60..63, merge-back 64..67, pane locks 70..73, pane titles 74..77, left rail 80..88,
@@ -106,9 +107,9 @@
 
 use egui::accesskit;
 
-/// Fixed AccessKit/egui `NodeId` of the FIRST top-level menu button (`FILE`). The seven menu buttons
-/// occupy the FRESH band 92..=98: above the MT-014 FIX-A bookmarks container (91), strictly below the
-/// pane id base (100) (id 98 = the MT-035 `Editors` menu; 99 stays free). Each button's id is
+/// Fixed AccessKit/egui `NodeId` of the FIRST top-level menu button (`FILE`). The eight menu buttons
+/// occupy the FRESH band 92..=99: above the MT-014 FIX-A bookmarks container (91), strictly below the
+/// pane id base (100) (id 98 = `Editors`; id 99 = `Operator`). Each button's id is
 /// `MENU_BAR_NODE_ID_BASE + index_in_MENU_DEFINITIONS`. A
 /// fixed-value `egui::Id` (`from_high_entropy_bits`) yields a fixed `NodeId` across frames + process
 /// restarts — the same convention the theme toggle, chrome, dividers, and module switcher use.
@@ -151,6 +152,8 @@ pub const EDITOR_MENU_LEAF_AUTHOR_IDS: &[&str] = &[
     "menu.file.export-json",
     "menu.edit.undo",
     "menu.edit.redo",
+    "menu.edit.undo-cross-pane",
+    "menu.edit.show-undo-history",
     "menu.edit.cut",
     "menu.edit.copy",
     "menu.edit.paste",
@@ -197,6 +200,9 @@ pub enum MenuId {
     /// diagnostics navigation / Rename Symbol / Quick Fix editor commands). Appended LAST so its fixed
     /// AccessKit id is `MENU_BAR_NODE_ID_BASE + 6` = 98 (existing FILE..HELP keep 92..=97 unchanged).
     Editors,
+    /// Operator control and observability entrypoints. Appended after every existing menu so all
+    /// established fixed ids remain unchanged; this menu receives the final free pre-pane id 99.
+    Operator,
 }
 
 impl MenuId {
@@ -210,6 +216,7 @@ impl MenuId {
             MenuId::Run => "RUN",
             MenuId::Help => "HELP",
             MenuId::Editors => "EDITORS",
+            MenuId::Operator => "OPERATOR",
         }
     }
 
@@ -223,6 +230,7 @@ impl MenuId {
             MenuId::Run => "menu-run",
             MenuId::Help => "menu-help",
             MenuId::Editors => "menu-editors",
+            MenuId::Operator => "menu-operator",
         }
     }
 
@@ -242,6 +250,7 @@ impl MenuId {
             // "EDITORS" — the initial `E` is already Edit's mnemonic, so the underlined access key is the
             // `I` (Alt+I), keeping the per-menu mnemonic unique (the uniqueness test enforces it).
             MenuId::Editors => egui::Key::I,
+            MenuId::Operator => egui::Key::O,
         }
     }
 }
@@ -253,7 +262,7 @@ impl MenuId {
 /// in this crate uses.
 fn menu_button_id(index: usize) -> egui::Id {
     // SAFETY: `from_high_entropy_bits` only requires the value to be high-entropy enough to avoid
-    // accidental collisions; these ids share the documented disjoint fixed band (92..=98) proven by the
+    // accidental collisions; these ids share the documented disjoint fixed band (92..=99) proven by the
     // accessibility registry collision test, so they never collide with another declared identity.
     unsafe { egui::Id::from_high_entropy_bits(MENU_BAR_NODE_ID_BASE + index as u64) }
 }
@@ -264,6 +273,36 @@ fn menu_button_id(index: usize) -> egui::Id {
 /// `Popup::menu` reads its open-state from egui memory.
 fn menu_popup_id(index: usize) -> egui::Id {
     menu_button_id(index).with("popup")
+}
+
+/// Restore a top-level menu's popup state into an egui context. The live window and the
+/// side-effect-free MCP snapshot pass use distinct contexts, so the shell persists the selected menu
+/// as application state and calls this before snapshot rendering. Without this bridge a model could
+/// open a dropdown in the live window but its next action would be rejected because the fresh snapshot
+/// context did not contain the dropdown's dynamic leaf nodes.
+pub fn set_menu_popup_open(ctx: &egui::Context, menu: MenuId, open: bool) {
+    let index = MENU_DEFINITIONS
+        .iter()
+        .position(|candidate| *candidate == menu)
+        .expect("every MenuId is present in MENU_DEFINITIONS");
+    let popup_id = menu_popup_id(index);
+    if open {
+        egui::Popup::open_id(ctx, popup_id);
+    } else {
+        egui::Popup::close_id(ctx, popup_id);
+    }
+}
+
+/// Return the menu whose popup is actually open in this context. This post-render truth source makes
+/// Escape, click-away, pointer toggles, mnemonics, and same-frame model-click bursts converge on egui's
+/// final popup state instead of a guessed click transition.
+pub fn open_menu(ctx: &egui::Context) -> Option<MenuId> {
+    MENU_DEFINITIONS
+        .iter()
+        .enumerate()
+        .find_map(|(index, menu)| {
+            egui::Popup::is_id_open(ctx, menu_popup_id(index)).then_some(*menu)
+        })
 }
 
 /// Handle the `Alt+<letter>` menu mnemonics (AC2). Call this ONCE per frame, BEFORE the menu bar panel
@@ -289,10 +328,10 @@ pub fn handle_menu_mnemonics(ctx: &egui::Context) -> Option<MenuId> {
     opened
 }
 
-/// The seven top-level menus in display order. The fixed-count array drives both rendering and the
+/// The eight top-level menus in display order. The fixed-count array drives both rendering and the
 /// fixed-band id assignment (`MENU_BAR_NODE_ID_BASE + index`). MT-035 appends `Editors` LAST (index 6 ->
 /// id 98) so the existing FILE..HELP ids (92..=97) are unchanged (no renumbering).
-pub const MENU_DEFINITIONS: [MenuId; 7] = [
+pub const MENU_DEFINITIONS: [MenuId; 8] = [
     MenuId::File,
     MenuId::Edit,
     MenuId::View,
@@ -300,6 +339,7 @@ pub const MENU_DEFINITIONS: [MenuId; 7] = [
     MenuId::Run,
     MenuId::Help,
     MenuId::Editors,
+    MenuId::Operator,
 ];
 
 /// The typed action a leaf menu item dispatches. Returned by [`MenuBar::show`] when a leaf is clicked
@@ -340,6 +380,9 @@ pub enum MenuBarAction {
     /// a `crate::command_registry::CMD_VIEW_*` open command; each has a live host-mounted factory, so the
     /// entry is a REAL open, never a dead/lying-enabled entry.
     OpenViewSurface(&'static str),
+    /// Dispatch an operator-facing application command through the same command-palette path. This keeps
+    /// menu, palette, context-menu, and agent callers on one production command implementation.
+    AppCommand(&'static str),
     // GO
     OpenQuickSwitcher,
     OpenCommandPalette,
@@ -373,6 +416,7 @@ pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     // WP-KERNEL-012 wave-6: non-destructive VIEW open routes for mounted native-editor surfaces.
     "menu.view.open-code-editor",
     "menu.view.open-rich-note",
+    "menu.view.open-wiki-projection",
     "menu.view.open-knowledge-graph",
     "menu.view.open-folders",
     "menu.view.open-tags",
@@ -383,12 +427,19 @@ pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     "menu.view.open-quick-switcher",
     "menu.view.open-daily-journal",
     "menu.view.open-diff-editor",
+    "menu.view.toggle-atelier",
     "menu.run.swarm-board",
     MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID,
     "menu.run.inference-lab",
     "menu.run.flight-recorder",
     "menu.help.user-manual",
     "menu.help.settings",
+    "menu.operator.command-palette",
+    "menu.operator.swarm-board",
+    "menu.operator.flight-recorder",
+    "menu.operator.model-session-launch",
+    "menu.operator.user-manual",
+    "menu.operator.settings",
     // WP-KERNEL-012 MT-052 GO-menu editor navigation (discoverable by swarm agents; they dispatch once
     // the editor is host-mounted in E11).
     GO_NEXT_DIAGNOSTIC_AUTHOR_ID,
@@ -428,6 +479,8 @@ pub struct MenuBarState {
     /// focused pane (or the cross-pane ring) — the live ENABLE PREDICATE for EDIT > Undo (VS Code semantics:
     /// Undo enabled only when there is something to undo).
     pub editor_can_undo: bool,
+    /// True only when the distinct MT-035 cross-pane ring has an undoable action.
+    pub editor_can_cross_pane_undo: bool,
     /// WP-KERNEL-012 MT-069: true when the MT-035 unified-undo scope reports a redoable action for the
     /// focused pane — the live ENABLE PREDICATE for EDIT > Redo.
     pub editor_can_redo: bool,
@@ -476,7 +529,7 @@ impl MenuBar {
         index: usize,
         action: &mut Option<MenuBarAction>,
     ) {
-        // Fixed-value Id -> fixed AccessKit NodeId in the 92..=98 band (disjoint by construction; the
+        // Fixed-value Id -> fixed AccessKit NodeId in the 92..=99 band (disjoint by construction; the
         // registry collision test proves it). We build the toggle button + popup ourselves (rather than
         // `ui.menu_button`, whose id is auto-allocated) so the button lands on this exact stable id.
         // Derived via the shared `menu_button_id` so the Alt+letter mnemonic opener computes the SAME
@@ -495,6 +548,19 @@ impl MenuBar {
         // Interact at the FIXED button_id so the Response, its widget_info, the AccessKit bounding box,
         // and the author_id all land on the SAME node (mirrors the module-switcher id discipline).
         let response = ui.interact(rect, button_id, egui::Sense::click());
+
+        // The menu button is custom-painted rather than an egui Button, so a raw AccessKit Click is not
+        // automatically folded into `Response::clicked()`. Route that model-facing action to the exact
+        // popup id used by the pointer path. Guard against a future egui version that does synthesize the
+        // response click, otherwise the same request would toggle twice.
+        let accesskit_clicked = ui.input(|input| {
+            input
+                .accesskit_action_requests(button_id, accesskit::Action::Click)
+                .next()
+                .is_some()
+        });
+        let accesskit_popup_was_open =
+            egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&response));
 
         // The button is "open" when its popup is currently showing, so we can paint the open highlight.
         let popup_open =
@@ -532,6 +598,18 @@ impl MenuBar {
             ui.set_min_width(220.0);
             self.menu_items(ui, menu, action);
         });
+        // Re-assert the requested toggle after egui's response-driven popup logic. Some egui versions
+        // report an AccessKit click through `Response::clicked()` but do not retain the menu popup; doing
+        // this after `show` makes the final memory state deterministic without double-toggling.
+        if accesskit_clicked {
+            let popup_id = egui::Popup::default_response_id(&response);
+            if accesskit_popup_was_open {
+                egui::Popup::close_id(ui.ctx(), popup_id);
+            } else {
+                egui::Popup::open_id(ui.ctx(), popup_id);
+            }
+            ui.ctx().request_repaint();
+        }
     }
 
     /// Render the leaf items for one menu into the open popup.
@@ -681,6 +759,28 @@ impl MenuBar {
                     Some("Ctrl+Y"),
                     self.state.editor_can_redo,
                     MenuBarAction::EditorCommand(crate::command_registry::CMD_EDITOR_EDIT_REDO),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.undo-cross-pane",
+                    "Undo Cross-Pane",
+                    Some("Ctrl+Shift+Z"),
+                    self.state.editor_can_cross_pane_undo,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_EDIT_UNDO_CROSS_PANE,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.edit.show-undo-history",
+                    "Show Undo History",
+                    None,
+                    true,
+                    MenuBarAction::EditorCommand(
+                        crate::command_registry::CMD_EDITOR_EDIT_SHOW_UNDO_HISTORY,
+                    ),
                     action,
                 );
                 ui.separator();
@@ -969,6 +1069,17 @@ impl MenuBar {
                 );
                 self.item(
                     ui,
+                    "menu.view.open-wiki-projection",
+                    "Open Wiki Projection",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(
+                        crate::command_registry::CMD_VIEW_WIKI_PROJECTION,
+                    ),
+                    action,
+                );
+                self.item(
+                    ui,
                     "menu.view.open-knowledge-graph",
                     "Open Knowledge Graph",
                     None,
@@ -1057,6 +1168,15 @@ impl MenuBar {
                     None,
                     true,
                     MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_DIFF_MERGE),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.view.toggle-atelier",
+                    "Toggle Atelier / CKC Panel",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_ATELIER),
                     action,
                 );
             }
@@ -1333,8 +1453,26 @@ impl MenuBar {
                 );
                 self.item(
                     ui,
+                    "menu.editors.route-to-stage",
+                    "Route selection to Stage",
+                    None,
+                    self.state.active_rich_editor,
+                    MenuBarAction::AppCommand(crate::interop::CMD_ROUTE_TO_STAGE),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.editors.embed-stage-capture",
+                    "Capture and embed from Stage",
+                    None,
+                    true,
+                    MenuBarAction::AppCommand(crate::interop::CMD_EMBED_STAGE_CAPTURE),
+                    action,
+                );
+                self.item(
+                    ui,
                     "menu.editors.sidebar",
-                    "Toggle Sidebar",
+                    "Open Sidebar",
                     None,
                     true,
                     MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_SIDEBAR),
@@ -1407,6 +1545,64 @@ impl MenuBar {
                     action,
                 );
             }
+            MenuId::Operator => {
+                ui.label(egui::RichText::new("Operator Controls").weak().small());
+                self.item(
+                    ui,
+                    "menu.operator.command-palette",
+                    "Open Command Palette",
+                    Some("Ctrl+Shift+P"),
+                    true,
+                    MenuBarAction::OpenCommandPalette,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.operator.swarm-board",
+                    "Open Swarm Board",
+                    None,
+                    true,
+                    MenuBarAction::OpenSwarmBoard,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.operator.flight-recorder",
+                    "Open Flight Recorder",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("flight-recorder".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.operator.model-session-launch",
+                    "Launch Model Session",
+                    None,
+                    true,
+                    MenuBarAction::OpenModelSessionLaunch,
+                    action,
+                );
+                ui.separator();
+                self.item(
+                    ui,
+                    "menu.operator.user-manual",
+                    "Open User Manual",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("user-manual".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.operator.settings",
+                    "Open Settings…",
+                    None,
+                    true,
+                    MenuBarAction::OpenSettings,
+                    action,
+                );
+            }
         }
     }
 
@@ -1443,7 +1639,7 @@ impl MenuBar {
             button = button.shortcut_text(s);
         }
         let response = ui.add(button.min_size(egui::vec2(ui.available_width(), 0.0)));
-        Self::name_node(ui, response.id, author_id, label);
+        Self::name_node(ui, response.id, author_id, label, true);
         if response.clicked() {
             *action = Some(emit);
             ui.close();
@@ -1471,14 +1667,14 @@ impl MenuBar {
                 button.min_size(egui::vec2(ui.available_width(), 0.0)),
             )
             .on_disabled_hover_text(reason);
-        Self::name_node(ui, response.id, author_id, label);
+        Self::name_node(ui, response.id, author_id, label, false);
     }
 
     /// Render a checkmark leaf via `selectable_label` (egui draws the native check when `checked`).
     /// Returns `true` if it was clicked this frame. Carries an addressable `Role::MenuItem` node.
     fn check_item(&self, ui: &mut egui::Ui, author_id: &str, label: &str, checked: bool) -> bool {
         let response = ui.selectable_label(checked, label);
-        Self::name_node(ui, response.id, author_id, label);
+        Self::name_node(ui, response.id, author_id, label, true);
         response.clicked()
     }
 
@@ -1487,7 +1683,13 @@ impl MenuBar {
     /// egui emitted into the frame's accessibility tree). Leaf items are DYNAMIC — they exist only
     /// while their menu is open — so they live in egui's hashed id space (like the per-tab nodes) and
     /// are addressed out-of-process by their stable `author_id`, not a fixed-band NodeId.
-    fn name_node(ui: &mut egui::Ui, widget_node_id: egui::Id, author_id: &str, label: &str) {
+    fn name_node(
+        ui: &mut egui::Ui,
+        widget_node_id: egui::Id,
+        author_id: &str,
+        label: &str,
+        enabled: bool,
+    ) {
         let author_id = author_id.to_owned();
         let label = label.to_owned();
         ui.ctx()
@@ -1495,6 +1697,15 @@ impl MenuBar {
                 node.set_role(accesskit::Role::MenuItem);
                 node.set_author_id(author_id);
                 node.set_label(label);
+                // Popup UI enablement can otherwise be inherited inconsistently by a fresh AccessKit
+                // snapshot context. Make the node's semantic state exactly match the live predicate
+                // that selected `item` versus `disabled_item`; ActionChannel validation then sees the
+                // same truth as the operator-facing dropdown.
+                if enabled {
+                    node.clear_disabled();
+                } else {
+                    node.set_disabled();
+                }
             });
     }
 }
@@ -2045,6 +2256,7 @@ mod tests {
             active_code_editor: true,
             active_rich_editor: true,
             editor_can_undo: true,
+            editor_can_cross_pane_undo: true,
             editor_can_redo: true,
             editor_can_paste: true,
             editor_can_nav_back: true,
@@ -2090,6 +2302,7 @@ mod tests {
                 MenuBarAction::ShowAbout => "about",
                 MenuBarAction::EditorCommand(_) => "editor-command",
                 MenuBarAction::OpenViewSurface(_) => "open-view-surface",
+                MenuBarAction::AppCommand(_) => "app-command",
             }
         }
         // Spot-check a representative sample so the match is also exercised at runtime.
@@ -2104,14 +2317,14 @@ mod tests {
         );
     }
 
-    /// The seven fixed menu ids sit in the 92..=98 band, are sequential, and stay strictly below the pane
+    /// The eight fixed menu ids sit in the 92..=99 band, are sequential, and stay strictly below the pane
     /// id base — the disjoint-fresh-band invariant the registry collision test relies on.
     #[test]
     fn menu_ids_sit_in_a_disjoint_fresh_band() {
         assert_eq!(MENU_BAR_NODE_ID_BASE, 92);
         for (index, _menu) in MENU_DEFINITIONS.iter().enumerate() {
             let id = MENU_BAR_NODE_ID_BASE + index as u64;
-            assert!((92..=98).contains(&id), "menu id {id} in band 92..=98");
+            assert!((92..=99).contains(&id), "menu id {id} in band 92..=99");
             assert!(
                 id < crate::accessibility::PANE_NODE_ID_BASE,
                 "menu id {id} below pane base {}",
@@ -2133,7 +2346,8 @@ mod tests {
                 "menu-go",
                 "menu-run",
                 "menu-help",
-                "menu-editors"
+                "menu-editors",
+                "menu-operator"
             ]
         );
         // No duplicates.
@@ -2155,6 +2369,7 @@ mod tests {
             (MenuId::Run, egui::Key::R),
             (MenuId::Help, egui::Key::H),
             (MenuId::Editors, egui::Key::I),
+            (MenuId::Operator, egui::Key::O),
         ];
         for (menu, key) in pairs {
             assert_eq!(menu.mnemonic_key(), key, "{:?} mnemonic", menu);
@@ -2189,17 +2404,18 @@ mod tests {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.go.command-palette"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.swarm-board"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID));
-        // 8 base overlay/navigation actions + 12 wave-6 VIEW open-surface leaves + the 4 MT-052 GO-menu
-        // editor-navigation leaves.
+        // 8 base overlay/navigation actions + 14 VIEW open-surface leaves + 4 GO editor-navigation
+        // leaves + 6 operator-control leaves.
         assert_eq!(
             SWARM_ACCESSIBLE_ACTIONS.len(),
-            24,
+            32,
             "all overlay/navigation actions listed"
         );
         // Wave-6 VIEW menu surface opens are swarm-discoverable and non-destructive.
         for id in [
             "menu.view.open-code-editor",
             "menu.view.open-rich-note",
+            "menu.view.open-wiki-projection",
             "menu.view.open-knowledge-graph",
             "menu.view.open-folders",
             "menu.view.open-tags",
@@ -2210,6 +2426,7 @@ mod tests {
             "menu.view.open-quick-switcher",
             "menu.view.open-daily-journal",
             "menu.view.open-diff-editor",
+            "menu.view.toggle-atelier",
         ] {
             assert!(
                 SWARM_ACCESSIBLE_ACTIONS.contains(&id),
@@ -2233,20 +2450,20 @@ mod tests {
         assert!(!SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.view.reset-layout"));
     }
 
-    /// `MenuBar::show` paints the seven top-level menu buttons as live `Role::MenuItem` nodes with stable
+    /// `MenuBar::show` paints the eight top-level menu buttons as live `Role::MenuItem` nodes with stable
     /// `menu-*` author_ids on an idle (no-click) frame. (The click->action path is proven end-to-end in
     /// tests/test_top_menu_bar.rs against the real shell.)
     #[test]
-    fn show_paints_seven_menu_buttons() {
+    fn show_paints_eight_menu_buttons() {
         use egui_kittest::kittest::{NodeT, Queryable};
         let state = full_state();
         let mut harness = egui_kittest::Harness::builder().build_ui(move |ui| {
-            // The returned action is None on an idle frame; the widget still paints all seven menus.
+            // The returned action is None on an idle frame; the widget still paints all eight menus.
             let _ = MenuBar::new(state).show(ui);
         });
         harness.run();
 
-        for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "HELP", "EDITORS"] {
+        for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "HELP", "EDITORS", "OPERATOR"] {
             let _ = harness.get_by_label(label);
         }
         let menu_nodes = harness
@@ -2259,7 +2476,10 @@ mod tests {
                     .unwrap_or(false)
             })
             .count();
-        assert_eq!(menu_nodes, 7, "seven top-level menu buttons in the live tree");
+        assert_eq!(
+            menu_nodes, 8,
+            "eight top-level menu buttons in the live tree"
+        );
     }
 
     // ── MT-071 editor status-bar segment unit tests ──────────────────────────────────────────────────

@@ -38,7 +38,9 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_diag_ring::{
     DiagEventCode, DiagRingReader, DiagTier, Heartbeat, ThreeTierDiagnosticWiringRecord, TierWiring,

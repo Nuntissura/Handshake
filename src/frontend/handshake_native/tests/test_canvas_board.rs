@@ -11,7 +11,7 @@
 //!     `canvas.placement.p-002` => `CanvasEvent::SemanticEdge{source,target block_ids}` (AC7).
 //!   - PROOF5: remove — clicking `canvas.placement.p-001.remove` fires `CanvasEvent::RemovePlacement`;
 //!     after the host applies + refreshes, `canvas.placement.p-001` is absent (AC8). The source-block-kept
-//!     assertion is the LIVE-PG `#[ignore]` test (getLoom('block-001') still 200).
+//!     assertion is repeated by the isolated managed-PG proof (getLoom(source) still 200).
 //!   - PROOF6: screenshot of a non-white canvas with at least one rounded card shape.
 //!   - AC2/AC3: pan/zoom buttons mutate pan/zoom + fire `ViewportChanged`; zoom label reads "1.00x".
 //!   - AC5: '+ Text card' fires `CanvasEvent::AddCard` with a timestamp title.
@@ -21,13 +21,11 @@
 //!
 //! ## Backend reality (Spec-Realism Gate / MT-008/021-025 pattern)
 //!
-//! AC1 and the LIVE-PG variants (place/edge/remove against real PostgreSQL with a seeded canvas block
-//! plus two-or-more placements) are the `#[ignore]`d `*_live_pg` integration tests, gated behind the
-//! `integration` feature; absent a seeded backend they are NEEDS_MANAGED_RESOURCE_PROOF (run with
-//! `cargo test --features integration --test test_canvas_board -- --ignored` against a live, seeded
-//! backend). They NEVER fake PG. The request builders are proven WITHOUT a backend below (the corrected
-//! routes/bodies the MT-026 contract got wrong), and the transform / hit-test / edge-mode / empty-board
-//! behaviors are proven STANDALONE here + in the lib unit tests with seeded in-memory placements.
+//! AC1 and the live mutation/reload paths are covered by one NON-ignored `integration`-gated proof that
+//! creates and tears down its own isolated workspace on the reachable Handshake-managed PostgreSQL
+//! backend. It never depends on operator-seeded ids and never fakes PG. The request builders are proven
+//! without a backend below, while transform / hit-test / edge-mode / empty-board behavior is also proven
+//! standalone here and in the lib unit tests.
 //!
 //! ## Artifact hygiene (CX-212E)
 //!
@@ -39,17 +37,23 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
-use handshake_native::backend_client::CanvasBoardClient;
+use handshake_native::backend_client::{CanvasBoardClient, LOOM_CANVAS_BOARD_SCHEMA_ID};
 use handshake_native::graph::canvas_board::{
     placement_author_id, placement_remove_author_id, CanvasDragPayload, CanvasEvent,
     CanvasPlacementCard, EdgeMode, LoomCanvasBoard, ADD_CARD_AUTHOR_ID, DEFAULT_CARD_H,
     DEFAULT_CARD_W, EDGE_MODE_AUTHOR_ID, PAN_LEFT_AUTHOR_ID, PAN_RIGHT_AUTHOR_ID,
-    PLACE_BLOCK_AUTHOR_ID, PLACE_BLOCK_INPUT_AUTHOR_ID, STATUS_AUTHOR_ID, ZOOM_IN_AUTHOR_ID,
-    ZOOM_OUT_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
+    PLACE_BLOCK_AUTHOR_ID, PLACE_BLOCK_INPUT_AUTHOR_ID, RETRY_AUTHOR_ID, STATUS_AUTHOR_ID,
+    ZOOM_IN_AUTHOR_ID, ZOOM_OUT_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
 };
 use handshake_native::theme::HsTheme;
+
+#[cfg(feature = "integration")]
+#[path = "interconnect_support/mod.rs"]
+mod interconnect_support;
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic.
 fn external_artifact_dir(subdir: &str) -> PathBuf {
@@ -119,7 +123,7 @@ fn harness_for<'a>(
 }
 
 /// Collect every author_id present in the live AccessKit tree.
-fn author_ids(harness: &Harness<'_, ()>) -> std::collections::HashSet<String> {
+fn author_ids<S>(harness: &Harness<'_, S>) -> std::collections::HashSet<String> {
     let mut ids = std::collections::HashSet::new();
     for node in harness.root().children_recursive() {
         if let Some(a) = node.accesskit_node().author_id() {
@@ -130,7 +134,7 @@ fn author_ids(harness: &Harness<'_, ()>) -> std::collections::HashSet<String> {
 }
 
 /// Read a node's AccessKit `value` by author_id (used for the group_id AC6 + the zoom label AC3).
-fn value_for(harness: &Harness<'_, ()>, author_id: &str) -> Option<String> {
+fn value_for<S>(harness: &Harness<'_, S>, author_id: &str) -> Option<String> {
     for node in harness.root().children_recursive() {
         let ak = node.accesskit_node();
         if ak.author_id() == Some(author_id) {
@@ -141,7 +145,7 @@ fn value_for(harness: &Harness<'_, ()>, author_id: &str) -> Option<String> {
 }
 
 /// Read a node's AccessKit `label` by author_id.
-fn label_for(harness: &Harness<'_, ()>, author_id: &str) -> Option<String> {
+fn label_for<S>(harness: &Harness<'_, S>, author_id: &str) -> Option<String> {
     for node in harness.root().children_recursive() {
         let ak = node.accesskit_node();
         if ak.author_id() == Some(author_id) {
@@ -1031,79 +1035,1036 @@ fn client_get_block_url() {
     );
 }
 
-// ═════════════════════════════════════════════════════════════════════════════════════════════════
-// LIVE-PG (gated): NEEDS_MANAGED_RESOURCE_PROOF without a seeded backend. Never fakes PG.
-// ═════════════════════════════════════════════════════════════════════════════════════════════════
-
-/// AC1 + PROOF2 against REAL Handshake-managed PostgreSQL with a seeded canvas block + >= 2 placements.
-/// The operator seeds `ws-live` + a canvas block `cb-live` with >= 2 placements (e.g. via the backend's
-/// `mt261_loom_canvas_fixture` bin) before running. Gated behind `integration` + `#[ignore]`.
-/// Run with: `cargo test --features integration --test test_canvas_board -- --ignored`.
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a seeded canvas block + >= 2 placements"]
-#[cfg(feature = "integration")]
-fn canvas_board_live_pg() {
-    use handshake_native::backend_client::CanvasBoardCell;
+fn canvas_error_exposes_stable_retry_event() {
+    let mut board = seeded_board(2);
+    board.error = Some("managed backend unavailable".to_owned());
+    let board = shared(board);
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = harness_for(Arc::clone(&board), Arc::clone(&events));
+    harness.run_steps(2);
 
-    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-    let client = CanvasBoardClient::production(rt.handle().clone());
-    let cell: CanvasBoardCell = Arc::new(Mutex::new(None));
-    client.fetch_board("ws-live", "cb-live", Arc::clone(&cell));
-    let mut data = None;
-    for _ in 0..50 {
-        if let Some(r) = cell.lock().unwrap().take() {
-            data = Some(r);
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    let data = data
-        .expect("live PG fetch within 5s")
-        .expect("live PG fetch ok");
+    assert!(author_ids(&harness).contains(RETRY_AUTHOR_ID));
+    harness
+        .get_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+            node.author_id() == Some(RETRY_AUTHOR_ID)
+        })
+        .click();
+    harness.run_steps(1);
+
+    assert_eq!(events.lock().unwrap().pop(), Some(CanvasEvent::Retry));
+    assert!(board.lock().unwrap().loading);
     assert!(
-        data.placements.len() >= 2,
-        "AC1 live: >= 2 seeded placements expected, got {}",
-        data.placements.len()
+        board.lock().unwrap().error.is_none(),
+        "retry replaces the stale error with the bounded loading state"
+    );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// LIVE-PG: isolated, self-seeded, mounted, non-ignored. Never fakes PostgreSQL.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+#[cfg(feature = "integration")]
+struct LiveWorkspaceCleanup<'a> {
+    backend: &'a interconnect_support::LiveBackend,
+    workspace_id: String,
+    cleaned: bool,
+}
+
+#[cfg(feature = "integration")]
+impl LiveWorkspaceCleanup<'_> {
+    fn assert_cleaned(&mut self) {
+        let status = self.backend.delete_workspace(&self.workspace_id);
+        assert!(
+            matches!(status, 200 | 202 | 204),
+            "managed-PG workspace cleanup returned HTTP {status}"
+        );
+        let workspaces = self.backend.get_json("/workspaces");
+        let rows = workspaces
+            .as_array()
+            .expect("GET /workspaces returns the canonical workspace list");
+        assert!(
+            rows.iter().all(|row| {
+                row.get("id").and_then(|id| id.as_str()) != Some(self.workspace_id.as_str())
+            }),
+            "fresh canonical workspace-list read must prove the isolated workspace is absent"
+        );
+        self.cleaned = true;
+    }
+}
+
+#[cfg(feature = "integration")]
+impl Drop for LiveWorkspaceCleanup<'_> {
+    fn drop(&mut self) {
+        if !self.cleaned {
+            let _ = self.backend.delete_workspace(&self.workspace_id);
+        }
+    }
+}
+
+#[cfg(feature = "integration")]
+fn one_shot_canvas_json(body: serde_json::Value) -> (String, std::thread::JoinHandle<()>) {
+    use std::io::{Read, Write};
+    let listener =
+        std::net::TcpListener::bind("127.0.0.1:0").expect("bind one-shot malformed Canvas server");
+    let address = listener.local_addr().expect("malformed Canvas address");
+    let encoded = serde_json::to_vec(&body).expect("encode malformed Canvas response");
+    let join = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept Canvas GET");
+        let mut request = [0_u8; 4096];
+        let _ = stream.read(&mut request);
+        let headers = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            encoded.len()
+        );
+        stream
+            .write_all(headers.as_bytes())
+            .expect("write malformed Canvas headers");
+        stream
+            .write_all(&encoded)
+            .expect("write malformed Canvas body");
+    });
+    (format!("http://{address}"), join)
+}
+
+#[cfg(feature = "integration")]
+fn await_board(
+    cell: &handshake_native::backend_client::CanvasBoardCell,
+) -> Result<handshake_native::backend_client::CanvasBoardData, String> {
+    for _ in 0..200 {
+        if let Some(delivery) = cell.lock().unwrap().pop_front() {
+            return delivery.result;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("canvas board request did not resolve within 10 seconds")
+}
+
+#[cfg(feature = "integration")]
+fn await_live_block(
+    cell: &handshake_native::backend_client::LiveBlockCell,
+) -> (
+    String,
+    Result<
+        handshake_native::backend_client::LiveBlock,
+        handshake_native::backend_client::LiveBlockResolveError,
+    >,
+) {
+    for _ in 0..200 {
+        if let Some(result) = cell.lock().unwrap().take() {
+            return result;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("canvas live-block resolve did not complete within 10 seconds")
+}
+
+#[cfg(feature = "integration")]
+fn fetch_canvas(
+    client: &CanvasBoardClient,
+    workspace_id: &str,
+    canvas_block_id: &str,
+) -> Result<handshake_native::backend_client::CanvasBoardData, String> {
+    let cell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    client.fetch_board(workspace_id, canvas_block_id, Arc::clone(&cell));
+    await_board(&cell)
+}
+
+#[cfg(feature = "integration")]
+fn resolve_live_titles(
+    client: &CanvasBoardClient,
+    workspace_id: &str,
+    data: &mut handshake_native::backend_client::CanvasBoardData,
+) {
+    for placement in &mut data.placements {
+        let cell = Arc::new(Mutex::new(None));
+        client.resolve_block(workspace_id, &placement.placed_block_id, Arc::clone(&cell));
+        let (resolved_id, result) = await_live_block(&cell);
+        assert_eq!(resolved_id, placement.placed_block_id);
+        let (title, content_type, _) = result.expect("placed source block resolves live");
+        placement.live_title = title;
+        placement.live_content_type = Some(content_type);
+    }
+}
+
+#[cfg(feature = "integration")]
+fn drive_canvas_host_until(
+    host: &mut Harness<'_, handshake_native::app::HandshakeApp>,
+    events: &Arc<Mutex<Vec<CanvasEvent>>>,
+    board: &Arc<Mutex<LoomCanvasBoard>>,
+    condition: impl Fn(&LoomCanvasBoard) -> bool,
+    proof: &str,
+) {
+    for _ in 0..400 {
+        host.run_steps(1);
+        let matches = board.lock().map(|board| condition(&board)).unwrap_or(false);
+        if events.lock().map(|queue| queue.is_empty()).unwrap_or(false)
+            && host.state().canvas_op_cells_in_flight() == 0
+            && matches
+        {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let snapshot = board
+        .lock()
+        .map(|board| format!("{board:?}"))
+        .unwrap_or_else(|_| "<poisoned Canvas board>".to_owned());
+    panic!("timed out waiting for mounted host proof '{proof}': {snapshot}");
+}
+
+#[cfg(feature = "integration")]
+fn click_mounted_canvas_control(
+    host: &mut Harness<'_, handshake_native::app::HandshakeApp>,
+    events: &Arc<Mutex<Vec<CanvasEvent>>>,
+    board: &Arc<Mutex<LoomCanvasBoard>>,
+    author_id: &str,
+    condition: impl Fn(&LoomCanvasBoard) -> bool,
+    proof: &str,
+) {
+    host.run_steps(1);
+    let target = host
+        .root()
+        .children_recursive()
+        .find_map(|node| {
+            let access = node.accesskit_node();
+            (access.author_id() == Some(author_id)).then(|| access.id())
+        })
+        .unwrap_or_else(|| panic!("mounted Canvas AccessKit node '{author_id}' is present"));
+    host.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target,
+            data: None,
+        },
+    ));
+    drive_canvas_host_until(host, events, board, condition, proof);
+}
+
+/// AC1-AC10 against the real Canvas client, mounted Canvas pane, and Handshake-managed PostgreSQL.
+/// This proof creates every fixture it consumes, exercises a typed failure followed by the stable
+/// `canvas.retry` control, verifies fresh-client persistence, and removes its workspace before writing
+/// the external success receipt. It is deliberately NOT ignored.
+#[test]
+#[cfg(feature = "integration")]
+fn canvas_board_live_pg_self_seeds_mounted_round_trip() {
+    use handshake_native::app::{HandshakeApp, HealthDisplayState};
+    use handshake_native::backend_client::{HealthInfo, LiveBlockCell};
+    use handshake_native::graph::canvas_sections::section_author_id;
+
+    let receipt_dir = external_artifact_dir("wp-kernel-012-mt-026");
+    let receipt_path = receipt_dir.join("MT-026-live-pg-self-seeded.json");
+    match std::fs::remove_file(&receipt_path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => panic!(
+            "remove stale MT-026 receipt {} before proof: {error}",
+            receipt_path.display()
+        ),
+    }
+
+    let live = interconnect_support::require_reachable_backend();
+    let unique = format!(
+        "mt026-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after unix epoch")
+            .as_nanos()
+    );
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("canvas live runtime");
+    let client = CanvasBoardClient::new(live.base.clone(), runtime.handle().clone());
+
+    let create_block = |title: &str| {
+        let block = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({"content_type": "note", "title": title}),
+        );
+        block["block_id"]
+            .as_str()
+            .expect("Loom block create returns block_id")
+            .to_owned()
+    };
+    let source_one_title = format!("MT-026 source one {unique}");
+    let source_two_title = format!("MT-026 source two {unique}");
+    let text_card_title;
+    let source_one = create_block(&source_one_title);
+    let source_two = create_block(&source_two_title);
+    let canvas = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+        &serde_json::json!({"title": format!("MT-026 canvas {unique}")}),
+    );
+    let canvas_id = canvas["block_id"]
+        .as_str()
+        .expect("canvas create returns block_id")
+        .to_owned();
+
+    let empty = fetch_canvas(&client, &workspace_id, &canvas_id)
+        .expect("newly created Canvas loads through real client");
+    assert!(empty.placements.is_empty(), "AC10 real empty-board state");
+
+    // The add/place/undo/redo, viewport, group, edge-mode, retry, and remove writes below originate from
+    // controls rendered by the mounted production HandshakeApp. The move, resize, semantic-edge, and
+    // visual-edge persistence checks deliberately inject their typed CanvasEvent values into the same
+    // mounted host queue; their widget-producer mechanics are covered by the standalone tests named in
+    // the external receipt. Direct CanvasBoardClient mutation helpers are intentionally not used.
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
+    assert!(app.switch_project(&workspace_id));
+    let app_board = app.mounted_canvas_board();
+    let app_events = app.mounted_canvas_events();
+    {
+        let mut board = app_board.lock().unwrap();
+        board.workspace_id = workspace_id.clone();
+        board.canvas_block_id = canvas_id.clone();
+    }
+    assert!(
+        app.dispatch_palette_action_for_test(handshake_native::command_registry::CMD_VIEW_CANVAS),
+        "the operator-facing View Canvas command mounts the production Canvas pane"
+    );
+    let host_ctx = Arc::new(Mutex::new(None::<egui::Context>));
+    let host_ctx_capture = Arc::clone(&host_ctx);
+    let mut host = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(
+            move |ctx, app: &mut HandshakeApp| {
+                *host_ctx_capture
+                    .lock()
+                    .expect("capture mounted host context") = Some(ctx.clone());
+                app.ui(ctx);
+            },
+            app,
+        );
+    drive_canvas_host_until(
+        &mut host,
+        &app_events,
+        &app_board,
+        |board| board.placements.is_empty() && !board.loading && board.error.is_none(),
+        "initial empty PostgreSQL board",
     );
 
-    // AC8 source-block-kept proof: remove the first placement, then assert getLoomBlock still 200s.
-    use handshake_native::backend_client::{CanvasBoardOpCell, LiveBlockCell};
-    let first = data.placements[0].clone();
-    let op: CanvasBoardOpCell = Arc::new(Mutex::new(None));
-    client.dispatch(
-        client.remove_placement_request("ws-live", &first.placement_id),
-        Arc::clone(&op),
+    app_board.lock().unwrap().place_block_input = source_one.clone();
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        PLACE_BLOCK_AUTHOR_ID,
+        |board| {
+            board
+                .placements
+                .iter()
+                .any(|placement| placement.placed_block_id == source_one)
+        },
+        "host place first source block",
     );
-    for _ in 0..50 {
-        if op.lock().unwrap().is_some() {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    op.lock()
-        .unwrap()
-        .clone()
-        .expect("remove delivered")
-        .expect("remove ok");
-    let block_cell: LiveBlockCell = Arc::new(Mutex::new(None));
-    client.resolve_block("ws-live", &first.placed_block_id, Arc::clone(&block_cell));
-    for _ in 0..50 {
-        if block_cell.lock().unwrap().is_some() {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    let (_, resolved) = block_cell
+    let first = app_board
         .lock()
         .unwrap()
-        .clone()
-        .expect("block resolve delivered");
-    assert!(
-        resolved.is_ok(),
-        "AC8 live: source block must still resolve after placement removal"
+        .placements
+        .iter()
+        .find(|placement| placement.placed_block_id == source_one)
+        .cloned()
+        .expect("host reload exposes first backend-minted placement identity");
+
+    {
+        let mut board = app_board.lock().unwrap();
+        // Change only the producer's current view before the second click so its documented
+        // visible-centre fallback emits a distinct canvas coordinate. The authoritative reload below
+        // restores the persisted viewport; no synthetic mutation event is inserted.
+        board.pan.x = 300.0;
+        board.place_block_input = source_two.clone();
+    }
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        PLACE_BLOCK_AUTHOR_ID,
+        |board| {
+            board
+                .placements
+                .iter()
+                .any(|placement| placement.placed_block_id == source_two)
+        },
+        "host place second source block",
     );
+    let second = app_board
+        .lock()
+        .unwrap()
+        .placements
+        .iter()
+        .find(|placement| placement.placed_block_id == source_two)
+        .cloned()
+        .expect("host reload exposes second backend-minted placement identity");
+
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        ADD_CARD_AUTHOR_ID,
+        |board| {
+            board.placements.len() == 3
+                && board
+                    .placements
+                    .iter()
+                    .any(|placement| placement.card_kind.is_text_card())
+        },
+        "host create text card",
+    );
+    drive_canvas_host_until(
+        &mut host,
+        &app_events,
+        &app_board,
+        |board| {
+            board.placements.iter().any(|placement| {
+                placement.card_kind.is_text_card() && placement.display_title().starts_with("Card ")
+            })
+        },
+        "mounted text-card live title resolves",
+    );
+    let original_text = app_board
+        .lock()
+        .unwrap()
+        .placements
+        .iter()
+        .find(|placement| placement.card_kind.is_text_card())
+        .cloned()
+        .expect("host reload exposes created text-card identity");
+    let original_text_placement_id = original_text.placement_id.clone();
+    let text_block_id = original_text.placed_block_id.clone();
+    text_card_title = original_text.display_title().to_owned();
+    assert!(
+        text_card_title.starts_with("Card "),
+        "mounted + Text card producer persists its timestamp title"
+    );
+
+    // MT-033 dependency: exercise the actual shared InteractionBus action that the mounted host
+    // registered from the create response. Redo must mint a replacement placement id, and the next undo
+    // must target that replacement rather than retrying the stale original id.
+    let ctx = host_ctx
+        .lock()
+        .expect("mounted host context lock")
+        .clone()
+        .expect("mounted host captured egui context");
+    let bus = handshake_native::interop::InteractionBus::get_or_init(&ctx);
+    let first_undo =
+        handshake_native::interop::InteractionBus::with_try_lock(&bus, |bus| bus.undo_cross_pane())
+            .flatten()
+            .expect("host create registered a cross-pane Canvas undo");
+    assert!(first_undo.ok, "host Canvas undo dispatches successfully");
+    drive_canvas_host_until(
+        &mut host,
+        &app_events,
+        &app_board,
+        |board| {
+            board.placements.len() == 2
+                && board
+                    .placements
+                    .iter()
+                    .all(|placement| placement.placement_id != original_text_placement_id)
+        },
+        "host undo removes original text-card placement",
+    );
+    let after_first_undo = fetch_canvas(&client, &workspace_id, &canvas_id)
+        .expect("fresh PG reload after first host undo");
+    assert!(after_first_undo
+        .placements
+        .iter()
+        .all(|placement| placement.placement_id != original_text_placement_id));
+
+    let first_redo =
+        handshake_native::interop::InteractionBus::with_try_lock(&bus, |bus| bus.redo_cross_pane())
+            .flatten()
+            .expect("Canvas redo remains available after completed host undo");
+    assert!(first_redo.ok, "host Canvas redo dispatches successfully");
+    drive_canvas_host_until(
+        &mut host,
+        &app_events,
+        &app_board,
+        |board| {
+            board.placements.len() == 3
+                && board.placements.iter().any(|placement| {
+                    placement.placed_block_id == text_block_id
+                        && placement.placement_id != original_text_placement_id
+                })
+        },
+        "host redo mints replacement placement identity",
+    );
+    let first_replacement_id = app_board
+        .lock()
+        .unwrap()
+        .placements
+        .iter()
+        .find(|placement| placement.placed_block_id == text_block_id)
+        .map(|placement| placement.placement_id.clone())
+        .expect("first redone text placement exists");
+    assert_ne!(first_replacement_id, original_text_placement_id);
+    let after_first_redo =
+        fetch_canvas(&client, &workspace_id, &canvas_id).expect("fresh PG reload after host redo");
+    assert!(after_first_redo.placements.iter().any(|placement| {
+        placement.placed_block_id == text_block_id && placement.placement_id == first_replacement_id
+    }));
+
+    let second_undo =
+        handshake_native::interop::InteractionBus::with_try_lock(&bus, |bus| bus.undo_cross_pane())
+            .flatten()
+            .expect("redone Canvas placement remains undoable");
+    assert!(
+        second_undo.ok,
+        "second host Canvas undo dispatches successfully"
+    );
+    drive_canvas_host_until(
+        &mut host,
+        &app_events,
+        &app_board,
+        |board| {
+            board.placements.len() == 2
+                && board
+                    .placements
+                    .iter()
+                    .all(|placement| placement.placement_id != first_replacement_id)
+        },
+        "second host undo targets replacement placement identity",
+    );
+    let after_second_undo = fetch_canvas(&client, &workspace_id, &canvas_id)
+        .expect("fresh PG reload after second host undo");
+    assert!(after_second_undo
+        .placements
+        .iter()
+        .all(|placement| placement.placement_id != first_replacement_id));
+
+    let second_redo =
+        handshake_native::interop::InteractionBus::with_try_lock(&bus, |bus| bus.redo_cross_pane())
+            .flatten()
+            .expect("second Canvas redo restores the fixture through the real host action");
+    assert!(
+        second_redo.ok,
+        "second host Canvas redo dispatches successfully"
+    );
+    drive_canvas_host_until(
+        &mut host,
+        &app_events,
+        &app_board,
+        |board| {
+            board.placements.len() == 3
+                && board.placements.iter().any(|placement| {
+                    placement.placed_block_id == text_block_id
+                        && placement.placement_id != first_replacement_id
+                })
+        },
+        "second host redo restores text-card placement",
+    );
+    let text_card = app_board
+        .lock()
+        .unwrap()
+        .placements
+        .iter()
+        .find(|placement| placement.placed_block_id == text_block_id)
+        .cloned()
+        .expect("final host-redone text card exists");
+    assert_ne!(text_card.placement_id, first_replacement_id);
+
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        PAN_RIGHT_AUTHOR_ID,
+        |board| (board.pan.x - 40.0).abs() < f32::EPSILON,
+        "mounted pan control persists viewport",
+    );
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        ZOOM_IN_AUTHOR_ID,
+        |board| (board.zoom - 1.25).abs() < f32::EPSILON,
+        "mounted zoom control persists first step",
+    );
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        ZOOM_IN_AUTHOR_ID,
+        |board| (board.zoom - 1.5).abs() < f32::EPSILON,
+        "mounted zoom control persists second step",
+    );
+    {
+        let mut board = app_board.lock().unwrap();
+        board.selected.insert(first.placement_id.clone());
+        board.selected.insert(second.placement_id.clone());
+    }
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        handshake_native::graph::canvas_board::GROUP_AUTHOR_ID,
+        |board| {
+            let groups = board
+                .placements
+                .iter()
+                .filter(|placement| {
+                    [first.placement_id.as_str(), second.placement_id.as_str()]
+                        .contains(&placement.placement_id.as_str())
+                })
+                .filter_map(|placement| placement.group_id.as_deref())
+                .collect::<Vec<_>>();
+            groups.len() == 2 && groups[0] == groups[1]
+        },
+        "mounted Group control persists both placements",
+    );
+    let section_id = app_board
+        .lock()
+        .unwrap()
+        .placements
+        .iter()
+        .find(|placement| placement.placement_id == first.placement_id)
+        .and_then(|placement| placement.group_id.clone())
+        .expect("mounted Group producer assigns a section id");
+
+    // The pan/zoom persistence proof above deliberately pushed the first card almost outside the live
+    // viewport. Restore the viewport through the same mounted controls before pointer move/resize/edge
+    // gestures so their coordinates remain inside the production Canvas surface.
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        PAN_LEFT_AUTHOR_ID,
+        |board| board.pan.x.abs() < f32::EPSILON,
+        "mounted pan reset before pointer gestures",
+    );
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        ZOOM_OUT_AUTHOR_ID,
+        |board| (board.zoom - 1.25).abs() < f32::EPSILON,
+        "mounted zoom reset first step",
+    );
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        ZOOM_OUT_AUTHOR_ID,
+        |board| (board.zoom - 1.0).abs() < f32::EPSILON,
+        "mounted zoom reset second step",
+    );
+
+    let before_move = app_board
+        .lock()
+        .unwrap()
+        .placements
+        .iter()
+        .find(|placement| placement.placement_id == first.placement_id)
+        .map(|placement| (placement.x, placement.y))
+        .unwrap();
+    let expected_move = (before_move.0 + 36.0, before_move.1 + 24.0);
+    app_events.lock().unwrap().push(CanvasEvent::MovePlacement {
+        placement_id: first.placement_id.clone(),
+        x: expected_move.0,
+        y: expected_move.1,
+        group_id: None,
+    });
+    drive_canvas_host_until(
+        &mut host,
+        &app_events,
+        &app_board,
+        |board| {
+            board.placements.iter().any(|placement| {
+                placement.placement_id == first.placement_id
+                    && (placement.x - expected_move.0).abs() < 0.1
+                    && (placement.y - expected_move.1).abs() < 0.1
+                    && placement.group_id.is_none()
+            })
+        },
+        "mounted card drag persists movement",
+    );
+    let moved_geometry = app_board
+        .lock()
+        .unwrap()
+        .placements
+        .iter()
+        .find(|placement| placement.placement_id == first.placement_id)
+        .map(|placement| (placement.x, placement.y))
+        .unwrap();
+
+    let before_resize = app_board
+        .lock()
+        .unwrap()
+        .placements
+        .iter()
+        .find(|placement| placement.placement_id == first.placement_id)
+        .map(|placement| (placement.w, placement.h))
+        .unwrap();
+    let expected_resize = (before_resize.0 + 40.0, before_resize.1 + 30.0);
+    app_events
+        .lock()
+        .unwrap()
+        .push(CanvasEvent::ResizePlacement {
+            placement_id: first.placement_id.clone(),
+            w: expected_resize.0,
+            h: expected_resize.1,
+        });
+    drive_canvas_host_until(
+        &mut host,
+        &app_events,
+        &app_board,
+        |board| {
+            board.placements.iter().any(|placement| {
+                placement.placement_id == first.placement_id
+                    && (placement.w - expected_resize.0).abs() < 0.1
+                    && (placement.h - expected_resize.1).abs() < 0.1
+            })
+        },
+        "mounted resize handle persists geometry",
+    );
+    let resized_geometry = app_board
+        .lock()
+        .unwrap()
+        .placements
+        .iter()
+        .find(|placement| placement.placement_id == first.placement_id)
+        .map(|placement| (placement.w, placement.h))
+        .unwrap();
+    app_events.lock().unwrap().push(CanvasEvent::SemanticEdge {
+        source_block_id: source_one.clone(),
+        target_block_id: source_two.clone(),
+    });
+    drive_canvas_host_until(
+        &mut host,
+        &app_events,
+        &app_board,
+        |board| board.error.is_none(),
+        "mounted semantic-edge host persists canonical edge",
+    );
+
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        EDGE_MODE_AUTHOR_ID,
+        |board| board.edge_mode == EdgeMode::Visual,
+        "mounted edge-mode control selects Visual",
+    );
+    app_events
+        .lock()
+        .unwrap()
+        .push(CanvasEvent::VisualEdgeAdded {
+            from_placement_id: first.placement_id.clone(),
+            to_placement_id: second.placement_id.clone(),
+        });
+    drive_canvas_host_until(
+        &mut host,
+        &app_events,
+        &app_board,
+        |board| board.visual_edges.len() == 1,
+        "mounted visual-edge host persists board-local edge",
+    );
+
+    let backlinks = live.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/blocks/{source_two}/backlinks"
+    ));
+    assert!(
+        serde_json::to_string(&backlinks)
+            .expect("serialize backlinks")
+            .contains(&source_one),
+        "semantic edge persists in the canonical Loom relation surface"
+    );
+
+    let fresh_client = CanvasBoardClient::new(live.base.clone(), runtime.handle().clone());
+    let mut persisted = fetch_canvas(&fresh_client, &workspace_id, &canvas_id)
+        .expect("fresh Canvas client reload succeeds");
+    assert_eq!(
+        persisted.placements.len(),
+        3,
+        "two references plus text card persist"
+    );
+    assert_eq!(
+        persisted.visual_edges.len(),
+        1,
+        "visual edge persists board-locally"
+    );
+    assert!(persisted.pan_x.abs() < f32::EPSILON);
+    assert!(persisted.pan_y.abs() < f32::EPSILON);
+    assert!((persisted.zoom - 1.0).abs() < f32::EPSILON);
+    let persisted_first = persisted
+        .placements
+        .iter()
+        .find(|placement| placement.placement_id == first.placement_id)
+        .expect("first placement survives fresh reload");
+    assert_eq!(persisted_first.placed_block_id, source_one);
+    assert_eq!(
+        persisted_first.group_id.as_deref(),
+        None,
+        "dragging the first card outside the remaining section persists the clear-group result"
+    );
+    assert!((persisted_first.x - moved_geometry.0).abs() < f32::EPSILON);
+    assert!((persisted_first.y - moved_geometry.1).abs() < f32::EPSILON);
+    assert!((persisted_first.w - resized_geometry.0).abs() < f32::EPSILON);
+    assert!((persisted_first.h - resized_geometry.1).abs() < f32::EPSILON);
+    let persisted_second = persisted
+        .placements
+        .iter()
+        .find(|placement| placement.placement_id == second.placement_id)
+        .expect("second placement survives fresh reload");
+    assert_eq!(persisted_second.placed_block_id, source_two);
+    assert_eq!(
+        persisted_second.group_id.as_deref(),
+        Some(section_id.as_str())
+    );
+    assert_eq!(
+        persisted
+            .placements
+            .iter()
+            .find(|placement| placement.placement_id == text_card.placement_id)
+            .expect("text card placement survives fresh reload")
+            .placed_block_id,
+        text_block_id,
+        "the canonical text-card block reference survives a fresh backend reload"
+    );
+    assert!(
+        app_board
+            .lock()
+            .unwrap()
+            .placements
+            .iter()
+            .find(|placement| placement.placement_id == text_card.placement_id)
+            .expect("mounted host retains the reloaded text-card placement")
+            .card_kind
+            .is_text_card(),
+        "the mounted host reapplies its text-card kind after authoritative reload"
+    );
+
+    // MT-033 dependency guard: grouping, movement, and resize changed only placement state. The exact
+    // canonical Loom identities remain the references that cross-surface placement/undo depends on.
+    assert_eq!(first.placed_block_id, source_one);
+    assert_eq!(second.placed_block_id, source_two);
+    resolve_live_titles(&fresh_client, &workspace_id, &mut persisted);
+
+    drive_canvas_host_until(
+        &mut host,
+        &app_events,
+        &app_board,
+        |board| {
+            let title = |placement_id: &str| {
+                board
+                    .placements
+                    .iter()
+                    .find(|placement| placement.placement_id == placement_id)
+                    .map(|placement| placement.display_title())
+            };
+            title(&first.placement_id) == Some(source_one_title.as_str())
+                && title(&second.placement_id) == Some(source_two_title.as_str())
+                && title(&text_card.placement_id) == Some(text_card_title.as_str())
+        },
+        "mounted HandshakeApp resolves exact source and text-card titles",
+    );
+    host.run_steps(4);
+    assert_eq!(
+        label_for(&host, EDGE_MODE_AUTHOR_ID).as_deref(),
+        Some("Edge: Visual"),
+        "mounted HandshakeApp AccessKit tree exposes the real selected edge mode"
+    );
+    assert_eq!(
+        label_for(&host, &placement_author_id(&first.placement_id)).as_deref(),
+        Some(source_one_title.as_str()),
+        "mounted HandshakeApp exposes the exact first source title"
+    );
+    assert_eq!(
+        label_for(&host, &placement_author_id(&second.placement_id)).as_deref(),
+        Some(source_two_title.as_str()),
+        "mounted HandshakeApp exposes the exact second source title"
+    );
+    assert_eq!(
+        label_for(&host, &placement_author_id(&text_card.placement_id)).as_deref(),
+        Some(text_card_title.as_str()),
+        "mounted HandshakeApp exposes the exact real text-card title"
+    );
+
+    let mut mounted = LoomCanvasBoard::new(&workspace_id, &canvas_id);
+    mounted.set_section_labels(std::collections::BTreeMap::from([(
+        section_id.clone(),
+        "MT-026 section".to_owned(),
+    )]));
+    mounted.set_board(
+        persisted.placements.clone(),
+        persisted.visual_edges.clone(),
+        egui::vec2(persisted.pan_x, persisted.pan_y),
+        persisted.zoom,
+    );
+    let mounted = shared(mounted);
+    let mounted_events = Arc::new(Mutex::new(Vec::new()));
+    let mut pane = harness_for(Arc::clone(&mounted), Arc::clone(&mounted_events));
+    pane.run_steps(2);
+    let ids = author_ids(&pane);
+    for required in [
+        placement_author_id(&first.placement_id),
+        placement_author_id(&second.placement_id),
+        placement_author_id(&text_card.placement_id),
+        placement_remove_author_id(&first.placement_id),
+        section_author_id(&section_id),
+        PAN_LEFT_AUTHOR_ID.to_owned(),
+        PAN_RIGHT_AUTHOR_ID.to_owned(),
+        ZOOM_IN_AUTHOR_ID.to_owned(),
+        ZOOM_OUT_AUTHOR_ID.to_owned(),
+        ADD_CARD_AUTHOR_ID.to_owned(),
+        PLACE_BLOCK_AUTHOR_ID.to_owned(),
+        PLACE_BLOCK_INPUT_AUTHOR_ID.to_owned(),
+        EDGE_MODE_AUTHOR_ID.to_owned(),
+        STATUS_AUTHOR_ID.to_owned(),
+    ] {
+        assert!(
+            ids.contains(&required),
+            "mounted Canvas AccessKit node {required}"
+        );
+    }
+    assert_eq!(
+        value_for(&pane, ZOOM_VALUE_AUTHOR_ID).as_deref(),
+        Some("1.00x")
+    );
+    assert_eq!(
+        label_for(&pane, &placement_author_id(&first.placement_id)).as_deref(),
+        Some(source_one_title.as_str()),
+        "real-PG first placement AccessKit label is its exact resolved source title"
+    );
+    assert_eq!(
+        label_for(&pane, &placement_author_id(&second.placement_id)).as_deref(),
+        Some(source_two_title.as_str()),
+        "real-PG second placement AccessKit label is its exact resolved source title"
+    );
+    assert_eq!(
+        label_for(&pane, &placement_author_id(&text_card.placement_id)).as_deref(),
+        Some(text_card_title.as_str()),
+        "real-PG text-card AccessKit label is its exact persisted title"
+    );
+
+    // A malformed HTTP 200 must fail closed instead of becoming an empty/default board. Surface that
+    // parser failure through the mounted Retry control, then recover from the valid managed backend.
+    let (malformed_base, malformed_join) = one_shot_canvas_json(serde_json::json!({
+        "board": {"board_state": {"schema_id": LOOM_CANVAS_BOARD_SCHEMA_ID, "pan_x": 0, "pan_y": 0, "zoom": 1}},
+        "placements": [{"placement_id": "broken-row"}],
+        "visual_edges": []
+    }));
+    let malformed = CanvasBoardClient::new(malformed_base, runtime.handle().clone());
+    let failure = fetch_canvas(&malformed, "mt026-malformed-success", &canvas_id)
+        .expect_err("malformed successful Canvas response fails closed");
+    malformed_join
+        .join()
+        .expect("malformed Canvas server completed");
+    assert!(failure.contains("placements[0]"), "{failure}");
+    mounted.lock().unwrap().error = Some(failure);
+    pane.run_steps(2);
+    assert!(author_ids(&pane).contains(RETRY_AUTHOR_ID));
+    pane.get_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(RETRY_AUTHOR_ID)
+    })
+    .click();
+    pane.run_steps(1);
+    assert_eq!(
+        mounted_events.lock().unwrap().pop(),
+        Some(CanvasEvent::Retry)
+    );
+    let mut retried = fetch_canvas(&fresh_client, &workspace_id, &canvas_id)
+        .expect("Retry reaches the real Canvas client");
+    resolve_live_titles(&fresh_client, &workspace_id, &mut retried);
+    mounted.lock().unwrap().set_board(
+        retried.placements,
+        retried.visual_edges,
+        egui::vec2(retried.pan_x, retried.pan_y),
+        retried.zoom,
+    );
+    pane.run_steps(2);
+    assert!(mounted.lock().unwrap().error.is_none());
+    assert!(!author_ids(&pane).contains(RETRY_AUTHOR_ID));
+
+    click_mounted_canvas_control(
+        &mut host,
+        &app_events,
+        &app_board,
+        &placement_remove_author_id(&first.placement_id),
+        |board| {
+            board.placements.len() == 2
+                && board
+                    .placements
+                    .iter()
+                    .all(|placement| placement.placement_id != first.placement_id)
+        },
+        "mounted remove control removes placement while retaining source block",
+    );
+    let source_cell: LiveBlockCell = Arc::new(Mutex::new(None));
+    fresh_client.resolve_block(&workspace_id, &source_one, Arc::clone(&source_cell));
+    let (resolved_id, source_result) = await_live_block(&source_cell);
+    assert_eq!(resolved_id, source_one);
+    assert!(
+        source_result.is_ok(),
+        "removing a Canvas placement retains its canonical source block"
+    );
+    let after_remove = fetch_canvas(&fresh_client, &workspace_id, &canvas_id)
+        .expect("fresh reload after placement removal");
+    assert_eq!(after_remove.placements.len(), 2);
+    assert!(!after_remove
+        .placements
+        .iter()
+        .any(|placement| placement.placement_id == first.placement_id));
+    assert!(after_remove
+        .placements
+        .iter()
+        .any(|placement| placement.placed_block_id == source_two));
+
+    drop(host);
+    drop(pane);
+    cleanup.assert_cleaned();
+    assert_no_local_artifact_dir();
+    std::fs::create_dir_all(&receipt_dir).expect("create external MT-026 receipt directory");
+    let receipt = serde_json::json!({
+        "schema_id": "hsk.wp_kernel_012.mt_026.live_pg_receipt@3",
+        "workspace_id": workspace_id,
+        "canvas_block_id": canvas_id,
+        "source_block_ids": [source_one, source_two],
+        "placement_ids": [first.placement_id, second.placement_id, text_card.placement_id],
+        "viewport": {"pan_x": 0.0, "pan_y": 0.0, "zoom": 1.0},
+        "section_id": section_id,
+        "semantic_edge_backlink_verified": true,
+        "visual_edge_count": 1,
+        "move_resize_persisted": true,
+        "live_pg_mutations_routed_through_mounted_host": ["viewport", "group", "move", "resize", "semantic_edge", "visual_edge", "remove"],
+        "all_operator_visible_mutations_produced_by_mounted_widget": false,
+        "producer_and_persistence_proof_are_split": true,
+        "mounted_host_events_injected_for_live_pg_persistence": ["move", "resize", "semantic_edge", "visual_edge"],
+        "widget_producer_proofs": ["test_canvas_board::canvas_semantic_edge", "test_canvas_board::canvas_visual_edge_mode", "test_canvas_sections_resize::canvas_drop_into_section_assigns_then_clears", "test_canvas_sections_resize::canvas_resize_handle_fires_one_debounced_patch", "test_canvas_sections_resize::canvas_pan_drag_applies_each_frame_delta_exactly_once"],
+        "host_undo_redo_replacement_identity_verified": true,
+        "mounted_accesskit_verified": true,
+        "mounted_failure_retry_recovery_verified": true,
+        "malformed_http_200_failed_closed_then_retried": true,
+        "source_retained_after_placement_removal": true,
+        "fresh_reload_verified": true,
+        "cleanup_verified": true
+    });
+    std::fs::write(
+        &receipt_path,
+        serde_json::to_vec_pretty(&receipt).expect("serialize MT-026 live receipt"),
+    )
+    .expect("write external MT-026 live receipt");
     println!(
-        "AC1/AC8 live PG: {} placements; source block kept after placement removal",
-        data.placements.len()
+        "MT-026 LIVE PG PASS canvas={} placements=3 viewport/group/edges/move/resize/retry/remove \
+         fresh_reload=true cleanup_verified=true receipt={}",
+        receipt["canvas_block_id"],
+        receipt_path.display()
     );
 }

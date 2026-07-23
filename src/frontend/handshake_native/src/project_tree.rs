@@ -12,7 +12,7 @@
 //!
 //! ## Data sources (reuse the existing backend over HTTP, never re-implement it)
 //!
-//! - documents: `GET /workspaces/{id}/documents` (React `api.ts` `listDocuments`);
+//! - documents: `GET /knowledge/documents?workspace_id={id}` (RichDocument authority id + token);
 //! - canvases:  `GET /workspaces/{id}/canvases`  (React `api.ts` `listCanvases`).
 //!
 //! Loading is asynchronous: a `tokio` task per `workspace_id` change sends its result back over an
@@ -70,12 +70,13 @@ pub const BOOKMARKS_NODE_ID: u64 = 91;
 /// Stable out-of-process author_id for the bookmarks-group container.
 pub const BOOKMARKS_AUTHOR_ID: &str = "project-tree.bookmarks";
 
-/// One project document, reduced to the two fields the tree needs (mirrors the React
-/// `DocumentSummary` shape mapped from `GET /workspaces/{id}/documents`).
+/// One project RichDocument, reduced to the fields the tree and optimistic rename need.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentSummary {
     pub id: String,
     pub title: String,
+    /// Backend concurrency token captured with the explorer row.
+    pub updated_at: Option<String>,
 }
 
 impl DocumentSummary {
@@ -83,6 +84,7 @@ impl DocumentSummary {
         Self {
             id: id.into(),
             title: title.into(),
+            updated_at: None,
         }
     }
 }
@@ -93,6 +95,9 @@ impl DocumentSummary {
 pub struct CanvasSummary {
     pub id: String,
     pub title: String,
+    /// Backend concurrency token used by canvas title rename. `None` only for directly-seeded legacy
+    /// tests; production list responses always provide it.
+    pub updated_at: Option<String>,
 }
 
 impl CanvasSummary {
@@ -100,6 +105,7 @@ impl CanvasSummary {
         Self {
             id: id.into(),
             title: title.into(),
+            updated_at: None,
         }
     }
 }
@@ -122,6 +128,8 @@ pub struct BookmarkSummary {
     pub kind: String,
     /// The owning document id when this pin is a document pin; opening it opens that document.
     pub document_id: Option<String>,
+    /// Loom block concurrency token captured with the pinned row.
+    pub updated_at: Option<String>,
 }
 
 impl BookmarkSummary {
@@ -136,6 +144,7 @@ impl BookmarkSummary {
             title: title.into(),
             kind: kind.into(),
             document_id,
+            updated_at: None,
         }
     }
 }
@@ -157,14 +166,24 @@ pub enum ProjectTreeEvent {
     /// Carries the id the caller writes to the clipboard (the document/canvas id or the bookmark block
     /// id), so no backend call is involved.
     CopyPath(String),
-    /// MT-020 explorer-row context menu: "Rename" — rename the row's Loom block via the verified
-    /// `PATCH /workspaces/:id/loom/blocks/:block_id` endpoint. Carries the block id to PATCH and the
-    /// current title to seed the rename text field. Only produced for a BOOKMARK row, whose `id` IS a
-    /// genuine `LoomBlock.block_id`; document and canvas rows carry a different id space (a document/
-    /// canvas id), so their rename item is disabled and this event never fires for them.
+    /// MT-020 explorer-row context menu: rename a bookmark's Loom block through its typed handler.
     RenameBlock {
         block_id: String,
         current_title: String,
+        expected_updated_at: Option<String>,
+    },
+    /// Rename a document through the knowledge-document rename route. Kept distinct from
+    /// [`Self::RenameBlock`] so a document id can never reach the Loom-block PATCH.
+    RenameDocument {
+        document_id: String,
+        current_title: String,
+        expected_updated_at: Option<String>,
+    },
+    /// Rename a canvas through the dedicated canvas title route with optimistic concurrency.
+    RenameCanvas {
+        canvas_id: String,
+        current_title: String,
+        expected_updated_at: Option<String>,
     },
     /// WP-KERNEL-012 MT-033 (E5 — route-to-Stage): "Route to Stage" on a Document row. Carries the
     /// document id + title so the app routes it to the Stage pane via the MT-031 Route-to-Stage command
@@ -541,6 +560,7 @@ impl ProjectTree {
                     id: doc.id.clone(),
                     title: doc.title.clone(),
                     document_id: None,
+                    expected_updated_at: doc.updated_at.clone(),
                 };
                 if let Some(menu_event) = row_context_menu(ui, &row_resp, &target) {
                     event = Some(menu_event);
@@ -575,6 +595,7 @@ impl ProjectTree {
                     id: canvas.id.clone(),
                     title: canvas.title.clone(),
                     document_id: None,
+                    expected_updated_at: canvas.updated_at.clone(),
                 };
                 if let Some(menu_event) = row_context_menu(ui, &row_resp, &target) {
                     event = Some(menu_event);
@@ -621,6 +642,7 @@ impl ProjectTree {
                     id: bookmark.block_id.clone(),
                     title: bookmark.title.clone(),
                     document_id: bookmark.document_id.clone(),
+                    expected_updated_at: bookmark.updated_at.clone(),
                 };
                 if let Some(menu_event) = row_context_menu(ui, &row_resp, &target) {
                     event = Some(menu_event);
@@ -812,6 +834,8 @@ struct ExplorerRowTarget {
     title: String,
     /// Bookmark-only: the owning document id (drives `OpenBookmark` open semantics).
     document_id: Option<String>,
+    /// Optimistic concurrency token captured with the rendered row.
+    expected_updated_at: Option<String>,
 }
 
 /// Attach the MT-020 explorer-row context menu to a project-tree row's `row_resp` (the named
@@ -837,6 +861,17 @@ fn row_context_menu(
                 ExplorerMenuAction::Rename => ProjectTreeEvent::RenameBlock {
                     block_id: target.id.clone(),
                     current_title: target.title.clone(),
+                    expected_updated_at: target.expected_updated_at.clone(),
+                },
+                ExplorerMenuAction::RenameDocument => ProjectTreeEvent::RenameDocument {
+                    document_id: target.id.clone(),
+                    current_title: target.title.clone(),
+                    expected_updated_at: target.expected_updated_at.clone(),
+                },
+                ExplorerMenuAction::RenameCanvas => ProjectTreeEvent::RenameCanvas {
+                    canvas_id: target.id.clone(),
+                    current_title: target.title.clone(),
+                    expected_updated_at: target.expected_updated_at.clone(),
                 },
                 ExplorerMenuAction::RouteToStage => ProjectTreeEvent::RouteToStage {
                     document_id: target.id.clone(),
@@ -912,8 +947,8 @@ pub struct ProjectTreeColors {
     pub error: egui::Color32,
 }
 
-/// Load a workspace's documents + canvases + bookmarks over the existing backend HTTP API. Three
-/// sequential GETs (`/workspaces/{id}/documents`, `/workspaces/{id}/canvases`,
+/// Load a workspace's rich documents + canvases + bookmarks over the existing backend HTTP API.
+/// Three sequential GETs (`/knowledge/documents?workspace_id={id}`, `/workspaces/{id}/canvases`,
 /// `/workspaces/{id}/loom/views/pins`), each deserialized via `serde_json::Value` so this adds no
 /// dependency on the `handshake_core` crate's types — the same pattern `project_tabs::fetch_workspaces`
 /// uses. Rows missing an `id` are skipped (a malformed row must not fail the whole load); a missing
@@ -922,19 +957,57 @@ pub async fn load_project_content(
     base_url: &str,
     workspace_id: &str,
 ) -> Result<LoadedContent, AppError> {
-    let client = reqwest::Client::new();
-    let documents = fetch_summaries(&client, base_url, workspace_id, "documents").await?;
+    let client = crate::backend_client::shared_http_client();
+    let documents = fetch_rich_document_summaries(base_url, workspace_id).await?;
     let canvases = fetch_summaries(&client, base_url, workspace_id, "canvases").await?;
     let bookmarks = fetch_bookmarks(&client, base_url, workspace_id).await?;
     let documents = documents
         .into_iter()
-        .map(|(id, title)| DocumentSummary { id, title })
+        .map(|(id, title, updated_at)| DocumentSummary {
+            id,
+            title,
+            updated_at,
+        })
         .collect();
     let canvases = canvases
         .into_iter()
-        .map(|(id, title)| CanvasSummary { id, title })
+        .map(|(id, title, updated_at)| CanvasSummary {
+            id,
+            title,
+            updated_at,
+        })
         .collect();
     Ok((documents, canvases, bookmarks))
+}
+
+async fn fetch_rich_document_summaries(
+    base_url: &str,
+    workspace_id: &str,
+) -> Result<Vec<(String, String, Option<String>)>, AppError> {
+    let client = crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
+        crate::backend_client::shared_http_client(),
+        base_url,
+    );
+    let headers = crate::backend::knowledge_documents::HskDocumentHeaders::for_read(
+        "native-project-tree",
+        workspace_id,
+    );
+    client
+        .list_documents(&headers, workspace_id)
+        .await
+        .map(|documents| {
+            documents
+                .into_iter()
+                .map(|document| {
+                    (
+                        document.rich_document_id,
+                        document.title,
+                        Some(document.updated_at),
+                    )
+                })
+                .collect()
+        })
+        .map_err(|error| AppError::Http(error.to_string()))
 }
 
 /// GET `/workspaces/{id}/loom/views/pins?limit=100&offset=0` and map the `LoomViewResponse::Pins`
@@ -978,6 +1051,10 @@ async fn fetch_bookmarks(
                 .get("document_id")
                 .and_then(|x| x.as_str())
                 .map(|s| s.to_owned());
+            let updated_at = row
+                .get("updated_at")
+                .and_then(|x| x.as_str())
+                .map(str::to_owned);
             let title = row
                 .get("title")
                 .and_then(|x| x.as_str())
@@ -998,6 +1075,7 @@ async fn fetch_bookmarks(
                 title,
                 kind: bookmark_kind(document_id.as_deref(), content_type),
                 document_id,
+                updated_at,
             })
         })
         .collect();
@@ -1025,7 +1103,7 @@ async fn fetch_summaries(
     base_url: &str,
     workspace_id: &str,
     kind: &str,
-) -> Result<Vec<(String, String)>, AppError> {
+) -> Result<Vec<(String, String, Option<String>)>, AppError> {
     let url = format!("{base_url}/workspaces/{workspace_id}/{kind}");
     let resp = client
         .get(&url)
@@ -1056,7 +1134,11 @@ async fn fetch_summaries(
                 .or_else(|| row.get("name").and_then(|x| x.as_str()))
                 .unwrap_or(id)
                 .to_owned();
-            Some((id.to_owned(), title))
+            let updated_at = row
+                .get("updated_at")
+                .and_then(|value| value.as_str())
+                .map(ToOwned::to_owned);
+            Some((id.to_owned(), title, updated_at))
         })
         .collect();
     Ok(rows)

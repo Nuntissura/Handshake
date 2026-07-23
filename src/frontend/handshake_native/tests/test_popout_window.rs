@@ -80,7 +80,7 @@ fn pop_out_renders_placeholder_with_merge_back_button_then_merge_back_via_access
     // Frame 1: fresh shell. pane-a is docked; NO merge-back button exists yet.
     harness.run();
     let before_len = registry_len(harness.state());
-    assert_eq!(before_len, 4, "registry seeds four panes");
+    assert_eq!(before_len, 3, "registry seeds the editor/editor/chat panes");
     assert!(
         harness.query_by_label("Merge Back").is_none(),
         "no Merge Back button while nothing is popped out"
@@ -169,8 +169,8 @@ fn popped_out_pane_window_title_and_window_node_are_present() {
     let nodes = live_author_nodes(&harness);
     let author_ids: Vec<&str> = nodes.iter().map(|(a, _, _)| a.as_str()).collect();
 
-    // pane-a (Workspace) -> title "Handshake – Workspace". The window root node carries this as label.
-    let expected_title = popout_title_for("Workspace");
+    // pane-a (Code Symbol) -> title "Handshake – Code Symbol". The window root node carries this as label.
+    let expected_title = popout_title_for("Code Symbol");
     let window = nodes
         .iter()
         .find(|(a, _, _)| a == &popout_window_author_id("pane-a"))
@@ -181,7 +181,7 @@ fn popped_out_pane_window_title_and_window_node_are_present() {
     assert_eq!(
         window.2.as_deref(),
         Some(expected_title.as_str()),
-        "pop-out window label is the contract title 'Handshake – Workspace'"
+        "pop-out window label is the current pane title 'Handshake – Code Symbol'"
     );
 
     // The popped-out pane is STILL accessible by its stable docked author_id (only the host changed).

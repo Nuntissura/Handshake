@@ -32,7 +32,12 @@ use std::sync::{Arc, Mutex};
 
 use egui::{Key, Modifiers};
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
+#[path = "native_gui_support/argus_surface_proof.rs"]
+mod argus_surface_proof;
+use argus_surface_proof::{prove_argus_surface, ArgusMutation};
 
 use handshake_native::rich_editor::document_model::history::UndoManager;
 use handshake_native::rich_editor::document_model::node::{BlockNode, Mark};
@@ -143,10 +148,7 @@ fn hello_selected_state() -> RichEditorState {
 
 fn leaf_has_bold(state: &Arc<Mutex<RichEditorState>>) -> bool {
     let st = state.lock().unwrap();
-    st.doc.children[0]
-        .as_block()
-        .unwrap()
-        .children[0]
+    st.doc.children[0].as_block().unwrap().children[0]
         .as_text()
         .unwrap()
         .has_mark_type(&Mark::Bold)
@@ -189,7 +191,47 @@ fn bold_toolbar_button_click_toggles_bold_on_selection() {
         leaf_has_bold(&state),
         "clicking the '{bold_btn}' toolbar button toggled bold on the selection"
     );
-    println!("MT-108 (MT-013): Bold toolbar-button click toggled bold via AccessKit Click dispatch");
+    println!(
+        "MT-108 (MT-013): Bold toolbar-button click toggled bold via AccessKit Click dispatch"
+    );
+}
+
+#[test]
+fn mt108_argus_formatting_toolbar_real_server_loop() {
+    let state = Arc::new(Mutex::new(hello_selected_state()));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 120.0))
+        .build_ui(move |ui| {
+            handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+            let mut st = state_for_ui.lock().unwrap();
+            let RichEditorState {
+                doc,
+                selection,
+                undo,
+                actor_id,
+                ..
+            } = &mut *st;
+            EditorToolbar::new(CommandContext::new(doc, undo, selection, actor_id.as_str()))
+                .show(ui);
+        });
+    harness.run();
+
+    let bold = toolbar_button_author_id(&FormattingCommand::ToggleBold);
+    prove_argus_surface(
+        &mut harness,
+        "formatting toolbar",
+        &bold,
+        ArgusMutation::Click { target: &bold },
+        &bold,
+        true,
+        |_| {
+            if !leaf_has_bold(&state) {
+                return Err("bold mark was not applied to the selected leaf".to_owned());
+            }
+            Ok(serde_json::json!({ "selected_leaf_bold": true }))
+        },
+    );
 }
 
 // ── MT-108 (MT-013 residual): opening the overflow popup keeps its items across 2 frames (MC-005) ───
@@ -214,7 +256,9 @@ fn overflow_popup_opens_and_survives_two_frames() {
                 ..
             } = &mut *st;
             let cctx = CommandContext::new(doc, undo, selection, actor_id.as_str());
-            EditorToolbar::new(cctx).with_forced_max_width(120.0).show(ui);
+            EditorToolbar::new(cctx)
+                .with_forced_max_width(120.0)
+                .show(ui);
         });
 
     harness.run();

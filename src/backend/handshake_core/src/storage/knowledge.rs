@@ -29,7 +29,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::Row;
+use sqlx::{Postgres, Row, Transaction};
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -1803,10 +1803,98 @@ fn knowledge_canonical_json_sha256(content: &Value) -> String {
     ))
 }
 
+fn normalized_locus_link_search_value(ref_kind: Option<&str>, ref_value: &str) -> Option<String> {
+    if ref_kind != Some("locus") {
+        return None;
+    }
+    let trimmed = ref_value.trim();
+    let (kind, id) = if let Some(rest) = trimmed.strip_prefix("locus://") {
+        let (kind, id) = rest.split_once('/')?;
+        (kind, id)
+    } else if let Some((kind, id)) = trimmed.split_once('/') {
+        (kind, id)
+    } else {
+        let upper = trimmed.to_ascii_uppercase();
+        if upper.starts_with("WP-") {
+            ("wp", trimmed)
+        } else if upper.starts_with("MT-") {
+            ("mt", trimmed)
+        } else {
+            return None;
+        }
+    };
+    let kind = kind.trim().to_ascii_lowercase();
+    if kind != "wp" && kind != "mt" {
+        return None;
+    }
+    let normalized_id = id
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    (!normalized_id.is_empty()).then(|| format!("locus://{kind}/{normalized_id}"))
+}
+
+fn collect_rich_document_link_search_values(node: &Value, values: &mut Vec<String>) {
+    if node.get("type").and_then(Value::as_str) == Some("hsLink") {
+        let attrs = node.get("attrs");
+        let ref_kind = attrs
+            .and_then(|attrs| attrs.get("refKind"))
+            .and_then(Value::as_str);
+        if let Some(value) = attrs
+            .and_then(|attrs| attrs.get("refValue"))
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            values.push(value.to_string());
+            if let Some(normalized) = normalized_locus_link_search_value(ref_kind, value) {
+                values.push(normalized);
+            }
+        }
+    }
+    if let Some(children) = node.get("content").and_then(Value::as_array) {
+        for child in children {
+            collect_rich_document_link_search_values(child, values);
+        }
+    }
+}
+
+fn rich_document_loom_projection(
+    title: &str,
+    content_json: &Value,
+) -> StorageResult<(String, String)> {
+    let full_text = crate::knowledge_document::block_tree::extract_plain_text(content_json);
+    let full_text = full_text.trim().to_string();
+    let derived = super::LoomBlockDerived {
+        full_text_index: (!full_text.is_empty()).then(|| full_text.clone()),
+        ..super::LoomBlockDerived::default()
+    };
+    // `extract_plain_text` intentionally indexes the operator-facing link label. Reverse lookup also
+    // needs the persisted structured identity (`refValue`), because compact chip labels such as "WP" or
+    // "MT" do not contain `locus://wp/...` / `locus://mt/...`. Prefix-stripped authored Locus values are
+    // indexed alongside their canonical normalized URI. Keep these values search-only so rendered text and
+    // preview semantics remain unchanged.
+    let mut link_values = Vec::new();
+    collect_rich_document_link_search_values(content_json, &mut link_values);
+    link_values.sort();
+    link_values.dedup();
+    let mut search_parts = vec![title.to_string()];
+    if !full_text.is_empty() {
+        search_parts.push(full_text);
+    }
+    search_parts.extend(link_values);
+    let search_text = search_parts.join("\n");
+    Ok((serde_json::to_string(&derived)?, search_text))
+}
+
 /// A versioned ProseMirror/Tiptap document JSON authority record.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct KnowledgeRichDocument {
     pub rich_document_id: String,
+    /// Stable Loom address for this document. RichDocument identity and its
+    /// LoomBlock projection deliberately share one id.
+    pub block_id: String,
     pub workspace_id: String,
     /// Optional anchor to the legacy `documents` surface.
     pub document_id: Option<String>,
@@ -1973,8 +2061,10 @@ const KNOWLEDGE_RICH_DOCUMENT_COLUMNS: &str = r#"
 "#;
 
 fn rich_document_from_pg(row: &sqlx::postgres::PgRow) -> KnowledgeRichDocument {
+    let rich_document_id: String = row.get("rich_document_id");
     KnowledgeRichDocument {
-        rich_document_id: row.get("rich_document_id"),
+        block_id: rich_document_id.clone(),
+        rich_document_id,
         workspace_id: row.get("workspace_id"),
         document_id: row.get("document_id"),
         title: row.get("title"),
@@ -2978,6 +3068,14 @@ pub trait KnowledgeStore: Send + Sync {
         new_document: NewKnowledgeRichDocument,
     ) -> StorageResult<KnowledgeRichDocument>;
 
+    /// Wikilink create-if-absent authority path. Concurrent callers for the same workspace and
+    /// normalized title serialize inside PostgreSQL; one creates and every loser receives that same
+    /// document. Pre-existing ambiguous duplicate titles fail closed instead of picking one silently.
+    async fn create_knowledge_rich_document_if_title_absent(
+        &self,
+        new_document: NewKnowledgeRichDocument,
+    ) -> StorageResult<(KnowledgeRichDocument, bool)>;
+
     async fn get_knowledge_rich_document(
         &self,
         rich_document_id: &str,
@@ -3060,6 +3158,7 @@ pub trait KnowledgeStore: Send + Sync {
         &self,
         rich_document_id: &str,
         title: &str,
+        expected_updated_at: Option<DateTime<Utc>>,
     ) -> StorageResult<KnowledgeRichDocument>;
 
     /// MT-157 batch op: move a document to a project/folder. `None` for an arg
@@ -3243,6 +3342,618 @@ fn registry_row_from_pg(row: &sqlx::postgres::PgRow) -> StorageResult<KnowledgeS
 }
 
 impl PostgresDatabase {
+    /// Lock and return the latest live RichDocument inside the caller's
+    /// transaction. Mutation receipts must be derived from this locked row,
+    /// never from a pre-transaction read that a concurrent save can supersede.
+    pub(crate) async fn lock_live_knowledge_rich_document_tx(
+        tx: &mut Transaction<'_, Postgres>,
+        rich_document_id: &str,
+    ) -> StorageResult<KnowledgeRichDocument> {
+        let sql = format!(
+            "SELECT {KNOWLEDGE_RICH_DOCUMENT_COLUMNS} FROM knowledge_rich_documents
+             WHERE rich_document_id = $1 AND deleted_at IS NULL
+             FOR UPDATE"
+        );
+        let row = sqlx::query(&sql)
+            .bind(rich_document_id)
+            .fetch_optional(&mut **tx)
+            .await?
+            .ok_or(StorageError::NotFound("knowledge rich document"))?;
+        Ok(rich_document_from_pg(&row))
+    }
+
+    /// MT-032 shared document -> Loom projection. Callers MUST already hold
+    /// the live RichDocument row lock (or have inserted that row) before this
+    /// helper runs; delete uses the same document-first order. This prevents a
+    /// save racing a tombstone from resurrecting the Loom projection.
+    async fn project_knowledge_rich_document_tx(
+        tx: &mut Transaction<'_, Postgres>,
+        document: &KnowledgeRichDocument,
+        actor_kind: &str,
+        actor_id: Option<&str>,
+    ) -> StorageResult<()> {
+        let (derived_json, search_text) =
+            rich_document_loom_projection(&document.title, &document.content_json)?;
+        let projection = sqlx::query(
+            r#"
+            INSERT INTO loom_blocks (
+                block_id, workspace_id, content_type, document_id, asset_id,
+                title, original_filename, content_hash, pinned, journal_date,
+                last_actor_kind, last_actor_id, last_job_id, last_workflow_id,
+                edit_event_id, created_at, updated_at, imported_at,
+                backlink_count, mention_count, tag_count, derived_json,
+                preview_status, thumbnail_asset_id, proxy_asset_id
+            )
+            VALUES (
+                $1, $2, 'note', NULL, NULL,
+                $3, NULL, $4, 0, NULL,
+                $5, $6, NULL, NULL,
+                $7, NOW(), NOW(), NULL,
+                0, 0, 0, $8,
+                'none', NULL, NULL
+            )
+            ON CONFLICT (block_id) DO UPDATE SET
+                title = EXCLUDED.title,
+                content_hash = EXCLUDED.content_hash,
+                derived_json = EXCLUDED.derived_json,
+                last_actor_kind = EXCLUDED.last_actor_kind,
+                last_actor_id = EXCLUDED.last_actor_id,
+                edit_event_id = EXCLUDED.edit_event_id,
+                updated_at = NOW()
+            WHERE loom_blocks.workspace_id = EXCLUDED.workspace_id
+              AND loom_blocks.content_type = 'note'
+            "#,
+        )
+        .bind(&document.block_id)
+        .bind(&document.workspace_id)
+        .bind(&document.title)
+        .bind(&document.content_sha256)
+        .bind(actor_kind)
+        .bind(actor_id)
+        .bind(Uuid::now_v7().to_string())
+        .bind(derived_json)
+        .execute(&mut **tx)
+        .await?;
+        if projection.rows_affected() != 1 {
+            return Err(StorageError::Conflict(
+                "rich document LoomBlock projection identity mismatch",
+            ));
+        }
+        Self::project_knowledge_rich_document_search_tx(
+            tx,
+            &document.block_id,
+            &document.workspace_id,
+            &search_text,
+        )
+        .await
+    }
+
+    /// Keep search projection identity immutable once a block ID exists. A
+    /// conflicting row must fail closed so the surrounding document mutation
+    /// rolls back instead of taking ownership of another workspace or type.
+    async fn project_knowledge_rich_document_search_tx(
+        tx: &mut Transaction<'_, Postgres>,
+        block_id: &str,
+        workspace_id: &str,
+        search_text: &str,
+    ) -> StorageResult<()> {
+        let projection = sqlx::query(
+            r#"
+            INSERT INTO loom_block_search_index
+                (block_id, workspace_id, content_type, search_text, indexed_at)
+            VALUES ($1, $2, 'note', $3, NOW())
+            ON CONFLICT (block_id) DO UPDATE SET
+                search_text = EXCLUDED.search_text,
+                indexed_at = NOW()
+            WHERE loom_block_search_index.workspace_id = EXCLUDED.workspace_id
+              AND loom_block_search_index.content_type = 'note'
+            "#,
+        )
+        .bind(block_id)
+        .bind(workspace_id)
+        .bind(search_text)
+        .execute(&mut **tx)
+        .await?;
+        if projection.rows_affected() != 1 {
+            return Err(StorageError::Conflict(
+                "rich document LoomBlock search projection identity mismatch",
+            ));
+        }
+        Ok(())
+    }
+
+    /// MT-032 transactional backlink rebuild. The live source row is locked
+    /// first, then all live candidate targets are locked in stable id order.
+    /// Delete follows the same source/target row ordering, so either rebuild
+    /// commits first and delete removes its rows, or delete commits first and
+    /// rebuild observes no live target.
+    async fn replace_knowledge_document_backlinks_tx(
+        tx: &mut Transaction<'_, Postgres>,
+        source_document_id: &str,
+        upserts: Vec<UpsertKnowledgeDocumentBacklink>,
+    ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
+        // Preflight only discovers the stable lock set. Transaction-scoped
+        // advisory locks are acquired in sorted document-id order before any
+        // row lock, preventing A->B and B->A rebuilds from deadlocking. The
+        // authoritative live checks/row locks are repeated below.
+        let preflight_workspace: String = sqlx::query_scalar(
+            "SELECT workspace_id FROM knowledge_rich_documents \
+             WHERE rich_document_id = $1 AND deleted_at IS NULL",
+        )
+        .bind(source_document_id)
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or(StorageError::NotFound("knowledge rich document"))?;
+        let preflight_prior_targets: Vec<String> = sqlx::query_scalar(
+            "SELECT target FROM knowledge_document_backlinks \
+             WHERE source_document_id = $1",
+        )
+        .bind(source_document_id)
+        .fetch_all(&mut **tx)
+        .await?;
+        let preflight_prior_loom_targets: Vec<String> = sqlx::query_scalar(
+            "SELECT target_block_id FROM loom_edges \
+             WHERE workspace_id = $1 AND source_block_id = $2 \
+               AND edge_id LIKE 'KDLNK-%' \
+               AND last_actor_kind = 'SYSTEM' \
+               AND last_actor_id = 'knowledge_rich_document_backlink_projection' \
+               AND edit_event_id = '00000000-0000-0000-0000-000000000000' \
+               AND source_document_id = source_block_id",
+        )
+        .bind(&preflight_workspace)
+        .bind(source_document_id)
+        .fetch_all(&mut **tx)
+        .await?;
+        let mut preflight_titles: Vec<String> = upserts
+            .iter()
+            .filter(|upsert| upsert.link_kind == "wikilink" && !upsert.target.starts_with("KRD-"))
+            .map(|upsert| upsert.target.clone())
+            .collect();
+        preflight_titles.sort();
+        preflight_titles.dedup();
+        let mut preflight_ids: Vec<String> = upserts
+            .iter()
+            .filter(|upsert| upsert.link_kind == "wikilink")
+            .map(|upsert| upsert.target.clone())
+            .chain(preflight_prior_targets)
+            .chain(preflight_prior_loom_targets)
+            .collect();
+        let title_ids: Vec<String> = sqlx::query_scalar(
+            "SELECT rich_document_id FROM knowledge_rich_documents \
+             WHERE workspace_id = $1 AND title = ANY($2) \
+             ORDER BY rich_document_id",
+        )
+        .bind(&preflight_workspace)
+        .bind(&preflight_titles)
+        .fetch_all(&mut **tx)
+        .await?;
+        preflight_ids.extend(title_ids);
+        preflight_ids.push(source_document_id.to_string());
+        preflight_ids.sort();
+        preflight_ids.dedup();
+        for document_id in preflight_ids {
+            sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 32032::bigint))")
+                .bind(document_id)
+                .execute(&mut **tx)
+                .await?;
+        }
+
+        let source_workspace: String = sqlx::query_scalar(
+            "SELECT workspace_id FROM knowledge_rich_documents \
+             WHERE rich_document_id = $1 AND deleted_at IS NULL FOR UPDATE",
+        )
+        .bind(source_document_id)
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or(StorageError::NotFound("knowledge rich document"))?;
+        if upserts.iter().any(|upsert| {
+            upsert.source_document_id != source_document_id
+                || upsert.workspace_id != source_workspace
+        }) {
+            return Err(StorageError::Validation(
+                "knowledge backlink rebuild source/workspace mismatch",
+            ));
+        }
+
+        let prior_rows: Vec<(String, String)> = sqlx::query_as(
+            "SELECT relationship_id, target FROM knowledge_document_backlinks \
+             WHERE source_document_id = $1 ORDER BY relationship_id",
+        )
+        .bind(source_document_id)
+        .fetch_all(&mut **tx)
+        .await?;
+        let prior_by_relationship: std::collections::HashMap<String, String> =
+            prior_rows.into_iter().collect();
+        // RichDocument rows have same-id LoomBlock projections. Keep the corresponding Loom mention
+        // edges in the SAME rebuild transaction so graph/backlink consumers never observe a committed
+        // document backlink without its canonical Loom projection. Only KDLNK-owned rows are replaced;
+        // independently-authored Loom edges remain untouched.
+        let prior_loom_targets: Vec<String> = sqlx::query_scalar(
+            "SELECT target_block_id FROM loom_edges \
+             WHERE workspace_id = $1 AND source_block_id = $2 \
+               AND edge_id LIKE 'KDLNK-%' \
+               AND last_actor_kind = 'SYSTEM' \
+               AND last_actor_id = 'knowledge_rich_document_backlink_projection' \
+               AND edit_event_id = '00000000-0000-0000-0000-000000000000' \
+               AND source_document_id = source_block_id",
+        )
+        .bind(&source_workspace)
+        .bind(source_document_id)
+        .fetch_all(&mut **tx)
+        .await?;
+        sqlx::query(
+            "DELETE FROM loom_edges \
+             WHERE workspace_id = $1 AND source_block_id = $2 \
+               AND edge_id LIKE 'KDLNK-%' \
+               AND last_actor_kind = 'SYSTEM' \
+               AND last_actor_id = 'knowledge_rich_document_backlink_projection' \
+               AND edit_event_id = '00000000-0000-0000-0000-000000000000' \
+               AND source_document_id = source_block_id",
+        )
+        .bind(&source_workspace)
+        .bind(source_document_id)
+        .execute(&mut **tx)
+        .await?;
+
+        let mut candidate_titles: Vec<String> = upserts
+            .iter()
+            .filter(|upsert| upsert.link_kind == "wikilink" && !upsert.target.starts_with("KRD-"))
+            .map(|upsert| upsert.target.clone())
+            .collect();
+        candidate_titles.sort();
+        candidate_titles.dedup();
+        let mut candidate_ids: Vec<String> = upserts
+            .iter()
+            .filter(|upsert| upsert.target.starts_with("KRD-"))
+            .map(|upsert| upsert.target.clone())
+            .chain(
+                prior_by_relationship
+                    .values()
+                    .filter(|target| target.starts_with("KRD-"))
+                    .cloned(),
+            )
+            .collect();
+        candidate_ids.sort();
+        candidate_ids.dedup();
+        let candidate_targets: Vec<(String, String, bool)> = sqlx::query_as(
+            r#"
+            SELECT rich_document_id, title, deleted_at IS NULL AS is_live
+            FROM knowledge_rich_documents
+            WHERE workspace_id = $1
+              AND (rich_document_id = ANY($2) OR title = ANY($3))
+            ORDER BY rich_document_id
+            FOR SHARE
+            "#,
+        )
+        .bind(&source_workspace)
+        .bind(&candidate_ids)
+        .bind(&candidate_titles)
+        .fetch_all(&mut **tx)
+        .await?;
+        let live_ids: std::collections::HashSet<String> = candidate_targets
+            .iter()
+            .filter(|(_, _, is_live)| *is_live)
+            .map(|(id, _, _)| id.clone())
+            .collect();
+        let deleted_titles: std::collections::HashSet<String> = candidate_targets
+            .iter()
+            .filter(|(_, _, is_live)| !*is_live)
+            .map(|(_, title, _)| title.clone())
+            .collect();
+        let mut ids_by_title: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        for (id, title, is_live) in candidate_targets {
+            if is_live {
+                ids_by_title.entry(title).or_default().push(id);
+            }
+        }
+
+        // Wikilinks may address any LoomBlock directly, not only the same-id
+        // projection of another RichDocument. Lock every exact block-id
+        // candidate in stable order and retain its workspace so an id owned by
+        // another workspace cannot fall through into same-named title
+        // resolution. Title-resolved RichDocuments are included as candidates
+        // so a missing same-id projection still fails closed below.
+        let mut candidate_loom_ids: Vec<String> = upserts
+            .iter()
+            .filter(|upsert| upsert.link_kind == "wikilink")
+            .map(|upsert| upsert.target.clone())
+            .chain(prior_by_relationship.values().cloned())
+            .chain(prior_loom_targets.iter().cloned())
+            .chain(live_ids.iter().cloned())
+            .collect();
+        candidate_loom_ids.sort();
+        candidate_loom_ids.dedup();
+        let candidate_loom_targets: Vec<(String, String)> = sqlx::query_as(
+            r#"
+            SELECT block_id, workspace_id
+            FROM loom_blocks
+            WHERE block_id = ANY($1)
+            ORDER BY block_id
+            FOR SHARE
+            "#,
+        )
+        .bind(&candidate_loom_ids)
+        .fetch_all(&mut **tx)
+        .await?;
+        let live_loom_ids: std::collections::HashSet<String> = candidate_loom_targets
+            .iter()
+            .filter(|(_, workspace_id)| workspace_id == &source_workspace)
+            .map(|(block_id, _)| block_id.clone())
+            .collect();
+        let foreign_loom_ids: std::collections::HashSet<String> = candidate_loom_targets
+            .iter()
+            .filter(|(_, workspace_id)| workspace_id != &source_workspace)
+            .map(|(block_id, _)| block_id.clone())
+            .collect();
+
+        sqlx::query("DELETE FROM knowledge_document_backlinks WHERE source_document_id = $1")
+            .bind(source_document_id)
+            .execute(&mut **tx)
+            .await?;
+        let mut out = Vec::with_capacity(upserts.len());
+        let mut projected_loom_targets = Vec::new();
+        for upsert in upserts {
+            let prior_live_target = prior_by_relationship
+                .get(&upsert.relationship_id)
+                .filter(|target| live_loom_ids.contains(*target));
+            let target = if upsert.link_kind == "wikilink" && live_loom_ids.contains(&upsert.target)
+            {
+                // Exact live same-workspace Loom identity wins over title
+                // resolution. This covers CKC, code-file, canvas, tag-hub,
+                // and every other first-class Loom block type.
+                upsert.target.clone()
+            } else if upsert.link_kind == "wikilink" && foreign_loom_ids.contains(&upsert.target) {
+                // Never turn a cross-workspace block id into a local title
+                // match or persist a graph edge across workspace authority.
+                continue;
+            } else if upsert.link_kind == "wikilink" && upsert.target.starts_with("KRD-") {
+                if !live_ids.contains(&upsert.target) {
+                    continue;
+                }
+                upsert.target.clone()
+            } else if upsert.link_kind == "wikilink" {
+                match ids_by_title.get(&upsert.target) {
+                    Some(matches) if matches.len() == 1 => matches[0].clone(),
+                    Some(matches) => match prior_live_target {
+                        Some(prior_target) if matches.contains(prior_target) => {
+                            prior_target.clone()
+                        }
+                        _ => upsert.target.clone(),
+                    },
+                    None if prior_live_target.is_some() => {
+                        prior_live_target.expect("checked above").clone()
+                    }
+                    None if deleted_titles.contains(&upsert.target) => continue,
+                    None => upsert.target.clone(),
+                }
+            } else {
+                upsert.target.clone()
+            };
+            if upsert.link_kind == "wikilink"
+                && live_ids.contains(&target)
+                && !live_loom_ids.contains(&target)
+            {
+                return Err(StorageError::Conflict(
+                    "knowledge backlink target is missing its LoomBlock projection",
+                ));
+            }
+            let project_to_loom = upsert.link_kind == "wikilink" && live_loom_ids.contains(&target);
+            let backlink_id = new_knowledge_id("KDBL");
+            let sql = format!(
+                r#"
+                INSERT INTO knowledge_document_backlinks
+                    (backlink_id, workspace_id, relationship_id,
+                     source_document_id, link_kind, target, block_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING {KNOWLEDGE_DOCUMENT_BACKLINK_COLUMNS}
+                "#
+            );
+            let row = sqlx::query(&sql)
+                .bind(backlink_id)
+                .bind(&upsert.workspace_id)
+                .bind(&upsert.relationship_id)
+                .bind(&upsert.source_document_id)
+                .bind(&upsert.link_kind)
+                .bind(&target)
+                .bind(&upsert.block_id)
+                .fetch_one(&mut **tx)
+                .await?;
+            out.push(document_backlink_from_pg(&row));
+            if project_to_loom {
+                let loom_projection = sqlx::query(
+                    r#"
+                    INSERT INTO loom_edges AS existing (
+                        edge_id, workspace_id, source_block_id, target_block_id,
+                        edge_type, created_by, last_actor_kind, last_actor_id,
+                        edit_event_id, source_document_id, source_text_block_id
+                    )
+                    VALUES ($1, $2, $3, $4, 'mention', 'user', 'SYSTEM',
+                            'knowledge_rich_document_backlink_projection',
+                            '00000000-0000-0000-0000-000000000000', $3, $5)
+                    ON CONFLICT (edge_id) DO UPDATE SET
+                        workspace_id = EXCLUDED.workspace_id,
+                        source_block_id = EXCLUDED.source_block_id,
+                        target_block_id = EXCLUDED.target_block_id,
+                        edge_type = EXCLUDED.edge_type,
+                        created_by = EXCLUDED.created_by,
+                        last_actor_kind = EXCLUDED.last_actor_kind,
+                        last_actor_id = EXCLUDED.last_actor_id,
+                        edit_event_id = EXCLUDED.edit_event_id,
+                        source_document_id = EXCLUDED.source_document_id,
+                        source_text_block_id = EXCLUDED.source_text_block_id,
+                        offset_start = NULL,
+                        offset_end = NULL
+                    WHERE existing.workspace_id = EXCLUDED.workspace_id
+                      AND existing.source_block_id = EXCLUDED.source_block_id
+                      AND existing.edge_id LIKE 'KDLNK-%'
+                      AND existing.last_actor_kind = 'SYSTEM'
+                      AND existing.last_actor_id = 'knowledge_rich_document_backlink_projection'
+                      AND existing.edit_event_id = '00000000-0000-0000-0000-000000000000'
+                      AND existing.source_document_id = existing.source_block_id
+                    "#,
+                )
+                .bind(&upsert.relationship_id)
+                .bind(&upsert.workspace_id)
+                .bind(&upsert.source_document_id)
+                .bind(&target)
+                .bind(&upsert.block_id)
+                .execute(&mut **tx)
+                .await?;
+                if loom_projection.rows_affected() != 1 {
+                    return Err(StorageError::Conflict(
+                        "knowledge backlink Loom edge identity is owned by another writer",
+                    ));
+                }
+                projected_loom_targets.push(target);
+            }
+        }
+        let affected_loom_blocks: std::collections::BTreeSet<String> = prior_loom_targets
+            .into_iter()
+            .chain(projected_loom_targets)
+            .chain(std::iter::once(source_document_id.to_owned()))
+            .collect();
+        for block_id in affected_loom_blocks {
+            sqlx::query(
+                r#"
+                UPDATE loom_blocks
+                SET
+                    mention_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'mention'),
+                    tag_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'tag'),
+                    backlink_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND target_block_id = $2 AND edge_type IN ('mention', 'tag'))
+                WHERE workspace_id = $1 AND block_id = $2
+                "#,
+            )
+            .bind(&source_workspace)
+            .bind(&block_id)
+            .execute(&mut **tx)
+            .await?;
+        }
+        Ok(out)
+    }
+
+    /// MT-032 create closure shared by API create/import and Loom markdown
+    /// import. Authority row, version 1, same-id Loom projection/search, and
+    /// initial backlinks become durable together.
+    pub(crate) async fn create_knowledge_rich_document_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        new_document: &NewKnowledgeRichDocument,
+    ) -> StorageResult<KnowledgeRichDocument> {
+        if new_document.title.trim() != new_document.title || new_document.title.is_empty() {
+            return Err(StorageError::Validation(
+                "knowledge rich document title must be non-empty and trimmed",
+            ));
+        }
+        if new_document.schema_version.trim() != new_document.schema_version
+            || new_document.schema_version.is_empty()
+        {
+            return Err(StorageError::Validation(
+                "knowledge rich document schema_version must be non-empty and trimmed",
+            ));
+        }
+        let authority_label = new_document
+            .authority_label
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("promoted");
+        if !matches!(authority_label, "draft" | "promoted" | "archived") {
+            return Err(StorageError::Validation(
+                "knowledge rich document authority_label must be draft|promoted|archived",
+            ));
+        }
+        if new_document.owner_actor_kind.is_some() != new_document.owner_actor_id.is_some() {
+            return Err(StorageError::Validation(
+                "knowledge rich document owner_actor_kind and owner_actor_id must be set together",
+            ));
+        }
+        let rich_document_id = new_knowledge_id("KRD");
+        let content_sha256 = knowledge_canonical_json_sha256(&new_document.content_json);
+        let sql = format!(
+            r#"
+            INSERT INTO knowledge_rich_documents
+                (rich_document_id, workspace_id, document_id, title,
+                 schema_version, content_json, content_sha256,
+                 crdt_document_id, crdt_snapshot_id, promotion_receipt_event_id,
+                 project_ref, folder_ref, authority_label,
+                 owner_actor_kind, owner_actor_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
+            "#
+        );
+        let row = sqlx::query(&sql)
+            .bind(&rich_document_id)
+            .bind(&new_document.workspace_id)
+            .bind(&new_document.document_id)
+            .bind(&new_document.title)
+            .bind(&new_document.schema_version)
+            .bind(&new_document.content_json)
+            .bind(&content_sha256)
+            .bind(&new_document.crdt_document_id)
+            .bind(&new_document.crdt_snapshot_id)
+            .bind(&new_document.promotion_receipt_event_id)
+            .bind(&new_document.project_ref)
+            .bind(&new_document.folder_ref)
+            .bind(authority_label)
+            .bind(&new_document.owner_actor_kind)
+            .bind(&new_document.owner_actor_id)
+            .fetch_one(&mut **tx)
+            .await?;
+        let document = rich_document_from_pg(&row);
+        let loom_actor_kind = match new_document.owner_actor_kind.as_deref() {
+            Some("system" | "local_model" | "cloud_model") => "SYSTEM",
+            _ => "HUMAN",
+        };
+        Self::project_knowledge_rich_document_tx(
+            tx,
+            &document,
+            loom_actor_kind,
+            new_document.owner_actor_id.as_deref(),
+        )
+        .await?;
+        sqlx::query(
+            r#"
+            INSERT INTO knowledge_rich_document_versions
+                (rich_document_id, doc_version, schema_version, content_json,
+                 content_sha256, crdt_snapshot_id, promotion_receipt_event_id)
+            VALUES ($1, 1, $2, $3, $4, $5, $6)
+            "#,
+        )
+        .bind(&document.rich_document_id)
+        .bind(&document.schema_version)
+        .bind(&document.content_json)
+        .bind(&document.content_sha256)
+        .bind(&document.crdt_snapshot_id)
+        .bind(&document.promotion_receipt_event_id)
+        .execute(&mut **tx)
+        .await?;
+
+        let tree = crate::knowledge_document::block_tree::BlockTree::from_document_json(
+            &document.rich_document_id,
+            &document.schema_version,
+            &document.content_json,
+        )
+        .map_err(|_| StorageError::Validation("knowledge rich document block tree is malformed"))?;
+        let references =
+            crate::knowledge_document::backlink::DocumentLinkReferences::extract(&tree);
+        let upserts = references
+            .references
+            .into_iter()
+            .map(|reference| UpsertKnowledgeDocumentBacklink {
+                workspace_id: document.workspace_id.clone(),
+                relationship_id: reference.relationship_id,
+                source_document_id: document.rich_document_id.clone(),
+                link_kind: reference.kind.as_str().to_string(),
+                target: reference.target,
+                block_id: reference.block_id,
+            })
+            .collect();
+        Self::replace_knowledge_document_backlinks_tx(tx, &document.rich_document_id, upserts)
+            .await?;
+        Ok(document)
+    }
+
     /// MT-062 inner save: optimistic update + history append + key claim in
     /// ONE transaction. `Ok(None)` = the key claim lost a race and the whole
     /// write rolled back (no double-write).
@@ -3272,6 +3983,7 @@ impl PostgresDatabase {
                 updated_at = NOW()
             WHERE rich_document_id = $1
               AND doc_version = $2
+              AND deleted_at IS NULL
               AND ($5::text IS NULL OR crdt_document_id IS NULL OR crdt_document_id = $5)
             RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
             "#
@@ -3288,7 +4000,8 @@ impl PostgresDatabase {
             .await?;
         let Some(row) = row else {
             let exists: Option<(i64, Option<String>)> = sqlx::query_as(
-                "SELECT doc_version, crdt_document_id FROM knowledge_rich_documents WHERE rich_document_id = $1",
+                "SELECT doc_version, crdt_document_id FROM knowledge_rich_documents \
+                 WHERE rich_document_id = $1 AND deleted_at IS NULL",
             )
             .bind(rich_document_id)
             .fetch_optional(&mut *tx)
@@ -3312,6 +4025,14 @@ impl PostgresDatabase {
             });
         };
         let document = rich_document_from_pg(&row);
+
+        Self::project_knowledge_rich_document_tx(
+            &mut tx,
+            &document,
+            "SYSTEM",
+            Some("knowledge_rich_document_idempotent_save"),
+        )
+        .await?;
 
         sqlx::query(
             r#"
@@ -3423,6 +4144,12 @@ impl KnowledgeStore for PostgresDatabase {
                 (root_id, workspace_id, display_name, root_kind,
                  repo_relative_path, allowlist_policy, indexing_eligibility)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (workspace_id, repo_relative_path) DO UPDATE
+            SET display_name = EXCLUDED.display_name,
+                root_kind = EXCLUDED.root_kind,
+                allowlist_policy = EXCLUDED.allowlist_policy,
+                indexing_eligibility = EXCLUDED.indexing_eligibility,
+                updated_at = NOW()
             RETURNING root_id, workspace_id, display_name, root_kind,
                       repo_relative_path, path_normalization, allowlist_policy,
                       indexing_eligibility, created_at, updated_at
@@ -4883,102 +5610,78 @@ impl KnowledgeStore for PostgresDatabase {
         &self,
         new_document: NewKnowledgeRichDocument,
     ) -> StorageResult<KnowledgeRichDocument> {
+        let mut tx = self.pool().begin().await?;
+        let document = self
+            .create_knowledge_rich_document_tx(&mut tx, &new_document)
+            .await?;
+        tx.commit().await?;
+        Ok(document)
+    }
+
+    async fn create_knowledge_rich_document_if_title_absent(
+        &self,
+        new_document: NewKnowledgeRichDocument,
+    ) -> StorageResult<(KnowledgeRichDocument, bool)> {
         if new_document.title.trim() != new_document.title || new_document.title.is_empty() {
             return Err(StorageError::Validation(
                 "knowledge rich document title must be non-empty and trimmed",
             ));
         }
-        if new_document.schema_version.trim() != new_document.schema_version
-            || new_document.schema_version.is_empty()
-        {
-            return Err(StorageError::Validation(
-                "knowledge rich document schema_version must be non-empty and trimmed",
-            ));
-        }
-        // MT-145 identity defaults + validation. authority_label defaults to
-        // 'promoted'; an owner is all-or-nothing (kind <-> id).
-        let authority_label = new_document
-            .authority_label
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .unwrap_or("promoted")
-            .to_string();
-        if !matches!(authority_label.as_str(), "draft" | "promoted" | "archived") {
-            return Err(StorageError::Validation(
-                "knowledge rich document authority_label must be draft|promoted|archived",
-            ));
-        }
-        if new_document.owner_actor_kind.is_some() != new_document.owner_actor_id.is_some() {
-            return Err(StorageError::Validation(
-                "knowledge rich document owner_actor_kind and owner_actor_id must be set together",
-            ));
-        }
-        let rich_document_id = new_knowledge_id("KRD");
-        let content_sha256 = knowledge_canonical_json_sha256(&new_document.content_json);
 
         let mut tx = self.pool().begin().await?;
-        let sql = format!(
-            r#"
-            INSERT INTO knowledge_rich_documents
-                (rich_document_id, workspace_id, document_id, title,
-                 schema_version, content_json, content_sha256,
-                 crdt_document_id, crdt_snapshot_id, promotion_receipt_event_id,
-                 project_ref, folder_ref, authority_label,
-                 owner_actor_kind, owner_actor_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-            RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
-            "#
-        );
-        let row = sqlx::query(&sql)
-            .bind(&rich_document_id)
-            .bind(&new_document.workspace_id)
-            .bind(&new_document.document_id)
-            .bind(&new_document.title)
-            .bind(&new_document.schema_version)
-            .bind(&new_document.content_json)
-            .bind(&content_sha256)
-            .bind(&new_document.crdt_document_id)
-            .bind(&new_document.crdt_snapshot_id)
-            .bind(&new_document.promotion_receipt_event_id)
-            .bind(&new_document.project_ref)
-            .bind(&new_document.folder_ref)
-            .bind(&authority_label)
-            .bind(&new_document.owner_actor_kind)
-            .bind(&new_document.owner_actor_id)
-            .fetch_one(&mut *tx)
-            .await?;
-        let document = rich_document_from_pg(&row);
-
-        // Revision 1 lands in the append-only history at creation so the
-        // history is complete from the first promoted revision.
-        sqlx::query(
-            r#"
-            INSERT INTO knowledge_rich_document_versions
-                (rich_document_id, doc_version, schema_version, content_json,
-                 content_sha256, crdt_snapshot_id, promotion_receipt_event_id)
-            VALUES ($1, 1, $2, $3, $4, $5, $6)
-            "#,
+        // Derive the lock key with the exact same PostgreSQL expression used by the authority lookup;
+        // a Rust/DB Unicode or collation disagreement must never split one title race across locks.
+        let normalized_title: String = sqlx::query_scalar(
+            "SELECT regexp_replace(lower(btrim($1::text)), '[[:space:]]+', ' ', 'g')",
         )
-        .bind(&document.rich_document_id)
-        .bind(&document.schema_version)
-        .bind(&document.content_json)
-        .bind(&document.content_sha256)
-        .bind(&document.crdt_snapshot_id)
-        .bind(&document.promotion_receipt_event_id)
-        .execute(&mut *tx)
+        .bind(&new_document.title)
+        .fetch_one(&mut *tx)
         .await?;
-        tx.commit().await?;
-        Ok(document)
-    }
+        let lock_identity = format!("{}\u{1f}{normalized_title}", new_document.workspace_id);
 
+        // Transaction-scoped PostgreSQL authority lock: unlike a process-local HashSet, this serializes
+        // independent Handshake clients and releases automatically on commit/rollback.
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+            .bind(lock_identity)
+            .execute(&mut *tx)
+            .await?;
+
+        let sql = format!(
+            "SELECT {KNOWLEDGE_RICH_DOCUMENT_COLUMNS} FROM knowledge_rich_documents \
+             WHERE workspace_id = $1 AND deleted_at IS NULL \
+               AND regexp_replace(lower(btrim(title)), '[[:space:]]+', ' ', 'g') = $2 \
+             ORDER BY updated_at DESC, rich_document_id"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(&new_document.workspace_id)
+            .bind(&normalized_title)
+            .fetch_all(&mut *tx)
+            .await?;
+        match rows.len() {
+            0 => {
+                let document = self
+                    .create_knowledge_rich_document_tx(&mut tx, &new_document)
+                    .await?;
+                tx.commit().await?;
+                Ok((document, true))
+            }
+            1 => {
+                let document = rich_document_from_pg(&rows[0]);
+                tx.commit().await?;
+                Ok((document, false))
+            }
+            _ => Err(StorageError::Conflict(
+                "knowledge_rich_document_title_ambiguous",
+            )),
+        }
+    }
     async fn get_knowledge_rich_document(
         &self,
         rich_document_id: &str,
     ) -> StorageResult<Option<KnowledgeRichDocument>> {
         let sql = format!(
             "SELECT {KNOWLEDGE_RICH_DOCUMENT_COLUMNS} FROM knowledge_rich_documents
-             WHERE rich_document_id = $1"
+             WHERE rich_document_id = $1 AND deleted_at IS NULL"
         );
         let row = sqlx::query(&sql)
             .bind(rich_document_id)
@@ -4994,7 +5697,7 @@ impl KnowledgeStore for PostgresDatabase {
     ) -> StorageResult<Option<KnowledgeRichDocument>> {
         let sql = format!(
             "SELECT {KNOWLEDGE_RICH_DOCUMENT_COLUMNS} FROM knowledge_rich_documents
-             WHERE workspace_id = $1 AND document_id = $2
+             WHERE workspace_id = $1 AND document_id = $2 AND deleted_at IS NULL
              ORDER BY updated_at DESC, rich_document_id DESC
              LIMIT 1"
         );
@@ -5063,6 +5766,15 @@ impl KnowledgeStore for PostgresDatabase {
         }
 
         let draft_content_sha256 = knowledge_canonical_json_sha256(&upsert.content_json);
+        let mut tx = self.pool().begin().await?;
+        sqlx::query_scalar::<_, i32>(
+            "SELECT 1 FROM knowledge_rich_documents \
+             WHERE rich_document_id = $1 AND deleted_at IS NULL FOR UPDATE",
+        )
+        .bind(&upsert.rich_document_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(StorageError::NotFound("knowledge rich document"))?;
         let sql = format!(
             r#"
             INSERT INTO knowledge_rich_document_drafts
@@ -5071,7 +5783,7 @@ impl KnowledgeStore for PostgresDatabase {
                  actor_kind, actor_id, kernel_task_run_id, session_run_id)
             SELECT $1, workspace_id, $2, $3, $4, $5, $6, $7, $8, $9
             FROM knowledge_rich_documents
-            WHERE rich_document_id = $1
+            WHERE rich_document_id = $1 AND deleted_at IS NULL
             ON CONFLICT (rich_document_id) DO UPDATE
             SET workspace_id = EXCLUDED.workspace_id,
                 base_doc_version = EXCLUDED.base_doc_version,
@@ -5096,21 +5808,38 @@ impl KnowledgeStore for PostgresDatabase {
             .bind(&upsert.actor_id)
             .bind(&upsert.kernel_task_run_id)
             .bind(&upsert.session_run_id)
-            .fetch_optional(self.pool())
+            .fetch_optional(&mut *tx)
             .await?
             .ok_or(StorageError::NotFound("knowledge rich document"))?;
-        Ok(rich_document_draft_from_pg(&row))
+        let draft = rich_document_draft_from_pg(&row);
+        tx.commit().await?;
+        Ok(draft)
     }
 
     async fn clear_knowledge_rich_document_draft(
         &self,
         rich_document_id: &str,
     ) -> StorageResult<bool> {
-        let result =
-            sqlx::query("DELETE FROM knowledge_rich_document_drafts WHERE rich_document_id = $1")
-                .bind(rich_document_id)
-                .execute(self.pool())
-                .await?;
+        let mut tx = self.pool().begin().await?;
+        sqlx::query_scalar::<_, i32>(
+            "SELECT 1 FROM knowledge_rich_documents \
+             WHERE rich_document_id = $1 AND deleted_at IS NULL FOR UPDATE",
+        )
+        .bind(rich_document_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(StorageError::NotFound("knowledge rich document"))?;
+        let result = sqlx::query(
+            "DELETE FROM knowledge_rich_document_drafts d \
+                 USING knowledge_rich_documents r \
+                 WHERE d.rich_document_id = $1 \
+                   AND r.rich_document_id = d.rich_document_id \
+                   AND r.deleted_at IS NULL",
+        )
+        .bind(rich_document_id)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
         Ok(result.rows_affected() > 0)
     }
 
@@ -5138,6 +5867,7 @@ impl KnowledgeStore for PostgresDatabase {
                 updated_at = NOW()
             WHERE rich_document_id = $1
               AND doc_version = $2
+              AND deleted_at IS NULL
               AND ($5::text IS NULL OR crdt_document_id IS NULL OR crdt_document_id = $5)
             RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
             "#
@@ -5156,7 +5886,8 @@ impl KnowledgeStore for PostgresDatabase {
             // Distinguish a stale expected_version (typed Conflict, the
             // optimistic-concurrency fail-closed path) from a missing doc.
             let exists: Option<(i64, Option<String>)> = sqlx::query_as(
-                "SELECT doc_version, crdt_document_id FROM knowledge_rich_documents WHERE rich_document_id = $1",
+                "SELECT doc_version, crdt_document_id FROM knowledge_rich_documents \
+                 WHERE rich_document_id = $1 AND deleted_at IS NULL",
             )
             .bind(rich_document_id)
             .fetch_optional(&mut *tx)
@@ -5180,7 +5911,13 @@ impl KnowledgeStore for PostgresDatabase {
             });
         };
         let document = rich_document_from_pg(&row);
-
+        Self::project_knowledge_rich_document_tx(
+            &mut tx,
+            &document,
+            "SYSTEM",
+            Some("knowledge_rich_document_save"),
+        )
+        .await?;
         sqlx::query(
             r#"
             INSERT INTO knowledge_rich_document_versions
@@ -5323,27 +6060,80 @@ impl KnowledgeStore for PostgresDatabase {
         &self,
         rich_document_id: &str,
         title: &str,
+        expected_updated_at: Option<DateTime<Utc>>,
     ) -> StorageResult<KnowledgeRichDocument> {
         if title.trim() != title || title.is_empty() {
             return Err(StorageError::Validation(
                 "knowledge rich document title must be non-empty and trimmed",
             ));
         }
+        let mut tx = self.pool().begin().await?;
         let sql = format!(
             r#"
             UPDATE knowledge_rich_documents
             SET title = $2, updated_at = NOW()
             WHERE rich_document_id = $1
+              AND deleted_at IS NULL
+              AND ($3::timestamptz IS NULL OR updated_at = $3)
             RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
             "#
         );
         let row = sqlx::query(&sql)
             .bind(rich_document_id)
             .bind(title)
-            .fetch_optional(self.pool())
-            .await?
-            .ok_or(StorageError::NotFound("knowledge rich document"))?;
-        Ok(rich_document_from_pg(&row))
+            .bind(expected_updated_at.as_ref())
+            .fetch_optional(&mut *tx)
+            .await?;
+        let row = match row {
+            Some(row) => row,
+            None if expected_updated_at.is_some() => {
+                let exists = sqlx::query_scalar::<_, bool>(
+                    "SELECT EXISTS(SELECT 1 FROM knowledge_rich_documents \
+                     WHERE rich_document_id = $1 AND deleted_at IS NULL)",
+                )
+                .bind(rich_document_id)
+                .fetch_one(&mut *tx)
+                .await?;
+                return Err(if exists {
+                    StorageError::Conflict("knowledge_rich_document_stale_updated_at")
+                } else {
+                    StorageError::NotFound("knowledge rich document")
+                });
+            }
+            None => return Err(StorageError::NotFound("knowledge rich document")),
+        };
+        let document = rich_document_from_pg(&row);
+        let (_, search_text) =
+            rich_document_loom_projection(&document.title, &document.content_json)?;
+        let projection = sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET title = $2,
+                updated_at = NOW()
+            WHERE block_id = $1
+              AND workspace_id = $3
+              AND content_type = 'note'
+            "#,
+        )
+        .bind(&document.block_id)
+        .bind(&document.title)
+        .bind(&document.workspace_id)
+        .execute(&mut *tx)
+        .await?;
+        if projection.rows_affected() != 1 {
+            return Err(StorageError::Conflict(
+                "rich document LoomBlock projection missing during rename",
+            ));
+        }
+        Self::project_knowledge_rich_document_search_tx(
+            &mut tx,
+            &document.block_id,
+            &document.workspace_id,
+            &search_text,
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(document)
     }
 
     async fn move_knowledge_rich_document(
@@ -5356,7 +6146,7 @@ impl KnowledgeStore for PostgresDatabase {
             r#"
             UPDATE knowledge_rich_documents
             SET project_ref = $2, folder_ref = $3, updated_at = NOW()
-            WHERE rich_document_id = $1
+            WHERE rich_document_id = $1 AND deleted_at IS NULL
             RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
             "#
         );
@@ -5384,7 +6174,7 @@ impl KnowledgeStore for PostgresDatabase {
             r#"
             UPDATE knowledge_rich_documents
             SET authority_label = $2, updated_at = NOW()
-            WHERE rich_document_id = $1
+            WHERE rich_document_id = $1 AND deleted_at IS NULL
             RETURNING {KNOWLEDGE_RICH_DOCUMENT_COLUMNS}
             "#
         );
@@ -5408,6 +6198,7 @@ impl KnowledgeStore for PostgresDatabase {
             r#"
             SELECT {KNOWLEDGE_RICH_DOCUMENT_COLUMNS} FROM knowledge_rich_documents
             WHERE workspace_id = $1
+              AND deleted_at IS NULL
               AND ($2::text IS NULL OR project_ref = $2)
               AND ($3::text IS NULL OR folder_ref = $3)
             ORDER BY updated_at DESC, rich_document_id
@@ -5685,41 +6476,13 @@ impl KnowledgeStore for PostgresDatabase {
         source_document_id: &str,
         upserts: Vec<UpsertKnowledgeDocumentBacklink>,
     ) -> StorageResult<Vec<KnowledgeDocumentBacklink>> {
-        // Rebuild semantics: the document content is the source of truth, so a
-        // re-extract is delete-all-for-source + insert in one transaction.
         let mut tx = self.pool().begin().await?;
-        sqlx::query("DELETE FROM knowledge_document_backlinks WHERE source_document_id = $1")
-            .bind(source_document_id)
-            .execute(&mut *tx)
-            .await?;
-        let mut out = Vec::with_capacity(upserts.len());
-        for upsert in upserts {
-            let backlink_id = new_knowledge_id("KDBL");
-            let sql = format!(
-                r#"
-                INSERT INTO knowledge_document_backlinks
-                    (backlink_id, workspace_id, relationship_id,
-                     source_document_id, link_kind, target, block_id)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING {KNOWLEDGE_DOCUMENT_BACKLINK_COLUMNS}
-                "#
-            );
-            let row = sqlx::query(&sql)
-                .bind(&backlink_id)
-                .bind(&upsert.workspace_id)
-                .bind(&upsert.relationship_id)
-                .bind(&upsert.source_document_id)
-                .bind(&upsert.link_kind)
-                .bind(&upsert.target)
-                .bind(&upsert.block_id)
-                .fetch_one(&mut *tx)
+        let backlinks =
+            Self::replace_knowledge_document_backlinks_tx(&mut tx, source_document_id, upserts)
                 .await?;
-            out.push(document_backlink_from_pg(&row));
-        }
         tx.commit().await?;
-        Ok(out)
+        Ok(backlinks)
     }
-
     async fn list_knowledge_document_backlinks_from(
         &self,
         source_document_id: &str,

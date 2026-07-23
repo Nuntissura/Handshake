@@ -81,6 +81,7 @@ pub struct EditorMenuEnableContext {
     pub active_code_editor: bool,
     pub active_rich_editor: bool,
     pub editor_can_undo: bool,
+    pub editor_can_cross_pane_undo: bool,
     pub editor_can_redo: bool,
     pub editor_can_paste: bool,
     pub editor_can_nav_back: bool,
@@ -94,6 +95,7 @@ impl EditorMenuEnableContext {
             active_code_editor: false,
             active_rich_editor: false,
             editor_can_undo: false,
+            editor_can_cross_pane_undo: false,
             editor_can_redo: false,
             editor_can_paste: false,
             editor_can_nav_back: false,
@@ -298,7 +300,7 @@ const APP_COMMANDS: &[AppCommand] = &[
     },
     // WP-KERNEL-012 MT-033 (E5 — route-to-Stage): the discoverable palette entry for the Route-to-Stage
     // melt-together command. The command itself is dispatched on the MT-031 InteractionBus (which carries
-    // the StageContent payload via request_route_to_stage); this catalog row makes the action SEEABLE in
+    // the StageContent payload via route_to_stage); this catalog row makes the action SEEABLE in
     // the palette (HBR-SWARM) and maps to the `interop.route-to-stage` dispatch. Enabled (the local Stage
     // pane + bus command need no editor surface to exist — they route whatever the focused pane staged).
     AppCommand {
@@ -315,12 +317,12 @@ const APP_COMMANDS: &[AppCommand] = &[
     // capture artifact (with its SHA-256 manifest provenance) and inserts it into the focused note/canvas
     // as an MT-014 embed NodeView. This is the NEW command this MT adds; the route-to-stage command
     // (`interop.route-to-stage`, above) is REUSED from MT-033, NOT duplicated (AC-005/MC-003). The Stage
-    // embed-back backend route is ABSENT in this build; dispatching this command (see the app's
+    // embed-back backend route is live in this build; dispatching this command (see the app's
     // `CMD_EMBED_STAGE_CAPTURE` arm) flags the per-frame embed-back drain, which runs the read off the
     // tokio runtime handle (`StageClient::production` -> `fetch_stage_artifact` ->
-    // `StagePane::capture_and_embed_back`) and surfaces the typed `StageInteropError::EmbedBackEndpointAbsent`
-    // blocker as the Stage round-trip pane's empty-state banner — never a fake artifact. Enabled
-    // (palette-driven; no keybind — does NOT steal a VS Code binding).
+    // `StagePane::capture_and_embed_back`). A genuinely unavailable endpoint still surfaces the typed
+    // `StageInteropError::EmbedBackEndpointAbsent` recovery state. Enabled (palette/menu-driven; no
+    // keybind — does NOT steal a VS Code binding).
     AppCommand {
         id: "interop.embed-stage-capture",
         kind: CommandKind::App,
@@ -400,6 +402,15 @@ const APP_COMMANDS: &[AppCommand] = &[
         description: "Open the Stage pane (the route-to-Stage round-trip surface with the embed-back action).",
         keywords: &["view", "stage", "pane", "interop", "pillar 17"],
         stable_id: "hs-view-palette-stage",
+        disabled: false,
+    },
+    AppCommand {
+        id: CMD_VIEW_ATELIER,
+        kind: CommandKind::App,
+        label: "View: Toggle Atelier / CKC Panel",
+        description: "Show or hide the mounted Atelier / CKC drag-source side panel.",
+        keywords: &["view", "atelier", "ckc", "panel", "drag", "media", "toggle"],
+        stable_id: "hs-view-palette-atelier",
         disabled: false,
     },
     AppCommand {
@@ -507,6 +518,15 @@ const APP_COMMANDS: &[AppCommand] = &[
         disabled: false,
     },
     AppCommand {
+        id: CMD_VIEW_WIKI_PROJECTION,
+        kind: CommandKind::App,
+        label: "View: Wiki Projection",
+        description: "Open the read-only generated Wiki Projection pane with additive overlay editing.",
+        keywords: &["view", "wiki", "projection", "generated", "overlay", "loom", "pane"],
+        stable_id: "hs-view-palette-wiki-projection",
+        disabled: false,
+    },
+    AppCommand {
         id: CMD_VIEW_CANVAS,
         kind: CommandKind::App,
         label: "View: Canvas",
@@ -538,6 +558,7 @@ const APP_COMMANDS: &[AppCommand] = &[
 // ── WP-KERNEL-012 E11 remediation wave: stable `view.*` open-command ids ─────────────────────────────
 pub const CMD_VIEW_RELEVANT_MEMORY: &str = "view.relevant-memory";
 pub const CMD_VIEW_STAGE: &str = "view.stage";
+pub const CMD_VIEW_ATELIER: &str = "view.atelier";
 pub const CMD_VIEW_TAGS: &str = "view.tags";
 pub const CMD_VIEW_SIDEBAR: &str = "view.sidebar";
 pub const CMD_VIEW_BLOCK_COLLECTIONS: &str = "view.block-collections";
@@ -550,6 +571,7 @@ pub const CMD_VIEW_DIFF_MERGE: &str = "view.diff-merge";
 // ── WP-KERNEL-012 wave-6 (S6 item 1): CORE native-editor surface open-command ids ────────────────────
 pub const CMD_VIEW_CODE_EDITOR: &str = "view.code-editor";
 pub const CMD_VIEW_RICH_NOTE: &str = "view.rich-note";
+pub const CMD_VIEW_WIKI_PROJECTION: &str = "view.wiki-projection";
 pub const CMD_VIEW_CANVAS: &str = "view.canvas";
 pub const CMD_VIEW_LOOM_SEARCH: &str = "view.loom-search";
 pub const CMD_VIEW_FIND_IN_FILES: &str = "view.find-in-files";
@@ -574,6 +596,8 @@ pub const CMD_EDITOR_FILE_EXPORT_JSON: &str = "editor.file.export.json";
 // EDIT
 pub const CMD_EDITOR_EDIT_UNDO: &str = "editor.edit.undo";
 pub const CMD_EDITOR_EDIT_REDO: &str = "editor.edit.redo";
+pub const CMD_EDITOR_EDIT_UNDO_CROSS_PANE: &str = "editor.edit.undoCrossPane";
+pub const CMD_EDITOR_EDIT_SHOW_UNDO_HISTORY: &str = "editor.edit.showUndoHistory";
 pub const CMD_EDITOR_EDIT_CUT: &str = "editor.edit.cut";
 pub const CMD_EDITOR_EDIT_COPY: &str = "editor.edit.copy";
 pub const CMD_EDITOR_EDIT_PASTE: &str = "editor.edit.paste";
@@ -692,6 +716,18 @@ const EDITOR_MENU_COMMANDS: &[AppCommand] = &[
         "Editor: Redo",
         &["redo", "edit", "editor"],
         "hs-editor-menu-edit-redo",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_EDIT_UNDO_CROSS_PANE,
+        "Editor: Undo Cross-Pane",
+        &["undo", "cross", "pane", "canvas", "stage", "editor"],
+        "hs-editor-menu-edit-undo-cross-pane",
+    ),
+    editor_menu_cmd(
+        CMD_EDITOR_EDIT_SHOW_UNDO_HISTORY,
+        "Editor: Show Undo History",
+        &["undo", "history", "inspect", "editor"],
+        "hs-editor-menu-edit-show-undo-history",
     ),
     editor_menu_cmd(
         CMD_EDITOR_EDIT_CUT,
@@ -1035,8 +1071,10 @@ pub fn editor_menu_command_enabled(command_id: &str, ctx: EditorMenuEnableContex
         | CMD_EDITOR_FILE_EXPORT_MD
         | CMD_EDITOR_FILE_EXPORT_TXT
         | CMD_EDITOR_FILE_EXPORT_JSON => ctx.active_rich_editor,
-        CMD_EDITOR_EDIT_UNDO => ctx.active_editor() && ctx.editor_can_undo,
-        CMD_EDITOR_EDIT_REDO => ctx.active_editor() && ctx.editor_can_redo,
+        CMD_EDITOR_EDIT_UNDO => ctx.editor_can_undo,
+        CMD_EDITOR_EDIT_REDO => ctx.editor_can_redo,
+        CMD_EDITOR_EDIT_UNDO_CROSS_PANE => ctx.editor_available && ctx.editor_can_cross_pane_undo,
+        CMD_EDITOR_EDIT_SHOW_UNDO_HISTORY => ctx.editor_available,
         CMD_EDITOR_EDIT_CUT | CMD_EDITOR_EDIT_COPY => ctx.active_editor(),
         CMD_EDITOR_EDIT_PASTE => ctx.active_editor() && ctx.editor_can_paste,
         CMD_EDITOR_EDIT_SELECT_ALL => ctx.active_code_editor,
@@ -1277,6 +1315,8 @@ mod tests {
             CMD_EDITOR_FILE_EXPORT_JSON,
             CMD_EDITOR_EDIT_UNDO,
             CMD_EDITOR_EDIT_REDO,
+            CMD_EDITOR_EDIT_UNDO_CROSS_PANE,
+            CMD_EDITOR_EDIT_SHOW_UNDO_HISTORY,
             CMD_EDITOR_EDIT_CUT,
             CMD_EDITOR_EDIT_COPY,
             CMD_EDITOR_EDIT_PASTE,
@@ -1311,7 +1351,11 @@ mod tests {
                 "menu command id '{expected}' present: {menu_ids:?}"
             );
         }
-        assert_eq!(menu_ids.len(), 37, "exactly 37 EditorMenu commands (35 + MT-035 rename/quick-fix)");
+        assert_eq!(
+            menu_ids.len(),
+            39,
+            "exactly 39 EditorMenu commands (35 + MT-035 rename/quick-fix + cross-pane undo/history)"
+        );
         // MT-069 REMEDIATION: no GO id is pending anymore (the code-nav commands are registered).
         assert!(
             EDITOR_GO_NAV_PENDING_IDS.is_empty(),

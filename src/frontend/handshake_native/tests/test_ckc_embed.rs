@@ -6,17 +6,17 @@
 //!     the same pattern as the canvas-board drop test).
 //!   - AC-2 (unit + gated live-PG): the inserted CKC embed is an `hsLink` atom that ROUND-TRIPS the
 //!     backend `content_json` (NOT an invented `atelier_embed` node) — proven structurally by a
-//!     content_json round-trip, and end-to-end against real PG in the `#[ignore]` integration test.
-//!   - AC-3 (kittest + gated live-PG): a `DragPayload` released over the canvas places a block reference
-//!     IFF it resolves to a loom block id (MT-026 placement, not a fake `atelier_item_id`); the live-PG
-//!     test asserts the placed node appears after reload.
+//!     content_json round-trip, and end-to-end against real PG in the integration-gated proof.
+//!   - AC-3 (kittest + gated live-PG): a resolved payload places its Loom block directly; an unresolved
+//!     Atelier payload is projected through the real Loom block API and then placed by block id (never a
+//!     fake `atelier_item_id`). The live-PG proof asserts the projected block and placement after reload.
 //!   - AC-4 (kittest): the Route-to-Stage command (bus + palette) opens the Stage pane and displays the
 //!     routed content; the `stage-pane` AccessKit Region node carries the staged summary.
 //!   - AC-5 (gated live-PG): the AtelierSidePanel loads batches + corpus from the REAL atelier backend
 //!     (no mocks) — at least one batch row when the backend has a seeded batch.
 //!   - AC-6 (AccessKit dump): `atelier-side-panel` (List), `atelier-item-{id}` (ListItem, draggable),
 //!     `stage-pane` (Region) are present in the live AccessKit tree.
-//!   - AC-7: `cargo test -p handshake-native test_ckc_embed` passes (this file).
+//!   - AC-7: `cargo test -p handshake-native --test test_ckc_embed -- --nocapture` passes (this file).
 //!
 //! ## Artifact hygiene (CX-212E, HARD)
 //!
@@ -26,12 +26,15 @@
 
 use std::path::{Path, PathBuf};
 
-use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+use egui_kittest::kittest::{NodeT, Queryable};
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::atelier_side_panel::{
-    item_author_id, AtelierSidePanel, PANEL_AUTHOR_ID, REFRESH_AUTHOR_ID,
+    batch_author_id, corpus_author_id, item_author_id, item_canvas_author_id,
+    item_insert_author_id, AtelierSidePanel, PANEL_AUTHOR_ID, REFRESH_AUTHOR_ID,
 };
 use handshake_native::backend_client::{AtelierBatchRow, AtelierItemRow, HealthInfo};
 use handshake_native::interop::{
@@ -83,6 +86,42 @@ fn author_ids<S>(harness: &Harness<'_, S>) -> std::collections::HashSet<String> 
     ids
 }
 
+fn center_by_author<S>(harness: &Harness<'_, S>, author_id: &str) -> egui::Pos2 {
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(author_id))
+        .unwrap_or_else(|| panic!("AccessKit node '{author_id}' must be mounted"))
+        .rect()
+        .center()
+}
+
+fn request_click_by_author<S>(harness: &Harness<'_, S>, author_id: &str) {
+    let target = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(author_id))
+        .unwrap_or_else(|| panic!("AccessKit node '{author_id}' must be mounted"))
+        .accesskit_node()
+        .id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target,
+            data: None,
+        },
+    ));
+}
+
+fn pointer_click_by_author<S>(harness: &Harness<'_, S>, author_id: &str) {
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(author_id))
+        .unwrap_or_else(|| panic!("AccessKit node '{author_id}' must be mounted"))
+        .click();
+}
+
 /// A seeded side panel with one expanded batch holding two draggable items (no backend / network).
 fn seeded_panel() -> AtelierSidePanel {
     AtelierSidePanel::with_rows(
@@ -100,12 +139,14 @@ fn seeded_panel() -> AtelierSidePanel {
                     file_name: "sunset.png".to_owned(),
                     source_path: "/intake/sunset.png".to_owned(),
                     lane: "accept".to_owned(),
+                    loom_block_id: None,
                 },
                 AtelierItemRow {
                     item_id: "item-bbb".to_owned(),
                     file_name: "mira.png".to_owned(),
                     source_path: "/intake/mira.png".to_owned(),
                     lane: "accept".to_owned(),
+                    loom_block_id: None,
                 },
             ],
         )),
@@ -119,11 +160,10 @@ fn seeded_panel() -> AtelierSidePanel {
 
 #[test]
 fn ac1_drag_payload_serde_round_trips() {
-    let payload = DragPayload::AtelierRef(AtelierRef::with_loom_block(
+    let payload = DragPayload::AtelierRef(AtelierRef::new(
         "item-7",
         AtelierItemKind::Character,
         "Aria",
-        "blk-42",
     ));
     let json = serde_json::to_string(&payload).expect("serialize");
     let back: DragPayload = serde_json::from_str(&json).expect("deserialize");
@@ -139,10 +179,91 @@ fn ac1_drag_payload_serde_round_trips() {
         link.ref_value, "item-7",
         "AC-1: refValue is the atelier item id"
     );
-    assert!(link.resolved);
+    assert!(
+        link.resolved,
+        "hsLink resolution is independent of canvas projection"
+    );
     println!(
         "AC-1: DragPayload::AtelierRef round-trips + becomes an hsLink atom (refKind=character)"
     );
+}
+
+#[test]
+fn ac1_real_panel_drag_source_drops_on_real_rich_editor() {
+    let panel = std::sync::Arc::new(std::sync::Mutex::new(seeded_panel()));
+    let editor = std::sync::Arc::new(std::sync::Mutex::new(RichEditorState::demo()));
+    let editor_check = std::sync::Arc::clone(&editor);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 650.0))
+        .build_ui(move |ui| {
+            ui.columns(2, |columns| {
+                panel
+                    .lock()
+                    .unwrap()
+                    .show(&mut columns[0], &HsTheme::Dark.palette());
+                RichEditorWidget::new(std::sync::Arc::clone(&editor)).show(&mut columns[1]);
+            });
+        });
+    harness.run();
+    let source = center_by_author(&harness, &item_author_id("item-aaa"));
+    let target = center_by_author(&harness, "editor.rich.text");
+    harness.drag_at(source);
+    harness.run();
+    let mut producer_emitted_typed_payload = false;
+    for step in 1..=8 {
+        let t = step as f32 / 8.0;
+        harness.hover_at(source + (target - source) * t);
+        harness.run();
+        producer_emitted_typed_payload |=
+            egui::DragAndDrop::has_payload_of_type::<DragPayload>(&harness.ctx);
+    }
+    assert!(
+        producer_emitted_typed_payload,
+        "counterfactual producer gate: the actual Atelier dnd_drag_source must stage DragPayload before release"
+    );
+    harness.drop_at(target);
+    harness.run();
+    harness.run();
+    assert_eq!(
+        first_hs_link(&editor_check.lock().unwrap().current_content_json()),
+        Some(("media".to_owned(), "item-aaa".to_owned())),
+        "the actual dnd_drag_source row must insert through the mounted rich-editor drop target"
+    );
+}
+
+#[test]
+fn ac1_failed_editor_drop_is_visible_instead_of_silent() {
+    use handshake_native::rich_editor::document_model::BlockNode;
+
+    let state = std::sync::Arc::new(std::sync::Mutex::new(RichEditorState::new(BlockNode::doc(
+        vec![],
+    ))));
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(700.0, 500.0))
+        .build_ui(move |ui| {
+            RichEditorWidget::new(std::sync::Arc::clone(&state)).show(ui);
+        });
+    harness.run();
+    let target = center_by_author(&harness, "editor.rich.text");
+    harness.event(egui::Event::PointerMoved(target));
+    harness.run();
+    egui::DragAndDrop::set_payload(
+        &harness.ctx,
+        DragPayload::AtelierRef(AtelierRef::new(
+            "item-no-caret",
+            AtelierItemKind::Media,
+            "no-caret.png",
+        )),
+    );
+    harness.event(egui::Event::PointerButton {
+        pos: target,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: egui::Modifiers::default(),
+    });
+    harness.run();
+    harness.run();
+    assert!(author_ids(&harness).contains("rich-editor-interop-status"));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -275,12 +396,13 @@ fn ac2_ckc_embed_round_trips_content_json() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-3 (kittest): a DragPayload released over the canvas places a block reference IFF it resolves to a
-// loom block id (MT-026 placement). An unresolved atelier item is a typed no-op, NOT a fake POST.
+// AC-3 (kittest): a DragPayload released over the canvas places an existing Loom block directly or
+// emits canonical resolve-then-place work for an unresolved Atelier item. No fabricated resolved ref
+// or unsupported `atelier_item_id` is accepted.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn ac3_resolved_atelier_ref_places_on_canvas_unresolved_is_no_op() {
+fn ac3_unresolved_atelier_ref_emits_canonical_resolve_then_place_event() {
     use handshake_native::graph::canvas_board::{CanvasEvent, LoomCanvasBoard};
 
     // Each drop runs in its OWN harness (one drag-release per harness — the proven canvas-drop pattern;
@@ -305,6 +427,13 @@ fn ac3_resolved_atelier_ref_places_on_canvas_unresolved_is_no_op() {
         harness.event(egui::Event::PointerMoved(drop_pos));
         harness.run();
         egui::DragAndDrop::set_payload(&harness.ctx, payload);
+        // Deliberately produce a competing viewport event in the release frame. The external drop must
+        // retain priority over the board's legacy single-event channel.
+        harness.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Line,
+            delta: egui::vec2(0.0, 1.0),
+            modifiers: egui::Modifiers::default(),
+        });
         harness.event(egui::Event::PointerButton {
             pos: drop_pos,
             button: egui::PointerButton::Primary,
@@ -316,37 +445,95 @@ fn ac3_resolved_atelier_ref_places_on_canvas_unresolved_is_no_op() {
         out
     }
 
-    // (a) An UNRESOLVED atelier item (no loom_block_id) released over the canvas must NOT place a node.
+    // A real panel row arrives unresolved. The widget preserves that exact reference and delegates the
+    // canonical Loom projection + placement to the host; it never fabricates a resolved test payload.
     let unresolved = drop_payload_on_canvas(DragPayload::AtelierRef(AtelierRef::new(
         "item-x",
         AtelierItemKind::Media,
         "pic.png",
     )));
-    assert!(
-        unresolved.is_empty(),
-        "AC-3 / RISK-3: an unresolved atelier item must NOT place a canvas node (no fake atelier_item_id)"
-    );
-
-    // (b) A RESOLVED atelier item (with loom_block_id) released over the canvas fires PlaceBlock with the
-    // resolved block id as the placed_block_id (NOT the atelier item id).
-    let resolved = drop_payload_on_canvas(DragPayload::AtelierRef(AtelierRef::with_loom_block(
-        "item-x",
-        AtelierItemKind::Media,
-        "pic.png",
-        "blk-resolved",
-    )));
-    let placed = resolved.iter().find_map(|e| match e {
-        CanvasEvent::PlaceBlock {
-            placed_block_id, ..
-        } => Some(placed_block_id.clone()),
+    let resolved = unresolved.iter().find_map(|event| match event {
+        CanvasEvent::ResolveAtelierAndPlace { atelier_ref, .. } => Some(atelier_ref),
         _ => None,
     });
     assert_eq!(
-        placed.as_deref(),
-        Some("blk-resolved"),
-        "AC-3: a resolved atelier item places its loom block id (the MT-026 placement body), not the item id"
+        resolved.map(|reference| reference.item_id.as_str()),
+        Some("item-x")
     );
-    println!("AC-3: unresolved atelier drop = no-op; resolved atelier drop placed loom block 'blk-resolved'");
+    assert!(resolved.is_some_and(|reference| reference.loom_block_id.is_none()));
+}
+
+#[test]
+fn ac3_real_panel_drag_source_drops_on_real_canvas() {
+    use handshake_native::graph::canvas_board::{CanvasEvent, LoomCanvasBoard};
+
+    let panel = std::sync::Arc::new(std::sync::Mutex::new(seeded_panel()));
+    let board = std::sync::Arc::new(std::sync::Mutex::new(LoomCanvasBoard::new(
+        "ws-test",
+        "canvas-test",
+    )));
+    let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::<CanvasEvent>::new()));
+    let events_check = std::sync::Arc::clone(&events);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 650.0))
+        .build_ui(move |ui| {
+            ui.columns(2, |columns| {
+                panel
+                    .lock()
+                    .unwrap()
+                    .show(&mut columns[0], &HsTheme::Dark.palette());
+                if let Some(event) = board
+                    .lock()
+                    .unwrap()
+                    .show(&mut columns[1], &HsTheme::Dark.palette())
+                {
+                    events.lock().unwrap().push(event);
+                }
+            });
+        });
+    harness.run();
+    let source = center_by_author(&harness, &item_author_id("item-aaa"));
+    let target = center_by_author(&harness, handshake_native::graph::STATUS_AUTHOR_ID)
+        + egui::vec2(0.0, 180.0);
+    harness.drag_at(source);
+    harness.run();
+    let mut producer_emitted_typed_payload = false;
+    for step in 1..=8 {
+        let t = step as f32 / 8.0;
+        harness.hover_at(source + (target - source) * t);
+        harness.run();
+        producer_emitted_typed_payload |=
+            egui::DragAndDrop::has_payload_of_type::<DragPayload>(&harness.ctx);
+    }
+    assert!(
+        producer_emitted_typed_payload,
+        "counterfactual producer gate: the actual Atelier dnd_drag_source must stage DragPayload before canvas release"
+    );
+    harness.drop_at(target);
+    harness.run();
+    harness.run();
+    let events = events_check.lock().unwrap();
+    let resolved = events
+        .iter()
+        .filter_map(|event| match event {
+            CanvasEvent::ResolveAtelierAndPlace { atelier_ref, .. } => Some(atelier_ref),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        resolved.len(),
+        1,
+        "one physical Atelier release must enqueue exactly one ResolveAtelierAndPlace"
+    );
+    assert_eq!(resolved[0].item_id.as_str(), "item-aaa");
+    assert!(resolved[0].loom_block_id.is_none());
+    assert!(
+        !events.iter().any(|event| matches!(
+            event,
+            CanvasEvent::ViewportChanged { .. } | CanvasEvent::MovePlacement { .. }
+        )),
+        "external drop must outrank and suppress competing viewport/card-move events in the release frame: {events:?}"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -366,11 +553,24 @@ fn ac4_route_to_stage_displays_routed_selection() {
             // Per-frame shell drain: pull any staged content off the bus into the Stage pane (the
             // production shell does exactly this each frame).
             let bus = InteractionBus::get_or_init(ui.ctx());
-            InteractionBus::with_try_lock(&bus, |bus| {
-                if let Some(content) = bus.take_pending_stage_content() {
-                    stage_h.lock().unwrap().set_content(content);
-                }
-            });
+            let route =
+                InteractionBus::with_try_lock(&bus, |bus| bus.pending_stage_route().cloned())
+                    .flatten();
+            if let Some(route) = route {
+                let mut stage = stage_h.lock().unwrap();
+                let _ = InteractionBus::with_try_lock(&bus, |bus| {
+                    if bus
+                        .pending_stage_route()
+                        .is_some_and(|pending| pending.receipt.event_id == route.receipt.event_id)
+                    {
+                        stage.set_content_correlated(
+                            route.content.clone(),
+                            route.causal_action_id.clone(),
+                        );
+                        let _ = bus.ack_pending_stage_route(&route.receipt.event_id);
+                    }
+                });
+            }
             let pal = HsTheme::Dark.palette();
             stage_h.lock().unwrap().show(ui, &pal);
         });
@@ -452,9 +652,8 @@ fn ac6_accesskit_nodes_present() {
         "AC-6: at least one atelier-item-{{id}} ListItem node present (looked for {expected_item}; got {ids:?})"
     );
 
-    // The panel container is Role::List; the item row is Role::ListItem with a 'draggable' description +
-    // an Action::Click (the field-correct stand-in for the non-existent StartDrag action in accesskit
-    // 0.21.1) — assert the role + draggable affordance on the actual nodes.
+    // The panel container is Role::List; the item row is Role::ListItem with a truthful 'draggable'
+    // description. AccessKit 0.21.1 has no StartDrag action, so Click is the executable model fallback.
     let mut saw_list = false;
     let mut saw_list_item_draggable = false;
     for node in harness.root().children_recursive() {
@@ -483,6 +682,7 @@ fn ac6_accesskit_nodes_present() {
                     desc.contains("item-aaa"),
                     "AC-6: the item row exposes its atelier ref in the description (got '{desc}')"
                 );
+                assert!(ak.data().supports_action(egui::accesskit::Action::Click));
                 saw_list_item_draggable = true;
             }
             _ => {}
@@ -493,6 +693,14 @@ fn ac6_accesskit_nodes_present() {
         saw_list_item_draggable,
         "AC-6: the draggable ListItem node was inspected"
     );
+    request_click_by_author(&harness, &expected_item);
+    harness.run();
+    assert!(matches!(
+        panel.lock().unwrap().take_action(),
+        Some(handshake_native::atelier_side_panel::AtelierPanelAction::InsertIntoActiveEditor(
+            reference
+        )) if reference.item_id == "item-aaa"
+    ));
 
     // (b) The Stage pane: Region container node.
     let stage = std::sync::Arc::new(std::sync::Mutex::new(StagePane::new()));
@@ -522,7 +730,9 @@ fn ac6_accesskit_nodes_present() {
         }
     }
     assert!(saw_region, "AC-6: the Region node was inspected");
-    println!("AC-6: atelier-side-panel(List), atelier-item-item-aaa(ListItem+draggable), stage-pane(Region) present");
+    println!(
+        "AC-6: atelier-side-panel(List), injective atelier-item hex id(ListItem+draggable), stage-pane(Region) present"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -535,43 +745,59 @@ fn ac6_accesskit_nodes_present() {
 // mounted Stage pane.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// A headless real shell (current-thread runtime, no live backend) with the atelier panel seeded so its
-/// draggable item rows render without a network. The Stage pane starts closed (nothing routed yet).
+#[test]
+fn ac6_atelier_toggle_is_a_model_addressable_command() {
+    use handshake_native::command_registry::{all_commands, CMD_VIEW_ATELIER};
+
+    let command = all_commands()
+        .iter()
+        .find(|command| command.id == CMD_VIEW_ATELIER)
+        .expect("canonical Atelier view command is registered");
+    assert_eq!(command.stable_id, "hs-view-palette-atelier");
+    assert!(!command.disabled, "Atelier toggle is executable");
+}
+
+/// A headless real shell. Data-row proof belongs to the managed-backend mounted test; this helper never
+/// seeds the production panel and therefore cannot turn a detached fixture into false shell evidence.
 fn live_shell() -> HandshakeApp {
-    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+    HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_owned(),
         db_status: "ok".to_owned(),
         migration_version: Some(1),
-    }));
-    app.atelier_side_panel_mut().seed_rows(
-        vec![AtelierBatchRow {
-            batch_id: "batch-1".to_owned(),
-            source_label: "Sourcing Run A".to_owned(),
-            status: "open".to_owned(),
-        }],
-        vec![],
-        Some((
-            "batch-1".to_owned(),
-            vec![AtelierItemRow {
-                item_id: "item-aaa".to_owned(),
-                file_name: "sunset.png".to_owned(),
-                source_path: "/intake/sunset.png".to_owned(),
-                lane: "accept".to_owned(),
-            }],
-        )),
-    );
-    app
+    }))
+}
+
+fn cross_pane_undo_modifiers() -> egui::Modifiers {
+    egui::Modifiers {
+        ctrl: true,
+        shift: true,
+        command: true,
+        ..Default::default()
+    }
 }
 
 #[test]
 fn ac6_atelier_side_panel_mounted_in_live_shell() {
-    // Render the REAL shell for two frames; the right-edge Atelier side panel must contribute its List
-    // container + a draggable item ListItem to the LIVE AccessKit tree (proving it is actually mounted in
-    // app.rs, not only in a standalone harness).
+    // Render the REAL shell while the panel is closed. A preloaded widget alone must not satisfy this
+    // proof: the operator has to open the VIEW dropdown and invoke its canonical `view.atelier` route.
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), live_shell());
     harness.run();
+
+    assert!(
+        !author_ids(&harness).contains(PANEL_AUTHOR_ID),
+        "AC-6 live: Atelier panel starts closed"
+    );
+    harness.get_by_label("VIEW").click();
+    harness.run();
+    let menu_ids = author_ids(&harness);
+    assert!(
+        menu_ids.contains("menu.view.toggle-atelier"),
+        "AC-6 live: canonical model-addressable VIEW leaf is present ({menu_ids:?})"
+    );
+    harness.get_by_label("Toggle Atelier / CKC Panel").click();
+    harness.step();
     harness.run();
 
     let ids = author_ids(&harness);
@@ -579,10 +805,14 @@ fn ac6_atelier_side_panel_mounted_in_live_shell() {
         ids.contains(PANEL_AUTHOR_ID),
         "AC-6 live: atelier-side-panel List node present in the REAL shell tree ({ids:?})"
     );
-    let expected_item = item_author_id("item-aaa");
+    // The same command is a real toggle, not a one-way test seam.
+    harness.get_by_label("VIEW").click();
+    harness.run();
+    harness.get_by_label("Toggle Atelier / CKC Panel").click();
+    harness.run();
     assert!(
-        ids.contains(&expected_item),
-        "AC-6 live: a draggable atelier item node present in the REAL shell (looked for {expected_item})"
+        !author_ids(&harness).contains(PANEL_AUTHOR_ID),
+        "AC-6 live: invoking the canonical route again closes the mounted panel"
     );
     println!(
         "AC-6 live: the Atelier side panel is mounted + reachable in the real HandshakeApp shell"
@@ -647,6 +877,422 @@ fn ac4_route_to_stage_in_live_shell_shows_stage_pane() {
     );
 }
 
+#[test]
+fn ac4_view_stage_then_route_uses_one_docked_stage_region() {
+    use handshake_native::pane_registry::PaneId;
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), live_shell());
+    harness.run();
+    harness.get_by_label("EDITORS").click();
+    harness.run();
+    harness.get_by_label("View: Stage").click();
+    harness.run_steps(2);
+
+    let stage_pane = harness
+        .state()
+        .tab_bar_states()
+        .iter()
+        .find_map(|(pane_id, bar)| {
+            bar.tabs
+                .iter()
+                .any(|tab| tab.label() == "Stage")
+                .then(|| pane_id.clone())
+        })
+        .expect("EDITORS opens one Stage tab");
+    let other_pane = harness
+        .state()
+        .tab_bar_states()
+        .keys()
+        .find(|pane_id| **pane_id != stage_pane)
+        .cloned()
+        .unwrap_or_else(|| PaneId::from("pane-b"));
+    harness
+        .state_mut()
+        .set_active_pane_for_test(Some(other_pane.clone()));
+
+    assert!(
+        harness
+            .state_mut()
+            .dispatch_palette_action_for_test(handshake_native::interop::CMD_EMBED_STAGE_CAPTURE),
+        "Embed Stage Capture dispatches through the shell-wide Stage opener"
+    );
+    harness.run_steps(2);
+    assert_eq!(
+        harness
+            .root()
+            .children_recursive()
+            .filter(|node| node.accesskit_node().author_id() == Some(STAGE_PANE_AUTHOR_ID))
+            .count(),
+        1,
+        "Embed Stage Capture after a pane switch must focus, not duplicate, Stage"
+    );
+    harness
+        .state_mut()
+        .set_active_pane_for_test(Some(other_pane));
+
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    assert_eq!(
+        InteractionBus::with_try_lock(&bus, |bus| {
+            bus.register_route_to_stage_command();
+            bus.route_to_stage(
+                &harness.ctx,
+                StageContent::Selection("one host".into(), "DOC-STAGE".into()),
+            )
+        }),
+        Some(true)
+    );
+    harness.run_steps(3);
+
+    let stage_nodes = harness
+        .root()
+        .children_recursive()
+        .filter(|node| node.accesskit_node().author_id() == Some(STAGE_PANE_AUTHOR_ID))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        stage_nodes.len(),
+        1,
+        "EDITORS open, pane switch, then route must not duplicate stage-pane"
+    );
+    assert_eq!(
+        format!("{:?}", stage_nodes[0].accesskit_node().role()),
+        "Region"
+    );
+    assert!(stage_nodes[0]
+        .accesskit_node()
+        .value()
+        .unwrap_or_default()
+        .contains("one host"));
+    assert_eq!(
+        harness.state().active_pane(),
+        Some(&stage_pane),
+        "routing from another pane focuses the existing shell-wide Stage tab"
+    );
+}
+
+#[test]
+fn ac4_live_shell_route_registers_and_executes_unified_stage_undo() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), live_shell());
+    harness.run();
+
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    let dispatched = InteractionBus::with_try_lock(&bus, |bus| {
+        bus.register_route_to_stage_command();
+        bus.route_to_stage(
+            &harness.ctx,
+            StageContent::Selection("undo me".to_owned(), "DOC-UNDO-33".to_owned()),
+        )
+    })
+    .unwrap_or(false);
+    assert!(dispatched, "live Stage route dispatches");
+    harness.run_steps(2);
+    assert!(matches!(
+        harness.state().stage_content(),
+        StageContent::Selection(ref text, ref source)
+            if text == "undo me" && source == "DOC-UNDO-33"
+    ));
+
+    // Drive the actual shell-owned production shortcut consumer. Calling `undo_cross_pane` directly
+    // would only prove the stack method and would leave the registered Ctrl+Shift+Z chord orphaned.
+    harness.key_press_modifiers(cross_pane_undo_modifiers(), egui::Key::Z);
+    harness.run_steps(2);
+    assert!(matches!(
+        harness.state().stage_content(),
+        StageContent::Empty
+    ));
+}
+
+#[test]
+fn ac4_mounted_canvas_context_route_uses_live_pane_guard_and_rejects_closed_source() {
+    use handshake_native::command_registry::CMD_VIEW_CANVAS;
+    use handshake_native::context_menu_surfaces::NodeMenuAction;
+    use handshake_native::graph::canvas_board::CanvasEvent;
+    use handshake_native::pane_registry::{PaneId, PaneType};
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("runtime");
+    let mut app = live_shell();
+    app.set_backend_base_url_for_test("http://127.0.0.1:1", runtime.handle().clone());
+    app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
+    assert!(
+        app.dispatch_palette_action_for_test(CMD_VIEW_CANVAS),
+        "production View Canvas route mounts the Canvas tab"
+    );
+    app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
+    {
+        let board = app.mounted_canvas_board();
+        let mut board = board.lock().unwrap();
+        board.begin_projection_load("ws-canvas-route-33", "canvas-route-33");
+        board.set_board(Vec::new(), Vec::new(), egui::Vec2::ZERO, 1.0);
+    }
+    let events = app.mounted_canvas_events();
+    events.lock().unwrap().push(CanvasEvent::NodeMenu {
+        placement_id: "placement-route-33".to_owned(),
+        block_id: "block-route-33".to_owned(),
+        source_pane_id: Some(PaneId::from("pane-a")),
+        source_workspace_id: "ws-canvas-route-33".to_owned(),
+        source_canvas_block_id: "canvas-route-33".to_owned(),
+        unresolved_link_title: None,
+        action: NodeMenuAction::RouteToStage,
+    });
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+    assert!(matches!(
+        harness.state().stage_content(),
+        StageContent::Selection(ref text, ref source)
+            if text == "canvas node block-route-33"
+                && source == "node://canvas-route-33/block-route-33"
+    ));
+    assert_eq!(harness.state().quick_switcher_nav_status(), None);
+
+    // Close the actual Canvas tab, then deliver the same production Canvas menu event queue shape. The
+    // queued stale action must not silently route through the pure builder after its source disappears.
+    let canvas_tab_index = harness
+        .state()
+        .tab_bar_states()
+        .get(&PaneId::from("pane-a"))
+        .and_then(|bar| {
+            bar.tabs
+                .iter()
+                .position(|tab| tab.pane_type == PaneType::AtelierEditor)
+        })
+        .expect("mounted Canvas tab is still present before close");
+    harness
+        .state_mut()
+        .close_tab_indices_for_test(PaneId::from("pane-a"), vec![canvas_tab_index]);
+    events.lock().unwrap().push(CanvasEvent::NodeMenu {
+        placement_id: "placement-stale-33".to_owned(),
+        block_id: "block-stale-33".to_owned(),
+        source_pane_id: Some(PaneId::from("pane-a")),
+        source_workspace_id: "ws-canvas-route-33".to_owned(),
+        source_canvas_block_id: "canvas-route-33".to_owned(),
+        unresolved_link_title: None,
+        action: NodeMenuAction::RouteToStage,
+    });
+    harness.run_steps(3);
+    let status = harness
+        .state()
+        .quick_switcher_nav_status()
+        .expect("closed Canvas source produces a visible typed status");
+    assert!(status.contains("pane that is not open: pane-a"), "{status}");
+    assert!(matches!(
+        harness.state().stage_content(),
+        StageContent::Selection(ref text, _) if text == "canvas node block-route-33"
+    ));
+
+    drop(harness);
+    runtime.shutdown_timeout(std::time::Duration::from_secs(2));
+}
+
+#[test]
+fn ac4_real_rich_selection_context_menu_routes_to_stage_in_mounted_shell() {
+    use handshake_native::rich_editor::document_model::{DocPosition, Selection};
+
+    let app = live_shell();
+    {
+        let rich = app.mounted_rich_state();
+        let mut state = rich.lock().unwrap();
+        state.wikilinks.document_id = "DOC-CONTEXT-33".to_owned();
+        state.selection = Selection::text(
+            DocPosition::new(vec![1, 0], 0),
+            DocPosition::new(vec![1, 0], 5),
+        );
+        assert_eq!(
+            state.selected_text().map(|(_, _, _, text)| text),
+            Some("Hello".to_owned())
+        );
+    }
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run();
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("editor.rich.text"))
+        .expect("mounted editor.rich.text")
+        .click_secondary();
+    harness.run();
+    harness.run();
+    assert!(
+        author_ids(&harness).contains("rich-editor.route-to-stage"),
+        "the required rich-selection context-menu action has a stable author id"
+    );
+    harness.get_by_label("Route to Stage").click();
+    harness.run();
+    harness.run();
+    let value = stage_value(&harness).expect("context-menu route opens mounted Stage");
+    assert!(value.contains("DOC-CONTEXT-33"), "{value}");
+    assert!(value.contains("Hello"), "{value}");
+}
+
+#[test]
+fn ac4_cross_block_selection_materializes_exact_text() {
+    use handshake_native::rich_editor::document_model::{DocPosition, Selection};
+
+    let mut state = RichEditorState::demo();
+    state.wikilinks.document_id = "DOC-CROSS-33".to_owned();
+    state.selection = Selection::text(
+        DocPosition::new(vec![0, 0], 2),
+        DocPosition::new(vec![1, 0], 5),
+    );
+    assert_eq!(
+        state.selected_text_for_stage().as_deref(),
+        Some("ading One\nHello")
+    );
+    assert!(matches!(
+        state.stage_route_content(),
+        Some(StageContent::Selection(text, document_id))
+            if text == "ading One\nHello" && document_id == "DOC-CROSS-33"
+    ));
+}
+
+#[test]
+fn ac4_palette_routes_exact_cross_block_selection_in_mounted_shell() {
+    use handshake_native::rich_editor::document_model::{DocPosition, Selection};
+
+    let app = live_shell();
+    {
+        let rich = app.mounted_rich_state();
+        let mut state = rich.lock().unwrap();
+        state.wikilinks.document_id = "DOC-PALETTE-CROSS-33".to_owned();
+        state.selection = Selection::text(
+            DocPosition::new(vec![0, 0], 2),
+            DocPosition::new(vec![1, 0], 5),
+        );
+    }
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run();
+    let ctx = harness.ctx.clone();
+    assert!(
+        harness
+            .state_mut()
+            .dispatch_palette_action_for_test_with_ctx(&ctx, CMD_ROUTE_TO_STAGE),
+        "positive palette dispatch must execute the registered Route-to-Stage command"
+    );
+    harness.run_steps(3);
+
+    let value = stage_value(&harness).expect("palette route opens mounted Stage pane");
+    assert!(value.contains("DOC-PALETTE-CROSS-33"), "{value}");
+    assert!(value.contains("ading One\nHello"), "{value}");
+    assert!(matches!(
+        harness.state().stage_content(),
+        StageContent::Selection(text, source)
+            if text == "ading One\nHello" && source == "DOC-PALETTE-CROSS-33"
+    ));
+}
+
+#[test]
+fn ac4_no_selection_context_menu_routes_whole_active_document() {
+    let app = live_shell();
+    {
+        let rich = app.mounted_rich_state();
+        rich.lock().unwrap().wikilinks.document_id = "DOC-NO-SELECTION".to_owned();
+    }
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run();
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("editor.rich.text"))
+        .expect("mounted editor.rich.text")
+        .click_secondary();
+    harness.run();
+    harness.run();
+    harness.get_by_label("Route to Stage").click();
+    harness.run();
+    harness.run();
+    let value = stage_value(&harness).expect("whole document routed to mounted Stage");
+    assert!(value.contains("DOC-NO-SELECTION"), "{value}");
+    assert!(value.contains("Document:"), "{value}");
+}
+
+#[test]
+fn ac4_palette_route_without_active_selection_visibly_fails() {
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), live_shell());
+    harness.run();
+    let ctx = harness.ctx.clone();
+    assert!(harness
+        .state_mut()
+        .dispatch_palette_action_for_test_with_ctx(&ctx, CMD_ROUTE_TO_STAGE));
+    harness.run();
+    harness.run();
+    assert!(author_ids(&harness).contains("stage-route-status"));
+    assert!(stage_value(&harness)
+        .unwrap_or_default()
+        .contains("open a rich document first"));
+}
+
+#[test]
+fn route_to_stage_bus_contention_retains_visible_retry_and_recovers() {
+    use handshake_native::rich_editor::document_model::{DocPosition, Selection};
+
+    let app = live_shell();
+    {
+        let rich = app.mounted_rich_state();
+        let mut state = rich.lock().unwrap();
+        state.wikilinks.document_id = "DOC-BUSY-33".to_owned();
+        state.selection = Selection::text(
+            DocPosition::new(vec![1, 0], 0),
+            DocPosition::new(vec![1, 0], 5),
+        );
+    }
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run();
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("editor.rich.text"))
+        .expect("mounted editor.rich.text")
+        .click_secondary();
+    harness.run_steps(2);
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    let guard = bus.lock().expect("hold InteractionBus to force contention");
+    harness.get_by_label("Route to Stage").click();
+    harness.run();
+    drop(guard);
+    harness.run_steps(2);
+    assert!(author_ids(&harness).contains("rich-editor-stage-route-retry"));
+    assert!(author_ids(&harness).contains("rich-editor-interop-status"));
+    let retained = harness
+        .state()
+        .mounted_rich_state()
+        .lock()
+        .unwrap()
+        .pending_stage_route_retry
+        .clone();
+    assert!(matches!(
+        retained,
+        Some(handshake_native::interop::PendingStageRoute {
+            content: StageContent::Selection(ref text, ref source),
+            ..
+        })
+            if text == "Hello" && source == "DOC-BUSY-33"
+    ));
+    harness.get_by_label("Retry Route to Stage").click();
+    harness.run_steps(3);
+    let value = stage_value(&harness).expect("retained route reaches Stage after retry");
+    assert!(value.contains("DOC-BUSY-33"), "{value}");
+    assert!(value.contains("Hello"), "{value}");
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-4 named context-menu surface: the explorer-row "Route to Stage" item (the contract's named
 // selection->stage dispatch surface) routes a DOCUMENT to the Stage pane through the bus + shell drain.
@@ -694,7 +1340,8 @@ fn ac4_explorer_context_menu_route_to_stage_item_routes_document() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// HBR-VIS screenshot: the atelier side panel renders non-blank; the PNG goes to the EXTERNAL root only.
+// HBR-VIS screenshot: the Atelier side panel renders inside the real native shell; the PNG goes to the
+// EXTERNAL root only.
 // Gated behind the `wgpu_screenshots` feature (the WP-wide concurrent-wgpu hazard). The structural +
 // AccessKit proofs above carry the AC coverage without a GPU.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -703,37 +1350,32 @@ fn ac4_explorer_context_menu_route_to_stage_item_routes_document() {
 #[cfg(feature = "wgpu_screenshots")]
 fn atelier_panel_screenshot() {
     let _guard = wgpu_guard();
-    let panel = std::sync::Arc::new(std::sync::Mutex::new(seeded_panel()));
-    let panel_h = std::sync::Arc::clone(&panel);
+    let mut app = live_shell();
+    *app.atelier_side_panel_mut() = seeded_panel();
+    app.set_atelier_panel_open(true);
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(360.0, 640.0))
+        .with_size(egui::vec2(1280.0, 800.0))
         .wgpu()
-        .build_ui(move |ui| {
-            let pal = HsTheme::Dark.palette();
-            panel_h.lock().unwrap().show(ui, &pal);
-        });
-    harness.run();
-    harness.run();
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+    assert!(author_ids(&harness).contains(PANEL_AUTHOR_ID));
+    assert!(author_ids(&harness).contains(&item_author_id("item-aaa")));
 
-    match harness.render() {
-        Ok(image) => {
-            let (w, h) = (image.width(), image.height());
-            assert!(w > 0 && h > 0, "screenshot has non-zero size");
-            let ext_dir = external_artifact_dir("wp-kernel-012-mt-033");
-            let _ = std::fs::create_dir_all(&ext_dir);
-            let png = ext_dir.join("MT-033-atelier-side-panel.png");
-            let saved = image.save(&png).is_ok();
-            println!(
-                "HBR-VIS: {w}x{h} atelier panel screenshot, saved={saved} ({})",
-                png.display()
-            );
-        }
-        Err(e) => {
-            println!(
-                "BLOCKER(non-fatal): atelier panel screenshot unavailable (no wgpu adapter): {e}."
-            );
-        }
-    }
+    let image = harness
+        .render()
+        .expect("HBR-VIS screenshot rendering is a required proof");
+    let (w, h) = (image.width(), image.height());
+    assert!(w > 0 && h > 0, "screenshot has non-zero size");
+    let ext_dir = external_artifact_dir("wp-kernel-012-mt-033");
+    std::fs::create_dir_all(&ext_dir).expect("create external MT-033 screenshot directory");
+    let png = ext_dir.join("MT-033-atelier-side-panel.png");
+    image
+        .save(&png)
+        .unwrap_or_else(|error| panic!("save required screenshot {}: {error}", png.display()));
+    println!(
+        "HBR-VIS: {w}x{h} atelier panel screenshot ({})",
+        png.display()
+    );
     assert_no_local_artifact_dir();
 }
 
@@ -743,6 +1385,23 @@ fn atelier_panel_screenshot() {
 fn no_local_artifact_dir_in_default_suite() {
     let _ = wgpu_guard; // keep the guard referenced even when the screenshot feature is off
     assert_no_local_artifact_dir();
+}
+
+#[test]
+fn declared_test_command_targets_this_nonzero_integration_binary() {
+    const DECLARED: &str = "cargo test -p handshake-native --test test_ckc_embed -- --nocapture";
+    assert!(DECLARED.contains("--test test_ckc_embed"));
+    let mandatory_runtime_proofs = [
+        "real-panel-to-rich-editor-dnd",
+        "real-panel-to-canvas-dnd",
+        "mounted-selection-context-menu-to-stage",
+        "managed-backend-mounted-panel",
+        "managed-backend-save-and-canvas-reload",
+    ];
+    assert!(
+        !mandatory_runtime_proofs.is_empty(),
+        "the declared integration binary must execute a nonzero proof set"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -776,81 +1435,813 @@ fn atelier_client_builds_verified_routes() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// LIVE-PG (gated): NEEDS_MANAGED_RESOURCE_PROOF without a running, seeded backend. Never fakes PG.
-// Run with: cargo test --features integration --test test_ckc_embed -- --ignored
+// LIVE-PG (integration-gated): self-seeds the managed PostgreSQL/backend and cleans exact ids.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// AC-5 against REAL Handshake-managed PostgreSQL: the AtelierSidePanel loads batches + corpus from the
-/// live atelier backend (`GET /atelier/intake/batches` + `/atelier/command-corpus`). The operator seeds
-/// at least one intake batch before running. Gated behind `integration` + `#[ignore]`.
+#[cfg(feature = "integration")]
+fn psql_program() -> std::path::PathBuf {
+    for var in ["HANDSHAKE_MANAGED_PG_BIN", "PGBIN"] {
+        if let Some(dir) = std::env::var_os(var).filter(|value| !value.is_empty()) {
+            let name = if cfg!(windows) { "psql.exe" } else { "psql" };
+            let candidate = std::path::PathBuf::from(dir).join(name);
+            if candidate.is_file() {
+                return candidate;
+            }
+        }
+    }
+    if cfg!(windows) {
+        for root_var in ["ProgramFiles", "ProgramFiles(x86)"] {
+            let Some(root) = std::env::var_os(root_var) else {
+                continue;
+            };
+            let postgres = std::path::PathBuf::from(root).join("PostgreSQL");
+            let Ok(entries) = std::fs::read_dir(postgres) else {
+                continue;
+            };
+            let mut candidates = entries
+                .filter_map(Result::ok)
+                .map(|entry| entry.path().join("bin").join("psql.exe"))
+                .filter(|path| path.is_file())
+                .collect::<Vec<_>>();
+            candidates.sort();
+            if let Some(candidate) = candidates.pop() {
+                return candidate;
+            }
+        }
+    }
+    std::path::PathBuf::from(if cfg!(windows) { "psql.exe" } else { "psql" })
+}
+
+#[cfg(feature = "integration")]
+fn pg_dsn() -> String {
+    ["POSTGRES_TEST_URL", "DATABASE_URL"]
+        .into_iter()
+        .find_map(|name| {
+            std::env::var(name)
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })
+        .expect("AC-5 live requires POSTGRES_TEST_URL or DATABASE_URL for exact test-row cleanup")
+}
+
+#[cfg(feature = "integration")]
+fn integration_suffix() -> String {
+    format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos()
+    )
+}
+
+#[cfg(feature = "integration")]
+fn proof_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    request
+        .header("x-hsk-actor-id", "mt033-live-pg")
+        .header("x-hsk-actor-kind", "operator")
+        .header("x-hsk-kernel-task-run-id", "WP-KERNEL-012-MT-033")
+        .header("x-hsk-session-run-id", "MT-033-integration")
+}
+
+#[cfg(feature = "integration")]
+fn workspace_write_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    request
+        .header("x-hsk-actor-id", "mt033-live-pg")
+        .header("x-hsk-actor-kind", "human")
+}
+
+#[cfg(feature = "integration")]
+fn run_psql(sql: &str) -> String {
+    let mut command = std::process::Command::new(psql_program());
+    command
+        .arg("--dbname")
+        .arg(pg_dsn())
+        .arg("--set")
+        .arg("ON_ERROR_STOP=1")
+        .arg("--no-align")
+        .arg("--tuples-only")
+        .arg("--command")
+        .arg(sql);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt as _;
+        command.creation_flags(0x0800_0000);
+    }
+    let output = command.output().expect("launch managed PostgreSQL psql");
+    assert!(
+        output.status.success(),
+        "managed PostgreSQL SQL failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).expect("psql emits UTF-8")
+}
+
+#[cfg(feature = "integration")]
+struct AtelierPgCleanup {
+    batch_id: String,
+    corpus_action_id: String,
+    armed: bool,
+}
+
+#[cfg(feature = "integration")]
+impl AtelierPgCleanup {
+    fn cleanup(&mut self) -> String {
+        let deleted = run_psql(&format!(
+            "WITH deleted_corpus AS (DELETE FROM atelier_command_corpus_entry WHERE action_id = '{action}' RETURNING 1), \
+             deleted_batch AS (DELETE FROM atelier_intake_batch WHERE batch_id = '{batch}'::uuid RETURNING 1) \
+             SELECT json_build_object('deleted_corpus', (SELECT count(*) FROM deleted_corpus), \
+                                      'deleted_batch', (SELECT count(*) FROM deleted_batch));",
+            action = self.corpus_action_id,
+            batch = self.batch_id,
+        ));
+        // Data-modifying CTE subqueries share one MVCC snapshot, so a same-statement item count can
+        // still observe rows removed by the batch's ON DELETE CASCADE. Measure absence in a fresh
+        // statement after the delete has completed.
+        let remaining_items = run_psql(&format!(
+            "SELECT count(*) FROM atelier_intake_item WHERE batch_id = '{}'::uuid;",
+            self.batch_id
+        ));
+        let mut receipt: serde_json::Value =
+            serde_json::from_str(deleted.trim()).expect("Atelier deletion receipt is JSON");
+        receipt["remaining_items"] = serde_json::json!(remaining_items
+            .trim()
+            .parse::<u64>()
+            .expect("remaining item count"));
+        self.armed = false;
+        serde_json::to_string(&receipt).expect("serialize Atelier cleanup receipt")
+    }
+}
+
+#[cfg(feature = "integration")]
+impl Drop for AtelierPgCleanup {
+    fn drop(&mut self) {
+        if self.armed {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.cleanup()));
+        }
+    }
+}
+
+#[cfg(feature = "integration")]
+fn assert_atelier_cleanup(receipt: &str, expected_corpus: u64) {
+    let parsed: serde_json::Value =
+        serde_json::from_str(receipt.trim()).expect("Atelier cleanup receipt is JSON");
+    assert_eq!(
+        parsed["deleted_corpus"].as_u64(),
+        Some(expected_corpus),
+        "{receipt}"
+    );
+    assert_eq!(parsed["deleted_batch"].as_u64(), Some(1), "{receipt}");
+    assert_eq!(parsed["remaining_items"].as_u64(), Some(0), "{receipt}");
+}
+
+/// AC-5 against REAL Handshake-managed PostgreSQL: create a unique batch through the product HTTP API,
+/// add one item + corpus row directly to that same managed database, then drive the production
+/// `AtelierClient` twice (fresh reload) over batches, corpus, and per-batch items. The exact generated ids
+/// are deleted and the cleanup receipt proves the cascade left no item behind. This test is unignored:
+/// selecting `--features integration` means the managed backend + DSN are required, not silently skipped.
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a seeded atelier intake batch"]
 #[cfg(feature = "integration")]
 fn ac5_atelier_side_panel_loads_from_live_pg() {
-    use handshake_native::backend_client::{AtelierClient, AtelierSidePanelCell};
+    use handshake_native::backend_client::{AtelierClient, AtelierItemsCell, AtelierSidePanelCell};
     use std::sync::{Arc, Mutex};
 
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-    let client = AtelierClient::production(rt.handle().clone());
-    let cell: AtelierSidePanelCell = Arc::new(Mutex::new(None));
-    client.fetch_side_panel(Arc::clone(&cell));
-    let mut data = None;
-    for _ in 0..50 {
-        if let Some(r) = cell.lock().unwrap().take() {
-            data = Some(r);
+    let base = std::env::var("HANDSHAKE_TEST_DB_URL")
+        .unwrap_or_else(|_| "http://127.0.0.1:37501".to_owned());
+    let suffix = integration_suffix();
+    let source_label = format!("MT-033 managed proof {suffix}");
+    let corpus_action_id = format!("mt033.proof.{suffix}");
+    let http = reqwest::Client::builder()
+        .pool_max_idle_per_host(2)
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .expect("bounded proof client");
+    let created: serde_json::Value = rt.block_on(async {
+        let response = http
+            .post(format!("{base}/atelier/intake/batches"))
+            .json(&serde_json::json!({
+                "idempotency_key": format!("mt033-{suffix}"),
+                "source_label": source_label.clone(),
+                "source_ref": format!("mt033://{suffix}"),
+                "mode": "manual",
+                "profile_mode": "loose_profile"
+            }))
+            .send()
+            .await
+            .expect("POST managed Atelier batch");
+        assert_eq!(response.status(), reqwest::StatusCode::CREATED);
+        response.json().await.expect("parse created batch")
+    });
+    let batch_id = created["batch_id"]
+        .as_str()
+        .expect("created batch_id")
+        .to_owned();
+    let mut cleanup = AtelierPgCleanup {
+        batch_id: batch_id.clone(),
+        corpus_action_id: corpus_action_id.clone(),
+        armed: true,
+    };
+    let item_id = run_psql(&format!(
+        "WITH inserted AS (INSERT INTO atelier_intake_item (batch_id, source_path, file_name, byte_len, content_hash, lane) \
+         VALUES ('{batch}'::uuid, '/mt033/{suffix}.png', 'mt033-{suffix}.png', 33, '{suffix}', 'pending') \
+         RETURNING item_id) SELECT item_id FROM inserted;",
+        batch = batch_id,
+    ))
+    .trim()
+    .to_owned();
+    uuid::Uuid::parse_str(&item_id).expect("backend database generated an item UUID");
+    let corpus_entry_id = run_psql(&format!(
+        "WITH inserted AS (INSERT INTO atelier_command_corpus_entry \
+           (action_id, corpus_source, owner, params_schema_ref, execution_class, receipt_shape, manual_anchor) \
+         VALUES ('{action}', 'preload', 'mt033-proof', 'hsk.mt033.proof@1', 'pure_projection', 'hsk.mt033.receipt@1', 'WP-KERNEL-012/MT-033') RETURNING entry_id) \
+         SELECT entry_id FROM inserted;",
+        action = corpus_action_id,
+    ))
+    .trim()
+    .to_owned();
+    uuid::Uuid::parse_str(&corpus_entry_id).expect("database generated corpus UUID");
+
+    for generation in [1_u64, 2] {
+        let client = AtelierClient::new(base.clone(), rt.handle().clone());
+        let cell: AtelierSidePanelCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+        client.fetch_side_panel(generation, Arc::clone(&cell));
+        let data = (0..50)
+            .find_map(|_| {
+                let delivered = cell.lock().unwrap().pop_front();
+                if delivered.is_none() {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                delivered
+            })
+            .expect("live PG panel fetch within 5s");
+        assert_eq!(data.0, generation, "fresh reload generation identity");
+        let data = data.1.expect("live PG panel fetch ok (no mocks)");
+        assert!(
+            data.batches
+                .iter()
+                .any(|row| row.batch_id == batch_id && row.source_label == source_label),
+            "AC-5 live: self-seeded intake batch survives reload"
+        );
+        assert!(
+            data.corpus
+                .iter()
+                .any(|row| row.action_id == corpus_action_id),
+            "AC-5 live: self-seeded command-corpus row survives reload"
+        );
+    }
+
+    for generation in [3_u64, 4] {
+        let client = AtelierClient::new(base.clone(), rt.handle().clone());
+        let items_cell: AtelierItemsCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+        client.fetch_items(generation, &batch_id, Arc::clone(&items_cell));
+        let items = (0..50)
+            .find_map(|_| {
+                let delivered = items_cell.lock().unwrap().pop_front();
+                if delivered.is_none() {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+                delivered
+            })
+            .expect("live PG items fetch within 5s");
+        assert_eq!((items.0, items.1.as_str()), (generation, batch_id.as_str()));
+        assert!(
+            items
+                .2
+                .expect("live PG items fetch ok")
+                .iter()
+                .any(|row| row.item_id == item_id),
+            "AC-5 live: self-seeded item is returned through a fresh production client"
+        );
+    }
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&base, rt.handle().clone());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run();
+    harness.get_by_label("VIEW").click();
+    harness.run();
+    harness.get_by_label("Toggle Atelier / CKC Panel").click();
+    harness.run();
+    let expected_batch = batch_author_id(&batch_id);
+    let expected_corpus = corpus_author_id(&corpus_entry_id);
+    for _ in 0..60 {
+        let ids = author_ids(&harness);
+        if ids.contains(&expected_batch) && ids.contains(&expected_corpus) {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
+        harness.step();
     }
-    let data = data
-        .expect("live PG fetch within 5s")
-        .expect("live PG fetch ok (no mocks)");
+    let mounted_ids = author_ids(&harness);
     assert!(
-        !data.batches.is_empty(),
-        "AC-5 live: at least one seeded intake batch expected, got {}",
-        data.batches.len()
+        mounted_ids.contains(PANEL_AUTHOR_ID),
+        "real shell panel mounted"
     );
+    assert!(
+        mounted_ids.contains(&expected_batch),
+        "real batch AccessKit row loaded"
+    );
+    assert!(
+        mounted_ids.contains(&expected_corpus),
+        "real corpus AccessKit row loaded"
+    );
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(expected_batch.as_str()))
+        .expect("real batch row")
+        .click();
+    harness.step();
+    let expected_item = item_author_id(&item_id);
+    for _ in 0..60 {
+        if author_ids(&harness).contains(&expected_item) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        harness.step();
+    }
+    assert!(
+        author_ids(&harness).contains(&expected_item),
+        "real item AccessKit row loaded through mounted production client"
+    );
+    drop(harness);
+
+    let receipt = cleanup.cleanup();
+    assert_atelier_cleanup(&receipt, 1);
     println!(
-        "AC-5 live: AtelierSidePanel loaded {} batches + {} corpus entries from real PG",
-        data.batches.len(),
-        data.corpus.len()
+        "AC-5 live: self-seeded batch/item/corpus loaded twice from managed PG; cleanup={}",
+        receipt.trim()
     );
 }
 
-/// AC-2 + AC-3 against REAL PG: insert a CKC embed in a rich doc, save (PUT /knowledge/documents/{id}/save),
-/// reload (GET /knowledge/documents/{id}), assert the hsLink embed survives; place an atelier-resolved
-/// block on a canvas and assert it appears after reload. The operator seeds a workspace + a rich document
-/// + a canvas block before running. Gated behind `integration` + `#[ignore]`.
+#[cfg(feature = "integration")]
+struct WorkspacePgCleanup {
+    base: String,
+    workspace_id: String,
+    armed: bool,
+}
+
+#[cfg(feature = "integration")]
+impl WorkspacePgCleanup {
+    async fn cleanup(&mut self, client: &reqwest::Client) -> String {
+        let response = workspace_write_headers(
+            client.delete(format!("{}/workspaces/{}", self.base, self.workspace_id)),
+        )
+        .send()
+        .await
+        .expect("DELETE owned MT-033 workspace");
+        assert_eq!(response.status(), reqwest::StatusCode::NO_CONTENT);
+        let workspaces: serde_json::Value = client
+            .get(format!("{}/workspaces", self.base))
+            .send()
+            .await
+            .expect("list workspaces after cleanup")
+            .json()
+            .await
+            .expect("workspace list JSON");
+        assert!(!workspaces
+            .as_array()
+            .is_some_and(|rows| rows.iter().any(|row| {
+                row.get("id").and_then(|value| value.as_str()) == Some(self.workspace_id.as_str())
+            })));
+        self.armed = false;
+        serde_json::json!({
+            "workspace_id": self.workspace_id.clone(),
+            "delete_status": 204,
+            "workspace_absent": true
+        })
+        .to_string()
+    }
+}
+
+#[cfg(feature = "integration")]
+impl Drop for WorkspacePgCleanup {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        let base = self.base.clone();
+        let workspace_id = self.workspace_id.clone();
+        let _ = std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("workspace cleanup runtime");
+            runtime.block_on(async move {
+                let client = reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(5))
+                    .build()
+                    .expect("workspace cleanup client");
+                let _ = workspace_write_headers(
+                    client.delete(format!("{base}/workspaces/{workspace_id}")),
+                )
+                .send()
+                .await;
+            });
+        })
+        .join();
+    }
+}
+
+/// AC-2 + AC-3 against real managed PG. Owns its workspace/document/Atelier item/canvas, drives the
+/// production editor transform and canonical save + MT-026 placement routes, then cleans exact ids.
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a seeded rich document + canvas block; AC-3 canvas-add round-trip additionally BLOCKED_ON_DEPENDENCY (MT-026 canvas host not mounted in app.rs)"]
 #[cfg(feature = "integration")]
 fn ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg() {
-    // Adversarial-review hardening (Spec-Realism Sub-rule 1): this test must NOT exit through a `panic!`
-    // placeholder body, or a proof command could trip a panic that reads like a real failure. It is an
-    // explicit, typed no-op documenting two distinct gaps the headless suite already accounts for:
-    //
-    //   * AC-2 (rich-doc embed save/reload): NEEDS_MANAGED_RESOURCE_PROOF — the headless
-    //     `ac2_ckc_embed_round_trips_content_json` proves the hsLink CKC embed round-trips the backend
-    //     `content_json` shape structurally; the durable PostgreSQL save/reload half needs a live
-    //     Handshake-managed backend + an operator-seeded workspace + rich document (no SQLite, no mock).
-    //
-    //   * AC-3 (canvas-add placement): BLOCKED_ON_DEPENDENCY — the headless
-    //     `ac3_resolved_atelier_ref_places_on_canvas_unresolved_is_no_op` proves the resolved-drop fires
-    //     the MT-026 `CanvasEvent::PlaceBlock` with the resolved loom block id (and an unresolved item is
-    //     a typed no-op, never a fake `atelier_item_id` POST). The REMAINING end-to-end half — wiring that
-    //     PlaceBlock to `CanvasBoardClient::place_block_request` -> the real placement route -> reload ->
-    //     assert the placement survives — cannot be exercised here because the `graph::canvas_board`
-    //     LoomCanvasBoard host is NOT mounted in the live shell (a pre-existing MT-026 gap; the live
-    //     canvas event path in `app.rs` still uses the older flat `crate::canvas_board` module). This is
-    //     a typed blocker reported to the orchestrator, NOT a backend edit and NOT a faked POST.
-    //
-    // The test is `#[ignore]` + `#[cfg(feature = "integration")]`, so it never runs in the default suite;
-    // when the dependencies land an operator seeds the ids and wires the live save/reload + placement
-    // reload assertions here, replacing this documented-seam body.
-    eprintln!(
-        "SKIP ac2_ac3_ckc_embed_and_canvas_round_trip_live_pg: AC-2 NEEDS_MANAGED_RESOURCE_PROOF \
-         (live PG + seeded rich doc); AC-3 BLOCKED_ON_DEPENDENCY (MT-026 canvas host not mounted)."
-    );
+    let runtime = tokio::runtime::Runtime::new().expect("integration runtime");
+    runtime.block_on(async {
+        let base = std::env::var("HANDSHAKE_TEST_DB_URL")
+            .unwrap_or_else(|_| "http://127.0.0.1:37501".to_owned());
+        let client = reqwest::Client::builder()
+            .pool_max_idle_per_host(2)
+            .connect_timeout(std::time::Duration::from_secs(2))
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .expect("bounded integration client");
+        assert!(client
+            .get(format!("{base}/health"))
+            .send()
+            .await
+            .expect("integration feature requires live handshake_core")
+            .status()
+            .is_success());
+
+        let suffix = integration_suffix();
+        let response = workspace_write_headers(client.post(format!("{base}/workspaces")))
+            .json(&serde_json::json!({"name": format!("MT-033-{suffix}")}))
+            .send().await.expect("create workspace");
+        assert_eq!(response.status(), reqwest::StatusCode::CREATED);
+        let workspace: serde_json::Value = response.json().await.expect("workspace JSON");
+        let workspace_id = workspace["id"].as_str().expect("workspace id").to_owned();
+        let mut workspace_cleanup = WorkspacePgCleanup {
+            base: base.clone(), workspace_id: workspace_id.clone(), armed: true,
+        };
+
+        let response = proof_headers(client.post(format!("{base}/knowledge/documents")))
+            .json(&serde_json::json!({
+                "workspace_id": workspace_id.clone(),
+                "title": format!("MT-033 note {suffix}"),
+                "content_json": {"type":"doc","content":[{"type":"paragraph","content":[]}]}
+            }))
+            .send().await.expect("create rich document");
+        assert!(response.status().is_success());
+        let created: serde_json::Value = response.json().await.expect("document JSON");
+        let document_id = created["document"]["rich_document_id"]
+            .as_str().expect("document id").to_owned();
+        assert!(client
+            .get(format!("{base}/workspaces/{workspace_id}/loom/blocks/{document_id}"))
+            .send().await.expect("same-id Loom block").status().is_success());
+
+        let response = client.post(format!("{base}/atelier/intake/batches"))
+            .json(&serde_json::json!({
+                "idempotency_key": format!("mt033-ac23-{suffix}"),
+                "source_label": format!("MT-033 AC2/3 {suffix}"),
+                "source_ref": format!("mt033://ac23/{suffix}"),
+                "mode":"manual", "profile_mode":"loose_profile"
+            }))
+            .send().await.expect("create Atelier batch");
+        assert_eq!(response.status(), reqwest::StatusCode::CREATED);
+        let batch: serde_json::Value = response.json().await.expect("batch JSON");
+        let batch_id = batch["batch_id"].as_str().expect("batch id").to_owned();
+        let mut atelier_cleanup = AtelierPgCleanup {
+            batch_id: batch_id.clone(),
+            corpus_action_id: format!("mt033.no-corpus.{suffix}"),
+            armed: true,
+        };
+        let item_id = run_psql(&format!(
+            "WITH inserted AS (INSERT INTO atelier_intake_item \
+             (batch_id,source_path,file_name,byte_len,content_hash,lane) VALUES \
+             ('{batch_id}'::uuid,'/mt033/ac23/{suffix}.png','atelier-{suffix}.png',33,'{suffix}','pending') \
+             RETURNING item_id) SELECT item_id FROM inserted;"
+        )).trim().to_owned();
+        uuid::Uuid::parse_str(&item_id).expect("database-generated item UUID");
+
+        // Publish a real canonical media asset + Loom block first. The native resolver is intentionally
+        // forbidden from fabricating an empty file block for a raw intake row.
+        let imported: serde_json::Value = proof_headers(client.post(format!(
+            "{base}/workspaces/{workspace_id}/loom/import"
+        )))
+        .json(&serde_json::json!({
+            "bytes_b64": "bXQwMzMtY2Fub25pY2FsLW1lZGlh",
+            "original_filename": format!("atelier-{suffix}.png"),
+            "mime": "image/png"
+        }))
+        .send()
+        .await
+        .expect("import canonical Atelier media asset")
+        .json()
+        .await
+        .expect("canonical import JSON");
+        let canonical_block_id = imported["block_id"]
+            .as_str()
+            .expect("canonical import block id")
+            .to_owned();
+        assert!(imported["asset_id"].as_str().is_some());
+        let relation = proof_headers(client.put(format!(
+            "{base}/atelier/intake/items/{item_id}/loom-projection"
+        )))
+        .json(&serde_json::json!({"loom_block_id": canonical_block_id}))
+        .send()
+        .await
+        .expect("publish canonical Atelier-to-Loom relation");
+        assert_eq!(relation.status(), reqwest::StatusCode::OK);
+        let relation: serde_json::Value = relation.json().await.expect("relation JSON");
+        assert_eq!(relation["item_id"], item_id);
+        assert_eq!(relation["loom_block_id"], canonical_block_id);
+
+        let loaded_body = handshake_native::backend_client::RichDocClient::new(
+            base.clone(),
+            runtime.handle().clone(),
+        )
+        .load_document(&document_id)
+        .await
+        .expect("load document through production client");
+        let mut rich_app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+            status: "ok".to_owned(),
+            db_status: "ok".to_owned(),
+            migration_version: Some(1),
+        }));
+        rich_app.set_backend_base_url_for_test(&base, runtime.handle().clone());
+        rich_app
+            .apply_loaded_rich_document_for_test(loaded_body)
+            .expect("install mounted document + SaveManager");
+        rich_app.set_atelier_panel_open(true);
+        let rich_state = rich_app.mounted_rich_state();
+        let mut rich_harness = Harness::builder()
+            .with_size(egui::vec2(1280.0, 800.0))
+            .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), rich_app);
+        let batch_id_author = batch_author_id(&batch_id);
+        for _ in 0..100 {
+            rich_harness.step();
+            if author_ids(&rich_harness).contains(&batch_id_author) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        request_click_by_author(&rich_harness, &batch_id_author);
+        for _ in 0..100 {
+            rich_harness.step();
+            if author_ids(&rich_harness).contains(&item_insert_author_id(&item_id)) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        assert!(author_ids(&rich_harness).contains(&item_insert_author_id(&item_id)));
+        pointer_click_by_author(&rich_harness, &item_insert_author_id(&item_id));
+        rich_harness.run_steps(3);
+        let (saved_content, interop_error) = {
+            let state = rich_state.lock().unwrap();
+            (state.current_content_json(), state.interop_error.clone())
+        };
+        assert_eq!(
+            first_hs_link(&saved_content),
+            Some(("media".into(), item_id.clone())),
+            "mounted panel action must mutate the shared rich state; interop_error={interop_error:?}; content={saved_content}"
+        );
+        assert!(
+            rich_state.lock().unwrap().request_save_for_host(),
+            "mounted SaveManager accepted panel-originated edit"
+        );
+        for _ in 0..100 {
+            rich_harness.step();
+            let reloaded = handshake_native::backend_client::RichDocClient::new(
+                base.clone(),
+                runtime.handle().clone(),
+            )
+            .load_document(&document_id)
+            .await
+            .expect("fresh document reload while waiting for mounted save");
+            if first_hs_link(&reloaded.content_json)
+                == Some(("media".into(), item_id.clone()))
+            {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        tokio::task::block_in_place(|| drop(rich_harness));
+
+        let reload = reqwest::Client::builder()
+            .pool_max_idle_per_host(1)
+            .timeout(std::time::Duration::from_secs(10))
+            .build().expect("fresh reload client");
+        let loaded: serde_json::Value = proof_headers(reload.get(format!(
+            "{base}/knowledge/documents/{document_id}"
+        )))
+            .send().await.expect("reload document").json().await.expect("reload JSON");
+        assert_eq!(loaded["document"]["content_json"], saved_content);
+        assert_eq!(
+            first_hs_link(&loaded["document"]["content_json"]),
+            Some(("media".into(), item_id.clone()))
+        );
+        assert!(loaded["document"]["content_json"].to_string()
+            .contains(&format!("atelier-{suffix}.png")));
+
+        let response = client.post(format!(
+            "{base}/workspaces/{workspace_id}/loom/canvas-boards"
+        )).json(&serde_json::json!({"title":format!("MT-033 canvas {suffix}")}))
+            .send().await.expect("create canvas");
+        assert!(response.status().is_success());
+        let canvas: serde_json::Value = response.json().await.expect("canvas JSON");
+        let canvas_id = canvas["block_id"].as_str().expect("canvas block id").to_owned();
+        let projected_block_id = canonical_block_id;
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+            status: "ok".to_owned(),
+            db_status: "ok".to_owned(),
+            migration_version: Some(1),
+        }));
+        app.set_backend_base_url_for_test(&base, runtime.handle().clone());
+        {
+            let mounted = app.mounted_canvas_board();
+            let mut board = mounted.lock().unwrap();
+            board.workspace_id = workspace_id.clone();
+            board.canvas_block_id = canvas_id.clone();
+        }
+        app.set_atelier_panel_open(true);
+        let mounted_board = app.mounted_canvas_board();
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1280.0, 800.0))
+            .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+        let batch_id_author = batch_author_id(&batch_id);
+        for _ in 0..100 {
+            harness.step();
+            if author_ids(&harness).contains(&batch_id_author) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        request_click_by_author(&harness, &batch_id_author);
+        for _ in 0..100 {
+            harness.step();
+            if author_ids(&harness).contains(&item_canvas_author_id(&item_id)) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        assert!(author_ids(&harness).contains(&item_canvas_author_id(&item_id)));
+        pointer_click_by_author(&harness, &item_canvas_author_id(&item_id));
+        harness.step();
+        pointer_click_by_author(&harness, &item_canvas_author_id(&item_id));
+        for _ in 0..100 {
+            harness.step();
+            if mounted_board.lock().unwrap().placements.iter().any(|placement| {
+                placement.placed_block_id == projected_block_id
+            }) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        let placement_id = mounted_board
+            .lock()
+            .unwrap()
+            .placements
+            .iter()
+            .find(|placement| placement.placed_block_id == projected_block_id)
+            .map(|placement| placement.placement_id.clone())
+            .expect("mounted host resolver dispatches placement and applies fresh board reload");
+        assert!(reload
+            .get(format!(
+                "{base}/workspaces/{workspace_id}/loom/blocks/{projected_block_id}"
+            ))
+            .send()
+            .await
+            .expect("fresh-client projected block reload")
+            .status()
+            .is_success());
+        let board: serde_json::Value = reload.get(format!(
+            "{base}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
+        )).send().await.expect("reload canvas").json().await.expect("board JSON");
+        let matching_placements = board["placements"]
+            .as_array()
+            .expect("fresh board placements array")
+            .iter()
+            .filter(|row| row["placed_block_id"].as_str() == Some(projected_block_id.as_str()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matching_placements.len(),
+            1,
+            "repeated mounted Canvas action is idempotent: {board}"
+        );
+        assert_eq!(
+            matching_placements[0]["placement_id"].as_str(),
+            Some(placement_id.as_str()),
+            "exact placement survives fresh reload: {board}"
+        );
+
+        // The production shell owns Ctrl+Shift+Z and the created placement registered a compensating
+        // cross-pane undo. Drive the real key input, then wait for DELETE + canonical board reload; a
+        // direct `undo_cross_pane()` call would not prove the mounted shortcut consumer.
+        harness.key_press_modifiers(cross_pane_undo_modifiers(), egui::Key::Z);
+        for _ in 0..100 {
+            harness.step();
+            if !mounted_board
+                .lock()
+                .unwrap()
+                .placements
+                .iter()
+                .any(|placement| placement.placement_id == placement_id)
+            {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        assert!(
+            !mounted_board
+                .lock()
+                .unwrap()
+                .placements
+                .iter()
+                .any(|placement| placement.placement_id == placement_id),
+            "Ctrl+Shift+Z removes the exact mounted Canvas placement"
+        );
+        let board_after_undo: serde_json::Value = reload
+            .get(format!(
+                "{base}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
+            ))
+            .send()
+            .await
+            .expect("reload canvas after key undo")
+            .json()
+            .await
+            .expect("board after key undo JSON");
+        assert!(
+            board_after_undo["placements"]
+                .as_array()
+                .expect("fresh board placements after key undo")
+                .iter()
+                .all(|row| row["placement_id"].as_str() != Some(placement_id.as_str())),
+            "key-driven compensating DELETE persists after a fresh reload: {board_after_undo}"
+        );
+
+        // Redo uses the same provisional async record and must re-place the same block at the same
+        // geometry, then reload the mounted board from backend truth. There is intentionally no separate
+        // cross-pane-redo keyboard chord; drive the production bus command that the shell owns.
+        let bus = InteractionBus::get_or_init(&harness.ctx);
+        let redo = InteractionBus::with_try_lock(&bus, |bus| bus.redo_cross_pane())
+            .flatten()
+            .expect("successful key undo leaves the Canvas action available for redo");
+        assert!(redo.ok, "Canvas redo dispatches asynchronously: {redo:?}");
+        for _ in 0..100 {
+            harness.step();
+            if mounted_board
+                .lock()
+                .unwrap()
+                .placements
+                .iter()
+                .any(|placement| placement.placed_block_id == projected_block_id)
+            {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        assert!(
+            mounted_board
+                .lock()
+                .unwrap()
+                .placements
+                .iter()
+                .any(|placement| placement.placed_block_id == projected_block_id),
+            "Canvas redo reappears in the mounted board after the authoritative reload"
+        );
+        let board_after_redo: serde_json::Value = reload
+            .get(format!(
+                "{base}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"
+            ))
+            .send()
+            .await
+            .expect("reload canvas after redo")
+            .json()
+            .await
+            .expect("board after redo JSON");
+        assert_eq!(
+            board_after_redo["placements"]
+                .as_array()
+                .expect("fresh board placements after redo")
+                .iter()
+                .filter(|row| {
+                    row["placed_block_id"].as_str() == Some(projected_block_id.as_str())
+                })
+                .count(),
+            1,
+            "redo persists exactly one replacement after fresh reload: {board_after_redo}"
+        );
+        tokio::task::block_in_place(|| drop(harness));
+
+        let atelier_receipt = atelier_cleanup.cleanup();
+        assert_atelier_cleanup(&atelier_receipt, 0);
+        let workspace_receipt = workspace_cleanup.cleanup(&client).await;
+        println!(
+            "AC-2/3 document={document_id} item={item_id} canvas={canvas_id} placement={placement_id} atelier_cleanup={} workspace_cleanup={workspace_receipt}",
+            atelier_receipt.trim()
+        );
+    });
 }
 
 // ── helpers ────────────────────────────────────────────────────────────────────────────────────────

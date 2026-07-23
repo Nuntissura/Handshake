@@ -1543,7 +1543,9 @@ impl AtelierStore {
                 .await?
             }
         };
-        rows.iter().map(diagnostics_validation_row_from_row).collect()
+        rows.iter()
+            .map(diagnostics_validation_row_from_row)
+            .collect()
     }
 }
 
@@ -1571,15 +1573,13 @@ pub mod diagnostics_projection_event_family {
     pub const DCC_PANEL_PROJECTION_RECORDED: &str =
         "atelier.state_probe.dcc_panel_projection_recorded";
     /// A screenshot artifact-storage row was recorded (MT-153).
-    pub const SCREENSHOT_ARTIFACT_STORED: &str =
-        "atelier.state_probe.screenshot_artifact_stored";
+    pub const SCREENSHOT_ARTIFACT_STORED: &str = "atelier.state_probe.screenshot_artifact_stored";
     /// An expired, unpinned screenshot artifact-storage row was pruned by the
     /// retention cleanup pass (MT-158).
     pub const SCREENSHOT_ARTIFACT_RETENTION_CLEANED: &str =
         "atelier.state_probe.screenshot_artifact_retention_cleaned";
     /// A spec/README drift finding was recorded (MT-167).
-    pub const SPEC_DRIFT_FINDING_RECORDED: &str =
-        "atelier.state_probe.spec_drift_finding_recorded";
+    pub const SPEC_DRIFT_FINDING_RECORDED: &str = "atelier.state_probe.spec_drift_finding_recorded";
 
     /// All diagnostics-projection event families (parity/coverage helper).
     pub const ALL: &[&str] = &[
@@ -1740,8 +1740,7 @@ pub struct DccPanelProjection {
     pub created_at_utc: DateTime<Utc>,
 }
 
-const DCC_PANEL_PROJECTION_COLUMNS: &str =
-    "panel_id, panel_kind, state_json, created_at_utc";
+const DCC_PANEL_PROJECTION_COLUMNS: &str = "panel_id, panel_kind, state_json, created_at_utc";
 
 fn dcc_panel_projection_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<DccPanelProjection> {
     let kind_token: String = row.get("panel_kind");
@@ -1843,9 +1842,7 @@ fn screenshot_artifact_storage_from_row(row: &sqlx::postgres::PgRow) -> Screensh
     }
 }
 
-fn validate_screenshot_artifact_storage(
-    new: &NewScreenshotArtifactStorage,
-) -> AtelierResult<()> {
+fn validate_screenshot_artifact_storage(new: &NewScreenshotArtifactStorage) -> AtelierResult<()> {
     for (field, value) in [
         ("storage_id", &new.storage_id),
         ("content_sha256", &new.content_sha256),
@@ -2008,9 +2005,7 @@ impl AtelierStore {
     }
 
     /// List model work-state projection rows, newest first.
-    pub async fn list_work_state_projections(
-        &self,
-    ) -> AtelierResult<Vec<WorkStateProjection>> {
+    pub async fn list_work_state_projections(&self) -> AtelierResult<Vec<WorkStateProjection>> {
         let rows = sqlx::query(&format!(
             r#"SELECT {WORK_STATE_PROJECTION_COLUMNS}
                FROM atelier_work_state_projection

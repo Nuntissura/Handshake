@@ -23,11 +23,11 @@
 //!   - `POST /loom/edges` body { source_block_id, target_block_id, edge_type:"tag", created_by:"user" }
 //!     (the backend rejects a non-tag_hub target -> the hub is the edge TARGET).
 //!
-//! AC1/AC4/AC6 against a LIVE Handshake-managed PostgreSQL with >= 3 seeded tag_hub blocks + members +
-//! a taggable block are the `#[ignore]`d `*_live_pg` tests gated behind the `integration` feature
-//! (NEEDS_MANAGED_RESOURCE_PROOF); absent a seeded backend they are skipped and NEVER faked. The
-//! filter/color/empty logic + the verified request-shape builders are proven STANDALONE here and in the
-//! lib unit tests — exactly the split the MT `implementation_notes` describe.
+//! AC1/AC4/AC6 have one integration-gated, unignored managed-PostgreSQL proof. It creates an isolated
+//! workspace, proves the mounted pane's real empty state, seeds three tag hubs and two documents, drives
+//! list/filter/open/add through the mounted [`HandshakeApp`], verifies rename/removal through a fresh
+//! [`LoomTagClient`], proves bounded backend loss, and deterministically deletes the workspace. It never
+//! relies on operator fixture ids or cached panel state.
 //!
 //! ## Artifact hygiene (CX-212E / CX-212E screenshot rule)
 //!
@@ -39,13 +39,19 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "integration")]
+mod interconnect_support;
+
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::graph::tags_panel::{
     hub_member_author_id, tag_row_author_id, AddTagCandidate, HubMember, LoomTagHubPanel,
     LoomTagsPanel, TagEntry, TagHubEvent, TagsPanelEvent, HUB_MEMBER_AUTHOR_ID_PREFIX,
-    HUB_TITLE_AUTHOR_ID_PREFIX, SEARCH_AUTHOR_ID, TAG_ROW_AUTHOR_ID_PREFIX,
+    HUB_RETRY_AUTHOR_ID, HUB_TITLE_AUTHOR_ID_PREFIX, RETRY_AUTHOR_ID as LIST_RETRY_AUTHOR_ID,
+    SEARCH_AUTHOR_ID, TAG_ROW_AUTHOR_ID_PREFIX,
 };
 use handshake_native::theme::HsTheme;
 
@@ -291,6 +297,31 @@ fn ac8_empty_no_tags() {
     println!("AC8: empty workspace shows 'No tags', no row entries, no panic");
 }
 
+#[test]
+fn error_states_are_addressable_and_retryable() {
+    let mut list = LoomTagsPanel::new("ws-error");
+    list.error = Some("backend unavailable".to_owned());
+    let list = shared(list);
+    let list_events = Arc::new(Mutex::new(Vec::new()));
+    let mut list_harness = tags_harness(Arc::clone(&list), Arc::clone(&list_events));
+    list_harness.run();
+    assert!(author_ids(&list_harness).contains(LIST_RETRY_AUTHOR_ID));
+    list_harness.get_by_label("Retry").click();
+    list_harness.run();
+    assert!(list_events.lock().unwrap().contains(&TagsPanelEvent::Retry));
+
+    let mut hub = LoomTagHubPanel::new("ws-error", "hub-error");
+    hub.error = Some("malformed response".to_owned());
+    let hub = shared(hub);
+    let hub_events = Arc::new(Mutex::new(Vec::new()));
+    let mut hub_harness = hub_harness(Arc::clone(&hub), Arc::clone(&hub_events));
+    hub_harness.run();
+    assert!(author_ids(&hub_harness).contains(HUB_RETRY_AUTHOR_ID));
+    hub_harness.get_by_label("Retry").click();
+    hub_harness.run();
+    assert!(hub_events.lock().unwrap().contains(&TagHubEvent::Retry));
+}
+
 // ── PROOF4 + AC4: the hub page shows the title + >= 1 member, both addressable ───────────────────────
 
 #[test]
@@ -390,6 +421,44 @@ fn proof5_add_tag_selects_candidate_and_fires_edge() {
 }
 
 #[test]
+fn add_tag_in_flight_disables_open_popup_repeat_selection() {
+    let mut hub = seeded_hub();
+    hub.set_add_candidates(vec![AddTagCandidate::new("block-X", "Block X")]);
+    let hub = shared(hub);
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut harness = hub_harness(Arc::clone(&hub), Arc::clone(&events));
+    harness.run();
+    harness.get_by_label_contains("Add tag to block").click();
+    harness.run();
+
+    hub.lock().unwrap().add_tag_in_flight = true;
+    harness.run();
+    let add_id = handshake_native::graph::tags_panel::hub_add_tag_author_id("tag-hub-001");
+    let result_id = handshake_native::graph::tags_panel::hub_add_result_author_id("block-X");
+    let states: std::collections::HashMap<_, _> = harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| {
+            let accesskit = node.accesskit_node();
+            accesskit
+                .author_id()
+                .map(|id| (id.to_owned(), accesskit.is_disabled()))
+        })
+        .collect();
+    assert_eq!(states.get(&add_id), Some(&true));
+    assert_eq!(states.get(&result_id), Some(&true));
+
+    harness.get_by_label_contains("Block X").click();
+    harness.run();
+    assert!(
+        events.lock().unwrap().iter().all(
+            |event| !matches!(event, TagHubEvent::AddTagSelected { .. })
+        ),
+        "a candidate already visible in an open popup cannot be selected twice while POST is in flight"
+    );
+}
+
+#[test]
 fn proof5_tag_edge_request_shape() {
     use handshake_native::backend_client::LoomTagClient;
 
@@ -429,7 +498,13 @@ fn tag_read_requests_hit_verified_routes() {
 
     let list = client.list_tags_request("ws7");
     assert_eq!(list.url, "http://test.local:1234/workspaces/ws7/loom/tags");
-    assert!(list.query.is_empty());
+    assert_eq!(
+        list.query,
+        vec![
+            ("limit".to_owned(), "500".to_owned()),
+            ("offset".to_owned(), "0".to_owned())
+        ]
+    );
 
     let detail = client.tag_detail_request("ws7", "tag-hub-001");
     assert_eq!(
@@ -536,136 +611,508 @@ fn tag_hub_screenshot() {
     assert_no_local_artifact_dir();
 }
 
-// ── LIVE-PG (gated): NEEDS_MANAGED_RESOURCE_PROOF without a seeded backend ───────────────────────────
+// ── LIVE-PG: one self-seeded, mounted, unignored round trip ──────────────────────────────────────────
 
-/// AC1 + PROOF2 against a REAL Handshake-managed PostgreSQL with >= 3 seeded tag_hub blocks. Gated behind
-/// the `integration` feature AND `#[ignore]` so the default `cargo test` does not require a backend.
-/// Run with: `cargo test --features integration --test test_tags_panel -- --ignored`. NEVER fakes PG.
-#[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with >= 3 seeded tag_hub blocks"]
 #[cfg(feature = "integration")]
-fn tags_list_live_pg() {
-    use handshake_native::backend_client::{LoomTagClient, TagListCell};
+struct LiveWorkspaceCleanup<'a> {
+    backend: &'a interconnect_support::LiveBackend,
+    workspace_id: String,
+    cleaned: bool,
+}
 
-    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-    let client = LoomTagClient::production(rt.handle().clone());
-    let cell: TagListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
-    // The operator seeds >= 3 tag_hub blocks in `ws-live` before running this.
-    client.fetch_tags("ws-live", Arc::clone(&cell));
-    let mut data = None;
-    for _ in 0..50 {
-        if let Some(r) = cell.lock().unwrap().pop_front() {
-            data = Some(r);
+#[cfg(feature = "integration")]
+impl LiveWorkspaceCleanup<'_> {
+    fn assert_cleaned(&mut self) {
+        let status = self.backend.delete_workspace(&self.workspace_id);
+        assert!(
+            matches!(status, 200 | 202 | 204 | 404),
+            "managed-PG workspace cleanup returned HTTP {status}"
+        );
+        self.cleaned = true;
+    }
+}
+
+#[cfg(feature = "integration")]
+impl Drop for LiveWorkspaceCleanup<'_> {
+    fn drop(&mut self) {
+        if !self.cleaned {
+            let _ = self.backend.delete_workspace(&self.workspace_id);
+        }
+    }
+}
+
+#[cfg(feature = "integration")]
+fn await_tag_list(
+    cell: &handshake_native::backend_client::TagListCell,
+    expected_workspace: &str,
+) -> Result<Vec<TagEntry>, String> {
+    for _ in 0..200 {
+        if let Some((workspace, epoch, sequence, result)) = cell.lock().unwrap().pop_front() {
+            assert_eq!(workspace, expected_workspace);
+            assert_eq!((epoch, sequence), (0, 0));
+            return result;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("tag-list request did not resolve within 10 seconds")
+}
+
+#[cfg(feature = "integration")]
+fn await_tag_hub(
+    cell: &handshake_native::backend_client::TagHubDetailCell,
+    expected_workspace: &str,
+    expected_hub: &str,
+) -> Result<(String, Vec<HubMember>), String> {
+    for _ in 0..200 {
+        if let Some((workspace, epoch, hub, sequence, result)) = cell.lock().unwrap().pop_front() {
+            assert_eq!(workspace, expected_workspace);
+            assert_eq!(hub, expected_hub);
+            assert_eq!((epoch, sequence), (0, 0));
+            return result;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("tag-hub request did not resolve within 10 seconds")
+}
+
+#[cfg(feature = "integration")]
+fn mounted_author_ids(
+    harness: &Harness<'_, handshake_native::app::HandshakeApp>,
+) -> std::collections::HashSet<String> {
+    harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+        .collect()
+}
+
+#[cfg(feature = "integration")]
+fn mounted_node_id(
+    harness: &Harness<'_, handshake_native::app::HandshakeApp>,
+    author_id: &str,
+) -> egui::accesskit::NodeId {
+    harness
+        .root()
+        .children_recursive()
+        .find_map(|node| {
+            let accesskit = node.accesskit_node();
+            (accesskit.author_id() == Some(author_id)).then(|| accesskit.id())
+        })
+        .unwrap_or_else(|| panic!("mounted AccessKit node {author_id} is present"))
+}
+
+#[cfg(feature = "integration")]
+fn dispatch_mounted_action(
+    harness: &mut Harness<'_, handshake_native::app::HandshakeApp>,
+    author_id: &str,
+    action: egui::accesskit::Action,
+    data: Option<egui::accesskit::ActionData>,
+) {
+    let target = mounted_node_id(harness, author_id);
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action,
+            target,
+            data,
+        },
+    ));
+    harness.run_steps(2);
+}
+
+#[cfg(feature = "integration")]
+fn live_patch_json(
+    runtime: &tokio::runtime::Runtime,
+    base: &str,
+    path: &str,
+    body: &serde_json::Value,
+) -> serde_json::Value {
+    let client = handshake_native::backend_client::shared_http_client();
+    let url = format!("{base}{path}");
+    let (status, text) = runtime.block_on(async {
+        let response = client
+            .patch(&url)
+            .header("x-hsk-actor-id", "mt023-live-pg")
+            .header("x-hsk-kernel-task-run-id", "mt023-live-pg-run")
+            .header("x-hsk-session-run-id", "mt023-live-pg-session")
+            .header("x-hsk-actor-kind", "operator")
+            .json(body)
+            .timeout(std::time::Duration::from_secs(5))
+            .send()
+            .await
+            .unwrap_or_else(|error| panic!("PATCH {url} failed: {error}"));
+        (response.status(), response.text().await.unwrap_or_default())
+    });
+    assert!(status.is_success(), "PATCH {path} -> {status}: {text}");
+    serde_json::from_str(&text)
+        .unwrap_or_else(|error| panic!("PATCH {path} response is not JSON ({error}): {text}"))
+}
+
+/// AC1-AC8 / PROOF2-5 against real managed PostgreSQL and the real mounted `HandshakeApp` Tags pane.
+/// The proof is feature-gated but deliberately NOT ignored. It owns fixture creation and teardown and
+/// verifies persistence again with a newly constructed `LoomTagClient`, excluding panel-local cache.
+#[test]
+#[cfg(feature = "integration")]
+fn tags_tag_hub_live_pg_self_seeds_mounted_round_trip() {
+    use handshake_native::app::{HandshakeApp, HealthDisplayState};
+    use handshake_native::backend_client::{
+        HealthInfo, LoomTagClient, TagHubDetailCell, TagListCell,
+    };
+    use handshake_native::editor_pane_factories::{
+        placeholder_pane_type, TagsPaneEvent, TAGS_PANE_LABEL,
+    };
+    use handshake_native::pane_registry::{
+        DirtyState, LockState, PaneAuthority, PaneId, PaneRecord,
+    };
+
+    let live = interconnect_support::require_reachable_backend();
+    let unique = format!(
+        "mt023-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after unix epoch")
+            .as_nanos()
+    );
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("mounted tags runtime");
+    let client = LoomTagClient::new(live.base.clone(), runtime.handle().clone());
+
+    // The isolated real workspace starts empty.
+    let empty_cell: TagListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    client.fetch_tags(&workspace_id, Arc::clone(&empty_cell));
+    assert!(
+        await_tag_list(&empty_cell, &workspace_id)
+            .expect("empty tag list succeeds")
+            .is_empty(),
+        "real unseeded workspace returns no tag hubs"
+    );
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    app.bind_active_project_for_integration_test(&workspace_id);
+    app.set_tags_backend_base_url_for_test(live.base.clone());
+    let tags_type = placeholder_pane_type(TAGS_PANE_LABEL);
+    {
+        let registry = app.pane_registry();
+        registry.lock().unwrap().insert(PaneRecord::new(
+            PaneId::from("pane-a"),
+            tags_type.clone(),
+            workspace_id.clone(),
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+    }
+    if let Some(bar) = app.tab_bar_states_mut().get_mut(&PaneId::from("pane-a")) {
+        bar.tabs = vec![handshake_native::tab_bar::TabState::new(tags_type)];
+        bar.active_index = 0;
+    }
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    for _ in 0..200 {
+        harness.run_steps(1);
+        let backend_ready = harness
+            .state()
+            .mounted_tags_panel_for_test()
+            .lock()
+            .map(|panel| !panel.loading && panel.error.is_none())
+            .unwrap_or(false);
+        let mounted_empty = harness.query_by_label("No tags").is_some()
+            && mounted_author_ids(&harness).contains(SEARCH_AUTHOR_ID);
+        if backend_ready && mounted_empty {
             break;
         }
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(50));
     }
-    let (workspace, sequence, tags_result) = data.expect("live PG fetch delivered within 5s");
+    assert!(harness.query_by_label("No tags").is_some());
+    assert!(mounted_author_ids(&harness).contains(SEARCH_AUTHOR_ID));
+
+    let seed_block = |content_type: &str, title: &str| {
+        let block = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({ "content_type": content_type, "title": title }),
+        );
+        block["block_id"]
+            .as_str()
+            .expect("block create returns block_id")
+            .to_owned()
+    };
+    let rust_hub = seed_block("tag_hub", "rust");
+    let rustaceans_hub = seed_block("tag_hub", "rustaceans");
+    let python_hub = seed_block("tag_hub", "python");
+    let first_note = seed_block("note", "MT-023 Ownership notes");
+    let second_note = seed_block("note", "MT-023 Candidate Two");
+    let seeded_edge = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/edges"),
+        &serde_json::json!({
+            "source_block_id": first_note,
+            "target_block_id": rust_hub,
+            "edge_type": "tag",
+            "created_by": "user"
+        }),
+    );
+    let seeded_edge_id = seeded_edge["edge_id"]
+        .as_str()
+        .expect("edge create returns edge_id")
+        .to_owned();
+
+    harness
+        .state()
+        .mounted_tags_events_for_test()
+        .lock()
+        .unwrap()
+        .push(TagsPaneEvent::Panel(TagsPanelEvent::Retry));
+    for _ in 0..200 {
+        harness.run_steps(1);
+        let loaded = harness
+            .state()
+            .mounted_tags_panel_for_test()
+            .lock()
+            .map(|panel| {
+                panel.tags.len() == 3 && panel.tags.iter().all(|tag| tag.member_count.is_some())
+            })
+            .unwrap_or(false);
+        if loaded {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    let ids = mounted_author_ids(&harness);
+    for hub in [&rust_hub, &rustaceans_hub, &python_hub] {
+        assert!(ids.contains(&tag_row_author_id(hub)));
+    }
+
+    dispatch_mounted_action(
+        &mut harness,
+        SEARCH_AUTHOR_ID,
+        egui::accesskit::Action::SetValue,
+        Some(egui::accesskit::ActionData::Value("rust".into())),
+    );
+    let filtered = mounted_author_ids(&harness);
+    assert!(filtered.contains(&tag_row_author_id(&rust_hub)));
+    assert!(filtered.contains(&tag_row_author_id(&rustaceans_hub)));
+    assert!(!filtered.contains(&tag_row_author_id(&python_hub)));
+
+    dispatch_mounted_action(
+        &mut harness,
+        &tag_row_author_id(&rust_hub),
+        egui::accesskit::Action::Click,
+        None,
+    );
+    for _ in 0..200 {
+        harness.run_steps(1);
+        let loaded = harness
+            .state()
+            .mounted_tags_hub_for_test()
+            .lock()
+            .map(|hub| {
+                hub.as_ref().is_some_and(|hub| {
+                    !hub.loading
+                        && hub.error.is_none()
+                        && hub
+                            .members
+                            .iter()
+                            .any(|member| member.block_id == first_note)
+                })
+            })
+            .unwrap_or(false);
+        if loaded {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    let hub_ids = mounted_author_ids(&harness);
+    assert!(
+        hub_ids.contains(&handshake_native::graph::tags_panel::hub_title_author_id(
+            &rust_hub
+        ))
+    );
+    assert!(hub_ids.contains(&hub_member_author_id(&first_note)));
+
+    dispatch_mounted_action(
+        &mut harness,
+        &handshake_native::graph::tags_panel::hub_add_tag_author_id(&rust_hub),
+        egui::accesskit::Action::Click,
+        None,
+    );
+    dispatch_mounted_action(
+        &mut harness,
+        handshake_native::graph::tags_panel::HUB_ADD_SEARCH_AUTHOR_ID,
+        egui::accesskit::Action::SetValue,
+        Some(egui::accesskit::ActionData::Value("Candidate Two".into())),
+    );
+    let candidate_author_id =
+        handshake_native::graph::tags_panel::hub_add_result_author_id(&second_note);
+    let mut mounted_candidate_ready = false;
+    for _ in 0..200 {
+        harness.run_steps(1);
+        let state_found = harness
+            .state()
+            .mounted_tags_hub_for_test()
+            .lock()
+            .map(|hub| {
+                hub.as_ref().is_some_and(|hub| {
+                    hub.add_candidates
+                        .iter()
+                        .any(|candidate| candidate.block_id == second_note)
+                })
+            })
+            .unwrap_or(false);
+        let node_found = mounted_author_ids(&harness).contains(&candidate_author_id);
+        if state_found && node_found {
+            mounted_candidate_ready = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    let hub_search_state = harness
+        .state()
+        .mounted_tags_hub_for_test()
+        .lock()
+        .ok()
+        .and_then(|hub| {
+            hub.as_ref().map(|hub| {
+                (
+                    hub.add_search.clone(),
+                    hub.add_popup_open,
+                    hub.add_candidates
+                        .iter()
+                        .map(|candidate| (candidate.block_id.clone(), candidate.title.clone()))
+                        .collect::<Vec<_>>(),
+                )
+            })
+        });
+    assert!(
+        mounted_candidate_ready,
+        "mounted add-tag search did not expose {candidate_author_id} within 10 seconds; hub state={hub_search_state:?}; ids={:?}",
+        mounted_author_ids(&harness)
+    );
+    dispatch_mounted_action(
+        &mut harness,
+        &candidate_author_id,
+        egui::accesskit::Action::Click,
+        None,
+    );
+    let mut mounted_add_refreshed = false;
+    for _ in 0..200 {
+        harness.run_steps(1);
+        let refreshed = harness
+            .state()
+            .mounted_tags_hub_for_test()
+            .lock()
+            .map(|hub| {
+                hub.as_ref().is_some_and(|hub| {
+                    !hub.add_tag_in_flight
+                        && hub.error.is_none()
+                        && hub
+                            .members
+                            .iter()
+                            .any(|member| member.block_id == second_note)
+                })
+            })
+            .unwrap_or(false);
+        if refreshed {
+            mounted_add_refreshed = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    assert!(
+        mounted_add_refreshed,
+        "mounted tag hub did not show the persisted add or clear its in-flight state within 10 seconds"
+    );
+
+    // A newly constructed client proves the mutation was persisted, not merely cached in the panel.
+    let fresh = LoomTagClient::new(live.base.clone(), runtime.handle().clone());
+    let fresh_list: TagListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    fresh.fetch_tags(&workspace_id, Arc::clone(&fresh_list));
     assert_eq!(
-        workspace, "ws-live",
-        "live PG delivery is attributed to the requested workspace"
+        await_tag_list(&fresh_list, &workspace_id)
+            .expect("fresh tag list succeeds")
+            .len(),
+        3
     );
-    assert_eq!(sequence, 0, "convenience live fetch uses sequence 0");
-    let tags = tags_result.expect("live PG fetch ok");
-    assert!(
-        tags.len() >= 3,
-        "AC1 live: >= 3 seeded tag_hub blocks expected from GET /loom/tags, got {}",
-        tags.len()
-    );
-    println!("AC1 live PG: {} tag hubs enumerated", tags.len());
-}
+    let fresh_hub: TagHubDetailCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    fresh.fetch_hub_detail(&workspace_id, &rust_hub, Arc::clone(&fresh_hub));
+    let (_, members_after_add) =
+        await_tag_hub(&fresh_hub, &workspace_id, &rust_hub).expect("fresh hub detail succeeds");
+    assert_eq!(members_after_add.len(), 2);
+    assert!(members_after_add
+        .iter()
+        .any(|member| member.block_id == second_note));
 
-/// AC4 hub-detail against a REAL PG: open a seeded hub, assert title + >= 1 member. Gated.
-#[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a seeded tag_hub + >= 1 member"]
-#[cfg(feature = "integration")]
-fn tag_hub_detail_live_pg() {
-    use handshake_native::backend_client::{LoomTagClient, TagHubDetailCell};
-
-    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-    let client = LoomTagClient::production(rt.handle().clone());
-    let cell: TagHubDetailCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
-    // The operator seeds tag_hub "tag-hub-001" with >= 1 tagged member in `ws-live` before running this.
-    client.fetch_hub_detail("ws-live", "tag-hub-001", Arc::clone(&cell));
-    let mut data = None;
-    for _ in 0..50 {
-        if let Some(r) = cell.lock().unwrap().pop_front() {
-            data = Some(r);
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    let (workspace, hub_id, sequence, detail_result) =
-        data.expect("live PG fetch delivered within 5s");
-    assert_eq!(workspace, "ws-live");
-    assert_eq!(hub_id, "tag-hub-001");
-    assert_eq!(sequence, 0, "convenience live fetch uses sequence 0");
-    let (title, members) = detail_result.expect("live PG fetch ok");
-    assert!(
-        !title.trim().is_empty(),
-        "AC4 live: hub title must be non-empty"
+    let renamed = "rust-renamed-mt023";
+    live_patch_json(
+        &runtime,
+        &live.base,
+        &format!("/workspaces/{workspace_id}/loom/blocks/{rust_hub}"),
+        &serde_json::json!({ "title": renamed }),
     );
-    assert!(
-        !members.is_empty(),
-        "AC4 live: the seeded hub must have >= 1 member, got {}",
-        members.len()
+    live_patch_json(
+        &runtime,
+        &live.base,
+        &format!("/workspaces/{workspace_id}/loom/blocks/{second_note}"),
+        &serde_json::json!({ "remove_tags": [rust_hub] }),
     );
-    println!("AC4 live PG: hub '{title}' has {} members", members.len());
-}
+    let final_hub: TagHubDetailCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    fresh.fetch_hub_detail(&workspace_id, &rust_hub, Arc::clone(&final_hub));
+    let (final_title, final_members) = await_tag_hub(&final_hub, &workspace_id, &rust_hub)
+        .expect("final fresh hub detail succeeds");
+    assert_eq!(final_title, renamed);
+    assert_eq!(final_members.len(), 1);
+    assert_eq!(final_members[0].block_id, first_note);
 
-/// AC6 tag-edge create against a REAL PG: tag a seeded block with a seeded hub, then re-query members and
-/// assert the new member is present. Gated. The re-query is gated on the POST RESPONSE (no fixed sleep).
-#[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a seeded tag_hub + a taggable block"]
-#[cfg(feature = "integration")]
-fn tag_edge_create_live_pg() {
-    use handshake_native::backend_client::{LoomTagClient, TagEdgeReceiptCell, TagHubDetailCell};
+    // Backend loss is bounded by the product client's five-second request timeout and returns a typed Err.
+    let loss_client = LoomTagClient::new("http://127.0.0.1:0", runtime.handle().clone());
+    let loss_cell: TagListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    loss_client.fetch_tags("mt023-backend-loss", Arc::clone(&loss_cell));
+    assert!(await_tag_list(&loss_cell, "mt023-backend-loss").is_err());
 
-    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-    let client = LoomTagClient::production(rt.handle().clone());
-    // The operator seeds tag_hub "tag-hub-001" + a taggable note "block-taggable" in `ws-live`.
-    let post_cell: TagEdgeReceiptCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
-    client.tag_block(
-        "ws-live",
-        "block-taggable",
-        "tag-hub-001",
-        Arc::clone(&post_cell),
+    cleanup.assert_cleaned();
+    let receipt_dir = external_artifact_dir("wp-kernel-012-mt-023");
+    std::fs::create_dir_all(&receipt_dir).expect("create external MT-023 receipt directory");
+    let receipt_path = receipt_dir.join("MT-023-live-pg-seed.json");
+    let receipt = serde_json::json!({
+        "schema_id": "hsk.wp_kernel_012.mt_023.live_pg_receipt@1",
+        "workspace_id": workspace_id,
+        "tag_hub_ids": [rust_hub, rustaceans_hub, python_hub],
+        "document_block_ids": [first_note, second_note],
+        "seeded_tag_edge_id": seeded_edge_id,
+        "persisted_member_count_after_add": members_after_add.len(),
+        "final_hub_title": final_title,
+        "final_member_count": final_members.len(),
+        "backend_loss_typed_error": true,
+        "cleanup_verified": true
+    });
+    std::fs::write(
+        &receipt_path,
+        serde_json::to_vec_pretty(&receipt).expect("serialize MT-023 live receipt"),
+    )
+    .expect("write external MT-023 live receipt");
+    println!(
+        "MT-023 LIVE PG PASS workspace={workspace_id} hubs=[{rust_hub},{rustaceans_hub},{python_hub}] \
+         documents=[{first_note},{second_note}] seeded_edge={seeded_edge_id} add_count=2 final_count=1 \
+         receipt={} cleanup_verified=true",
+        receipt_path.display()
     );
-    // Await the POST RESPONSE (AC6 / RISK-2: re-query only AFTER the create resolves — no fixed sleep).
-    let mut post_done = None;
-    for _ in 0..50 {
-        if let Some(r) = post_cell.lock().unwrap().pop_front() {
-            post_done = Some(r);
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    let (workspace, hub_id, sequence, post_result) =
-        post_done.expect("tag POST delivered within 5s");
-    assert_eq!(workspace, "ws-live");
-    assert_eq!(hub_id, "tag-hub-001");
-    assert_eq!(sequence, 0, "convenience live POST uses sequence 0");
-    post_result.expect("tag POST ok");
-
-    // Now re-query the members — the just-tagged block must be present.
-    let members_cell: TagHubDetailCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
-    client.fetch_members("ws-live", "tag-hub-001", Arc::clone(&members_cell));
-    let mut data = None;
-    for _ in 0..50 {
-        if let Some(r) = members_cell.lock().unwrap().pop_front() {
-            data = Some(r);
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    let (workspace, hub_id, sequence, members_result) = data.expect("members re-query delivered");
-    assert_eq!(workspace, "ws-live");
-    assert_eq!(hub_id, "tag-hub-001");
-    assert_eq!(sequence, 0, "convenience live fetch uses sequence 0");
-    let (_t, members) = members_result.expect("members re-query ok");
-    assert!(
-        members.iter().any(|m| m.block_id == "block-taggable"),
-        "AC6 live: the just-tagged block must appear in the re-queried members (got {members:?})"
-    );
-    println!("AC6 live PG: tag edge created + member list reflects the new member");
 }

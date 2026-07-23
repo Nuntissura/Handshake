@@ -7,9 +7,8 @@
 //!
 //! ## `agent_id`: a deterministic per-session label, NOT a security identity
 //!
-//! `agent_id` is the first [`AGENT_ID_HEX_LEN`] hex chars of `SHA-256(session_token_bytes)`. It is a
-//! short, stable, deterministic handle for one MCP session — two requests on the same connection share
-//! one `agent_id`; two different sessions get different ones with overwhelming probability. It is
+//! `agent_id` starts with the first [`AGENT_ID_HEX_LEN`] hex chars of `SHA-256(session_token_bytes)` and
+//! is qualified by a stable client-session id when supplied, or by a connection id as fallback. It is
 //! derived from the token (not the token itself), so the log never records the secret. It is a
 //! traceability label for post-hoc audit and debugging — it is NOT an authorization gate (the
 //! [`crate::mcp::leases::LeaseRegistry`] is the gate) and NOT a security identity (a local agent that
@@ -64,7 +63,7 @@ pub struct AttributedAction {
     /// Monotonic sequence number stamped by the log on append (1-based, never reused). Lets a reader
     /// resume from the last seq it saw via [`ActionLog::drain_since`].
     pub seq: u64,
-    /// The short deterministic per-session id (see [`agent_id_for_token`]).
+    /// The token-scoped participant or connection id (see [`agent_id_for_token`]).
     pub agent_id: String,
     /// The tool / operation name (`"click_widget"`, `"set_value"`, `"list_widgets"`, …).
     pub op_name: String,

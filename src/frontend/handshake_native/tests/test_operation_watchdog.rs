@@ -11,7 +11,8 @@ use handshake_diag_ring::{DiagEvent, DiagEventCode};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::diagnostics::{
-    self, OperationCode, OperationWatchdog, BUFFER_CAP, OPERATION_WATCHDOG_POLL_INTERVAL,
+    self, OperationCode, OperationWatchdog, BACKEND_OPERATION_MAX_TOTAL_RUNTIME, BUFFER_CAP,
+    OPERATION_WATCHDOG_POLL_INTERVAL,
 };
 
 static WATCHDOG_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -378,8 +379,7 @@ fn shipped_backend_health_and_layout_paths_register_operations() {
     let app_src = strip_line_comments(include_str!("../src/app.rs"));
     let health_probe = extract_fn_body(&app_src, "fn spawn_health_probe(")
         .expect("app.rs declares spawn_health_probe");
-    assert!(health_probe.contains("global_operation_watchdog().register"));
-    assert!(health_probe.contains("OperationCode::BackendCall"));
+    assert!(health_probe.contains("register_backend_operation"));
     assert!(health_probe.contains("backend_client::fetch_health"));
     assert!(health_probe.contains("operation_handle.complete()"));
 
@@ -403,8 +403,7 @@ fn shipped_backend_health_and_layout_paths_register_operations() {
 
     let layout_load = extract_fn_body(&app_src, "fn spawn_layout_load(&mut self")
         .expect("app.rs declares spawn_layout_load");
-    assert!(layout_load.contains("global_operation_watchdog().register"));
-    assert!(layout_load.contains("OperationCode::BackendCall"));
+    assert!(layout_load.contains("register_backend_operation"));
     assert!(layout_load.contains("operation_handle.complete()"));
 
     let poll_health =
@@ -413,6 +412,44 @@ fn shipped_backend_health_and_layout_paths_register_operations() {
         poll_health.contains("Self::spawn_health_probe"),
         "health re-probes use the shipped watchdog-wrapped health helper"
     );
+}
+
+#[test]
+fn production_backend_registration_carries_progress_gap_and_hard_runtime_cap() {
+    let _guard = lock_watchdog_tests();
+    let source = strip_line_comments(include_str!("../src/diagnostics/operation_watchdog.rs"));
+    let registration = extract_fn_body(&source, "pub fn register_backend_operation()")
+        .expect("production backend registration helper exists");
+    assert!(registration.contains("register_with_runtime_cap"));
+    assert!(registration.contains("BACKEND_OPERATION_STALL_DEADLINE"));
+    assert!(registration.contains("BACKEND_OPERATION_MAX_TOTAL_RUNTIME"));
+    assert_eq!(
+        BACKEND_OPERATION_MAX_TOTAL_RUNTIME,
+        Duration::from_secs(5),
+        "the production cap stays aligned with the five-second health/layout request timeout"
+    );
+
+    // Runtime counterfactual: frequent progress ticks keep the two-second gap healthy, but the same
+    // registration shape still emits once the absolute cap is crossed.
+    let before = stalled_events().len();
+    let watchdog = OperationWatchdog::new(Duration::from_millis(10));
+    let handle = watchdog.register_with_runtime_cap(
+        OperationCode::BackendCall,
+        Duration::from_millis(100),
+        None,
+        Some(Duration::from_millis(60)),
+    );
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while watchdog.poll_once() == 0 && Instant::now() < deadline {
+        handle.tick();
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        stalled_events().len() - before,
+        1,
+        "a ticking backend operation cannot evade the production registration contract"
+    );
+    handle.complete();
 }
 
 #[test]

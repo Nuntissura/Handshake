@@ -31,7 +31,12 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
+#[path = "native_gui_support/argus_surface_proof.rs"]
+mod argus_surface_proof;
+use argus_surface_proof::{prove_argus_surface, ArgusMutation};
 
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child};
 use handshake_native::rich_editor::document_model::position::DocPosition;
@@ -88,7 +93,84 @@ fn editor_harness_cpu<'a>(state: Arc<Mutex<RichEditorState>>, size: egui::Vec2) 
     })
 }
 
-/// Focus the editor SURFACE (the focusable `rich-editor-surface` node) by sending it an
+/// Runtime-accepting transport used by MT-036 mounted producer proofs. It records the exact canonical
+/// event accepted by the ordered worker rather than observing a pre-dispatch draft.
+struct RecordingEventTransport {
+    posted: Arc<Mutex<Vec<handshake_native::event_emitter::NativeEditorEvent>>>,
+}
+
+impl handshake_native::event_emitter::EventLedgerTransport for RecordingEventTransport {
+    fn build_post_body(
+        &self,
+        event: &handshake_native::event_emitter::NativeEditorEvent,
+    ) -> serde_json::Value {
+        event.to_native_payload()
+    }
+
+    fn post(
+        &self,
+        event: handshake_native::event_emitter::NativeEditorEvent,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = Result<(), handshake_native::event_emitter::EmitError>>
+                + Send,
+        >,
+    > {
+        let posted = Arc::clone(&self.posted);
+        Box::pin(async move {
+            posted.lock().unwrap().push(event);
+            Ok(())
+        })
+    }
+}
+
+fn mounted_event_harness<'a>(
+    state: Arc<Mutex<RichEditorState>>,
+    size: egui::Vec2,
+    emitter: handshake_native::event_emitter::NativeEditorEventEmitter,
+) -> Harness<'a, ()> {
+    let state_for_ui = Arc::clone(&state);
+    Harness::builder().with_size(size).build_ui(move |ui| {
+        handshake_native::app::HandshakeApp::install_fonts(ui.ctx());
+        let bus = handshake_native::interop::InteractionBus::get_or_init(ui.ctx());
+        handshake_native::interop::InteractionBus::with_try_lock(&bus, |bus| {
+            bus.set_event_emitter(emitter.clone());
+        });
+        RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+    })
+}
+
+fn recording_event_emitter(
+    workspace_id: &str,
+) -> (
+    tokio::runtime::Runtime,
+    handshake_native::event_emitter::NativeEditorEventEmitter,
+    Arc<Mutex<Vec<handshake_native::event_emitter::NativeEditorEvent>>>,
+) {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("mounted event-producer runtime");
+    let posted = Arc::new(Mutex::new(Vec::new()));
+    let emitter = handshake_native::event_emitter::NativeEditorEventEmitter::new(
+        workspace_id,
+        Arc::new(RecordingEventTransport {
+            posted: Arc::clone(&posted),
+        }),
+        Some(runtime.handle().clone()),
+    );
+    (runtime, emitter, posted)
+}
+
+fn drain_recording_emitter(runtime: &tokio::runtime::Runtime) {
+    runtime.block_on(async {
+        for _ in 0..32 {
+            tokio::task::yield_now().await;
+        }
+    });
+}
+
+/// Focus the editor SURFACE (the focusable `editor.rich.text` node) by sending it an
 /// AccessKit Focus action — the same focus an out-of-process agent would request by the stable
 /// surface id, and the exact pattern `test_wikilinks.rs` uses. The input handler + the MC-004
 /// focus-loss-close both gate on this focus, so the slash menu only survives + only processes
@@ -102,8 +184,8 @@ fn focus_editor(harness: &mut Harness<()>) {
         let root = harness.root();
         let surface = root
             .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
-            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+            .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
+            .expect("the editor surface node carries author_id 'editor.rich.text'");
         surface.focus();
     }
     harness.step(); // process the focus action -> surface focused
@@ -308,6 +390,39 @@ fn accesskit_menu_and_item_roles() {
     );
     println!(
         "AC-6/AC-7: live AccessKit tree has the slash-menu (Menu) + slash-item-* (MenuItem) nodes"
+    );
+}
+
+#[test]
+fn mt108_argus_slash_menu_real_server_loop() {
+    let doc = BlockNode::doc(vec![BlockNode::paragraph("/")]);
+    let state = Arc::new(Mutex::new(RichEditorState::new(doc)));
+    {
+        let mut st = state.lock().unwrap();
+        st.selection = Selection::caret(DocPosition::new(vec![0, 0], 1));
+    }
+    let mut harness = editor_harness_cpu(Arc::clone(&state), egui::vec2(600.0, 400.0));
+    harness.step();
+    focus_editor(&mut harness);
+    state.lock().unwrap().slash_menu = Some(SlashMenuState::open(vec![0, 0], 0));
+    harness.step();
+    harness.step();
+
+    let paragraph = slash_item_author_id("paragraph");
+    prove_argus_surface(
+        &mut harness,
+        "slash menu",
+        SLASH_MENU_AUTHOR_ID,
+        ArgusMutation::Click { target: &paragraph },
+        SLASH_MENU_AUTHOR_ID,
+        false,
+        |_| {
+            let menu_closed = state.lock().unwrap().slash_menu.is_none();
+            if !menu_closed {
+                return Err("slash item click did not close the menu".to_owned());
+            }
+            Ok(serde_json::json!({ "slash_menu_closed": menu_closed }))
+        },
     );
 }
 
@@ -743,6 +858,172 @@ fn mt020_live_code_ref_select_undo_restores_pre_insert_doc() {
         assert_eq!(atom.ref_value, "SYM-undo-1");
     }
     assert_undo_restores(&mut harness, &state, &before, "code-ref select");
+}
+
+#[test]
+fn mt036_mounted_embed_producer_is_canonical_exactly_once_and_zero_on_non_insert_paths() {
+    let (runtime, emitter, posted) = recording_event_emitter("ws-mt036-embed");
+
+    // Successful transaction: the persisted atom and event item identity are the same trimmed value.
+    let state = mt020_state("pane-mt036-embed");
+    {
+        let mut st = state.lock().unwrap();
+        st.code_ref_workspace_id = "ws-mt036-embed".to_owned();
+        let mut menu = SlashMenuState::open(vec![0, 0], 0);
+        let mut prompt = SlashPrompt::new(SlashPromptKind::Embed(EmbedKind::Image));
+        prompt.input = "  asset-canonical  ".to_owned();
+        menu.prompt = Some(prompt);
+        st.slash_menu = Some(menu);
+    }
+    let mut harness = mounted_event_harness(
+        Arc::clone(&state),
+        egui::vec2(600.0, 400.0),
+        emitter.clone(),
+    );
+    harness.step();
+    focus_editor(&mut harness);
+    harness.key_press(egui::Key::Enter);
+    harness.step();
+    harness.step();
+    drain_recording_emitter(&runtime);
+    {
+        let st = state.lock().unwrap();
+        let atom = st.doc.children[0]
+            .as_block()
+            .unwrap()
+            .children
+            .iter()
+            .find_map(Child::as_hs_link)
+            .expect("mounted prompt inserted the embed atom");
+        assert_eq!(atom.ref_value, "asset-canonical");
+    }
+    {
+        let events = posted.lock().unwrap();
+        assert_eq!(
+            events.len(),
+            1,
+            "successful embed transaction emits exactly once"
+        );
+        assert_eq!(events[0].action.as_str(), "embed_created");
+        assert_eq!(events[0].payload["item_id"], "asset-canonical");
+    }
+
+    // Blank confirm, failed insertion (node selection), and cancel all cross the mounted render
+    // boundary but must not produce another ledger event.
+    for (input, selection, key) in [
+        ("   ", None, egui::Key::Enter),
+        (
+            "asset-invalid-selection",
+            Some(Selection::node(vec![0])),
+            egui::Key::Enter,
+        ),
+        ("asset-cancelled", None, egui::Key::Escape),
+    ] {
+        let state = mt020_state("pane-mt036-embed-zero");
+        {
+            let mut st = state.lock().unwrap();
+            st.code_ref_workspace_id = "ws-mt036-embed".to_owned();
+            if let Some(selection) = selection {
+                st.selection = selection;
+            }
+            let mut menu = SlashMenuState::open(vec![0, 0], 0);
+            let mut prompt = SlashPrompt::new(SlashPromptKind::Embed(EmbedKind::Image));
+            prompt.input = input.to_owned();
+            menu.prompt = Some(prompt);
+            st.slash_menu = Some(menu);
+        }
+        let mut harness = mounted_event_harness(state, egui::vec2(600.0, 400.0), emitter.clone());
+        harness.step();
+        focus_editor(&mut harness);
+        harness.key_press(key);
+        harness.step();
+        harness.step();
+    }
+    drain_recording_emitter(&runtime);
+    assert_eq!(
+        posted.lock().unwrap().len(),
+        1,
+        "blank, failed, and cancelled embed paths emit zero"
+    );
+}
+
+#[test]
+fn mt036_mounted_cross_ref_producer_is_exactly_once_and_zero_on_failure_or_cancel() {
+    use handshake_native::rich_editor::slash_commands::code_symbol_search::CodeSymbolSearchState;
+
+    fn state_with_symbol(selection: Option<Selection>) -> Arc<Mutex<RichEditorState>> {
+        let state = mt020_state("pane-mt036-code-ref");
+        let mut st = state.lock().unwrap();
+        st.code_ref_workspace_id = "ws-mt036-code-ref".to_owned();
+        if let Some(selection) = selection {
+            st.selection = selection;
+        }
+        let mut dialog = CodeSymbolSearchState::open("ws-mt036-code-ref", None);
+        dialog.query = "parse".to_owned();
+        dialog.results = vec![
+            handshake_native::code_editor::code_nav::CodeSymbolNavProjection {
+                symbol_entity_id: "SYM-MT036".into(),
+                display_name: "parse_mt036".into(),
+                symbol_kind: "function".into(),
+                ..Default::default()
+            },
+        ];
+        st.code_symbol_search = Some(dialog);
+        drop(st);
+        state
+    }
+
+    fn click_symbol(harness: &mut Harness<()>) {
+        let target = handshake_native::rich_editor::slash_commands::code_symbol_result_author_id(
+            "SYM-MT036",
+        );
+        let root = harness.root();
+        root.children_recursive()
+            .find(|node| node.accesskit_node().author_id() == Some(target.as_str()))
+            .expect("mounted symbol result row")
+            .click();
+    }
+
+    let (runtime, emitter, posted) = recording_event_emitter("ws-mt036-code-ref");
+    let success = state_with_symbol(None);
+    let mut success_harness =
+        mounted_event_harness(success, egui::vec2(700.0, 480.0), emitter.clone());
+    success_harness.step();
+    click_symbol(&mut success_harness);
+    success_harness.step();
+    success_harness.step();
+    drain_recording_emitter(&runtime);
+    {
+        let events = posted.lock().unwrap();
+        assert_eq!(
+            events.len(),
+            1,
+            "successful cross-ref transaction emits exactly once"
+        );
+        assert_eq!(events[0].action.as_str(), "cross_ref_inserted");
+        assert_eq!(events[0].payload["symbol_entity_id"], "SYM-MT036");
+    }
+
+    let failure = state_with_symbol(Some(Selection::node(vec![0])));
+    let mut failure_harness =
+        mounted_event_harness(failure, egui::vec2(700.0, 480.0), emitter.clone());
+    failure_harness.step();
+    click_symbol(&mut failure_harness);
+    failure_harness.step();
+    failure_harness.step();
+
+    let cancelled = state_with_symbol(None);
+    let mut cancel_harness = mounted_event_harness(cancelled, egui::vec2(700.0, 480.0), emitter);
+    cancel_harness.step();
+    cancel_harness.key_press(egui::Key::Escape);
+    cancel_harness.step();
+    cancel_harness.step();
+    drain_recording_emitter(&runtime);
+    assert_eq!(
+        posted.lock().unwrap().len(),
+        1,
+        "failed and cancelled cross-ref paths emit zero"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════

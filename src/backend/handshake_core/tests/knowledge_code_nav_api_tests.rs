@@ -16,9 +16,11 @@
 mod knowledge_pg_support;
 
 use std::sync::Arc;
+use std::time::Instant;
 
 use async_trait::async_trait;
 use handshake_core::api::knowledge_code_nav as nav_api;
+use handshake_core::api::code_nav_index as index_api;
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup};
 use handshake_core::flight_recorder::{
@@ -212,6 +214,146 @@ async fn index_fixture(pg: &KnowledgePg) -> String {
     .await
     .expect("index");
     workspace_id
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mt045_lc06_500_file_code_nav_index_is_postgres_bounded() {
+    let pg = knowledge_pg()
+        .await
+        .expect("MT-045 LC-06 requires managed PostgreSQL");
+    let workspace_id = pg.create_workspace().await;
+    let fixture_root = std::env::var("HANDSHAKE_TEST_STAGE_BINDING_ROOT")
+        .expect("MT-045 fixture root must be external Handshake_Artifacts")
+        .into();
+    let fixture_root: std::path::PathBuf = fixture_root;
+    let fixture_root = fixture_root
+        .join("wp-kernel-012")
+        .join("mt-045")
+        .join("fixtures")
+        .join(format!("backend-lc06-{}", Uuid::now_v7().simple()));
+    std::fs::create_dir_all(&fixture_root).expect("create LC-06 fixture root");
+    for file_index in 0..500usize {
+        let mut body = format!("pub fn file{file_index}_entry() -> u32 {{\n");
+        body.push_str("    let mut value = 0_u32;\n");
+        for line in 0..196usize {
+            body.push_str(&format!("    value += {line}_u32;\n"));
+        }
+        body.push_str("    value\n}\n");
+        assert_eq!(body.lines().count(), 200);
+        std::fs::write(fixture_root.join(format!("file_{file_index}.rs")), body)
+            .expect("write LC-06 fixture file");
+    }
+
+    let state = app_state_for(&pg.schema_url).await;
+    let evidence_pool = state.postgres_pool.clone();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind LC-06 loopback listener");
+    let addr = listener.local_addr().expect("LC-06 local addr");
+    let server = tokio::spawn(async move {
+        axum::serve(listener, index_api::routes(state))
+            .await
+            .expect("LC-06 code-nav index server");
+    });
+    let base = format!("http://{addr}");
+    let http = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(45))
+        .build()
+        .expect("LC-06 request client");
+    let started = Instant::now();
+    let response = nav_headers(
+        http.post(format!("{base}/workspaces/{workspace_id}/code-nav/index")),
+        "mt045-lc06",
+    )
+    .json(&json!({"root_path": fixture_root.to_string_lossy()}))
+    .send()
+    .await
+    .expect("LC-06 request");
+    let elapsed = started.elapsed();
+    assert_eq!(response.status(), 200, "LC-06 route response");
+    let body: Value = response.json().await.expect("LC-06 response JSON");
+    assert!(
+        body["symbol_count"].as_u64().unwrap_or_default() >= 500,
+        "LC-06 must index at least one symbol per file: {body}"
+    );
+    let budget_ms = std::env::var("PERF_BUDGET_LC06_MS")
+        .ok()
+        .and_then(|value| value.parse::<u128>().ok())
+        .unwrap_or(10_000);
+    assert!(
+        elapsed.as_millis() <= budget_ms,
+        "LC-06 exceeded {budget_ms}ms PostgreSQL route budget: {elapsed:?}; body={body}"
+    );
+    let source_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_sources WHERE workspace_id = $1 AND source_kind = 'file'",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&evidence_pool)
+    .await
+    .expect("query LC-06 source count");
+    let code_file_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_code_files WHERE workspace_id = $1 AND parse_status = 'parsed'",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&evidence_pool)
+    .await
+    .expect("query LC-06 code-file count");
+    let run_state: String = sqlx::query_scalar(
+        "SELECT run_state FROM knowledge_index_runs WHERE workspace_id = $1 ORDER BY started_at DESC LIMIT 1",
+    )
+    .bind(&workspace_id)
+    .fetch_one(&evidence_pool)
+    .await
+    .expect("query LC-06 run state");
+    assert_eq!(source_count, 500, "LC-06 must persist one file source per fixture file");
+    assert_eq!(code_file_count, 500, "LC-06 must parse one code file per fixture file");
+    assert!(
+        matches!(run_state.as_str(), "completed" | "failed" | "cancelled"),
+        "LC-06 index run must be terminal, got {run_state}"
+    );
+    let source_snapshot = [
+        "src/api/code_nav_index.rs",
+        "src/knowledge_code_index/engine.rs",
+        "src/knowledge_ingestion/engine.rs",
+        "src/storage/knowledge.rs",
+        "tests/knowledge_code_nav_api_tests.rs",
+    ]
+    .into_iter()
+    .flat_map(|relative| {
+        std::fs::read(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(relative))
+            .unwrap_or_else(|error| panic!("read MT-045 source snapshot {relative}: {error}"))
+    })
+    .collect::<Vec<_>>();
+    let source_snapshot = sha256_hex(&source_snapshot);
+    let evidence_root: std::path::PathBuf = std::env::var("HANDSHAKE_TEST_STAGE_BINDING_ROOT")
+        .expect("MT-045 evidence root")
+        .into();
+    std::fs::create_dir_all(evidence_root.join("wp-kernel-012").join("mt-045").join("measurements"))
+        .expect("create MT-045 evidence directory");
+    std::fs::write(
+        evidence_root
+            .join("wp-kernel-012")
+            .join("mt-045")
+            .join("measurements")
+            .join("mt045-lc06-sql-evidence.json"),
+        serde_json::to_vec_pretty(&json!({
+            "workspace_id": workspace_id,
+            "source_count": source_count,
+            "parsed_code_file_count": code_file_count,
+            "latest_index_run_state": run_state,
+            "elapsed_ms": elapsed.as_millis(),
+            "budget_ms": budget_ms,
+            "source_snapshot_sha256": source_snapshot
+        }))
+        .expect("serialize MT-045 SQL evidence"),
+    )
+    .expect("write MT-045 SQL evidence");
+    server.abort();
+    tokio::time::timeout(std::time::Duration::from_secs(1), server)
+        .await
+        .expect("LC-06 server shutdown must be bounded")
+        .expect_err("aborted LC-06 server must not complete normally");
+    std::fs::remove_dir_all(&fixture_root).expect("cleanup LC-06 fixture root");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

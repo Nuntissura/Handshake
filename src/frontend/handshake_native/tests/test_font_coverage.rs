@@ -39,7 +39,9 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use egui::{FontFamily, FontId};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{
     HandshakeApp, FALLBACK_FACE_ORDER, FONT_KEY_INTER, FONT_KEY_NOTO_KR, FONT_KEY_NOTO_MATH,

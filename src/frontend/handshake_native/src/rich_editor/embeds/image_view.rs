@@ -17,13 +17,38 @@
 
 use egui::{ColorImage, TextureHandle, TextureOptions};
 
-use crate::rich_editor::embeds::asset_resolver::{EmbedError, ResolvedAsset};
+use crate::rich_editor::embeds::asset_resolver::{
+    EmbedError, ResolvedAsset, MAX_FULL_IMAGE_BYTES, MAX_IMAGE_DIMENSION, MAX_IMAGE_PIXELS,
+};
 
 /// Decode `bytes` into a [`ColorImage`] (RGBA8) using the `image` crate. Returns a typed
 /// [`EmbedError::MediaLoadFailed`] (NOT a panic) when the bytes are not a decodable image
 /// (MC-005). This is the CPU-heavy step the caller runs on `tokio::spawn_blocking`; it returns
 /// the platform-independent RGBA buffer that crosses the thread boundary to the egui thread.
 pub fn decode_rgba(bytes: &[u8]) -> Result<ColorImage, EmbedError> {
+    if bytes.len() > MAX_FULL_IMAGE_BYTES {
+        return Err(EmbedError::ResourceLimit(format!(
+            "encoded image is {} bytes; limit is {MAX_FULL_IMAGE_BYTES}",
+            bytes.len()
+        )));
+    }
+    let dimensions = image::ImageReader::new(std::io::Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|e| EmbedError::MediaLoadFailed(format!("could not identify image: {e}")))?
+        .into_dimensions()
+        .map_err(|e| {
+            EmbedError::MediaLoadFailed(format!("could not read image dimensions: {e}"))
+        })?;
+    let pixels = u64::from(dimensions.0) * u64::from(dimensions.1);
+    if dimensions.0 > MAX_IMAGE_DIMENSION
+        || dimensions.1 > MAX_IMAGE_DIMENSION
+        || pixels > MAX_IMAGE_PIXELS
+    {
+        return Err(EmbedError::ResourceLimit(format!(
+            "decoded image dimensions {}x{} exceed {}px/{} pixels",
+            dimensions.0, dimensions.1, MAX_IMAGE_DIMENSION, MAX_IMAGE_PIXELS
+        )));
+    }
     let dynamic = image::load_from_memory(bytes)
         .map_err(|e| EmbedError::MediaLoadFailed(format!("could not decode image: {e}")))?;
     let rgba = dynamic.to_rgba8();
@@ -91,6 +116,17 @@ impl EmbedTextureCache {
     pub fn is_empty(&self) -> bool {
         self.handles.is_empty()
     }
+
+    /// Drop every uploaded texture when the editor rebinds to another workspace. Asset ids are
+    /// workspace-local, so retaining handles across a workspace switch could display pixels from
+    /// the previous workspace when both workspaces contain the same opaque id.
+    pub fn clear(&mut self) {
+        self.handles.clear();
+    }
+
+    pub fn remove(&mut self, key: &str) -> Option<TextureHandle> {
+        self.handles.remove(key)
+    }
 }
 
 /// Compute the aspect-correct on-screen size for an image of intrinsic `(tex_w, tex_h)` bounded
@@ -134,6 +170,38 @@ pub fn render_image(
 mod tests {
     use super::*;
 
+    fn valid_png() -> Vec<u8> {
+        let mut buf = std::io::Cursor::new(Vec::new());
+        let mut img = image::RgbaImage::new(2, 2);
+        img.put_pixel(0, 0, image::Rgba([255, 0, 0, 255]));
+        img.put_pixel(1, 1, image::Rgba([0, 255, 0, 255]));
+        image::DynamicImage::ImageRgba8(img)
+            .write_to(&mut buf, image::ImageFormat::Png)
+            .expect("encode PNG fixture");
+        buf.into_inner()
+    }
+
+    fn crc32(bytes: &[u8]) -> u32 {
+        let mut crc = 0xffff_ffff_u32;
+        for byte in bytes {
+            crc ^= u32::from(*byte);
+            for _ in 0..8 {
+                crc = (crc >> 1) ^ (0xedb8_8320_u32 & (0_u32.wrapping_sub(crc & 1)));
+            }
+        }
+        !crc
+    }
+
+    fn png_with_declared_dimensions(width: u32, height: u32) -> Vec<u8> {
+        let mut png = valid_png();
+        // PNG signature (8), IHDR length (4), "IHDR" (4), then width + height.
+        png[16..20].copy_from_slice(&width.to_be_bytes());
+        png[20..24].copy_from_slice(&height.to_be_bytes());
+        let ihdr_crc = crc32(&png[12..29]);
+        png[29..33].copy_from_slice(&ihdr_crc.to_be_bytes());
+        png
+    }
+
     #[test]
     fn decode_failure_is_typed_error_not_panic_mc005() {
         // MC-005: intentionally corrupt bytes -> MediaLoadFailed (never a panic).
@@ -147,16 +215,40 @@ mod tests {
     }
 
     #[test]
+    fn unsupported_and_corrupt_media_are_typed_errors() {
+        for bytes in [
+            b"%PDF-1.7 unsupported media".as_slice(),
+            b"\x89PNG\r\n\x1a\ntruncated".as_slice(),
+        ] {
+            let error = decode_rgba(bytes).expect_err("unsupported/corrupt media must fail closed");
+            assert_eq!(error.kind_str(), "media_load_failed");
+        }
+    }
+
+    #[test]
+    fn declared_image_dimension_limit_is_checked_before_pixel_decode() {
+        let bytes = png_with_declared_dimensions(MAX_IMAGE_DIMENSION + 1, 1);
+        let error = decode_rgba(&bytes).expect_err("oversized dimension must be rejected");
+        assert_eq!(error.kind_str(), "resource_limit");
+        assert!(error.to_string().contains("dimensions"));
+    }
+
+    #[test]
+    fn declared_image_pixel_limit_is_checked_before_pixel_decode() {
+        let width = 10_000;
+        let height = 8_001;
+        assert!(width <= MAX_IMAGE_DIMENSION && height <= MAX_IMAGE_DIMENSION);
+        assert!(u64::from(width) * u64::from(height) > MAX_IMAGE_PIXELS);
+        let bytes = png_with_declared_dimensions(width, height);
+        let error = decode_rgba(&bytes).expect_err("oversized pixel count must be rejected");
+        assert_eq!(error.kind_str(), "resource_limit");
+        assert!(error.to_string().contains("dimensions"));
+    }
+
+    #[test]
     fn decode_valid_png_succeeds() {
         // A real 2x2 PNG encoded with the `image` crate (round-trip proves decode_rgba works).
-        let mut buf = std::io::Cursor::new(Vec::new());
-        let mut img = image::RgbaImage::new(2, 2);
-        img.put_pixel(0, 0, image::Rgba([255, 0, 0, 255]));
-        img.put_pixel(1, 1, image::Rgba([0, 255, 0, 255]));
-        image::DynamicImage::ImageRgba8(img)
-            .write_to(&mut buf, image::ImageFormat::Png)
-            .unwrap();
-        let decoded = decode_rgba(buf.get_ref()).unwrap();
+        let decoded = decode_rgba(&valid_png()).unwrap();
         assert_eq!(decoded.size, [2, 2]);
     }
 

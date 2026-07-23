@@ -428,7 +428,10 @@ fn validate_new_claim(input: &NewModelLeaseClaim) -> AtelierResult<()> {
         ("thread_id", input.thread_id.as_str()),
         ("actor_id", input.actor_id.as_str()),
         ("session_id", input.session_id.as_str()),
-        ("linked_work_packet_id", input.linked_work_packet_id.as_str()),
+        (
+            "linked_work_packet_id",
+            input.linked_work_packet_id.as_str(),
+        ),
         ("linked_micro_task_id", input.linked_micro_task_id.as_str()),
     ] {
         if value.trim().is_empty() || value.trim() != value {

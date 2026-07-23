@@ -16,19 +16,18 @@
 //! interpolated into SQL.
 
 use axum::{
-    Json, Router,
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
-    routing::{get, post},
+    routing::{get, post, put},
+    Json, Router,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use uuid::Uuid;
 
-use crate::AppState;
 use crate::atelier::intake::{
-    IntakeBatchMode, IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
+    IntakeBatchMode, IntakeItemLoomProjection, IntakeLaneCounts, IntakeProfileMode, NewIntakeBatch,
 };
 use crate::atelier::search::{
     AiTagSuggestion, AiTagSuggestionDecision, AiTagSuggestionStatus, NewAiTagSuggestion,
@@ -39,6 +38,7 @@ use crate::atelier::{
     DeletionImpactPreview, DeletionImpactPreviewRequest, DeletionRestoreRequest, DeletionTargetRef,
     ImageImportRecord, UrlImageImportRequest,
 };
+use crate::AppState;
 
 const HSK_HEADER_ACTOR_ID: &str = "x-hsk-actor-id";
 
@@ -52,6 +52,10 @@ pub fn routes(state: AppState) -> Router {
         .route(
             "/atelier/intake/batches/:batch_id/items",
             get(list_intake_batch_items),
+        )
+        .route(
+            "/atelier/intake/items/:item_id/loom-projection",
+            put(link_intake_item_loom_projection),
         )
         .route("/atelier/command-corpus", get(list_command_corpus))
         .route(
@@ -191,6 +195,13 @@ fn atelier_error(err: crate::atelier::AtelierError) -> (StatusCode, Json<ErrorRe
                 Json(ErrorResponse {
                     error: "bad_request",
                 }),
+            )
+        }
+        AtelierError::Conflict(detail) => {
+            tracing::warn!(target: "handshake_core::atelier", %detail, "conflict");
+            (
+                StatusCode::CONFLICT,
+                Json(ErrorResponse { error: "conflict" }),
             )
         }
         other => internal_error(other),
@@ -636,6 +647,7 @@ struct IntakeItemResponse {
     file_name: String,
     lane: String,
     byte_len: i64,
+    loom_block_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -660,10 +672,13 @@ async fn list_intake_batch_items(
     // thousands of items, so use a direct capped query (LIST_CAP) like the
     // other list routes. The lane_counts header carries the true totals.
     let rows = sqlx::query(
-        r#"SELECT item_id, source_path, file_name, lane, byte_len
-           FROM atelier_intake_item
-           WHERE batch_id = $1
-           ORDER BY created_at_utc ASC
+        r#"SELECT item.item_id, item.source_path, item.file_name, item.lane, item.byte_len,
+                  projection.loom_block_id
+           FROM atelier_intake_item item
+           LEFT JOIN atelier_intake_item_loom_projection projection
+             ON projection.item_id = item.item_id
+           WHERE item.batch_id = $1
+           ORDER BY item.created_at_utc ASC
            LIMIT $2"#,
     )
     .bind(batch_id)
@@ -680,6 +695,7 @@ async fn list_intake_batch_items(
             file_name: row.get("file_name"),
             lane: row.get("lane"),
             byte_len: row.get("byte_len"),
+            loom_block_id: row.get("loom_block_id"),
         })
         .collect();
 
@@ -689,6 +705,37 @@ async fn list_intake_batch_items(
         lane_counts: lane_counts.into(),
         items,
     }))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LinkIntakeItemLoomProjectionRequest {
+    loom_block_id: String,
+}
+
+/// PUT /atelier/intake/items/:item_id/loom-projection — publish the durable
+/// canonical Loom identity consumed by editor/canvas drag payloads.
+async fn link_intake_item_loom_projection(
+    State(state): State<AppState>,
+    Path(item_id): Path<Uuid>,
+    headers: HeaderMap,
+    Json(payload): Json<LinkIntakeItemLoomProjectionRequest>,
+) -> Result<Json<IntakeItemLoomProjection>, (StatusCode, Json<ErrorResponse>)> {
+    let actor = calling_actor(&headers)?;
+    let projection = atelier_store(&state)
+        .link_intake_item_loom_projection(item_id, &payload.loom_block_id, &actor)
+        .await
+        .map_err(atelier_error)?;
+
+    tracing::info!(
+        target: "handshake_core::atelier",
+        route = "/atelier/intake/items/:item_id/loom-projection",
+        status = "ok",
+        item_id = %item_id,
+        loom_block_id = %projection.loom_block_id,
+        "linked intake item Loom projection"
+    );
+    Ok(Json(projection))
 }
 
 #[derive(Debug, Serialize)]

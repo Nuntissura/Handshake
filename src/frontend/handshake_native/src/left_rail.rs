@@ -158,6 +158,19 @@ pub enum LeftRailEvent {
     RenameBlock {
         block_id: String,
         current_title: String,
+        expected_updated_at: Option<String>,
+    },
+    /// Rename a knowledge document through its dedicated document endpoint.
+    RenameDocument {
+        document_id: String,
+        current_title: String,
+        expected_updated_at: Option<String>,
+    },
+    /// Rename a canvas through its dedicated title endpoint with optimistic concurrency.
+    RenameCanvas {
+        canvas_id: String,
+        current_title: String,
+        expected_updated_at: Option<String>,
     },
     /// MT-033 explorer-row context menu: "Route to Stage" — route this DOCUMENT to the Stage pane via
     /// the MT-031 Route-to-Stage command. Carries the document id + title the Stage pane displays.
@@ -311,9 +324,29 @@ impl LeftRail {
                                 ProjectTreeEvent::RenameBlock {
                                     block_id,
                                     current_title,
+                                    expected_updated_at,
                                 } => LeftRailEvent::RenameBlock {
                                     block_id,
                                     current_title,
+                                    expected_updated_at,
+                                },
+                                ProjectTreeEvent::RenameDocument {
+                                    document_id,
+                                    current_title,
+                                    expected_updated_at,
+                                } => LeftRailEvent::RenameDocument {
+                                    document_id,
+                                    current_title,
+                                    expected_updated_at,
+                                },
+                                ProjectTreeEvent::RenameCanvas {
+                                    canvas_id,
+                                    current_title,
+                                    expected_updated_at,
+                                } => LeftRailEvent::RenameCanvas {
+                                    canvas_id,
+                                    current_title,
+                                    expected_updated_at,
                                 },
                             });
                         }

@@ -3210,7 +3210,9 @@ const POSE_DEFERRED_FEATURE_COLUMNS: &str =
     "feature_id, feature_kind, status, feature_label, deferral_reason, \
      carry_forward, source_ref, created_at_utc";
 
-fn pose_deferred_feature_from_row(row: &sqlx::postgres::PgRow) -> AtelierResult<PoseDeferredFeature> {
+fn pose_deferred_feature_from_row(
+    row: &sqlx::postgres::PgRow,
+) -> AtelierResult<PoseDeferredFeature> {
     let status: String = row.get("status");
     Ok(PoseDeferredFeature {
         feature_id: row.get("feature_id"),
@@ -3323,8 +3325,9 @@ pub fn pose_deferred_feature_catalog() -> Vec<NewPoseDeferredFeature> {
             feature_id: "mt-116.rigdata-v2.multi-subject".to_string(),
             feature_kind: "MT-116.multi-subject-rig-carry-forward".to_string(),
             status: PoseDeferredStatus::Deferred,
-            feature_label: "RigData v2 multi-subject (people[], per-subject calibration/head-pose/masks)"
-                .to_string(),
+            feature_label:
+                "RigData v2 multi-subject (people[], per-subject calibration/head-pose/masks)"
+                    .to_string(),
             deferral_reason:
                 "Planned multi-subject scenes (RigData v2 people[] with per-subject calibration, \
                  head pose, and masks) are deferred and carried forward; not implemented early to \

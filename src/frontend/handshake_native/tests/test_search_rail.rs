@@ -28,10 +28,8 @@ use handshake_native::search_rail::{
     RailQuery, SearchScope, RAIL_CLEAR_AUTHOR_ID, RAIL_INPUT_AUTHOR_ID, RAIL_LOOM_AUTHOR_ID,
 };
 
-// The rail query input is the only TextInput in the default frame (palette/switcher/settings closed),
-// so kittest's `get_by_role(TextInput)` resolves it. The clear + Loom buttons are located by their
-// labels (kittest 0.3 has no `get_by_author_id`; the controls carry author_ids for out-of-process
-// steering but are located here by role/label, which is the same UIA-style locate path).
+// Runtime Chat adds another TextInput to the MT-098 default frame. Always address the search field by
+// its canonical author_id so the proof exercises the same stable-id route an out-of-process model uses.
 const CLEAR_LABEL: &str = "Clear the search";
 const LOOM_LABEL: &str = "Search the whole project (Loom)";
 
@@ -47,6 +45,24 @@ fn ok_app() -> HandshakeApp {
 /// transport injection is needed — the emitted intent is written straight into the shared slot.
 fn shell_harness() -> Harness<'static, HandshakeApp> {
     Harness::builder().build_state(move |ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app())
+}
+
+fn focus_rail_input(harness: &mut Harness<'_, HandshakeApp>) {
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(RAIL_INPUT_AUTHOR_ID))
+        .expect("search rail input is addressable by its stable author_id")
+        .focus();
+}
+
+fn type_rail_input(harness: &mut Harness<'_, HandshakeApp>, text: &str) {
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(RAIL_INPUT_AUTHOR_ID))
+        .expect("search rail input is addressable by its stable author_id")
+        .type_text(text);
 }
 
 /// Step single frames in a loop until `pred` holds or a timeout elapses. The rail does no async I/O,
@@ -153,13 +169,9 @@ fn clicking_file_pill_sets_scope_without_emitting() {
     );
 
     // Now type + Enter -> the intent is emitted with the File scope (the pill selection took effect).
-    harness
-        .get_by_role(egui::accesskit::Role::TextInput)
-        .focus();
+    focus_rail_input(&mut harness);
     harness.run();
-    harness
-        .get_by_role(egui::accesskit::Role::TextInput)
-        .type_text("readme");
+    type_rail_input(&mut harness, "readme");
     harness.key_press(egui::Key::Enter);
     let emitted = step_until(&mut harness, |app| app.search_rail_query().is_some());
     assert!(emitted, "Enter emitted the scoped intent");
@@ -183,13 +195,9 @@ fn typed_scope_prefix_overrides_in_emitted_intent() {
     harness.run();
 
     // Type a query with a typed scope-prefix into the focused input, then Enter.
-    harness
-        .get_by_role(egui::accesskit::Role::TextInput)
-        .focus();
+    focus_rail_input(&mut harness);
     harness.run();
-    harness
-        .get_by_role(egui::accesskit::Role::TextInput)
-        .type_text("project:hello world");
+    type_rail_input(&mut harness, "project:hello world");
     harness.key_press(egui::Key::Enter);
 
     let emitted = step_until(&mut harness, |app| app.search_rail_query().is_some());
@@ -231,13 +239,9 @@ fn loom_shortcut_forces_project_scope_and_emits() {
         .get_by_label(format!("Scope {}", SearchScope::File).as_str())
         .click();
     harness.run();
-    harness
-        .get_by_role(egui::accesskit::Role::TextInput)
-        .focus();
+    focus_rail_input(&mut harness);
     harness.run();
-    harness
-        .get_by_role(egui::accesskit::Role::TextInput)
-        .type_text("anything");
+    type_rail_input(&mut harness, "anything");
     harness.run();
     harness.get_by_label(LOOM_LABEL).click();
 
@@ -267,13 +271,9 @@ fn clear_button_resets_input_scope_and_slot() {
         .get_by_label(format!("Scope {}", SearchScope::File).as_str())
         .click();
     harness.run();
-    harness
-        .get_by_role(egui::accesskit::Role::TextInput)
-        .focus();
+    focus_rail_input(&mut harness);
     harness.run();
-    harness
-        .get_by_role(egui::accesskit::Role::TextInput)
-        .type_text("query");
+    type_rail_input(&mut harness, "query");
     harness.key_press(egui::Key::Enter);
     let emitted = step_until(&mut harness, |app| app.search_rail_query().is_some());
     assert!(emitted, "an intent is present before clear");
@@ -292,13 +292,9 @@ fn clear_button_resets_input_scope_and_slot() {
     // The input is empty + the scope reset to Project: a fresh emit (after clear) carries no leftover.
     // Type a bare query (no scope prefix) and Enter; the emitted scope must be the default Project,
     // proving the clear reset the active pill from File back to Project (AC-022-6).
-    harness
-        .get_by_role(egui::accesskit::Role::TextInput)
-        .focus();
+    focus_rail_input(&mut harness);
     harness.run();
-    harness
-        .get_by_role(egui::accesskit::Role::TextInput)
-        .type_text("fresh");
+    type_rail_input(&mut harness, "fresh");
     harness.key_press(egui::Key::Enter);
     let fired = step_until(&mut harness, |app| {
         app.search_rail_query().map(|q| q.free_text) == Some("fresh".to_owned())

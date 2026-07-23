@@ -414,7 +414,7 @@ pub struct ProjectTabColors {
 /// never stalls the render loop (red-team: a `/workspaces` timeout must not block the shell).
 pub async fn fetch_workspaces(base_url: &str) -> Result<Vec<ProjectItem>, AppError> {
     let url = format!("{base_url}/workspaces");
-    let client = reqwest::Client::new();
+    let client = crate::backend_client::shared_http_client();
     let resp = client
         .get(&url)
         .timeout(std::time::Duration::from_secs(5))

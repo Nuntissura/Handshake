@@ -145,6 +145,7 @@ thiserror = "2"
 # existing locked graph. See the MT-027 deviation notes for the per-crate justification.
 hmac = "0.12"
 sha2 = "0.10"
+unicode-normalization = "0.1"
 rand = "0.9"
 # base64 STANDARD-alphabet encode for the screenshot tool's `png_base64`. Already present in the locked
 # graph (transitive); declared so the screenshot adapter uses the audited crate instead of a hand-rolled
@@ -224,6 +225,8 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 # from the backend ISO-8601 wire (RFC-3339) — no manual string parse + no second date type. This is a
 # feature ADD on the already-present `chrono`, NOT a new dependency family.
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
+chrono-tz = "0.10"
+iana-time-zone = "0.1"
 # WP-KERNEL-012 MT-036 (E5 — one event ledger): `uuid` (v4) generates the per-event `event_id` and the
 # per-session `session_id` (a non-nil UUID the verified Flight Recorder `runtime_chat_event` endpoint
 # REQUIRES). uuid 1.23.x is ALREADY in the locked graph transitively (Cargo.lock pins 1.23.3 via the egui/

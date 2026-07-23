@@ -66,15 +66,17 @@
 //! ## AccessKit (HBR-SWARM)
 //!
 //! - breadcrumb crumb: `sidebar.breadcrumb.{idx}` (Role::Link, Action::Click).
-//! - pin row: `sidebar.pin.{sanitized_block_id}` (Role::ListItem); remove button
-//!   `sidebar.pin.{sanitized_block_id}.remove` (Role::Button).
-//! - favorite row: `sidebar.favorite.{sanitized_block_id}`; remove `sidebar.favorite.{…}.remove`.
-//! - backlink row: `sidebar.backlink.{sanitized_block_id}` (Role::ListItem).
-//! - unlinked row: `sidebar.unlinked.{sanitized_block_id}` (Role::ListItem).
+//! - pin row: `sidebar.pin.{encoded_block_id}` (Role::ListItem); remove button
+//!   `sidebar.pin.{encoded_block_id}.remove` (Role::Button).
+//! - favorite row: `sidebar.favorite.{encoded_block_id}`; remove `sidebar.favorite.{…}.remove`.
+//! - backlink row: `sidebar.backlink.{encoded_block_id}` (Role::ListItem).
+//! - unlinked row: `sidebar.unlinked.{encoded_block_id}` (Role::ListItem).
 //! - per-section Retry button: `sidebar.{section}.retry` (Role::Button).
 //!
-//! Ids are sanitized to `[a-z0-9-]` via [`crate::project_tree::stable_part`] so a raw id with
-//! slashes/colons can never break the tree.
+//! Safe block ids remain literal so contract targets such as `sidebar.pin.block-001` stay stable.
+//! Unsafe ids (and the reserved `u8-` prefix) are encoded byte-for-byte as lowercase hexadecimal. The
+//! encoding remains injective for arbitrary UTF-8, so distinct backend ids cannot collapse onto one
+//! AccessKit author id while slashes, dots, and control bytes remain namespace-safe.
 
 use std::collections::{HashMap, HashSet};
 
@@ -96,41 +98,65 @@ const CHIP_SWATCH_SIZE: f32 = 10.0;
 /// AccessKit author_id prefix for a breadcrumb crumb: `sidebar.breadcrumb.{idx}`.
 pub const BREADCRUMB_AUTHOR_ID_PREFIX: &str = "sidebar.breadcrumb.";
 
-/// AccessKit author_id prefix for a pin row: `sidebar.pin.{sanitized_block_id}`.
+/// AccessKit author_id prefix for a pin row: `sidebar.pin.{encoded_block_id}`.
 pub const PIN_ROW_AUTHOR_ID_PREFIX: &str = "sidebar.pin.";
 
-/// AccessKit author_id prefix for a favorite row: `sidebar.favorite.{sanitized_block_id}`.
+/// AccessKit author_id prefix for a favorite row: `sidebar.favorite.{encoded_block_id}`.
 pub const FAVORITE_ROW_AUTHOR_ID_PREFIX: &str = "sidebar.favorite.";
 
-/// AccessKit author_id prefix for a backlink row: `sidebar.backlink.{sanitized_block_id}`.
+/// AccessKit author_id prefix for a backlink row: `sidebar.backlink.{encoded_block_id}`.
 pub const BACKLINK_ROW_AUTHOR_ID_PREFIX: &str = "sidebar.backlink.";
 
-/// AccessKit author_id prefix for an unlinked-mention row: `sidebar.unlinked.{sanitized_block_id}`.
+/// AccessKit author_id prefix for an unlinked-mention row: `sidebar.unlinked.{encoded_block_id}`.
 pub const UNLINKED_ROW_AUTHOR_ID_PREFIX: &str = "sidebar.unlinked.";
+
+/// Injective, deterministic AccessKit component for an arbitrary UTF-8 backend id.
+///
+/// `stable_part` is deliberately not used here: replacement/sanitization can map two distinct ids to
+/// the same author id, which would make parallel model actions target the wrong row.
+pub fn accesskit_id_component(raw: &str) -> String {
+    use std::fmt::Write as _;
+
+    let literal_is_safe = !raw.is_empty()
+        && !raw.starts_with("u8-")
+        && raw
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'));
+    if literal_is_safe {
+        return raw.to_owned();
+    }
+
+    let mut encoded = String::with_capacity(3 + raw.len() * 2);
+    encoded.push_str("u8-");
+    for byte in raw.as_bytes() {
+        write!(&mut encoded, "{byte:02x}").expect("writing to String cannot fail");
+    }
+    encoded
+}
 
 /// AccessKit author_id for a crumb at `idx`: `sidebar.breadcrumb.{idx}`.
 pub fn breadcrumb_author_id(idx: usize) -> String {
     format!("{BREADCRUMB_AUTHOR_ID_PREFIX}{idx}")
 }
 
-/// AccessKit author_id for a pin row: `sidebar.pin.{sanitized_block_id}`.
+/// AccessKit author_id for a pin row: `sidebar.pin.{encoded_block_id}`.
 pub fn pin_row_author_id(block_id: &str) -> String {
     format!(
         "{PIN_ROW_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
+        accesskit_id_component(block_id)
     )
 }
 
-/// AccessKit author_id for a pin row's Remove button: `sidebar.pin.{sanitized_block_id}.remove`.
+/// AccessKit author_id for a pin row's Remove button: `sidebar.pin.{encoded_block_id}.remove`.
 pub fn pin_remove_author_id(block_id: &str) -> String {
     format!("{}.remove", pin_row_author_id(block_id))
 }
 
-/// AccessKit author_id for a favorite row: `sidebar.favorite.{sanitized_block_id}`.
+/// AccessKit author_id for a favorite row: `sidebar.favorite.{encoded_block_id}`.
 pub fn favorite_row_author_id(block_id: &str) -> String {
     format!(
         "{FAVORITE_ROW_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
+        accesskit_id_component(block_id)
     )
 }
 
@@ -139,25 +165,30 @@ pub fn favorite_remove_author_id(block_id: &str) -> String {
     format!("{}.remove", favorite_row_author_id(block_id))
 }
 
-/// AccessKit author_id for a backlink row: `sidebar.backlink.{sanitized_block_id}`.
+/// AccessKit author_id for a backlink row: `sidebar.backlink.{encoded_block_id}`.
 pub fn backlink_row_author_id(block_id: &str) -> String {
     format!(
         "{BACKLINK_ROW_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
+        accesskit_id_component(block_id)
     )
 }
 
-/// AccessKit author_id for an unlinked-mention row: `sidebar.unlinked.{sanitized_block_id}`.
+/// AccessKit author_id for an unlinked-mention row: `sidebar.unlinked.{encoded_block_id}`.
 pub fn unlinked_row_author_id(block_id: &str) -> String {
     format!(
         "{UNLINKED_ROW_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
+        accesskit_id_component(block_id)
     )
 }
 
 /// AccessKit author_id for a section's Retry button: `sidebar.{section}.retry`.
 pub fn section_retry_author_id(section: SectionKind) -> String {
     format!("sidebar.{}.retry", section.slug())
+}
+
+/// AccessKit author_id for a collapsible section header: `sidebar.{section}.header`.
+pub fn section_header_author_id(section: SectionKind) -> String {
+    format!("sidebar.{}.header", section.slug())
 }
 
 /// The four data sections the sidebar loads independently (impl-note 70). The breadcrumb strip is not a
@@ -237,6 +268,8 @@ pub struct BacklinkRow {
     pub title: String,
     /// The incoming edge's type ("mention" / "tag" / …) shown as a label chip (AC4).
     pub edge_type: String,
+    /// Optional surrounding source text returned by the dedicated backlinks route.
+    pub context_snippet: Option<String>,
 }
 
 impl BacklinkRow {
@@ -249,7 +282,13 @@ impl BacklinkRow {
             block_id: block_id.into(),
             title: title.into(),
             edge_type: edge_type.into(),
+            context_snippet: None,
         }
+    }
+
+    pub fn with_context(mut self, context_snippet: Option<String>) -> Self {
+        self.context_snippet = context_snippet;
+        self
     }
 }
 
@@ -258,6 +297,8 @@ impl BacklinkRow {
 pub struct UnlinkedRow {
     pub block_id: String,
     pub title: String,
+    pub matched_term: String,
+    pub snippet: String,
 }
 
 impl UnlinkedRow {
@@ -265,7 +306,19 @@ impl UnlinkedRow {
         Self {
             block_id: block_id.into(),
             title: title.into(),
+            matched_term: String::new(),
+            snippet: String::new(),
         }
+    }
+
+    pub fn with_match(
+        mut self,
+        matched_term: impl Into<String>,
+        snippet: impl Into<String>,
+    ) -> Self {
+        self.matched_term = matched_term.into();
+        self.snippet = snippet.into();
+        self
     }
 }
 
@@ -306,8 +359,8 @@ pub fn truncate_label(s: &str, max: usize) -> String {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SidebarEvent {
     /// A row or breadcrumb was clicked: navigate to `block_id` (fires the `on_open` callback). The host
-    /// pushes a breadcrumb for this block.
-    Open { block_id: String },
+    /// pushes a breadcrumb for this block using `title` as the operator-facing label.
+    Open { block_id: String, title: String },
     /// A pin's Remove button was clicked (AC2): the host runs the two-call removal
     /// (`PUT /pin-order null` THEN `PATCH {pinned:false}`), emits the bookmark-changed event, and
     /// re-fetches Pins. The row was already removed OPTIMISTICALLY from the local list (RISK-1).
@@ -448,9 +501,9 @@ impl LoomSidebarPanel {
     /// Optimistically remove a pin from the local list (RISK-1): the row disappears immediately on
     /// remove-click; the host then runs the two-call backend removal and, on FAILURE, calls
     /// [`rollback_pin`](Self::rollback_pin) to re-insert it. Returns the removed block (for rollback).
-    pub fn optimistic_remove_pin(&mut self, block_id: &str) -> Option<SidebarBlock> {
+    pub fn optimistic_remove_pin(&mut self, block_id: &str) -> Option<(usize, SidebarBlock)> {
         if let Some(pos) = self.pins.iter().position(|b| b.block_id == block_id) {
-            Some(self.pins.remove(pos))
+            Some((pos, self.pins.remove(pos)))
         } else {
             None
         }
@@ -464,9 +517,9 @@ impl LoomSidebarPanel {
     }
 
     /// Optimistically remove a favorite from the local list (the favorite peer of `optimistic_remove_pin`).
-    pub fn optimistic_remove_favorite(&mut self, block_id: &str) -> Option<SidebarBlock> {
+    pub fn optimistic_remove_favorite(&mut self, block_id: &str) -> Option<(usize, SidebarBlock)> {
         if let Some(pos) = self.favorites.iter().position(|b| b.block_id == block_id) {
-            Some(self.favorites.remove(pos))
+            Some((pos, self.favorites.remove(pos)))
         } else {
             None
         }
@@ -560,9 +613,10 @@ impl LoomSidebarPanel {
                         .sense(Sense::click()),
                 );
                 emit_link_accesskit(ui, resp.id, &breadcrumb_author_id(idx), &crumb.title);
-                if resp.clicked() {
+                if resp.clicked() || accesskit_clicked(ui, resp.id) {
                     event = Some(SidebarEvent::Open {
                         block_id: crumb.block_id.clone(),
+                        title: crumb.title.clone(),
                     });
                 }
             }
@@ -594,7 +648,13 @@ impl LoomSidebarPanel {
             )
             .sense(Sense::click()),
         );
-        if header.clicked() {
+        emit_button_accesskit(
+            ui,
+            header.id,
+            &section_header_author_id(section),
+            &format!("Toggle {}", section.title()),
+        );
+        if header.clicked() || accesskit_clicked(ui, header.id) {
             self.set_expanded(ui, section, !expanded);
         }
 
@@ -750,6 +810,11 @@ fn render_bookmark_row(
             if ui.is_rect_visible(rect) {
                 ui.painter().rect_filled(rect, 2.0, chip_color);
             }
+            ui.label(
+                egui::RichText::new(&block.content_type)
+                    .small()
+                    .color(palette.text_subtle),
+            );
             let title = ui.add(
                 egui::Label::new(egui::RichText::new(&block.title).color(palette.text))
                     .sense(Sense::click()),
@@ -774,9 +839,10 @@ fn render_bookmark_row(
         &block.content_type,
     );
 
-    if title_resp.clicked() {
+    if title_resp.clicked() || accesskit_clicked(ui, title_resp.id) {
         event = Some(SidebarEvent::Open {
             block_id: block.block_id.clone(),
+            title: block.title.clone(),
         });
     }
     if remove_clicked {
@@ -802,10 +868,18 @@ fn render_backlink_row(
     let mut event = None;
     let resp = ui
         .horizontal(|ui| {
-            let title = ui.add(
-                egui::Label::new(egui::RichText::new(&row.title).color(palette.text))
-                    .sense(Sense::click()),
-            );
+            let title = ui
+                .vertical(|ui| {
+                    let title = ui.add(
+                        egui::Label::new(egui::RichText::new(&row.title).color(palette.text))
+                            .sense(Sense::click()),
+                    );
+                    if let Some(snippet) = row.context_snippet.as_deref() {
+                        ui.weak(snippet);
+                    }
+                    title
+                })
+                .inner;
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.colored_label(palette.text_subtle, &row.edge_type);
             });
@@ -817,11 +891,15 @@ fn render_backlink_row(
         resp.id,
         &backlink_row_author_id(&row.block_id),
         &row.title,
-        &format!("backlink via {}", row.edge_type),
+        &match row.context_snippet.as_deref() {
+            Some(snippet) => format!("backlink via {}: {snippet}", row.edge_type),
+            None => format!("backlink via {}", row.edge_type),
+        },
     );
-    if resp.clicked() {
+    if resp.clicked() || accesskit_clicked(ui, resp.id) {
         event = Some(SidebarEvent::Open {
             block_id: row.block_id.clone(),
+            title: row.title.clone(),
         });
     }
     event
@@ -838,16 +916,24 @@ fn render_unlinked_row(
     let resp = ui.add(
         egui::Label::new(egui::RichText::new(&row.title).color(palette.text)).sense(Sense::click()),
     );
+    if !row.snippet.is_empty() {
+        ui.weak(&row.snippet);
+    }
     emit_list_item_accesskit(
         ui,
         resp.id,
         &unlinked_row_author_id(&row.block_id),
         &row.title,
-        "unlinked mention (no edge)",
+        &if row.matched_term.is_empty() {
+            "unlinked mention (no edge)".to_owned()
+        } else {
+            format!("unlinked mention of {}: {}", row.matched_term, row.snippet)
+        },
     );
-    if resp.clicked() {
+    if resp.clicked() || accesskit_clicked(ui, resp.id) {
         event = Some(SidebarEvent::Open {
             block_id: row.block_id.clone(),
+            title: row.title.clone(),
         });
     }
     event
@@ -865,6 +951,18 @@ fn emit_button_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &s
         node.set_label(label.clone());
         node.add_action(accesskit::Action::Click);
     });
+}
+
+/// Custom Label/ListItem nodes advertise `Action::Click`, but a stock egui `Label` does not translate
+/// that model-facing request into `Response::clicked()`. Read the request explicitly so raw AccessKit
+/// navigation follows the same typed event path as a pointer click.
+fn accesskit_clicked(ui: &egui::Ui, id: egui::Id) -> bool {
+    ui.input(|input| {
+        input
+            .accesskit_action_requests(id, accesskit::Action::Click)
+            .next()
+            .is_some()
+    })
 }
 
 /// Emit a breadcrumb crumb's live AccessKit node (Role::Link + Action::Click + author_id). The contract
@@ -973,11 +1071,11 @@ mod tests {
             SidebarBlock::new("p2", "Pin Two", "note"),
             SidebarBlock::new("p3", "Pin Three", "note"),
         ]);
-        let removed = panel.optimistic_remove_pin("p2").expect("p2 was present");
+        let (position, removed) = panel.optimistic_remove_pin("p2").expect("p2 was present");
         assert_eq!(panel.pins.len(), 2, "row removed optimistically");
         assert!(!panel.pins.iter().any(|b| b.block_id == "p2"));
         // Simulated backend failure -> rollback re-inserts at the original index.
-        panel.rollback_pin(removed, 1);
+        panel.rollback_pin(removed, position);
         let ids: Vec<&str> = panel.pins.iter().map(|b| b.block_id.as_str()).collect();
         assert_eq!(
             ids,
@@ -1017,9 +1115,9 @@ mod tests {
         assert!(t.ends_with('…'), "an ellipsis marks truncation");
     }
 
-    /// AccessKit author_ids are sanitized to `[a-z0-9-]` (no slashes/colons can break the tree).
+    /// AccessKit author ids are safe and injective for arbitrary UTF-8 backend ids.
     #[test]
-    fn author_ids_are_sanitized() {
+    fn author_ids_are_utf8_safe_and_injective() {
         let row = pin_row_author_id("ws:1/blk 7#x");
         assert!(row.starts_with(PIN_ROW_AUTHOR_ID_PREFIX));
         let suffix = &row[PIN_ROW_AUTHOR_ID_PREFIX.len()..];
@@ -1029,6 +1127,27 @@ mod tests {
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "pin row author_id suffix must be [a-z0-9-]; got '{suffix}'"
         );
+        assert_ne!(
+            pin_row_author_id("a/b"),
+            pin_row_author_id("a:b"),
+            "punctuation-distinct backend ids must remain distinct"
+        );
+        assert_ne!(
+            pin_row_author_id("é"),
+            pin_row_author_id("e"),
+            "multibyte UTF-8 ids must remain distinct"
+        );
+        assert_eq!(
+            pin_row_author_id("block-001"),
+            "sidebar.pin.block-001",
+            "contract-safe ids remain literal"
+        );
+        assert_ne!(
+            accesskit_id_component("u8-6162"),
+            accesskit_id_component("ab"),
+            "the encoding marker is reserved so literal ids cannot collide with encoded ids"
+        );
+        assert_eq!(accesskit_id_component(""), "u8-");
         assert!(pin_remove_author_id("a/b").ends_with(".remove"));
         assert!(favorite_row_author_id("a:b").starts_with(FAVORITE_ROW_AUTHOR_ID_PREFIX));
         assert!(backlink_row_author_id("a b").starts_with(BACKLINK_ROW_AUTHOR_ID_PREFIX));

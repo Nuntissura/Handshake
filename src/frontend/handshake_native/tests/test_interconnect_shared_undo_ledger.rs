@@ -8,146 +8,309 @@
 //! IC-18 edits A then B and asserts ONE undo reverts ONLY B (the most-recently-edited surface) leaving A
 //! unchanged — inspecting BOTH surfaces after the single undo.
 //!
-//! IC-17 (event-ledger) binds the Flight Recorder backend and needs a LIVE managed PostgreSQL, so it is
-//! `#[ignore]` + `requires_pg`. CTRL-7 VERIFY-OR-BLOCKER (read-only, 2026-06-26): the `GET /events` ledger
-//! query endpoint EXISTS (`src/backend/handshake_core/src/api/flight_recorder.rs:74` routes BARE `/events` +
-//! `/flight_recorder` -> `list_events`), so IC-17 is requires_pg, NOT BLOCKED. ROUTE SHAPE (corrected): the
-//! route is BARE `/events` (NO `/workspaces` prefix), filtered by the `wsid` QUERY param, and returns a bare
-//! `Vec<FlightEvent>` (no `events` wrapper). Knowledge-doc saves use the BARE `/knowledge/documents/{id}/save`
-//! route ({expected_version,content_json}); the create response wraps the doc under `document.rich_document_id`.
+//! IC-17 runs by default through the managed product-backend fixture. It reads the kernel EventLedger by
+//! the document's exact aggregate identity, correlates both save receipt ids, and verifies that the second
+//! receipt carries the real linked block id. This deliberately does not substitute the separate Flight
+//! Recorder projection for kernel EventLedger authority.
 //!
 //! Artifact hygiene (CX-212E): no artifact under `src/`.
 
 #[path = "interconnect_support/mod.rs"]
 mod interconnect_support;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use handshake_native::code_editor::panel::CodeEditorPanel;
+use egui_kittest::kittest::NodeT;
+use egui_kittest::Harness;
+
+use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
+use handshake_native::backend_client::HealthInfo;
+use handshake_native::code_editor::panel::CODE_EDITOR_TEXT_AUTHOR_ID;
 use handshake_native::interop::InteractionBus;
-use handshake_native::pane_registry::PaneId;
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+};
+use handshake_native::rich_editor::document_model::doc_json::{
+    from_json_value, to_content_json_value,
+};
+use handshake_native::rich_editor::document_model::node::BlockNode;
 use handshake_native::rich_editor::interop_adapter::{push_rich_edit_undo, RichSnapshotApplier};
+use handshake_native::rich_editor::renderer::rich_editor_widget::RichEditorState;
 
-use interconnect_support::{assert_no_local_artifact_dir, mark_status, require_live_backend};
+use interconnect_support::{assert_no_local_artifact_dir, require_live_backend, ScenarioAttempt};
 
 fn pane(id: &str) -> PaneId {
     Arc::from(id)
 }
 
-/// A rich snapshot applier that restores a `String` doc from its content_json snapshot (the test-doc shape).
-fn string_restore() -> RichSnapshotApplier<String> {
-    Arc::new(|s: &mut String, snap| {
-        *s = snap.as_str().unwrap_or_default().to_owned();
+fn editor_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("IC-15/18: build runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    {
+        let registry = app.pane_registry();
+        let mut registry = registry.lock().expect("IC-15/18: pane registry");
+        registry.insert(PaneRecord::new(
+            PaneId::from("pane-a"),
+            PaneType::CodeSymbol,
+            DEFAULT_PROJECT_ID,
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+        registry.insert(PaneRecord::new(
+            PaneId::from("pane-b"),
+            PaneType::LoomWikiPage,
+            DEFAULT_PROJECT_ID,
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+    }
+    (app, runtime)
+}
+
+fn focus_accesskit(harness: &mut Harness<'_, HandshakeApp>, author_id: &str) {
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(author_id))
+        .unwrap_or_else(|| panic!("mounted AccessKit node {author_id} must be present"))
+        .focus();
+    // The code pane publishes focus ownership before `CodeEditorPanel::show`, while the AccessKit
+    // focus request becomes visible to that panel during `show`. Settle the following frame as well so
+    // the mounted pane publishes that observed focus to the app-owned InteractionBus.
+    harness.run_steps(2);
+}
+
+/// The same native content_json -> DocModel restore operation the mounted rich editor's unified-undo
+/// bridge uses. A malformed snapshot fails closed; it never becomes an empty stand-in document.
+fn rich_restore() -> RichSnapshotApplier<RichEditorState> {
+    Arc::new(|state: &mut RichEditorState, snapshot| {
+        state.doc = from_json_value(snapshot)
+            .expect("shared rich undo snapshot must parse through the native DocModel");
     })
 }
 
+fn rich_content(state: &RichEditorState) -> String {
+    to_content_json_value(&state.doc).to_string()
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-15 — Undo crosses rich editor edit (SUBSTRATE PASS): a rich-text edit (insert EDIT_A) recorded on the
-// ONE shared bus undo scope is reverted by one undo so the content no longer contains EDIT_A. The SAME
-// `Arc<Mutex<InteractionBus>>` instance holds the scope (CTRL-1). The backend version-revert half is
-// requires_pg (the in-process scope proves the undo stack reverts the rich edit; PG proves the durable save
-// rolls back).
+// IC-15 — Undo crosses rich editor edit (LIVE-PG PASS): persist EDIT_A, route the Ctrl+Z operation through
+// the ONE shared bus undo scope, persist the restored snapshot, and GET backend authority to prove EDIT_A
+// is absent. The SAME `Arc<Mutex<InteractionBus>>` instance holds the scope (CTRL-1).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
 fn interconnect_ic15_undo_rich_editor() {
-    let bus = Arc::new(Mutex::new(InteractionBus::new()));
-    let rich_pane = pane("pane-rich");
+    let attempt = ScenarioAttempt::begin("IC-15");
+    let mut be = require_live_backend();
+    let rich_pane = pane("pane-b");
 
-    // The real rich doc state (a String standing in for the content_json the adapter snapshots).
-    let rich_doc = Arc::new(Mutex::new(String::from("base")));
-    let before = "base".to_owned();
-    let after = "base EDIT_A".to_owned();
+    let before_doc = BlockNode::doc(vec![BlockNode::paragraph("base")]);
+    let after_doc = BlockNode::doc(vec![BlockNode::paragraph("base EDIT_A")]);
+    let before = to_content_json_value(&before_doc);
+    let after = to_content_json_value(&after_doc);
+    let (app, _runtime) = editor_shell();
+    let rich_doc = app.mounted_rich_state();
+    rich_doc.lock().unwrap().doc = before_doc;
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+
+    let created = be.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({
+            "workspace_id": be.workspace_id,
+            "title": "IC-15 durable undo",
+            "content_json": before.clone(),
+        }),
+    );
+    let doc_id = created
+        .pointer("/document/rich_document_id")
+        .and_then(serde_json::Value::as_str)
+        .expect("IC-15: create returns rich_document_id")
+        .to_owned();
+    let base_version = created
+        .pointer("/document/doc_version")
+        .and_then(serde_json::Value::as_i64)
+        .expect("IC-15: create returns doc_version");
 
     // Record the rich edit on the SHARED bus's unified undo scope via the REAL adapter, then apply the edit.
     {
+        let bus = InteractionBus::get_or_init(&harness.ctx);
         let mut b = bus.lock().unwrap();
         push_rich_edit_undo(
             &mut b,
             rich_pane.clone(),
             &rich_doc,
-            serde_json::json!(before),
-            serde_json::json!(after),
-            string_restore(),
+            before.clone(),
+            after.clone(),
+            rich_restore(),
             "rich: insert EDIT_A",
         );
-        b.set_focus_owner(rich_pane.clone());
     }
-    *rich_doc.lock().unwrap() = after.clone();
+    rich_doc.lock().unwrap().doc = after_doc;
+    let saved_edit = be.put_json(
+        &format!("/knowledge/documents/{doc_id}/save"),
+        &serde_json::json!({"expected_version": base_version, "content_json": after.clone()}),
+    );
+    let edit_version = saved_edit
+        .pointer("/document/doc_version")
+        .and_then(serde_json::Value::as_i64)
+        .expect("IC-15: EDIT_A save returns advanced doc_version");
     assert!(
-        rich_doc.lock().unwrap().contains("EDIT_A"),
+        edit_version > base_version,
+        "IC-15: real EDIT_A save advances version"
+    );
+    assert!(
+        rich_content(&rich_doc.lock().unwrap()).contains("EDIT_A"),
         "IC-15: the edit applied (EDIT_A present)"
     );
     assert_eq!(
-        bus.lock().unwrap().local_undo_count(&rich_pane),
+        InteractionBus::get_or_init(&harness.ctx)
+            .lock()
+            .unwrap()
+            .local_undo_count(&rich_pane),
         1,
         "IC-15: one entry on the shared scope"
     );
 
-    // One undo on the SAME shared bus reverts the rich edit so EDIT_A is gone.
-    let result = bus
-        .lock()
-        .unwrap()
-        .undo(&rich_pane)
-        .expect("an action to undo");
-    assert!(result.ok, "IC-15: the undo applied: {result:?}");
+    // Focus the REAL mounted rich editor through its AccessKit surface, then send the canonical Ctrl+Z
+    // chord. The shell decodes the key command and selects the focused pane's ring; the test never calls
+    // `InteractionBus::undo` directly.
+    focus_accesskit(&mut harness, "editor.rich.text");
+    assert_eq!(
+        InteractionBus::get_or_init(&harness.ctx)
+            .lock()
+            .unwrap()
+            .focus_owner(),
+        Some(&rich_pane),
+        "IC-15: AccessKit focus selects the rich pane undo scope"
+    );
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.run_steps(3);
     assert!(
-        !rich_doc.lock().unwrap().contains("EDIT_A"),
+        !rich_content(&rich_doc.lock().unwrap()).contains("EDIT_A"),
         "IC-15: after Ctrl+Z the rich content no longer contains EDIT_A (got {:?})",
-        *rich_doc.lock().unwrap()
+        rich_content(&rich_doc.lock().unwrap())
+    );
+    assert_eq!(
+        to_content_json_value(&rich_doc.lock().unwrap().doc),
+        before,
+        "IC-15: native rich undo restores the exact pre-edit DocModel snapshot"
+    );
+    assert_eq!(
+        InteractionBus::get_or_init(&harness.ctx)
+            .lock()
+            .unwrap()
+            .local_undo_count(&rich_pane),
+        0,
+        "IC-15: canonical Ctrl+Z consumed the focused rich pane entry"
     );
 
-    mark_status("IC-15", "PASS");
+    let restored_content = to_content_json_value(&rich_doc.lock().unwrap().doc);
+    let saved_undo = be.put_json(
+        &format!("/knowledge/documents/{doc_id}/save"),
+        &serde_json::json!({"expected_version": edit_version, "content_json": restored_content}),
+    );
+    let undo_version = saved_undo
+        .pointer("/document/doc_version")
+        .and_then(serde_json::Value::as_i64)
+        .expect("IC-15: Ctrl+Z save returns advanced doc_version");
+    assert!(
+        undo_version > edit_version,
+        "IC-15: durable undo save advances version"
+    );
+    let reloaded = be.get_json(&format!("/knowledge/documents/{doc_id}"));
+    let reloaded_content = reloaded
+        .pointer("/document/content_json")
+        .cloned()
+        .expect("IC-15: backend GET returns content_json");
+    assert!(
+        !reloaded_content.to_string().contains("EDIT_A"),
+        "IC-15: backend authority after Ctrl+Z/save must not contain EDIT_A: {reloaded_content}"
+    );
+
+    let delete_status = be.delete(&format!("/knowledge/documents/{doc_id}"));
+    assert!(
+        (200..300).contains(&delete_status) || delete_status == 404,
+        "IC-15: explicit document cleanup returned {delete_status}"
+    );
+    be.assert_cleanup();
+    attempt.pass(serde_json::json!({
+        "edit": "EDIT_A",
+        "ctrl_z_via_shared_bus": true,
+        "backend_get_absent_after_undo": true,
+        "versions": [base_version, edit_version, undo_version],
+    }));
     assert_no_local_artifact_dir();
-    println!("IC-15 SUBSTRATE PASS: EDIT_A absent after one undo on the shared bus undo scope");
+    println!("IC-15 LIVE-PG PASS: EDIT_A saved, Ctrl+Z restored, and backend GET confirms absence");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-16 — Undo crosses code editor edit (SUBSTRATE PASS): a code-buffer edit (insert CODE_EDIT) recorded on
-// the ONE shared bus undo scope is reverted by one undo so the buffer no longer contains CODE_EDIT. Uses the
-// REAL CodeEditorPanel + push_code_edit_undo adapter (the real rope set_text restore). The PG version-revert
-// half is requires_pg.
+// IC-16 — Undo crosses code editor edit (SUBSTRATE PASS): type CODE_EDIT through the mounted code
+// editor's real input route, then drive Ctrl+Z through the focused AccessKit surface and shell key router.
+// The app-owned InteractionBus records and drains the pane-local entry; a second Ctrl+Z proves the empty
+// stack fails closed without mutating the mounted file buffer.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
 fn interconnect_ic16_undo_code_editor() {
-    let bus = Arc::new(Mutex::new(InteractionBus::new()));
-    let code_pane = pane("pane-code");
-    let code_panel = Arc::new(CodeEditorPanel::new("fn main() {}\n", "rs"));
+    let attempt = ScenarioAttempt::begin("IC-16");
+    let code_pane = pane("pane-a");
+    let (app, _runtime) = editor_shell();
+    let code_panel = app.mounted_code_panel();
+    code_panel.set_text("fn main() {}\n");
+    code_panel.set_single_cursor(0);
+    let before = code_panel.buffer().to_string();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
 
-    // Snapshot before, apply a real edit (insert CODE_EDIT at line 1), record on the SHARED scope.
-    let before = code_panel.buffer();
-    code_panel.set_text("CODE_EDIT\nfn main() {}\n");
-    let after = code_panel.buffer();
+    focus_accesskit(&mut harness, CODE_EDITOR_TEXT_AUTHOR_ID);
+    assert_eq!(
+        InteractionBus::get_or_init(&harness.ctx)
+            .lock()
+            .unwrap()
+            .focus_owner(),
+        Some(&code_pane),
+        "IC-16: AccessKit focus selects the mounted code pane"
+    );
+
+    // Apply the edit through the production text-input loop. The mounted pane factory snapshots it and
+    // records the resulting restore action on the app-owned shared bus; the test never seeds undo state.
+    harness.event(egui::Event::Text("CODE_EDIT\n".to_owned()));
+    harness.run_steps(2);
     assert!(
         code_panel.buffer().to_string().contains("CODE_EDIT"),
-        "IC-16: the code edit applied"
+        "IC-16: the mounted code text input applied CODE_EDIT"
     );
-    {
-        let mut b = bus.lock().unwrap();
-        handshake_native::code_editor::interop_adapter::push_code_edit_undo(
-            &mut b,
-            code_pane.clone(),
-            &code_panel,
-            before.clone(),
-            after.clone(),
-            "code: insert CODE_EDIT",
-        );
-        b.set_focus_owner(code_pane.clone());
-    }
     assert_eq!(
-        bus.lock().unwrap().local_undo_count(&code_pane),
+        InteractionBus::get_or_init(&harness.ctx)
+            .lock()
+            .unwrap()
+            .local_undo_count(&code_pane),
         1,
-        "IC-16: one entry on the shared scope"
+        "IC-16: the live edit produced one entry on the app-owned shared scope"
     );
 
-    // One undo on the SAME shared bus reverts the code edit so CODE_EDIT is gone.
-    let result = bus
-        .lock()
-        .unwrap()
-        .undo(&code_pane)
-        .expect("an action to undo");
-    assert!(result.ok, "IC-16: the undo applied: {result:?}");
+    // Drive the canonical mounted key route; no direct InteractionBus::undo call is allowed here.
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.run_steps(3);
     assert!(
         !code_panel.buffer().to_string().contains("CODE_EDIT"),
         "IC-16: after Ctrl+Z the code buffer no longer contains CODE_EDIT (got {:?})",
@@ -155,14 +318,45 @@ fn interconnect_ic16_undo_code_editor() {
     );
     assert_eq!(
         code_panel.buffer().to_string(),
-        before.to_string(),
+        before,
         "IC-16: the buffer is restored to its pre-edit state"
     );
+    assert_eq!(
+        InteractionBus::get_or_init(&harness.ctx)
+            .lock()
+            .unwrap()
+            .local_undo_count(&code_pane),
+        0,
+        "IC-16: the mounted Ctrl+Z drained the code pane ring"
+    );
 
-    mark_status("IC-16", "PASS");
+    // Empty-stack negative path: a repeated Ctrl+Z is a visible no-op and cannot corrupt file state.
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.run_steps(2);
+    assert_eq!(
+        code_panel.buffer().to_string(),
+        before,
+        "IC-16: Ctrl+Z on an empty app-owned ring leaves the mounted file unchanged"
+    );
+    assert_eq!(
+        InteractionBus::get_or_init(&harness.ctx)
+            .lock()
+            .unwrap()
+            .local_undo_count(&code_pane),
+        0,
+        "IC-16: repeated empty-stack undo does not fabricate an entry"
+    );
+
+    attempt.pass(serde_json::json!({
+        "edit": "CODE_EDIT",
+        "mounted_accesskit_input": true,
+        "ctrl_z_via_app_key_route": true,
+        "absent_after_undo": true,
+        "empty_stack_noop": true,
+    }));
     assert_no_local_artifact_dir();
     println!(
-        "IC-16 SUBSTRATE PASS: CODE_EDIT reverted after one undo on the shared bus undo scope"
+        "IC-16 SUBSTRATE PASS: mounted CODE_EDIT reverted through AccessKit/Ctrl+Z; empty-stack retry was a no-op"
     );
 }
 
@@ -177,33 +371,48 @@ fn interconnect_ic16_undo_code_editor() {
 
 #[test]
 fn interconnect_ic18_undo_scope_policy() {
-    // ONE shared bus instance for BOTH surfaces (CTRL-4 — not two independent stacks).
-    let bus = Arc::new(Mutex::new(InteractionBus::new()));
-    let rich_pane = pane("pane-rich-A");
-    let code_pane = pane("pane-code-B");
+    let attempt = ScenarioAttempt::begin("IC-18");
+    let rich_pane = pane("pane-b");
+    let code_pane = pane("pane-a");
+    let note_before = BlockNode::doc(vec![BlockNode::paragraph("noteA-base")]);
+    let note_after = BlockNode::doc(vec![BlockNode::paragraph("noteA-EDITED")]);
+    let note_before_json = to_content_json_value(&note_before);
+    let note_after_json = to_content_json_value(&note_after);
+
+    // Mount BOTH real editor surfaces in the native shell. Their adapters and key-command router share
+    // the shell-owned InteractionBus; the test does not create a detached substitute bus.
+    let (app, _runtime) = editor_shell();
+    let rich_doc = app.mounted_rich_state();
+    rich_doc.lock().unwrap().doc = note_before;
+    let code_panel = app.mounted_code_panel();
+    code_panel.set_text("let b = 0;\n");
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
 
     // Surface A = rich note. Edit it FIRST.
-    let rich_doc = Arc::new(Mutex::new(String::from("noteA-base")));
     {
+        let bus = InteractionBus::get_or_init(&harness.ctx);
         let mut b = bus.lock().unwrap();
         push_rich_edit_undo(
             &mut b,
             rich_pane.clone(),
             &rich_doc,
-            serde_json::json!("noteA-base"),
-            serde_json::json!("noteA-EDITED"),
-            string_restore(),
+            note_before_json,
+            note_after_json.clone(),
+            rich_restore(),
             "rich: edit A",
         );
     }
-    *rich_doc.lock().unwrap() = "noteA-EDITED".to_owned();
+    rich_doc.lock().unwrap().doc = note_after;
 
     // Surface B = code file. Edit it SECOND (the MOST RECENTLY edited surface).
-    let code_panel = Arc::new(CodeEditorPanel::new("let b = 0;\n", "rs"));
     let code_before = code_panel.buffer();
     code_panel.set_text("let b = 999;\n");
     let code_after = code_panel.buffer();
     {
+        let bus = InteractionBus::get_or_init(&harness.ctx);
         let mut b = bus.lock().unwrap();
         handshake_native::code_editor::interop_adapter::push_code_edit_undo(
             &mut b,
@@ -213,26 +422,33 @@ fn interconnect_ic18_undo_scope_policy() {
             code_after.clone(),
             "code: edit B",
         );
-        // The most-recently-edited surface holds focus (the per-pane scope authority — POLICY-1).
-        b.set_focus_owner(code_pane.clone());
     }
 
     // Snapshots BEFORE the single undo (to prove A is untouched after).
-    let note_before_undo = rich_doc.lock().unwrap().clone();
+    let note_before_undo = to_content_json_value(&rich_doc.lock().unwrap().doc);
     let code_before_undo = code_panel.buffer().to_string();
-    assert_eq!(note_before_undo, "noteA-EDITED", "IC-18: note A was edited");
+    assert_eq!(
+        note_before_undo, note_after_json,
+        "IC-18: note A was edited"
+    );
     assert!(
         code_before_undo.contains("999"),
         "IC-18: code B was edited (most recent)"
     );
 
-    // ONE undo on the focused (most-recently-edited) pane B.
-    let result = bus
-        .lock()
-        .unwrap()
-        .undo(&code_pane)
-        .expect("an undo on the focused pane B");
-    assert!(result.ok, "IC-18: the single undo applied: {result:?}");
+    // Focus the REAL mounted code editor through AccessKit, then dispatch ONE canonical Ctrl+Z chord.
+    // The native shell selects pane B's local-first ring from focus ownership.
+    focus_accesskit(&mut harness, CODE_EDITOR_TEXT_AUTHOR_ID);
+    assert_eq!(
+        InteractionBus::get_or_init(&harness.ctx)
+            .lock()
+            .unwrap()
+            .focus_owner(),
+        Some(&code_pane),
+        "IC-18: AccessKit focus selects the code pane undo scope"
+    );
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
+    harness.run_steps(3);
 
     // INSPECT BOTH surfaces after the one undo (CTRL-4):
     //  - B (the most recently edited) is reverted.
@@ -244,13 +460,14 @@ fn interconnect_ic18_undo_scope_policy() {
     );
     //  - A (the note) is UNCHANGED (POLICY-1 per-pane scope — the undo did not touch A's ring).
     assert_eq!(
-        *rich_doc.lock().unwrap(),
-        "noteA-EDITED",
+        to_content_json_value(&rich_doc.lock().unwrap().doc),
+        note_after_json,
         "IC-18: the OTHER surface (note A) is UNCHANGED after the single undo (per-pane scope policy)"
     );
     // The code ring drained; the note ring still has its entry (proving they are distinct per-pane rings on
     // the ONE shared scope, not a single global stack).
     {
+        let bus = InteractionBus::get_or_init(&harness.ctx);
         let b = bus.lock().unwrap();
         assert_eq!(
             b.local_undo_count(&code_pane),
@@ -264,7 +481,7 @@ fn interconnect_ic18_undo_scope_policy() {
         );
     }
 
-    mark_status("IC-18", "PASS");
+    attempt.pass(serde_json::json!({"policy": "local_first", "one_undo_reverted": "code_pane_b"}));
     assert_no_local_artifact_dir();
     println!(
         "IC-18 SUBSTRATE PASS: scope correct — ONE undo on the shared stack reverted ONLY the most recently \
@@ -273,24 +490,21 @@ fn interconnect_ic18_undo_scope_policy() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// IC-17 — Event-ledger records cross-surface actions (requires_pg). CTRL-7: GET /events EXISTS (Flight
-// Recorder list_events). A sequence (insert text, save, insert wikilink, save again) produces >=2
+// IC-17 — Event-ledger records cross-surface actions. A sequence (insert text, save, insert wikilink,
+// save again) produces >=2
 // KNOWLEDGE_RICH_DOCUMENT_SAVED events in the ledger, in order; the second event's payload carries the
-// wikilink block reference. Run with: cargo test -p handshake-native --test test_interconnect_shared_undo_ledger -- --ignored
+// wikilink block reference.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-#[ignore = "requires_pg: live PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID). GET /events?wsid={ws} \
-            (the BARE Flight Recorder list_events route, no /workspaces prefix) returns >= 2 \
-            KNOWLEDGE_RICH_DOCUMENT_SAVED events for the note in order; the second carries the wikilink ref. \
-            CTRL-7: the endpoint EXISTS (verified). Never mocks PG."]
 fn interconnect_ic17_event_ledger_records() {
+    let attempt = ScenarioAttempt::begin("IC-17");
     use handshake_native::rich_editor::document_model::doc_json::to_content_json_value;
     use handshake_native::rich_editor::document_model::node::{
         BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
     };
 
-    let be = require_live_backend();
+    let mut be = require_live_backend();
     let ws = be.workspace_id.clone();
 
     // (1) create a note, (2) save it (insert text), (3) add a wikilink, (4) save again.
@@ -325,6 +539,17 @@ fn interconnect_ic17_event_ledger_records() {
         .and_then(|v| v.as_str())
         .unwrap_or(&doc_id)
         .to_owned();
+    let linked = be.post_json(
+        &format!("/workspaces/{ws}/loom/blocks"),
+        &serde_json::json!({
+            "content_type": "file",
+            "title": "IC-17 linked code block"
+        }),
+    );
+    let linked_block_id = linked["block_id"]
+        .as_str()
+        .expect("IC-17: real linked block id")
+        .to_owned();
 
     // Save #1 (plain) via the REAL /save route.
     let save1 = be.put_json(
@@ -338,63 +563,97 @@ fn interconnect_ic17_event_ledger_records() {
         .and_then(|v| v.as_i64())
         .or_else(|| save1.get("doc_version").and_then(|v| v.as_i64()))
         .unwrap_or(version + 1);
+    let save1_event_id = save1["save_receipt_event_id"]
+        .as_str()
+        .expect("IC-17: first save returns its EventLedger receipt id")
+        .to_owned();
     // Save #2 (with a wikilink ref in the body).
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children.push(Child::Text(TextLeaf::new("now links ")));
     para.children.push(Child::HsLink(HsLinkNode::new(
         "file",
-        "linked-block-1",
+        &linked_block_id,
         "linked",
     )));
     let with_link = BlockNode::doc(vec![para]);
-    let _ = be.put_json(
+    let save2 = be.put_json(
         &format!("/knowledge/documents/{doc_id}/save"),
         &serde_json::json!({ "expected_version": version, "content_json": to_content_json_value(&with_link) }),
     );
+    let save2_event_id = save2["save_receipt_event_id"]
+        .as_str()
+        .expect("IC-17: second save returns its EventLedger receipt id")
+        .to_owned();
 
-    // The REAL Flight Recorder query route is BARE GET /events (flight_recorder.rs:74; alias /flight_recorder)
-    // filtered by the `wsid` QUERY param (NOT a /workspaces path prefix), returning a bare Vec<FlightEvent>
-    // (no `events` wrapper) where each event carries event_type/wsids/payload.
-    let events = be.get_json(&format!("/events?wsid={ws}"));
-    let arr = events
-        .as_array()
-        .cloned()
-        .or_else(|| events["events"].as_array().cloned())
-        .unwrap_or_default();
+    // Read kernel EventLedger authority for the exact document aggregate. Flight Recorder is a separate
+    // projection and is intentionally not used as proof of document-save receipts.
+    let events = be.get_json(&format!(
+        "/kernel/events/aggregates/knowledge_rich_document/{doc_id}"
+    ));
+    let arr = events.as_array().cloned().unwrap_or_default();
     let saved: Vec<&serde_json::Value> = arr
         .iter()
         .filter(|e| {
-            let kind = e["event_type"]
-                .as_str()
-                .or_else(|| e["kind"].as_str())
-                .unwrap_or("");
+            let kind = e["event_type"].as_str().unwrap_or("");
             kind.to_uppercase()
                 .contains("KNOWLEDGE_RICH_DOCUMENT_SAVED")
-                && (e["source_block_id"].as_str() == Some(note_block_id.as_str())
-                    || e.to_string().contains(&note_block_id)
-                    || e.to_string().contains(&doc_id))
+                && e["aggregate_id"].as_str() == Some(doc_id.as_str())
         })
         .collect();
     assert!(
         saved.len() >= 2,
-        "IC-17: GET /events returns >= 2 KNOWLEDGE_RICH_DOCUMENT_SAVED events for the note (got {})",
+        "IC-17: aggregate EventLedger returns >= 2 KNOWLEDGE_RICH_DOCUMENT_SAVED events for the note (got {})",
         saved.len()
     );
     // AC: the SECOND save event's payload carries the wikilink block reference (linked-block-1). The two
     // saves were issued in order, so the later matching event is the wikilink save. Order the matches by
     // timestamp when present so the assertion does not depend on the server's return order.
-    let mut ordered = saved.clone();
-    ordered.sort_by_key(|e| e["timestamp"].as_str().unwrap_or("").to_owned());
-    let second = ordered
-        .get(1)
-        .expect("IC-17: a second KNOWLEDGE_RICH_DOCUMENT_SAVED event");
+    let first = saved
+        .iter()
+        .find(|event| event["event_id"].as_str() == Some(save1_event_id.as_str()))
+        .expect("IC-17: first response receipt is readable from EventLedger");
+    let second = saved
+        .iter()
+        .find(|event| event["event_id"].as_str() == Some(save2_event_id.as_str()))
+        .expect("IC-17: second response receipt is readable from EventLedger");
+    let first_sequence = first["event_sequence"]
+        .as_i64()
+        .expect("IC-17: first receipt exposes event_sequence");
+    let second_sequence = second["event_sequence"]
+        .as_i64()
+        .expect("IC-17: second receipt exposes event_sequence");
     assert!(
-        second.to_string().contains("linked-block-1"),
-        "IC-17: the second save event's payload carries the wikilink block reference (got {second})"
+        first_sequence < second_sequence,
+        "IC-17: first save receipt precedes the second in EventLedger order"
+    );
+    assert!(
+        second["payload"]["reference_targets"]
+            .as_array()
+            .is_some_and(|targets| {
+                targets
+                    .iter()
+                    .any(|target| target.as_str() == Some(linked_block_id.as_str()))
+            }),
+        "IC-17: the second save receipt carries the exact wikilink block reference (got {second})"
+    );
+    let negative =
+        be.get_json("/kernel/events/aggregates/knowledge_rich_document/KRD-ic17-missing");
+    assert!(
+        negative.as_array().is_some_and(Vec::is_empty),
+        "IC-17: missing aggregate yields no fabricated EventLedger rows"
     );
 
     let _ = be.delete(&format!("/knowledge/documents/{doc_id}"));
-    mark_status("IC-17", "PASS");
+    let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{linked_block_id}"));
+    be.assert_cleanup();
+    attempt.pass(serde_json::json!({
+        "workspace_id": ws,
+        "document_id": doc_id,
+        "note_block_id": note_block_id,
+        "linked_block_id": linked_block_id,
+        "event_ledger_event_ids": [save1_event_id, save2_event_id],
+        "negative_missing_aggregate_count": 0,
+    }));
     println!(
         "IC-17 LIVE-PG PASS: {} KNOWLEDGE_RICH_DOCUMENT_SAVED events recorded for the note",
         saved.len()

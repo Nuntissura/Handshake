@@ -29,7 +29,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use egui_kittest::kittest::Queryable;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use serde_json::json;
 
@@ -50,6 +52,8 @@ use handshake_native::rich_editor::save::export::{
 use handshake_native::rich_editor::save::save_manager::{
     RichDocLoad, RichDocSaveResult, SaveBackend, SaveError, SaveFuture, SaveManager, SaveState,
 };
+use handshake_native::rich_editor::wikilinks::client::WikilinkError;
+use handshake_native::rich_editor::wikilinks::runtime::BacklinksState;
 
 // ── Artifact-root helpers (CX-212E) ─────────────────────────────────────────────────────────────
 
@@ -167,6 +171,11 @@ fn server_doc(doc_version: u64) -> RichDocLoad {
 fn ok_save(doc_version: u64) -> RichDocSaveResult {
     RichDocSaveResult {
         document: server_doc(doc_version),
+        backlinks_persisted: 0,
+        backlinks_error: None,
+        backlinks_skipped_reason: None,
+        save_receipt_event_id: None,
+        attribution: None,
     }
 }
 
@@ -335,6 +344,73 @@ fn mt020_save_200_clears_dirty_and_bumps_version() {
     assert_eq!(m.state, SaveState::Idle);
 }
 
+#[test]
+fn mt032_save_index_warning_reaches_an_already_mounted_target_panel() {
+    let mut warning_result = ok_save(4);
+    warning_result.backlinks_error = Some("index unavailable".into());
+    let mut source_a = editor_with_save(Ok(warning_result.clone()));
+    let saved_content = json!({"type":"doc","content":[]});
+    let source_save = source_a.save.as_mut().expect("source A save manager");
+    source_save.mark_dirty();
+    source_save.set_pending_local_content(saved_content.clone());
+    source_save.request_save(saved_content);
+    source_save.deliver_for_test(Ok(warning_result));
+
+    let mut target_b = RichEditorState::new(demo_doc());
+    target_b.wikilinks.set_document("DOC-B");
+    target_b.wikilinks.backlinks = BacklinksState::Loaded(Vec::new());
+
+    let source_a = Arc::new(Mutex::new(source_a));
+    let target_b = Arc::new(Mutex::new(target_b));
+    let source_ui = Arc::clone(&source_a);
+    let target_ui = Arc::clone(&target_b);
+    let mut harness = Harness::builder().build_ui(move |ui| {
+        RichEditorWidget::new(Arc::clone(&source_ui)).show(ui);
+        RichEditorWidget::new(Arc::clone(&target_ui)).show(ui);
+    });
+    harness.run();
+
+    let target_guard = target_b.lock().unwrap();
+    match &target_guard.wikilinks.backlinks {
+        BacklinksState::Failed(WikilinkError::ServerError(message)) => {
+            assert!(message.contains("index unavailable"));
+        }
+        other => panic!("mounted target must show the save-index warning, got {other:?}"),
+    }
+}
+
+#[test]
+fn mt032_successful_save_invalidates_an_already_mounted_target_panel() {
+    let save_result = ok_save(4);
+    let mut source_a = editor_with_save(Ok(save_result.clone()));
+    let saved_content = json!({"type":"doc","content":[]});
+    let source_save = source_a.save.as_mut().expect("source A save manager");
+    source_save.mark_dirty();
+    source_save.set_pending_local_content(saved_content.clone());
+    source_save.request_save(saved_content);
+    source_save.deliver_for_test(Ok(save_result));
+
+    let mut target_b = RichEditorState::new(demo_doc());
+    target_b.wikilinks.set_document("DOC-B");
+    target_b.wikilinks.backlinks = BacklinksState::Loaded(Vec::new());
+
+    let source_a = Arc::new(Mutex::new(source_a));
+    let target_b = Arc::new(Mutex::new(target_b));
+    let source_ui = Arc::clone(&source_a);
+    let target_ui = Arc::clone(&target_b);
+    let mut harness = Harness::builder().build_ui(move |ui| {
+        RichEditorWidget::new(Arc::clone(&source_ui)).show(ui);
+        RichEditorWidget::new(Arc::clone(&target_ui)).show(ui);
+    });
+    harness.run();
+
+    let target_guard = target_b.lock().unwrap();
+    assert!(
+        matches!(&target_guard.wikilinks.backlinks, BacklinksState::Idle),
+        "headless mounted target must be invalidated; a production runtime enters Loading"
+    );
+}
+
 // ── AC + kittest: a 409 sets ConflictState and shows the conflict window ──────────────────────────
 
 #[test]
@@ -374,7 +450,7 @@ fn mt020_conflict_window_screenshot_and_accesskit() {
         "Keep yours button id is present"
     );
     assert!(
-        found.contains("conflict-keep-server"),
+        found.contains("editor.rich.conflict.keep-server"),
         "Keep server button id is present"
     );
     // The "Server version (v5)" label proves the both-versions UI rendered.

@@ -52,13 +52,16 @@ impl CalendarActivityStore {
         Self { pool }
     }
 
-    /// Insert-or-update a calendar activity span keyed by `span_id`.
+    /// Insert-or-update a calendar activity span keyed by `span_id`. Its workspace/event identity is
+    /// immutable after creation; idempotent retries may update only the span times and edited documents.
     pub async fn upsert_activity_span(
         &self,
         input: NewCalendarActivitySpan,
     ) -> Result<CalendarActivitySpan, StorageError> {
         if input.span_id.trim().is_empty() {
-            return Err(StorageError::Validation("activity span span_id is required"));
+            return Err(StorageError::Validation(
+                "activity span span_id is required",
+            ));
         }
         if input.workspace_id.trim().is_empty() {
             return Err(StorageError::Validation(
@@ -87,14 +90,55 @@ impl CalendarActivityStore {
                 .collect(),
         );
 
+        let mut tx = self.pool.begin().await.map_err(StorageError::from)?;
+
+        // `span_id` is globally unique in the authority table. Serialize all writers for one id so
+        // two workspaces racing the same id cannot pass an absent-row precheck and then overwrite or
+        // surface an opaque database error.
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+            .bind(&input.span_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(StorageError::from)?;
+
+        let event_exists: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM calendar_events WHERE id = $1 AND workspace_id = $2)",
+        )
+        .bind(&input.calendar_event_id)
+        .bind(&input.workspace_id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(StorageError::from)?;
+        if !event_exists {
+            return Err(StorageError::NotFound("calendar_event_not_found"));
+        }
+
+        let existing_identity: Option<(String, String)> = sqlx::query_as(
+            "SELECT workspace_id, calendar_event_id FROM calendar_activity_spans WHERE span_id = $1",
+        )
+        .bind(&input.span_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(StorageError::from)?;
+        if let Some((workspace_id, calendar_event_id)) = existing_identity {
+            if workspace_id != input.workspace_id {
+                return Err(StorageError::Conflict(
+                    "calendar_activity_span_workspace_conflict",
+                ));
+            }
+            if calendar_event_id != input.calendar_event_id {
+                return Err(StorageError::Conflict(
+                    "calendar_activity_span_event_conflict",
+                ));
+            }
+        }
+
         let row = sqlx::query(
             r#"
             INSERT INTO calendar_activity_spans
                 (span_id, workspace_id, calendar_event_id, started_utc, ended_utc, edited_doc_ids)
             VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (span_id) DO UPDATE SET
-                workspace_id = EXCLUDED.workspace_id,
-                calendar_event_id = EXCLUDED.calendar_event_id,
                 started_utc = EXCLUDED.started_utc,
                 ended_utc = EXCLUDED.ended_utc,
                 edited_doc_ids = EXCLUDED.edited_doc_ids,
@@ -109,9 +153,10 @@ impl CalendarActivityStore {
         .bind(input.started_utc)
         .bind(input.ended_utc)
         .bind(edited)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await
         .map_err(StorageError::from)?;
+        tx.commit().await.map_err(StorageError::from)?;
         Ok(map_span_row(&row))
     }
 

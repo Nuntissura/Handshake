@@ -318,6 +318,16 @@ fn render_menu_root(
     surface_id: &str,
     items: &[ContextMenuItem],
 ) -> Option<&'static str> {
+    // Expose the popup body as the canonical AccessKit menu container. Leaf nodes below it are
+    // MenuItems; the parent role preserves the complete context-menu topology for model steering.
+    let menu_id = ui.id();
+    let menu_label = format!("{surface_id} context menu");
+    let menu_author = format!("ctx-menu.surface.{surface_id}");
+    ui.ctx().accesskit_node_builder(menu_id, move |node| {
+        node.set_role(accesskit::Role::Menu);
+        node.set_author_id(menu_author);
+        node.set_label(menu_label);
+    });
     let nav_id = ui.id().with("ctx-menu-nav");
     let mut nav: MenuNavState = ui
         .ctx()
@@ -392,7 +402,14 @@ fn render_items(
                     // opens it and the cursor is visible/AccessKit-discoverable like a leaf.
                     inner.response.clone().highlight().request_focus();
                 }
-                name_menu_node(ui, inner.response.id, &item.author_id(), item.label);
+                name_menu_node(
+                    ui,
+                    inner.response.id,
+                    &item.author_id(),
+                    item.label,
+                    item.enabled,
+                    item.disabled_reason,
+                );
                 if let Some(Some(child_id)) = inner.inner {
                     activated = Some(child_id);
                     ui.close();
@@ -419,7 +436,7 @@ fn render_leaf(ui: &mut egui::Ui, item: &ContextMenuItem, is_highlighted: bool) 
             // additionally forces the active/selection fill even on the frame focus is requested.
             response.clone().highlight().request_focus();
         }
-        name_menu_node(ui, response.id, &item.author_id(), item.label);
+        name_menu_node(ui, response.id, &item.author_id(), item.label, true, None);
         response.clicked()
     } else {
         let response = ui.add_enabled(false, button);
@@ -427,7 +444,14 @@ fn render_leaf(ui: &mut egui::Ui, item: &ContextMenuItem, is_highlighted: bool) 
             Some(reason) => response.on_disabled_hover_text(reason),
             None => response,
         };
-        name_menu_node(ui, response.id, &item.author_id(), item.label);
+        name_menu_node(
+            ui,
+            response.id,
+            &item.author_id(),
+            item.label,
+            false,
+            item.disabled_reason,
+        );
         false
     }
 }
@@ -436,13 +460,38 @@ fn render_leaf(ui: &mut egui::Ui, item: &ContextMenuItem, is_highlighted: bool) 
 /// node, exactly mirroring [`crate::top_menu_bar`]'s `name_node`. The node is egui's real
 /// per-frame node for `widget_id`, so the values land in the live tree a model reads out-of-process.
 /// Items are dynamic, so they live in egui's hashed id space (not a fixed-band NodeId).
-fn name_menu_node(ui: &mut egui::Ui, widget_id: egui::Id, author_id: &str, label: &str) {
+fn name_menu_node(
+    ui: &mut egui::Ui,
+    widget_id: egui::Id,
+    author_id: &str,
+    label: &str,
+    enabled: bool,
+    disabled_reason: Option<&'static str>,
+) {
     let author_id = author_id.to_owned();
     let label = label.to_owned();
     ui.ctx().accesskit_node_builder(widget_id, move |node| {
         node.set_role(accesskit::Role::MenuItem);
         node.set_author_id(author_id);
         node.set_label(label);
+        if enabled {
+            // Snapshot capture may render an inactive source pane under an egui disabled parent even
+            // though the retained typed menu entry is actionable in its originating pane. The menu
+            // model is the authority for leaf availability, so preserve that truth in AccessKit.
+            node.clear_disabled();
+            node.add_action(accesskit::Action::Click);
+        } else {
+            node.set_disabled();
+            if let Some(reason) = disabled_reason {
+                // Argus/UIA consumers need the same explanation the pointer hover receives. AccessKit's
+                // value is preserved in the canonical snapshot and is queryable without visual hover.
+                node.set_value(reason);
+            }
+            // egui's disabled Button remains perceivable but still inherits the Button widget's
+            // default Click action. Remove it explicitly so AccessKit and out-of-process steering
+            // cannot advertise or invoke an action the typed menu model has disabled.
+            node.remove_action(accesskit::Action::Click);
+        }
     });
 }
 

@@ -2,8 +2,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::{Duration, Utc};
+use chrono::{Duration, NaiveDate, TimeZone, Utc};
 use handshake_core::ace::ArtifactHandle;
+use handshake_core::api::calendar as calendar_api;
+use handshake_core::api::flight_recorder as flight_recorder_api;
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::diagnostics::{DiagFilter, DiagnosticsStore};
 use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
@@ -92,6 +94,18 @@ async fn calendar_sync_test_state() -> Result<AppState, Box<dyn std::error::Erro
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
         postgres_pool: backend.postgres_pool,
     })
+}
+
+async fn serve_calendar(state: AppState) -> Result<String, Box<dyn std::error::Error>> {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    tokio::spawn(async move {
+        let routes = calendar_api::routes(state.clone()).merge(flight_recorder_api::routes(state));
+        axum::serve(listener, routes)
+            .await
+            .expect("calendar proof server");
+    });
+    Ok(format!("http://{address}"))
 }
 
 struct FakeToolRunner {
@@ -907,8 +921,16 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
         )
         .await?;
 
-    let start = Utc::now() + Duration::days(1);
-    let end = start + Duration::hours(1);
+    let start = Utc.with_ymd_and_hms(2026, 7, 23, 21, 30, 0).unwrap();
+    let end = Utc.with_ymd_and_hms(2026, 7, 24, 1, 0, 0).unwrap();
+    let all_day_start = Utc.with_ymd_and_hms(2026, 3, 28, 23, 0, 0).unwrap();
+    let all_day_end = Utc.with_ymd_and_hms(2026, 3, 29, 22, 0, 0).unwrap();
+    let fall_all_day_start = Utc.with_ymd_and_hms(2026, 10, 24, 22, 0, 0).unwrap();
+    let fall_all_day_end = Utc.with_ymd_and_hms(2026, 10, 25, 23, 0, 0).unwrap();
+    let floating_start = Utc.with_ymd_and_hms(2026, 7, 24, 7, 0, 0).unwrap();
+    let floating_end = Utc.with_ymd_and_hms(2026, 7, 24, 8, 0, 0).unwrap();
+    let overlap_start = Utc.with_ymd_and_hms(2026, 10, 25, 0, 30, 0).unwrap();
+    let overlap_end = Utc.with_ymd_and_hms(2026, 10, 25, 2, 30, 0).unwrap();
     let job = state
         .storage
         .create_ai_job(NewAiJob {
@@ -932,15 +954,52 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
                 "provider_events": [{
                     "external_id": "provider-event-1",
                     "external_etag": "etag-1",
-                    "title": "Provider event",
+                    "title": "Brussels near-midnight multi-day",
                     "description": "imported without remote mutation",
                     "start_ts_utc": start,
                     "end_ts_utc": end,
+                    "start_local": "2026-07-23T23:30:00",
+                    "end_local": "2026-07-24T03:00:00",
                     "tzid": "Europe/Brussels",
                     "status": "confirmed",
                     "visibility": "private",
                     "export_mode": "busy_only",
                     "provider_payload": {"summary": "redacted in evidence"}
+                }, {
+                    "external_id": "provider-event-all-day",
+                    "title": "Brussels spring all-day",
+                    "start_ts_utc": all_day_start,
+                    "end_ts_utc": all_day_end,
+                    "tzid": "Europe/Brussels",
+                    "all_day": true,
+                    "start_date": "2026-03-29",
+                    "end_date_exclusive": "2026-03-30"
+                }, {
+                    "external_id": "provider-event-overlap",
+                    "title": "Brussels overlap earlier offset",
+                    "start_ts_utc": overlap_start,
+                    "end_ts_utc": overlap_end,
+                    "start_local": "2026-10-25T02:30:00",
+                    "end_local": "2026-10-25T03:30:00",
+                    "tzid": "Europe/Brussels"
+                }, {
+                    "external_id": "provider-event-fall-all-day",
+                    "title": "Brussels fall all-day",
+                    "start_ts_utc": fall_all_day_start,
+                    "end_ts_utc": fall_all_day_end,
+                    "tzid": "Europe/Brussels",
+                    "all_day": true,
+                    "start_date": "2026-10-25",
+                    "end_date_exclusive": "2026-10-26"
+                }, {
+                    "external_id": "provider-event-floating",
+                    "title": "Floating source-default event",
+                    "start_ts_utc": floating_start,
+                    "end_ts_utc": floating_end,
+                    "start_local": "2026-07-24T09:00:00",
+                    "end_local": "2026-07-24T10:00:00",
+                    "tzid": "",
+                    "was_floating": true
                 }]
             })),
         })
@@ -958,7 +1017,7 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
         output
             .get("provider_events_upserted")
             .and_then(|value| value.as_u64()),
-        Some(1)
+        Some(5)
     );
     assert_eq!(
         output
@@ -1003,6 +1062,8 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
         .storage
         .query_calendar_events(CalendarEventWindowQuery {
             workspace_id: source.workspace_id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 7, 23).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 7, 25).unwrap(),
             window_start_utc: start - Duration::minutes(5),
             window_end_utc: end + Duration::minutes(5),
             source_ids: vec![source.id.clone()],
@@ -1010,7 +1071,167 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
         .await?;
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].external_id.as_deref(), Some("provider-event-1"));
-    assert_eq!(events[0].title, "Provider event");
+    assert_eq!(events[0].title, "Brussels near-midnight multi-day");
+    assert_eq!(
+        events[0].start_local.as_deref(),
+        Some("2026-07-23T23:30:00")
+    );
+    assert_eq!(events[0].end_local.as_deref(), Some("2026-07-24T03:00:00"));
+    assert_eq!(events[0].tzid, "Europe/Brussels");
+
+    let all_day_events = state
+        .storage
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: source.workspace_id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 3, 29).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 3, 30).unwrap(),
+            window_start_utc: all_day_start,
+            window_end_utc: all_day_end,
+            source_ids: vec![source.id.clone()],
+        })
+        .await?;
+    let all_day = all_day_events
+        .iter()
+        .find(|event| event.external_id.as_deref() == Some("provider-event-all-day"))
+        .expect("all-day event persisted");
+    assert_eq!(all_day.start_date.unwrap().to_string(), "2026-03-29");
+    assert_eq!(
+        all_day.end_date_exclusive.unwrap().to_string(),
+        "2026-03-30"
+    );
+    assert_eq!(
+        all_day.end_ts_utc - all_day.start_ts_utc,
+        Duration::hours(23)
+    );
+
+    let fall_all_day_events = state
+        .storage
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: source.workspace_id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 10, 25).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 10, 26).unwrap(),
+            window_start_utc: fall_all_day_start,
+            window_end_utc: fall_all_day_end,
+            source_ids: vec![source.id.clone()],
+        })
+        .await?;
+    let fall_all_day = fall_all_day_events
+        .iter()
+        .find(|event| event.external_id.as_deref() == Some("provider-event-fall-all-day"))
+        .expect("25-hour all-day event persisted");
+    assert_eq!(
+        fall_all_day.end_ts_utc - fall_all_day.start_ts_utc,
+        Duration::hours(25)
+    );
+
+    let floating_events = state
+        .storage
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: source.workspace_id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 7, 24).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 7, 25).unwrap(),
+            window_start_utc: floating_start,
+            window_end_utc: floating_end,
+            source_ids: vec![source.id.clone()],
+        })
+        .await?;
+    let floating = floating_events
+        .iter()
+        .find(|event| event.external_id.as_deref() == Some("provider-event-floating"))
+        .expect("floating event persisted");
+    assert!(floating.was_floating);
+    assert_eq!(floating.tzid, "Europe/Brussels");
+
+    let overlap_events = state
+        .storage
+        .query_calendar_events(CalendarEventWindowQuery {
+            workspace_id: source.workspace_id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 10, 25).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 10, 26).unwrap(),
+            window_start_utc: overlap_start - Duration::minutes(1),
+            window_end_utc: overlap_end + Duration::minutes(1),
+            source_ids: vec![source.id.clone()],
+        })
+        .await?;
+    let overlap = overlap_events
+        .iter()
+        .find(|event| event.external_id.as_deref() == Some("provider-event-overlap"))
+        .expect("overlap event persisted");
+    let overlap_note = overlap.normalization_note.as_ref().expect("overlap note");
+    assert_eq!(overlap_note.boundaries.len(), 1);
+    assert_eq!(
+        overlap_note.boundaries[0].resolution,
+        handshake_core::storage::CalendarDstResolution::EarlierOffset
+    );
+
+    let base = serve_calendar(state.clone()).await?;
+    let response = reqwest::Client::new()
+        .get(format!(
+            "{base}/workspaces/{}/calendar/events?from_date=2026-07-24&to_date_exclusive=2026-07-25&from_utc=2026-07-23T22:00:00Z&to_utc=2026-07-24T22:00:00Z&view_tzid=Europe/Brussels",
+            source.workspace_id
+        ))
+        .send()
+        .await?;
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    let wire: serde_json::Value = response.json().await?;
+    let timed_wire = wire
+        .as_array()
+        .and_then(|events| {
+            events.iter().find(|event| {
+                event["title"] == "Brussels near-midnight multi-day"
+                    && event["temporal"]["kind"] == "timed"
+            })
+        })
+        .expect("timed API wire");
+    assert_eq!(timed_wire["temporal"]["start_local"], "2026-07-23T23:30:00");
+    assert_eq!(timed_wire["temporal"]["end_local"], "2026-07-24T03:00:00");
+    assert_eq!(timed_wire["temporal"]["tzid"], "Europe/Brussels");
+
+    let response = reqwest::Client::new()
+        .get(format!(
+            "{base}/workspaces/{}/calendar/events?from_date=2026-03-29&to_date_exclusive=2026-03-30&from_utc=2026-03-28T23:00:00Z&to_utc=2026-03-29T22:00:00Z&view_tzid=Europe/Brussels",
+            source.workspace_id
+        ))
+        .send()
+        .await?;
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    let wire: serde_json::Value = response.json().await?;
+    let all_day_wire = wire
+        .as_array()
+        .and_then(|events| {
+            events
+                .iter()
+                .find(|event| event["temporal"]["kind"] == "all_day")
+        })
+        .expect("all-day API wire");
+    assert_eq!(all_day_wire["temporal"]["start_date"], "2026-03-29");
+    assert_eq!(all_day_wire["temporal"]["end_date_exclusive"], "2026-03-30");
+
+    // Calendar Workflow itself owns the mutation authority: each accepted
+    // provider event has one same-transaction EventLedger receipt and outbox
+    // envelope carrying the workflow/job/edit identity.
+    let ledger_count: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM calendar_mutation_outbox outbox
+        JOIN kernel_event_ledger ledger ON ledger.event_id = outbox.ledger_event_id
+        WHERE outbox.workflow_id = $1
+          AND outbox.job_id = $2
+          AND outbox.idempotency_key = 'calendar-mutation-' || outbox.edit_event_id
+          AND ledger.idempotency_key = 'KEI-calendar-mutation-' || outbox.edit_event_id
+          AND ledger.aggregate_type = 'calendar_event'
+          AND ledger.actor_kind = 'model_adapter'
+          AND ledger.actor_id = 'calendar_sync'
+        "#,
+    )
+    .bind(workflow_run.id.to_string())
+    .bind(job.job_id.to_string())
+    .fetch_one(&state.postgres_pool)
+    .await?;
+    assert_eq!(
+        ledger_count, 5,
+        "one authoritative receipt per accepted event"
+    );
 
     let fr_events = state
         .flight_recorder
@@ -1029,6 +1250,87 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
                     == Some("calendar_sync_result")
         }),
         "expected provider-safe calendar_sync_result evidence event"
+    );
+    let workflow_id_text = workflow_run.id.to_string();
+    let mutation_spans = fr_events
+        .iter()
+        .filter(|event| {
+            event.event_type == FlightRecorderEventType::System
+                && event
+                    .payload
+                    .get("message")
+                    .and_then(|value| value.as_str())
+                    == Some("calendar_mutation")
+                && event.workflow_id.as_deref() == Some(workflow_id_text.as_str())
+        })
+        .count();
+    assert_eq!(
+        mutation_spans, 5,
+        "one job-linked Calendar mutation span per event"
+    );
+
+    let rejected_job = state
+        .storage
+        .create_ai_job(NewAiJob {
+            trace_id: Uuid::now_v7(),
+            job_kind: JobKind::WorkflowRun,
+            protocol_id: CALENDAR_SYNC_PROTOCOL_ID.to_string(),
+            profile_id: "CalendarSync".to_string(),
+            capability_profile_id: "CalendarSync".to_string(),
+            access_mode: AccessMode::ApplyScoped,
+            safety_mode: SafetyMode::Strict,
+            entity_refs: Vec::new(),
+            planned_operations: Vec::new(),
+            status_reason: "queued".to_string(),
+            metrics: JobMetrics::zero(),
+            job_inputs: Some(serde_json::json!({
+                "workspace_id": source.workspace_id,
+                "source_id": source.id,
+                "provider_events": [{
+                    "external_id": "provider-event-gap-rejected",
+                    "title": "Nonexistent Brussels wall time",
+                    "start_ts_utc": "2026-03-29T01:30:00Z",
+                    "end_ts_utc": "2026-03-29T02:30:00Z",
+                    "start_local": "2026-03-29T02:30:00",
+                    "end_local": "2026-03-29T04:30:00",
+                    "tzid": "Europe/Brussels"
+                }]
+            })),
+        })
+        .await?;
+    let rejected_result = start_workflow_for_job(&state, rejected_job.clone()).await;
+    assert!(rejected_result.is_err(), "DST-gap workflow must reject");
+    let rejected_row_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM calendar_events WHERE external_id = 'provider-event-gap-rejected'",
+    )
+    .fetch_one(&state.postgres_pool)
+    .await?;
+    assert_eq!(rejected_row_count, 0, "rejected event leaves no row");
+    let rejected_authority_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM calendar_mutation_outbox WHERE job_id = $1")
+            .bind(rejected_job.job_id.to_string())
+            .fetch_one(&state.postgres_pool)
+            .await?;
+    assert_eq!(
+        rejected_authority_count, 0,
+        "rejected event leaves no ledger/outbox authority"
+    );
+    let rejected_fr = state
+        .flight_recorder
+        .list_events(EventFilter {
+            job_id: Some(rejected_job.job_id.to_string()),
+            ..Default::default()
+        })
+        .await?;
+    assert!(
+        rejected_fr.iter().all(|event| {
+            event
+                .payload
+                .get("message")
+                .and_then(|value| value.as_str())
+                != Some("calendar_mutation")
+        }),
+        "rejected event leaves no Calendar mutation FR span"
     );
     assert_eq!(workflow_run.status.as_str(), "completed");
 

@@ -13,21 +13,24 @@
 //! reason). It NEVER shows an indefinite spinner: a load with no runtime / no backend resolves to a typed
 //! empty/failed state, not a hang.
 //!
-//! ## Events shown + the backend-shape caveat (the TYPED BLOCKER, see `event_emitter.rs`)
+//! ## Events shown
 //!
-//! The pane queries the ledger through the [`FlightRecorderQuery`] seam and renders the rows it returns.
-//! The native-editor → ledger ROUND-TRIP is currently a typed backend blocker (the real backend has no
-//! ingestion endpoint that records a native-editor event with a custom actor/action — see
-//! `event_emitter.rs`), so against a live backend today the native rows will be empty until that endpoint
-//! lands. The pane ALSO surfaces the emitter's in-memory error ring so the empty state is EXPLAINED
-//! (e.g. "emit dropped: backpressure") rather than silently blank. The widget itself is fully proven
-//! standalone by injecting events through the query seam.
+//! The pane queries the real Flight Recorder route and renders both the closed
+//! `event_family=native_editor` rows and canonical FEMS `FR-EVT-MEM-001..005` rows. It also surfaces
+//! the emitter's in-memory error ring so a failed POST is explained rather than silently blank.
 
 use crate::event_emitter::{EmitErrorEntry, ErrorRing};
 use crate::theme::HsPalette;
 
 /// AccessKit author_id for the pane root (Role::Region — the MT contract's exact id).
 pub const FLIGHT_RECORDER_PANE_AUTHOR_ID: &str = "flight-recorder-pane";
+
+/// Stable operator/model controls and status surfaces beneath the pane root.
+pub const FLIGHT_RECORDER_REFRESH_AUTHOR_ID: &str = "flight-recorder.refresh";
+pub const FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID: &str = "flight-recorder.load-failure";
+pub const FLIGHT_RECORDER_QUARANTINE_STATUS_AUTHOR_ID: &str = "flight-recorder.quarantine-status";
+pub const FLIGHT_RECORDER_ERROR_RING_AUTHOR_ID: &str = "flight-recorder.error-ring";
+pub const FLIGHT_RECORDER_ERROR_ROW_AUTHOR_PREFIX: &str = "flight-recorder.emit-error-";
 
 /// AccessKit author_id PREFIX for one event row: `fr-event-{event_id}` (Role::ListItem).
 pub const FR_EVENT_ROW_AUTHOR_PREFIX: &str = "fr-event-";
@@ -58,10 +61,20 @@ pub struct FlightRecorderRow {
     pub event_id: String,
     /// The native-editor action (e.g. `document_saved`) for the row label.
     pub action: String,
+    /// Canonical FEMS event code when this is a memory lifecycle row. Native-editor rows have none.
+    pub event_code: Option<String>,
     /// The acting actor id.
     pub actor_id: String,
     /// The RFC3339 timestamp string.
     pub ts_utc: String,
+}
+
+/// One completed backend projection plus operator-visible quarantine diagnostics. Malformed native
+/// rows never poison valid neighbors, but they also never collapse into a misleading empty history.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct FlightRecorderQueryRows {
+    pub rows: Vec<FlightRecorderRow>,
+    pub quarantined: Vec<String>,
 }
 
 /// The load state of the pane (NO perpetual spinner — MT-015). Drives exactly one of: a one-shot
@@ -73,7 +86,7 @@ pub enum LoadState {
     /// A load is genuinely in flight (a single frame's "Loading…", not an indefinite spinner).
     Loading,
     /// The load completed; carries the rows (possibly empty — an HONEST empty state).
-    Loaded(Vec<FlightRecorderRow>),
+    Loaded(FlightRecorderQueryRows),
     /// The load failed; carries the reason (shown, not hidden).
     Failed(String),
 }
@@ -85,7 +98,7 @@ pub trait FlightRecorderQuery: Send + Sync {
     /// Synchronously return the current native-editor rows (the headless/test path injects directly;
     /// the production impl would resolve a completed async fetch's delivery cell here, never blocking
     /// the frame).
-    fn rows(&self) -> Result<Vec<FlightRecorderRow>, String>;
+    fn rows(&self) -> Result<FlightRecorderQueryRows, String>;
 }
 
 /// The Flight Recorder pane state owned across frames. Holds the query seam, the current [`LoadState`],
@@ -94,6 +107,7 @@ pub struct FlightRecorderPane {
     query: std::sync::Arc<dyn FlightRecorderQuery>,
     state: LoadState,
     error_ring: ErrorRing,
+    refresh_requested: std::sync::atomic::AtomicBool,
 }
 
 impl FlightRecorderPane {
@@ -103,12 +117,20 @@ impl FlightRecorderPane {
             query,
             state: LoadState::Idle,
             error_ring,
+            refresh_requested: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
     /// The current load state (tests / diagnostics).
     pub fn state(&self) -> &LoadState {
         &self.state
+    }
+
+    /// Mark a real query as in flight. The shell calls this only after it has atomically claimed the
+    /// single fetch slot, so `Loading` always corresponds to an owned request and can never become a
+    /// decorative or perpetual spinner.
+    pub fn begin_loading(&mut self) {
+        self.state = LoadState::Loading;
     }
 
     /// Run a load through the query seam, transitioning the state. This is the one-shot resolve (no
@@ -127,10 +149,22 @@ impl FlightRecorderPane {
     pub fn show(&self, ui: &mut egui::Ui, palette: &HsPalette) -> egui::Response {
         let resp = ui
             .scope(|ui| {
-                ui.label(
-                    egui::RichText::new("Flight Recorder — Native Editor Events")
-                        .color(palette.text),
-                );
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new("Flight Recorder — Native Editor + FEMS Events")
+                            .color(palette.text),
+                    );
+                    let refresh = ui.button("Refresh");
+                    crate::accessibility::emit_interactive_node(
+                        ui.ctx(),
+                        refresh.id,
+                        FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
+                    );
+                    if refresh.clicked() {
+                        self.refresh_requested
+                            .store(true, std::sync::atomic::Ordering::Release);
+                    }
+                });
                 match &self.state {
                     LoadState::Idle => {
                         ui.label(
@@ -140,22 +174,41 @@ impl FlightRecorderPane {
                     LoadState::Loading => {
                         ui.label(egui::RichText::new("Loading…").color(palette.text_subtle));
                     }
-                    LoadState::Loaded(rows) if rows.is_empty() => {
+                    LoadState::Loaded(result) if result.rows.is_empty() => {
                         ui.label(
-                            egui::RichText::new("No native editor events yet.")
-                                .color(palette.text_subtle),
+                            egui::RichText::new(if result.quarantined.is_empty() {
+                                "No native editor or FEMS events yet.".to_owned()
+                            } else {
+                                format!(
+                                    "No valid native editor or FEMS events. Rejected {} malformed row(s).",
+                                    result.quarantined.len()
+                                )
+                            })
+                            .color(palette.text_subtle),
                         );
+                        if !result.quarantined.is_empty() {
+                            self.show_quarantine_status(ui, palette, result);
+                        }
                     }
-                    LoadState::Loaded(rows) => {
-                        for row in rows {
+                    LoadState::Loaded(result) => {
+                        for row in &result.rows {
                             self.show_event_row(ui, palette, row);
+                        }
+                        if !result.quarantined.is_empty() {
+                            self.show_quarantine_status(ui, palette, result);
                         }
                     }
                     LoadState::Failed(reason) => {
-                        ui.label(
+                        let failure = ui.label(
                             egui::RichText::new(format!("Load failed: {reason}"))
                                 .color(palette.error_text),
                         );
+                        ui.ctx().accesskit_node_builder(failure.id, |node| {
+                            node.set_role(egui::accesskit::Role::Status);
+                            node.set_author_id(FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID.to_owned());
+                            node.set_label("Flight Recorder load failure".to_owned());
+                            node.set_value(reason.clone());
+                        });
                     }
                 }
                 self.show_error_ring(ui, palette);
@@ -168,14 +221,25 @@ impl FlightRecorderPane {
             resp.id,
             FLIGHT_RECORDER_PANE_AUTHOR_ID,
             egui::accesskit::Role::Region,
-            "Flight Recorder native editor events",
+            "Flight Recorder native editor and FEMS events",
         );
         resp
     }
 
+    /// Consume the operator's explicit refresh request.
+    pub fn take_refresh_requested(&self) -> bool {
+        self.refresh_requested
+            .swap(false, std::sync::atomic::Ordering::AcqRel)
+    }
+
     /// Render one event row + emit its `fr-event-{id}` ListItem AccessKit node.
     fn show_event_row(&self, ui: &mut egui::Ui, palette: &HsPalette, row: &FlightRecorderRow) {
-        let text = format!("{}  ·  {}  ·  {}", row.action, row.actor_id, row.ts_utc);
+        let action = row
+            .event_code
+            .as_deref()
+            .map(|code| format!("{code} {}", row.action))
+            .unwrap_or_else(|| row.action.clone());
+        let text = format!("{}  ·  {}  ·  {}", action, row.actor_id, row.ts_utc);
         let resp = ui.label(egui::RichText::new(&text).color(palette.text));
         let author_id = fr_event_row_author_id(&row.event_id);
         let label = format!("Flight recorder event {}", row.action);
@@ -188,18 +252,51 @@ impl FlightRecorderPane {
         });
     }
 
+    fn show_quarantine_status(
+        &self,
+        ui: &mut egui::Ui,
+        palette: &HsPalette,
+        result: &FlightRecorderQueryRows,
+    ) {
+        let value = format!(
+            "Rejected {} malformed Flight Recorder row(s): {}",
+            result.quarantined.len(),
+            result.quarantined.join("; ")
+        );
+        let response = ui.label(egui::RichText::new(&value).color(palette.error_text));
+        ui.ctx().accesskit_node_builder(response.id, |node| {
+            node.set_role(egui::accesskit::Role::Status);
+            node.set_author_id(FLIGHT_RECORDER_QUARANTINE_STATUS_AUTHOR_ID.to_owned());
+            node.set_label("Flight Recorder quarantined rows".to_owned());
+            node.set_value(value.clone());
+        });
+    }
+
     /// Render the emitter error ring (so an empty event list is EXPLAINED, not silently blank).
     fn show_error_ring(&self, ui: &mut egui::Ui, palette: &HsPalette) {
         let entries = self.error_ring.entries();
         if entries.is_empty() {
             return;
         }
-        ui.label(
+        let heading = ui.label(
             egui::RichText::new(format!("Emit failures ({}):", entries.len()))
                 .color(palette.text_subtle),
         );
-        for EmitErrorEntry { action, error } in &entries {
-            ui.label(egui::RichText::new(format!("  {action}: {error}")).color(palette.error_text));
+        ui.ctx().accesskit_node_builder(heading.id, |node| {
+            node.set_role(egui::accesskit::Role::Status);
+            node.set_author_id(FLIGHT_RECORDER_ERROR_RING_AUTHOR_ID.to_owned());
+            node.set_label("Flight Recorder emit failures".to_owned());
+        });
+        for (index, EmitErrorEntry { action, error }) in entries.iter().enumerate() {
+            let value = format!("{action}: {error}");
+            let response =
+                ui.label(egui::RichText::new(format!("  {value}")).color(palette.error_text));
+            ui.ctx().accesskit_node_builder(response.id, |node| {
+                node.set_role(egui::accesskit::Role::ListItem);
+                node.set_author_id(format!("{FLIGHT_RECORDER_ERROR_ROW_AUTHOR_PREFIX}{index}"));
+                node.set_label(format!("Flight Recorder emit failure {index}"));
+                node.set_value(value.clone());
+            });
         }
     }
 }
@@ -214,10 +311,13 @@ mod tests {
         fail: Option<String>,
     }
     impl FlightRecorderQuery for MockQuery {
-        fn rows(&self) -> Result<Vec<FlightRecorderRow>, String> {
+        fn rows(&self) -> Result<FlightRecorderQueryRows, String> {
             match &self.fail {
                 Some(e) => Err(e.clone()),
-                None => Ok(self.rows.clone()),
+                None => Ok(FlightRecorderQueryRows {
+                    rows: self.rows.clone(),
+                    quarantined: Vec::new(),
+                }),
             }
         }
     }
@@ -226,6 +326,7 @@ mod tests {
         FlightRecorderRow {
             event_id: id.to_owned(),
             action: action.to_owned(),
+            event_code: None,
             actor_id: "hsk:native_editor:pane-rich".to_owned(),
             ts_utc: "2026-06-23T00:00:00Z".to_owned(),
         }
@@ -241,9 +342,9 @@ mod tests {
         assert_eq!(*pane.state(), LoadState::Idle);
         pane.load_now();
         match pane.state() {
-            LoadState::Loaded(rows) => {
-                assert_eq!(rows.len(), 1);
-                assert_eq!(rows[0].action, "document_saved");
+            LoadState::Loaded(result) => {
+                assert_eq!(result.rows.len(), 1);
+                assert_eq!(result.rows[0].action, "document_saved");
             }
             other => panic!("expected Loaded, got {other:?}"),
         }
@@ -273,7 +374,10 @@ mod tests {
         });
         let mut pane = FlightRecorderPane::new(query, ErrorRing::new());
         pane.load_now();
-        assert_eq!(*pane.state(), LoadState::Loaded(vec![]));
+        assert_eq!(
+            *pane.state(),
+            LoadState::Loaded(FlightRecorderQueryRows::default())
+        );
     }
 
     #[test]

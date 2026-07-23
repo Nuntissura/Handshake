@@ -237,10 +237,12 @@ impl DuckDbFlightRecorder {
 
         conn.execute_batch(
             r#"
+            CREATE SEQUENCE IF NOT EXISTS flight_recorder_ingest_seq START 1;
             CREATE TABLE IF NOT EXISTS events (
                 event_id UUID PRIMARY KEY,
                 trace_id UUID NOT NULL,
                 timestamp TIMESTAMPTZ NOT NULL DEFAULT current_timestamp,
+                ingest_sequence BIGINT DEFAULT nextval('flight_recorder_ingest_seq'),
                 actor TEXT NOT NULL,
                 actor_id TEXT NOT NULL,
                 event_type TEXT NOT NULL,
@@ -277,6 +279,8 @@ impl DuckDbFlightRecorder {
             ALTER TABLE events ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS event_type TEXT;
             ALTER TABLE events ADD COLUMN IF NOT EXISTS job_id TEXT;
+            ALTER TABLE events ADD COLUMN IF NOT EXISTS ingest_sequence BIGINT;
+            UPDATE events SET ingest_sequence = nextval('flight_recorder_ingest_seq') WHERE ingest_sequence IS NULL;
         "#,
         )
         .map_err(|e| RecorderError::SinkError(e.to_string()))?;
@@ -554,6 +558,7 @@ impl DuckDbFlightRecorder {
                 event_id,
                 trace_id,
                 timestamp,
+                ingest_sequence,
                 actor,
                 actor_id,
                 event_type,
@@ -567,7 +572,7 @@ impl DuckDbFlightRecorder {
                 policy_decision_id,
                 wsids,
                 payload
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, nextval('flight_recorder_ingest_seq'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
             duckdb::params![
                 event_id_str,
@@ -675,15 +680,67 @@ impl DuckDbFlightRecorder {
             params.push(Box::new(to.to_rfc3339()));
         }
 
-        // NOTE: Avoid provider-specific datetime formatting; use epoch seconds for portability.
+        if let Some(actor) = filter.actor {
+            conditions.push("actor = ?".to_string());
+            params.push(Box::new(actor));
+        }
+
+        if let Some(actor_id) = filter.actor_id {
+            conditions.push("actor_id = ?".to_string());
+            params.push(Box::new(actor_id));
+        }
+
+        if let Some(surface) = filter.surface {
+            // Preserve the public API's event-kind-specific surface semantics *before* the bounded
+            // result window. Applying this CASE after LIMIT 200 makes an older matching row disappear
+            // behind newer rows from other surfaces.
+            conditions.push(
+                "(CASE \
+                 WHEN event_type = 'diagnostic' THEN EXISTS (\
+                     SELECT 1 FROM diagnostics d \
+                     WHERE d.id = TRY_CAST(json_extract_string(events.payload, '$.diagnostic_id') AS UUID) \
+                       AND d.surface = ?) \
+                 WHEN event_type = 'terminal_command' THEN ? IN ('system', 'terminal') \
+                 WHEN event_type = 'editor_edit' THEN (? = 'system' OR json_extract_string(payload, '$.editor_surface') = ?) \
+                 WHEN event_type = 'system' THEN (? = 'system' OR (\
+                     json_extract_string(payload, '$.event_family') = 'native_editor' \
+                     AND json_extract_string(payload, '$.editor_surface') = ?)) \
+                 ELSE ? = 'system' END)"
+                    .to_string(),
+            );
+            for _ in 0..7 {
+                params.push(Box::new(surface.clone()));
+            }
+        }
+
+        if let Some(event_type) = filter.event_type {
+            conditions.push("event_type = ?".to_string());
+            params.push(Box::new(event_type));
+        }
+
+        if let Some(wsid) = filter.wsid {
+            conditions.push("json_contains(wsids, ?)".to_string());
+            params
+                .push(Box::new(serde_json::to_string(&wsid).map_err(|error| {
+                    RecorderError::InvalidEvent(error.to_string())
+                })?));
+        }
+
+        // Keep the timestamp on an integer path. `EXTRACT(EPOCH ...)` returns f64; at current Unix
+        // epochs its precision is coarser than a TIMESTAMPTZ microsecond, so about half of exact
+        // microsecond values can decode into the preceding microsecond. That breaks immutable-event
+        // replay matching. DuckDB's epoch_us() preserves the authority column exactly.
         let mut query = String::from(
-            "SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events",
+            "SELECT event_id, trace_id, epoch_us(timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events",
         );
         if !conditions.is_empty() {
             query.push_str(" WHERE ");
             query.push_str(&conditions.join(" AND "));
         }
-        query.push_str(" ORDER BY timestamp DESC LIMIT 200");
+        // `TIMESTAMPTZ` is microsecond-precision. The explicit ingest sequence preserves insertion
+        // order when multiple accepted events share one microsecond; event_id is a final deterministic
+        // tie-break for upgraded legacy rows.
+        query.push_str(" ORDER BY timestamp DESC, ingest_sequence DESC, event_id DESC LIMIT 200");
 
         let mut stmt = conn
             .prepare(&query)
@@ -724,7 +781,7 @@ impl DuckDbFlightRecorder {
         // ?1 is reused by both OR branches.
         params.push(Box::new(session_id.to_string()));
         let mut query = String::from(
-            "SELECT event_id, trace_id, EXTRACT(EPOCH FROM timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events WHERE (session_span_id = ?1 OR json_extract_string(payload, '$.instance_id') = ?1)",
+            "SELECT event_id, trace_id, epoch_us(timestamp), actor, actor_id, event_type, job_id, workflow_id, model_id, model_session_id, wsids, activity_span_id, session_span_id, capability_id, policy_decision_id, payload FROM events WHERE (session_span_id = ?1 OR json_extract_string(payload, '$.instance_id') = ?1)",
         );
         if let Some(from) = from {
             params.push(Box::new(from.to_rfc3339()));
@@ -736,7 +793,7 @@ impl DuckDbFlightRecorder {
         }
         // No LIMIT: token-level replay must not silently truncate. Ascending so
         // the merge sees the natural session order.
-        query.push_str(" ORDER BY timestamp ASC");
+        query.push_str(" ORDER BY timestamp ASC, ingest_sequence ASC, event_id ASC");
 
         let mut stmt = conn
             .prepare(&query)
@@ -761,7 +818,7 @@ impl DuckDbFlightRecorder {
 struct RawEvent {
     event_id: String,
     trace_id: String,
-    timestamp_epoch: f64,
+    timestamp_epoch_us: i64,
     actor: String,
     actor_id: String,
     event_type: String,
@@ -782,7 +839,7 @@ fn raw_event_from_row(row: &duckdb::Row<'_>) -> duckdb::Result<RawEvent> {
     Ok(RawEvent {
         event_id: row.get(0)?,
         trace_id: row.get(1)?,
-        timestamp_epoch: row.get(2)?,
+        timestamp_epoch_us: row.get(2)?,
         actor: row.get(3)?,
         actor_id: row.get(4)?,
         event_type: row.get(5)?,
@@ -807,9 +864,7 @@ fn decode_raw_event(raw: RawEvent) -> Result<FlightRecorderEvent, RecorderError>
             .map_err(|e| RecorderError::InvalidEvent(format!("invalid event_id: {}", e)))?;
         let trace_id = uuid::Uuid::parse_str(&raw.trace_id)
             .map_err(|e| RecorderError::InvalidEvent(format!("invalid trace_id: {}", e)))?;
-        let secs = raw.timestamp_epoch.trunc() as i64;
-        let nanos = ((raw.timestamp_epoch.fract()) * 1_000_000_000f64) as u32;
-        let timestamp = chrono::DateTime::from_timestamp(secs, nanos)
+        let timestamp = chrono::DateTime::from_timestamp_micros(raw.timestamp_epoch_us)
             .ok_or_else(|| RecorderError::InvalidEvent("invalid timestamp".into()))?;
 
         let actor = match raw.actor.as_str() {
@@ -1037,6 +1092,18 @@ impl FlightRecorder for DuckDbFlightRecorder {
         self.insert_event(event)
     }
 
+    async fn delete_workspace_events(&self, workspace_id: &str) -> Result<u64, RecorderError> {
+        let quoted_workspace = serde_json::to_string(workspace_id)
+            .map_err(|error| RecorderError::InvalidEvent(error.to_string()))?;
+        let conn = self.conn.lock().map_err(|_| RecorderError::LockError)?;
+        conn.execute(
+            "DELETE FROM events WHERE json_array_length(wsids) = 1 AND strpos(CAST(wsids AS VARCHAR), ?) > 0",
+            duckdb::params![quoted_workspace],
+        )
+        .map(|count| count as u64)
+        .map_err(|error| RecorderError::SinkError(error.to_string()))
+    }
+
     async fn enforce_retention(&self) -> Result<u64, RecorderError> {
         self.purge_retention()
     }
@@ -1249,40 +1316,64 @@ mod tests {
                     job_id TEXT,
                     payload JSON
                 );
+                INSERT INTO events VALUES
+                    ('00000000-0000-0000-0000-000000000001', '2026-07-17T00:00:00Z', 'system', 'legacy-a', 'system', NULL, '{}'),
+                    ('00000000-0000-0000-0000-000000000002', '2026-07-17T00:00:00Z', 'system', 'legacy-b', 'system', NULL, '{}');
             "#,
             )?;
         }
 
         let recorder = DuckDbFlightRecorder::new_on_path(&db_path, 7)?;
 
-        let conn = recorder.connection();
-        let conn = conn.lock().map_err(|_| RecorderError::LockError)?;
+        let legacy_max = {
+            let conn = recorder.connection();
+            let conn = conn.lock().map_err(|_| RecorderError::LockError)?;
+            let index_values = list_index_introspection_values(&conn)?;
+            for expected in [
+                "idx_events_trace_id",
+                "idx_events_job_id",
+                "idx_events_model_session_id",
+                "idx_events_timestamp",
+            ] {
+                assert!(
+                    index_values.iter().any(|value| value == expected),
+                    "expected {expected} in DuckDB index introspection; got: {index_values:?}"
+                );
+            }
+            let (count, distinct, nulls, maximum): (i64, i64, i64, i64) = conn.query_row(
+                "SELECT COUNT(*), COUNT(DISTINCT ingest_sequence), COUNT(*) FILTER (WHERE ingest_sequence IS NULL), MAX(ingest_sequence) FROM events",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )?;
+            assert_eq!((count, distinct, nulls), (2, 2, 0));
+            maximum
+        };
 
-        let index_values = list_index_introspection_values(&conn)?;
-        assert!(
-            index_values
-                .iter()
-                .any(|value| value == "idx_events_trace_id"),
-            "expected idx_events_trace_id in DuckDB index introspection; got: {index_values:?}"
-        );
-        assert!(
-            index_values
-                .iter()
-                .any(|value| value == "idx_events_job_id"),
-            "expected idx_events_job_id in DuckDB index introspection; got: {index_values:?}"
-        );
-        assert!(
-            index_values
-                .iter()
-                .any(|value| value == "idx_events_model_session_id"),
-            "expected idx_events_model_session_id in DuckDB index introspection; got: {index_values:?}"
-        );
-        assert!(
-            index_values
-                .iter()
-                .any(|value| value == "idx_events_timestamp"),
-            "expected idx_events_timestamp in DuckDB index introspection; got: {index_values:?}"
-        );
+        recorder
+            .record_event(test_event(Uuid::now_v7(), Some("post-migration")))
+            .await?;
+        let post_migration_max: i64 = {
+            let conn = recorder.connection();
+            let conn = conn.lock().map_err(|_| RecorderError::LockError)?;
+            conn.query_row("SELECT MAX(ingest_sequence) FROM events", [], |row| {
+                row.get(0)
+            })?
+        };
+        assert!(post_migration_max > legacy_max);
+        drop(recorder);
+
+        let reopened = DuckDbFlightRecorder::new_on_path(&db_path, 7)?;
+        reopened
+            .record_event(test_event(Uuid::now_v7(), Some("post-reopen")))
+            .await?;
+        let post_reopen_max: i64 = {
+            let conn = reopened.connection();
+            let conn = conn.lock().map_err(|_| RecorderError::LockError)?;
+            conn.query_row("SELECT MAX(ingest_sequence) FROM events", [], |row| {
+                row.get(0)
+            })?
+        };
+        assert!(post_reopen_max > post_migration_max);
 
         Ok(())
     }
@@ -1301,6 +1392,123 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].trace_id, trace_id);
         assert_eq!(events[0].job_id, Some("job-123".to_string()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn event_timestamp_readback_preserves_exact_authority_microsecond_on_both_query_paths(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
+        let trace_id = Uuid::now_v7();
+        // With the former `EXTRACT(EPOCH ...) -> f64` decoder, this exact 2026 timestamp decoded as
+        // microsecond 0 instead of microsecond 1 because the floating-point value landed just below
+        // the boundary. Keep the regression fixture on that boundary.
+        let timestamp = DateTime::<Utc>::from_timestamp(1_784_200_521, 1_000)
+            .ok_or("valid timestamp fixture")?;
+        let session_id = "timestamp-precision-session";
+        let mut event = test_event(trace_id, Some("timestamp-precision"))
+            .with_session_span(session_id.to_owned());
+        event.timestamp = timestamp;
+        recorder.record_event(event).await?;
+
+        let ordinary = recorder.list_events(EventFilter::default()).await?;
+        assert_eq!(ordinary.len(), 1);
+        assert_eq!(ordinary[0].timestamp, timestamp);
+
+        let session = recorder
+            .list_session_scoped_events(session_id, None, None)
+            .await?;
+        assert_eq!(session.len(), 1);
+        assert_eq!(session[0].timestamp, timestamp);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn storage_filters_before_limit_keep_matching_event_beyond_global_page(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
+        let trace_id = Uuid::now_v7();
+        let target_actor = "native_editor_human";
+        let target_workspace = "workspace-filter-boundary";
+        let mut target = FlightRecorderEvent::new(
+            FlightRecorderEventType::System,
+            FlightRecorderActor::Human,
+            trace_id,
+            json!({"event_family":"native_editor","action":"document_saved","editor_surface":"rich_text"}),
+        )
+        .with_actor_id(target_actor)
+        .with_wsids(vec![target_workspace.to_owned()]);
+        target.timestamp = Utc::now() - chrono::Duration::hours(1);
+        let target_id = target.event_id;
+        recorder.record_event(target).await?;
+
+        for index in 0..201 {
+            let mut noise = FlightRecorderEvent::new(
+                FlightRecorderEventType::System,
+                FlightRecorderActor::Human,
+                Uuid::now_v7(),
+                json!({
+                    "event_family":"native_editor",
+                    "action":"document_saved",
+                    "editor_surface":"code"
+                }),
+            )
+            .with_job_id(format!("noise-{index}"))
+            .with_actor_id(target_actor)
+            .with_wsids(vec![target_workspace.to_owned()]);
+            noise.timestamp = Utc::now() + chrono::Duration::microseconds(index);
+            recorder.record_event(noise).await?;
+        }
+
+        let events = recorder
+            .list_events(EventFilter {
+                actor_id: Some(target_actor.to_owned()),
+                surface: Some("rich_text".to_owned()),
+                event_type: Some("system".to_owned()),
+                wsid: Some(target_workspace.to_owned()),
+                ..Default::default()
+            })
+            .await?;
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_id, target_id);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn equal_microsecond_events_return_in_reverse_ingest_order(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let recorder = DuckDbFlightRecorder::new_in_memory(7)?;
+        let timestamp = DateTime::<Utc>::from_timestamp(1_784_200_521, 123_456_000)
+            .ok_or("valid equal-microsecond timestamp")?;
+        let mut first = test_event(Uuid::now_v7(), Some("equal-microsecond-first"));
+        first.session_span_id = Some("equal-microsecond-session".to_owned());
+        first.timestamp = timestamp;
+        let first_id = first.event_id;
+        recorder.record_event(first).await?;
+        let mut second = test_event(Uuid::now_v7(), Some("equal-microsecond-second"));
+        second.session_span_id = Some("equal-microsecond-session".to_owned());
+        second.timestamp = timestamp;
+        let second_id = second.event_id;
+        recorder.record_event(second).await?;
+
+        let events = recorder.list_events(EventFilter::default()).await?;
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event.event_id)
+                .collect::<Vec<_>>(),
+            vec![second_id, first_id]
+        );
+        let session = recorder
+            .list_session_scoped_events("equal-microsecond-session", None, None)
+            .await?;
+        assert_eq!(
+            session
+                .iter()
+                .map(|event| event.event_id)
+                .collect::<Vec<_>>(),
+            vec![first_id, second_id]
+        );
         Ok(())
     }
 
@@ -1706,7 +1914,7 @@ mod tests {
         .with_workflow_id("workflow-roundtrip")
         .with_model_id("model-roundtrip")
         .with_model_session_id("session-roundtrip")
-        .with_wsids(vec!["ws-1".to_string(), "ws-2".to_string()])
+        .with_wsids(vec!["ws-1".to_string()])
         .with_activity_span("activity-roundtrip")
         .with_session_span("session-span-roundtrip")
         .with_capability("capability-roundtrip")
@@ -1753,9 +1961,17 @@ mod tests {
             stored.policy_decision_id,
             Some("policy-roundtrip".to_string())
         );
-        assert_eq!(stored.wsids, vec!["ws-1".to_string(), "ws-2".to_string()]);
+        assert_eq!(stored.wsids, vec!["ws-1".to_string()]);
         assert_eq!(stored.payload["event_id"], "FR-EVT-SESS-SCHED-001");
         assert_eq!(stored.payload["session_id"], "session-roundtrip");
+        assert_eq!(recorder.delete_workspace_events("ws-1").await?, 1);
+        assert!(recorder
+            .list_events(EventFilter {
+                model_session_id: Some("session-roundtrip".to_string()),
+                ..Default::default()
+            })
+            .await?
+            .is_empty());
         Ok(())
     }
 

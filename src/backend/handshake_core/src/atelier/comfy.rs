@@ -119,8 +119,7 @@ pub mod comfy_event_family {
     /// A QUEUED/RUNNING job timed out; partial evidence preserved (MT-128).
     pub const JOB_TIMED_OUT: &str = "atelier.comfy.job.timed_out";
     /// Partial evidence was attached to a job so no evidence is lost (MT-128).
-    pub const JOB_PARTIAL_EVIDENCE_PRESERVED: &str =
-        "atelier.comfy.job.partial_evidence.preserved";
+    pub const JOB_PARTIAL_EVIDENCE_PRESERVED: &str = "atelier.comfy.job.partial_evidence.preserved";
     /// A structured diagnostic bundle was recorded for a failed pose/ComfyUI
     /// operation (MT-112; carries request/refs/versions/logs/artifacts +
     /// error taxonomy).
@@ -1420,10 +1419,7 @@ fn version_metadata_from_row(row: &sqlx::postgres::PgRow) -> ComfyVersionMetadat
 /// [`reject_legacy_runtime_ref`] boundary on every string, so a forbidden
 /// .GOV/SQLite/localhost/machine-local ref anywhere in `refs` fails the record.
 /// Non-string scalars pass through (they cannot carry a ref).
-fn reject_legacy_runtime_refs_in_json(
-    field: &str,
-    value: &serde_json::Value,
-) -> AtelierResult<()> {
+fn reject_legacy_runtime_refs_in_json(field: &str, value: &serde_json::Value) -> AtelierResult<()> {
     match value {
         serde_json::Value::String(text) => reject_legacy_runtime_ref(field, text),
         serde_json::Value::Array(items) => {

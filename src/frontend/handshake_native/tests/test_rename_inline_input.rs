@@ -20,7 +20,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::keymap::CodeEditorAction;
 use handshake_native::code_editor::rename::{
@@ -212,7 +214,7 @@ fn rename_accesskit_nodes_present_with_correct_roles() {
         true,
     );
     panel.set_rename_state(RenameState::Previewing {
-        workspace_edit: preview,
+        workspace_edit: preview.clone(),
     });
     harness.run();
     harness.run();
@@ -230,6 +232,37 @@ fn rename_accesskit_nodes_present_with_correct_roles() {
         cancel_role, "Button",
         "AC-006: '{CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID}' is a Role::Button"
     );
+
+    // The stable ids must be attached to the real egui buttons, not detached discoverability-only
+    // nodes. Drive Apply and Cancel through the consumer-side AccessKit nodes and prove handlers run.
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(CODE_EDITOR_RENAME_APPLY_AUTHOR_ID))
+        .expect("live Apply button")
+        .click();
+    harness.run();
+    harness.run();
+    assert!(
+        panel.buffer().to_string().contains("total"),
+        "AccessKit click on the stable Apply id applies the preview"
+    );
+    assert!(!panel.is_rename_preview_open(), "Apply closes the preview");
+
+    panel.set_rename_state(RenameState::Previewing {
+        workspace_edit: preview,
+    });
+    harness.run();
+    harness.run();
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID))
+        .expect("live Cancel button")
+        .click();
+    harness.run();
+    harness.run();
+    assert!(!panel.is_rename_preview_open(), "Cancel closes the preview");
     println!(
         "PT-005 rename_accesskit: {{ input: TextInput, apply: Button, cancel: Button, ctx_rename_symbol: MenuItem }} all present"
     );

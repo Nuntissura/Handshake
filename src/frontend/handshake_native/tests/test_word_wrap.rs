@@ -17,11 +17,13 @@ use std::sync::Arc;
 
 use egui::{Key, Modifiers};
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::{
     layout_visual_rows, CodeEditorPanel, Cursor, TextBuffer, WrapConfig,
-    CODE_EDITOR_CURSOR_AUTHOR_PREFIX,
+    CODE_EDITOR_CURSOR_AUTHOR_PREFIX, CODE_EDITOR_TEXT_AUTHOR_ID,
 };
 
 fn off() -> WrapConfig {
@@ -34,6 +36,32 @@ fn on_cols(cols: usize) -> WrapConfig {
         wrap_column: Some(cols),
         viewport_width_px: 0.0,
     }
+}
+
+#[test]
+fn wrapped_text_input_keeps_argus_write_actions() {
+    let panel = CodeEditorPanel::new("wrapped text", "rs");
+    panel.set_wrap_enabled(true);
+    panel.set_wrap_column(Some(8));
+    let mut harness = Harness::new_ui(|ui| panel.show(ui));
+    harness.run_steps(3);
+    let node = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(CODE_EDITOR_TEXT_AUTHOR_ID))
+        .expect("wrapped code editor text input remains addressable");
+    assert!(
+        node.accesskit_node()
+            .data()
+            .supports_action(egui::accesskit::Action::SetValue),
+        "word wrap must not remove Argus SetValue"
+    );
+    assert!(
+        node.accesskit_node()
+            .data()
+            .supports_action(egui::accesskit::Action::ReplaceSelectedText),
+        "word wrap must not remove Argus ReplaceSelectedText"
+    );
 }
 
 // ── AC-003 / PT-003: layout math ──────────────────────────────────────────────────────────────────
@@ -373,8 +401,8 @@ fn wrap_mode_renders_caret_and_selection_at_visual_row() {
     let panel = Arc::new(CodeEditorPanel::new(src, "txt"));
     panel.set_wrap_enabled(true);
     panel.set_wrap_column(Some(10)); // deterministic narrow wrap: line 0 -> 2 rows, "TARGET" -> row 2
-    // A selection over "TARGET" (bytes 20..26); head=26 places the caret at line 1 col 6 (just past the
-    // last 'T', an empty cell — so the caret bar stands alone, not overlapping a glyph).
+                                     // A selection over "TARGET" (bytes 20..26); head=26 places the caret at line 1 col 6 (just past the
+                                     // last 'T', an empty cell — so the caret bar stands alone, not overlapping a glyph).
     panel.set_cursors(vec![Cursor::selection(20, 26)]);
 
     let panel_ui = Arc::clone(&panel);
@@ -444,8 +472,8 @@ fn wrap_mode_renders_caret_and_selection_at_visual_row() {
     let (w, h) = (image.width(), image.height());
     let ppp = harness.ctx.pixels_per_point();
     let caret_x = target.right(); // col-6 x = right edge of the 6-glyph "TARGET" label
-    // Count pixels in a thin strip at the caret x within the "TARGET" row band that differ from the SAME
-    // column's background reference far BELOW the 4-row document (uniform panel background).
+                                  // Count pixels in a thin strip at the caret x within the "TARGET" row band that differ from the SAME
+                                  // column's background reference far BELOW the 4-row document (uniform panel background).
     let count_non_bg = |x_pt: f32, y0_pt: f32, y1_pt: f32, bg_y_pt: f32| -> u32 {
         let x_px = (x_pt * ppp).round() as i64;
         let bg_y = (bg_y_pt * ppp).round().clamp(0.0, (h - 1) as f32) as u32;

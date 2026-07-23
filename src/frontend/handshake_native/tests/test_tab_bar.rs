@@ -19,7 +19,7 @@
 //! widget that was only built in memory (never emitted via `Context::accesskit_node_builder`) would
 //! be absent here.
 
-use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
@@ -196,27 +196,28 @@ fn live_pinned_tab_has_no_close_button_node() {
 
 #[test]
 fn live_click_tab_activates_it() {
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app_with_three_tabs_on_pane_a(),
-    );
-    // Wide+tall window so the pane has room for the MT-013 header strip ABOVE the tab strip and the
-    // (now badge-widened) tab chips lay out with un-clipped, clickable bounding boxes.
-    harness.set_size(egui::Vec2::new(1200.0, 800.0));
+    let mut app = app_with_three_tabs_on_pane_a();
+    app.set_atelier_panel_open(false);
+    // Exercise the normal-width three-column layout. Overflow must not make an addressable tab inert.
     // MT-033: close the right-edge Atelier/CKC side panel (a SidePanel::right that narrows + shifts the
     // 2x2 pane grid) for stable, clickable tab rects — same reason the drag test below closes the left
     // rail. The Atelier panel is irrelevant to the tab-activation behavior under test.
-    harness.state_mut().set_atelier_panel_open(false);
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1200.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run();
 
     // Click the last tab (tab-pane-a-2 = InferenceLab after stabilization) by its stable author_id,
     // the same path an out-of-process model uses (label "Inference Lab" collides with pane-b's seed).
-    harness
+    let activation_node = harness
         .root()
         .children_recursive()
         .find(|n| n.accesskit_node().author_id() == Some("tab-pane-a-2"))
-        .expect("tab-pane-a-2 present")
-        .click();
+        .expect("tab-pane-a-2 present");
+    // This last tab is intentionally outside the horizontal viewport at 1200px. Use the canonical
+    // AccessKit action for the off-screen-but-addressable node; visible pointer paths are covered by
+    // the close and cross-pane drag tests below.
+    activation_node.click_accesskit();
     harness.run();
 
     // The clicked tab is now selected (active) in the live tree.
@@ -246,17 +247,116 @@ fn live_click_tab_activates_it() {
 }
 
 #[test]
-fn live_click_close_button_removes_tab() {
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app_with_three_tabs_on_pane_a(),
+fn live_pointer_click_visible_tab_body_activates_it() {
+    // Pointer regression guard for the tab body itself (separate from the off-screen AccessKit path
+    // above and from the sibling close button below). Atelier is pinned at visible index 0 while the
+    // initially-active Workspace tab is index 1.
+    let mut app = app_with_three_tabs_on_pane_a();
+    app.set_atelier_panel_open(false);
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1200.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run();
+
+    harness
+        .root()
+        .children_recursive()
+        .find(|n| n.accesskit_node().author_id() == Some("tab-pane-a-0"))
+        .expect("visible pane-a Atelier tab present")
+        .click();
+    harness.run();
+
+    let pane_a: PaneId = Arc::from("pane-a");
+    assert_eq!(
+        harness
+            .state()
+            .tab_bar_states()
+            .get(&pane_a)
+            .and_then(TabBarState::active)
+            .map(|tab| tab.pane_type.clone()),
+        Some(PaneType::AtelierEditor),
+        "a real pointer click on the visible tab body activates it"
     );
-    // Wide+tall window so the MT-013 header strip + badge-widened tab chips lay out with un-clipped,
-    // clickable close-button bounding boxes (the default size is now too tight after the header add).
-    harness.set_size(egui::Vec2::new(1200.0, 800.0));
+}
+
+#[test]
+fn live_wheel_scroll_reveals_overflow_tab_for_pointer_activation() {
+    // Operator reachability guard: overflow starts with the last tab outside pane-a's visible strip;
+    // a real wheel event over the horizontal ScrollArea brings it into view, after which a pointer
+    // click on the tab body activates it.
+    let mut app = app_with_three_tabs_on_pane_a();
+    app.set_atelier_panel_open(false);
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1200.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run();
+
+    let bar_rect = harness
+        .root()
+        .children_recursive()
+        .find(|n| n.accesskit_node().author_id() == Some("tabbar-pane-a"))
+        .expect("pane-a tab bar present")
+        .rect();
+    let initial_last_rect = harness
+        .root()
+        .children_recursive()
+        .find(|n| n.accesskit_node().author_id() == Some("tab-pane-a-2"))
+        .expect("overflow tab present in AccessKit")
+        .rect();
+    assert!(
+        initial_last_rect.center().x > bar_rect.right(),
+        "last tab starts outside the visible horizontal strip"
+    );
+
+    harness.hover_at(bar_rect.center());
+    // Point deltas below egui's smoothing threshold are applied in the event frame. Repeating a
+    // trackpad-sized delta avoids depending on later kinetic-scroll repaint frames.
+    for _ in 0..50 {
+        harness.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(-7.0, 0.0),
+            modifiers: egui::Modifiers::NONE,
+        });
+    }
+    // Process the hover + wheel frames directly. `run()` waits for tooltip repaints to settle, which
+    // is unrelated to scroll behavior and can exceed the harness's intentionally small max-step cap.
+    harness.step();
+
+    let revealed = harness
+        .root()
+        .children_recursive()
+        .find(|n| n.accesskit_node().author_id() == Some("tab-pane-a-2"))
+        .expect("overflow tab remains addressable after scroll");
+    assert!(
+        revealed.rect().center().x <= bar_rect.right(),
+        "wheel scroll brings the overflow tab into the visible strip"
+    );
+    revealed.click();
+    harness.step();
+
+    let pane_a: PaneId = Arc::from("pane-a");
+    assert_eq!(
+        harness
+            .state()
+            .tab_bar_states()
+            .get(&pane_a)
+            .and_then(TabBarState::active)
+            .map(|tab| tab.pane_type.clone()),
+        Some(PaneType::InferenceLab),
+        "the wheel-revealed overflow tab accepts a real pointer click"
+    );
+}
+
+#[test]
+fn live_click_close_button_removes_tab() {
+    let mut app = app_with_three_tabs_on_pane_a();
+    app.set_atelier_panel_open(false);
+    // Exercise the normal-width three-column layout and its overflow boundary.
     // MT-033: close the right-edge Atelier/CKC side panel for stable, clickable close-button rects (same
     // geometry reason as the tab-activation + drag tests).
-    harness.state_mut().set_atelier_panel_open(false);
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1200.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run();
 
     let before = harness
@@ -270,7 +370,12 @@ fn live_click_close_button_removes_tab() {
 
     // Close the Workspace tab (an unpinned tab) via its close button. The close button label is
     // "Close Workspace" (set in render_one_tab's widget_info).
-    harness.get_by_label("Close Workspace").click();
+    let close_node = harness
+        .root()
+        .children_recursive()
+        .find(|n| n.accesskit_node().author_id() == Some("tab-close-pane-a-1"))
+        .expect("pane-a Workspace close button present");
+    close_node.click();
     harness.run();
 
     let after = harness
@@ -293,22 +398,20 @@ fn live_click_close_button_removes_tab() {
 fn live_drag_tab_across_panes_moves_it_exactly_once() {
     // Red-team CONTROL via the LIVE pointer path: drag tab-pane-a-1 and drop it onto pane-b's tab
     // bar; assert pane-a loses that tab and pane-b gains it exactly once (no duplication, no loss).
-    let mut harness = Harness::builder().build_state(
-        |ctx, app: &mut HandshakeApp| app.ui(ctx),
-        app_with_three_tabs_on_pane_a(),
-    );
-    harness.set_size(egui::Vec2::new(1000.0, 700.0));
-    harness.run();
+    let mut app = app_with_three_tabs_on_pane_a();
     // Collapse the MT-014 left rail for this tab-drag test: an OPEN rail is a SidePanel::left that
     // narrows + shifts the 2x2 pane grid, which moves the tab + tab-bar rects under test and made the
     // live cross-pane drag gesture unreliable in the harness. The rail is irrelevant to the tab-drag
     // behavior being proven, so collapsing it restores stable pane geometry without changing what this
     // test exercises (the cross-pane tab move). The rail's own behavior is covered by test_left_rail.
-    harness.state_mut().set_left_rail_open(false);
+    app.set_left_rail_open(false);
     // MT-033: also close the right-edge Atelier/CKC side panel — like the left rail it is a side panel
     // that narrows + shifts the 2x2 pane grid, moving the tab + tab-bar rects under the live drag; the
     // Atelier panel is irrelevant to the cross-pane tab-move behavior being proven.
-    harness.state_mut().set_atelier_panel_open(false);
+    app.set_atelier_panel_open(false);
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1000.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run();
 
     // Source counts before.
@@ -350,7 +453,6 @@ fn live_drag_tab_across_panes_moves_it_exactly_once() {
         .expect("pane-b tab bar present")
         .rect()
         .center();
-
     // Real pointer drag: press at the source tab, then move the pointer in STEPS toward the target
     // (egui only registers a drag once the pointer moves past its drag threshold; a press->release
     // with no intermediate PointerMoved is treated as a click, not a drag). Finally release over the

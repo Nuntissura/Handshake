@@ -265,7 +265,7 @@ pub fn bucket_links(
                 link.resolved_target_id = Some(document_id);
                 resolved.push(link);
             }
-            WikilinkResolution::Unresolved { .. } => {
+            WikilinkResolution::Ambiguous { .. } | WikilinkResolution::Unresolved { .. } => {
                 link.resolved_target_id = None;
                 unresolved.push(link);
             }
@@ -459,7 +459,7 @@ fn emit_node_author(ctx: &egui::Context, id: egui::Id, role: accesskit::Role, au
         if !matches!(role_for_closure, accesskit::Role::Button) {
             node.set_role(role_for_closure);
         }
-        node.set_author_id(author);
+        node.set_author_id(crate::rich_editor::scoped_author_id(author));
     });
 }
 

@@ -1,7 +1,7 @@
 //! WP-KERNEL-012 MT-037 (E6 — backend reuse wiring): the CONSOLIDATED typed native Rust client for the
-//! EXISTING handshake_core `/knowledge/documents/*` HTTP surface (WP-KERNEL-009 RichDocumentCore,
-//! `api::knowledge_documents`). This is FRONTEND WIRING ONLY — it binds the routes the backend already
-//! serves; it does NOT change the backend (a backend gap is a typed blocker, never a backend edit).
+//! handshake_core `/knowledge/documents/*` HTTP surface (WP-KERNEL-009 RichDocumentCore,
+//! `api::knowledge_documents`). The explorer list binding is backed by the collection GET so row ids
+//! and optimistic tokens come from the same RichDocument authority the mutation routes update.
 //!
 //! ## Why this module exists (and the SINGLE load/save wire path)
 //!
@@ -25,7 +25,8 @@
 //! [`crate::backend_client::DOC_ACTOR_ID`] / [`crate::backend_client::DOC_ACTOR_KIND`]) so the wire
 //! identity is constructed in ONE place, and it shares the ONE process-wide
 //! [`crate::backend_client::shared_http_client`] connection pool (production() does NOT mint a second
-//! reqwest stack). On top of the shared transport it ADDS the 17 routes no prior MT bound (create /
+//! reqwest stack). On top of the shared transport it binds the collection list plus the 17 mutation/
+//! detail routes no prior MT bound (create /
 //! import / draft GET-PUT-DELETE / blocks / history + version / projection / embeds + broken + repair /
 //! backlinks list + rebuild / rename / move / batch) plus the richer typed response projections, the
 //! [`HskDocumentHeaders`] struct, and the typed [`KnowledgeDocumentsError`] enum.
@@ -138,7 +139,10 @@ impl HskDocumentHeaders {
             kernel_task_run_id: format!("native-editor-doc-{document_id}"),
             session_run_id: session_run_id.into(),
             actor_kind: Some(DOC_ACTOR_KIND.to_string()),
-            correlation_id: None,
+            correlation_id: Some(format!(
+                "native-editor-save-{document_id}-{}",
+                uuid::Uuid::new_v4()
+            )),
         }
     }
 
@@ -201,6 +205,9 @@ pub enum KnowledgeDocumentsError {
     /// 409 body is `{"error":"conflict","detail":...}` (no version), so this is `None` today — kept so a
     /// future backend can populate it without an API break.
     SaveConflict { server_version: Option<i64> },
+    /// HTTP 409 from create-if-title-absent when more than one existing document shares the
+    /// normalized title. This is not an optimistic-save conflict and must not enter save recovery UI.
+    TitleAmbiguous { detail: String },
     /// HTTP 5xx — the backend failed internally. Carries the status + any body detail.
     Server(String),
     /// A non-success status that is none of the above mapped codes. Carries the status + body.
@@ -227,6 +234,9 @@ impl std::fmt::Display for KnowledgeDocumentsError {
                 f,
                 "save conflict (409): document changed since the expected version (server_version={server_version:?})"
             ),
+            Self::TitleAmbiguous { detail } => {
+                write!(f, "ambiguous document title (409): {detail}")
+            }
             Self::Server(d) => write!(f, "server error (5xx): {d}"),
             Self::UnexpectedStatus { status, body } => {
                 write!(f, "unexpected status {status}: {body}")
@@ -246,6 +256,10 @@ impl std::error::Error for KnowledgeDocumentsError {}
 /// A typed result alias for this client.
 pub type DocResult<T> = Result<T, KnowledgeDocumentsError>;
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Request bodies (mirror the backend `*Body` structs — VERIFIED against api/knowledge_documents.rs).
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -256,6 +270,8 @@ pub type DocResult<T> = Result<T, KnowledgeDocumentsError>;
 pub struct CreateDocumentRequest {
     pub workspace_id: String,
     pub title: String,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub create_if_title_absent: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_json: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -323,6 +339,8 @@ pub struct MoveDocumentRequest {
 #[derive(Debug, Clone, Serialize)]
 pub struct RenameDocumentRequest {
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expected_updated_at: Option<String>,
 }
 
 /// `POST /knowledge/documents/embeds/:embed_id/repair` body. `action` is the recorded intent
@@ -427,6 +445,15 @@ pub struct DocumentLoadResponse {
     pub code_nodes: Value,
 }
 
+/// Explorer projection of one live RichDocument authority row. The id and `updated_at` token are
+/// deliberately returned together so interactive rename targets the exact row/version displayed.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct RichDocumentSummary {
+    pub rich_document_id: String,
+    pub title: String,
+    pub updated_at: String,
+}
+
 /// `GET /knowledge/documents/:id/draft` response. `draft` is the persisted recovery draft (a `Value`,
 /// or `null` when there is no draft distinct from the current document).
 #[derive(Debug, Clone, Deserialize)]
@@ -453,6 +480,8 @@ pub struct SaveDocumentResponse {
     #[serde(default)]
     pub backlinks_error: Option<String>,
     #[serde(default)]
+    pub backlinks_skipped_reason: Option<String>,
+    #[serde(default)]
     pub embeds_persisted: usize,
     #[serde(default)]
     pub embeds_error: Option<String>,
@@ -467,6 +496,11 @@ pub struct SaveDocumentResponse {
 #[derive(Debug, Clone, Deserialize)]
 pub struct DocumentWriteResponse {
     pub document: Value,
+    /// `POST /knowledge/documents` idempotency outcome: true only when this request inserted the row;
+    /// false when `create_if_title_absent` reused the existing authoritative document. Other write
+    /// routes omit the field and deserialize to false.
+    #[serde(default)]
+    pub created: bool,
     #[serde(default)]
     pub save_receipt_event_id: Option<String>,
     #[serde(default)]
@@ -631,6 +665,20 @@ impl KnowledgeDocumentsClient {
         format!("{}{}", self.base_url, path)
     }
 
+    /// Calls `GET /knowledge/documents?workspace_id=...` and returns the live RichDocument rows used
+    /// by explorer navigation/rename. This must not fall back to legacy workspace documents.
+    pub async fn list_documents(
+        &self,
+        headers: &HskDocumentHeaders,
+        workspace_id: &str,
+    ) -> DocResult<Vec<RichDocumentSummary>> {
+        let builder = self
+            .client
+            .get(self.url("/knowledge/documents"))
+            .query(&[("workspace_id", workspace_id)]);
+        self.send_json(headers.apply(builder)).await
+    }
+
     // ── Route 1: POST /knowledge/documents — create a RichDocument. ─────────────────────────────
     /// Calls `POST /knowledge/documents` (create_document).
     pub async fn create_document(
@@ -642,7 +690,8 @@ impl KnowledgeDocumentsClient {
             .client
             .post(self.url("/knowledge/documents"))
             .json(body);
-        self.send_json(headers.apply(builder)).await
+        self.send_json_with_conflict_mapping(headers.apply(builder), ConflictMapping::CreateTitle)
+            .await
     }
 
     // ── Route 2: POST /knowledge/documents/import — import a snippet into a new document. ────────
@@ -932,6 +981,15 @@ impl KnowledgeDocumentsClient {
         &self,
         builder: reqwest::RequestBuilder,
     ) -> DocResult<T> {
+        self.send_json_with_conflict_mapping(builder, ConflictMapping::Save)
+            .await
+    }
+
+    async fn send_json_with_conflict_mapping<T: serde::de::DeserializeOwned>(
+        &self,
+        builder: reqwest::RequestBuilder,
+        conflict_mapping: ConflictMapping,
+    ) -> DocResult<T> {
         let resp = builder
             .timeout(REQUEST_TIMEOUT)
             .send()
@@ -947,8 +1005,39 @@ impl KnowledgeDocumentsClient {
         // Non-success: read the body text once for the typed error detail.
         let code = status.as_u16();
         let body = resp.text().await.unwrap_or_default();
-        Err(map_error_status(code, &body))
+        Err(map_error_status_for_operation(
+            code,
+            &body,
+            conflict_mapping,
+        ))
     }
+}
+
+#[derive(Clone, Copy)]
+enum ConflictMapping {
+    Save,
+    CreateTitle,
+}
+
+fn map_error_status_for_operation(
+    status: u16,
+    body: &str,
+    conflict_mapping: ConflictMapping,
+) -> KnowledgeDocumentsError {
+    if status == 409 && matches!(conflict_mapping, ConflictMapping::CreateTitle) {
+        let detail = serde_json::from_str::<Value>(body)
+            .ok()
+            .and_then(|value| {
+                value
+                    .get("detail")
+                    .or_else(|| value.get("reason"))
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
+            .unwrap_or_else(|| body.to_owned());
+        return KnowledgeDocumentsError::TitleAmbiguous { detail };
+    }
+    map_error_status(status, body)
 }
 
 /// Map a non-success status + body into the typed [`KnowledgeDocumentsError`]. Pure (no IO) so the
@@ -1092,6 +1181,24 @@ mod tests {
     }
 
     #[test]
+    fn create_409_is_typed_title_ambiguity_not_save_conflict() {
+        let body = json!({
+            "error": "conflict",
+            "detail": "knowledge_rich_document_title_ambiguous"
+        })
+        .to_string();
+        assert!(matches!(
+            map_error_status_for_operation(409, &body, ConflictMapping::CreateTitle),
+            KnowledgeDocumentsError::TitleAmbiguous { detail }
+                if detail == "knowledge_rich_document_title_ambiguous"
+        ));
+        assert!(matches!(
+            map_error_status_for_operation(409, &body, ConflictMapping::Save),
+            KnowledgeDocumentsError::SaveConflict { .. }
+        ));
+    }
+
+    #[test]
     fn status_map_400_403_404_5xx_are_distinct_variants() {
         assert!(matches!(
             map_error_status(
@@ -1146,5 +1253,36 @@ mod tests {
         assert_eq!(HSK_HEADER_SESSION_RUN_ID, "x-hsk-session-run-id");
         assert_eq!(HSK_HEADER_ACTOR_KIND, "x-hsk-actor-kind");
         assert_eq!(HSK_HEADER_CORRELATION_ID, "x-hsk-correlation-id");
+    }
+
+    #[test]
+    fn wikilink_create_request_serializes_backend_idempotency_contract() {
+        let body = CreateDocumentRequest {
+            workspace_id: "ws-1".to_owned(),
+            title: "Design Note".to_owned(),
+            create_if_title_absent: true,
+            content_json: None,
+            schema_version: None,
+            project_ref: None,
+            folder_ref: None,
+        };
+        let value = serde_json::to_value(body).expect("serialize create request");
+        assert_eq!(value["create_if_title_absent"], true);
+    }
+
+    #[test]
+    fn explorer_document_rename_serializes_concurrency_token() {
+        let body = RenameDocumentRequest {
+            title: "First writer".to_owned(),
+            expected_updated_at: Some("2026-07-16T10:20:30Z".to_owned()),
+        };
+        let value = serde_json::to_value(body).expect("serialize rename request");
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "title": "First writer",
+                "expected_updated_at": "2026-07-16T10:20:30Z",
+            })
+        );
     }
 }

@@ -32,6 +32,11 @@ const CANONICAL_CAPABILITY_IDS: &[&str] = &[
     "fr.read",
     "diagnostics.read",
     "jobs.read",
+    "stage.jobs.enqueue",
+    "memory.read",
+    "memory.propose",
+    "memory.review",
+    "memory.commit",
     "export.include_payloads",
 ];
 
@@ -207,6 +212,11 @@ impl CapabilityRegistry {
                     "fs.read".to_string(),
                     "fs.write".to_string(),
                     "export.governance_pack".to_string(),
+                    "stage.jobs.enqueue".to_string(),
+                    "memory.read".to_string(),
+                    "memory.propose".to_string(),
+                    "memory.review".to_string(),
+                    "memory.commit".to_string(),
                 ],
             },
         );

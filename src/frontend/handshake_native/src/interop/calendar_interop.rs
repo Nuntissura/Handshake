@@ -22,26 +22,19 @@
 //!    block as READ-ONLY chips (RISK-5/MC-5 — no mutation path). A chip-click emits the navigation command
 //!    [`CMD_OPEN_DOCUMENT`] only.
 //!
-//! ## VERIFIED BACKEND REALITY (KERNEL_BUILDER gate 2026-06-25): NO `/calendar/` routes exist at all
+//! ## Backend reality
 //!
-//! VERIFIED against `src/backend/handshake_core`: there are **NO `/calendar/` HTTP routes** in this
-//! handshake_core build — BOTH `GET /workspaces/{ws}/calendar/events` AND
-//! `GET /workspaces/{ws}/calendar/activity-spans` are ABSENT (Calendar = Pillar 2, like FEMS = Pillar 12 and
-//! Stage = Pillar 17 — a separate system not yet wired into the frozen handshake_core HTTP surface). The
-//! contract's original assumption ("`/calendar/events` exists, only activity-spans maybe-absent") is WRONG:
-//! the WHOLE Calendar/Pillar-2 HTTP surface is absent. So BOTH calendar reads map to the typed blocker
-//! [`InteropError::EndpointUnavailable`] over a 404 / 501 / route-not-registered probe (BROAD detection,
-//! RISK-3/MC-3) — never a fabricated event, never a fabricated span, never a DB query.
+//! `handshake_core` exposes both workspace-scoped reads used here:
+//! `GET /workspaces/{ws}/calendar/events` and
+//! `GET /workspaces/{ws}/calendar/activity-spans`. A deployment where either route is unavailable still
+//! maps 404/501 to [`InteropError::EndpointUnavailable`] (RISK-3/MC-3), never to a fabricated event/span.
 //!
-//! ## HONEST SPLIT — the daily-note half is REAL and FULLY PROVABLE; the calendar halves are typed blockers
+//! ## Runtime split
 //!
-//! - **REAL (provable now):** [`Self::open_or_create_daily_note`] delegating to the MT-019 service
-//!   (idempotent, single doc/date) + the panel render + the MT-019 date nav.
-//! - **TYPED BLOCKER (the designed primary path in this build):** [`Self::events_for_range`],
-//!   [`Self::resolve_event_for_daily_note`], and [`Self::activity_spans_for_event`] all return
-//!   [`InteropError::EndpointUnavailable`] because the `/calendar/` routes are absent. The panel renders the
-//!   typed empty-states for the CalendarEvent chip + the activity strip and KEEPS the daily-note binding
-//!   alive — the panel never dies on the absent calendar routes (AC-4).
+//! - [`Self::open_or_create_daily_note`] delegates to the MT-019 service (idempotent, single doc/date).
+//! - [`Self::events_for_range`], [`Self::resolve_event_for_daily_note`], and
+//!   [`Self::activity_spans_for_event`] read the live Calendar routes. The panel retains a typed unavailable
+//!   state when a route cannot be reached or is not exposed (AC-4).
 //!
 //! ## Reuse, no second HTTP stack / no DB / no SQLite / no new endpoint
 //!
@@ -58,8 +51,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use chrono::{DateTime, NaiveDate, Utc};
-use serde::Deserialize;
+use chrono::{DateTime, LocalResult, NaiveDate, SecondsFormat, TimeZone, Utc};
+use chrono_tz::Tz;
+use serde::{Deserialize, Serialize};
 
 use crate::backend_client::{
     shared_http_client, BACKEND_BASE_URL, HSK_HEADER_ACTOR_ID, HSK_HEADER_KERNEL_TASK_RUN_ID,
@@ -130,49 +124,229 @@ impl From<&str> for DocId {
     }
 }
 
-/// A calendar event window (the contract's `CalendarEvent`). Decoded from the (currently absent)
-/// `GET /calendar/events` body shape; `daily_note_doc_id` is the SESSION-LOCAL bidirectional link the
-/// interop writes back after opening the daily note (persisting it to the backend is out of scope unless
-/// the events endpoint accepts the field — it does not exist yet, so the link stays session-local).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// A calendar event window (the contract's `CalendarEvent`). Decoded from the live
+/// `GET /calendar/events` body shape; `daily_note_doc_id` is the persisted, date-derived reverse link to
+/// the canonical daily journal returned by the backend.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CalendarEvent {
     /// The stable calendar-event id.
     pub id: String,
     /// The event title shown on the chip.
     #[serde(default)]
     pub title: String,
-    /// The event window start (UTC).
-    pub start_utc: DateTime<Utc>,
-    /// The event window end (UTC).
-    pub end_utc: DateTime<Utc>,
-    /// True for an all-day event (an all-day event for a date matches that date even though its window may
-    /// be encoded as a midnight-to-midnight span).
-    #[serde(default)]
-    pub all_day: bool,
-    /// The linked daily-note document id (SESSION-LOCAL — written back by the interop after open-or-create;
-    /// not decoded from the backend, which has no such field). `#[serde(default)]` so a backend body
-    /// without the field still decodes.
+    /// Lossless timed or date-only temporal intent from the backend.
+    pub temporal: CalendarEventTemporal,
+    /// The linked daily-note document id decoded from the backend. `#[serde(default)]` preserves decoding
+    /// for dates that do not have a daily journal yet.
     #[serde(default)]
     pub daily_note_doc_id: Option<DocId>,
+    /// The selected Calendar view timezone used for this query. It is runtime
+    /// projection context, not part of the persisted event wire.
+    #[serde(skip, default = "system_view_tzid")]
+    pub view_tzid: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum CalendarEventTemporal {
+    Timed {
+        start_utc: DateTime<Utc>,
+        end_utc: DateTime<Utc>,
+        start_local: String,
+        end_local: String,
+        tzid: String,
+        was_floating: bool,
+        #[serde(default)]
+        normalization_note: Option<CalendarNormalizationNote>,
+    },
+    AllDay {
+        start_date: NaiveDate,
+        end_date_exclusive: NaiveDate,
+        tzid: String,
+    },
+    LegacyIncomplete {
+        start_utc: DateTime<Utc>,
+        end_utc: DateTime<Utc>,
+        tzid: String,
+        all_day: bool,
+        recovery: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalendarNormalizationNote {
+    #[serde(default)]
+    pub boundaries: Vec<CalendarBoundaryNormalization>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalendarBoundaryNormalization {
+    pub boundary: String,
+    pub original_local: String,
+    pub resolution: CalendarDstResolution,
+    pub resolved_utc: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CalendarDstResolution {
+    EarlierOffset,
+    LaterOffset,
+}
+
+impl CalendarNormalizationNote {
+    fn operator_summary(&self) -> String {
+        self.boundaries
+            .iter()
+            .map(|boundary| {
+                let resolution = match boundary.resolution {
+                    CalendarDstResolution::EarlierOffset => "earlier offset",
+                    CalendarDstResolution::LaterOffset => "later offset",
+                };
+                format!(
+                    "{} {} => {} ({})",
+                    boundary.boundary,
+                    boundary.original_local,
+                    resolution,
+                    boundary.resolved_utc.to_rfc3339()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("; ")
+    }
+}
+
+fn system_view_tzid() -> String {
+    iana_time_zone::get_timezone().unwrap_or_else(|_| "UTC".to_owned())
+}
+
+pub fn selected_date_window_utc(
+    date: NaiveDate,
+    view_tzid: &str,
+) -> InteropResult<(DateTime<Utc>, DateTime<Utc>)> {
+    let end_date = date.succ_opt().ok_or(InteropError::InvalidDateWindow)?;
+    Ok((
+        selected_date_boundary_utc(date, view_tzid)?,
+        selected_date_boundary_utc(end_date, view_tzid)?,
+    ))
+}
+
+fn selected_date_boundary_utc(date: NaiveDate, view_tzid: &str) -> InteropResult<DateTime<Utc>> {
+    let tz: Tz = view_tzid
+        .parse()
+        .map_err(|_| InteropError::InvalidTimezone(view_tzid.to_owned()))?;
+    let midnight = date
+        .and_hms_opt(0, 0, 0)
+        .ok_or(InteropError::InvalidDateWindow)?;
+    for minute in 0..=(24 * 60) {
+        let Some(candidate) = midnight.checked_add_signed(chrono::Duration::minutes(minute)) else {
+            break;
+        };
+        match tz.from_local_datetime(&candidate) {
+            LocalResult::Single(value) => return Ok(value.with_timezone(&Utc)),
+            LocalResult::Ambiguous(first, second) => {
+                return Ok(std::cmp::min(
+                    first.with_timezone(&Utc),
+                    second.with_timezone(&Utc),
+                ))
+            }
+            LocalResult::None => {}
+        }
+    }
+    Err(InteropError::InvalidDateWindow)
 }
 
 impl CalendarEvent {
-    /// True when this event's window contains `date` (UTC calendar-day semantics, RISK-6/MC-6). An all-day
-    /// event matches when `date` equals its start date; a timed event matches when `date` falls on or
-    /// between the start and end calendar days (inclusive). The comparison is on the UTC *calendar day*, so
-    /// a 23:30-local boundary resolves to the SAME day the events query + daily-note key use.
+    /// True when this event overlaps `date` in the selected Calendar view timezone.
+    /// Both timed and all-day comparisons are half-open: a timed event overlaps
+    /// `[local midnight, next local midnight)`, while an all-day event owns
+    /// `[start_date, end_date_exclusive)`. This keeps near-midnight and DST days
+    /// aligned with the visible daily-note key.
     pub fn contains_date(&self, date: NaiveDate) -> bool {
-        let start_day = self.start_utc.date_naive();
-        let end_day = self.end_utc.date_naive();
-        if self.all_day {
-            return date == start_day;
+        match &self.temporal {
+            CalendarEventTemporal::AllDay {
+                start_date,
+                end_date_exclusive,
+                ..
+            } => date >= *start_date && date < *end_date_exclusive,
+            CalendarEventTemporal::Timed {
+                start_utc, end_utc, ..
+            } => selected_date_window_utc(date, &self.view_tzid)
+                .map(|(day_start, day_end)| *start_utc < day_end && *end_utc > day_start)
+                .unwrap_or(false),
+            CalendarEventTemporal::LegacyIncomplete {
+                start_utc, end_utc, ..
+            } => selected_date_window_utc(date, &self.view_tzid)
+                .map(|(day_start, day_end)| *start_utc < day_end && *end_utc > day_start)
+                .unwrap_or(false),
         }
-        date >= start_day && date <= end_day
+    }
+
+    pub fn is_all_day(&self) -> bool {
+        matches!(&self.temporal, CalendarEventTemporal::AllDay { .. })
+    }
+
+    pub fn is_legacy_incomplete(&self) -> bool {
+        matches!(
+            &self.temporal,
+            CalendarEventTemporal::LegacyIncomplete { .. }
+        )
+    }
+
+    pub fn has_dst_normalization(&self) -> bool {
+        matches!(
+            &self.temporal,
+            CalendarEventTemporal::Timed {
+                normalization_note: Some(note),
+                ..
+            } if !note.boundaries.is_empty()
+        )
+    }
+
+    pub fn temporal_summary(&self) -> String {
+        match &self.temporal {
+            CalendarEventTemporal::Timed {
+                start_utc,
+                end_utc,
+                start_local,
+                end_local,
+                tzid,
+                was_floating,
+                normalization_note,
+            } => format!(
+                "Timed\nStart local: {start_local}\nEnd local: {end_local}\nTimezone: {tzid}\nStart UTC: {}\nEnd UTC: {}\nWas floating: {was_floating}\nDST normalization: {}",
+                start_utc.to_rfc3339(),
+                end_utc.to_rfc3339(),
+                normalization_note
+                    .as_ref()
+                    .map(CalendarNormalizationNote::operator_summary)
+                    .filter(|summary| !summary.is_empty())
+                    .unwrap_or_else(|| "none".to_owned())
+            ),
+            CalendarEventTemporal::AllDay {
+                start_date,
+                end_date_exclusive,
+                tzid,
+            } => format!(
+                "All day\nStart date: {start_date}\nEnd date (exclusive): {end_date_exclusive}\nTimezone: {tzid}"
+            ),
+            CalendarEventTemporal::LegacyIncomplete {
+                start_utc,
+                end_utc,
+                tzid,
+                all_day,
+                recovery,
+            } => format!(
+                "Legacy temporal data incomplete\nUTC fallback: {} – {}\nTimezone: {tzid}\nWas all-day: {all_day}\nRecovery: {recovery}",
+                start_utc.to_rfc3339(),
+                end_utc.to_rfc3339(),
+            ),
+        }
     }
 }
 
 /// A read-only activity span (the contract's `ActivitySpan`) — which documents were edited during a
-/// calendar block. Decoded from the (currently absent) `GET /calendar/activity-spans` body. The interop +
+/// calendar block. Decoded from the live `GET /calendar/activity-spans` body. The interop +
 /// panel only ever READ this; there is NO write path (RISK-5/MC-5).
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct ActivitySpan {
@@ -184,23 +358,22 @@ pub struct ActivitySpan {
     /// The span window start (UTC).
     pub started_utc: DateTime<Utc>,
     /// The span window end (UTC).
-    pub ended_utc: DateTime<Utc>,
+    pub ended_utc: Option<DateTime<Utc>>,
     /// The documents edited during the span — rendered as read-only chips.
     #[serde(default)]
     pub edited_doc_ids: Vec<DocId>,
 }
 
-/// The in-session binding of a date to its daily-note doc (and, when resolvable, its calendar event). The
-/// output of [`CalendarInteropService::open_or_create_daily_note`]. The interop stores this so the linkage
-/// is bidirectional in the session (the [`CalendarEvent::daily_note_doc_id`] is written from `doc_id`).
+/// The binding of a date to its canonical daily-note doc (and, when resolvable, its calendar event). The
+/// output of [`CalendarInteropService::open_or_create_daily_note`]. The Calendar events route derives the
+/// reverse [`CalendarEvent::daily_note_doc_id`] from the persisted journal row.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DailyNoteBinding {
     /// The calendar day this binding is for.
     pub date: NaiveDate,
     /// The single daily-note document id for that date (from the idempotent MT-019 open-or-create).
     pub doc_id: DocId,
-    /// The calendar event id linked to this date, if one resolves (None while the calendar routes are
-    /// absent — the typed-blocker reality in this build).
+    /// The calendar event id linked to this date, if one resolves.
     pub calendar_event_id: Option<String>,
 }
 
@@ -211,32 +384,39 @@ pub struct DailyNoteBinding {
 /// The typed outcome of any calendar interop operation.
 ///
 /// [`Self::EndpointUnavailable`] is the FIRST-CLASS TYPED BLOCKER (RISK-3/MC-3, AC-4): a `/calendar/`
-/// route is absent in this handshake_core build (404 / 501 / route-not-registered). It is DISTINCT from
+/// route is unavailable in the attached deployment (404 / 501 / route-not-registered). It is DISTINCT from
 /// [`Self::Http`] so the panel can tell "feature not exposed" apart from "transient failure" and render
 /// the correct empty-state, and the validator can prove the blocker path. The daily-note half maps a
 /// failed delegation to [`Self::DailyNoteServiceError`] (the MT-019 error, propagated — not swallowed).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InteropError {
-    /// A non-success HTTP status that is NOT the typed endpoint-absent blocker (e.g. a 500, a 403). Carries
+    /// A non-success HTTP status that is NOT the typed endpoint-unavailable blocker (e.g. a 500, a 403). Carries
     /// the status code.
     Http { status: u16 },
     /// A decode failure on a success body (the wire shape did not match the domain type). Carries the
     /// serde reason.
     Decode(String),
-    /// THE TYPED BLOCKER: the probed `/calendar/` route is absent in this build (404 / 501 /
+    /// THE TYPED BLOCKER: the probed `/calendar/` route is unavailable (404 / 501 /
     /// route-not-registered). Carries the probed path so the validator + operator see exactly which route
-    /// is missing. NO backend route is added; NO event/span is fabricated.
+    /// is unavailable. NO event/span is fabricated.
     EndpointUnavailable { probed_path: String },
     /// The MT-019 daily-note service failed (propagated from [`JournalError`], NOT swallowed). The
     /// open-or-create delegates to MT-019; its failure surfaces here distinctly so the panel can show the
     /// MT-019 error chip rather than a calendar empty-state.
     DailyNoteServiceError(String),
-    /// A resource was addressed but not found in a way distinct from the typed endpoint-absent blocker
+    /// The idempotent MT-019 daily-note PUT hit a retryable transport/HTTP failure. Mounted callers may
+    /// retry it within the same date/generation; non-retryable service and decode errors use the variant above.
+    DailyNoteTransient(String),
+    /// A resource was addressed but not found in a way distinct from the typed endpoint-unavailable blocker
     /// (reserved for a future per-resource 404 that is NOT a missing `/calendar/` route). Carries no
-    /// payload; the typed blocker for an absent route is [`Self::EndpointUnavailable`], not this.
+    /// payload; the typed blocker for an unavailable route is [`Self::EndpointUnavailable`], not this.
     NotFound,
     /// A transport-layer failure (connect / timeout / TLS). Carries the reason.
     Transport(String),
+    /// The selected Calendar view timezone is not an IANA tzdb identifier.
+    InvalidTimezone(String),
+    /// The requested local date cannot be represented as a half-open window.
+    InvalidDateWindow,
 }
 
 impl std::fmt::Display for InteropError {
@@ -244,15 +424,21 @@ impl std::fmt::Display for InteropError {
         match self {
             Self::Http { status } => write!(f, "calendar interop: HTTP {status}"),
             Self::Decode(why) => write!(f, "calendar interop decode error: {why}"),
-            Self::EndpointUnavailable { probed_path } => write!(
-                f,
-                "Calendar endpoint not present in this build (probed {probed_path})"
-            ),
+            Self::EndpointUnavailable { probed_path } => {
+                write!(f, "Calendar endpoint unavailable (probed {probed_path})")
+            }
             Self::DailyNoteServiceError(why) => {
                 write!(f, "daily-note service error: {why}")
             }
+            Self::DailyNoteTransient(why) => {
+                write!(f, "daily-note service transient error: {why}")
+            }
             Self::NotFound => write!(f, "calendar interop: resource not found"),
             Self::Transport(why) => write!(f, "calendar interop transport error: {why}"),
+            Self::InvalidTimezone(tzid) => {
+                write!(f, "calendar interop invalid IANA timezone: {tzid}")
+            }
+            Self::InvalidDateWindow => write!(f, "calendar interop invalid date window"),
         }
     }
 }
@@ -266,13 +452,26 @@ impl InteropError {
         matches!(self, InteropError::EndpointUnavailable { .. })
     }
 
+    /// True only for operations safe to retry inside one mounted request generation: transport errors,
+    /// HTTP 408/425/429/5xx, and the typed idempotent daily-note PUT transient. EndpointUnavailable,
+    /// other 4xx responses, and schema decode failures are deliberately terminal.
+    pub fn is_retryable(&self) -> bool {
+        matches!(
+            self,
+            InteropError::Transport(_)
+                | InteropError::DailyNoteTransient(_)
+                | InteropError::Http {
+                    status: 408 | 425 | 429 | 500..=599
+                }
+        )
+    }
+
     /// The stable empty-state message the panel shows for a typed-blocker activity strip (AC-4). A fixed
     /// string so the panel + the User Manual + the tests reference the same copy.
     pub const ACTIVITY_UNAVAILABLE_MSG: &'static str =
         "Activity correlation not available — backend endpoint not exposed";
 
-    /// The stable empty-state message for an unresolved CalendarEvent chip (the calendar-events route is
-    /// absent in this build).
+    /// The stable empty-state message for an unavailable CalendarEvent read.
     pub const EVENT_UNAVAILABLE_MSG: &'static str =
         "Calendar event not available — backend endpoint not exposed";
 }
@@ -284,7 +483,10 @@ pub type InteropResult<T> = Result<T, InteropError>;
 /// surfaces as [`InteropError::DailyNoteServiceError`] (propagated, never swallowed — RISK-1).
 impl From<JournalError> for InteropError {
     fn from(e: JournalError) -> Self {
-        InteropError::DailyNoteServiceError(e.to_string())
+        match e {
+            JournalError::OpenTransient(why) => InteropError::DailyNoteTransient(why),
+            other => InteropError::DailyNoteServiceError(other.to_string()),
+        }
     }
 }
 
@@ -298,8 +500,8 @@ impl From<JournalError> for InteropError {
 /// - the MT-019 [`JournalBackend`] (an `Arc<dyn …>`) the daily-note open-or-create DELEGATES to (RISK-1:
 ///   no re-implemented creation path).
 ///
-/// All four contract methods are async; the daily-note half is REAL and provable, the calendar halves are
-/// the designed typed blockers in this build (no `/calendar/` routes).
+/// All four contract methods are async and use the production daily-note and Calendar routes; typed
+/// unavailable results preserve the mounted panel when an attached backend lacks either Calendar read.
 #[derive(Clone)]
 pub struct CalendarInteropService {
     /// The shared HTTP pool (the WP-011 `backend_client` pool — no second stack).
@@ -312,6 +514,9 @@ pub struct CalendarInteropService {
     journal_backend: Arc<dyn JournalBackend>,
     /// The session run id on the read identity headers (so swarm/operator co-work is attributable).
     session_run_id: String,
+    /// IANA timezone selected by the Calendar view. Date windows are converted
+    /// to UTC with tzdb before the query is sent.
+    view_tzid: String,
 }
 
 impl CalendarInteropService {
@@ -328,6 +533,7 @@ impl CalendarInteropService {
             workspace_id: workspace_id.into(),
             journal_backend,
             session_run_id: "native-editor-session".to_owned(),
+            view_tzid: system_view_tzid(),
         }
     }
 
@@ -345,6 +551,7 @@ impl CalendarInteropService {
             workspace_id: workspace_id.into(),
             journal_backend,
             session_run_id: "native-editor-session".to_owned(),
+            view_tzid: system_view_tzid(),
         }
     }
 
@@ -354,22 +561,38 @@ impl CalendarInteropService {
         self
     }
 
+    pub fn with_view_tzid(mut self, view_tzid: impl Into<String>) -> Self {
+        self.view_tzid = view_tzid.into();
+        self
+    }
+
     /// The workspace this service binds.
     pub fn workspace_id(&self) -> &str {
         &self.workspace_id
     }
 
-    /// The events read path for the workspace + date range (the documented — currently absent — route).
+    /// The events read path for the workspace + date range.
     /// Built here so [`InteropError::EndpointUnavailable`] can report the exact probed path.
-    pub fn events_path(workspace_id: &str, from: NaiveDate, to: NaiveDate) -> String {
-        format!(
-            "/workspaces/{workspace_id}/calendar/events?from={}&to={}",
+    pub fn events_path(
+        workspace_id: &str,
+        from: NaiveDate,
+        to: NaiveDate,
+        view_tzid: &str,
+    ) -> InteropResult<String> {
+        let to_date_exclusive = to.succ_opt().ok_or(InteropError::InvalidDateWindow)?;
+        let from_utc = selected_date_boundary_utc(from, view_tzid)?;
+        let to_utc = selected_date_boundary_utc(to_date_exclusive, view_tzid)?;
+        Ok(format!(
+            "/workspaces/{workspace_id}/calendar/events?from_date={}&to_date_exclusive={}&from_utc={}&to_utc={}&view_tzid={}",
             from.format(DATE_STORAGE_FMT),
-            to.format(DATE_STORAGE_FMT)
-        )
+            to_date_exclusive.format(DATE_STORAGE_FMT),
+            from_utc.to_rfc3339_opts(SecondsFormat::Secs, true),
+            to_utc.to_rfc3339_opts(SecondsFormat::Secs, true),
+            encode_query_component(view_tzid),
+        ))
     }
 
-    /// The activity-spans read path for the workspace + event (the documented — currently absent — route).
+    /// The activity-spans read path for the workspace + event.
     pub fn activity_spans_path(workspace_id: &str, event_id: &str) -> String {
         format!("/workspaces/{workspace_id}/calendar/activity-spans?event_id={event_id}")
     }
@@ -379,7 +602,7 @@ impl CalendarInteropService {
     }
 
     /// Issue a read-only GET at `path`, mapping the response to a decoded `T` or the typed error model. A
-    /// 404 / 501 (route absent / not implemented) maps to [`InteropError::EndpointUnavailable`] — the TYPED
+    /// 404 / 501 (route unavailable / not implemented) maps to [`InteropError::EndpointUnavailable`] — the TYPED
     /// BLOCKER (BROAD detection, RISK-3/MC-3), never a panic or a fabricated value. READ-ONLY: a single GET,
     /// never a write verb (RISK-5/MC-5).
     async fn get_json<T: serde::de::DeserializeOwned>(&self, path: &str) -> InteropResult<T> {
@@ -400,8 +623,8 @@ impl CalendarInteropService {
             .map_err(|e| InteropError::Transport(e.to_string()))?;
         let status = resp.status();
 
-        // THE TYPED BLOCKER (BROAD detection — RISK-3/MC-3): 404 (route absent) OR 501 (not implemented)
-        // both mean the /calendar/ route is not present in this build. Surface it as the typed blocker
+        // THE TYPED BLOCKER (BROAD detection — RISK-3/MC-3): 404 (unavailable) OR 501 (not implemented)
+        // both mean the attached backend cannot serve this /calendar/ read. Surface the typed blocker
         // DISTINCT from a generic Http error; never panic, never fabricate.
         if status == reqwest::StatusCode::NOT_FOUND
             || status == reqwest::StatusCode::NOT_IMPLEMENTED
@@ -455,26 +678,32 @@ impl CalendarInteropService {
         })
     }
 
-    // ── daily note <-> CalendarEvent window (TYPED BLOCKER in this build — no /calendar/events route) ────
+    // ── daily note <-> CalendarEvent window (live route with typed unavailable fallback) ────────────────
 
-    /// Fetch the calendar events overlapping `[from, to]` (the contract's `events_for_range`). In THIS
-    /// build the `/calendar/events` route is ABSENT, so this returns [`InteropError::EndpointUnavailable`]
-    /// (the typed blocker) — never a fabricated event. When the route lands, it decodes the events body.
+    /// Fetch the calendar events overlapping `[from, to]` (the contract's `events_for_range`) from the
+    /// live route. An unavailable route returns [`InteropError::EndpointUnavailable`], never fabricated data.
     pub async fn events_for_range(
         &self,
         from: NaiveDate,
         to: NaiveDate,
     ) -> InteropResult<Vec<CalendarEvent>> {
-        let path = Self::events_path(&self.workspace_id, from, to);
-        self.get_json::<Vec<CalendarEvent>>(&path).await
+        if to < from {
+            return Err(InteropError::InvalidDateWindow);
+        }
+        let path = Self::events_path(&self.workspace_id, from, to, &self.view_tzid)?;
+        let mut events = self.get_json::<Vec<CalendarEvent>>(&path).await?;
+        for event in &mut events {
+            event.view_tzid.clone_from(&self.view_tzid);
+        }
+        Ok(events)
     }
 
     /// Resolve the CalendarEvent for a daily note's `date` (the contract's `resolve_event_for_daily_note`):
     /// fetch the events for that single day and pick the event whose window contains the date (or the
     /// all-day event for that date). Returns `Ok(None)` when the route exists but no event matches; returns
-    /// [`InteropError::EndpointUnavailable`] when the route is absent (this build) so the panel renders the
+    /// [`InteropError::EndpointUnavailable`] when the route is unavailable so the panel renders the
     /// unavailable chip empty-state while the daily-note binding stays alive (AC-2 / AC-4). The day-window
-    /// match is UTC calendar-day (RISK-6/MC-6).
+    /// match uses selected-view IANA timezone and half-open overlap semantics (RISK-6/MC-6).
     pub async fn resolve_event_for_daily_note(
         &self,
         date: NaiveDate,
@@ -483,12 +712,11 @@ impl CalendarInteropService {
         Ok(pick_event_for_date(&events, date))
     }
 
-    // ── ActivitySpan correlation (READ-ONLY, TYPED BLOCKER — no /calendar/activity-spans route) ──────────
+    // ── ActivitySpan correlation (READ-ONLY live route with typed unavailable fallback) ─────────────────
 
     /// Fetch the read-only ActivitySpan correlation for `event_id` (the contract's
-    /// `activity_spans_for_event`): which documents were edited during the calendar block. In THIS build
-    /// the `/calendar/activity-spans` route is ABSENT, so this returns
-    /// [`InteropError::EndpointUnavailable`] (the typed blocker) — the panel then shows the typed
+    /// `activity_spans_for_event`): which documents were edited during the calendar block. An unavailable
+    /// `/calendar/activity-spans` route returns [`InteropError::EndpointUnavailable`], so the panel shows the typed
     /// empty-state ([`InteropError::ACTIVITY_UNAVAILABLE_MSG`]) and the rest of the panel stays alive
     /// (AC-3 / AC-4). READ-ONLY: a single GET, never a write (RISK-5/MC-5).
     pub async fn activity_spans_for_event(
@@ -500,16 +728,32 @@ impl CalendarInteropService {
     }
 }
 
+fn encode_query_component(value: &str) -> String {
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.as_bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                encoded.push(char::from(*byte));
+            }
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
+}
+
 /// Pick the CalendarEvent whose window contains `date` (the resolve-for-daily-note selection rule, RISK-6/
 /// MC-6). Prefers an ALL-DAY event for the date over a timed one (the daily note is the day's anchor), then
-/// the first timed event whose window contains the date. UTC calendar-day semantics throughout. Pure (no
-/// IO) so it is unit-testable with fixture events.
+/// the first timed event whose window overlaps the selected view-local date. Half-open local-day semantics
+/// apply throughout. Pure (no IO) so it is unit-testable with fixture events.
 pub fn pick_event_for_date(events: &[CalendarEvent], date: NaiveDate) -> Option<CalendarEvent> {
     // An all-day event for the date is the strongest match (the day's anchor).
-    if let Some(all_day) = events.iter().find(|e| e.all_day && e.contains_date(date)) {
+    if let Some(all_day) = events
+        .iter()
+        .find(|e| e.is_all_day() && e.contains_date(date))
+    {
         return Some(all_day.clone());
     }
-    // Else the first timed event whose UTC window contains the date.
+    // Else the first timed event whose UTC interval overlaps the selected local-day window.
     events.iter().find(|e| e.contains_date(date)).cloned()
 }
 
@@ -677,67 +921,125 @@ mod tests {
         );
     }
 
-    /// RISK-6/MC-6: contains_date is UTC calendar-day. A timed event 2026-06-21 22:00 -> 2026-06-22 02:00
-    /// (UTC) contains BOTH 06-21 and 06-22; a 23:30 boundary resolves to the same UTC day the query uses.
-    #[test]
-    fn contains_date_is_utc_calendar_day() {
-        let timed = CalendarEvent {
-            id: "E-1".into(),
-            title: "Late block".into(),
-            start_utc: utc(2026, 6, 21, 22, 0),
-            end_utc: utc(2026, 6, 22, 2, 0),
-            all_day: false,
+    fn timed_event(
+        id: &str,
+        start_utc: DateTime<Utc>,
+        end_utc: DateTime<Utc>,
+        view_tzid: &str,
+    ) -> CalendarEvent {
+        CalendarEvent {
+            id: id.into(),
+            title: id.into(),
+            temporal: CalendarEventTemporal::Timed {
+                start_utc,
+                end_utc,
+                start_local: start_utc.to_rfc3339(),
+                end_local: end_utc.to_rfc3339(),
+                tzid: "UTC".into(),
+                was_floating: false,
+                normalization_note: None,
+            },
             daily_note_doc_id: None,
-        };
-        assert!(timed.contains_date(d(2026, 6, 21)));
+            view_tzid: view_tzid.into(),
+        }
+    }
+
+    fn all_day_event(
+        id: &str,
+        start_date: NaiveDate,
+        end_date_exclusive: NaiveDate,
+    ) -> CalendarEvent {
+        CalendarEvent {
+            id: id.into(),
+            title: id.into(),
+            temporal: CalendarEventTemporal::AllDay {
+                start_date,
+                end_date_exclusive,
+                tzid: "Europe/Brussels".into(),
+            },
+            daily_note_doc_id: None,
+            view_tzid: "Europe/Brussels".into(),
+        }
+    }
+
+    /// Timed membership uses the selected Calendar view timezone and half-open
+    /// overlap semantics, including a Europe/Brussels near-midnight boundary.
+    #[test]
+    fn contains_date_uses_selected_view_timezone_and_half_open_bounds() {
+        let timed = timed_event(
+            "E-1",
+            utc(2026, 6, 21, 22, 30),
+            utc(2026, 6, 22, 2, 0),
+            "Europe/Brussels",
+        );
+        assert!(!timed.contains_date(d(2026, 6, 21)));
         assert!(timed.contains_date(d(2026, 6, 22)));
         assert!(!timed.contains_date(d(2026, 6, 20)));
         assert!(!timed.contains_date(d(2026, 6, 23)));
 
-        // A 23:30 single-instant event resolves to its UTC day only.
-        let late = CalendarEvent {
-            id: "E-2".into(),
-            title: "23:30".into(),
-            start_utc: utc(2026, 6, 21, 23, 30),
-            end_utc: utc(2026, 6, 21, 23, 30),
-            all_day: false,
-            daily_note_doc_id: None,
-        };
-        assert!(late.contains_date(d(2026, 6, 21)));
-        assert!(!late.contains_date(d(2026, 6, 22)));
+        let midnight_end = timed_event(
+            "E-2",
+            utc(2026, 6, 21, 20, 0),
+            utc(2026, 6, 21, 22, 0),
+            "Europe/Brussels",
+        );
+        assert!(midnight_end.contains_date(d(2026, 6, 21)));
+        assert!(!midnight_end.contains_date(d(2026, 6, 22)));
 
-        // An all-day event matches only its start date.
-        let all_day = CalendarEvent {
-            id: "E-3".into(),
-            title: "All day".into(),
-            start_utc: utc(2026, 6, 21, 0, 0),
-            end_utc: utc(2026, 6, 21, 23, 59),
-            all_day: true,
-            daily_note_doc_id: None,
-        };
+        let all_day = all_day_event("E-3", d(2026, 6, 21), d(2026, 6, 23));
         assert!(all_day.contains_date(d(2026, 6, 21)));
-        assert!(!all_day.contains_date(d(2026, 6, 22)));
+        assert!(all_day.contains_date(d(2026, 6, 22)));
+        assert!(!all_day.contains_date(d(2026, 6, 23)));
+    }
+
+    #[test]
+    fn brussels_selected_days_are_23_and_25_hours_across_dst() {
+        let (spring_start, spring_end) =
+            selected_date_window_utc(d(2026, 3, 29), "Europe/Brussels").unwrap();
+        assert_eq!(spring_end - spring_start, chrono::Duration::hours(23));
+        let (fall_start, fall_end) =
+            selected_date_window_utc(d(2026, 10, 25), "Europe/Brussels").unwrap();
+        assert_eq!(fall_end - fall_start, chrono::Duration::hours(25));
+        assert!(matches!(
+            selected_date_window_utc(d(2026, 6, 21), "Europe/Not-A-Zone"),
+            Err(InteropError::InvalidTimezone(_))
+        ));
+    }
+
+    #[test]
+    fn temporal_summary_exposes_explicit_dst_overlap_outcome() {
+        let mut event = timed_event(
+            "E-overlap",
+            utc(2026, 10, 25, 0, 30),
+            utc(2026, 10, 25, 2, 30),
+            "Europe/Brussels",
+        );
+        event.temporal = CalendarEventTemporal::Timed {
+            start_utc: utc(2026, 10, 25, 0, 30),
+            end_utc: utc(2026, 10, 25, 2, 30),
+            start_local: "2026-10-25T02:30:00".into(),
+            end_local: "2026-10-25T03:30:00".into(),
+            tzid: "Europe/Brussels".into(),
+            was_floating: false,
+            normalization_note: Some(CalendarNormalizationNote {
+                boundaries: vec![CalendarBoundaryNormalization {
+                    boundary: "start".into(),
+                    original_local: "2026-10-25T02:30:00".into(),
+                    resolution: CalendarDstResolution::EarlierOffset,
+                    resolved_utc: utc(2026, 10, 25, 0, 30),
+                }],
+            }),
+        };
+        let summary = event.temporal_summary();
+        assert!(summary.contains("start 2026-10-25T02:30:00 => earlier offset"));
+        assert!(summary.contains("2026-10-25T00:30:00+00:00"));
     }
 
     /// pick_event_for_date prefers an all-day event for the date, then the first timed match.
     #[test]
     fn pick_event_prefers_all_day_then_timed() {
-        let timed = CalendarEvent {
-            id: "T".into(),
-            title: "timed".into(),
-            start_utc: utc(2026, 6, 21, 9, 0),
-            end_utc: utc(2026, 6, 21, 10, 0),
-            all_day: false,
-            daily_note_doc_id: None,
-        };
-        let all_day = CalendarEvent {
-            id: "A".into(),
-            title: "all day".into(),
-            start_utc: utc(2026, 6, 21, 0, 0),
-            end_utc: utc(2026, 6, 21, 23, 59),
-            all_day: true,
-            daily_note_doc_id: None,
-        };
+        let timed = timed_event("T", utc(2026, 6, 21, 9, 0), utc(2026, 6, 21, 10, 0), "UTC");
+        let all_day = all_day_event("A", d(2026, 6, 21), d(2026, 6, 22));
         let events = vec![timed.clone(), all_day.clone()];
         assert_eq!(
             pick_event_for_date(&events, d(2026, 6, 21)).unwrap().id,
@@ -756,8 +1058,25 @@ mod tests {
     #[test]
     fn read_paths_are_documented_routes() {
         assert_eq!(
-            CalendarInteropService::events_path("WS-1", d(2026, 6, 21), d(2026, 6, 21)),
-            "/workspaces/WS-1/calendar/events?from=2026-06-21&to=2026-06-21"
+            CalendarInteropService::events_path(
+                "WS-1",
+                d(2026, 6, 21),
+                d(2026, 6, 21),
+                "Europe/Brussels"
+            )
+            .unwrap(),
+            "/workspaces/WS-1/calendar/events?from_date=2026-06-21&to_date_exclusive=2026-06-22&from_utc=2026-06-20T22:00:00Z&to_utc=2026-06-21T22:00:00Z&view_tzid=Europe%2FBrussels"
+        );
+        assert!(
+            CalendarInteropService::events_path(
+                "WS-1",
+                d(2026, 6, 21),
+                d(2026, 6, 21),
+                "Etc/GMT+5"
+            )
+            .unwrap()
+            .ends_with("view_tzid=Etc%2FGMT%2B5"),
+            "a plus sign must not be decoded as a query-space"
         );
         assert_eq!(
             CalendarInteropService::activity_spans_path("WS-1", "E-9"),
@@ -778,15 +1097,48 @@ mod tests {
         assert!(InteropError::ACTIVITY_UNAVAILABLE_MSG.contains("not available"));
     }
 
-    /// A CalendarEvent body decodes from the documented wire shape (the route, once it lands).
+    #[test]
+    fn retryability_is_limited_to_transient_idempotent_failures() {
+        for retryable in [
+            InteropError::Transport("timeout".into()),
+            InteropError::DailyNoteTransient("HTTP 503".into()),
+            InteropError::Http { status: 408 },
+            InteropError::Http { status: 425 },
+            InteropError::Http { status: 429 },
+            InteropError::Http { status: 503 },
+        ] {
+            assert!(retryable.is_retryable(), "must retry {retryable:?}");
+        }
+        for terminal in [
+            InteropError::EndpointUnavailable {
+                probed_path: "/calendar/events".into(),
+            },
+            InteropError::Http { status: 400 },
+            InteropError::Http { status: 409 },
+            InteropError::Decode("invalid body".into()),
+            InteropError::DailyNoteServiceError("invalid body".into()),
+            InteropError::NotFound,
+        ] {
+            assert!(!terminal.is_retryable(), "must not retry {terminal:?}");
+        }
+    }
+
+    /// A CalendarEvent body decodes from the live route's documented wire shape.
     #[test]
     fn calendar_event_decodes_from_wire() {
         let body = serde_json::json!({
             "id": "E-7",
             "title": "Sprint planning",
-            "start_utc": "2026-06-21T09:00:00Z",
-            "end_utc": "2026-06-21T10:00:00Z",
-            "all_day": false
+            "temporal": {
+                "kind": "timed",
+                "start_utc": "2026-06-21T09:00:00Z",
+                "end_utc": "2026-06-21T10:00:00Z",
+                "start_local": "2026-06-21T11:00:00",
+                "end_local": "2026-06-21T12:00:00",
+                "tzid": "Europe/Brussels",
+                "was_floating": false,
+                "normalization_note": null
+            }
         });
         let ev: CalendarEvent = serde_json::from_value(body).expect("decodes");
         assert_eq!(ev.id, "E-7");
@@ -808,9 +1160,44 @@ mod tests {
         let span: ActivitySpan = serde_json::from_value(body).expect("decodes");
         assert_eq!(span.span_id, "S-1");
         assert_eq!(span.calendar_event_id.as_deref(), Some("E-7"));
+        assert!(span.ended_utc.is_some());
         assert_eq!(
             span.edited_doc_ids,
             vec![DocId("DOC-A".into()), DocId("DOC-B".into())]
         );
+
+        let in_progress: ActivitySpan = serde_json::from_value(serde_json::json!({
+            "span_id": "S-open",
+            "calendar_event_id": "E-7",
+            "started_utc": "2026-06-21T09:05:00Z",
+            "ended_utc": null,
+            "edited_doc_ids": []
+        }))
+        .expect("open span decodes without a fabricated end");
+        assert!(in_progress.ended_utc.is_none());
+    }
+
+    #[test]
+    fn legacy_incomplete_temporal_wire_remains_visible_and_typed() {
+        let event: CalendarEvent = serde_json::from_value(serde_json::json!({
+            "id": "E-legacy",
+            "title": "Historic import",
+            "temporal": {
+                "kind": "legacy_incomplete",
+                "start_utc": "2026-06-21T09:00:00Z",
+                "end_utc": "2026-06-21T10:00:00Z",
+                "tzid": "UTC",
+                "all_day": false,
+                "recovery": "reimport_from_calendar_source"
+            }
+        }))
+        .expect("legacy row decodes as a typed recovery state");
+        assert!(event.is_legacy_incomplete());
+        assert!(event
+            .temporal_summary()
+            .contains("Legacy temporal data incomplete"));
+        assert!(event
+            .temporal_summary()
+            .contains("reimport_from_calendar_source"));
     }
 }

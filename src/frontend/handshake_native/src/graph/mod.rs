@@ -181,8 +181,10 @@ pub mod interop_adapter {
         copy_selection_to_clipboard(bus, selection, sink)
     }
 
-    use crate::backend_client::{CanvasBoardClient, CreatedCanvasPlacement};
-    use crate::undo_stack::{UndoAction, UndoAsyncFn, UndoFn, UndoResult};
+    use crate::backend_client::{
+        CanvasBoardClient, CanvasCreateReceiptError, CreatedCanvasPlacement,
+    };
+    use crate::undo_stack::{AsyncUndoDirection, UndoAction, UndoAsyncFn, UndoFn, UndoResult};
     use std::sync::{Arc, Mutex, Weak};
 
     #[derive(Clone, Debug)]
@@ -210,6 +212,52 @@ pub mod interop_adapter {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner()) = placement.placement_id;
         }
+    }
+
+    /// Establish the redo replacement identity before making the completion observable to the shell.
+    /// The shell treats a successful completion as permission to put the action back on the undo ring;
+    /// publishing first would let a rapid next undo read the deleted pre-redo placement id.
+    pub(super) fn commit_redo_identity_then_publish(
+        state: &CanvasPlacementUndoState,
+        created: CreatedCanvasPlacement,
+        publish: impl FnOnce(),
+    ) {
+        state.accept_redo_created_placement(created);
+        publish();
+    }
+
+    pub(super) fn fail_closed_redo_receipt(
+        error: CanvasCreateReceiptError,
+    ) -> Result<CreatedCanvasPlacement, String> {
+        Err(format!(
+            "{error}; redo failed closed because no durable operation token proves placement ownership"
+        ))
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub struct CanvasBoardReloadIntent {
+        pub workspace_id: String,
+        pub canvas_block_id: String,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub struct CanvasCompensationCompletion {
+        pub action_id: String,
+        pub direction: AsyncUndoDirection,
+        pub reload: CanvasBoardReloadIntent,
+        pub result: Result<(), String>,
+    }
+
+    pub type CanvasCompensationCell =
+        Arc<Mutex<std::collections::VecDeque<CanvasCompensationCompletion>>>;
+
+    fn publish_canvas_compensation(
+        cell: &CanvasCompensationCell,
+        completion: CanvasCompensationCompletion,
+    ) {
+        cell.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .push_back(completion);
     }
 
     /// MT-035 (E5 unified undo): record a LOCAL graph-edit undo action for `pane_id` (POLICY-1) — a node
@@ -270,23 +318,71 @@ pub mod interop_adapter {
         placement_id: String,
         placed_block_id: String,
         geometry: (f64, f64, f64, f64),
+        completion_cell: CanvasCompensationCell,
+        repaint_ctx: egui::Context,
         description: impl Into<String>,
     ) {
         let (x, y, w, h) = geometry;
+        let action_id = uuid::Uuid::new_v4().to_string();
+        let reload = CanvasBoardReloadIntent {
+            workspace_id: workspace_id.clone(),
+            canvas_block_id: canvas_block_id.clone(),
+        };
         let placement_state = CanvasPlacementUndoState::new(placement_id);
         // UNDO = compensating DELETE of the latest created placement id. The first undo targets the
         // original backend-minted id; redo updates this shared state to the replacement id so a second
         // undo removes the redone placement rather than retrying the stale original id.
         let undo_client = client.clone();
         let undo_ws = workspace_id.clone();
+        let undo_canvas = canvas_block_id.clone();
         let undo_state = placement_state.clone();
+        let undo_action_id = action_id.clone();
+        let undo_reload = reload.clone();
+        let undo_completion = Arc::clone(&completion_cell);
+        let undo_repaint = repaint_ctx.clone();
         let undo_async_fn: UndoAsyncFn = Arc::new(move || {
             let client = undo_client.clone();
             let ws = undo_ws.clone();
+            let canvas = undo_canvas.clone();
             let placement = undo_state.current_placement_id();
+            let action_id = undo_action_id.clone();
+            let reload = undo_reload.clone();
+            let completion = Arc::clone(&undo_completion);
+            let repaint = undo_repaint.clone();
             Box::pin(async move {
                 let spec = client.remove_placement_request(&ws, &placement);
-                match send_canvas_compensation(&client, spec).await {
+                let result = match send_canvas_compensation(&client, spec).await {
+                    Ok(()) => Ok(()),
+                    Err(receipt_error) => match client.fetch_board_now(&ws, &canvas).await {
+                        Ok(board)
+                            if !board
+                                .placements
+                                .iter()
+                                .any(|row| row.placement_id == placement) =>
+                        {
+                            // The DELETE committed but its response was lost/malformed. Canonical
+                            // absence is the authoritative success receipt.
+                            Ok(())
+                        }
+                        Ok(_) => Err(format!(
+                            "{receipt_error}; canonical board still contains placement {placement}"
+                        )),
+                        Err(reconcile_error) => Err(format!(
+                            "{receipt_error}; canonical delete reconciliation failed: {reconcile_error}"
+                        )),
+                    },
+                };
+                publish_canvas_compensation(
+                    &completion,
+                    CanvasCompensationCompletion {
+                        action_id,
+                        direction: AsyncUndoDirection::Undo,
+                        reload,
+                        result: result.clone(),
+                    },
+                );
+                repaint.request_repaint();
+                match result {
                     Ok(()) => UndoResult::ok(),
                     Err(e) => {
                         UndoResult::err(format!("canvas undo (remove placement) failed: {e}"))
@@ -300,20 +396,55 @@ pub mod interop_adapter {
         let redo_canvas = canvas_block_id.clone();
         let redo_block = placed_block_id.clone();
         let redo_state = placement_state.clone();
+        let redo_action_id = action_id.clone();
+        let redo_reload = reload;
+        let redo_completion = Arc::clone(&completion_cell);
+        let redo_repaint = repaint_ctx;
         let redo_async_fn: UndoAsyncFn = Arc::new(move || {
             let client = redo_client.clone();
             let ws = redo_ws.clone();
             let canvas = redo_canvas.clone();
             let block = redo_block.clone();
             let state = redo_state.clone();
+            let action_id = redo_action_id.clone();
+            let reload = redo_reload.clone();
+            let completion = Arc::clone(&redo_completion);
+            let repaint = redo_repaint.clone();
             Box::pin(async move {
                 let spec = client.place_block_request(&ws, &canvas, &block, x, y, w, h);
-                match send_canvas_created_compensation(&client, spec).await {
+                let result = match send_canvas_created_compensation(&client, spec).await {
+                    Ok(created) => Ok(created),
+                    Err(receipt_error) => fail_closed_redo_receipt(receipt_error),
+                };
+                match result {
                     Ok(created) => {
-                        state.accept_redo_created_placement(created);
+                        commit_redo_identity_then_publish(&state, created, || {
+                            publish_canvas_compensation(
+                                &completion,
+                                CanvasCompensationCompletion {
+                                    action_id,
+                                    direction: AsyncUndoDirection::Redo,
+                                    reload,
+                                    result: Ok(()),
+                                },
+                            );
+                            repaint.request_repaint();
+                        });
                         UndoResult::ok()
                     }
-                    Err(e) => UndoResult::err(format!("canvas redo (re-place block) failed: {e}")),
+                    Err(e) => {
+                        publish_canvas_compensation(
+                            &completion,
+                            CanvasCompensationCompletion {
+                                action_id,
+                                direction: AsyncUndoDirection::Redo,
+                                reload,
+                                result: Err(e.clone()),
+                            },
+                        );
+                        repaint.request_repaint();
+                        UndoResult::err(format!("canvas redo (re-place block) failed: {e}"))
+                    }
                 }
             })
         });
@@ -322,6 +453,7 @@ pub mod interop_adapter {
         let undo_fn: UndoFn = Arc::new(UndoResult::ok);
         let redo_fn: UndoFn = Arc::new(UndoResult::ok);
         bus.push_undo_cross_pane(UndoAction::async_compensating(
+            action_id,
             description,
             undo_fn,
             redo_fn,
@@ -355,26 +487,19 @@ pub mod interop_adapter {
     async fn send_canvas_created_compensation(
         client: &CanvasBoardClient,
         spec: crate::backend_client::RequestSpec,
-    ) -> Result<CreatedCanvasPlacement, String> {
-        let cell: crate::backend_client::CanvasBoardCreateCell =
-            Arc::new(std::sync::Mutex::new(None));
-        client.dispatch_created_placement(spec, cell.clone());
-        for _ in 0..600 {
-            if let Ok(slot) = cell.lock() {
-                if let Some(result) = slot.as_ref() {
-                    return result.clone();
-                }
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        }
-        Err("canvas redo placement call timed out (no created placement within bound)".to_owned())
+    ) -> Result<CreatedCanvasPlacement, CanvasCreateReceiptError> {
+        client.create_placement_now(spec).await
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::interop_adapter::CanvasPlacementUndoState;
-    use crate::backend_client::CreatedCanvasPlacement;
+    use super::interop_adapter::{
+        commit_redo_identity_then_publish, fail_closed_redo_receipt, CanvasPlacementUndoState,
+    };
+    use crate::backend_client::{
+        validate_created_placement_receipt, CanvasCreateReceiptError, CreatedCanvasPlacement,
+    };
 
     #[test]
     fn canvas_redo_updates_current_placement_id_for_next_undo() {
@@ -392,6 +517,7 @@ mod tests {
             y: 20.0,
             w: 200.0,
             h: 120.0,
+            created_by_request: true,
         });
 
         assert_eq!(
@@ -399,5 +525,133 @@ mod tests {
             "placement-redone",
             "second undo after redo targets the backend-minted replacement id"
         );
+    }
+    #[test]
+    fn redo_replacement_identity_is_committed_before_success_is_published() {
+        let state = CanvasPlacementUndoState::new("placement-original".to_owned());
+        let observer = state.clone();
+        commit_redo_identity_then_publish(
+            &state,
+            CreatedCanvasPlacement {
+                placement_id: "placement-redone".to_owned(),
+                placed_block_id: "block-1".to_owned(),
+                x: 10.0,
+                y: 20.0,
+                w: 200.0,
+                h: 120.0,
+                created_by_request: true,
+            },
+            || {
+                assert_eq!(
+                    observer.current_placement_id(),
+                    "placement-redone",
+                    "success must stay hidden until the next undo target is replaced"
+                );
+            },
+        );
+    }
+    #[test]
+    fn every_failed_redo_receipt_stays_unowned_without_an_operation_token() {
+        let failures = [
+            CanvasCreateReceiptError::Rejected("409 Conflict".to_owned()),
+            CanvasCreateReceiptError::Transport("connection reset".to_owned()),
+            CanvasCreateReceiptError::MalformedSuccess("missing placement_id".to_owned()),
+        ];
+        assert!(failures
+            .into_iter()
+            .all(|failure| fail_closed_redo_receipt(failure).is_err()));
+    }
+
+    #[test]
+    fn well_shaped_but_mismatched_create_receipt_is_rejected() {
+        let request = serde_json::json!({
+            "placed_block_id": "owned-block",
+            "x": 10.0, "y": 20.0, "w": 200.0, "h": 120.0,
+        });
+        let foreign = CreatedCanvasPlacement {
+            placement_id: "foreign-placement".to_owned(),
+            placed_block_id: "foreign-block".to_owned(),
+            x: 10.0,
+            y: 20.0,
+            w: 200.0,
+            h: 120.0,
+            created_by_request: true,
+        };
+        let response = serde_json::json!({
+            "placement_id": "foreign-placement",
+            "workspace_id": "ws",
+            "canvas_block_id": "canvas",
+            "placed_block_id": "foreign-block",
+            "x": 10.0, "y": 20.0, "w": 200.0, "h": 120.0,
+        });
+        let url = "http://test/workspaces/ws/loom/canvas-boards/canvas/placements";
+        assert!(validate_created_placement_receipt(url, &request, &response, &foreign).is_err());
+
+        let wrong_geometry = CreatedCanvasPlacement {
+            placed_block_id: "owned-block".to_owned(),
+            x: 11.0,
+            ..foreign
+        };
+        assert!(
+            validate_created_placement_receipt(url, &request, &response, &wrong_geometry).is_err()
+        );
+
+        let right_values_wrong_canvas = CreatedCanvasPlacement {
+            placement_id: "other-canvas-placement".to_owned(),
+            placed_block_id: "owned-block".to_owned(),
+            x: 10.0,
+            y: 20.0,
+            w: 200.0,
+            h: 120.0,
+            created_by_request: true,
+        };
+        let wrong_scope_response = serde_json::json!({
+            "placement_id": "other-canvas-placement",
+            "workspace_id": "ws",
+            "canvas_block_id": "other-canvas",
+            "placed_block_id": "owned-block",
+            "x": 10.0, "y": 20.0, "w": 200.0, "h": 120.0,
+        });
+        assert!(validate_created_placement_receipt(
+            url,
+            &request,
+            &wrong_scope_response,
+            &right_values_wrong_canvas,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn wrapped_card_receipt_proves_scope_block_and_geometry() {
+        let request = serde_json::json!({
+            "title": "Card",
+            "x": 5.0, "y": 6.0, "w": 220.0, "h": 140.0,
+        });
+        let response = serde_json::json!({
+            "block": { "block_id": "card-block" },
+            "placement": {
+                "placement_id": "card-placement",
+                "workspace_id": "ws",
+                "canvas_block_id": "canvas",
+                "placed_block_id": "card-block",
+                "x": 5.0, "y": 6.0, "w": 220.0, "h": 140.0
+            }
+        });
+        let created = CreatedCanvasPlacement {
+            placement_id: "card-placement".to_owned(),
+            placed_block_id: "card-block".to_owned(),
+            x: 5.0,
+            y: 6.0,
+            w: 220.0,
+            h: 140.0,
+            created_by_request: true,
+        };
+        assert!(validate_created_placement_receipt(
+            "http://test/workspaces/ws/loom/canvas-boards/canvas/cards",
+            &request,
+            &response,
+            &created,
+        )
+        .is_ok());
     }
 }

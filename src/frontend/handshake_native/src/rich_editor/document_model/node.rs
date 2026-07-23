@@ -313,6 +313,9 @@ pub struct HsLinkNode {
     /// Whether the prefix matched a known wikilink kind. The React node defaults this
     /// to `true` and forces it to `false` for an unknown/spoofed kind.
     pub resolved: bool,
+    /// Optional evidence provenance carried by embed-style links. Ordinary wikilinks leave this absent;
+    /// Stage capture embeds persist the exact `{source,artifact_id,sha256,manifest_ref}` descriptor here.
+    pub provenance: Option<serde_json::Value>,
 }
 
 impl HsLinkNode {
@@ -327,6 +330,7 @@ impl HsLinkNode {
             ref_value: ref_value.into(),
             label: label.into(),
             resolved: true,
+            provenance: None,
         }
     }
 }

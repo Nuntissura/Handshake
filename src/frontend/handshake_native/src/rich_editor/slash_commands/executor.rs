@@ -86,11 +86,30 @@ pub fn execute_slash_command(
     menu: &SlashMenuState,
     command: &SlashCommand,
 ) -> SlashExecOutcome {
+    execute_slash_command_inner(ctx, menu, command, true)
+}
+
+/// Execute a command selected from the explicit toolbar/AccessKit picker. Unlike a typed `/` trigger,
+/// this path has no trigger text to remove; the current caret remains the insertion anchor.
+pub fn execute_slash_command_without_trigger(
+    ctx: &mut SlashExecContext<'_>,
+    menu: &SlashMenuState,
+    command: &SlashCommand,
+) -> SlashExecOutcome {
+    execute_slash_command_inner(ctx, menu, command, false)
+}
+
+fn execute_slash_command_inner(
+    ctx: &mut SlashExecContext<'_>,
+    menu: &SlashMenuState,
+    command: &SlashCommand,
+    remove_trigger: bool,
+) -> SlashExecOutcome {
     // 1) Remove the `/`+filter trigger text (RISK-3 snapshot): delete
     //    [trigger_char, trigger_char + trigger_delete_len) from the trigger leaf. This is a
     //    transactional DeleteText so it is undoable. After removal the caret sits at
     //    trigger_char (where the `/` was), which is where new content lands.
-    let removed = remove_trigger_text_tx(ctx, menu);
+    let removed = remove_trigger && remove_trigger_text_tx(ctx, menu);
 
     // 2) Dispatch the action.
     match command.action {
@@ -350,6 +369,56 @@ pub fn insert_code_ref_atom(
         display_name.to_string(),
     );
     insert_inline_atom(ctx, Child::HsLink(link))
+}
+
+/// Insert one exact wikilink supplied by the canonical rich-editor action payload. This is the
+/// non-transient counterpart to autocomplete confirmation: it builds the same persisted `hsLink`
+/// model node and reuses the same transactional inline-atom insertion path.
+pub fn insert_exact_wikilink(
+    ctx: &mut SlashExecContext<'_>,
+    ref_kind: &str,
+    ref_value: &str,
+    label: &str,
+) -> bool {
+    if ref_kind.trim().is_empty() || ref_value.trim().is_empty() {
+        return false;
+    }
+    let normalized_kind = ref_kind.trim().to_lowercase();
+    let kinds = crate::rich_editor::wikilinks::parser::wikilink_kind_by_prefix();
+    let canonical_prefix = if kinds.contains_key(normalized_kind.as_str()) {
+        normalized_kind.as_str()
+    } else {
+        let Some(prefix) = kinds.iter().find_map(|(&prefix, &backend_kind)| {
+            (backend_kind == normalized_kind.as_str()).then_some(prefix)
+        }) else {
+            return false;
+        };
+        prefix
+    };
+    let parsed = crate::rich_editor::wikilinks::parser::classify_wikilink(
+        canonical_prefix,
+        ref_value,
+        (!label.trim().is_empty()).then_some(label),
+    );
+    if !parsed.resolved {
+        return false;
+    }
+    insert_inline_atom(ctx, Child::HsLink(parsed.to_hs_link()))
+}
+
+/// Insert one code block supplied by the canonical rich-editor action payload. The block is built in
+/// the same model shape as the `/code-block` registry command and inserted through the executor's
+/// existing transactional block path; payload `code` and optional `language` are preserved exactly.
+pub fn insert_exact_code_block(ctx: &mut SlashExecContext<'_>, language: &str, code: &str) -> bool {
+    let mut block =
+        BlockNode::with_children(NodeKind::CodeBlock, vec![Child::Text(TextLeaf::new(code))]);
+    if !language.is_empty() {
+        block.attrs.insert(
+            "language".to_owned(),
+            serde_json::Value::String(language.to_owned()),
+        );
+    }
+    insert_block_after_caret(ctx, block)
 }
 
 /// Insert `atom` (an `hsLink` or `loomTransclusion` inline atom) immediately AFTER the caret's
@@ -868,6 +937,55 @@ mod tests {
         assert_eq!(undo.len(), 1, "the code-ref insert pushed ONE receipt");
         assert!(undo.undo(&mut doc).unwrap());
         assert_eq!(doc, before, "undo restores the exact pre-code-ref doc");
+    }
+
+    #[test]
+    fn direct_exact_wikilink_insert_preserves_payload_and_is_undoable() {
+        let (mut doc, mut undo, mut sel) = fixture("prefix", 6);
+        let before = doc.clone();
+        assert!(insert_exact_wikilink(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            "note",
+            "DOC-EXACT-42",
+            "Exact label",
+        ));
+        let paragraph = doc.children[0].as_block().unwrap();
+        let link = paragraph
+            .children
+            .iter()
+            .find_map(Child::as_hs_link)
+            .expect("exact hsLink inserted");
+        assert_eq!(link.ref_kind, "note");
+        assert_eq!(link.ref_value, "DOC-EXACT-42");
+        assert_eq!(link.label, "Exact label");
+        assert_eq!(undo.len(), 1);
+        assert!(undo.undo(&mut doc).unwrap());
+        assert_eq!(doc, before);
+    }
+
+    #[test]
+    fn direct_exact_code_block_insert_preserves_language_and_code() {
+        let (mut doc, mut undo, mut sel) = fixture("anchor", 6);
+        assert!(insert_exact_code_block(
+            &mut ctx(&mut doc, &mut undo, &mut sel),
+            "rust",
+            "fn main() {\n    println!(\"exact\");\n}",
+        ));
+        let block = doc.children[1].as_block().expect("code block inserted");
+        assert_eq!(block.kind, NodeKind::CodeBlock);
+        assert_eq!(
+            block.attrs.get("language").and_then(|value| value.as_str()),
+            Some("rust")
+        );
+        assert_eq!(
+            para_text_of(block),
+            "fn main() {\n    println!(\"exact\");\n}"
+        );
+        assert_eq!(undo.len(), 1);
+        assert!(matches!(
+            sel,
+            Selection::Text { ref head, .. } if head.path == vec![1, 0]
+        ));
     }
 
     #[test]

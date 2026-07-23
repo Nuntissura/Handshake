@@ -103,8 +103,8 @@ pub struct AgentToolRow {
     pub surface: ManualSurface,
     /// A short human/model-readable action label.
     pub action_label: &'static str,
-    /// The REAL MCP swarm tool (one of `list_widgets` / `click_widget` / `set_value` / `screenshot` —
-    /// the four `mcp/tools.rs` methods). Never an invented `gui.*` name.
+    /// The canonical MCP swarm tool (`argus.inspect`, `argus.click`, `argus.set_value`, or
+    /// `argus.screenshot`). Never a legacy-only or invented `gui.*` name.
     pub mcp_tool: &'static str,
     /// A one-line description of how an agent drives this control via `mcp_tool`.
     pub description: &'static str,
@@ -337,7 +337,12 @@ impl<'a> ManualPane<'a> {
                 ui.ctx().accesskit_node_builder(resp.id, move |node| {
                     node.set_author_id(author.clone());
                     node.set_label("Search Manual".to_owned());
+                    node.add_action(egui::accesskit::Action::SetValue);
                 });
+                if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, resp.id) {
+                    self.state.query = replacement;
+                    ui.ctx().request_repaint();
+                }
             });
 
             ui.separator();

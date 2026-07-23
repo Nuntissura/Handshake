@@ -112,10 +112,14 @@ fn standard_handler(id: &str) -> super::interaction_bus::CommandHandler {
                 ctx.request_repaint();
             }
         }),
-        // SelectAll / Find: surface intents. A generic handler clears any stale shared selection so the
-        // focused pane re-publishes its full/zero selection next frame; the pane's keybind path performs
-        // the concrete select-all / open-find against its buffer.
-        CMD_SELECT_ALL | CMD_FIND => Arc::new(|ctx, _bus| {
+        // SelectAll remains a focused-surface intent.
+        CMD_SELECT_ALL => Arc::new(|ctx, _bus| {
+            ctx.request_repaint();
+        }),
+        // Find starts the single product-owned shared lifecycle. HandshakeApp then fans the one live query
+        // into the mounted code + note native engines and publishes their typed results on this same bus.
+        CMD_FIND => Arc::new(|ctx, bus| {
+            bus.request_shared_find();
             ctx.request_repaint();
         }),
         // CommandPalette: open the shared palette modal (the bus owns the open flag; the existing modal

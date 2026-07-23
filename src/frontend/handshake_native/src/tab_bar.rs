@@ -659,18 +659,24 @@ impl TabBar {
             ui.set_min_width((bar_width - 8.0).max(0.0)); // minus inner margin so it fits the strip
             ui.set_min_height((bar_height - 4.0).max(0.0));
             ui.horizontal(|ui| {
-                egui::ScrollArea::horizontal()
-                    .id_salt(("tab-bar-scroll", &pane_id))
-                    .show(ui, |ui| {
-                        Self::render_tabs(
-                            ui,
-                            state,
-                            &pane_id,
-                            colors,
-                            active_module,
-                            &mut response,
-                        );
-                    });
+                ui.scope(|ui| {
+                    // A non-floating horizontal scrollbar consumes most of this fixed 32px strip,
+                    // clipping tab/close hit targets to a few pixels whenever the tabs overflow.
+                    // Overlay the scrollbar so the full-height controls remain visible and usable.
+                    ui.style_mut().spacing.scroll.floating = true;
+                    egui::ScrollArea::horizontal()
+                        .id_salt(("tab-bar-scroll", &pane_id))
+                        .show(ui, |ui| {
+                            Self::render_tabs(
+                                ui,
+                                state,
+                                &pane_id,
+                                colors,
+                                active_module,
+                                &mut response,
+                            );
+                        });
+                });
             });
         });
 
@@ -900,6 +906,10 @@ impl TabBar {
 
         // The body is the drag SOURCE: dragging it produces a TabDragPayload the drop zone consumes.
         let payload = TabDragPayload::from_tab(state.pane_id.clone(), index, tab);
+        let body_payload = payload.clone();
+        // Reuse `tab_id` for the drag wrapper and the addressable child response. egui merges repeated
+        // same-id senses into one click+drag hit target; a distinct drag-only wrapper would sit above the
+        // clickable Tab response and suppress real pointer clicks at the tab's centre.
         let inner = ui.dnd_drag_source(tab_id, payload, |ui| {
             // Allocate the body rect for painting only (Sense::hover, NOT click): the dnd_drag_source
             // wrapper adds drag sense at `tab_id`, and the explicit `ui.interact(.., tab_id,
@@ -959,18 +969,14 @@ impl TabBar {
                     );
                 }
             }
+            let response = ui.interact(rect, tab_id, egui::Sense::click_and_drag());
+            response.dnd_set_drag_payload(body_payload.clone());
+            response
         });
-        let drag_resp = inner.response;
-        if drag_resp.drag_started() {
+        let tab_resp = inner.inner;
+        if tab_resp.drag_started() {
             response.drag_started = Some(index);
         }
-
-        // `dnd_drag_source` senses ONLY drag, so its response never reports `clicked()`. Re-interact
-        // the SAME rect and id with click_and_drag so a press-release that did NOT become a drag
-        // activates the tab, AND egui derives `Action::Click`/`Action::Focus` on the Tab node for
-        // out-of-process steering — WITHOUT dropping the drag sense (click_and_drag keeps both, so the
-        // dnd_drag_source drag path above still engages).
-        let tab_resp = ui.interact(drag_resp.rect, tab_id, egui::Sense::click_and_drag());
         if tab_resp.clicked() {
             response.activated_index = Some(index);
         }

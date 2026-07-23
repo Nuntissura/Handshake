@@ -35,18 +35,18 @@
 //! Both editors use interior mutability (`&self` `set_*` methods / `Arc<Mutex<RichEditorState>>`), so
 //! threading session context through the established shared-cell pattern needs no trait change.
 //!
-//! HONESTY (MC-079-5): this module mounts the CORE code + rich panes LIVE. The FULLER mounts
-//! (canvas/graph/side panes, MT-060/061/062/063/064/066/067, the MT-043 swarm actions) stay typed
-//! carries in the MT `implementation_result` — their panes keep their existing factories / honest
-//! empty-states until a follow-on run mounts them. No `todo!()`/`unimplemented!()` is added on any
-//! live dispatch path.
+//! HONESTY (MC-079-5): this module mounts the CORE code + rich panes LIVE, including MT-043's exact
+//! rich-code-block -> native-code-panel save bridge. The FULLER mounts
+//! (canvas/graph/side panes, MT-060/061/062/063/064/066/067) keep their existing concrete factories
+//! or honest empty states. No `todo!()`/`unimplemented!()` is added on any live dispatch path.
 
+use std::collections::BTreeMap;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use egui::accesskit;
 
-use crate::code_editor::keymap::CodeEditorAction;
-use crate::code_editor::panel::{CodeEditorPaneFactory, CodeEditorPanel};
+use crate::code_editor::panel::{CodeEditorHostCommand, CodeEditorPaneFactory, CodeEditorPanel};
 use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 use crate::rich_editor::renderer::rich_editor_widget::{RichEditorPaneFactory, RichEditorState};
 use crate::rich_editor::wikilinks::inline_view::EditorEvent;
@@ -133,6 +133,1228 @@ impl RichPaneEvents {
     }
 }
 
+/// The mounted code editor's document-to-panel map. Each open code tab owns an independent
+/// [`CodeEditorPanel`], so opening a definition in another file cannot replace the source tab's
+/// unsaved buffer, undo history, breakpoints, language mode, or LSP state. The empty key is the
+/// original untitled panel; file-backed tabs use their normalized path as `content_id`.
+pub struct CodeEditorDocumentStore {
+    base_panel: Arc<CodeEditorPanel>,
+    panels: Mutex<BTreeMap<String, Arc<CodeEditorPanel>>>,
+    session: SharedSessionContext,
+    command_sender: std::sync::mpsc::Sender<CodeEditorHostCommand>,
+    editor_action_registry: Mutex<
+        Option<Arc<Mutex<crate::accessibility::editor_action_registry::EditorActionRegistry>>>,
+    >,
+    code_nav_client: Mutex<Option<crate::code_editor::code_nav::CodeNavClient>>,
+    lsp_clients_by_language:
+        Mutex<BTreeMap<String, Arc<crate::code_editor::lsp_client::LspClient>>>,
+    /// Quiet off-UI-thread retirement workers for clients whose last matching language panel closed or
+    /// changed language. App Drop joins every outstanding worker before the Tokio runtime is destroyed.
+    retired_lsp_shutdown_workers: Mutex<Vec<std::thread::JoinHandle<()>>>,
+}
+
+/// The mounted rich editor's document-to-state map. The original untitled/demo Notes surface keeps
+/// `base_state`; every non-empty tab view owns a separate [`RichEditorState`] for selection, scroll,
+/// popups, and accessibility state. Split views of one document synchronize through one deterministic
+/// document authority state that alone owns the document tree, undo, save, and draft coordinators.
+pub struct RichEditorDocumentStore {
+    base_state: Arc<Mutex<RichEditorState>>,
+    /// `(document_id, pane_id)` keeps two split views of the same document from sharing selection,
+    /// scroll, popup, or accessibility-registration state.
+    states: Mutex<BTreeMap<(String, String), Arc<Mutex<RichEditorState>>>>,
+    /// One document-level authority view per document. Its `doc`, `undo`, `save`, and `draft` fields
+    /// are the canonical shared editing core; every other split view keeps only view-local state.
+    document_authority_views: Mutex<BTreeMap<String, String>>,
+    /// The one visible rich view that owns the unsuffixed AccessKit/action namespace. The host prepares
+    /// visible bindings in sorted pane/layout order before render, so this never depends on render order.
+    canonical_accessibility_view: Mutex<Option<(String, String)>>,
+    ready_views: Mutex<std::collections::BTreeSet<(String, String)>>,
+    workspace_id: Mutex<String>,
+    active_view: Mutex<Option<(String, String)>>,
+    editor_action_registry: Mutex<
+        Option<Arc<Mutex<crate::accessibility::editor_action_registry::EditorActionRegistry>>>,
+    >,
+}
+
+impl RichEditorDocumentStore {
+    pub fn new(base_state: Arc<Mutex<RichEditorState>>) -> Self {
+        Self {
+            base_state,
+            states: Mutex::new(BTreeMap::new()),
+            document_authority_views: Mutex::new(BTreeMap::new()),
+            canonical_accessibility_view: Mutex::new(None),
+            ready_views: Mutex::new(std::collections::BTreeSet::new()),
+            workspace_id: Mutex::new(String::new()),
+            active_view: Mutex::new(None),
+            editor_action_registry: Mutex::new(None),
+        }
+    }
+
+    pub fn base_state(&self) -> Arc<Mutex<RichEditorState>> {
+        Arc::clone(&self.base_state)
+    }
+
+    /// Return the state for a tab content id, creating a document-isolated state on first use. A new
+    /// state inherits operator-wide presentation/input preferences from the base state, but none of
+    /// its document, selection, undo, save/draft, popup, or async-document state.
+    pub fn state_for_content_id(&self, content_id: Option<&str>) -> Arc<Mutex<RichEditorState>> {
+        let Some(key) = content_id.filter(|key| !key.trim().is_empty()) else {
+            return self.base_state();
+        };
+        if let Some(state) = self.canonical_state_for_document(key) {
+            return state;
+        }
+        self.state_for_view(Some(key), "primary")
+    }
+
+    /// Return the independent editor/view state for one concrete pane rendering one document.
+    pub fn state_for_view(
+        &self,
+        content_id: Option<&str>,
+        pane_id: &str,
+    ) -> Arc<Mutex<RichEditorState>> {
+        let Some(document_id) = content_id.filter(|key| !key.trim().is_empty()) else {
+            return self.base_state();
+        };
+        let key = (document_id.to_owned(), pane_id.to_owned());
+        // Hold the map lock through construction/registration. PaneFactory rendering is single-threaded
+        // today, but this keeps a future parallel host from constructing the same first document twice
+        // and assigning two states the canonical registry instance 0.
+        let mut states = self.states.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(state) = states.get(&key).cloned() {
+            return state;
+        }
+
+        // A file-backed document must never expose the demo fixture while its authoritative GET is in
+        // flight. The host renders this blank state through a non-editable loading gate until install.
+        let mut state =
+            RichEditorState::new(crate::rich_editor::document_model::node::BlockNode::doc(
+                vec![crate::rich_editor::document_model::node::BlockNode::paragraph("")],
+            ));
+        {
+            let base = self.base_state.lock().unwrap_or_else(|e| e.into_inner());
+            state.theme = base.theme;
+            state.editor_font_size = base.editor_font_size;
+            state.rich_keymap = base.rich_keymap.clone();
+            state.reading_mode_default = base.reading_mode_default;
+            state.actor_id = base.actor_id.clone();
+            state.tag_list = base.tag_list.clone();
+        }
+        // Start namespaced. `prepare_visible_views` deterministically promotes exactly one visible
+        // pane to the canonical unsuffixed namespace after the complete restored layout is known.
+        state.accessibility_namespace = Some(document_instance_namespace(pane_id));
+        if let Some(registry) = self
+            .editor_action_registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+        {
+            let namespace = document_instance_namespace(&format!("{document_id}\0{pane_id}"));
+            let handle = registry
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .register_named(
+                    crate::accessibility::editor_action_registry::PaneType::Rich,
+                    namespace,
+                );
+            state.editor_actions = Some((registry, handle));
+        }
+        let state = Arc::new(Mutex::new(state));
+        states.insert(key, Arc::clone(&state));
+        self.document_authority_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .entry(document_id.to_owned())
+            .or_insert_with(|| pane_id.to_owned());
+        state
+    }
+
+    /// Prepare the complete set of visible Notes bindings before any pane renders. This makes both the
+    /// unsuffixed accessibility/action owner and each document's shared editing authority deterministic
+    /// from stable pane identity, independent of construction or render order.
+    pub fn prepare_visible_views(&self, bindings: &[(String, String)]) {
+        let mut ordered = bindings.to_vec();
+        ordered.sort();
+        ordered.dedup();
+        for (pane_id, document_id) in &ordered {
+            self.state_for_view(Some(document_id), pane_id);
+        }
+
+        let mut authority_by_document = BTreeMap::<String, String>::new();
+        for (pane_id, document_id) in &ordered {
+            authority_by_document
+                .entry(document_id.clone())
+                .and_modify(|current| {
+                    if pane_id < current {
+                        *current = pane_id.clone();
+                    }
+                })
+                .or_insert_with(|| pane_id.clone());
+        }
+        for (document_id, pane_id) in authority_by_document {
+            self.set_document_authority_view(&document_id, &pane_id);
+        }
+
+        let desired_canonical = ordered
+            .first()
+            .cloned()
+            .map(|(pane_id, document_id)| (document_id, pane_id));
+        let mut current = self
+            .canonical_accessibility_view
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if *current == desired_canonical {
+            return;
+        }
+        *current = desired_canonical.clone();
+        drop(current);
+
+        let Some(registry) = self
+            .editor_action_registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+        else {
+            return;
+        };
+
+        // Once a file-backed Notes view exists, the untitled state moves to a stable named action
+        // namespace so the canonical unsuffixed registration belongs to the deterministic visible view.
+        {
+            let mut base = self.base_state.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some((base_registry, handle)) = base.editor_actions.take() {
+                base_registry
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .remove_registration(&handle);
+            }
+            if desired_canonical.is_some() {
+                let mut guard = registry.lock().unwrap_or_else(|e| e.into_inner());
+                let handle = guard.register_named(
+                    crate::accessibility::editor_action_registry::PaneType::Rich,
+                    "untitled",
+                );
+                drop(guard);
+                base.editor_actions = Some((Arc::clone(&registry), handle));
+            } else {
+                base.install_editor_action_registry(Arc::clone(&registry), 0);
+            }
+        }
+
+        let states: Vec<((String, String), Arc<Mutex<RichEditorState>>)> = self
+            .states
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .map(|(key, state)| (key.clone(), Arc::clone(state)))
+            .collect();
+        for ((document_id, pane_id), state) in states {
+            let is_canonical =
+                desired_canonical.as_ref() == Some(&(document_id.clone(), pane_id.clone()));
+            let mut state = state.lock().unwrap_or_else(|e| e.into_inner());
+            state.accessibility_namespace =
+                (!is_canonical).then(|| document_instance_namespace(&pane_id));
+            if let Some((old_registry, handle)) = state.editor_actions.take() {
+                old_registry
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .remove_registration(&handle);
+            }
+            if is_canonical {
+                state.install_editor_action_registry(Arc::clone(&registry), 0);
+            } else {
+                let namespace = document_instance_namespace(&format!("{document_id}\0{pane_id}"));
+                let handle = registry
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .register_named(
+                        crate::accessibility::editor_action_registry::PaneType::Rich,
+                        namespace,
+                    );
+                state.editor_actions = Some((Arc::clone(&registry), handle));
+            }
+        }
+    }
+
+    fn set_document_authority_view(&self, document_id: &str, pane_id: &str) {
+        let previous_pane = self
+            .document_authority_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(document_id)
+            .cloned();
+        if previous_pane.as_deref() == Some(pane_id) {
+            return;
+        }
+        let states = self.states.lock().unwrap_or_else(|e| e.into_inner());
+        let previous = previous_pane
+            .as_ref()
+            .and_then(|previous_pane| states.get(&(document_id.to_owned(), previous_pane.clone())))
+            .cloned();
+        let next = states
+            .get(&(document_id.to_owned(), pane_id.to_owned()))
+            .cloned();
+        drop(states);
+        let Some(next) = next else { return };
+        if let Some(previous) = previous {
+            let (doc, undo, save, draft, pending_stage_embed_save, pending_stage_embed_completion) = {
+                let mut previous = previous.lock().unwrap_or_else(|e| e.into_inner());
+                (
+                    previous.doc.clone(),
+                    previous.undo.clone(),
+                    previous.save.take(),
+                    previous.draft.take(),
+                    previous.pending_stage_embed_save.take(),
+                    previous.pending_stage_embed_completion.take(),
+                )
+            };
+            let mut next = next.lock().unwrap_or_else(|e| e.into_inner());
+            next.doc = doc;
+            next.undo = undo;
+            next.save = save;
+            next.draft = draft;
+            next.pending_stage_embed_save = pending_stage_embed_save;
+            next.pending_stage_embed_completion = pending_stage_embed_completion;
+        }
+        self.document_authority_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(document_id.to_owned(), pane_id.to_owned());
+    }
+
+    /// Insert a Stage hsLink at one retained split view's caret, publish that exact mutation into the
+    /// stable document authority, and request the canonical save there. Authority is deliberately NOT
+    /// reassigned: `prepare_visible_views` may recompute it next frame, so durability must already live on
+    /// the deterministic canonical state before this method returns.
+    pub fn insert_stage_embed_at_view_and_request_canonical_save(
+        &self,
+        document_id: &str,
+        pane_id: &str,
+        pending: crate::rich_editor::renderer::rich_editor_widget::PendingStageEmbedSave,
+    ) -> Result<(), String> {
+        let canonical = self
+            .canonical_state_for_document(document_id)
+            .ok_or_else(|| "Stage embed target has no canonical document authority".to_owned())?;
+        {
+            let canonical = canonical.lock().unwrap_or_else(|e| e.into_inner());
+            crate::rich_editor::renderer::rich_editor_widget::RichEditorWidget::ensure_stage_embed_save_available(
+                &canonical,
+            )?;
+        }
+
+        self.synchronize_view_from_canonical(document_id, pane_id);
+        let target = self.state_for_view(Some(document_id), pane_id);
+        {
+            let mut target = target.lock().unwrap_or_else(|e| e.into_inner());
+            if !crate::rich_editor::renderer::rich_editor_widget::RichEditorWidget::insert_atelier_embed_at_caret(
+                &mut target,
+                pending.link.clone(),
+            ) {
+                return Err(
+                    "Stage capture fetched but the retained note view rejected the embed insertion"
+                        .to_owned(),
+                );
+            }
+        }
+        self.publish_view_to_canonical(document_id, pane_id);
+
+        let canonical = self
+            .canonical_state_for_document(document_id)
+            .ok_or_else(|| "Stage embed canonical authority disappeared before save".to_owned())?;
+        let mut canonical = canonical.lock().unwrap_or_else(|e| e.into_inner());
+        crate::rich_editor::renderer::rich_editor_widget::RichEditorWidget::request_existing_stage_embed_save(
+            &mut canonical,
+            pending,
+        )
+    }
+
+    pub fn canonical_view_key(&self, document_id: &str) -> Option<(String, String)> {
+        self.document_authority_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(document_id)
+            .cloned()
+            .map(|pane_id| (pane_id, document_id.to_owned()))
+    }
+
+    pub fn canonical_state_for_document(
+        &self,
+        document_id: &str,
+    ) -> Option<Arc<Mutex<RichEditorState>>> {
+        let pane_id = self
+            .document_authority_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(document_id)
+            .cloned()?;
+        self.states
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&(document_id.to_owned(), pane_id))
+            .cloned()
+    }
+
+    pub fn is_document_ready(&self, document_id: &str) -> bool {
+        self.ready_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .any(|(ready_document_id, _)| ready_document_id == document_id)
+    }
+
+    pub fn has_other_ready_view(&self, document_id: &str, pane_id: &str) -> bool {
+        self.ready_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .any(|(ready_document_id, ready_pane_id)| {
+                ready_document_id == document_id && ready_pane_id != pane_id
+            })
+    }
+
+    pub fn mark_document_views_ready(&self, document_id: &str) {
+        let panes: Vec<String> = self
+            .states
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .keys()
+            .filter_map(|(state_document_id, pane_id)| {
+                (state_document_id == document_id).then(|| pane_id.clone())
+            })
+            .collect();
+        let mut ready = self.ready_views.lock().unwrap_or_else(|e| e.into_inner());
+        ready.extend(
+            panes
+                .into_iter()
+                .map(|pane_id| (document_id.to_owned(), pane_id)),
+        );
+    }
+
+    /// Copy only the shared document/undo core into one non-authority view. Selection, scroll,
+    /// popups, find state, and other interaction state remain owned by that pane.
+    pub fn synchronize_view_from_canonical(&self, document_id: &str, pane_id: &str) {
+        let Some((authority_pane, _)) = self.canonical_view_key(document_id) else {
+            return;
+        };
+        if authority_pane == pane_id {
+            return;
+        }
+        let Some(authority) = self.canonical_state_for_document(document_id) else {
+            return;
+        };
+        let view = self.state_for_view(Some(document_id), pane_id);
+        let (doc, undo) = {
+            let authority = authority.lock().unwrap_or_else(|e| e.into_inner());
+            (authority.doc.clone(), authority.undo.clone())
+        };
+        let mut view = view.lock().unwrap_or_else(|e| e.into_inner());
+        view.doc = doc;
+        view.undo = undo;
+        view.save = None;
+        view.draft = None;
+    }
+
+    /// Publish a rendered view's document mutation back to the one canonical document/save authority.
+    pub fn publish_view_to_canonical(&self, document_id: &str, pane_id: &str) {
+        let Some((authority_pane, _)) = self.canonical_view_key(document_id) else {
+            return;
+        };
+        if authority_pane == pane_id {
+            return;
+        }
+        let view = self.state_for_view(Some(document_id), pane_id);
+        let (doc, undo) = {
+            let view = view.lock().unwrap_or_else(|e| e.into_inner());
+            (view.doc.clone(), view.undo.clone())
+        };
+        let Some(authority) = self.canonical_state_for_document(document_id) else {
+            return;
+        };
+        let mut authority = authority.lock().unwrap_or_else(|e| e.into_inner());
+        let changed = authority.doc != doc;
+        authority.doc = doc;
+        authority.undo = undo;
+        if changed {
+            if let Some(save) = authority.save.as_mut() {
+                save.mark_dirty();
+            }
+            if let Some(draft) = authority.draft.as_mut() {
+                draft.mark_dirty(std::time::Instant::now());
+            }
+        }
+    }
+
+    /// WP-KERNEL-012 MT-043: replace one exact PostgreSQL-backed rich-note code block with the text
+    /// authored in its mounted native [`CodeEditorPanel`], then dispatch the SAME MT-020
+    /// [`SaveManager`](crate::rich_editor::save::save_manager::SaveManager) used by rich-editor
+    /// Ctrl+S. The caller must supply the original model path, complete owning-document structural
+    /// snapshot, and exact text snapshot bound when the code panel opened. If any is stale, the
+    /// operation fails visibly instead of finding another code block or overwriting unrelated content.
+    ///
+    /// Returns `(expected_doc_version, canonical_block_path, post_edit_document_snapshot)` for host
+    /// completion correlation. The save itself remains asynchronous and is completed by the ordinary
+    /// rich-state frame drain.
+    pub fn replace_code_block_and_request_save(
+        &self,
+        document_id: &str,
+        block_path: &[usize],
+        expected_document_snapshot: &serde_json::Value,
+        expected_text: &str,
+        replacement: &str,
+    ) -> Result<(u64, Vec<usize>, serde_json::Value), String> {
+        use crate::rich_editor::document_model::node::{Child, NodeKind};
+        use crate::rich_editor::document_model::transform::{
+            apply_transaction, ActorKind, Step, Transaction,
+        };
+
+        let state = self
+            .canonical_state_for_document(document_id)
+            .ok_or_else(|| format!("rich document '{document_id}' is not mounted"))?;
+        let mut state = state.lock().unwrap_or_else(|error| error.into_inner());
+        let save = state.save.as_ref().ok_or_else(|| {
+            format!("rich document '{document_id}' has no canonical save binding")
+        })?;
+        if save.is_saving() {
+            return Err(format!(
+                "rich document '{document_id}' already has a canonical save in flight"
+            ));
+        }
+        if save.has_conflict() {
+            return Err(format!(
+                "rich document '{document_id}' has an unresolved save conflict"
+            ));
+        }
+        let expected_doc_version = save.doc_version;
+
+        let current_document_snapshot =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        if &current_document_snapshot != expected_document_snapshot {
+            return Err(format!(
+                "rich document '{document_id}' changed structurally after the Code Editor opened"
+            ));
+        }
+
+        let mut block = &state.doc;
+        for &index in block_path {
+            block = block
+                .children
+                .get(index)
+                .and_then(Child::as_block)
+                .ok_or_else(|| format!("rich code block path {block_path:?} is stale"))?;
+        }
+        if !matches!(block.kind, NodeKind::CodeBlock) {
+            return Err(format!(
+                "rich block at path {block_path:?} is no longer a code block"
+            ));
+        }
+        if block.children.len() != 1 {
+            return Err(format!(
+                "rich code block at path {block_path:?} has an invalid inline shape"
+            ));
+        }
+        let current_text = block
+            .children
+            .first()
+            .and_then(Child::as_text)
+            .ok_or_else(|| format!("rich code block at path {block_path:?} has no text leaf"))?
+            .text
+            .to_string();
+        if current_text != expected_text {
+            return Err(format!(
+                "rich code block at path {block_path:?} changed after the Code Editor opened"
+            ));
+        }
+
+        if current_text != replacement {
+            let mut leaf_path = block_path.to_vec();
+            leaf_path.push(0);
+            let mut steps = Vec::with_capacity(2);
+            let current_chars = current_text.chars().count();
+            if current_chars != 0 {
+                steps.push(Step::DeleteText {
+                    path: leaf_path.clone(),
+                    start: 0,
+                    end: current_chars,
+                });
+            }
+            if !replacement.is_empty() {
+                steps.push(Step::InsertText {
+                    path: leaf_path,
+                    char_offset: 0,
+                    text: replacement.to_owned(),
+                });
+            }
+
+            let before =
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            let actor_id = state.actor_id.clone();
+            let transaction = Transaction::new(steps, ActorKind::Agent, actor_id);
+            let receipt = apply_transaction(&mut state.doc, transaction).map_err(|error| {
+                format!("could not update rich code block at path {block_path:?}: {error}")
+            })?;
+            state.undo.push(receipt);
+            let after =
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            state.pending_bus_undo.push((before, after));
+            if let Some(save) = state.save.as_mut() {
+                save.mark_dirty();
+            }
+            if let Some(draft) = state.draft.as_mut() {
+                draft.mark_dirty(std::time::Instant::now());
+            }
+        }
+
+        if !state.request_save_for_host() {
+            return Err(format!(
+                "rich document '{document_id}' lost its canonical save binding"
+            ));
+        }
+        let post_edit_document_snapshot =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        Ok((
+            expected_doc_version,
+            block_path.to_vec(),
+            post_edit_document_snapshot,
+        ))
+    }
+
+    pub fn contains(&self, content_id: &str) -> bool {
+        !content_id.trim().is_empty()
+            && self
+                .states
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .keys()
+                .any(|(document_id, _)| document_id == content_id)
+    }
+
+    pub fn states(&self) -> Vec<Arc<Mutex<RichEditorState>>> {
+        let mut states = vec![self.base_state()];
+        states.extend(
+            self.states
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .values()
+                .cloned(),
+        );
+        states
+    }
+
+    pub fn states_for_content_id(&self, content_id: &str) -> Vec<Arc<Mutex<RichEditorState>>> {
+        self.states
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .filter_map(|((document_id, _), state)| {
+                (document_id == content_id).then(|| Arc::clone(state))
+            })
+            .collect()
+    }
+
+    pub fn view_keys_for_content_id(&self, content_id: &str) -> Vec<(String, String)> {
+        self.states
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .keys()
+            .filter_map(|(document_id, pane_id)| {
+                (document_id == content_id).then(|| (pane_id.clone(), document_id.clone()))
+            })
+            .collect()
+    }
+
+    pub fn set_active_view(&self, content_id: Option<&str>, pane_id: Option<&str>) {
+        *self.active_view.lock().unwrap_or_else(|e| e.into_inner()) = content_id
+            .filter(|id| !id.trim().is_empty())
+            .zip(pane_id)
+            .map(|(document_id, pane_id)| (document_id.to_owned(), pane_id.to_owned()));
+    }
+
+    pub fn is_view_ready(&self, content_id: &str, pane_id: &str) -> bool {
+        self.ready_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .contains(&(content_id.to_owned(), pane_id.to_owned()))
+    }
+
+    pub fn mark_view_ready(&self, content_id: &str, pane_id: &str) {
+        self.ready_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert((content_id.to_owned(), pane_id.to_owned()));
+    }
+
+    pub fn mark_view_loading(&self, content_id: &str, pane_id: &str) {
+        self.ready_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&(content_id.to_owned(), pane_id.to_owned()));
+    }
+
+    /// Bind the document cache to one workspace. A workspace switch retires every file-backed state
+    /// and resets the base/untitled state while preserving operator-global presentation/input prefs and
+    /// the shared action registry. This prevents identical document ids in two workspaces from sharing
+    /// editor, save/draft, resolver, or async state.
+    pub fn bind_workspace(&self, workspace_id: &str) -> bool {
+        let mut bound = self.workspace_id.lock().unwrap_or_else(|e| e.into_inner());
+        if bound.as_str() == workspace_id {
+            return false;
+        }
+        *bound = workspace_id.to_owned();
+
+        let registry = self
+            .editor_action_registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let mut states = self.states.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(registry) = registry.as_ref() {
+            let mut registry = registry.lock().unwrap_or_else(|e| e.into_inner());
+            for state in states.values() {
+                if let Some((_, handle)) = state
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .editor_actions
+                    .take()
+                {
+                    registry.remove_registration(&handle);
+                }
+            }
+        }
+        states.clear();
+        self.document_authority_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        *self
+            .canonical_accessibility_view
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        self.ready_views
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        *self.active_view.lock().unwrap_or_else(|e| e.into_inner()) = None;
+
+        let mut base = self.base_state.lock().unwrap_or_else(|e| e.into_inner());
+        let theme = base.theme;
+        let editor_font_size = base.editor_font_size;
+        let rich_keymap = base.rich_keymap.clone();
+        let reading_mode_default = base.reading_mode_default;
+        let actor_id = base.actor_id.clone();
+        let tag_list = base.tag_list.clone();
+        if let Some((base_registry, handle)) = base.editor_actions.take() {
+            base_registry
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .remove_registration(&handle);
+        }
+        let mut reset = RichEditorState::demo();
+        reset.theme = theme;
+        reset.editor_font_size = editor_font_size;
+        reset.rich_keymap = rich_keymap;
+        reset.reading_mode_default = reading_mode_default;
+        reset.actor_id = actor_id;
+        reset.tag_list = tag_list;
+        if let Some(registry) = registry {
+            reset.install_editor_action_registry(registry, 0);
+        }
+        *base = reset;
+        true
+    }
+
+    pub fn active_state(&self) -> Arc<Mutex<RichEditorState>> {
+        let active_view = self
+            .active_view
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        match active_view {
+            Some((document_id, pane_id)) => self.state_for_view(Some(&document_id), &pane_id),
+            None => self.base_state(),
+        }
+    }
+
+    pub fn install_editor_action_registry(
+        &self,
+        registry: Arc<Mutex<crate::accessibility::editor_action_registry::EditorActionRegistry>>,
+    ) {
+        {
+            let mut base = self.base_state.lock().unwrap_or_else(|e| e.into_inner());
+            base.install_editor_action_registry(Arc::clone(&registry), 0);
+        }
+        *self
+            .editor_action_registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(registry);
+    }
+}
+
+/// Encode the complete normalized document identity into the panel namespace. Unlike an insertion
+/// counter or a truncated hash, this mapping is deterministic, independent of open order, and
+/// collision-free for distinct UTF-8 identities.
+fn document_instance_namespace(content_id: &str) -> String {
+    let mut namespace = String::with_capacity(9 + content_id.len() * 2);
+    namespace.push_str("document-");
+    for byte in content_id.as_bytes() {
+        use std::fmt::Write as _;
+        let _ = write!(namespace, "{byte:02x}");
+    }
+    namespace
+}
+
+impl CodeEditorDocumentStore {
+    pub fn new(
+        base_panel: Arc<CodeEditorPanel>,
+        session: SharedSessionContext,
+        command_sender: std::sync::mpsc::Sender<CodeEditorHostCommand>,
+    ) -> Self {
+        Self {
+            base_panel,
+            panels: Mutex::new(BTreeMap::new()),
+            session,
+            command_sender,
+            editor_action_registry: Mutex::new(None),
+            code_nav_client: Mutex::new(None),
+            lsp_clients_by_language: Mutex::new(BTreeMap::new()),
+            retired_lsp_shutdown_workers: Mutex::new(Vec::new()),
+        }
+    }
+
+    pub fn base_panel(&self) -> Arc<CodeEditorPanel> {
+        Arc::clone(&self.base_panel)
+    }
+
+    /// Return the panel for a tab content id. An absent/empty id is the original untitled panel.
+    pub fn panel_for_content_id(&self, content_id: Option<&str>) -> Arc<CodeEditorPanel> {
+        let Some(key) = content_id.filter(|key| !key.is_empty()) else {
+            return self.base_panel();
+        };
+        self.panels
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(key)
+            .cloned()
+            .unwrap_or_else(|| self.base_panel())
+    }
+
+    pub fn activate_base_document(&self) {
+        if self.base_panel.has_editor_action_registry() {
+            return;
+        }
+        if let Some(registry) = self
+            .editor_action_registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+        {
+            self.base_panel.install_editor_action_registry(registry, 0);
+        }
+    }
+
+    pub fn contains(&self, content_id: &str) -> bool {
+        !content_id.is_empty()
+            && self
+                .panels
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .contains_key(content_id)
+    }
+
+    pub fn panels(&self) -> Vec<Arc<CodeEditorPanel>> {
+        let mut panels = vec![self.base_panel()];
+        panels.extend(
+            self.panels
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .values()
+                .cloned(),
+        );
+        panels
+    }
+
+    /// Every mounted code document paired with its stable tab/store identity. The base panel uses the
+    /// empty identity; file-backed cross-file panels use their normalized content id.
+    pub fn document_panels(&self) -> Vec<(String, Arc<CodeEditorPanel>)> {
+        let mut documents = vec![(String::new(), self.base_panel())];
+        documents.extend(
+            self.panels
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .iter()
+                .map(|(content_id, panel)| (content_id.clone(), Arc::clone(panel))),
+        );
+        documents
+    }
+
+    /// Deterministic collision-free AccessKit namespace for a document identity (test/diagnostic
+    /// seam used to prove the same files receive the same identities regardless of open order).
+    pub fn instance_namespace_for_content_id(content_id: &str) -> String {
+        document_instance_namespace(content_id)
+    }
+
+    /// Remove a file-backed panel only after its tab has actually closed. The base/untitled panel is
+    /// never removed. Returns the removed panel so the host can issue `textDocument/didClose` using
+    /// its exact URI and client without guessing which language server owned it.
+    pub fn remove_document(&self, content_id: &str) -> Option<Arc<CodeEditorPanel>> {
+        if content_id.is_empty() {
+            return None;
+        }
+        let removed = self
+            .panels
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(content_id);
+        if let Some(panel) = removed.as_ref() {
+            panel.uninstall_editor_action_registry();
+        }
+        removed
+    }
+
+    /// Install one backend code-navigation client across all current panels and retain it for every
+    /// subsequently opened document.
+    pub fn install_code_nav_client(&self, client: crate::code_editor::code_nav::CodeNavClient) {
+        for panel in self.panels() {
+            panel.set_code_nav_client(client.clone());
+        }
+        *self
+            .code_nav_client
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(client);
+    }
+
+    /// Install an LSP client only on documents with the matching detected language. The binding stays
+    /// shared across every open same-language tab, but registry entries with no matching panel are
+    /// retired so an inactive language process cannot outlive its last consumer.
+    pub fn install_lsp_client_for_language(
+        &self,
+        language_id: &str,
+        client: Arc<crate::code_editor::lsp_client::LspClient>,
+    ) {
+        let panels = self.panels();
+        for panel in &panels {
+            if panel.resolved_language().detected.as_str() == language_id {
+                panel.set_lsp_client(Arc::clone(&client));
+            }
+        }
+        let mounted_languages: std::collections::HashSet<String> = panels
+            .iter()
+            .map(|panel| panel.resolved_language().detected.as_str().to_owned())
+            .collect();
+        let retired = {
+            let mut clients = self
+                .lsp_clients_by_language
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let mut retirement_candidates = clients
+                .insert(language_id.to_owned(), Arc::clone(&client))
+                .filter(|old| !Arc::ptr_eq(old, &client))
+                .into_iter()
+                .collect::<Vec<_>>();
+            let stale_languages: Vec<String> = clients
+                .keys()
+                .filter(|registered| {
+                    registered.as_str() != language_id
+                        && !mounted_languages.contains(registered.as_str())
+                })
+                .cloned()
+                .collect();
+            retirement_candidates.extend(
+                stale_languages
+                    .into_iter()
+                    .filter_map(|stale| clients.remove(&stale)),
+            );
+            retirement_candidates.retain(|candidate| {
+                !clients
+                    .values()
+                    .any(|current| Arc::ptr_eq(candidate, current))
+            });
+            retirement_candidates
+        };
+        // Rebinding one language retires its previous process, and a panel language change retires
+        // registry entries that no mounted document can consume. Explicit shutdown is required even
+        // when an observer/test still holds an Arc. A client shared by another language remains owned.
+        self.retire_lsp_clients(retired);
+    }
+
+    /// Reclaim every language-server transport owned by the document store while the app's Tokio
+    /// runtime is still alive. Clients are gathered from both the language registry and every mounted
+    /// panel because a panel may transiently retain a replaced client. Pointer de-duplication keeps a
+    /// same-language multi-panel binding from running the bounded shutdown sequence more than once.
+    pub fn shutdown_all_lsp_clients(&self) {
+        let mut clients: Vec<Arc<crate::code_editor::lsp_client::LspClient>> = {
+            let mut registered = self
+                .lsp_clients_by_language
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            std::mem::take(&mut *registered).into_values().collect()
+        };
+        clients.extend(self.panels().into_iter().map(|panel| panel.lsp_client()));
+
+        let mut seen = std::collections::HashSet::new();
+        for client in clients {
+            if seen.insert(Arc::as_ptr(&client)) {
+                client.shutdown_for_host();
+            }
+        }
+        let workers = std::mem::take(
+            &mut *self
+                .retired_lsp_shutdown_workers
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()),
+        );
+        for worker in workers {
+            let _ = worker.join();
+        }
+    }
+
+    /// Reconcile retained language clients with the languages of currently open document panels.
+    /// This is the app-frame language-change path: a panel that changes Rust -> Python is rebound to
+    /// an already-retained Python client when available, and a Rust client with no remaining open Rust
+    /// panel is removed and explicitly shut down before the host runtime can outlive it.
+    pub fn reconcile_lsp_clients_for_languages(
+        &self,
+        open_languages: &std::collections::BTreeSet<String>,
+    ) -> Vec<String> {
+        let panels = self.panels();
+        let (bindings, retired_languages, retired) = {
+            let mut registered = self
+                .lsp_clients_by_language
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let stale_languages: Vec<String> = registered
+                .keys()
+                .filter(|language| !open_languages.contains(language.as_str()))
+                .cloned()
+                .collect();
+            let retired: Vec<_> = stale_languages
+                .iter()
+                .filter_map(|language| registered.remove(language))
+                .collect();
+            let bindings = registered
+                .iter()
+                .map(|(language, client)| (language.clone(), Arc::clone(client)))
+                .collect::<BTreeMap<_, _>>();
+            (bindings, stale_languages, retired)
+        };
+
+        for panel in panels {
+            let language = panel.resolved_language().detected.as_str().to_owned();
+            let Some(client) = bindings.get(&language) else {
+                continue;
+            };
+            let current = panel.lsp_client();
+            if !Arc::ptr_eq(&current, client) {
+                panel.set_lsp_client(Arc::clone(client));
+            }
+        }
+
+        let retired = retired
+            .into_iter()
+            .filter(|client| {
+                !bindings
+                    .values()
+                    .any(|retained| Arc::ptr_eq(client, retained))
+            })
+            .collect();
+        self.retire_lsp_clients(retired);
+        retired_languages
+    }
+
+    /// Start bounded client shutdown away from the egui frame path. Each LSP client owns the runtime
+    /// handle needed for graceful shutdown; the app-owned worker handles are joined by
+    /// [`shutdown_all_lsp_clients`](Self::shutdown_all_lsp_clients) before runtime teardown.
+    fn retire_lsp_clients(&self, clients: Vec<Arc<crate::code_editor::lsp_client::LspClient>>) {
+        let mut seen = std::collections::HashSet::new();
+        let mut workers = self
+            .retired_lsp_shutdown_workers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        // Finished threads no longer need a join handle retained between frame-driven rebinds.
+        workers.retain(|worker| !worker.is_finished());
+        for client in clients {
+            if !seen.insert(Arc::as_ptr(&client)) {
+                continue;
+            }
+            if let Ok(worker) = std::thread::Builder::new()
+                .name("handshake-lsp-retire".to_owned())
+                .spawn(move || client.shutdown_for_host())
+            {
+                workers.push(worker);
+            }
+        }
+    }
+
+    /// Install the shared AccessKit editor-action registry on every existing panel and remember it for
+    /// future file-backed panels. Instance 0 belongs to the base panel; file-backed action-registry
+    /// instances derive from document identity rather than insertion order.
+    pub fn install_editor_action_registry(
+        &self,
+        registry: Arc<Mutex<crate::accessibility::editor_action_registry::EditorActionRegistry>>,
+    ) {
+        self.base_panel
+            .install_editor_action_registry(Arc::clone(&registry), 0);
+        let panels = self.panels.lock().unwrap_or_else(|e| e.into_inner());
+        for (content_id, panel) in panels.iter() {
+            panel.install_editor_action_registry_named(
+                Arc::clone(&registry),
+                document_instance_namespace(content_id),
+            );
+        }
+        *self
+            .editor_action_registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(registry);
+    }
+
+    fn wire_panel(&self, panel: &CodeEditorPanel, document_id: &str) -> bool {
+        panel.set_command_palette_sender(self.command_sender.clone(), document_id);
+        let session = self.session.lock().map(|c| c.clone()).unwrap_or_default();
+        if let (true, Some(runtime)) = (session.is_bound(), session.runtime) {
+            panel.set_runtime(runtime);
+            panel.set_workspace_id(session.workspace_id);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Insert a successfully loaded file as an independent editor document. If the file is already
+    /// open, its live panel is returned unchanged: a second definition jump must never overwrite edits
+    /// made in that target tab with a fresh disk snapshot.
+    pub fn insert_loaded_document(
+        &self,
+        content_id: String,
+        file_path: &Path,
+        text: &str,
+    ) -> Arc<CodeEditorPanel> {
+        if let Some(existing) = self
+            .panels
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&content_id)
+            .cloned()
+        {
+            return existing;
+        }
+
+        let extension = file_path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default();
+        let instance_namespace = document_instance_namespace(&content_id);
+        let panel = Arc::new(CodeEditorPanel::with_instance(
+            text,
+            extension,
+            instance_namespace,
+        ));
+        panel.load_file(file_path.to_string_lossy().to_string());
+        self.wire_panel(&panel, &content_id);
+        if let Some(client) = self
+            .code_nav_client
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+        {
+            panel.set_code_nav_client(client);
+        }
+        let language_id = panel.resolved_language().detected.as_str().to_owned();
+        if let Some(client) = self
+            .lsp_clients_by_language
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&language_id)
+            .cloned()
+        {
+            panel.set_lsp_client(client);
+        }
+        if let Some(registry) = self
+            .editor_action_registry
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+        {
+            panel.install_editor_action_registry_named(
+                registry,
+                document_instance_namespace(&content_id),
+            );
+        }
+
+        let mut panels = self.panels.lock().unwrap_or_else(|e| e.into_inner());
+        Arc::clone(
+            panels
+                .entry(content_id)
+                .or_insert_with(|| Arc::clone(&panel)),
+        )
+    }
+
+    /// Mount one rich-note code block as a first-class native code document without assigning a
+    /// filesystem path. Its durable authority remains the owning rich document; the host recognizes
+    /// the stable `content_id` binding and routes `editor.code.save` through that document's E6
+    /// SaveManager path rather than the local-file atomic-save path.
+    pub fn insert_rich_code_block(
+        &self,
+        content_id: String,
+        language: &str,
+        text: &str,
+    ) -> Arc<CodeEditorPanel> {
+        if let Some(existing) = self
+            .panels
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .get(&content_id)
+            .cloned()
+        {
+            return existing;
+        }
+
+        let panel = Arc::new(CodeEditorPanel::with_instance(
+            text,
+            language,
+            document_instance_namespace(&content_id),
+        ));
+        self.wire_panel(&panel, &content_id);
+        if let Some(client) = self
+            .code_nav_client
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+        {
+            panel.set_code_nav_client(client);
+        }
+        let language_id = panel.resolved_language().detected.as_str().to_owned();
+        if let Some(client) = self
+            .lsp_clients_by_language
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .get(&language_id)
+            .cloned()
+        {
+            panel.set_lsp_client(client);
+        }
+        if let Some(registry) = self
+            .editor_action_registry
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+        {
+            panel.install_editor_action_registry_named(
+                registry,
+                document_instance_namespace(&content_id),
+            );
+        }
+
+        let mut panels = self
+            .panels
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        Arc::clone(
+            panels
+                .entry(content_id)
+                .or_insert_with(|| Arc::clone(&panel)),
+        )
+    }
+}
+
 /// The session-threaded CODE-editor pane factory. Registered over `PaneType::CodeSymbol` (the code
 /// surface the WP-011 shell already routes a "code" pane to — NOT a new `PaneType` variant, which would
 /// ripple through every exhaustive `PaneType` match; RISK-079-5). Wraps the existing
@@ -141,20 +1363,10 @@ impl RichPaneEvents {
 /// installs the shell command sender. The wrap keeps the bus/undo wiring the inner factory already
 /// proves; this layer only adds the session-context threading the host-mount needs.
 pub struct CodeEditorPaneMount {
-    inner: CodeEditorPaneFactory,
-    /// The Arc-shared panel (the SAME panel the inner factory renders), kept so the mount can call the
-    /// `set_*` hooks on it.
-    panel: Arc<CodeEditorPanel>,
-    /// The live session-context cell the shell overwrites; read on render.
-    session: SharedSessionContext,
-    /// The command-palette dispatch channel installed into the panel on mount (Save / Undo / Redo /
-    /// OpenCommandPalette route here). Held so the install is idempotent (only set once).
-    command_sender: std::sync::mpsc::Sender<CodeEditorAction>,
+    documents: Arc<CodeEditorDocumentStore>,
     /// `true` once the panel has been threaded with a BOUND session context (so the threading runs once,
     /// not every frame). Atomic because `render` is `&self`.
     wired: std::sync::atomic::AtomicBool,
-    /// `true` once the command sender has been installed into the panel (idempotent).
-    command_wired: std::sync::atomic::AtomicBool,
 }
 
 impl CodeEditorPaneMount {
@@ -164,22 +1376,27 @@ impl CodeEditorPaneMount {
     pub fn new(
         panel: Arc<CodeEditorPanel>,
         session: SharedSessionContext,
-        command_sender: std::sync::mpsc::Sender<CodeEditorAction>,
+        command_sender: std::sync::mpsc::Sender<CodeEditorHostCommand>,
     ) -> Self {
+        let documents = Arc::new(CodeEditorDocumentStore::new(panel, session, command_sender));
+        Self::from_document_store(documents)
+    }
+
+    pub fn from_document_store(documents: Arc<CodeEditorDocumentStore>) -> Self {
         Self {
-            inner: CodeEditorPaneFactory::from_arc(Arc::clone(&panel)),
-            panel,
-            session,
-            command_sender,
+            documents,
             wired: std::sync::atomic::AtomicBool::new(false),
-            command_wired: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
     /// The Arc-shared panel behind this mount (so a test/host can drive the SAME panel state the mounted
     /// pane shows — the AC-079 proofs need the real panel behind the factory).
     pub fn panel(&self) -> Arc<CodeEditorPanel> {
-        Arc::clone(&self.panel)
+        self.documents.base_panel()
+    }
+
+    pub fn document_store(&self) -> Arc<CodeEditorDocumentStore> {
+        Arc::clone(&self.documents)
     }
 
     /// Whether the panel has been threaded with a bound session context (tests / PT-079-B).
@@ -193,19 +1410,8 @@ impl CodeEditorPaneMount {
     /// waits until the session context is BOUND so a half-built context never installs a misleading wired
     /// state (MC-079-1: the mount is honest about what is actually wired).
     pub fn wire_if_needed(&self) {
-        use std::sync::atomic::Ordering;
-        if !self.command_wired.swap(true, Ordering::Relaxed) {
-            self.panel
-                .set_command_palette_sender(self.command_sender.clone());
-        }
-        if self.wired.load(Ordering::Relaxed) {
-            return;
-        }
-        let ctx = self.session.lock().map(|c| c.clone()).unwrap_or_default();
-        if let (true, Some(runtime)) = (ctx.is_bound(), ctx.runtime) {
-            self.panel.set_runtime(runtime);
-            self.panel.set_workspace_id(ctx.workspace_id);
-            self.wired.store(true, Ordering::Relaxed);
+        if self.documents.wire_panel(&self.documents.base_panel(), "") {
+            self.wired.store(true, std::sync::atomic::Ordering::Relaxed);
         }
     }
 }
@@ -219,15 +1425,29 @@ impl PaneFactory for CodeEditorPaneMount {
         // Thread session context + command sender BEFORE the inner render, so the first live frame
         // already has the runtime/workspace/command bus wired (AC-079-2/3).
         self.wire_if_needed();
+        let requested_id = ctx.record.content_id.as_deref().unwrap_or_default();
+        let document_id = if self.documents.contains(requested_id) {
+            requested_id
+        } else {
+            ""
+        };
+        if document_id.is_empty() {
+            self.documents.activate_base_document();
+        }
+        let panel = self
+            .documents
+            .panel_for_content_id((!document_id.is_empty()).then_some(document_id));
+        panel.set_host_render_pane_id(Some(ctx.record.pane_id.clone()));
+        self.documents.wire_panel(&panel, document_id);
         // Delegate to the EXISTING code factory render: it publishes selection to the shared bus,
         // registers the code command set, runs the panel, and records the unified-undo entries
         // (push_code_edit_undo) — the real per-frame consumers MT-031/035/050/051 already prove. The
         // mount adds ONLY the session-context threading above; it does not re-implement editor logic.
-        self.inner.render(ui, ctx);
+        CodeEditorPaneFactory::from_arc(panel).render(ui, ctx);
     }
 
     fn accesskit_role(&self) -> accesskit::Role {
-        self.inner.accesskit_role()
+        accesskit::Role::Document
     }
 }
 
@@ -239,22 +1459,21 @@ impl PaneFactory for CodeEditorPaneMount {
 /// AFTER the editor renders, it DRAINS `RichEditorState.pending_events` and pushes them into the shared
 /// [`RichPaneEvents`] queue the shell routes to the nav bus (AC-079-5).
 pub struct RichEditorPaneMount {
-    inner: RichEditorPaneFactory,
-    /// The Arc-shared editor state (the SAME state the inner factory renders), kept so the mount can
-    /// thread the `set_*` hooks and drain `pending_events`.
-    state: Arc<Mutex<RichEditorState>>,
+    documents: Arc<RichEditorDocumentStore>,
     /// The live session-context cell the shell overwrites; read on render.
     session: SharedSessionContext,
     /// The outbound queue the shell drains + routes (AC-079-5). The mount pushes the editor's drained
     /// `pending_events` here after each render.
     events: RichPaneEvents,
-    /// The document id the rich editor's wikilink context binds to. The Notes pane opens a workspace's
-    /// document tree; until a specific document is opened the wikilink context binds to the workspace
-    /// root (the create/resolve seam still resolves against the workspace). A future MT that opens a
-    /// specific document by tab content_id updates this.
-    document_id: String,
+    /// Context identity used only by the original untitled/base Notes state. File-backed tabs always
+    /// bind their exact `content_id`.
+    base_document_id: String,
     /// `true` once the editor state has been threaded with a BOUND session context.
     wired: std::sync::atomic::AtomicBool,
+    /// Last workspace/runtime identity applied to the rich editor. The shell may replace the shared
+    /// session when switching projects; a one-shot boolean would leave embeds, wikilinks, and code-ref
+    /// resolution permanently bound to the prior workspace.
+    applied_sessions: Mutex<BTreeMap<String, (String, tokio::runtime::Id)>>,
 }
 
 impl RichEditorPaneMount {
@@ -268,20 +1487,34 @@ impl RichEditorPaneMount {
         events: RichPaneEvents,
         document_id: impl Into<String>,
     ) -> Self {
+        let documents = Arc::new(RichEditorDocumentStore::new(state));
+        Self::from_document_store(documents, session, events, document_id)
+    }
+
+    pub fn from_document_store(
+        documents: Arc<RichEditorDocumentStore>,
+        session: SharedSessionContext,
+        events: RichPaneEvents,
+        base_document_id: impl Into<String>,
+    ) -> Self {
         Self {
-            inner: RichEditorPaneFactory::new(Arc::clone(&state)),
-            state,
+            documents,
             session,
             events,
-            document_id: document_id.into(),
+            base_document_id: base_document_id.into(),
             wired: std::sync::atomic::AtomicBool::new(false),
+            applied_sessions: Mutex::new(BTreeMap::new()),
         }
     }
 
     /// The Arc-shared editor state behind this mount (so a test/host drives the SAME state the mounted
     /// pane shows — the AC-079 proofs need the real state behind the factory).
     pub fn state(&self) -> Arc<Mutex<RichEditorState>> {
-        Arc::clone(&self.state)
+        self.documents.base_state()
+    }
+
+    pub fn document_store(&self) -> Arc<RichEditorDocumentStore> {
+        Arc::clone(&self.documents)
     }
 
     /// The shared outbound event queue (the shell holds a clone to drain + route).
@@ -299,27 +1532,48 @@ impl RichEditorPaneMount {
     /// runtime) so a half-built context never installs a misleading wired state. Calls the prior-MT
     /// hooks `set_embed_context` (MT-014) + `set_wikilink_context` (MT-057) — REUSE, not re-implement.
     pub fn wire_if_needed(&self) {
+        self.wire_state_if_needed(&self.documents.base_state(), &self.base_document_id);
+    }
+
+    fn wire_state_if_needed(&self, state: &Arc<Mutex<RichEditorState>>, document_id: &str) {
         use std::sync::atomic::Ordering;
-        if self.wired.load(Ordering::Relaxed) {
-            return;
-        }
         let ctx = self.session.lock().map(|c| c.clone()).unwrap_or_default();
         if !ctx.is_bound() {
             return;
         }
         let Some(runtime) = ctx.runtime else { return };
-        if let Ok(mut s) = self.state.lock() {
-            s.set_embed_context(ctx.workspace_id.clone(), runtime.clone());
-            s.set_wikilink_context(ctx.workspace_id, self.document_id.clone(), runtime);
+        let identity = (ctx.workspace_id.clone(), runtime.id());
+        let state_key = if document_id.trim().is_empty() {
+            String::new()
+        } else {
+            document_id.to_owned()
+        };
+        let already_applied = self
+            .applied_sessions
+            .lock()
+            .map(|applied| applied.get(&state_key) == Some(&identity))
+            .unwrap_or(false);
+        if already_applied {
+            return;
         }
+        if let Ok(mut s) = state.lock() {
+            s.set_embed_context(ctx.workspace_id.clone(), runtime.clone());
+            s.set_wikilink_context(ctx.workspace_id, document_id.to_owned(), runtime);
+        } else {
+            return;
+        }
+        self.applied_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(state_key, identity);
         self.wired.store(true, Ordering::Relaxed);
     }
 
     /// Drain the editor's `pending_events` into the shared outbound queue (AC-079-5). Called AFTER the
     /// inner render so a click handled THIS frame is routed THIS frame. Pushing them to the shared queue
     /// (rather than routing here) keeps the editor a pure widget and the routing the shell's job.
-    fn drain_events(&self) {
-        let drained = match self.state.lock() {
+    fn drain_events(&self, state: &Arc<Mutex<RichEditorState>>) {
+        let drained = match state.lock() {
             Ok(mut s) => std::mem::take(&mut s.pending_events),
             Err(p) => std::mem::take(&mut p.into_inner().pending_events),
         };
@@ -335,7 +1589,71 @@ impl PaneFactory for RichEditorPaneMount {
     fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
         // Thread session context BEFORE the inner render, so the first live frame already has the
         // embed + wikilink context wired (AC-079-2).
-        self.wire_if_needed();
+        let content_id = ctx
+            .record
+            .content_id
+            .as_deref()
+            .filter(|id| !id.trim().is_empty());
+        let pane_id = ctx.record.pane_id.as_ref();
+        let state = self.documents.state_for_view(content_id, pane_id);
+        if let Some(document_id) = content_id {
+            self.documents
+                .synchronize_view_from_canonical(document_id, pane_id);
+        }
+        let _accessibility_namespace = {
+            let state = state.lock().unwrap_or_else(|e| e.into_inner());
+            crate::rich_editor::push_accessibility_view_namespace(
+                state.accessibility_namespace.clone(),
+            )
+        };
+        let document_id = content_id.unwrap_or(&self.base_document_id);
+        self.wire_state_if_needed(&state, document_id);
+        // MT-042: the shell has already opened the exact rich-document identity as soon as the tab is
+        // inserted. Publish that authoritative target immediately instead of waiting for the async body
+        // load to construct SaveManager. The widget reuses this same node id once loading completes.
+        if let Some(document_id) = ctx
+            .record
+            .content_id
+            .as_deref()
+            .filter(|document_id| !document_id.trim().is_empty())
+        {
+            let document_id = document_id.to_owned();
+            let author_id =
+                crate::rich_editor::scoped_author_id(format!("rich-editor.document.{document_id}"));
+            ui.ctx().accesskit_node_builder(
+                egui::Id::new(("rich-editor-opened-document", &document_id)),
+                move |node| {
+                    node.set_role(accesskit::Role::Document);
+                    node.set_author_id(author_id);
+                    node.set_label("Opened rich document");
+                    node.set_value(document_id);
+                },
+            );
+        }
+        if let Some(document_id) = content_id {
+            if !self.documents.is_view_ready(document_id, pane_id) {
+                let loading = ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(format!("Loading Notes document {document_id}…"));
+                });
+                let author_id = crate::rich_editor::scoped_author_id(format!(
+                    "rich-editor.loading.{document_id}"
+                ));
+                ui.ctx()
+                    .accesskit_node_builder(loading.response.id, |node| {
+                        node.set_author_id(author_id);
+                        node.set_role(accesskit::Role::Status);
+                    });
+                // Do not invoke the editable renderer before the exact workspace/document/view GET
+                // has installed. This makes the initial blank state an internal placeholder only.
+                // The state is still the live mounted view, however: a retry or document switch can
+                // leave events queued on it before the next GET completes. Drain those events even
+                // across the loading gate so stale link/tag activations are routed instead of being
+                // stranded until the view becomes ready (MT-079 remediation).
+                self.drain_events(&state);
+                return;
+            }
+        }
         // WP-KERNEL-012 MT-055 REMEDIATION (reading mode reachable in the mounted editor): render the
         // Edit|Reading segmented toggle in the mounted editor CHROME (above the editor body), persist the
         // choice per document in the egui-persisted `ReadingModeStore`, and pass `store.get(document_id)`
@@ -356,7 +1674,7 @@ impl PaneFactory for RichEditorPaneMount {
         // already toggled keeps its remembered choice — the default never overrides a per-document toggle.
         if !store.contains(&doc_key) {
             let default_reading = {
-                let s = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                let s = state.lock().unwrap_or_else(|e| e.into_inner());
                 s.reading_mode_default()
             };
             store.ensure_seeded(&doc_key, default_reading);
@@ -369,7 +1687,7 @@ impl PaneFactory for RichEditorPaneMount {
             // this frame: reading mode applies no edit dispatch, so the per-frame bus command
             // registration/selection publish (an editable-surface concern) honestly pauses with it.
             crate::rich_editor::renderer::rich_editor_widget::RichEditorWidget::new(Arc::clone(
-                &self.state,
+                &state,
             ))
             .with_read_only(true)
             .show(ui);
@@ -378,17 +1696,33 @@ impl PaneFactory for RichEditorPaneMount {
             // publishes selection to the shared bus, registers the rich command set, and runs the editor
             // widget — the real per-frame consumers MT-031/035 already prove. The mount adds session
             // threading + the pending_events drain; it does not re-implement editor logic.
-            self.inner.render(ui, ctx);
+            RichEditorPaneFactory::new(Arc::clone(&state)).render(ui, ctx);
         }
         // DRAIN + route (AC-079-5): the editor enqueued any WikilinkActivated/BacklinkActivated/
         // TagActivated this frame; move them to the shell's outbound queue so the shell routes them to
         // the nav bus after the pane host. No event is left unrouted (reading mode keeps link chips
         // interactive, so the drain runs in both branches).
-        self.drain_events();
+        self.drain_events(&state);
+        if let Some(document_id) = content_id {
+            self.documents
+                .publish_view_to_canonical(document_id, pane_id);
+            let forward_save = state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .take_deferred_shared_save_request();
+            if forward_save {
+                if let Some(authority) = self.documents.canonical_state_for_document(document_id) {
+                    authority
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .request_save_for_host();
+                }
+            }
+        }
     }
 
     fn accesskit_role(&self) -> accesskit::Role {
-        self.inner.accesskit_role()
+        accesskit::Role::Document
     }
 }
 
@@ -464,12 +1798,13 @@ impl PaneFactory for CanvasBoardPaneMount {
         PaneType::AtelierEditor
     }
 
-    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
         let palette = palette_of(&self.palette);
         // Render the REAL board (the toolbar + placements + AccessKit `canvas.*` subtree). The widget owns
         // its own per-frame consumers; the mount only collects the dispatched events for the shell.
         let mut event = None;
         if let Ok(mut board) = self.board.lock() {
+            board.set_render_source_pane_id(ctx.record.pane_id.clone());
             event = board.show(ui, &palette);
             // Also drain any swarm-dispatched knowledge events the single `show` return cannot carry
             // (the MT-042 anti-scaffolding drain) so a canvas dispatch reaches the shell too.
@@ -526,10 +1861,11 @@ impl PaneFactory for GraphViewPaneMount {
         PaneType::Placeholder(GRAPH_VIEW_PANE_LABEL.to_owned())
     }
 
-    fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
+    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
         let palette = palette_of(&self.palette);
         let mut event = None;
         if let Ok(mut view) = self.view.lock() {
+            view.set_render_source_pane_id(ctx.record.pane_id.clone());
             event = view.show(ui, &palette);
             let drained = view.drain_knowledge_events();
             if !drained.is_empty() {
@@ -763,6 +2099,71 @@ impl PaneFactory for DailyJournalPaneMount {
                     )
                     .color(palette.text_subtle),
                 );
+            }
+        }
+    }
+}
+
+/// MT-067: content-addressed CalendarEvent destination mounted over the same resolved journal state.
+pub struct CalendarEventPaneMount {
+    state: Arc<Mutex<crate::graph::daily_journal_panel::DailyJournalState>>,
+    palette: SharedPalette,
+    events: Arc<Mutex<Vec<crate::graph::daily_journal_panel::DailyJournalEvent>>>,
+    tabs: Mutex<BTreeMap<String, crate::graph::daily_journal_panel::CalendarEventDetailTab>>,
+    snapshots: Mutex<BTreeMap<String, crate::graph::daily_journal_panel::DailyJournalState>>,
+}
+
+impl CalendarEventPaneMount {
+    pub fn new(
+        state: Arc<Mutex<crate::graph::daily_journal_panel::DailyJournalState>>,
+        palette: SharedPalette,
+        events: Arc<Mutex<Vec<crate::graph::daily_journal_panel::DailyJournalEvent>>>,
+    ) -> Self {
+        Self {
+            state,
+            palette,
+            events,
+            tabs: Mutex::new(BTreeMap::new()),
+            snapshots: Mutex::new(BTreeMap::new()),
+        }
+    }
+}
+
+impl PaneFactory for CalendarEventPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::CalendarEvent
+    }
+
+    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
+        use crate::graph::daily_journal_panel::{
+            CalendarEventDetailPanel, CalendarEventDetailTab, DailyJournalEvent,
+        };
+        let event_id = ctx.record.content_id.as_deref().unwrap_or_default();
+        let palette = palette_of(&self.palette);
+        let Ok(current_state) = self.state.lock().map(|state| state.clone()) else {
+            return;
+        };
+        let Ok(mut snapshots) = self.snapshots.lock() else {
+            return;
+        };
+        if current_state
+            .event
+            .as_ref()
+            .is_some_and(|event| event.id == event_id)
+        {
+            snapshots.insert(event_id.to_owned(), current_state.clone());
+        }
+        let state = snapshots.get(event_id).unwrap_or(&current_state);
+        let Ok(mut tabs) = self.tabs.lock() else {
+            return;
+        };
+        let active_tab = tabs
+            .entry(event_id.to_owned())
+            .or_insert(CalendarEventDetailTab::Details);
+        let event = CalendarEventDetailPanel::show(ui, event_id, state, active_tab, &palette);
+        if !matches!(event, DailyJournalEvent::None) {
+            if let Ok(mut events) = self.events.lock() {
+                events.push(event);
             }
         }
     }
@@ -1023,7 +2424,7 @@ impl PaneFactory for BlockCollectionPaneMount {
 /// on the shared state itself — no outbound queue needed).
 pub struct OutlinePaneMount {
     panel: Arc<Mutex<crate::rich_editor::outline_panel::OutlinePanel>>,
-    rich_state: Arc<Mutex<RichEditorState>>,
+    rich_documents: Arc<RichEditorDocumentStore>,
 }
 
 impl OutlinePaneMount {
@@ -1031,7 +2432,17 @@ impl OutlinePaneMount {
         panel: Arc<Mutex<crate::rich_editor::outline_panel::OutlinePanel>>,
         rich_state: Arc<Mutex<RichEditorState>>,
     ) -> Self {
-        Self { panel, rich_state }
+        Self::from_document_store(panel, Arc::new(RichEditorDocumentStore::new(rich_state)))
+    }
+
+    pub fn from_document_store(
+        panel: Arc<Mutex<crate::rich_editor::outline_panel::OutlinePanel>>,
+        rich_documents: Arc<RichEditorDocumentStore>,
+    ) -> Self {
+        Self {
+            panel,
+            rich_documents,
+        }
     }
 }
 
@@ -1042,10 +2453,11 @@ impl PaneFactory for OutlinePaneMount {
 
     fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
         if let Ok(mut panel) = self.panel.lock() {
+            let rich_state = self.rich_documents.active_state();
             // Sync the outline from the live document FIRST (cheap hash-guarded rebuild), then render.
             // The sync borrow is dropped before `show` re-locks the state for the click path.
             {
-                let state = match self.rich_state.lock() {
+                let state = match rich_state.lock() {
                     Ok(s) => Some(s),
                     Err(_) => None,
                 };
@@ -1053,7 +2465,7 @@ impl PaneFactory for OutlinePaneMount {
                     panel.sync(&state);
                 }
             }
-            panel.show(ui, &self.rich_state);
+            panel.show(ui, &rich_state);
         }
     }
 }
@@ -1065,14 +2477,22 @@ impl PaneFactory for OutlinePaneMount {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WikiPaneRequest {
     /// A (re)load is needed for `projection_id` (first bind, Retry, or after a save/regenerate).
-    Load { projection_id: String },
+    Load {
+        identity: crate::backend_client::WikiPaneIdentity,
+    },
+    /// The overlay is already committed; retry only the failed follow-up projection/overlay GET.
+    ReloadAfterSave {
+        identity: crate::backend_client::WikiPaneIdentity,
+    },
     /// The Save button was pressed with `annotation` (the verified overlay-annotation write).
     Save {
-        projection_id: String,
+        identity: crate::backend_client::WikiPaneIdentity,
         annotation: String,
     },
     /// The Rebuild button was pressed (`POST /loom/wiki/{id}/regenerate`).
-    Regenerate { projection_id: String },
+    Regenerate {
+        identity: crate::backend_client::WikiPaneIdentity,
+    },
 }
 
 /// WP-KERNEL-012 MT-025/059 REMEDIATION: the live WIKI-PAGE pane. Registered over its OWN key
@@ -1082,24 +2502,41 @@ pub enum WikiPaneRequest {
 /// `content_id` changes) and pushes load/save/regenerate requests into the shared outbound queue.
 pub struct WikiPagePaneMount {
     /// The bound panel + its projection id (`None` until a wiki tab with a content id renders).
-    bound: Arc<Mutex<Option<(String, crate::graph::wiki_page_panel::LoomWikiPagePanel)>>>,
+    bound: Arc<
+        Mutex<
+            Option<(
+                crate::backend_client::WikiPaneIdentity,
+                crate::graph::wiki_page_panel::LoomWikiPagePanel,
+            )>,
+        >,
+    >,
     session: SharedSessionContext,
     palette: SharedPalette,
     requests: Arc<Mutex<Vec<WikiPaneRequest>>>,
+    pane_generation: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl WikiPagePaneMount {
     pub fn new(
-        bound: Arc<Mutex<Option<(String, crate::graph::wiki_page_panel::LoomWikiPagePanel)>>>,
+        bound: Arc<
+            Mutex<
+                Option<(
+                    crate::backend_client::WikiPaneIdentity,
+                    crate::graph::wiki_page_panel::LoomWikiPagePanel,
+                )>,
+            >,
+        >,
         session: SharedSessionContext,
         palette: SharedPalette,
         requests: Arc<Mutex<Vec<WikiPaneRequest>>>,
+        pane_generation: Arc<std::sync::atomic::AtomicU64>,
     ) -> Self {
         Self {
             bound,
             session,
             palette,
             requests,
+            pane_generation,
         }
     }
 
@@ -1125,10 +2562,13 @@ impl PaneFactory for WikiPagePaneMount {
             .map(|id| id.to_owned());
         let Some(projection_id) = projection_id else {
             // Honest empty state: a wiki pane with no projection bound (no fake page).
-            ui.label(
+            let empty = ui.label(
                 egui::RichText::new("No wiki page open. Open one via the quick switcher.")
                     .color(palette.text_subtle),
             );
+            ui.ctx().accesskit_node_builder(empty.id, |node| {
+                node.set_author_id("wiki-page.empty".to_owned());
+            });
             return;
         };
         let workspace_id = self
@@ -1139,39 +2579,53 @@ impl PaneFactory for WikiPagePaneMount {
         if let Ok(mut bound) = self.bound.lock() {
             let needs_rebind = bound
                 .as_ref()
-                .map(|(bound_id, _)| bound_id != &projection_id)
+                .map(|(identity, _)| {
+                    identity.projection_id != projection_id || identity.workspace_id != workspace_id
+                })
                 .unwrap_or(true);
             if needs_rebind {
+                let pane_generation = self
+                    .pane_generation
+                    .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
+                    .wrapping_add(1);
+                let identity = crate::backend_client::WikiPaneIdentity {
+                    workspace_id: workspace_id.clone(),
+                    projection_id: projection_id.clone(),
+                    pane_generation,
+                };
                 *bound = Some((
-                    projection_id.clone(),
+                    identity.clone(),
                     crate::graph::wiki_page_panel::LoomWikiPagePanel::new(
                         workspace_id,
                         projection_id.clone(),
                     ),
                 ));
                 // First bind: request the real GET load (the shell fires the LoomWikiClient fetch).
-                self.push_request(WikiPaneRequest::Load {
-                    projection_id: projection_id.clone(),
-                });
+                self.push_request(WikiPaneRequest::Load { identity });
             }
-            if let Some((_, panel)) = bound.as_mut() {
+            if let Some((identity, panel)) = bound.as_mut() {
                 use crate::graph::wiki_page_panel::WikiPageEvent;
                 if let Some(event) = panel.show(ui, &palette) {
                     match event {
                         WikiPageEvent::Save { annotation } => {
                             self.push_request(WikiPaneRequest::Save {
-                                projection_id: projection_id.clone(),
+                                identity: identity.clone(),
                                 annotation,
                             });
                         }
                         WikiPageEvent::Rebuild => {
                             self.push_request(WikiPaneRequest::Regenerate {
-                                projection_id: projection_id.clone(),
+                                identity: identity.clone(),
                             });
                         }
                         WikiPageEvent::Retry => {
                             self.push_request(WikiPaneRequest::Load {
-                                projection_id: projection_id.clone(),
+                                identity: identity.clone(),
+                            });
+                        }
+                        WikiPageEvent::RetryReloadAfterSave => {
+                            self.push_request(WikiPaneRequest::ReloadAfterSave {
+                                identity: identity.clone(),
                             });
                         }
                         // Edit/Cancel are local panel state (observability-only events).
@@ -1286,9 +2740,18 @@ impl PaneFactory for DiffMergePaneMount {
 /// The one-slot delivery cell a spawned `GET /flight_recorder` fetch resolves into; doubles as the
 /// pane's [`crate::flight_recorder_pane::FlightRecorderQuery`] impl (the pane's `load_now` reads the
 /// resolved value off the frame thread — never blocking).
+#[derive(Debug, Clone)]
+struct FlightRecorderFetchDelivery {
+    generation: u64,
+    workspace_id: String,
+    result: Result<crate::flight_recorder_pane::FlightRecorderQueryRows, String>,
+}
+
 #[derive(Clone, Default)]
 pub struct FlightRecorderFetchCell {
-    cell: Arc<Mutex<Option<Result<Vec<crate::flight_recorder_pane::FlightRecorderRow>, String>>>>,
+    cell: Arc<Mutex<Option<FlightRecorderFetchDelivery>>>,
+    generation: Arc<std::sync::atomic::AtomicU64>,
+    workspace_id: Arc<Mutex<String>>,
 }
 
 impl FlightRecorderFetchCell {
@@ -1301,22 +2764,73 @@ impl FlightRecorderFetchCell {
         self.cell.lock().map(|c| c.is_some()).unwrap_or(false)
     }
 
-    /// Deliver a fetch result (called by the spawned off-thread task).
-    pub fn deliver(
+    /// Start a new workspace-scoped request and invalidate every older in-flight completion.
+    pub fn begin(&self, workspace_id: impl Into<String>) -> u64 {
+        let generation = self
+            .generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
+            .wrapping_add(1)
+            .max(1);
+        if let Ok(mut current) = self.workspace_id.lock() {
+            *current = workspace_id.into();
+        }
+        self.clear();
+        generation
+    }
+
+    /// Deliver only if both generation and workspace still match the active request. Returns false for
+    /// a stale completion so an A request can never overwrite a newer B request.
+    pub fn deliver_if_current(
         &self,
-        result: Result<Vec<crate::flight_recorder_pane::FlightRecorderRow>, String>,
-    ) {
+        generation: u64,
+        workspace_id: impl Into<String>,
+        result: Result<crate::flight_recorder_pane::FlightRecorderQueryRows, String>,
+    ) -> bool {
+        let workspace_id = workspace_id.into();
+        let current_generation = self.generation.load(std::sync::atomic::Ordering::Acquire);
+        let current_workspace = self
+            .workspace_id
+            .lock()
+            .map(|workspace| workspace.clone())
+            .unwrap_or_default();
+        if generation != current_generation || workspace_id != current_workspace {
+            return false;
+        }
         if let Ok(mut c) = self.cell.lock() {
-            *c = Some(result);
+            *c = Some(FlightRecorderFetchDelivery {
+                generation,
+                workspace_id,
+                result,
+            });
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn clear(&self) {
+        if let Ok(mut c) = self.cell.lock() {
+            *c = None;
         }
     }
 }
 
 impl crate::flight_recorder_pane::FlightRecorderQuery for FlightRecorderFetchCell {
-    fn rows(&self) -> Result<Vec<crate::flight_recorder_pane::FlightRecorderRow>, String> {
+    fn rows(&self) -> Result<crate::flight_recorder_pane::FlightRecorderQueryRows, String> {
         match self.cell.lock() {
             Ok(c) => match c.as_ref() {
-                Some(result) => result.clone(),
+                Some(delivery)
+                    if delivery.generation
+                        == self.generation.load(std::sync::atomic::Ordering::Acquire)
+                        && self
+                            .workspace_id
+                            .lock()
+                            .map(|workspace| workspace.as_str() == delivery.workspace_id.as_str())
+                            .unwrap_or(false) =>
+                {
+                    delivery.result.clone()
+                }
+                Some(_) => Err("stale flight recorder fetch completion".to_owned()),
                 None => Err("flight recorder fetch not resolved yet".to_owned()),
             },
             Err(_) => Err("flight recorder cell poisoned".to_owned()),
@@ -1324,39 +2838,449 @@ impl crate::flight_recorder_pane::FlightRecorderQuery for FlightRecorderFetchCel
     }
 }
 
-/// Parse the `GET /flight_recorder` JSON array body into the pane rows (the reduced projection the
-/// pane renders: event_id / event_type / actor_id / timestamp). Pure so a unit test asserts the shape.
+/// Parse the `GET /flight_recorder` JSON array into native-editor and exact FEMS lifecycle rows.
+/// Other Flight Recorder traffic is excluded. Native rows retain their closed action kind; FEMS rows
+/// retain both the canonical event type and `FR-EVT-MEM-001..005` code.
 pub fn flight_recorder_rows_from_json(
     body: &serde_json::Value,
-) -> Result<Vec<crate::flight_recorder_pane::FlightRecorderRow>, String> {
+) -> Result<crate::flight_recorder_pane::FlightRecorderQueryRows, String> {
     let arr = body
         .as_array()
         .ok_or_else(|| "flight recorder response is not a JSON array".to_owned())?;
-    Ok(arr
-        .iter()
-        .map(|e| crate::flight_recorder_pane::FlightRecorderRow {
-            event_id: e
-                .get("event_id")
-                .and_then(|v| v.as_str())
-                .unwrap_or_default()
-                .to_owned(),
-            action: e
-                .get("event_type")
-                .and_then(|v| v.as_str())
-                .unwrap_or_default()
-                .to_owned(),
-            actor_id: e
-                .get("actor_id")
-                .and_then(|v| v.as_str())
-                .unwrap_or_default()
-                .to_owned(),
-            ts_utc: e
-                .get("timestamp")
-                .and_then(|v| v.as_str())
-                .unwrap_or_default()
-                .to_owned(),
-        })
-        .collect())
+    let mut rows = Vec::new();
+    let mut quarantined = Vec::new();
+    const ACTIONS: &[&str] = &[
+        "document_saved",
+        "code_edit",
+        "embed_created",
+        "canvas_node_placed",
+        "cross_ref_inserted",
+        "undo_fired",
+        "route_to_stage",
+        "memory_write_proposed",
+        "stage_embed_back",
+        "calendar_event_bound",
+        "activity_span_correlated",
+        "locus_ref_resolved",
+        "locus_reverse_lookup",
+    ];
+    for e in arr {
+        let payload = e.get("payload");
+        let recorder_event_type = e.get("event_type").and_then(serde_json::Value::as_str);
+        let fems_expected_code = match recorder_event_type {
+            Some("memory_write_proposed") => Some("FR-EVT-MEM-001"),
+            Some("memory_write_reviewed") => Some("FR-EVT-MEM-002"),
+            Some("memory_write_committed") => Some("FR-EVT-MEM-003"),
+            Some("memory_pack_built") => Some("FR-EVT-MEM-004"),
+            Some("memory_item_status_changed") => Some("FR-EVT-MEM-005"),
+            _ => None,
+        };
+        let payload_event_code = payload
+            .and_then(|payload| payload.get("event_code"))
+            .and_then(serde_json::Value::as_str);
+        let fems_candidate = fems_expected_code.is_some()
+            || payload_event_code.is_some_and(|code| code.starts_with("FR-EVT-MEM-"));
+        let event_family = payload
+            .and_then(|payload| payload.get("event_family"))
+            .and_then(serde_json::Value::as_str);
+        let actor_hint = e
+            .get("actor_id")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        let schema_hint = payload
+            .and_then(|payload| payload.get("schema"))
+            .and_then(serde_json::Value::as_str);
+        let native_candidate = event_family == Some("native_editor")
+            || schema_hint == Some(crate::event_emitter::NATIVE_EDITOR_SCHEMA_VERSION)
+            || actor_hint == crate::event_emitter::DEFAULT_ACTOR_ID
+            || actor_hint.starts_with("hsk:native_editor:");
+        if !native_candidate && !fems_candidate {
+            continue;
+        }
+        let parsed = (|| -> Result<crate::flight_recorder_pane::FlightRecorderRow, String> {
+            let required = |value: Option<&str>, field: &str| -> Result<String, String> {
+                let value = value.unwrap_or_default().trim();
+                if value.is_empty() {
+                    Err(format!("native editor Flight Recorder row missing {field}"))
+                } else {
+                    Ok(value.to_owned())
+                }
+            };
+            let event_id = required(e.get("event_id").and_then(|v| v.as_str()), "event_id")?;
+            uuid::Uuid::parse_str(&event_id)
+                .map_err(|_| "native editor Flight Recorder row has invalid event_id".to_owned())?;
+            let actor_id = required(e.get("actor_id").and_then(|v| v.as_str()), "actor_id")?;
+            let ts_utc = required(e.get("timestamp").and_then(|v| v.as_str()), "timestamp")?;
+            chrono::DateTime::parse_from_rfc3339(&ts_utc)
+                .map_err(|_| "Flight Recorder row has invalid timestamp".to_owned())?;
+
+            if fems_candidate {
+                let event_type = required(recorder_event_type, "event_type")?;
+                let expected_code = fems_expected_code.ok_or_else(|| {
+                    "FEMS Flight Recorder row has an unknown event_type".to_owned()
+                })?;
+                if payload_event_code != Some(expected_code) {
+                    return Err("FEMS Flight Recorder row has mismatched event_code".to_owned());
+                }
+                let map = payload
+                    .and_then(serde_json::Value::as_object)
+                    .ok_or_else(|| "FEMS Flight Recorder payload is not an object".to_owned())?;
+                let required_keys: &[&str] = match expected_code {
+                    "FR-EVT-MEM-001" => &[
+                        "type",
+                        "event_code",
+                        "proposal_id",
+                        "proposal_hash",
+                        "artifact_ref",
+                        "scope_refs",
+                        "op_count",
+                        "requires_review_count",
+                    ],
+                    "FR-EVT-MEM-002" => &[
+                        "type",
+                        "event_code",
+                        "proposal_id",
+                        "decision",
+                        "reviewer_kind",
+                    ],
+                    "FR-EVT-MEM-003" => &[
+                        "type",
+                        "event_code",
+                        "commit_id",
+                        "proposal_id",
+                        "commit_report_hash",
+                        "artifact_ref",
+                        "changed_memory_ids_hash",
+                    ],
+                    "FR-EVT-MEM-004" => &[
+                        "type",
+                        "event_code",
+                        "pack_id",
+                        "memory_pack_hash",
+                        "artifact_ref",
+                        "memory_policy",
+                        "scope_refs",
+                        "item_count",
+                        "token_estimate",
+                        "truncation_occurred",
+                    ],
+                    "FR-EVT-MEM-005" => &[
+                        "type",
+                        "event_code",
+                        "memory_id",
+                        "previous_status",
+                        "new_status",
+                        "reason",
+                        "actor",
+                    ],
+                    _ => unreachable!("closed FEMS event-code match"),
+                };
+                let optional_keys: &[&str] = match expected_code {
+                    "FR-EVT-MEM-002" => &["commit_report_ref"],
+                    _ => &[],
+                };
+                if map.len() < required_keys.len()
+                    || map.len() > required_keys.len() + optional_keys.len()
+                    || !required_keys.iter().all(|key| map.contains_key(*key))
+                    || !map.keys().all(|key| {
+                        required_keys.contains(&key.as_str())
+                            || optional_keys.contains(&key.as_str())
+                    })
+                {
+                    return Err("FEMS Flight Recorder payload has non-canonical fields".to_owned());
+                }
+                if map.get("type").and_then(serde_json::Value::as_str) != Some(event_type.as_str())
+                {
+                    return Err(
+                        "FEMS Flight Recorder payload type does not match event_type".to_owned(),
+                    );
+                }
+                let non_empty = |key: &str| {
+                    map.get(key)
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|value| !value.trim().is_empty())
+                };
+                let sha256 = |key: &str| {
+                    map.get(key)
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|value| {
+                            value.len() == 64
+                                && value
+                                    .chars()
+                                    .all(|ch| ch.is_ascii_hexdigit() && !ch.is_ascii_uppercase())
+                        })
+                };
+                let valid_artifact = |key: &str| {
+                    map.get(key)
+                        .and_then(serde_json::Value::as_object)
+                        .is_some_and(|artifact| {
+                            artifact.len() == 2
+                                && artifact
+                                    .get("artifact_id")
+                                    .and_then(serde_json::Value::as_str)
+                                    .and_then(|id| uuid::Uuid::parse_str(id).ok())
+                                    .is_some_and(|id| !id.is_nil())
+                                && artifact
+                                    .get("path")
+                                    .and_then(serde_json::Value::as_str)
+                                    .is_some_and(|path| !path.trim().is_empty())
+                        })
+                };
+                let valid_scope_refs = || {
+                    map.get("scope_refs")
+                        .and_then(serde_json::Value::as_array)
+                        .is_some_and(|refs| {
+                            refs.iter().all(|value| {
+                                value.as_object().is_some_and(|entity| {
+                                    entity.len() == 3
+                                        && entity
+                                            .get("artefact_type")
+                                            .and_then(serde_json::Value::as_str)
+                                            .is_some_and(|value| !value.trim().is_empty())
+                                        && entity
+                                            .get("artefact_id")
+                                            .and_then(serde_json::Value::as_str)
+                                            .and_then(|id| uuid::Uuid::parse_str(id).ok())
+                                            .is_some_and(|id| !id.is_nil())
+                                        && entity
+                                            .get("selector")
+                                            .and_then(serde_json::Value::as_str)
+                                            .is_some_and(|value| !value.trim().is_empty())
+                                })
+                            })
+                        })
+                };
+                let valid = match expected_code {
+                    "FR-EVT-MEM-001" => {
+                        non_empty("proposal_id")
+                            && sha256("proposal_hash")
+                            && valid_artifact("artifact_ref")
+                            && valid_scope_refs()
+                            && map
+                                .get("op_count")
+                                .and_then(serde_json::Value::as_u64)
+                                .is_some()
+                            && map
+                                .get("requires_review_count")
+                                .and_then(serde_json::Value::as_u64)
+                                .is_some()
+                    }
+                    "FR-EVT-MEM-002" => {
+                        non_empty("proposal_id")
+                            && map
+                                .get("decision")
+                                .and_then(serde_json::Value::as_str)
+                                .is_some_and(|value| {
+                                    matches!(value, "approved" | "rejected" | "partial")
+                                })
+                            && map
+                                .get("reviewer_kind")
+                                .and_then(serde_json::Value::as_str)
+                                .is_some_and(|value| matches!(value, "user" | "policy"))
+                            && (!map.contains_key("commit_report_ref")
+                                || valid_artifact("commit_report_ref"))
+                    }
+                    "FR-EVT-MEM-003" => {
+                        non_empty("commit_id")
+                            && non_empty("proposal_id")
+                            && sha256("commit_report_hash")
+                            && valid_artifact("artifact_ref")
+                            && sha256("changed_memory_ids_hash")
+                    }
+                    "FR-EVT-MEM-004" => {
+                        non_empty("pack_id")
+                            && sha256("memory_pack_hash")
+                            && valid_artifact("artifact_ref")
+                            && map
+                                .get("memory_policy")
+                                .and_then(serde_json::Value::as_str)
+                                .is_some_and(|value| {
+                                    matches!(
+                                        value,
+                                        "EPHEMERAL" | "SESSION_SCOPED" | "WORKSPACE_SCOPED"
+                                    )
+                                })
+                            && valid_scope_refs()
+                            && map
+                                .get("item_count")
+                                .and_then(serde_json::Value::as_u64)
+                                .is_some()
+                            && map
+                                .get("token_estimate")
+                                .and_then(serde_json::Value::as_u64)
+                                .is_some()
+                            && map
+                                .get("truncation_occurred")
+                                .and_then(serde_json::Value::as_bool)
+                                .is_some()
+                    }
+                    "FR-EVT-MEM-005" => {
+                        non_empty("memory_id")
+                            && non_empty("previous_status")
+                            && non_empty("new_status")
+                            && map
+                                .get("reason")
+                                .and_then(serde_json::Value::as_str)
+                                .is_some_and(|value| {
+                                    matches!(
+                                        value,
+                                        "pin"
+                                            | "unpin"
+                                            | "invalidate"
+                                            | "tombstone"
+                                            | "supersede"
+                                            | "merge"
+                                    )
+                                })
+                            && map
+                                .get("actor")
+                                .and_then(serde_json::Value::as_str)
+                                .is_some_and(|value| matches!(value, "user" | "job" | "policy"))
+                    }
+                    _ => false,
+                };
+                if !valid {
+                    return Err("FEMS Flight Recorder payload values are invalid".to_owned());
+                }
+                if !e
+                    .get("wsids")
+                    .and_then(serde_json::Value::as_array)
+                    .is_some_and(|wsids| {
+                        !wsids.is_empty()
+                            && wsids.iter().all(|wsid| {
+                                wsid.as_str().is_some_and(|value| !value.trim().is_empty())
+                            })
+                    })
+                {
+                    return Err("FEMS Flight Recorder row has no workspace scope".to_owned());
+                }
+                return Ok(crate::flight_recorder_pane::FlightRecorderRow {
+                    event_id,
+                    action: event_type,
+                    event_code: Some(expected_code.to_owned()),
+                    actor_id,
+                    ts_utc,
+                });
+            }
+            if event_family != Some("native_editor") {
+                return Err("native editor Flight Recorder row has wrong event_family".to_owned());
+            }
+            if e.get("event_type").and_then(|value| value.as_str()) != Some("system") {
+                return Err("native editor Flight Recorder row has wrong event_type".to_owned());
+            }
+            let schema = required(
+                payload
+                    .and_then(|payload| payload.get("schema"))
+                    .and_then(|value| value.as_str()),
+                "payload.schema",
+            )?;
+            let schema_version = required(
+                payload
+                    .and_then(|payload| payload.get("schema_version"))
+                    .and_then(|value| value.as_str()),
+                "payload.schema_version",
+            )?;
+            if schema != crate::event_emitter::NATIVE_EDITOR_SCHEMA_VERSION
+                || schema_version != crate::event_emitter::NATIVE_EDITOR_SCHEMA_VERSION
+            {
+                return Err("native editor Flight Recorder row has wrong schema".to_owned());
+            }
+            let action = required(
+                payload
+                    .and_then(|payload| payload.get("action"))
+                    .and_then(|value| value.as_str()),
+                "payload.action",
+            )?;
+            let kind = required(
+                payload
+                    .and_then(|payload| payload.get("kind"))
+                    .and_then(|value| value.as_str()),
+                "payload.kind",
+            )?;
+            if action != kind || !ACTIONS.contains(&action.as_str()) {
+                return Err(
+                    "native editor Flight Recorder row has unknown/mismatched action".to_owned(),
+                );
+            }
+            required(
+                payload
+                    .and_then(|payload| payload.get("pane_id"))
+                    .and_then(|value| value.as_str()),
+                "payload.pane_id",
+            )?;
+            let workspace_id = required(
+                payload
+                    .and_then(|payload| payload.get("workspace_id"))
+                    .and_then(|value| value.as_str()),
+                "payload.workspace_id",
+            )?;
+            let payload_actor_id = required(
+                payload
+                    .and_then(|payload| payload.get("actor_id"))
+                    .and_then(|value| value.as_str()),
+                "payload.actor_id",
+            )?;
+            if payload_actor_id != actor_id {
+                return Err(
+                    "native editor Flight Recorder row has mismatched actor identity".to_owned(),
+                );
+            }
+            if !e
+                .get("wsids")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|wsids| {
+                    wsids
+                        .iter()
+                        .any(|wsid| wsid.as_str() == Some(workspace_id.as_str()))
+                })
+            {
+                return Err(
+                    "native editor Flight Recorder row has mismatched workspace identity"
+                        .to_owned(),
+                );
+            }
+            let timestamp = chrono::DateTime::parse_from_rfc3339(&ts_utc).map_err(|_| {
+                "native editor Flight Recorder row has invalid timestamp".to_owned()
+            })?;
+            let payload_ts = required(
+                payload
+                    .and_then(|payload| payload.get("ts_utc"))
+                    .and_then(|value| value.as_str()),
+                "payload.ts_utc",
+            )?;
+            let payload_timestamp =
+                chrono::DateTime::parse_from_rfc3339(&payload_ts).map_err(|_| {
+                    "native editor Flight Recorder row has invalid payload timestamp".to_owned()
+                })?;
+            // DuckDB stores the recorder's typed TIMESTAMPTZ column at microsecond precision while
+            // the immutable native payload retains the producer's RFC3339 nanoseconds. Match the
+            // backend ingestion verifier's exact storage boundary: sub-microsecond spelling loss is
+            // the same instant for the recorder column, but the next microsecond is a real mismatch.
+            if payload_timestamp.timestamp_micros() != timestamp.timestamp_micros() {
+                return Err("native editor Flight Recorder row has mismatched timestamp".to_owned());
+            }
+            Ok(crate::flight_recorder_pane::FlightRecorderRow {
+                event_id,
+                action,
+                event_code: None,
+                actor_id,
+                ts_utc,
+            })
+        })();
+        match parsed {
+            Ok(row) => rows.push(row),
+            Err(error) => {
+                let event_id = e
+                    .get("event_id")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("unknown-event");
+                let diagnostic = format!("{event_id}: {error}");
+                tracing::warn!(error = %diagnostic, "quarantined malformed native-editor Flight Recorder row");
+                quarantined.push(diagnostic);
+            }
+        }
+    }
+    Ok(crate::flight_recorder_pane::FlightRecorderQueryRows { rows, quarantined })
 }
 
 /// WP-KERNEL-012 MT-036 REMEDIATION: the live FLIGHT-RECORDER pane, registered over the REAL
@@ -1370,6 +3294,7 @@ pub struct FlightRecorderPaneMount {
     palette: SharedPalette,
     /// Set true on the first render (the pane became visible) so the shell fires the fetch once.
     load_requested: Arc<std::sync::atomic::AtomicBool>,
+    initial_load_requested: std::sync::atomic::AtomicBool,
 }
 
 impl FlightRecorderPaneMount {
@@ -1382,6 +3307,7 @@ impl FlightRecorderPaneMount {
             pane,
             palette,
             load_requested,
+            initial_load_requested: std::sync::atomic::AtomicBool::new(false),
         }
     }
 }
@@ -1392,11 +3318,20 @@ impl PaneFactory for FlightRecorderPaneMount {
     }
 
     fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
-        self.load_requested
-            .store(true, std::sync::atomic::Ordering::Relaxed);
+        if !self
+            .initial_load_requested
+            .swap(true, std::sync::atomic::Ordering::Relaxed)
+        {
+            self.load_requested
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+        }
         let palette = palette_of(&self.palette);
         if let Ok(pane) = self.pane.lock() {
             pane.show(ui, &palette);
+            if pane.take_refresh_requested() {
+                self.load_requested
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
+            }
         }
     }
 
@@ -1435,10 +3370,179 @@ mod tests {
     }
 
     #[test]
+    fn stage_embed_split_caret_publishes_to_stable_authority_across_next_frame() {
+        use crate::rich_editor::document_model::node::{Child, HsLinkNode};
+        use crate::rich_editor::document_model::position::DocPosition;
+        use crate::rich_editor::document_model::selection::Selection;
+        use crate::rich_editor::renderer::rich_editor_widget::PendingStageEmbedSave;
+        use crate::rich_editor::save::draft_manager::{
+            DraftBackend, DraftError, DraftLoadFuture, DraftManager, DraftWriteFuture,
+        };
+        use crate::rich_editor::save::save_manager::{
+            SaveBackend, SaveError, SaveFuture, SaveManager,
+        };
+
+        struct NoopSave;
+        impl SaveBackend for NoopSave {
+            fn save_document(
+                &self,
+                _document_id: &str,
+                _content_json: serde_json::Value,
+                _expected_version: u64,
+            ) -> SaveFuture {
+                Box::pin(async { Err(SaveError::Network("unused".to_owned())) })
+            }
+        }
+        struct NoopDraft;
+        impl DraftBackend for NoopDraft {
+            fn load_draft(&self, _document_id: &str) -> DraftLoadFuture {
+                Box::pin(async { Err(DraftError::Network("unused".to_owned())) })
+            }
+            fn upsert_draft(
+                &self,
+                _document_id: &str,
+                _base_doc_version: u64,
+                _base_content_sha256: String,
+                _content_json: serde_json::Value,
+            ) -> DraftWriteFuture {
+                Box::pin(async { Err(DraftError::Network("unused".to_owned())) })
+            }
+            fn clear_draft(&self, _document_id: &str) -> DraftWriteFuture {
+                Box::pin(async { Err(DraftError::Network("unused".to_owned())) })
+            }
+        }
+        struct NoopLedger;
+        impl crate::event_emitter::EventLedgerTransport for NoopLedger {
+            fn build_post_body(
+                &self,
+                event: &crate::event_emitter::NativeEditorEvent,
+            ) -> serde_json::Value {
+                event.to_native_payload()
+            }
+            fn post(
+                &self,
+                _event: crate::event_emitter::NativeEditorEvent,
+            ) -> std::pin::Pin<
+                Box<
+                    dyn std::future::Future<Output = Result<(), crate::event_emitter::EmitError>>
+                        + Send,
+                >,
+            > {
+                Box::pin(async { Ok(()) })
+            }
+        }
+
+        let store = RichEditorDocumentStore::new(Arc::new(Mutex::new(RichEditorState::demo())));
+        let visible = vec![
+            ("pane-a".to_owned(), "doc-1".to_owned()),
+            ("pane-b".to_owned(), "doc-1".to_owned()),
+        ];
+        store.prepare_visible_views(&visible);
+        let authority = store.state_for_view(Some("doc-1"), "pane-a");
+        let target = store.state_for_view(Some("doc-1"), "pane-b");
+        {
+            let mut authority = authority.lock().unwrap();
+            authority.doc = BlockNode::doc(vec![BlockNode::paragraph("abcdef")]);
+            authority.selection = Selection::caret(DocPosition::new(vec![0, 0], 1));
+            let content =
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&authority.doc);
+            authority.save = Some(SaveManager::new(Arc::new(NoopSave), None, "doc-1", 42));
+            authority.draft = Some(DraftManager::new(
+                Arc::new(NoopDraft),
+                None,
+                "doc-1",
+                42,
+                &content,
+            ));
+        }
+        {
+            let mut target = target.lock().unwrap();
+            target.selection = Selection::caret(DocPosition::new(vec![0, 0], 4));
+        }
+
+        let receipt = crate::event_emitter::NativeEditorEvent::stage_embed_back(
+            "artifact-1",
+            "pane-b",
+            "a".repeat(64),
+            "manifest-1",
+            "actor-1",
+            "workspace-1",
+        );
+        let event_id = receipt.event_id.clone();
+        store
+            .insert_stage_embed_at_view_and_request_canonical_save(
+                "doc-1",
+                "pane-b",
+                PendingStageEmbedSave {
+                    link: HsLinkNode::new("stage_capture", "artifact-1", "capture"),
+                    artifact_id: "artifact-1".to_owned(),
+                    sha256: "a".repeat(64),
+                    target_pane: "pane-b".to_owned(),
+                    workspace_id: "workspace-1".to_owned(),
+                    target_epoch: 7,
+                    emitter: crate::event_emitter::NativeEditorEventEmitter::new(
+                        "workspace-1",
+                        Arc::new(NoopLedger),
+                        None,
+                    ),
+                    receipt,
+                    in_flight_lease: None,
+                    launch_runtime: None,
+                },
+            )
+            .expect("target-caret insertion publishes into canonical save authority");
+        let post_insert_selection = target.lock().unwrap().selection.clone();
+        assert!(matches!(
+            &post_insert_selection,
+            Selection::Text { head, .. }
+                if head.path == vec![0, 2] && head.char_offset == 0
+        ));
+        assert_eq!(
+            store.canonical_view_key("doc-1"),
+            Some(("pane-a".to_owned(), "doc-1".to_owned()))
+        );
+        // Simulate the next shell frame's deterministic authority recomputation. The canonical
+        // document/save/draft/pending receipt must not move or disappear.
+        store.prepare_visible_views(&visible);
+        let canonical = store
+            .canonical_state_for_document("doc-1")
+            .expect("stable canonical authority");
+        let canonical = canonical.lock().unwrap();
+        assert_eq!(canonical.save.as_ref().unwrap().doc_version, 42);
+        assert!(canonical.draft.is_some());
+        assert!(matches!(
+            &canonical.selection,
+            Selection::Text { head, .. }
+                if head.path == vec![0, 0] && head.char_offset == 1
+        ));
+        assert_eq!(
+            canonical
+                .pending_stage_embed_save
+                .as_ref()
+                .map(|pending| pending.receipt.event_id.as_str()),
+            Some(event_id.as_str())
+        );
+        let Child::Block(paragraph) = &canonical.doc.children[0] else {
+            panic!("expected paragraph block");
+        };
+        let children = &paragraph.children;
+        assert!(
+            matches!(children.as_slice(), [Child::Text(before), Child::HsLink(_), Child::Text(after)] if before.text.to_string() == "abcd" && after.text.to_string() == "ef")
+        );
+        drop(canonical);
+
+        let target = target.lock().unwrap();
+        assert_eq!(
+            target.selection, post_insert_selection,
+            "next-frame authority preparation must preserve the retained target view's post-insertion caret"
+        );
+    }
+
+    #[test]
     fn code_mount_pane_type_and_unbound_stays_unwired() {
         let panel = Arc::new(CodeEditorPanel::new("fn main() {}", "rs"));
         let session: SharedSessionContext = Arc::new(Mutex::new(EditorSessionContext::default()));
-        let (tx, _rx) = std::sync::mpsc::channel::<CodeEditorAction>();
+        let (tx, _rx) = std::sync::mpsc::channel::<CodeEditorHostCommand>();
         let mount = CodeEditorPaneMount::new(panel, session, tx);
         assert_eq!(mount.pane_type(), PaneType::CodeSymbol);
         // No bound session yet: wire_if_needed installs the command sender but NOT the runtime/workspace.
@@ -1457,12 +3561,213 @@ mod tests {
             "ws-42",
             rt.handle().clone(),
         )));
-        let (tx, _rx) = std::sync::mpsc::channel::<CodeEditorAction>();
+        let (tx, _rx) = std::sync::mpsc::channel::<CodeEditorHostCommand>();
         let mount = CodeEditorPaneMount::new(Arc::clone(&panel), session, tx);
         mount.wire_if_needed();
         assert!(mount.is_wired());
         // The prior-MT hook actually ran: the panel now carries the bound workspace id.
         assert_eq!(panel.workspace_id(), "ws-42");
+    }
+
+    #[test]
+    fn base_code_document_action_registry_tears_down_and_reactivates_symmetrically() {
+        let panel = Arc::new(CodeEditorPanel::new("fn main() {}", "rs"));
+        let session: SharedSessionContext = Arc::new(Mutex::new(EditorSessionContext::default()));
+        let (tx, _rx) = std::sync::mpsc::channel::<CodeEditorHostCommand>();
+        let store = CodeEditorDocumentStore::new(Arc::clone(&panel), session, tx);
+        let registry = Arc::new(Mutex::new(
+            crate::accessibility::editor_action_registry::EditorActionRegistry::new(),
+        ));
+        store.install_editor_action_registry(registry);
+        assert!(panel.has_editor_action_registry());
+
+        panel.uninstall_editor_action_registry();
+        assert!(
+            !panel.has_editor_action_registry(),
+            "closing the base tab removes its bare editor.code.* action namespace"
+        );
+
+        store.activate_base_document();
+        let reopened = store.panel_for_content_id(None);
+        assert!(Arc::ptr_eq(&panel, &reopened));
+        assert!(
+            reopened.has_editor_action_registry(),
+            "reopening the reusable base panel installs a fresh action namespace"
+        );
+    }
+
+    #[test]
+    fn rich_code_block_panel_is_virtual_and_keeps_exact_host_identity() {
+        let base = Arc::new(CodeEditorPanel::new("", "rs"));
+        let session: SharedSessionContext = Arc::new(Mutex::new(EditorSessionContext::default()));
+        let (tx, rx) = std::sync::mpsc::channel::<CodeEditorHostCommand>();
+        let store = CodeEditorDocumentStore::new(base, session, tx);
+        let content_id = "rich-code-block:646f632d31:1".to_owned();
+        let panel = store.insert_rich_code_block(content_id.clone(), "rs", "let before = 1;");
+
+        assert!(
+            panel.file_path().is_empty(),
+            "rich code blocks are never local files"
+        );
+        assert_eq!(panel.buffer().to_string(), "let before = 1;");
+        panel.request_save_for_host();
+        let command = rx.recv().expect("virtual code panel save reaches host");
+        assert_eq!(command.document_id, content_id);
+        assert_eq!(
+            command.action,
+            crate::code_editor::keymap::CodeEditorAction::Save
+        );
+    }
+
+    #[test]
+    fn rich_code_save_replaces_only_bound_block_and_dispatches_canonical_save() {
+        use crate::rich_editor::document_model::node::{Child, NodeKind, TextLeaf};
+        use crate::rich_editor::save::save_manager::{
+            SaveBackend, SaveError, SaveFuture, SaveManager, SaveState,
+        };
+
+        struct NoopSave;
+        impl SaveBackend for NoopSave {
+            fn save_document(
+                &self,
+                _document_id: &str,
+                _content_json: serde_json::Value,
+                _expected_version: u64,
+            ) -> SaveFuture {
+                Box::pin(async { Err(SaveError::Network("unused".to_owned())) })
+            }
+        }
+
+        let code = |text: &str| {
+            BlockNode::with_children(NodeKind::CodeBlock, vec![Child::Text(TextLeaf::new(text))])
+        };
+        let base = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![
+            BlockNode::paragraph("untitled"),
+        ]))));
+        let store = RichEditorDocumentStore::new(base);
+        let state = store.state_for_view(Some("KRD-1"), "pane-a");
+        {
+            let mut state = state.lock().unwrap();
+            state.doc = BlockNode::doc(vec![code("first"), code("second")]);
+            state.save = Some(SaveManager::new(Arc::new(NoopSave), None, "KRD-1", 7));
+        }
+        let opened_document_snapshot = {
+            let state = state.lock().unwrap();
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc)
+        };
+
+        let stale = store
+            .replace_code_block_and_request_save(
+                "KRD-1",
+                &[0],
+                &opened_document_snapshot,
+                "not-first",
+                "wrong overwrite",
+            )
+            .expect_err("a stale code snapshot must not overwrite any block");
+        assert!(stale.contains("changed after the Code Editor opened"));
+
+        let (expected_version, path, post_edit_snapshot) = store
+            .replace_code_block_and_request_save(
+                "KRD-1",
+                &[1],
+                &opened_document_snapshot,
+                "second",
+                "agent exact code",
+            )
+            .expect("exact code block update starts the canonical save");
+        assert_eq!(expected_version, 7);
+        assert_eq!(path, vec![1]);
+
+        let state = state.lock().unwrap();
+        let text_at = |index: usize| {
+            state.doc.children[index].as_block().unwrap().children[0]
+                .as_text()
+                .unwrap()
+                .text
+                .to_string()
+        };
+        assert_eq!(text_at(0), "first", "unbound code block stays untouched");
+        assert_eq!(text_at(1), "agent exact code");
+        assert_eq!(
+            post_edit_snapshot,
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc)
+        );
+        assert_eq!(state.pending_bus_undo.len(), 1);
+        assert!(matches!(
+            &state.save.as_ref().unwrap().state,
+            SaveState::Saving {
+                expected_version: 7
+            }
+        ));
+    }
+
+    #[test]
+    fn rich_code_save_rejects_identical_text_positional_drift() {
+        use crate::rich_editor::document_model::node::{Child, NodeKind, TextLeaf};
+        use crate::rich_editor::save::save_manager::{
+            SaveBackend, SaveError, SaveFuture, SaveManager,
+        };
+
+        struct NoopSave;
+        impl SaveBackend for NoopSave {
+            fn save_document(
+                &self,
+                _document_id: &str,
+                _content_json: serde_json::Value,
+                _expected_version: u64,
+            ) -> SaveFuture {
+                Box::pin(async { Err(SaveError::Network("unused".to_owned())) })
+            }
+        }
+
+        let code = || {
+            BlockNode::with_children(
+                NodeKind::CodeBlock,
+                vec![Child::Text(TextLeaf::new("identical"))],
+            )
+        };
+        let base = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![
+            BlockNode::paragraph("untitled"),
+        ]))));
+        let store = RichEditorDocumentStore::new(base);
+        let state = store.state_for_view(Some("KRD-DRIFT"), "pane-a");
+        let opened_document_snapshot = {
+            let mut state = state.lock().unwrap();
+            state.doc = BlockNode::doc(vec![code(), code()]);
+            state.save = Some(SaveManager::new(Arc::new(NoopSave), None, "KRD-DRIFT", 3));
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc)
+        };
+
+        // Insert another identical block before the bound path. Text-only validation would now
+        // silently update the wrong occurrence at [1]; whole-document structural validation rejects.
+        state
+            .lock()
+            .unwrap()
+            .doc
+            .children
+            .insert(0, Child::Block(code()));
+        let before_attempt = {
+            let state = state.lock().unwrap();
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc)
+        };
+        let error = store
+            .replace_code_block_and_request_save(
+                "KRD-DRIFT",
+                &[1],
+                &opened_document_snapshot,
+                "identical",
+                "must-not-land",
+            )
+            .expect_err("identical-text positional drift must fail closed");
+        assert!(error.contains("changed structurally"));
+        let state = state.lock().unwrap();
+        assert_eq!(
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+            before_attempt,
+            "drift rejection must not mutate any identical block"
+        );
+        assert!(state.pending_bus_undo.is_empty());
     }
 
     #[test]
@@ -1493,7 +3798,7 @@ mod tests {
                 ref_value: "DOC-2".into(),
                 resolved: true,
             });
-        mount.drain_events();
+        mount.drain_events(&state);
         assert!(
             state.lock().unwrap().pending_events.is_empty(),
             "drained from the editor state"
@@ -1508,5 +3813,67 @@ mod tests {
             events.is_empty(),
             "take() leaves the queue empty (routed exactly once)"
         );
+    }
+
+    #[test]
+    fn rich_document_store_keeps_two_document_states_distinct() {
+        let base = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![
+            BlockNode::paragraph("untitled"),
+        ]))));
+        let store = RichEditorDocumentStore::new(Arc::clone(&base));
+        let first = store.state_for_content_id(Some("KRD-first"));
+        let second = store.state_for_content_id(Some("KRD-second"));
+        assert!(!Arc::ptr_eq(&first, &second));
+        assert!(!Arc::ptr_eq(&first, &base));
+
+        first.lock().unwrap().doc = BlockNode::doc(vec![BlockNode::paragraph("first edit")]);
+        second.lock().unwrap().doc = BlockNode::doc(vec![BlockNode::paragraph("second edit")]);
+
+        assert_eq!(
+            store
+                .state_for_content_id(Some("KRD-first"))
+                .lock()
+                .unwrap()
+                .block_plain_text(0)
+                .as_deref(),
+            Some("first edit")
+        );
+        assert_eq!(
+            store
+                .state_for_content_id(Some("KRD-second"))
+                .lock()
+                .unwrap()
+                .block_plain_text(0)
+                .as_deref(),
+            Some("second edit")
+        );
+        assert_eq!(
+            base.lock().unwrap().block_plain_text(0).as_deref(),
+            Some("untitled")
+        );
+    }
+
+    #[test]
+    fn flight_recorder_fetch_rejects_late_prior_workspace_completion() {
+        use crate::flight_recorder_pane::{
+            FlightRecorderQuery, FlightRecorderQueryRows, FlightRecorderRow,
+        };
+        let cell = FlightRecorderFetchCell::new();
+        let generation_a = cell.begin("workspace-a");
+        let generation_b = cell.begin("workspace-b");
+        let row = |id: &str| FlightRecorderQueryRows {
+            rows: vec![FlightRecorderRow {
+                event_id: id.to_owned(),
+                action: "document_saved".to_owned(),
+                event_code: None,
+                actor_id: crate::event_emitter::DEFAULT_ACTOR_ID.to_owned(),
+                ts_utc: "2026-07-16T00:00:00Z".to_owned(),
+            }],
+            quarantined: Vec::new(),
+        };
+        assert!(cell.deliver_if_current(generation_b, "workspace-b", Ok(row("event-b"))));
+        assert!(!cell.deliver_if_current(generation_a, "workspace-a", Ok(row("event-a"))));
+        let current = cell.rows().expect("current workspace result");
+        assert_eq!(current.rows[0].event_id, "event-b");
     }
 }

@@ -87,8 +87,9 @@ pub use frame_timing::{
 pub use gpu_info::GpuInfo;
 pub use operation_watchdog::{
     active_stalled_operation_count, global_operation_watchdog, recent_stalled_operation_count,
-    start_global_operation_watchdog, OperationCode, OperationHandle, OperationWatchdog,
-    OperationWatchdogThread, StalledOperationReport, BACKEND_OPERATION_STALL_DEADLINE,
+    register_backend_operation, start_global_operation_watchdog, OperationCode, OperationHandle,
+    OperationWatchdog, OperationWatchdogThread, StalledOperationReport,
+    BACKEND_OPERATION_MAX_TOTAL_RUNTIME, BACKEND_OPERATION_STALL_DEADLINE,
     OPERATION_WATCHDOG_POLL_INTERVAL,
 };
 pub use resource_counters::{ResourceSample, ResourceSampler, SAMPLE_INTERVAL};

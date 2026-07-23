@@ -236,6 +236,24 @@ struct RegisteredLanguage {
 }
 
 impl LanguageRegistry {
+    /// Build the latency-critical first-emission highlighter for a large document. The parser still
+    /// completes a full-document syntax tree; only the capture query is reduced to the semantic
+    /// ranges needed for an immediately useful first viewport. The complete bundled query is run by
+    /// the panel's bounded initial-highlight worker and replaces these spans atomically.
+    pub fn initial_highlighter_for_extension(&self, ext: &str) -> Option<Highlighter> {
+        let entry = self.get(ext)?;
+        let query = match entry.language_id {
+            "rust" => {
+                "(line_comment) @comment\n(block_comment) @comment\n(string_literal) @string\n(function_item name: (identifier) @function)\n(type_identifier) @type"
+            }
+            "javascript" => {
+                "(comment) @comment\n(string) @string\n(function_declaration name: (identifier) @function\n)\n(class_declaration name: (identifier) @type)"
+            }
+            _ => entry.query_src.as_ref(),
+        };
+        Highlighter::with_language_id(entry.language.clone(), query, entry.language_id)
+    }
+
     /// An empty registry. Use [`with_bundled_languages`](Self::with_bundled_languages) for the
     /// default Rust + JavaScript set.
     pub fn new() -> Self {
@@ -321,6 +339,10 @@ impl Default for LanguageRegistry {
 pub struct Highlighter {
     parser: Parser,
     query: Query,
+    /// Capture-index to semantic-scope projection, computed once when the query is compiled. Resolving
+    /// dotted capture-name strings inside the per-token loop made large first loads spend substantial
+    /// time repeatedly splitting the same handful of names.
+    capture_scopes: Vec<HighlightScope>,
     /// Cached previous parse tree, exposed via [`tree`](Highlighter::tree) so MT-005 folding can
     /// derive fold regions from the SAME syntax tree (no second parse). NOT handed back to
     /// `Parser::parse` — see [`highlight`](Highlighter::highlight) (MT-001 Wave-B: an un-edited old
@@ -353,9 +375,15 @@ impl Highlighter {
         let mut parser = Parser::new();
         parser.set_language(&lang).ok()?;
         let query = Query::new(&lang, query_src).ok()?;
+        let capture_scopes = query
+            .capture_names()
+            .iter()
+            .map(|name| HighlightScope::from_capture_name(name))
+            .collect();
         Some(Self {
             parser,
             query,
+            capture_scopes,
             old_tree: None,
             language_id,
         })
@@ -390,32 +418,113 @@ impl Highlighter {
             None => return Vec::new(),
         };
 
-        let mut spans: Vec<HighlightSpan> = Vec::new();
-        let mut cursor = QueryCursor::new();
-        let capture_names = self.query.capture_names();
-        // tree-sitter 0.25: `QueryCursor::matches` returns a `StreamingIterator` of `QueryMatch`
-        // (the underlying C cursor mutates on each step, so it cannot be a plain `Iterator`); walk it
-        // with `while let Some(m) = matches.next()`. The `source` byte slice is the `TextProvider`.
-        let mut matches = cursor.matches(&self.query, tree.root_node(), source);
-        while let Some(m) = matches.next() {
-            for cap in m.captures {
-                let name = capture_names.get(cap.index as usize).copied().unwrap_or("");
-                let scope = HighlightScope::from_capture_name(name);
-                let node = cap.node;
-                spans.push(HighlightSpan {
-                    byte_range: node.start_byte()..node.end_byte(),
-                    scope,
-                });
-            }
-        }
-
-        // tree-sitter emits captures in match order, which is not strictly source order across
-        // overlapping patterns; sort by start byte so the renderer can walk spans left-to-right and
-        // resolve overlaps deterministically (a later, more specific capture wins on equal start).
-        spans.sort_by_key(|s| (s.byte_range.start, s.byte_range.end));
-
+        let spans = self.collect_captures(&tree, source, None);
         self.old_tree = Some(tree);
         spans
+    }
+
+    /// Complete a FULL tree-sitter parse, then emit only captures intersecting `byte_range`. This is
+    /// the large-file first-paint path: parsing is never deferred, while document-wide capture
+    /// projection can finish on a bounded worker after the first visible syntax ranges are available.
+    pub fn highlight_range(
+        &mut self,
+        source: &[u8],
+        byte_range: std::ops::Range<usize>,
+    ) -> Vec<HighlightSpan> {
+        let tree = match self.parser.parse(source, None) {
+            Some(tree) => tree,
+            None => return Vec::new(),
+        };
+        let spans = self.collect_captures(&tree, source, Some(byte_range));
+        self.old_tree = Some(tree);
+        spans
+    }
+
+    /// Project captures for `byte_range` from the already parsed current tree without reparsing. Used
+    /// while a large file's document-wide background projection is still in flight so scrolling remains
+    /// immediately and correctly highlighted.
+    pub fn captures_for_current_range(
+        &self,
+        source: &[u8],
+        byte_range: std::ops::Range<usize>,
+    ) -> Vec<HighlightSpan> {
+        self.old_tree
+            .as_ref()
+            .map(|tree| self.collect_captures(tree, source, Some(byte_range)))
+            .unwrap_or_default()
+    }
+
+    /// Project captures from a completed tree while cooperatively observing cancellation between
+    /// capture iterations. This is the large-document worker seam: cancellation does not wait for an
+    /// entire document-wide query projection to finish, and no parser is invoked here.
+    pub(crate) fn captures_for_tree_cancellable(
+        &self,
+        tree: &Tree,
+        source: &[u8],
+        byte_range: std::ops::Range<usize>,
+        mut cancelled: impl FnMut() -> bool,
+    ) -> Option<Vec<HighlightSpan>> {
+        self.collect_captures_cancellable(tree, source, Some(byte_range), &mut cancelled)
+    }
+
+    fn collect_captures(
+        &self,
+        tree: &Tree,
+        source: &[u8],
+        byte_range: Option<std::ops::Range<usize>>,
+    ) -> Vec<HighlightSpan> {
+        self.collect_captures_cancellable(tree, source, byte_range, &mut || false)
+            .expect("non-cancellable capture projection cannot be cancelled")
+    }
+
+    fn collect_captures_cancellable(
+        &self,
+        tree: &Tree,
+        source: &[u8],
+        byte_range: Option<std::ops::Range<usize>>,
+        cancelled: &mut impl FnMut() -> bool,
+    ) -> Option<Vec<HighlightSpan>> {
+        if cancelled() {
+            return None;
+        }
+        // Syntax-heavy source commonly yields roughly one capture per 4 source bytes. A bounded
+        // estimate avoids repeated Vec growth/copies during the first large-file load while keeping
+        // small files small and respecting the separate LC-05 memory gate.
+        let projected_bytes = byte_range
+            .as_ref()
+            .map(|range| range.end.saturating_sub(range.start))
+            .unwrap_or(source.len());
+        let mut spans: Vec<HighlightSpan> =
+            Vec::with_capacity((projected_bytes / 4).clamp(64, 1_000_000));
+        let mut cursor = QueryCursor::new();
+        if let Some(range) = byte_range {
+            cursor.set_byte_range(range);
+        }
+        // `QueryCursor::captures` yields the individual captures in source order directly. The older
+        // match-order path collected every match and then sorted tens of thousands of spans in Rust;
+        // that redundant O(n log n) sort dominated debug first-load latency on large generated files.
+        // The underlying C cursor mutates, so this remains a StreamingIterator.
+        let mut captures = cursor.captures(&self.query, tree.root_node(), source);
+        while let Some((query_match, capture_index)) = captures.next() {
+            if cancelled() {
+                return None;
+            }
+            let Some(cap) = query_match.captures.get(*capture_index) else {
+                continue;
+            };
+            let scope = self
+                .capture_scopes
+                .get(cap.index as usize)
+                .copied()
+                .unwrap_or(HighlightScope::Other);
+            let node = cap.node;
+            spans.push(HighlightSpan {
+                byte_range: node.start_byte()..node.end_byte(),
+                scope,
+            });
+        }
+
+        Some(spans)
     }
 }
 

@@ -85,6 +85,10 @@ pub const SETTINGS_LIST_AUTHOR_ID: &str = "settings.list";
 pub const THEME_COMBO_AUTHOR_ID: &str = "settings.theme";
 /// Stable author_id for the View Mode ComboBox.
 pub const VIEW_MODE_COMBO_AUTHOR_ID: &str = "settings.view-mode";
+/// Stable author_id for the Calendar view timezone input.
+pub const CALENDAR_TIMEZONE_AUTHOR_ID: &str = "settings.calendar-timezone";
+/// Stable author_id for applying a valid Calendar view timezone.
+pub const CALENDAR_TIMEZONE_APPLY_AUTHOR_ID: &str = "settings.calendar-timezone.apply";
 /// Stable author_id for the Swarm board default-open checkbox.
 pub const SWARM_BOARD_CHECKBOX_AUTHOR_ID: &str = "settings.swarm-board-default-open";
 /// Stable author_id for the Reset panes & drawers button.
@@ -105,6 +109,18 @@ pub const NOT_WIRED_AUTHOR_ID_PREFIX: &str = "settings.not-wired.";
 /// stable handle to expand/collapse each section. Without it the header is an interactive control with
 /// no stable address — the gap the MT-029 overlay accessibility-invariant proof surfaces.
 pub const SECTION_HEADER_AUTHOR_ID_PREFIX: &str = "settings.section.";
+/// Stable AccessKit address for retrying the exact failed settings GET or PUT.
+pub const SETTINGS_PERSIST_RETRY_AUTHOR_ID: &str = "settings.persist.retry";
+/// Stable AccessKit status address for the visible settings persistence failure.
+pub const SETTINGS_PERSIST_ERROR_AUTHOR_ID: &str = "settings.persist.error";
+
+/// The production settings operation whose last attempt failed. The app retains this typed identity so
+/// Retry never guesses between reloading durable state and re-sending the current in-memory edits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SettingsPersistenceOperation {
+    Load,
+    Save,
+}
 
 /// What the dialog wants the shell to do after a frame.
 ///
@@ -124,6 +140,8 @@ pub enum SettingsOutcome {
     ThemeChanged(WorkspaceTheme),
     /// The View Mode ComboBox selected a (different) mode. WIRED.
     ViewModeChanged(SettingsViewMode),
+    /// A valid IANA timezone was selected for Calendar local-date projection.
+    CalendarTimezoneChanged(String),
     /// A keybinding's chord changed to a NON-conflicting value (already normalized). WIRED — the shell
     /// persists it. A conflicting draft does NOT emit this (it only shows the banner), so a conflicting
     /// binding is never saved (AC6).
@@ -148,6 +166,8 @@ pub enum SettingsOutcome {
     EditorKeybindingReset { action_id: String },
     /// MT-102: Settings -> Diagnostics requested a Visual Debugger worksurface JSON dump.
     WorksurfaceInspectorDumpRequested,
+    /// Retry the exact failed GET or PUT while retaining the current in-memory settings.
+    RetryPersistence,
     /// The user dismissed the dialog (Escape, the Close button, or a backdrop click). The shell clears
     /// the open flag.
     Close,
@@ -163,6 +183,8 @@ pub struct SettingsView<'a> {
     pub settings: &'a WorkspaceSettingsState,
     /// The last transient persistence error, if any, surfaced on the status row.
     pub persist_error: Option<&'a str>,
+    /// Typed failed operation paired with `persist_error`; drives the exact Retry action.
+    pub persist_retry_operation: Option<SettingsPersistenceOperation>,
     /// WP-KERNEL-012 MT-087: the live `internal_diagnostics` projection the shell rebuilt this frame
     /// (heartbeat / frame-stats / resource / GPU / dropped / ring-status). Rendered by the Settings ->
     /// Diagnostics section (§5.8.4). The panel reads the last-N events directly from the process-global
@@ -201,6 +223,8 @@ struct DialogState {
     drafts: Vec<(String, String)>,
     /// Set once after a (re-)open so the search box is focused on the first frame only.
     focus_requested: bool,
+    /// In-progress IANA timezone text, committed only through the adjacent Apply action.
+    calendar_tzid_draft: String,
 }
 
 impl DialogState {
@@ -246,6 +270,7 @@ impl DialogState {
             keybindings,
             view_mode: live.view_mode,
             swarm_board_default_open: live.swarm_board_default_open,
+            calendar_view_tzid: live.calendar_view_tzid.clone(),
             // MT-072: this snapshot is used ONLY for APP-level keybinding conflict detection; the
             // editor settings ride along unchanged from the live state so the snapshot stays a faithful
             // copy of everything the conflict check does not touch.
@@ -304,6 +329,7 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
                 })
                 .collect(),
             focus_requested: false,
+            calendar_tzid_draft: view.settings.calendar_view_tzid.clone(),
         };
     }
 
@@ -398,6 +424,9 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
                 .hint_text("Theme, quick switcher, terminal...")
                 .desired_width(f32::INFINITY);
             let _edit_response = ui.add(edit);
+            if let Some(value) = crate::mcp::accesskit_string_set_value(ui, search_egui_id) {
+                state.query = value;
+            }
             if !state.focus_requested {
                 _edit_response.request_focus();
                 state.focus_requested = true;
@@ -407,10 +436,23 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
             // Persistence error row (HBR: important state visible; surfaces a save/load failure).
             if let Some(err) = view.persist_error {
                 ui.add_space(4.0);
-                ui.colored_label(
+                let status = ui.colored_label(
                     ui.visuals().error_fg_color,
                     format!("Settings sync error: {err}"),
                 );
+                set_author_id(ui, status.id, SETTINGS_PERSIST_ERROR_AUTHOR_ID);
+                if view.persist_retry_operation.is_some() {
+                    let retry_label = match view.persist_retry_operation {
+                        Some(SettingsPersistenceOperation::Load) => "Retry settings load",
+                        Some(SettingsPersistenceOperation::Save) => "Retry settings save",
+                        None => unreachable!(),
+                    };
+                    let retry = ui.button(retry_label);
+                    set_author_id(ui, retry.id, SETTINGS_PERSIST_RETRY_AUTHOR_ID);
+                    if retry.clicked() && outcome == SettingsOutcome::None {
+                        outcome = SettingsOutcome::RetryPersistence;
+                    }
+                }
             }
 
             ui.add_space(6.0);
@@ -477,11 +519,18 @@ fn render_sections(
             "mode",
             "sfw",
             "nsfw",
+            "calendar",
+            "timezone",
+            "iana",
         ],
     );
     let show_theme_row = setting_matches_query(query, &["appearance", "theme", "light", "dark"]);
     let show_view_mode_row =
         setting_matches_query(query, &["appearance", "view", "mode", "sfw", "nsfw"]);
+    let show_calendar_timezone_row = setting_matches_query(
+        query,
+        &["appearance", "calendar", "timezone", "iana", "tzid"],
+    );
     if show_appearance {
         let appearance_header = egui::CollapsingHeader::new("Appearance")
             .default_open(true)
@@ -531,6 +580,35 @@ fn render_sections(
                         set_author_id(ui, combo.response.id, THEME_COMBO_AUTHOR_ID);
                         if selected != current && outcome == SettingsOutcome::None {
                             outcome = SettingsOutcome::ThemeChanged(selected);
+                        }
+                    });
+                }
+                if show_calendar_timezone_row {
+                    ui.horizontal(|ui| {
+                        ui.label("Calendar timezone");
+                        let input = ui.add(
+                            egui::TextEdit::singleline(&mut state.calendar_tzid_draft)
+                                .desired_width(180.0),
+                        );
+                        set_author_id_and_label(
+                            ui,
+                            input.id,
+                            CALENDAR_TIMEZONE_AUTHOR_ID,
+                            "Calendar timezone (IANA)",
+                        );
+                        let valid = state.calendar_tzid_draft.parse::<chrono_tz::Tz>().is_ok();
+                        let apply = ui.add_enabled(valid, egui::Button::new("Apply"));
+                        set_author_id(ui, apply.id, CALENDAR_TIMEZONE_APPLY_AUTHOR_ID);
+                        if apply.clicked()
+                            && state.calendar_tzid_draft != settings.calendar_view_tzid
+                            && outcome == SettingsOutcome::None
+                        {
+                            outcome = SettingsOutcome::CalendarTimezoneChanged(
+                                state.calendar_tzid_draft.clone(),
+                            );
+                        }
+                        if !valid {
+                            ui.colored_label(ui.visuals().error_fg_color, "Invalid IANA timezone");
                         }
                     });
                 }
@@ -829,8 +907,9 @@ fn render_sections(
     //
     // MT-072 Fix 2: the editor-related sections render as a CONTIGUOUS group in the contract's structured
     // order — Editor -> Syntax -> About — BEFORE About (they were previously appended AFTER About, which
-    // split them out of order). They stay CLOSED BY DEFAULT so the dialog's default body stays short (a
-    // search query auto-expands a matching section), and they still render AFTER the WP-011 control
+    // split them out of order). They stay OPEN BY DEFAULT so the operator and AccessKit clients can
+    // discover and operate the declared editor options without a hidden prerequisite click; a search
+    // query still force-expands a matching section. They render AFTER the WP-011 control
     // sections (Appearance..Model Session), so the reset-layout single-pointer-click test on a higher
     // WP-011 control is unaffected. The editor Keybindings EXTENSION stays IN PLACE inside the one
     // Keybindings section above (RISK-005 — not a 2nd keybindings store), wrapped in its own collapsed
@@ -854,12 +933,11 @@ fn render_sections(
     );
     if show_editor {
         // FORCE open while a search query is active (`.open(Some(true))` overrides egui's persisted
-        // collapsed state — `default_open` would be ignored after the header was first rendered closed);
-        // with no query, leave egui's own open/close state alone (`.open(None)`) so the user's manual
-        // expand/collapse sticks, starting collapsed.
+        // collapsed state — `default_open` would be ignored after the user manually closed it). With
+        // no query, leave egui's own open/close state alone (`.open(None)`) so that choice sticks.
         let force_open = (!query.is_empty()).then_some(true);
         let editor_header = egui::CollapsingHeader::new("Editor")
-            .default_open(false)
+            .default_open(true)
             .open(force_open)
             .show(ui, |ui| {
                 let o = editor_section.render_editor_prefs(ui, &editor_view);
@@ -895,7 +973,7 @@ fn render_sections(
     if show_syntax {
         let force_open = (!query.is_empty()).then_some(true);
         let syntax_header = egui::CollapsingHeader::new("Syntax")
-            .default_open(false)
+            .default_open(true)
             .open(force_open)
             .show(ui, |ui| {
                 let o = editor_section.render_syntax_palette(ui, &editor_view);
@@ -1059,6 +1137,9 @@ fn emit_dialog_node(ctx: &egui::Context, dialog_id: egui::Id) {
 /// Emit the search box address. egui already derived `Role::TextInput`; this adds the stable author_id.
 fn emit_search_node(ctx: &egui::Context, search_id: egui::Id) {
     crate::accessibility::emit_interactive_node(ctx, search_id, SETTINGS_SEARCH_AUTHOR_ID);
+    ctx.accesskit_node_builder(search_id, |node| {
+        node.add_action(accesskit::Action::SetValue);
+    });
 }
 
 /// Emit the body/list region node (Role::Group, label="Settings sections").

@@ -44,9 +44,7 @@ pub const CODE_EDITOR_HOVER_GOTODEF_AUTHOR_ID: &str = "code_editor_hover_gotodef
 /// 300.., nav 370.., gutter 400.., breakpoint 410.., diagnostic 480..). These overlays render ONLY
 /// while a completion / hover is active.
 const COMPLETION_POPUP_NODE_ID: u64 = 600;
-const COMPLETION_ITEM_NODE_ID_BASE: u64 = 601;
 const HOVER_NODE_ID: u64 = 680;
-const HOVER_GOTODEF_NODE_ID: u64 = 681;
 
 /// Max completion items surfaced as AccessKit `Role::Option` nodes per frame (RISK-004 analog of the
 /// cursor/fold caps). The popup itself caps the visible list; a pathological 1000-item response cannot
@@ -161,17 +159,12 @@ impl CompletionPopup {
                                 if is_selected {
                                     text = text.strong();
                                 }
-                                let resp = ui.add(
-                                    egui::Label::new(text).sense(egui::Sense::click()),
-                                );
-                                if is_selected {
-                                    // Paint a selection background so the keyboard selection is visible.
-                                    ui.painter().rect_filled(
-                                        resp.rect.expand2(egui::vec2(2.0, 1.0)),
-                                        2.0,
-                                        ui.visuals().selection.bg_fill.linear_multiply(0.4),
-                                    );
-                                }
+                                // Use an actual enabled selection control. A clickable `Label` exposes
+                                // `Click` through AccessKit but egui still marks the node disabled, so
+                                // canonical Argus correctly refuses to steer it. `selectable_label`
+                                // retains the compact row appearance while making pointer, keyboard,
+                                // AccessKit, and localhost Argus activation agree on one live control.
+                                let resp = ui.selectable_label(is_selected, text);
                                 if !item.detail.is_empty() {
                                     resp.clone().on_hover_text(&item.detail);
                                 }
@@ -188,7 +181,10 @@ impl CompletionPopup {
                                             "{CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX}{n}#{instance}"
                                         )
                                     };
-                                    let node_id = item_node_id(n, instance);
+                                    // Name the SAME live node egui created for the clickable label.
+                                    // A separate synthetic node is inspectable but its AccessKit Click
+                                    // cannot reach `resp.clicked()`; `resp.id` makes Argus steering real.
+                                    let node_id = resp.id;
                                     let value = if item.detail.is_empty() {
                                         item.label.clone()
                                     } else {
@@ -196,6 +192,11 @@ impl CompletionPopup {
                                     };
                                     ctx.accesskit_node_builder(node_id, move |node| {
                                         node.set_role(Self::item_role());
+                                        // The row is a live selectable control. Clear the inherited
+                                        // disabled bit left by egui's label-shaped accessibility
+                                        // projection so the advertised Click action is truthfully
+                                        // steerable through the canonical MCP action gate.
+                                        node.clear_disabled();
                                         node.set_author_id(author.clone());
                                         node.set_label("Completion item".to_owned());
                                         node.set_value(value.clone());
@@ -227,6 +228,16 @@ impl CompletionPopup {
 }
 
 /// The hover-tooltip transient state, owned by the panel. Present only while a hover is showing.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CodeNavigationLocation {
+    /// Canonical LSP URI when available. CodeNav targets also retain their symbol-key path below.
+    pub uri: String,
+    /// Filesystem path derived from the authoritative symbol key or URI. Relative CodeNav paths stay
+    /// relative so the host can resolve them against its workspace rather than the current document.
+    pub path: Option<String>,
+    pub range: lsp_types::Range,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct HoverState {
     /// The markdown body to render (heading + kind + key + staleness + optional doc).
@@ -235,8 +246,8 @@ pub struct HoverState {
     pub display_name: String,
     /// The cursor pixel position the tooltip anchors near (top-left), so it floats at the hovered word.
     pub anchor: egui::Pos2,
-    /// The go-to-definition target line (0-based), shown as a clickable link when present.
-    pub definition_line: Option<usize>,
+    /// Lossless go-to-definition target. URI/path/range supports both same-file and cross-file links.
+    pub definition_target: Option<CodeNavigationLocation>,
 }
 
 /// What the hover tooltip wants the panel to do after a frame.
@@ -244,8 +255,8 @@ pub struct HoverState {
 pub enum HoverOutcome {
     /// Nothing happened; keep the tooltip showing.
     None,
-    /// The user clicked "Go to definition"; the panel navigates to `line` (0-based) and closes hover.
-    GotoDefinition(usize),
+    /// The user clicked "Go to definition"; the panel routes the lossless target.
+    GotoDefinition(CodeNavigationLocation),
 }
 
 /// The hover-tooltip renderer (stateless — the panel owns the [`HoverState`]).
@@ -275,12 +286,17 @@ impl HoverTooltip {
                     ui.set_max_width(420.0);
                     // Render the markdown as inline-formatted text (lightweight — see method docs).
                     render_markdown_inline(ui, &state.markdown);
-                    if let Some(line) = state.definition_line {
+                    if let Some(target) = state.definition_target.as_ref() {
                         ui.separator();
-                        let link = ui.link(format!("Go to definition (line {})", line + 1));
+                        let link = ui.link(format!(
+                            "Go to definition (line {})",
+                            target.range.start.line + 1
+                        ));
                         // Emit the go-to-def link node so an agent can dispatch it by id (HBR-SWARM).
                         let author = suffixed(CODE_EDITOR_HOVER_GOTODEF_AUTHOR_ID, instance);
-                        let node_id = hover_gotodef_node_id(instance);
+                        // Name the actual interactive link node so an Argus/MCP AccessKit Click reaches
+                        // `link.clicked()` rather than targeting an inert synthetic node.
+                        let node_id = link.id;
                         ctx.accesskit_node_builder(node_id, move |node| {
                             node.set_role(accesskit::Role::Link);
                             node.set_author_id(author.clone());
@@ -288,7 +304,7 @@ impl HoverTooltip {
                             node.add_action(accesskit::Action::Click);
                         });
                         if link.clicked() {
-                            outcome = HoverOutcome::GotoDefinition(line);
+                            outcome = HoverOutcome::GotoDefinition(target.clone());
                         }
                     }
 
@@ -377,18 +393,6 @@ fn popup_node_id(instance: &str) -> egui::Id {
     }
 }
 
-/// The fixed `egui::Id` for completion item `n` (default panel; instances hash the suffixed author_id).
-fn item_node_id(n: usize, instance: &str) -> egui::Id {
-    if instance.is_empty() {
-        // SAFETY: each `n` maps to a distinct fixed slot in the disjoint overlay band; never reused.
-        unsafe { egui::Id::from_high_entropy_bits(COMPLETION_ITEM_NODE_ID_BASE + n as u64) }
-    } else {
-        egui::Id::new(format!(
-            "{CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX}{n}#{instance}"
-        ))
-    }
-}
-
 /// The fixed `egui::Id` for the hover tooltip (default panel; instances hash the author_id).
 fn hover_node_id(instance: &str) -> egui::Id {
     if instance.is_empty() {
@@ -396,16 +400,6 @@ fn hover_node_id(instance: &str) -> egui::Id {
         unsafe { egui::Id::from_high_entropy_bits(HOVER_NODE_ID) }
     } else {
         egui::Id::new(suffixed(CODE_EDITOR_HOVER_AUTHOR_ID, instance))
-    }
-}
-
-/// The fixed `egui::Id` for the hover go-to-definition link (default panel; instances hash the author_id).
-fn hover_gotodef_node_id(instance: &str) -> egui::Id {
-    if instance.is_empty() {
-        // SAFETY: a single hand-assigned fixed id in the disjoint overlay band; never reused.
-        unsafe { egui::Id::from_high_entropy_bits(HOVER_GOTODEF_NODE_ID) }
-    } else {
-        egui::Id::new(suffixed(CODE_EDITOR_HOVER_GOTODEF_AUTHOR_ID, instance))
     }
 }
 
@@ -453,18 +447,12 @@ mod tests {
     }
 
     // The overlay band (600..) sits above every panel band (the highest panel band is the
-    // diagnostic band at 480..480+64=544). The completion-item band must not overrun into the
-    // hover node, and the whole overlay band must sit above the diagnostic band's top. These are
-    // compile-time invariants over `const` node-id allocations, so they are enforced with
-    // `const { assert!(...) }` rather than a runtime `assert!` (which clippy would flag as
-    // assertions_on_constants / "optimized out").
+    // diagnostic band at 480..480+64=544). Completion items use the IDs of their live egui label
+    // responses, so only the two synthetic container IDs participate in this fixed-band invariant.
+    // This is a compile-time assertion because both values are constants.
     const DIAGNOSTIC_BAND_TOP: u64 = 544;
     const _: () = assert!(
         COMPLETION_POPUP_NODE_ID > DIAGNOSTIC_BAND_TOP,
         "popup node must sit above the diagnostic band top"
-    );
-    const _: () = assert!(
-        HOVER_NODE_ID > COMPLETION_ITEM_NODE_ID_BASE + MAX_ACCESSKIT_COMPLETION_ITEMS as u64,
-        "the hover node must sit above the completion-item band's top"
     );
 }

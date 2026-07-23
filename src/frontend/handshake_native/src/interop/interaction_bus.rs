@@ -41,13 +41,17 @@
 //! and a command handler must NEVER re-enter the lock (it receives `&mut InteractionBus` already
 //! locked). Contention is logged once and skipped, never deadlocked.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use crate::event_bus::ShellEventSender;
 use crate::pane_registry::PaneId;
 use crate::rich_editor::properties::metadata_client::ClipboardSink;
 use crate::undo_stack::{UndoAction, UndoResult, UnifiedUndoScope};
+
+/// Maximum workspace/session emitter generations retained by one app bus. The active/recent set keeps
+/// delayed A -> B -> A completions attributable while bounding background workers under long sessions.
+pub const MAX_RETAINED_EVENT_EMITTER_WORKSPACES: usize = 8;
 
 /// Stable egui app-data key for the shared bus. Every pane retrieves the bus by this id in `update()`
 /// (`ctx.data_mut(|d| d.get_temp::<Arc<Mutex<InteractionBus>>>(INTERACTION_BUS_ID))`), so all panes
@@ -80,8 +84,8 @@ pub const CMD_COMMAND_PALETTE: &str = "interop.command-palette";
 pub const CMD_OPEN_DOCUMENT: &str = "interop.open-document";
 /// WP-KERNEL-012 MT-033 (E5 — route-to-Stage): cross-pane Route-to-Stage command id. A rich-text
 /// selection / canvas node / CKC item dispatches this with the [`crate::stage_pane::StageContent`] staged
-/// via [`InteractionBus::request_route_to_stage`]; the shell drains
-/// [`InteractionBus::take_pending_stage_content`] and opens/focuses the Stage pane with that content.
+/// via [`InteractionBus::route_to_stage`]; the shell peeks the complete pending route, applies it to
+/// Stage, then acknowledges that exact event id before emitting its success receipt.
 /// This is the melt-together Editors<->Stage (Pillar 17) navigation primitive. The DEEPER Stage backend
 /// interop (capture/embed-back with manifest provenance) is E10 (MT-066), NOT this command.
 pub const CMD_ROUTE_TO_STAGE: &str = "interop.route-to-stage";
@@ -119,6 +123,67 @@ pub const CMD_REDO: &str = "interop.redo";
 /// Dispatch undoes the most recent action on the single cross-pane ring (embed-from-atelier,
 /// route-to-stage, canvas placement), regardless of which pane is focused.
 pub const CMD_UNDO_CROSS_PANE: &str = "interop.undo-cross-pane";
+
+/// One generation of the operator's shared native-editor Find query. The generation advances only when
+/// the query text changes, so a consumer can reject a late result produced for an older rapid edit.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SharedFindQuery {
+    pub generation: u64,
+    pub pattern: String,
+}
+
+/// One code-file result produced by the MT-029 workspace search backend. The backend identity is kept
+/// intact so another pane/agent can route the entry without reconstructing it from display text.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SharedCodeFindEntry {
+    pub source_kind: String,
+    pub result_kind: String,
+    pub ref_id: String,
+    pub block_id: Option<String>,
+    pub content_type: String,
+    pub title: String,
+    pub excerpt: String,
+}
+
+/// Typed code side of the shared query. `entries` are authoritative global MT-029 backend rows;
+/// `mounted_match_count` is the current local editor scan and is deliberately separate so a local
+/// Ctrl+F match can never be misrepresented as a workspace search result.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SharedCodeFindResults {
+    pub entries: Vec<SharedCodeFindEntry>,
+    pub mounted_match_count: usize,
+}
+
+/// One note result produced by the MT-029 workspace search backend. Rich-document and Loom-note rows
+/// share this typed projection while retaining their producer ids.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SharedNoteFindEntry {
+    pub source_kind: String,
+    pub result_kind: String,
+    pub ref_id: String,
+    pub block_id: Option<String>,
+    pub document_id: Option<String>,
+    pub content_type: String,
+    pub title: String,
+    pub excerpt: String,
+}
+
+/// Typed note side of the shared query. Backend entries and the mounted rich-document scan remain
+/// distinct evidence rather than being collapsed into an unverifiable count.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SharedNoteFindResults {
+    pub entries: Vec<SharedNoteFindEntry>,
+    pub mounted_match_count: usize,
+}
+
+/// The latest accepted result pair for one shared query. Code and note results remain separate typed
+/// fields because they route to different editor surfaces and carry different producer identities.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SharedFindResults {
+    pub query: SharedFindQuery,
+    pub code: SharedCodeFindResults,
+    pub note: SharedNoteFindResults,
+}
 
 // ── AccessKit author_ids for the cross-pane command surface (the contract's named ids) ───────────────
 /// AccessKit author_id for the command-palette trigger button (Role::Button).
@@ -213,6 +278,63 @@ impl SharedSelection {
     /// True when there is an actual selection (not [`SharedSelection::None`]).
     pub fn is_some(&self) -> bool {
         !matches!(self, SharedSelection::None)
+    }
+}
+
+/// One proposal-open request captured by the shared command bus. The selection and emitter are cloned
+/// at command-dispatch time so the app cannot accidentally combine a later selection or workspace
+/// emitter with the request that the operator/model actually issued.
+#[derive(Clone)]
+pub struct PendingMemoryProposalRequest {
+    pub workspace_id: String,
+    pub workspace_generation: u64,
+    pub selection: SharedSelection,
+    pub emitter: Option<crate::event_emitter::NativeEditorEventEmitter>,
+}
+
+/// One admitted Route-to-Stage operation. Content, semantic kind, causal id,
+/// and the producer-created receipt identity move together so contention/retry
+/// cannot downgrade a Canvas route to Selection or mint duplicate event ids.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PendingStageRoute {
+    pub content: crate::stage_pane::StageContent,
+    pub content_kind: String,
+    pub causal_action_id: Option<String>,
+    pub receipt: crate::event_emitter::NativeEditorEvent,
+}
+
+impl PendingStageRoute {
+    pub fn new(
+        content: crate::stage_pane::StageContent,
+        content_kind: impl Into<String>,
+        causal_action_id: Option<String>,
+        source_pane_id: impl Into<String>,
+        workspace_id: impl Into<String>,
+    ) -> Self {
+        let content_kind = content_kind.into();
+        let source_pane_id = source_pane_id.into();
+        let workspace_id = workspace_id.into();
+        let receipt = match causal_action_id.as_deref() {
+            Some(id) => crate::event_emitter::NativeEditorEvent::route_to_stage_correlated(
+                &content_kind,
+                &source_pane_id,
+                id,
+                crate::event_emitter::DEFAULT_ACTOR_ID,
+                workspace_id,
+            ),
+            None => crate::event_emitter::NativeEditorEvent::route_to_stage(
+                &content_kind,
+                &source_pane_id,
+                crate::event_emitter::DEFAULT_ACTOR_ID,
+                workspace_id,
+            ),
+        };
+        Self {
+            content,
+            content_kind,
+            causal_action_id,
+            receipt,
+        }
     }
 }
 
@@ -351,13 +473,29 @@ impl CommandBus {
 /// The one shared interaction substrate. Held in egui app data as `Arc<Mutex<InteractionBus>>` and
 /// retrieved by every pane via [`Self::get_or_init`].
 pub struct InteractionBus {
+    /// Workspace identity for all ephemeral focus/selection state carried by this bus. Rebinding bumps
+    /// `workspace_generation` and clears the old workspace's selection before any consumer can reuse it.
+    workspace_id: String,
+    workspace_generation: u64,
     /// The single shared selection model (the focused pane owns the active variant).
     selection: SharedSelection,
     /// The pane that currently owns focus (so a selection publish from a non-focused pane is ignored —
     /// the focused pane is the selection authority).
     focus_owner: Option<PaneId>,
+    /// True when the focused pane's active surface owns only cross-pane history (currently the
+    /// backend-authoritative Canvas/Atelier surface). This prevents a local ring left by a previous tab
+    /// in the same physical pane from stealing Canvas undo/redo.
+    focus_owner_cross_only: bool,
     /// The cross-pane command registry (WRAP-not-fork: runtime melt-together commands only).
     commands: CommandBus,
+    /// Whether the product-owned shared Find lifecycle is active. This is fixed bus state rather than a
+    /// list of surface callbacks, so repeated pane mounts/command registration cannot duplicate fan-out.
+    shared_find_active: bool,
+    /// Monotonic count of actual canonical `CMD_FIND` dispatches (the CTRL-1 observable).
+    shared_find_dispatch_generation: u64,
+    /// Latest shared query and its accepted typed code/note result pair.
+    shared_find_query: SharedFindQuery,
+    shared_find_results: SharedFindResults,
     /// The in-memory richest-variant clipboard cache: the cross-pane Paste reads THIS first so a
     /// `LoomBlockRef`/`AtelierRef` survives a round-trip the plain-text OS clipboard would flatten.
     clipboard_cache: Option<ClipboardPayload>,
@@ -374,10 +512,15 @@ pub struct InteractionBus {
     /// backlink row click / loom:// reference). The shell drains it via [`Self::take_pending_navigation`]
     /// each frame and routes the open. `None` when no navigation is pending.
     pending_navigation: Option<String>,
+    /// MT-067: exact CalendarEvent id staged by the daily-journal chip and consumed once by the shell.
+    pending_calendar_event_focus: Option<String>,
     /// WP-KERNEL-012 MT-033 (E5): the content a Route-to-Stage request staged (from a selection / canvas
-    /// node / CKC item). The shell drains it via [`Self::take_pending_stage_content`] each frame and
-    /// opens/focuses the Stage pane with it. `None` when nothing is pending.
-    pending_stage_content: Option<crate::stage_pane::StageContent>,
+    /// node / CKC item). The shell peeks it via [`Self::pending_stage_route`], applies it to Stage, then
+    /// acknowledges its exact event id via [`Self::ack_pending_stage_route`].
+    pending_stage_route: Option<PendingStageRoute>,
+    /// One-shot visible failure for Route-to-Stage. Kept distinct from content so a command with no
+    /// valid selection/document cannot silently open an empty Stage or overwrite prior routed content.
+    pending_stage_error: Option<String>,
     /// WP-KERNEL-012 MT-034 (E5): the symbol entity id an Open-Code-Symbol request staged (from a
     /// clicked `[[code:…]]` chip). The shell drains it via [`Self::take_pending_code_symbol`] each frame
     /// and routes it through the MT-030 ShellNavigator `open_code_symbol` seam. `None` when nothing is
@@ -388,9 +531,14 @@ pub struct InteractionBus {
     /// through the SAME MT-030 nav seam (NavTarget for the WP/MT record). `None` when nothing is pending.
     /// SIBLING of [`Self::pending_code_symbol`] — no new navigation channel (RISK-007).
     pending_locus_ref: Option<String>,
-    /// WP-KERNEL-012 MT-035 (E5): the ONE unified undo scope every pane shares (POLICY-1..5). Session-
-    /// scoped, in-memory only — the bus is held in egui app data which is NOT persisted, so the scope is
-    /// empty on restart (POLICY-3). The scope itself cannot serialize (no `Serialize` impl).
+    /// One-shot `fems.propose_to_memory` request staged by the real shared command handler and drained by
+    /// the mounted app. This is intentionally not app state: MCP/palette/bus callers all enter through
+    /// the same command substrate.
+    pending_memory_proposal_request: Option<PendingMemoryProposalRequest>,
+    /// WP-KERNEL-012 MT-035 (E5): the ONE unified undo scope every pane shares (POLICY-1..5) within one
+    /// continuous workspace binding. It is discarded on workspace rebind and remains in-memory only —
+    /// the bus is held in egui app data which is NOT persisted, so the scope is empty on restart
+    /// (POLICY-3). The scope itself cannot serialize (no `Serialize` impl).
     undo_scope: UnifiedUndoScope,
     /// The app's tokio runtime handle, installed by the shell via [`Self::set_undo_runtime`] so the bus
     /// can dispatch a canvas COMPENSATING undo (POLICY-4 `undo_async_fn`) onto the runtime off the egui
@@ -402,6 +550,11 @@ pub struct InteractionBus {
     /// shell installs it via [`Self::set_event_emitter`]; a pane calling [`Self::emit_event`] before the
     /// shell installs it is an honest no-op (never a fake emit), matching the unmounted-pane defer policy.
     event_emitter: Option<crate::event_emitter::NativeEditorEventEmitter>,
+    /// Workspace emitters retained for the app session so a completion captured in workspace A can
+    /// drain after any number of later workspace switches without being relabeled or losing A's trace.
+    /// App teardown drops the map and closes every worker; every generation shares one error ring.
+    event_emitters_by_workspace: BTreeMap<String, crate::event_emitter::NativeEditorEventEmitter>,
+    event_emitter_workspace_order: VecDeque<String>,
     /// WP-KERNEL-012 MT-036 (E5 — designed extension seams): the DESIGN-ONLY future-surface registry,
     /// co-located with the bus per the contract. EMPTY in production (no future surface registers yet),
     /// so the fan-out on selection-change / emit is a no-op until an image-editor/spreadsheet/engine
@@ -421,20 +574,32 @@ impl InteractionBus {
     /// cache.
     pub fn new() -> Self {
         Self {
+            workspace_id: String::new(),
+            workspace_generation: 0,
             selection: SharedSelection::None,
             focus_owner: None,
+            focus_owner_cross_only: false,
             commands: CommandBus::default(),
+            shared_find_active: false,
+            shared_find_dispatch_generation: 0,
+            shared_find_query: SharedFindQuery::default(),
+            shared_find_results: SharedFindResults::default(),
             clipboard_cache: None,
             pending_clipboard_command: None,
             command_palette_open: false,
             event_sender: None,
             pending_navigation: None,
-            pending_stage_content: None,
+            pending_calendar_event_focus: None,
+            pending_stage_route: None,
+            pending_stage_error: None,
             pending_code_symbol: None,
             pending_locus_ref: None,
+            pending_memory_proposal_request: None,
             undo_scope: UnifiedUndoScope::new(),
             undo_runtime: None,
             event_emitter: None,
+            event_emitters_by_workspace: BTreeMap::new(),
+            event_emitter_workspace_order: VecDeque::new(),
             surface_registry: crate::surface_extension_seam::EditorSurfaceRegistry::new(),
         }
     }
@@ -479,6 +644,35 @@ impl InteractionBus {
         }
     }
 
+    /// Consume one live egui shortcut and dispatch its registered bus command.
+    ///
+    /// The bus lock is acquired before consuming input. If another pane owns
+    /// the bus this frame, the shortcut is left untouched instead of being
+    /// swallowed without an action. The native shell uses this for global
+    /// commands such as Ctrl/Cmd+Shift+Z that focused editors deliberately do
+    /// not own.
+    pub fn dispatch_registered_shortcut_from_input(
+        ctx: &egui::Context,
+        bus: &Arc<Mutex<InteractionBus>>,
+        command_id: &'static str,
+    ) -> Option<bool> {
+        Self::with_try_lock(bus, |bus| {
+            if matches!(command_id, CMD_UNDO | CMD_REDO | CMD_UNDO_CROSS_PANE) {
+                bus.register_undo_commands();
+            }
+            let Some(shortcut) = default_keybind_for(command_id) else {
+                return false;
+            };
+            if bus.matching_keybind_command(&shortcut) != Some(command_id) {
+                return false;
+            }
+            if !ctx.input_mut(|input| input.consume_shortcut(&shortcut)) {
+                return false;
+            }
+            bus.dispatch_command(ctx, command_id)
+        })
+    }
+
     /// Install the existing shell event-bus sender so cross-pane notifications fan out through the SAME
     /// `event_bus.rs` channel (WRAP-not-fork).
     pub fn set_event_sender(&mut self, sender: ShellEventSender) {
@@ -487,10 +681,41 @@ impl InteractionBus {
 
     // ── Focus ownership ──────────────────────────────────────────────────────────────────────────────
 
-    /// Mark `pane_id` as the focus owner (called by a pane only when it genuinely holds egui focus —
-    /// `ui.memory(|m| m.has_focus(pane_egui_id))` — to avoid spurious resets, impl note 6/7).
+    /// Mark `pane_id` as the editor focus owner (called by a pane only when it genuinely holds egui
+    /// focus — `ui.memory(|m| m.has_focus(pane_egui_id))` — to avoid spurious resets, impl note 6/7).
+    /// Moving editor focus to a different pane invalidates both the previous pane's live selection and
+    /// any proposal request that already snapshotted it. The request is retained with a `None` selection
+    /// so the mounted app reports the typed `no_selection` blocker instead of silently dropping the
+    /// command or submitting stale cross-pane provenance.
     pub fn set_focus_owner(&mut self, pane_id: PaneId) {
+        if self
+            .selection
+            .pane_id()
+            .is_some_and(|selection_pane| selection_pane != &pane_id)
+        {
+            self.selection = SharedSelection::None;
+            self.surface_registry
+                .dispatch_selection_changed(&self.selection);
+        }
+        if let Some(request) = self.pending_memory_proposal_request.as_mut() {
+            if request
+                .selection
+                .pane_id()
+                .is_some_and(|selection_pane| selection_pane != &pane_id)
+            {
+                request.selection = SharedSelection::None;
+            }
+        }
         self.focus_owner = Some(pane_id);
+        self.focus_owner_cross_only = false;
+    }
+
+    /// Publish the shell-resolved undo target, including whether its active surface is cross-only.
+    /// This does not invalidate selection: utility/modal surfaces and menu-driven undo temporarily route
+    /// keyboard ownership without transferring editor selection authority.
+    pub fn set_undo_focus_owner(&mut self, pane_id: PaneId, cross_only: bool) {
+        self.focus_owner = Some(pane_id);
+        self.focus_owner_cross_only = cross_only;
     }
 
     /// The current focus owner pane id, if any.
@@ -498,7 +723,62 @@ impl InteractionBus {
         self.focus_owner.as_ref()
     }
 
+    pub fn focus_owner_is_cross_only(&self) -> bool {
+        self.focus_owner_cross_only
+    }
+
     // ── Shared selection ─────────────────────────────────────────────────────────────────────────────
+
+    /// Bind ephemeral interaction state to `workspace_id`. A changed workspace invalidates every
+    /// workspace-bound, not-yet-drained request plus the in-memory clipboard and undo scopes from the
+    /// leaving workspace. History is deliberately discarded rather than restored on A -> B -> A: the
+    /// existing rings and staged payloads are keyed only by pane, not by workspace, so retaining them
+    /// would allow an action captured in A to execute against the live pane state in B. Returns `true`
+    /// when a rebind occurred.
+    pub fn bind_workspace(&mut self, workspace_id: &str) -> bool {
+        if self.workspace_id == workspace_id {
+            return false;
+        }
+        self.workspace_id = workspace_id.to_owned();
+        self.workspace_generation = self.workspace_generation.wrapping_add(1);
+        self.selection = SharedSelection::None;
+        self.focus_owner = None;
+        self.focus_owner_cross_only = false;
+        self.clipboard_cache = None;
+        self.pending_clipboard_command = None;
+        self.pending_navigation = None;
+        self.pending_calendar_event_focus = None;
+        self.pending_stage_route = None;
+        self.pending_stage_error = None;
+        self.pending_code_symbol = None;
+        self.pending_locus_ref = None;
+        self.pending_memory_proposal_request = None;
+        self.shared_find_active = false;
+        self.shared_find_dispatch_generation = 0;
+        self.shared_find_query = SharedFindQuery::default();
+        self.shared_find_results = SharedFindResults::default();
+        // Pane ids are reused by the shell across workspace mounts, while undo closures capture the
+        // state that was live when the action was recorded. Reset the whole scope so neither ordinary
+        // history nor a provisional async compensation can cross the workspace boundary. A late
+        // completion for a discarded provisional action is then rejected by
+        // `complete_cross_pane_async` instead of repopulating the new workspace's ring.
+        self.undo_scope = UnifiedUndoScope::new();
+        // Never leave the previous workspace's emitter as the active capture source. A retained emitter
+        // for a returning workspace can be reused; a first visit stays unbound until the shell installs
+        // that workspace's emitter later in the same frame.
+        self.event_emitter = self.event_emitters_by_workspace.get(workspace_id).cloned();
+        self.surface_registry
+            .dispatch_selection_changed(&self.selection);
+        true
+    }
+
+    pub fn workspace_id(&self) -> &str {
+        &self.workspace_id
+    }
+
+    pub fn workspace_generation(&self) -> u64 {
+        self.workspace_generation
+    }
 
     /// Publish a new shared selection. Accepted only when the publishing pane is the current focus owner
     /// (or no focus owner is set yet), so a background pane cannot clobber the focused pane's selection.
@@ -527,6 +807,28 @@ impl InteractionBus {
         accept
     }
 
+    /// Invalidate text selection state captured from `pane_id` after that pane switches to a
+    /// different editor document. A proposal command can be staged between the tab activation frame
+    /// and the next shell frame, so the already-captured request must be invalidated together with the
+    /// live selection. The request itself is retained with [`SharedSelection::None`] so the mounted app
+    /// still reports its typed `no_selection` blocker instead of silently dropping the command.
+    pub fn invalidate_selection_for_pane(&mut self, pane_id: &PaneId) -> bool {
+        let mut invalidated = false;
+        if self.selection.pane_id() == Some(pane_id) {
+            self.selection = SharedSelection::None;
+            self.surface_registry
+                .dispatch_selection_changed(&self.selection);
+            invalidated = true;
+        }
+        if let Some(request) = self.pending_memory_proposal_request.as_mut() {
+            if request.selection.pane_id() == Some(pane_id) {
+                request.selection = SharedSelection::None;
+                invalidated = true;
+            }
+        }
+        invalidated
+    }
+
     /// The raw shared selection (without a liveness guard — prefer [`Self::shared_selection_if_live`]
     /// for a consumer that will dereference the pane).
     pub fn shared_selection(&self) -> &SharedSelection {
@@ -542,6 +844,22 @@ impl InteractionBus {
             Some(pane_id) if live_pane_ids.iter().any(|p| p == pane_id) => self.selection.clone(),
             Some(_) => SharedSelection::None,
         }
+    }
+
+    /// Capture a proposal-open request from the current workspace-bound interaction state. Even a
+    /// `SharedSelection::None` request is staged so the mounted app can surface the typed no-selection
+    /// blocker instead of silently dropping an MCP/shared-bus command.
+    pub fn request_memory_proposal(&mut self) {
+        self.pending_memory_proposal_request = Some(PendingMemoryProposalRequest {
+            workspace_id: self.workspace_id.clone(),
+            workspace_generation: self.workspace_generation,
+            selection: self.selection.clone(),
+            emitter: self.event_emitter.clone(),
+        });
+    }
+
+    pub fn take_pending_memory_proposal_request(&mut self) -> Option<PendingMemoryProposalRequest> {
+        self.pending_memory_proposal_request.take()
     }
 
     // ── Clipboard ────────────────────────────────────────────────────────────────────────────────────
@@ -605,6 +923,73 @@ impl InteractionBus {
     /// commands (Copy/Cut/Paste/SelectAll/Find/CommandPalette) into the one shared surface.
     pub fn register_command(&mut self, descriptor: CommandDescriptor) {
         self.commands.register(descriptor);
+    }
+
+    /// Start/refocus the product-owned shared Find lifecycle. Called only by the canonical `CMD_FIND`
+    /// handler, making this generation the exact count of real command dispatches.
+    pub fn request_shared_find(&mut self) {
+        self.shared_find_active = true;
+        self.shared_find_dispatch_generation = self.shared_find_dispatch_generation.wrapping_add(1);
+    }
+
+    pub fn shared_find_is_active(&self) -> bool {
+        self.shared_find_active
+    }
+
+    pub fn shared_find_dispatch_generation(&self) -> u64 {
+        self.shared_find_dispatch_generation
+    }
+
+    /// Publish the newest operator query. Re-publishing the same text is a deduplicated no-op; a rapid
+    /// replacement advances once for each text actually observed by the product driver.
+    pub fn update_shared_find_query(&mut self, pattern: impl Into<String>) -> SharedFindQuery {
+        let pattern = pattern.into();
+        if self.shared_find_query.pattern != pattern {
+            self.shared_find_query.generation = self.shared_find_query.generation.wrapping_add(1);
+            self.shared_find_query.pattern = pattern;
+            self.shared_find_results = SharedFindResults {
+                query: self.shared_find_query.clone(),
+                ..SharedFindResults::default()
+            };
+        }
+        self.shared_find_query.clone()
+    }
+
+    pub fn shared_find_query(&self) -> &SharedFindQuery {
+        &self.shared_find_query
+    }
+
+    /// Accept typed results only for the current query generation. This prevents a late MT-029 backend
+    /// completion from overwriting a rapid replacement or workspace rebind.
+    pub fn publish_shared_find_results(
+        &mut self,
+        query: &SharedFindQuery,
+        code: SharedCodeFindResults,
+        note: SharedNoteFindResults,
+    ) -> bool {
+        if query != &self.shared_find_query || !self.shared_find_active {
+            return false;
+        }
+        self.shared_find_results = SharedFindResults {
+            query: query.clone(),
+            code,
+            note,
+        };
+        true
+    }
+
+    pub fn shared_find_results(&self) -> &SharedFindResults {
+        &self.shared_find_results
+    }
+
+    /// Close the shared lifecycle after the active surface closes its find UI (Escape). The last query is
+    /// retained for a refocus, but no stale hits remain exposed while Find is closed.
+    pub fn close_shared_find(&mut self) {
+        self.shared_find_active = false;
+        self.shared_find_results = SharedFindResults {
+            query: self.shared_find_query.clone(),
+            ..SharedFindResults::default()
+        };
     }
 
     /// Borrow the command registry (for the palette listing / tests).
@@ -707,30 +1092,117 @@ impl InteractionBus {
         self.dispatch_command(ctx, CMD_OPEN_DOCUMENT)
     }
 
+    // ── CalendarEvent destination navigation (MT-067) ──────────────────────────────────────────────
+
+    /// Stage the exact CalendarEvent id for the shell's content-addressed destination.
+    pub fn request_focus_calendar_event(&mut self, event_id: impl Into<String>) {
+        self.pending_calendar_event_focus = Some(event_id.into());
+    }
+
+    /// Peek at the staged CalendarEvent id without consuming it.
+    pub fn pending_calendar_event_focus(&self) -> Option<&str> {
+        self.pending_calendar_event_focus.as_deref()
+    }
+
+    /// Consume the staged CalendarEvent id exactly once.
+    pub fn take_pending_calendar_event_focus(&mut self) -> Option<String> {
+        self.pending_calendar_event_focus.take()
+    }
+
+    /// Register the named CalendarEvent focus command on the shared command substrate.
+    pub fn register_focus_calendar_event_command(&mut self) {
+        self.register_command(CommandDescriptor {
+            id: crate::interop::calendar_interop::CMD_FOCUS_CALENDAR_EVENT,
+            name: "FocusCalendarEvent",
+            label: "Focus Calendar Event".to_owned(),
+            keywords: vec![
+                "calendar".to_owned(),
+                "event".to_owned(),
+                "focus".to_owned(),
+            ],
+            keybind: None,
+            handler: Arc::new(|ctx, _bus| ctx.request_repaint()),
+        });
+    }
+
+    /// Stage `event_id` and dispatch the named CalendarEvent focus command.
+    pub fn focus_calendar_event(
+        &mut self,
+        ctx: &egui::Context,
+        event_id: impl Into<String>,
+    ) -> bool {
+        self.request_focus_calendar_event(event_id);
+        self.dispatch_command(
+            ctx,
+            crate::interop::calendar_interop::CMD_FOCUS_CALENDAR_EVENT,
+        )
+    }
+
     // ── Cross-pane Route-to-Stage navigation (MT-033 melt-together) ────────────────────────────────────
 
-    /// Stage [`crate::stage_pane::StageContent`] for a Route-to-Stage open (called just before
-    /// dispatching [`CMD_ROUTE_TO_STAGE`], e.g. from a right-click "Route to Stage" menu item on a
-    /// rich-text selection / canvas node). The shell drains it next frame via
-    /// [`Self::take_pending_stage_content`] to open/focus the Stage pane with it.
-    pub fn request_route_to_stage(&mut self, content: crate::stage_pane::StageContent) {
-        self.pending_stage_content = Some(content);
+    fn build_pending_stage_route(
+        &self,
+        content: crate::stage_pane::StageContent,
+        content_kind: &str,
+        causal_action_id: Option<&str>,
+    ) -> PendingStageRoute {
+        let source_pane_id = self
+            .focus_owner
+            .as_ref()
+            .map(|pane| pane.as_ref().to_owned())
+            .unwrap_or_else(|| "stage-route-source".to_owned());
+        let workspace_id = self
+            .event_emitter
+            .as_ref()
+            .map(|emitter| emitter.workspace_id().to_owned())
+            .unwrap_or_else(|| self.workspace_id.clone());
+        PendingStageRoute::new(
+            content,
+            content_kind,
+            causal_action_id.map(str::to_owned),
+            source_pane_id,
+            workspace_id,
+        )
+    }
+
+    /// Stage a typed Route-to-Stage failure for the shell to render on the Stage pane.
+    pub fn request_route_to_stage_error(&mut self, message: impl Into<String>) {
+        if self.pending_stage_route.is_none() {
+            self.pending_stage_error = Some(message.into());
+        }
     }
 
     /// The content staged for a Route-to-Stage open, WITHOUT consuming it (tests / peek).
     pub fn pending_stage_content(&self) -> Option<&crate::stage_pane::StageContent> {
-        self.pending_stage_content.as_ref()
+        self.pending_stage_route
+            .as_ref()
+            .map(|route| &route.content)
     }
 
-    /// Take (and clear) the staged Stage content. The shell calls this each frame; `Some(content)` means
-    /// open/focus the Stage pane and set its content, `None` means nothing pending.
-    pub fn take_pending_stage_content(&mut self) -> Option<crate::stage_pane::StageContent> {
-        self.pending_stage_content.take()
+    /// Peek the complete pending route without consuming it. The shell must release the bus lock before
+    /// acquiring the Stage lock, apply the route, and only then call [`Self::ack_pending_stage_route`].
+    pub fn pending_stage_route(&self) -> Option<&PendingStageRoute> {
+        self.pending_stage_route.as_ref()
+    }
+
+    /// Acknowledge and consume only the route whose prebuilt receipt has `event_id`. A stale or
+    /// mismatched acknowledgement cannot remove a newer request.
+    pub fn ack_pending_stage_route(&mut self, event_id: &str) -> Option<PendingStageRoute> {
+        let matches = self
+            .pending_stage_route
+            .as_ref()
+            .is_some_and(|route| route.receipt.event_id == event_id);
+        matches.then(|| self.pending_stage_route.take()).flatten()
+    }
+
+    /// Take the pending typed Route-to-Stage failure.
+    pub fn take_pending_stage_error(&mut self) -> Option<String> {
+        self.pending_stage_error.take()
     }
 
     /// Register the cross-pane Route-to-Stage command (MT-033). Its handler is a no-op on the bus itself
-    /// (the stage content was staged by [`Self::request_route_to_stage`] BEFORE dispatch, and is consumed
-    /// by the shell drain) — the command exists so a "Route to Stage" menu item dispatches a REAL, named,
+    /// (the complete pending route is admitted after successful dispatch and consumed by the shell
+    /// drain) — the command exists so a "Route to Stage" menu item dispatches a REAL, named,
     /// addressable cross-pane action rather than a per-pane ad-hoc callback. Idempotent (last
     /// registration wins). Mirrors [`Self::register_open_document_command`] exactly (the MT-032 pattern).
     pub fn register_route_to_stage_command(&mut self) {
@@ -755,29 +1227,65 @@ impl InteractionBus {
         ctx: &egui::Context,
         content: crate::stage_pane::StageContent,
     ) -> bool {
-        // MT-036 (E5 — one event ledger): emit a REAL `route_to_stage` FlightEvent at this LIVE
-        // route-to-stage call site (the MT-033 path). The content kind comes from the staged content; the
-        // source pane is the current focus owner (the surface the route originated from), falling back to
-        // a generic id. The emit is a no-op until the shell installs the emitter (defer policy).
+        self.route_to_stage_correlated(ctx, content, None)
+    }
+
+    pub fn route_to_stage_correlated(
+        &mut self,
+        ctx: &egui::Context,
+        content: crate::stage_pane::StageContent,
+        causal_action_id: Option<&str>,
+    ) -> bool {
         let content_kind = content.content_kind();
-        let source_pane_id = self
-            .focus_owner
-            .as_ref()
-            .map(|p| p.as_ref().to_owned())
-            .unwrap_or_else(|| "stage-route-source".to_owned());
-        let workspace_id = self
-            .event_emitter
-            .as_ref()
-            .map(|e| e.workspace_id().to_owned())
-            .unwrap_or_default();
-        let ev = crate::event_emitter::NativeEditorEvent::route_to_stage(
-            content_kind,
-            &source_pane_id,
-            crate::event_emitter::native_editor_actor_id(&source_pane_id),
-            workspace_id,
-        );
-        self.emit_event(ev);
-        self.request_route_to_stage(content);
+        self.route_to_stage_correlated_with_kind(ctx, content, content_kind, causal_action_id)
+    }
+
+    /// Route Stage content while preserving the source payload's exact recorder kind. Most callers use
+    /// [`Self::route_to_stage_correlated`]; typed adapters such as Canvas node routing use this method
+    /// because the display projection is a [`crate::stage_pane::StageContent::Selection`] while the
+    /// authoritative route kind remains `canvas_node`.
+    pub fn route_to_stage_correlated_with_kind(
+        &mut self,
+        ctx: &egui::Context,
+        content: crate::stage_pane::StageContent,
+        content_kind: &str,
+        causal_action_id: Option<&str>,
+    ) -> bool {
+        if self.pending_stage_route.is_some() {
+            return false;
+        }
+        let route = self.build_pending_stage_route(content, content_kind, causal_action_id);
+        if !self.dispatch_command(ctx, CMD_ROUTE_TO_STAGE) {
+            return false;
+        }
+        self.pending_stage_error = None;
+        self.pending_stage_route = Some(route);
+        true
+    }
+
+    /// Re-admit the exact retained route after shell contention. Producer event
+    /// identity and the semantic content kind are reused byte-for-byte.
+    pub fn retry_pending_stage_route(
+        &mut self,
+        ctx: &egui::Context,
+        route: PendingStageRoute,
+    ) -> bool {
+        if self.pending_stage_route.is_some() || !self.dispatch_command(ctx, CMD_ROUTE_TO_STAGE) {
+            return false;
+        }
+        self.pending_stage_error = None;
+        self.pending_stage_route = Some(route);
+        true
+    }
+
+    /// Stage a typed failure and dispatch the same named command as a successful route. This keeps
+    /// context-menu and palette failures visible on the normal Stage landing surface.
+    pub fn route_to_stage_error(
+        &mut self,
+        ctx: &egui::Context,
+        message: impl Into<String>,
+    ) -> bool {
+        self.request_route_to_stage_error(message);
         self.dispatch_command(ctx, CMD_ROUTE_TO_STAGE)
     }
 
@@ -837,8 +1345,9 @@ impl InteractionBus {
     /// Stage a `locus://` ref for a cross-pane Open-Locus-Ref (called just before dispatching
     /// [`CMD_OPEN_LOCUS_REF`], e.g. from a clicked Locus chip). The shell drains it next frame via
     /// [`Self::take_pending_locus_ref`] and routes it through the SAME MT-030 nav seam the other cross-refs
-    /// use (a NavTarget for the WP/MT record). The staged value is the normalized `locus://` ref so the
-    /// shell can re-parse it to the WP/MT record without re-deriving the key.
+    /// use (a NavTarget for the WP/MT record). Callers stage the canonical original-case `locus://` URI;
+    /// the parsed normalized value is reserved for lookup/search keying and never replaces the
+    /// case-significant navigation identity.
     pub fn request_open_locus_ref(&mut self, locus_ref: impl Into<String>) {
         self.pending_locus_ref = Some(locus_ref.into());
     }
@@ -909,7 +1418,37 @@ impl InteractionBus {
     /// production emitter bound to the app runtime + backend). Until installed, [`Self::emit_event`] is an
     /// honest no-op (never a fake emit) — matching the unmounted-pane defer policy.
     pub fn set_event_emitter(&mut self, emitter: crate::event_emitter::NativeEditorEventEmitter) {
-        self.event_emitter = Some(emitter);
+        let workspace = emitter.workspace_id().to_owned();
+        // One workspace keeps one emitter/session generation for the lifetime of this bus. In an
+        // A -> B -> A switch the shell constructs another A emitter, but replacing A1 with A2 would
+        // make a delayed completion captured under A1 inherit A2's transport/session trace. Reuse A1
+        // instead; immutable event.workspace_id then selects the exact original generation below.
+        let active = self
+            .event_emitters_by_workspace
+            .entry(workspace.clone())
+            .or_insert(emitter)
+            .clone();
+        self.event_emitter_workspace_order
+            .retain(|known| known != &workspace);
+        self.event_emitter_workspace_order
+            .push_back(workspace.clone());
+        while self.event_emitter_workspace_order.len() > MAX_RETAINED_EVENT_EMITTER_WORKSPACES {
+            let Some(expired) = self.event_emitter_workspace_order.pop_front() else {
+                break;
+            };
+            if expired != workspace {
+                // Dropping the final sender closes that generation's bounded worker after its accepted
+                // queue drains. A later completion for an expired workspace fails with WorkspaceMismatch
+                // against the active emitter and is surfaced in the shared error ring, never relabelled.
+                self.event_emitters_by_workspace.remove(&expired);
+            }
+        }
+        self.event_emitter = Some(active);
+    }
+
+    /// Number of retained workspace emitter generations (diagnostics + reclamation proof).
+    pub fn retained_event_emitter_workspace_count(&self) -> usize {
+        self.event_emitters_by_workspace.len()
     }
 
     /// Borrow the installed event emitter, if any (tests / the FlightRecorderPane reading the error ring).
@@ -924,15 +1463,32 @@ impl InteractionBus {
     /// and the emit was DISPATCHED (it may still land in the error ring on a transport failure / drop);
     /// `false` when no emitter is installed (honest no-op, never a fake). The dispatched/dropped outcome
     /// is logged to the emitter's error ring; this method never panics the frame.
-    pub fn emit_event(&self, event: crate::event_emitter::NativeEditorEvent) -> bool {
-        let Some(emitter) = self.event_emitter.as_ref() else {
-            return false; // not installed yet (unmounted-pane defer): honest no-op, never faked.
+    pub fn emit_event_result(
+        &self,
+        event: crate::event_emitter::NativeEditorEvent,
+    ) -> Result<(), crate::event_emitter::EmitError> {
+        let emitter = if event.workspace_id.trim().is_empty() {
+            self.event_emitter.as_ref()
+        } else {
+            self.event_emitters_by_workspace
+                .get(&event.workspace_id)
+                .or(self.event_emitter.as_ref())
         };
-        // Fan out to the design-only future-surface registry FIRST (a no-op in production); then emit.
+        let Some(emitter) = emitter else {
+            return Err(crate::event_emitter::EmitError::Backpressure(
+                "event-emitter-not-installed".to_owned(),
+            ));
+        };
+        let accepted = emitter.emit_accepted(event)?;
+        // A future-surface callback observes the editor action exactly once, only after the ordered
+        // emitter accepted it. Frame retries therefore cannot duplicate the extension callback.
         self.surface_registry
-            .dispatch_event_emitted(&event, emitter);
-        let _ = emitter.emit(event); // a drop/transport-failure is recorded in the error ring, not panicked.
-        true
+            .dispatch_event_emitted(&accepted, emitter);
+        Ok(())
+    }
+
+    pub fn emit_event(&self, event: crate::event_emitter::NativeEditorEvent) -> bool {
+        self.emit_event_result(event).is_ok()
     }
 
     // ── Designed extension-seam registry (MT-036, DESIGN-ONLY) ───────────────────────────────────────────
@@ -977,11 +1533,15 @@ impl InteractionBus {
     /// (POLICY-4) — by dispatching `undo_async_fn` onto the installed runtime. Returns:
     /// - `Some(UndoResult)` when an action was popped and invoked (sync result, or a `dispatched_async`
     ///   acknowledgement for the async path), and
-    /// - `None` when the focused pane's ring is empty.
+    /// - cross-pane fallback when the focused pane's ring is empty, and
+    /// - `None` only when both rings are empty.
     ///
     /// A `Some(result)` whose `!result.ok` should be logged by the caller to the Flight Recorder
     /// (MT-036); this method never panics on a failed undo.
     pub fn undo(&mut self, pane_id: &PaneId) -> Option<UndoResult> {
+        if !self.undo_scope.can_undo_local(pane_id) {
+            return self.undo_cross_pane();
+        }
         if self.undo_scope.local_undo_requires_runtime(pane_id) && !self.can_dispatch_async() {
             return Some(Self::missing_undo_runtime_result());
         }
@@ -997,8 +1557,11 @@ impl InteractionBus {
 
     /// LOCAL redo for `pane_id` (POLICY-1, the Ctrl+Y path). Pops the focused pane's most recently
     /// undone action and re-applies it (sync `redo_fn`, or async `redo_async_fn` for canvas). `None`
-    /// when nothing to redo.
+    /// Falls back to the cross-pane redo ring when the local redo ring is empty.
     pub fn redo(&mut self, pane_id: &PaneId) -> Option<UndoResult> {
+        if !self.undo_scope.can_redo_local(pane_id) {
+            return self.redo_cross_pane();
+        }
         if self.undo_scope.local_redo_requires_runtime(pane_id) && !self.can_dispatch_async() {
             return Some(Self::missing_undo_runtime_result());
         }
@@ -1013,6 +1576,11 @@ impl InteractionBus {
     /// invokes its undo (sync or, for a canvas placement, the async compensating call — POLICY-4).
     /// `None` when the cross-pane ring is empty.
     pub fn undo_cross_pane(&mut self) -> Option<UndoResult> {
+        if self.undo_scope.cross_pane_async_pending() {
+            return Some(UndoResult::err(
+                "a canvas compensating undo/redo is already in flight; wait for canonical reconciliation",
+            ));
+        }
         if self.undo_scope.cross_pane_undo_requires_runtime() && !self.can_dispatch_async() {
             return Some(Self::missing_undo_runtime_result());
         }
@@ -1024,13 +1592,18 @@ impl InteractionBus {
         let pane_label = self
             .focus_owner()
             .map(|p| p.as_ref().to_owned())
-            .unwrap_or_default();
+            .unwrap_or_else(|| "cross-pane".to_owned());
         self.emit_undo_fired_event(crate::event_emitter::UndoScope::CrossPane, &pane_label);
         Some(result)
     }
 
     /// CROSS-PANE redo. Pops the most recently undone cross-pane action and re-applies it.
     pub fn redo_cross_pane(&mut self) -> Option<UndoResult> {
+        if self.undo_scope.cross_pane_async_pending() {
+            return Some(UndoResult::err(
+                "a canvas compensating undo/redo is already in flight; wait for canonical reconciliation",
+            ));
+        }
         if self.undo_scope.cross_pane_redo_requires_runtime() && !self.can_dispatch_async() {
             return Some(Self::missing_undo_runtime_result());
         }
@@ -1041,9 +1614,22 @@ impl InteractionBus {
         let pane_label = self
             .focus_owner()
             .map(|p| p.as_ref().to_owned())
-            .unwrap_or_default();
+            .unwrap_or_else(|| "cross-pane".to_owned());
         self.emit_undo_fired_event(crate::event_emitter::UndoScope::CrossPane, &pane_label);
         Some(result)
+    }
+
+    /// Finalize one provisional backend-touching cross-pane undo/redo transition. The Canvas host calls
+    /// this only after draining the compensation completion produced by the async backend operation.
+    /// Failed operations return the action to its original ring, preserving an operator retry path.
+    pub fn complete_cross_pane_async(
+        &mut self,
+        action_id: &str,
+        direction: crate::undo_stack::AsyncUndoDirection,
+        success: bool,
+    ) -> bool {
+        self.undo_scope
+            .complete_cross_pane_async(action_id, direction, success)
     }
 
     /// Emit exactly ONE `undo_fired` event onto the ONE ledger (MT-036) for an undo/redo that actually
@@ -1125,8 +1711,10 @@ impl InteractionBus {
 
     /// Register the three unified-undo commands on the cross-pane command bus so they appear in the
     /// command palette AND match their keybinds (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z). The handlers read the
-    /// CURRENT focus owner from the locked bus: Ctrl+Z/Ctrl+Y are local-only for the focused pane
-    /// (POLICY-1), while Ctrl+Shift+Z owns the cross-pane ring (POLICY-2). Idempotent (last registration
+    /// CURRENT focus owner from the locked bus: Ctrl+Z/Ctrl+Y are local-first for the focused pane and
+    /// fall back to the cross-pane ring when that local ring is empty (POLICY-1), while Ctrl+Shift+Z
+    /// directly owns the cross-pane ring (POLICY-2). With no focus owner, Undo/Redo also fail over to the
+    /// cross-pane ring so a Canvas/Stage action never becomes unreachable. Idempotent (last registration
     /// wins). Call once when the first editor pane mounts.
     pub fn register_undo_commands(&mut self) {
         self.register_command(CommandDescriptor {
@@ -1136,11 +1724,12 @@ impl InteractionBus {
             keywords: vec!["undo".to_owned(), "revert".to_owned()],
             keybind: default_keybind_for(CMD_UNDO),
             handler: Arc::new(|ctx, bus| {
-                // POLICY-1: Ctrl+Z is focused-pane local undo only. Cross-pane undo is intentionally a
-                // separate Ctrl+Shift+Z command so a focused empty local ring cannot consume a canvas or
-                // route-to-stage action by accident.
-                if let Some(pane_id) = bus.focus_owner().cloned() {
+                if bus.focus_owner_is_cross_only() {
+                    bus.undo_cross_pane();
+                } else if let Some(pane_id) = bus.focus_owner().cloned() {
                     bus.undo(&pane_id);
+                } else {
+                    bus.undo_cross_pane();
                 }
                 ctx.request_repaint();
             }),
@@ -1152,8 +1741,12 @@ impl InteractionBus {
             keywords: vec!["redo".to_owned()],
             keybind: default_keybind_for(CMD_REDO),
             handler: Arc::new(|ctx, bus| {
-                if let Some(pane_id) = bus.focus_owner().cloned() {
+                if bus.focus_owner_is_cross_only() {
+                    bus.redo_cross_pane();
+                } else if let Some(pane_id) = bus.focus_owner().cloned() {
                     bus.redo(&pane_id);
+                } else {
+                    bus.redo_cross_pane();
                 }
                 ctx.request_repaint();
             }),
@@ -1268,6 +1861,101 @@ mod tests {
         );
     }
 
+    #[test]
+    fn editor_document_change_invalidates_live_and_staged_selection_for_the_pane() {
+        let mut bus = InteractionBus::new();
+        let pane_id = pane("pane-code");
+        bus.set_focus_owner(pane_id.clone());
+        assert!(bus.set_selection(text_selection("pane-code", "same-range")));
+        bus.request_memory_proposal();
+
+        assert!(bus.invalidate_selection_for_pane(&pane_id));
+        assert_eq!(bus.shared_selection(), &SharedSelection::None);
+        assert_eq!(
+            bus.take_pending_memory_proposal_request()
+                .expect("staged request remains observable")
+                .selection,
+            SharedSelection::None,
+            "a request captured before the shell observes the tab change cannot retain stale text"
+        );
+        assert!(
+            !bus.invalidate_selection_for_pane(&pane("pane-other")),
+            "a different pane cannot invalidate the current pane's state"
+        );
+    }
+
+    #[test]
+    fn different_editor_focus_invalidates_live_and_staged_proposal_selection() {
+        let mut bus = InteractionBus::new();
+        let pane_a = pane("pane-a");
+        let pane_b = pane("pane-b");
+        bus.set_focus_owner(pane_a.clone());
+        assert!(bus.set_selection(text_selection("pane-a", "must-not-cross")));
+        bus.request_memory_proposal();
+
+        bus.set_focus_owner(pane_b.clone());
+
+        assert_eq!(bus.focus_owner(), Some(&pane_b));
+        assert_eq!(bus.shared_selection(), &SharedSelection::None);
+        assert_eq!(
+            bus.take_pending_memory_proposal_request()
+                .expect("queued request remains observable as a typed blocker")
+                .selection,
+            SharedSelection::None,
+            "a request snapshotted before the focus transfer cannot submit pane A provenance from pane B"
+        );
+    }
+
+    #[test]
+    fn same_editor_focus_and_utility_routing_preserve_selection_and_staged_request() {
+        let mut bus = InteractionBus::new();
+        let pane_a = pane("pane-a");
+        let selection = text_selection("pane-a", "retain-me");
+        bus.set_focus_owner(pane_a.clone());
+        assert!(bus.set_selection(selection.clone()));
+        bus.request_memory_proposal();
+
+        // A same-pane frame is not a focus transfer. Utility/menu routing uses the undo-only seam and
+        // likewise must not destroy the editor selection captured for the command palette/dialog flow.
+        bus.set_focus_owner(pane_a);
+        bus.set_undo_focus_owner(pane("utility-settings"), false);
+
+        assert_eq!(bus.shared_selection(), &selection);
+        bus.set_focus_owner(pane("pane-a"));
+        assert_eq!(
+            bus.shared_selection(),
+            &selection,
+            "returning from a utility surface to the same editor retains its context"
+        );
+        assert_eq!(
+            bus.take_pending_memory_proposal_request()
+                .expect("same-pane/utility routing retains the queued proposal")
+                .selection,
+            selection
+        );
+    }
+
+    #[test]
+    fn different_editor_focus_after_utility_routing_invalidates_retained_selection() {
+        let mut bus = InteractionBus::new();
+        bus.set_focus_owner(pane("pane-a"));
+        assert!(bus.set_selection(text_selection("pane-a", "retained-through-utility")));
+        bus.request_memory_proposal();
+        bus.set_undo_focus_owner(pane("utility-memory"), false);
+        assert!(bus.shared_selection().is_some());
+
+        bus.set_focus_owner(pane("pane-b"));
+
+        assert_eq!(bus.shared_selection(), &SharedSelection::None);
+        assert_eq!(
+            bus.take_pending_memory_proposal_request()
+                .expect("staged request remains as typed blocker")
+                .selection,
+            SharedSelection::None,
+            "utility retention cannot let pane A selection survive a later editor-B focus transfer"
+        );
+    }
+
     /// Red-team RISK-4 / MC-4: a selection whose pane is no longer live returns `None`, never a dangling
     /// reference.
     #[test]
@@ -1281,6 +1969,108 @@ mod tests {
         // Now the pane closed — only other panes are live:
         let live = vec![pane("pane-code"), pane("pane-rich")];
         assert_eq!(bus.shared_selection_if_live(&live), SharedSelection::None);
+    }
+
+    fn noop_undo_action(description: &str) -> UndoAction {
+        UndoAction::sync(
+            description,
+            Arc::new(UndoResult::ok),
+            Arc::new(UndoResult::ok),
+        )
+    }
+
+    #[test]
+    fn workspace_rebind_discards_all_workspace_bound_interaction_state() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        assert!(bus.bind_workspace("workspace-a"));
+        bus.register_route_to_stage_command();
+        let generation_a = bus.workspace_generation();
+        let pane_id = pane("pane-code");
+
+        bus.set_focus_owner(pane_id.clone());
+        assert!(bus.set_selection(text_selection("pane-code", "workspace-a-selection")));
+        bus.cache_clipboard(ClipboardPayload::LoomBlockRef(
+            "workspace-a-block".to_owned(),
+        ));
+        assert!(bus.request_clipboard_command(ClipboardCommand::Paste));
+        bus.request_open_document("workspace-a-document");
+        bus.request_focus_calendar_event("workspace-a-calendar-event");
+        assert!(bus.route_to_stage_correlated(
+            &ctx,
+            crate::stage_pane::StageContent::Selection(
+                "workspace-a-selection".to_owned(),
+                "workspace-a-document".to_owned(),
+            ),
+            Some("workspace-a-action"),
+        ));
+        bus.request_open_code_symbol("workspace-a-symbol");
+        bus.request_open_locus_ref("locus://workspace-a/WP-1/MT-1");
+        bus.request_memory_proposal();
+        bus.push_undo_local(pane_id.clone(), noop_undo_action("workspace-a-local"));
+        bus.push_undo_cross_pane(noop_undo_action("workspace-a-cross-pane"));
+
+        // A same-workspace bind is the normal per-frame path and must not discard state.
+        assert!(!bus.bind_workspace("workspace-a"));
+        assert_eq!(bus.local_undo_count(&pane_id), 1);
+        assert_eq!(bus.undo_scope().cross_pane_undo_count(), 1);
+
+        assert!(bus.bind_workspace("workspace-b"));
+        assert_ne!(bus.workspace_generation(), generation_a);
+        assert_eq!(bus.workspace_id(), "workspace-b");
+        assert_eq!(bus.shared_selection(), &SharedSelection::None);
+        assert!(bus.focus_owner().is_none());
+        assert!(bus.clipboard_read().is_none());
+        assert!(bus.take_clipboard_command_for(&pane_id).is_none());
+        assert!(bus.take_pending_navigation().is_none());
+        assert!(bus.take_pending_calendar_event_focus().is_none());
+        assert!(bus.pending_stage_route().is_none());
+        assert!(bus.take_pending_stage_error().is_none());
+        assert!(bus.take_pending_code_symbol().is_none());
+        assert!(bus.take_pending_locus_ref().is_none());
+        assert!(bus.take_pending_memory_proposal_request().is_none());
+        assert_eq!(bus.local_undo_count(&pane_id), 0);
+        assert_eq!(bus.undo_scope().cross_pane_undo_count(), 0);
+        assert!(bus.undo(&pane_id).is_none());
+        assert!(bus.redo(&pane_id).is_none());
+
+        // Returning to A cannot resurrect history or pending payloads discarded at the first boundary.
+        assert!(bus.bind_workspace("workspace-a"));
+        assert_eq!(bus.local_undo_count(&pane_id), 0);
+        assert_eq!(bus.undo_scope().cross_pane_undo_count(), 0);
+        assert!(bus.take_pending_navigation().is_none());
+        assert!(bus.take_pending_calendar_event_focus().is_none());
+    }
+
+    #[test]
+    fn workspace_rebind_discards_stage_errors_and_fences_late_async_undo_completion() {
+        let mut bus = InteractionBus::new();
+        assert!(bus.bind_workspace("workspace-a"));
+        bus.request_route_to_stage_error("workspace-a-stage-error");
+
+        let sync_undo = Arc::new(UndoResult::ok);
+        let async_undo: crate::undo_stack::UndoAsyncFn =
+            Arc::new(|| Box::pin(async { UndoResult::ok() }));
+        bus.push_undo_cross_pane(UndoAction::async_compensating(
+            "workspace-a-async-action",
+            "workspace-a-async",
+            sync_undo.clone(),
+            sync_undo,
+            async_undo.clone(),
+            async_undo,
+        ));
+        assert!(bus.undo_scope.pop_undo_cross_pane().is_some());
+        assert!(bus.undo_scope().cross_pane_async_pending());
+
+        assert!(bus.bind_workspace("workspace-b"));
+        assert!(bus.take_pending_stage_error().is_none());
+        assert!(!bus.undo_scope().cross_pane_async_pending());
+        assert!(!bus.complete_cross_pane_async(
+            "workspace-a-async-action",
+            crate::undo_stack::AsyncUndoDirection::Undo,
+            true,
+        ));
+        assert_eq!(bus.undo_scope().cross_pane_undo_count(), 0);
     }
 
     /// AC (b): a clipboard write goes to the mock sink (plain-text projection) AND caches the richest
@@ -1519,28 +2309,67 @@ mod tests {
             Some(&content),
             "the staged content is observable"
         );
-        // The shell drains it once.
-        assert_eq!(bus.take_pending_stage_content(), Some(content));
+        let route = bus
+            .pending_stage_route()
+            .cloned()
+            .expect("complete route pending for the shell");
+        assert_eq!(route.content, content);
+        assert_eq!(route.content_kind, "selection");
+        assert!(route.causal_action_id.is_none());
+        let event_id = route.receipt.event_id.clone();
+        assert_eq!(
+            bus.ack_pending_stage_route(&event_id),
+            Some(route),
+            "the shell acknowledges the exact route after applying it"
+        );
         assert!(
-            bus.take_pending_stage_content().is_none(),
-            "drained once, then empty"
+            bus.pending_stage_route().is_none(),
+            "acknowledged once, then empty"
         );
     }
 
-    /// Dispatching Route-to-Stage WITHOUT registering it is a benign false (unknown id), not a panic;
-    /// the staged content still drains (the stage is independent of dispatch).
+    /// Dispatching Route-to-Stage WITHOUT registering it is a benign false (unknown id), not a panic,
+    /// and no route or success receipt is admitted.
     #[test]
     fn route_to_stage_unregistered_is_benign() {
         let ctx = egui::Context::default();
         let mut bus = InteractionBus::new();
-        bus.request_route_to_stage(crate::stage_pane::StageContent::Empty);
         assert!(
-            !bus.dispatch_command(&ctx, CMD_ROUTE_TO_STAGE),
+            !bus.route_to_stage(&ctx, crate::stage_pane::StageContent::Empty),
             "unknown command id is a no-op false"
         );
         assert!(
-            bus.take_pending_stage_content().is_some(),
-            "the staged content still drains"
+            bus.pending_stage_route().is_none(),
+            "failed dispatch admits no route"
+        );
+    }
+
+    #[test]
+    fn second_stage_route_cannot_overwrite_first_and_retry_reuses_event_identity() {
+        let ctx = egui::Context::default();
+        let mut bus = InteractionBus::new();
+        bus.register_route_to_stage_command();
+        let first =
+            crate::stage_pane::StageContent::Selection("first".to_owned(), "DOC-1".to_owned());
+        let second =
+            crate::stage_pane::StageContent::Selection("second".to_owned(), "DOC-2".to_owned());
+        assert!(bus.route_to_stage_correlated(&ctx, first.clone(), Some("causal-first")));
+        let retained = bus.pending_stage_route().cloned().unwrap();
+        assert!(!bus.route_to_stage_correlated(&ctx, second, Some("causal-second")));
+        assert_eq!(bus.pending_stage_route(), Some(&retained));
+        assert!(bus.ack_pending_stage_route("wrong-event-id").is_none());
+        assert_eq!(bus.pending_stage_route(), Some(&retained));
+
+        let event_id = retained.receipt.event_id.clone();
+        assert_eq!(
+            bus.ack_pending_stage_route(&event_id),
+            Some(retained.clone())
+        );
+        assert!(bus.retry_pending_stage_route(&ctx, retained.clone()));
+        assert_eq!(
+            bus.pending_stage_route().unwrap().receipt.event_id,
+            retained.receipt.event_id,
+            "retry must reuse the producer-created receipt identity"
         );
     }
 

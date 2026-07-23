@@ -1,14 +1,16 @@
 use super::{
-    validate_job_contract, AccessMode, AiJob, AiJobListFilter, Asset, Block, BlockUpdate,
-    BlockViewDefinition, BlockViewGroupBy, BlockViewKind, BlockViewLane, BlockViewRecord,
-    BlockViewResults, BronzeRecord, CalendarEvent, CalendarEventExportMode, CalendarEventStatus,
-    CalendarEventUpsert, CalendarEventVisibility, CalendarEventWindowQuery, CalendarSource,
-    CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
-    CalendarSourceWritePolicy, CalendarSyncStateStage, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
-    DebugBreakpoint, DebugBreakpointInput, DefaultStorageGuard, Document, EmbeddingModelRecord,
-    EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState, JobStatusUpdate, LoomBlock,
-    LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult, LoomBlockUpdate,
-    LoomCanvasBoard, LoomCanvasBoardView, LoomCanvasPlacement, LoomCanvasPlacementUpdate,
+    validate_calendar_event_contract, validate_calendar_source_contract, validate_job_contract,
+    AccessMode, AiJob, AiJobListFilter, Asset, Block, BlockUpdate, BlockViewDefinition,
+    BlockViewGroupBy, BlockViewKind, BlockViewLane, BlockViewRecord, BlockViewResults,
+    BronzeRecord, CalendarEvent, CalendarEventExportMode, CalendarEventStatus, CalendarEventUpsert,
+    CalendarEventVisibility, CalendarEventWindowQuery, CalendarSource, CalendarSourceProviderType,
+    CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy,
+    CalendarSyncStateStage, Canvas, CanvasEdge, CanvasGraph, CanvasNode,
+    CompensateLoomCanvasStageCard, DebugBreakpoint, DebugBreakpointInput, DefaultStorageGuard,
+    Document, EmbeddingModelRecord, EmbeddingRegistry, EntityRef, JobKind, JobMetrics, JobState,
+    JobStatusUpdate, LoomBlock, LoomBlockContentType, LoomBlockDerived, LoomBlockSearchResult,
+    LoomBlockUpdate, LoomCanvasBoard, LoomCanvasBoardView, LoomCanvasPlacement,
+    LoomCanvasPlacementUpdate, LoomCanvasStageCard, LoomCanvasStageCompensation,
     LoomCanvasVisualEdge, LoomCollection, LoomCollectionMember, LoomCollectionWithMembers,
     LoomEdge, LoomEdgeCreatedBy, LoomEdgeType, LoomFolder, LoomGraphSearchResult,
     LoomSearchFilters, LoomSearchResultKind, LoomSearchSourceKind, LoomSearchV2Hit,
@@ -19,14 +21,15 @@ use super::{
     LoomVisualDebugSearchState, LoomVisualDebugSnapshot, MediaAssetTier, MediaTier,
     MediaTierStatus, MediaTierUpsert, MergeBackArtifact, ModelSession, ModelSessionState,
     MutationMetadata, NewAiJob, NewAsset, NewBlock, NewBronzeRecord, NewCanvas, NewCanvasEdge,
-    NewCanvasNode, NewDocument, NewLoomBlock, NewLoomCanvasPlacement, NewLoomEdge, NewModelSession,
-    NewNodeExecution, NewSessionMessage, NewSilverRecord, NewWorkspace, PlannedOperation,
-    PreviewStatus, QuickSwitcherRecent, QuickSwitcherRecentInput, SafetyMode, SessionCheckpoint,
-    SessionMessage, SessionMessageRole, SilverRecord, StorageError, StorageGuard, StorageResult,
-    WorkbenchLayoutState, WorkbenchLayoutStateInput, WorkflowNodeExecution, WorkflowRun, Workspace,
-    WorkspaceSearchBookmarkState, WorkspaceSearchBookmarkStateInput, WorkspaceSettingsState,
-    WorkspaceSettingsStateInput, WriteContext, BLOCK_VIEW_UNTAGGED_LANE,
-    LOOM_CANVAS_BOARD_SCHEMA_ID, LOOM_VISUAL_DEBUG_SCHEMA_ID, WORKBENCH_LAYOUT_SCHEMA_ID,
+    NewCanvasNode, NewDocument, NewLoomBlock, NewLoomCanvasPlacement, NewLoomCanvasStageCard,
+    NewLoomEdge, NewModelSession, NewNodeExecution, NewSessionMessage, NewSilverRecord,
+    NewWorkspace, PlannedOperation, PreviewStatus, QuickSwitcherRecent, QuickSwitcherRecentInput,
+    SafetyMode, SessionCheckpoint, SessionMessage, SessionMessageRole, SilverRecord, StorageError,
+    StorageGuard, StorageResult, WorkbenchLayoutState, WorkbenchLayoutStateInput,
+    WorkflowNodeExecution, WorkflowRun, Workspace, WorkspaceSearchBookmarkState,
+    WorkspaceSearchBookmarkStateInput, WorkspaceSettingsState, WorkspaceSettingsStateInput,
+    WriteContext, BLOCK_VIEW_UNTAGGED_LANE, LOOM_CANVAS_BOARD_SCHEMA_ID,
+    LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA, LOOM_VISUAL_DEBUG_SCHEMA_ID, WORKBENCH_LAYOUT_SCHEMA_ID,
     WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID, WORKSPACE_SETTINGS_SCHEMA_ID,
 };
 use crate::kernel::{
@@ -46,8 +49,8 @@ use chrono::{NaiveDateTime, Utc};
 use serde_json::{json, Value};
 use sqlx::QueryBuilder;
 use sqlx::{
-    postgres::{PgPool, PgPoolOptions, PgRow},
-    Executor, Postgres, Row,
+    postgres::{PgConnection, PgPool, PgPoolOptions, PgRow},
+    Postgres, Row,
 };
 use std::collections::{BTreeSet, HashSet, VecDeque};
 use std::str::FromStr;
@@ -74,6 +77,13 @@ pub struct PostgresDatabase {
 impl PostgresDatabase {
     pub(crate) fn pool(&self) -> &PgPool {
         &self.pool
+    }
+
+    /// Explicitly close all pool connections. Integration proof harnesses use
+    /// this before dropping their isolated PostgreSQL schema so teardown is
+    /// deterministic rather than relying on asynchronous pool Drop behavior.
+    pub async fn close(&self) {
+        self.pool.close().await;
     }
 
     /// MT-182: the source blocks of edges of a given type whose TARGET is
@@ -1696,6 +1706,20 @@ impl PostgresDatabase {
                 lane_keys.push(tag.clone());
             }
         }
+        // A free Kanban has no declared lane order. Derive the complete lane
+        // set from authority and sort its stable tag ids before materialising
+        // cards; iterating HashSet membership directly would make columns jump
+        // between otherwise identical queries.
+        if tag_ids.is_empty() {
+            for tags in tags_by_block.values() {
+                for tag in tags {
+                    if seen.insert(tag.clone()) {
+                        lane_keys.push(tag.clone());
+                    }
+                }
+            }
+            lane_keys.sort();
+        }
 
         let mut lanes: Vec<BlockViewLane> = lane_keys
             .iter()
@@ -1716,22 +1740,6 @@ impl PostgresDatabase {
                 if block_tags.is_some_and(|set| set.contains(&lane.key)) {
                     lane.blocks.push(block.clone());
                     placed = true;
-                }
-            }
-            // If the view does not constrain to specific tags, surface every
-            // distinct tag as its own lane so a free Kanban still groups.
-            if lane_keys.is_empty() {
-                if let Some(set) = block_tags {
-                    for tag in set {
-                        match lanes.iter_mut().find(|l| &l.key == tag) {
-                            Some(lane) => lane.blocks.push(block.clone()),
-                            None => lanes.push(BlockViewLane {
-                                key: tag.clone(),
-                                blocks: vec![block.clone()],
-                            }),
-                        }
-                    }
-                    placed = !set.is_empty();
                 }
             }
             if !placed {
@@ -2325,7 +2333,19 @@ fn map_debug_breakpoint(row: &PgRow) -> StorageResult<DebugBreakpoint> {
 
 const WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR: &str =
     "workspace search bookmark_state must match hsk.workspace_search_bookmark_state@1 shape";
-const WORKSPACE_SEARCH_BOOKMARK_MAX: usize = 100;
+const WORKSPACE_SEARCH_BOOKMARK_MAX: usize = 20;
+const WORKSPACE_SEARCH_BOOKMARK_KINDS: [&str; 10] = [
+    "all",
+    "document",
+    "loom_block",
+    "file",
+    "tag_hub",
+    "symbol",
+    "work_packet",
+    "micro_task",
+    "user_manual_page",
+    "wiki_page",
+];
 
 /// Validates the saved-search bookmark blob shape: a JSON object carrying the
 /// schema id and a bounded `bookmarks` array of well-formed saved-search records.
@@ -2344,7 +2364,7 @@ fn validate_workspace_search_bookmark_state_shape(bookmark_state: &Value) -> Sto
     };
     if bookmarks.len() > WORKSPACE_SEARCH_BOOKMARK_MAX {
         return Err(StorageError::Validation(
-            "workspace search bookmark_state exceeds 100 saved searches",
+            "workspace search bookmark_state exceeds 20 saved searches",
         ));
     }
     for bookmark in bookmarks {
@@ -2381,14 +2401,115 @@ fn validate_workspace_search_bookmark_state_shape(bookmark_state: &Value) -> Sto
         require_nonempty_str("label")?;
         require_str("query")?;
         require_nonempty_str("kind")?;
+        let kind = entry
+            .get("kind")
+            .and_then(Value::as_str)
+            .ok_or(StorageError::Validation(
+                WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR,
+            ))?;
+        if !WORKSPACE_SEARCH_BOOKMARK_KINDS.contains(&kind) {
+            return Err(StorageError::Validation(
+                WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR,
+            ));
+        }
         require_str("tagFilter")?;
         require_str("pathFilter")?;
         require_bool("caseSensitive")?;
         require_bool("wholeWord")?;
         require_bool("isRegex")?;
         require_nonempty_str("savedAt")?;
+        let saved_at =
+            entry
+                .get("savedAt")
+                .and_then(Value::as_str)
+                .ok_or(StorageError::Validation(
+                    WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR,
+                ))?;
+        if chrono::DateTime::parse_from_rfc3339(saved_at).is_err() {
+            return Err(StorageError::Validation(
+                WORKSPACE_SEARCH_BOOKMARK_SHAPE_VALIDATION_ERROR,
+            ));
+        }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod workspace_search_bookmark_validation_tests {
+    use super::*;
+
+    fn bookmark(id: usize, kind: &str, saved_at: &str) -> Value {
+        json!({
+            "id": format!("bookmark-{id}"),
+            "label": format!("Bookmark {id}"),
+            "query": format!("query-{id}"),
+            "kind": kind,
+            "tagFilter": "",
+            "pathFilter": "",
+            "caseSensitive": false,
+            "wholeWord": false,
+            "isRegex": false,
+            "savedAt": saved_at,
+        })
+    }
+
+    fn state(bookmarks: Vec<Value>) -> Value {
+        json!({
+            "schema_id": WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID,
+            "bookmarks": bookmarks,
+        })
+    }
+
+    #[test]
+    fn bookmark_validator_matches_frontend_kind_limit_and_timestamp_contract() {
+        let valid = state(
+            WORKSPACE_SEARCH_BOOKMARK_KINDS
+                .iter()
+                .enumerate()
+                .map(|(index, kind)| bookmark(index, kind, "2026-07-15T02:00:00+02:00"))
+                .collect(),
+        );
+        let encoded = serde_json::to_string(&valid).expect("serialize canonical bookmark state");
+        let decoded: Value =
+            serde_json::from_str(&encoded).expect("deserialize canonical bookmark state");
+        validate_workspace_search_bookmark_state_shape(&decoded)
+            .expect("all exact kind tokens and an RFC3339 offset timestamp are accepted");
+        assert_eq!(
+            decoded, valid,
+            "canonical bookmark state round-trips exactly"
+        );
+
+        let twenty = state(
+            (0..WORKSPACE_SEARCH_BOOKMARK_MAX)
+                .map(|index| bookmark(index, "all", "2026-07-15T00:00:00Z"))
+                .collect(),
+        );
+        validate_workspace_search_bookmark_state_shape(&twenty)
+            .expect("exactly twenty bookmarks are accepted");
+
+        let twenty_one = state(
+            (0..=WORKSPACE_SEARCH_BOOKMARK_MAX)
+                .map(|index| bookmark(index, "all", "2026-07-15T00:00:00Z"))
+                .collect(),
+        );
+        assert!(validate_workspace_search_bookmark_state_shape(&twenty_one).is_err());
+        assert!(
+            validate_workspace_search_bookmark_state_shape(&state(vec![bookmark(
+                0,
+                "future_kind",
+                "2026-07-15T00:00:00Z",
+            )]))
+            .is_err()
+        );
+        assert!(
+            validate_workspace_search_bookmark_state_shape(&state(vec![bookmark(
+                0,
+                "all",
+                "not-a-timestamp",
+            )]))
+            .is_err()
+        );
+    }
 }
 
 const WORKBENCH_LAYOUT_SHAPE_VALIDATION_ERROR: &str =
@@ -2917,13 +3038,16 @@ pub(crate) fn loom_block_search_text(block: &LoomBlock) -> String {
 /// Upserts ONLY the keyword/trigram (search_text) projection for a block,
 /// preserving any existing embedding. Used inside the block create/update
 /// authority write path so FTS/trigram stays consistent. WP-KERNEL-009 MT-264.
-async fn upsert_loom_block_search_text(
-    pool: &PgPool,
+async fn upsert_loom_block_search_text<'e, E>(
+    executor: E,
     workspace_id: &str,
     block_id: &str,
     content_type: &str,
     search_text: &str,
-) -> StorageResult<()> {
+) -> StorageResult<()>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     sqlx::query(
         r#"
         INSERT INTO loom_block_search_index
@@ -2940,7 +3064,7 @@ async fn upsert_loom_block_search_text(
     .bind(workspace_id)
     .bind(content_type)
     .bind(search_text)
-    .execute(pool)
+    .execute(executor)
     .await?;
     Ok(())
 }
@@ -3666,7 +3790,7 @@ fn map_session_message(row: PgRow) -> StorageResult<SessionMessage> {
     })
 }
 
-fn map_kernel_event(row: PgRow) -> StorageResult<KernelEvent> {
+pub(crate) fn map_kernel_event(row: PgRow) -> StorageResult<KernelEvent> {
     let event_type_raw: String = row.get("event_type");
     let event_type = KernelEventType::try_from(event_type_raw.as_str())
         .map_err(|_| StorageError::Validation("invalid kernel event_type"))?;
@@ -3855,13 +3979,10 @@ fn build_kernel_session_event(
         .map_err(|err| StorageError::Serialization(err.to_string()))
 }
 
-pub(crate) async fn append_kernel_event_with_executor<'e, E>(
-    executor: E,
+pub(crate) async fn append_kernel_event_with_executor(
+    executor: &mut PgConnection,
     event: NewKernelEvent,
-) -> StorageResult<KernelEvent>
-where
-    E: Executor<'e, Database = Postgres>,
-{
+) -> StorageResult<KernelEvent> {
     event
         .validate()
         .map_err(|_| StorageError::Validation("invalid kernel event"))?;
@@ -3870,9 +3991,8 @@ where
         .map_err(|err| StorageError::Serialization(err.to_string()))?;
 
     let new_event_id = kernel_event.event_id.clone();
-    let row = sqlx::query(
+    let inserted_row = sqlx::query(
         r#"
-        WITH inserted AS (
         INSERT INTO kernel_event_ledger (
             event_id,
             event_version,
@@ -3909,50 +4029,8 @@ where
             correlation_id,
             payload_hash,
             source_component,
-            payload,
-            created_at
-        )
-        SELECT
-            event_id,
-            event_sequence,
-            event_version,
-            kernel_task_run_id,
-            session_run_id,
-            aggregate_type,
-            aggregate_id,
-            idempotency_key,
-            event_type,
-            actor_kind,
-            actor_id,
-            causation_id,
-            correlation_id,
-            payload_hash,
-            source_component,
             payload::text AS payload,
             created_at
-        FROM inserted
-        UNION ALL
-        SELECT
-            event_id,
-            event_sequence,
-            event_version,
-            kernel_task_run_id,
-            session_run_id,
-            aggregate_type,
-            aggregate_id,
-            idempotency_key,
-            event_type,
-            actor_kind,
-            actor_id,
-            causation_id,
-            correlation_id,
-            payload_hash,
-            source_component,
-            payload::text AS payload,
-            created_at
-        FROM kernel_event_ledger
-        WHERE idempotency_key = $7
-        LIMIT 1
         "#,
     )
     .bind(&kernel_event.event_id)
@@ -3971,8 +4049,44 @@ where
     .bind(&event.source_component)
     .bind(payload)
     .bind(kernel_event.created_at)
-    .fetch_one(executor)
+    .fetch_optional(&mut *executor)
     .await?;
+
+    // The conflicting INSERT waits for an in-flight winner. A second statement
+    // on this connection therefore gets a fresh READ COMMITTED snapshot that
+    // can observe the committed winner without mutating the append-only ledger.
+    let row = match inserted_row {
+        Some(row) => row,
+        None => {
+            sqlx::query(
+                r#"
+                SELECT
+                    event_id,
+                    event_sequence,
+                    event_version,
+                    kernel_task_run_id,
+                    session_run_id,
+                    aggregate_type,
+                    aggregate_id,
+                    idempotency_key,
+                    event_type,
+                    actor_kind,
+                    actor_id,
+                    causation_id,
+                    correlation_id,
+                    payload_hash,
+                    source_component,
+                    payload::text AS payload,
+                    created_at
+                FROM kernel_event_ledger
+                WHERE idempotency_key = $1
+                "#,
+            )
+            .bind(&event.idempotency_key)
+            .fetch_one(&mut *executor)
+            .await?
+        }
+    };
 
     let stored = map_kernel_event(row)?;
     let mut mismatches = Vec::new();
@@ -4032,12 +4146,178 @@ where
     Ok(stored)
 }
 
+impl PostgresDatabase {
+    /// MT-032/177 bridge closure used by ordinary bridge calls and markdown
+    /// import. Entity upsert, EventLedger receipt, and bridge row share the
+    /// caller's transaction, so an injected failure cannot strand a partial
+    /// bridge or report failure after a committed import.
+    async fn bridge_loom_block_to_knowledge_tx(
+        tx: &mut sqlx::Transaction<'_, Postgres>,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<super::LoomKnowledgeBridge> {
+        let block_row = sqlx::query(
+            r#"
+            SELECT block_id, workspace_id, content_type, document_id, asset_id,
+                   title, original_filename, content_hash, pinned, favorite,
+                   pin_order, journal_date, created_at, updated_at, imported_at,
+                   backlink_count, mention_count, tag_count, derived_json,
+                   preview_status, thumbnail_asset_id, proxy_asset_id
+            FROM loom_blocks
+            WHERE workspace_id = $1 AND block_id = $2
+            FOR SHARE
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(block_id)
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or(StorageError::NotFound("loom_block"))?;
+        let block = map_loom_block(block_row)?;
+        let display_name = block
+            .title
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .or_else(|| {
+                block
+                    .original_filename
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+            })
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("{} {}", block.content_type.as_str(), block.block_id));
+        let entity_id = format!("KEN-{}", Uuid::now_v7().simple());
+        let entity_row = sqlx::query(
+            r#"
+            INSERT INTO knowledge_entities
+                (entity_id, workspace_id, entity_kind, entity_key, display_name,
+                 detection_provenance, primary_source_id,
+                 first_detected_in_run, last_detected_in_run)
+            VALUES ($1, $2, 'loom_block', $3, $4, $5, NULL, NULL, NULL)
+            ON CONFLICT (workspace_id, entity_kind, entity_key)
+            DO UPDATE SET
+                display_name = EXCLUDED.display_name,
+                detection_provenance = EXCLUDED.detection_provenance,
+                lifecycle_state = 'active',
+                updated_at = NOW()
+            RETURNING entity_id, updated_at
+            "#,
+        )
+        .bind(entity_id)
+        .bind(workspace_id)
+        .bind(&block.block_id)
+        .bind(display_name)
+        .bind(json!({
+            "extractor": "loom_block_knowledge_bridge",
+            "extractor_version": LOOM_KNOWLEDGE_BRIDGE_EXTRACTOR_VERSION,
+            "method": "mt177_bridge",
+            "content_type": block.content_type.as_str(),
+        }))
+        .fetch_one(&mut **tx)
+        .await?;
+        let entity_id: String = entity_row.get("entity_id");
+        let entity_updated_at: chrono::DateTime<Utc> = entity_row.get("updated_at");
+        let actor = kernel_actor_for_bridge(ctx);
+        let run_id = format!("LOOM-BRIDGE-{workspace_id}");
+        let event = NewKernelEvent::builder(
+            run_id.clone(),
+            run_id,
+            KernelEventType::KnowledgeLoomBlockIndexed,
+            actor,
+        )
+        .aggregate("knowledge_loom_block", entity_id.clone())
+        .idempotency_key(format!(
+            "KEI-loom-bridge-{}-{}",
+            entity_id,
+            entity_updated_at.timestamp_nanos_opt().unwrap_or_default()
+        ))
+        .source_component("loom_block_knowledge_bridge")
+        .payload(json!({
+            "type": "knowledge_loom_block_indexed",
+            "workspace_id": workspace_id,
+            "block_id": block.block_id,
+            "entity_id": entity_id,
+            "content_type": block.content_type.as_str(),
+            "extractor_version": LOOM_KNOWLEDGE_BRIDGE_EXTRACTOR_VERSION,
+        }))
+        .build()
+        .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))?;
+        let stored_event = append_kernel_event_with_executor(&mut **tx, event).await?;
+        let row = sqlx::query(
+            r#"
+            INSERT INTO loom_block_knowledge_bridge
+                (block_id, workspace_id, entity_id, index_event_id)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (block_id) DO UPDATE SET
+                entity_id = EXCLUDED.entity_id,
+                index_event_id = EXCLUDED.index_event_id,
+                updated_at = NOW()
+            RETURNING block_id, workspace_id, entity_id, index_event_id,
+                      created_at, updated_at
+            "#,
+        )
+        .bind(&block.block_id)
+        .bind(workspace_id)
+        .bind(&entity_id)
+        .bind(&stored_event.event_id)
+        .fetch_one(&mut **tx)
+        .await?;
+        Ok(map_loom_knowledge_bridge(&row))
+    }
+}
+
 fn leak_kernel_event_conflict(message: String) -> &'static str {
     Box::leak(message.into_boxed_str())
 }
 
 fn is_sha256_hex(value: &str) -> bool {
     value.len() == 64 && value.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn validated_canvas_stage_provenance(
+    key: &str,
+    provenance: &super::LoomCanvasStageProvenance,
+) -> StorageResult<Value> {
+    use sha2::{Digest, Sha256};
+
+    if provenance.schema_id != LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA
+        || provenance.artifact_id.trim().is_empty()
+        || provenance.artifact_id.trim() != provenance.artifact_id
+        || provenance.manifest_ref.trim().is_empty()
+        || provenance.manifest_ref.trim() != provenance.manifest_ref
+        || provenance.causal_action_id.trim().is_empty()
+        || provenance.causal_action_id.trim() != provenance.causal_action_id
+        || provenance.sha256.len() != 64
+        || !provenance
+            .sha256
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(StorageError::Validation(
+            "invalid Canvas Stage provenance tuple",
+        ));
+    }
+    let canonical = serde_json::to_vec(provenance)?;
+    let computed_key = format!("{:x}", Sha256::digest(canonical));
+    if key != computed_key {
+        return Err(StorageError::Validation(
+            "Canvas Stage provenance key does not match the exact tuple",
+        ));
+    }
+    Ok(serde_json::to_value(provenance)?)
+}
+
+fn canvas_stage_provenance_advisory_key(
+    workspace_id: &str,
+    canvas_block_id: &str,
+    stage_provenance_key: &str,
+) -> String {
+    format!(
+        "canvas-stage-provenance\u{1f}{workspace_id}\u{1f}{canvas_block_id}\u{1f}{stage_provenance_key}"
+    )
 }
 
 fn map_workflow_run(row: PgRow) -> StorageResult<WorkflowRun> {
@@ -4132,6 +4412,23 @@ fn is_pg_unique_violation(err: &sqlx::Error) -> bool {
     matches!(err, sqlx::Error::Database(db_err) if db_err.code().as_deref() == Some("23505"))
 }
 
+fn map_loom_folder_write_error(err: sqlx::Error) -> StorageError {
+    if let sqlx::Error::Database(db_err) = &err {
+        if db_err.code().as_deref() == Some("23505") {
+            return match db_err.constraint() {
+                Some("uq_loom_folders_root_name")
+                | Some("uq_loom_folders_child_name")
+                | Some("uq_loom_folders_sibling_name") => {
+                    StorageError::Conflict("loom_folder_sibling_name")
+                }
+                Some("loom_folders_pkey") => StorageError::Conflict("loom_folder_id"),
+                _ => StorageError::Conflict("loom_folder_unique_value"),
+            };
+        }
+    }
+    StorageError::from(err)
+}
+
 fn is_pg_foreign_key_violation(err: &sqlx::Error) -> bool {
     matches!(err, sqlx::Error::Database(db_err) if db_err.code().as_deref() == Some("23503"))
 }
@@ -4166,65 +4463,6 @@ fn decode_string_vec_or_default(raw: Option<String>) -> StorageResult<Vec<String
     }
 }
 
-fn validate_calendar_source_upsert(source: &CalendarSourceUpsert) -> StorageResult<()> {
-    if source.id.trim().is_empty() {
-        return Err(StorageError::Validation("calendar source id is required"));
-    }
-    if source.workspace_id.trim().is_empty() {
-        return Err(StorageError::Validation(
-            "calendar source workspace_id is required",
-        ));
-    }
-    if source.display_name.trim().is_empty() {
-        return Err(StorageError::Validation(
-            "calendar source display_name is required",
-        ));
-    }
-    if source.default_tzid.trim().is_empty() {
-        return Err(StorageError::Validation(
-            "calendar source default_tzid is required",
-        ));
-    }
-    Ok(())
-}
-
-fn validate_calendar_event_upsert(event: &CalendarEventUpsert) -> StorageResult<()> {
-    if event.id.trim().is_empty() {
-        return Err(StorageError::Validation("calendar event id is required"));
-    }
-    if event.workspace_id.trim().is_empty() {
-        return Err(StorageError::Validation(
-            "calendar event workspace_id is required",
-        ));
-    }
-    if event.source_id.trim().is_empty() {
-        return Err(StorageError::Validation(
-            "calendar event source_id is required",
-        ));
-    }
-    if event.title.trim().is_empty() {
-        return Err(StorageError::Validation("calendar event title is required"));
-    }
-    if event.tzid.trim().is_empty() {
-        return Err(StorageError::Validation("calendar event tzid is required"));
-    }
-    if event.end_ts_utc <= event.start_ts_utc {
-        return Err(StorageError::Validation(
-            "calendar event end_ts_utc must be after start_ts_utc",
-        ));
-    }
-    if event
-        .external_id
-        .as_deref()
-        .is_some_and(|value| value.trim().is_empty())
-    {
-        return Err(StorageError::Validation(
-            "calendar event external_id cannot be blank",
-        ));
-    }
-    Ok(())
-}
-
 fn validate_calendar_event_query(query: &CalendarEventWindowQuery) -> StorageResult<()> {
     if query.workspace_id.trim().is_empty() {
         return Err(StorageError::Validation(
@@ -4234,6 +4472,11 @@ fn validate_calendar_event_query(query: &CalendarEventWindowQuery) -> StorageRes
     if query.window_end_utc <= query.window_start_utc {
         return Err(StorageError::Validation(
             "calendar query window_end_utc must be after window_start_utc",
+        ));
+    }
+    if query.query_end_date_exclusive <= query.query_start_date {
+        return Err(StorageError::Validation(
+            "calendar query_end_date_exclusive must be after query_start_date",
         ));
     }
     Ok(())
@@ -4304,7 +4547,13 @@ fn map_calendar_event(row: PgRow) -> StorageResult<CalendarEvent> {
         end_local: row.get("end_local"),
         tzid: row.get("tzid"),
         all_day: row.get("all_day"),
+        start_date: row.get("start_date"),
+        end_date_exclusive: row.get("end_date_exclusive"),
         was_floating: row.get("was_floating"),
+        normalization_note: row
+            .get::<Option<Value>, _>("normalization_note")
+            .map(serde_json::from_value)
+            .transpose()?,
         status: CalendarEventStatus::from_str(row.get::<String, _>("status").as_str())?,
         visibility: CalendarEventVisibility::from_str(row.get::<String, _>("visibility").as_str())?,
         export_mode: CalendarEventExportMode::from_str(
@@ -5125,9 +5374,9 @@ impl super::Database for PostgresDatabase {
             .bind(exportable_int)
             .bind(actor_kind)
             .bind(&actor_id)
-            .bind(job_id)
-            .bind(workflow_id)
-            .bind(edit_event_id)
+            .bind(job_id.clone())
+            .bind(workflow_id.clone())
+            .bind(edit_event_id.clone())
             .fetch_one(&mut *tx)
             .await?;
 
@@ -5667,6 +5916,7 @@ impl super::Database for PostgresDatabase {
 
         let pinned: i32 = if block.pinned { 1 } else { 0 };
 
+        let mut tx = self.pool.begin().await?;
         let row = sqlx::query(
             r#"
             INSERT INTO loom_blocks (
@@ -5752,7 +6002,7 @@ impl super::Database for PostgresDatabase {
         .bind(preview_status)
         .bind(&block.derived.thumbnail_asset_id)
         .bind(&block.derived.proxy_asset_id)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await?;
 
         let created = map_loom_block(row)?;
@@ -5762,13 +6012,14 @@ impl super::Database for PostgresDatabase {
         // NEVER fabricated here). FTS/trigram consistency is transactional with
         // the block's existence: a deleted block CASCADE-drops its index row.
         upsert_loom_block_search_text(
-            &self.pool,
+            &mut *tx,
             &created.workspace_id,
             &created.block_id,
             created.content_type.as_str(),
             &loom_block_search_text(&created),
         )
         .await?;
+        tx.commit().await?;
         Ok(created)
     }
 
@@ -6100,6 +6351,7 @@ impl super::Database for PostgresDatabase {
         let pinned: Option<i32> = update.pinned.map(|v| if v { 1 } else { 0 });
         let favorite: Option<i32> = update.favorite.map(|v| if v { 1 } else { 0 });
 
+        let mut tx = self.pool.begin().await?;
         let row = sqlx::query(
             r#"
             UPDATE loom_blocks
@@ -6115,7 +6367,9 @@ impl super::Database for PostgresDatabase {
                 last_workflow_id = $9,
                 edit_event_id = $10,
                 updated_at = $11
-            WHERE workspace_id = $12 AND block_id = $13
+            WHERE workspace_id = $12
+              AND block_id = $13
+              AND ($14::timestamptz IS NULL OR updated_at = $14)
             RETURNING
                 block_id,
                 workspace_id,
@@ -6154,7 +6408,8 @@ impl super::Database for PostgresDatabase {
         .bind(now)
         .bind(workspace_id)
         .bind(block_id)
-        .fetch_optional(&self.pool)
+        .bind(update.expected_updated_at.as_ref())
+        .fetch_optional(&mut *tx)
         .await?;
 
         match row {
@@ -6164,14 +6419,29 @@ impl super::Database for PostgresDatabase {
                 // on update so an edited title/text is reflected in subsequent
                 // searches (no stale hit). Embedding refresh is separate.
                 upsert_loom_block_search_text(
-                    &self.pool,
+                    &mut *tx,
                     &updated.workspace_id,
                     &updated.block_id,
                     updated.content_type.as_str(),
                     &loom_block_search_text(&updated),
                 )
                 .await?;
+                tx.commit().await?;
                 Ok(updated)
+            }
+            None if update.expected_updated_at.is_some() => {
+                let exists = sqlx::query_scalar::<_, bool>(
+                    "SELECT EXISTS(SELECT 1 FROM loom_blocks WHERE workspace_id = $1 AND block_id = $2)",
+                )
+                .bind(workspace_id)
+                .bind(block_id)
+                .fetch_one(&mut *tx)
+                .await?;
+                Err(if exists {
+                    StorageError::Conflict("loom_block_stale_updated_at")
+                } else {
+                    StorageError::NotFound("loom_block")
+                })
             }
             None => Err(StorageError::NotFound("loom_block")),
         }
@@ -8547,9 +8817,10 @@ impl super::Database for PostgresDatabase {
             r#"
             INSERT INTO loom_canvas_placements (
                 placement_id, canvas_block_id, workspace_id, placed_block_id,
-                x, y, w, h, z_index, group_id, is_text_card, created_at, updated_at
+                x, y, w, h, z_index, group_id, is_text_card,
+                stage_provenance_key, stage_provenance, created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NULL, NOW(), NOW())
             RETURNING placement_id, canvas_block_id, workspace_id, placed_block_id,
                       x, y, w, h, z_index, group_id, is_text_card, created_at, updated_at
             "#,
@@ -8565,9 +8836,880 @@ impl super::Database for PostgresDatabase {
         .bind(placement.z_index)
         .bind(&placement.group_id)
         .bind(placement.is_text_card)
+        .bind(&placement.stage_provenance_key)
         .fetch_one(&self.pool)
         .await?;
         map_loom_canvas_placement(&row)
+    }
+
+    async fn create_stage_canvas_card(
+        &self,
+        ctx: &WriteContext,
+        card: NewLoomCanvasStageCard,
+    ) -> StorageResult<LoomCanvasStageCard> {
+        use crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION;
+        use crate::knowledge_document::import::{import_snippet, ImportFormat};
+        use crate::storage::knowledge::NewKnowledgeRichDocument;
+
+        if card.title.trim() != card.title || card.title.is_empty() {
+            return Err(StorageError::Validation(
+                "Stage canvas card title must be non-empty and trimmed",
+            ));
+        }
+        if card.w <= 0.0 || card.h <= 0.0 {
+            return Err(StorageError::Validation(
+                "canvas placement w/h must be positive",
+            ));
+        }
+        let stage_provenance =
+            validated_canvas_stage_provenance(&card.stage_provenance_key, &card.stage_provenance)?;
+
+        // The typed provenance is the authority. Persist its canonical JSON,
+        // never caller whitespace/key order, so compensation derives the exact
+        // same immutable document bytes after a successful create.
+        let canonical_markdown = serde_json::to_string(&card.stage_provenance)?;
+        let imported_content = import_snippet(&canonical_markdown, ImportFormat::Markdown);
+        let mut tx = self.pool.begin().await?;
+        let advisory_key = canvas_stage_provenance_advisory_key(
+            &card.workspace_id,
+            &card.canvas_block_id,
+            &card.stage_provenance_key,
+        );
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+            .bind(advisory_key)
+            .execute(&mut *tx)
+            .await?;
+
+        // Both the create and replay branches must re-prove the untrusted
+        // Canvas tuple against Stage's authoritative capture row. Holding the
+        // row lock through commit prevents a concurrent mutation from turning
+        // a verified tuple into a fabricated placement.
+        let stage_authority: Option<(String, String, String)> = sqlx::query_as(
+            r#"
+            SELECT content_sha256, manifest_ref, correlation_id
+            FROM stage_capture_artifacts
+            WHERE workspace_id = $1 AND artifact_id = $2
+            FOR UPDATE
+            "#,
+        )
+        .bind(&card.workspace_id)
+        .bind(&card.stage_provenance.artifact_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some((authority_sha256, authority_manifest_ref, authority_correlation_id)) =
+            stage_authority
+        else {
+            return Err(StorageError::Validation(
+                "Canvas Stage provenance has no authoritative capture artifact",
+            ));
+        };
+        if authority_sha256 != card.stage_provenance.sha256
+            || authority_manifest_ref != card.stage_provenance.manifest_ref
+            || authority_correlation_id != card.stage_provenance.causal_action_id
+        {
+            return Err(StorageError::Validation(
+                "Canvas Stage provenance does not match the authoritative capture tuple",
+            ));
+        }
+
+        let existing_row = sqlx::query(
+            r#"
+            SELECT placement_id, canvas_block_id, workspace_id, placed_block_id,
+                   x, y, w, h, z_index, group_id, is_text_card,
+                   stage_provenance, created_at, updated_at
+            FROM loom_canvas_placements
+            WHERE workspace_id = $1
+              AND canvas_block_id = $2
+              AND stage_provenance_key = $3
+            "#,
+        )
+        .bind(&card.workspace_id)
+        .bind(&card.canvas_block_id)
+        .bind(&card.stage_provenance_key)
+        .fetch_optional(&mut *tx)
+        .await?;
+        if let Some(existing_row) = existing_row {
+            let existing_provenance: Value = existing_row.get("stage_provenance");
+            if existing_provenance != stage_provenance {
+                return Err(StorageError::Validation(
+                    "Canvas Stage provenance key is bound to a different tuple",
+                ));
+            }
+            let placement = map_loom_canvas_placement(&existing_row)?;
+            let block_row = sqlx::query(
+                r#"
+                SELECT block_id, workspace_id, content_type, document_id, asset_id,
+                       title, original_filename, content_hash, pinned, favorite,
+                       pin_order, journal_date, created_at, updated_at, imported_at,
+                       backlink_count, mention_count, tag_count, derived_json,
+                       preview_status, thumbnail_asset_id, proxy_asset_id
+                FROM loom_blocks
+                WHERE workspace_id = $1 AND block_id = $2
+                "#,
+            )
+            .bind(&card.workspace_id)
+            .bind(&placement.placed_block_id)
+            .fetch_one(&mut *tx)
+            .await?;
+            let block = map_loom_block(block_row)?;
+            let rich_document_id = sqlx::query_scalar::<_, String>(
+                r#"
+                SELECT rich_document_id
+                FROM knowledge_rich_documents
+                WHERE workspace_id = $1
+                  AND rich_document_id = $2
+                  AND deleted_at IS NULL
+                "#,
+            )
+            .bind(&card.workspace_id)
+            .bind(&placement.placed_block_id)
+            .fetch_one(&mut *tx)
+            .await?;
+            tx.commit().await?;
+            return Ok(LoomCanvasStageCard {
+                block,
+                rich_document_id,
+                placement,
+                created_by_request: false,
+            });
+        }
+
+        let board_exists = sqlx::query_scalar::<_, bool>(
+            r#"
+            SELECT EXISTS(
+                SELECT 1 FROM loom_canvas_boards
+                WHERE workspace_id = $1 AND block_id = $2
+            )
+            "#,
+        )
+        .bind(&card.workspace_id)
+        .bind(&card.canvas_block_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if !board_exists {
+            return Err(StorageError::NotFound("loom_canvas_board"));
+        }
+
+        let document = self
+            .create_knowledge_rich_document_tx(
+                &mut tx,
+                &NewKnowledgeRichDocument {
+                    workspace_id: card.workspace_id.clone(),
+                    document_id: None,
+                    title: card.title.clone(),
+                    schema_version: DOCUMENT_SCHEMA_VERSION.to_string(),
+                    content_json: imported_content.document_json,
+                    crdt_document_id: None,
+                    crdt_snapshot_id: None,
+                    promotion_receipt_event_id: None,
+                    project_ref: None,
+                    folder_ref: None,
+                    authority_label: None,
+                    owner_actor_kind: None,
+                    owner_actor_id: None,
+                },
+            )
+            .await?;
+        Self::bridge_loom_block_to_knowledge_tx(
+            &mut tx,
+            ctx,
+            &card.workspace_id,
+            &document.block_id,
+        )
+        .await?;
+
+        let block_row = sqlx::query(
+            r#"
+            SELECT block_id, workspace_id, content_type, document_id, asset_id,
+                   title, original_filename, content_hash, pinned, favorite,
+                   pin_order, journal_date, created_at, updated_at, imported_at,
+                   backlink_count, mention_count, tag_count, derived_json,
+                   preview_status, thumbnail_asset_id, proxy_asset_id
+            FROM loom_blocks
+            WHERE workspace_id = $1 AND block_id = $2
+            "#,
+        )
+        .bind(&card.workspace_id)
+        .bind(&document.block_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        let block = map_loom_block(block_row)?;
+
+        let placement_id = format!("LCP-{}", Uuid::now_v7().simple());
+        self.guard.validate_write(ctx, &placement_id).await?;
+        let placement_row = sqlx::query(
+            r#"
+            INSERT INTO loom_canvas_placements (
+                placement_id, canvas_block_id, workspace_id, placed_block_id,
+                x, y, w, h, z_index, group_id, is_text_card,
+                stage_provenance_key, stage_provenance, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, TRUE, $10, $11, NOW(), NOW())
+            RETURNING placement_id, canvas_block_id, workspace_id, placed_block_id,
+                      x, y, w, h, z_index, group_id, is_text_card, created_at, updated_at
+            "#,
+        )
+        .bind(&placement_id)
+        .bind(&card.canvas_block_id)
+        .bind(&card.workspace_id)
+        .bind(&document.block_id)
+        .bind(card.x)
+        .bind(card.y)
+        .bind(card.w)
+        .bind(card.h)
+        .bind(card.z_index)
+        .bind(&card.stage_provenance_key)
+        .bind(stage_provenance)
+        .fetch_one(&mut *tx)
+        .await?;
+        let placement = map_loom_canvas_placement(&placement_row)?;
+        tx.commit().await?;
+
+        Ok(LoomCanvasStageCard {
+            block,
+            rich_document_id: document.rich_document_id,
+            placement,
+            created_by_request: true,
+        })
+    }
+
+    async fn compensate_stage_canvas_card(
+        &self,
+        ctx: &WriteContext,
+        card: CompensateLoomCanvasStageCard,
+    ) -> StorageResult<LoomCanvasStageCompensation> {
+        use crate::knowledge_document::import::{import_snippet, ImportFormat};
+
+        let stage_provenance =
+            validated_canvas_stage_provenance(&card.stage_provenance_key, &card.stage_provenance)?;
+        self.guard.validate_write(ctx, &card.placement_id).await?;
+        self.guard
+            .validate_write(ctx, &card.placed_block_id)
+            .await?;
+
+        let expected_title = format!("Stage capture {}", card.stage_provenance.artifact_id);
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+            .bind(canvas_stage_provenance_advisory_key(
+                &card.workspace_id,
+                &card.canvas_block_id,
+                &card.stage_provenance_key,
+            ))
+            .execute(&mut *tx)
+            .await?;
+
+        // Join the canonical RichDocument backlink rebuild lock order before
+        // taking any document/placement row lock. Rebuilds lock source and
+        // resolved target ids in this same sorted advisory domain, so inbound,
+        // outbound, id-target, and title-target races cannot cross deletion.
+        let mut document_lock_ids: Vec<String> = sqlx::query_scalar(
+            "SELECT DISTINCT source_document_id FROM knowledge_document_backlinks \
+             WHERE workspace_id = $1 AND (target = $2 OR target = $3)",
+        )
+        .bind(&card.workspace_id)
+        .bind(&card.placed_block_id)
+        .bind(&expected_title)
+        .fetch_all(&mut *tx)
+        .await?;
+        document_lock_ids.push(card.placed_block_id.clone());
+        document_lock_ids.sort();
+        document_lock_ids.dedup();
+        for document_id in document_lock_ids {
+            sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 32032::bigint))")
+                .bind(document_id)
+                .execute(&mut *tx)
+                .await?;
+        }
+
+        // Logical-reference writers join these identities with SHARED
+        // transaction locks in migration 0348 and revalidate the append-only
+        // compensation event after any wait. RichDocument backlink rebuilds
+        // acquire their 32032 domain before writing loom_edges, whose trigger
+        // joins this 32066 domain, so compensation follows that same global
+        // order. Holding EXCLUSIVE locks through event append + deletion closes
+        // both writer-first and compensation-first races without broad table
+        // locks. Preflight reads only discover the stable entity identity; the
+        // authoritative bridge tuple is still locked and revalidated below.
+        let preflight_entity_id: Option<String> = sqlx::query_scalar(
+            "SELECT entity_id FROM loom_block_knowledge_bridge \
+             WHERE workspace_id = $1 AND block_id = $2",
+        )
+        .bind(&card.workspace_id)
+        .bind(&card.placed_block_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let mut logical_reference_ids = vec![
+            format!("block:{}", card.placed_block_id),
+            format!("title:{expected_title}"),
+        ];
+        if let Some(entity_id) = preflight_entity_id {
+            logical_reference_ids.push(format!("entity:{entity_id}"));
+        }
+        logical_reference_ids.sort();
+        logical_reference_ids.dedup();
+        for logical_reference_id in logical_reference_ids {
+            sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 32066::bigint))")
+                .bind(format!(
+                    "stage-logical-ref\u{1f}{}\u{1f}{}",
+                    card.workspace_id, logical_reference_id
+                ))
+                .execute(&mut *tx)
+                .await?;
+        }
+
+        let placement = sqlx::query(
+            r#"
+            SELECT placement_id, workspace_id, canvas_block_id, placed_block_id,
+                   is_text_card, stage_provenance_key, stage_provenance,
+                   created_at = updated_at AS pristine_timestamps
+            FROM loom_canvas_placements
+            WHERE placement_id = $1
+            FOR UPDATE
+            "#,
+        )
+        .bind(&card.placement_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let Some(placement) = placement else {
+            // A retry after a committed-but-unacknowledged compensation is a
+            // success only when every row owned by the exact receipt is absent.
+            // Any residue or identity reuse is ambiguous and therefore denied.
+            let residue: bool = sqlx::query_scalar(
+                r#"
+                SELECT
+                    EXISTS(
+                        SELECT 1 FROM loom_canvas_placements
+                        WHERE workspace_id = $1
+                          AND canvas_block_id = $2
+                          AND stage_provenance_key = $3
+                    )
+                    OR EXISTS(
+                        SELECT 1 FROM loom_canvas_placements
+                        WHERE placed_block_id = $4
+                    )
+                    OR EXISTS(
+                        SELECT 1 FROM knowledge_rich_documents
+                        WHERE rich_document_id = $4
+                    )
+                    OR EXISTS(
+                        SELECT 1 FROM loom_blocks
+                        WHERE block_id = $4
+                    )
+                    OR EXISTS(
+                        SELECT 1 FROM loom_block_knowledge_bridge
+                        WHERE block_id = $4
+                    )
+                    OR EXISTS(
+                        SELECT 1 FROM knowledge_entities
+                        WHERE workspace_id = $1
+                          AND entity_kind = 'loom_block'
+                          AND entity_key = $4
+                    )
+                "#,
+            )
+            .bind(&card.workspace_id)
+            .bind(&card.canvas_block_id)
+            .bind(&card.stage_provenance_key)
+            .bind(&card.placed_block_id)
+            .fetch_one(&mut *tx)
+            .await?;
+            if residue {
+                return Err(StorageError::Validation(
+                    "Canvas Stage compensation receipt is absent but owned authority residue remains",
+                ));
+            }
+            tx.commit().await?;
+            return Ok(LoomCanvasStageCompensation {
+                removed_by_request: false,
+            });
+        };
+
+        let stored_provenance: Value = placement.get("stage_provenance");
+        if placement.get::<String, _>("workspace_id") != card.workspace_id
+            || placement.get::<String, _>("canvas_block_id") != card.canvas_block_id
+            || placement.get::<String, _>("placed_block_id") != card.placed_block_id
+            || !placement.get::<bool, _>("is_text_card")
+            || placement
+                .get::<Option<String>, _>("stage_provenance_key")
+                .as_deref()
+                != Some(card.stage_provenance_key.as_str())
+            || stored_provenance != stage_provenance
+            || !placement.get::<bool, _>("pristine_timestamps")
+        {
+            return Err(StorageError::Validation(
+                "Canvas Stage compensation receipt does not own the persisted placement tuple",
+            ));
+        }
+
+        let expected_markdown = serde_json::to_string(&card.stage_provenance)?;
+        let expected_document = import_snippet(&expected_markdown, ImportFormat::Markdown);
+        let document = sqlx::query(
+            r#"
+            SELECT document_id, title, schema_version, doc_version, content_json,
+                   content_sha256, crdt_document_id, crdt_snapshot_id,
+                   promotion_receipt_event_id, projection_refs, project_ref,
+                   folder_ref, authority_label, owner_actor_kind, owner_actor_id,
+                   deleted_at, created_at = updated_at AS pristine_timestamps
+            FROM knowledge_rich_documents
+            WHERE workspace_id = $1 AND rich_document_id = $2
+            FOR UPDATE
+            "#,
+        )
+        .bind(&card.workspace_id)
+        .bind(&card.placed_block_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(StorageError::Validation(
+            "Canvas Stage compensation RichDocument ownership tuple is incomplete",
+        ))?;
+        let document_json: Value = document.get("content_json");
+        let document_sha: String = document.get("content_sha256");
+        let recomputed_sha =
+            crate::kernel::context_bundle::sha256_hex(&canonical_json_bytes(&document_json));
+        if document.get::<Option<String>, _>("document_id").is_some()
+            || document.get::<String, _>("title") != expected_title
+            || document.get::<String, _>("schema_version")
+                != crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION
+            || document.get::<i64, _>("doc_version") != 1
+            || document_json != expected_document.document_json
+            || document_sha != recomputed_sha
+            || document.get::<Value, _>("projection_refs") != json!([])
+            || document.get::<Option<String>, _>("project_ref").is_some()
+            || document.get::<Option<String>, _>("folder_ref").is_some()
+            || document.get::<String, _>("authority_label") != "promoted"
+            || document
+                .get::<Option<String>, _>("owner_actor_kind")
+                .is_some()
+            || document
+                .get::<Option<String>, _>("owner_actor_id")
+                .is_some()
+            || document
+                .get::<Option<chrono::DateTime<Utc>>, _>("deleted_at")
+                .is_some()
+            || document
+                .get::<Option<String>, _>("crdt_document_id")
+                .is_some()
+            || document
+                .get::<Option<String>, _>("crdt_snapshot_id")
+                .is_some()
+            || document
+                .get::<Option<String>, _>("promotion_receipt_event_id")
+                .is_some()
+            || !document.get::<bool, _>("pristine_timestamps")
+        {
+            return Err(StorageError::Validation(
+                "Canvas Stage compensation refuses a modified RichDocument",
+            ));
+        }
+        let versions = sqlx::query(
+            r#"
+            SELECT doc_version, schema_version, content_json, content_sha256,
+                   crdt_snapshot_id, promotion_receipt_event_id
+            FROM knowledge_rich_document_versions
+            WHERE rich_document_id = $1
+            ORDER BY doc_version
+            FOR UPDATE
+            "#,
+        )
+        .bind(&card.placed_block_id)
+        .fetch_all(&mut *tx)
+        .await?;
+        if versions.len() != 1
+            || versions[0].get::<i64, _>("doc_version") != 1
+            || versions[0].get::<String, _>("schema_version")
+                != crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION
+            || versions[0].get::<Value, _>("content_json") != document_json
+            || versions[0].get::<String, _>("content_sha256") != document_sha
+            || versions[0]
+                .get::<Option<String>, _>("crdt_snapshot_id")
+                .is_some()
+            || versions[0]
+                .get::<Option<String>, _>("promotion_receipt_event_id")
+                .is_some()
+        {
+            return Err(StorageError::Validation(
+                "Canvas Stage compensation refuses modified RichDocument version history",
+            ));
+        }
+
+        let full_text = crate::knowledge_document::block_tree::extract_plain_text(&document_json);
+        let full_text = full_text.trim().to_owned();
+        let expected_derived_json = serde_json::to_string(&super::LoomBlockDerived {
+            full_text_index: (!full_text.is_empty()).then(|| full_text.clone()),
+            ..super::LoomBlockDerived::default()
+        })?;
+        let expected_search_text = if full_text.is_empty() {
+            expected_title.clone()
+        } else {
+            format!("{expected_title}\n{full_text}")
+        };
+        let block = sqlx::query(
+            r#"
+            SELECT title, content_type, content_hash, document_id, asset_id,
+                   original_filename, pinned, favorite, pin_order, journal_date,
+                   last_job_id, last_workflow_id, last_actor_id, edit_event_id,
+                   last_actor_kind, imported_at, backlink_count, mention_count,
+                   tag_count, derived_json, preview_status, thumbnail_asset_id,
+                   proxy_asset_id, view_definition_json,
+                   created_at = updated_at AS pristine_timestamps
+            FROM loom_blocks
+            WHERE workspace_id = $1 AND block_id = $2
+            FOR UPDATE
+            "#,
+        )
+        .bind(&card.workspace_id)
+        .bind(&card.placed_block_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(StorageError::Validation(
+            "Canvas Stage compensation LoomBlock ownership tuple is incomplete",
+        ))?;
+        if block.get::<Option<String>, _>("title").as_deref() != Some(expected_title.as_str())
+            || block.get::<String, _>("content_type") != "note"
+            || block.get::<Option<String>, _>("content_hash").as_deref()
+                != Some(document_sha.as_str())
+            || block.get::<Option<String>, _>("document_id").is_some()
+            || block.get::<Option<String>, _>("asset_id").is_some()
+            || block
+                .get::<Option<String>, _>("original_filename")
+                .is_some()
+            || block.get::<i32, _>("pinned") != 0
+            || block.get::<i32, _>("favorite") != 0
+            || block.get::<Option<i32>, _>("pin_order").is_some()
+            || block.get::<Option<String>, _>("journal_date").is_some()
+            || block.get::<Option<String>, _>("last_job_id").is_some()
+            || block.get::<Option<String>, _>("last_workflow_id").is_some()
+            || block.get::<Option<String>, _>("last_actor_id").is_some()
+            || block.get::<String, _>("edit_event_id").trim().is_empty()
+            || block.get::<String, _>("last_actor_kind") != "HUMAN"
+            || block
+                .get::<Option<chrono::NaiveDateTime>, _>("imported_at")
+                .is_some()
+            || block.get::<i32, _>("backlink_count") != 0
+            || block.get::<i32, _>("mention_count") != 0
+            || block.get::<i32, _>("tag_count") != 0
+            || block.get::<String, _>("derived_json") != expected_derived_json
+            || block.get::<String, _>("preview_status") != "none"
+            || block
+                .get::<Option<String>, _>("thumbnail_asset_id")
+                .is_some()
+            || block.get::<Option<String>, _>("proxy_asset_id").is_some()
+            || block
+                .get::<Option<String>, _>("view_definition_json")
+                .is_some()
+            || !block.get::<bool, _>("pristine_timestamps")
+        {
+            return Err(StorageError::Validation(
+                "Canvas Stage compensation refuses a modified LoomBlock projection",
+            ));
+        }
+
+        let bridge = sqlx::query(
+            r#"
+            SELECT bridge.entity_id, bridge.index_event_id,
+                   entity.entity_kind, entity.entity_key,
+                   entity.display_name, entity.detection_provenance,
+                   entity.primary_source_id, entity.first_detected_in_run,
+                   entity.last_detected_in_run, entity.lifecycle_state,
+                   bridge.created_at = bridge.updated_at AS pristine_bridge_timestamps,
+                   entity.created_at = entity.updated_at AS pristine_entity_timestamps,
+                   event.event_type AS index_event_type,
+                   event.aggregate_type AS index_aggregate_type,
+                   event.aggregate_id AS index_aggregate_id,
+                   event.source_component AS index_source_component,
+                   event.payload AS index_payload
+            FROM loom_block_knowledge_bridge bridge
+            JOIN knowledge_entities entity ON entity.entity_id = bridge.entity_id
+            JOIN kernel_event_ledger event ON event.event_id = bridge.index_event_id
+            WHERE bridge.workspace_id = $1 AND bridge.block_id = $2
+            FOR UPDATE OF bridge, entity
+            "#,
+        )
+        .bind(&card.workspace_id)
+        .bind(&card.placed_block_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(StorageError::Validation(
+            "Canvas Stage compensation knowledge bridge ownership tuple is incomplete",
+        ))?;
+        let expected_detection = json!({
+            "extractor": "loom_block_knowledge_bridge",
+            "extractor_version": LOOM_KNOWLEDGE_BRIDGE_EXTRACTOR_VERSION,
+            "method": "mt177_bridge",
+            "content_type": "note",
+        });
+        let expected_index_payload = json!({
+            "type": "knowledge_loom_block_indexed",
+            "workspace_id": &card.workspace_id,
+            "block_id": &card.placed_block_id,
+            "entity_id": bridge.get::<String, _>("entity_id"),
+            "content_type": "note",
+            "extractor_version": LOOM_KNOWLEDGE_BRIDGE_EXTRACTOR_VERSION,
+        });
+        if bridge.get::<String, _>("entity_kind") != "loom_block"
+            || bridge.get::<String, _>("entity_key") != card.placed_block_id
+            || bridge.get::<String, _>("display_name") != expected_title
+            || bridge.get::<Value, _>("detection_provenance") != expected_detection
+            || bridge
+                .get::<Option<String>, _>("primary_source_id")
+                .is_some()
+            || bridge
+                .get::<Option<String>, _>("first_detected_in_run")
+                .is_some()
+            || bridge
+                .get::<Option<String>, _>("last_detected_in_run")
+                .is_some()
+            || bridge.get::<String, _>("lifecycle_state") != "active"
+            || !bridge.get::<bool, _>("pristine_bridge_timestamps")
+            || !bridge.get::<bool, _>("pristine_entity_timestamps")
+            || bridge.get::<String, _>("index_event_type")
+                != KernelEventType::KnowledgeLoomBlockIndexed.as_str()
+            || bridge.get::<String, _>("index_aggregate_type") != "knowledge_loom_block"
+            || bridge.get::<String, _>("index_aggregate_id") != bridge.get::<String, _>("entity_id")
+            || bridge.get::<String, _>("index_source_component") != "loom_block_knowledge_bridge"
+            || bridge.get::<Value, _>("index_payload") != expected_index_payload
+        {
+            return Err(StorageError::Validation(
+                "Canvas Stage compensation refuses a modified knowledge projection",
+            ));
+        }
+        let entity_id: String = bridge.get("entity_id");
+        let index_event_id: String = bridge.get("index_event_id");
+
+        let other_references: bool = sqlx::query_scalar(
+            r#"
+            SELECT
+                EXISTS(
+                    SELECT 1 FROM loom_canvas_placements
+                    WHERE placed_block_id = $1 AND placement_id <> $2
+                )
+                OR EXISTS(
+                    SELECT 1 FROM loom_canvas_visual_edges
+                    WHERE from_placement_id = $2 OR to_placement_id = $2
+                )
+                OR EXISTS(
+                    SELECT 1 FROM loom_edges
+                    WHERE workspace_id = $4
+                      AND (source_block_id = $1 OR target_block_id = $1 OR source_text_block_id = $1)
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_sources
+                    WHERE loom_block_id = $1
+                       OR (
+                            workspace_id = $4
+                            AND source_kind = 'rich_document'
+                            AND provenance->>'rich_document_id' = $1
+                       )
+                )
+                OR EXISTS(
+                    SELECT 1 FROM loom_folder_members
+                    WHERE block_id = $1
+                )
+                OR EXISTS(
+                    SELECT 1 FROM loom_canvas_boards
+                    WHERE block_id = $1
+                )
+                OR EXISTS(
+                    SELECT 1 FROM atelier_intake_item_loom_projection
+                    WHERE loom_block_id = $1
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_edges
+                    WHERE source_entity_id = $3 OR target_entity_id = $3
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_entity_spans
+                    WHERE entity_id = $3
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_claims
+                    WHERE subject_entity_id = $3
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_code_files
+                    WHERE file_entity_id = $3
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_memory_facts
+                    WHERE subject_entity_id = $3 OR object_entity_id = $3
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_memory_bridge_decisions
+                    WHERE entity_id_a = $3 OR entity_id_b = $3
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_rich_document_drafts
+                    WHERE rich_document_id = $1
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_editor_code_nodes
+                    WHERE rich_document_id = $1
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_document_embeds
+                    WHERE rich_document_id = $1
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_document_backlinks
+                    WHERE workspace_id = $4
+                      AND (source_document_id = $1 OR target = $1 OR target = $5)
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_debug_breakpoints
+                    WHERE rich_document_id = $1
+                )
+                OR EXISTS(
+                    SELECT 1
+                    FROM knowledge_context_bundle_items item
+                    JOIN knowledge_context_bundles bundle
+                      ON bundle.bundle_id = item.bundle_id
+                    WHERE bundle.workspace_id = $4
+                      AND item.ref_kind = 'entity'
+                      AND item.ref_id = $3
+                )
+                OR EXISTS(
+                    SELECT 1 FROM fems_memory_proposals
+                    WHERE workspace_id = $4 AND document_id = $1
+                )
+                OR EXISTS(
+                    SELECT 1 FROM loom_ai_suggestions
+                    WHERE workspace_id = $4
+                      AND (block_id = $1 OR target_block_id = $1)
+                )
+                OR EXISTS(
+                    SELECT 1 FROM knowledge_quick_switcher_recents
+                    WHERE workspace_id = $4
+                      AND (
+                          (source_kind = 'loom_block' AND ref_id = $1)
+                          OR (result_kind = 'knowledge_entity' AND ref_id = $3)
+                      )
+                )
+            "#,
+        )
+        .bind(&card.placed_block_id)
+        .bind(&card.placement_id)
+        .bind(&entity_id)
+        .bind(&card.workspace_id)
+        .bind(&expected_title)
+        .fetch_one(&mut *tx)
+        .await?;
+        if other_references {
+            return Err(StorageError::Validation(
+                "Canvas Stage compensation refuses authority with downstream references",
+            ));
+        }
+
+        let search_projection = sqlx::query(
+            r#"
+            SELECT workspace_id, content_type, search_text,
+                   embedding IS NULL AS embedding_absent,
+                   embedding_model IS NULL AS embedding_model_absent
+            FROM loom_block_search_index
+            WHERE block_id = $1
+            FOR UPDATE
+            "#,
+        )
+        .bind(&card.placed_block_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or(StorageError::Validation(
+            "Canvas Stage compensation search projection ownership tuple is incomplete",
+        ))?;
+        if search_projection.get::<String, _>("workspace_id") != card.workspace_id
+            || search_projection.get::<String, _>("content_type") != "note"
+            || search_projection.get::<String, _>("search_text") != expected_search_text
+            || !search_projection.get::<bool, _>("embedding_absent")
+            || !search_projection.get::<bool, _>("embedding_model_absent")
+        {
+            return Err(StorageError::Validation(
+                "Canvas Stage compensation refuses a modified search projection",
+            ));
+        }
+
+        // Append-only audit history is part of the same transaction as every
+        // owned-row deletion. A later delete failure rolls this event back;
+        // a committed retry sees the placement absent and never appends a
+        // duplicate. The deterministic key additionally fail-closes any
+        // unexpected replay that reaches the append helper.
+        let compensation_run_id = format!("LOOM-STAGE-COMPENSATE-{}", card.placement_id);
+        let compensation_event = NewKernelEvent::builder(
+            compensation_run_id.clone(),
+            compensation_run_id,
+            KernelEventType::KnowledgeRichDocumentDeleted,
+            kernel_actor_for_bridge(ctx),
+        )
+        .aggregate("knowledge_rich_document", card.placed_block_id.clone())
+        .idempotency_key(format!(
+            "loom-stage-compensate:{}:{}:{}",
+            card.workspace_id, card.placement_id, card.stage_provenance_key
+        ))
+        .causation_id(index_event_id)
+        .correlation_id(card.stage_provenance.causal_action_id.clone())
+        .source_component("loom_canvas_stage_compensation")
+        .payload(json!({
+            "type": "knowledge_rich_document_deleted",
+            "reason": "stage_canvas_card_compensation",
+            "workspace_id": &card.workspace_id,
+            "canvas_block_id": &card.canvas_block_id,
+            "placement_id": &card.placement_id,
+            "block_id": &card.placed_block_id,
+            "rich_document_id": &card.placed_block_id,
+            "title": &expected_title,
+            "entity_id": &entity_id,
+            "artifact_id": &card.stage_provenance.artifact_id,
+            "sha256": &card.stage_provenance.sha256,
+            "manifest_ref": &card.stage_provenance.manifest_ref,
+            "causal_action_id": &card.stage_provenance.causal_action_id,
+            "stage_provenance_key": &card.stage_provenance_key,
+        }))
+        .build()
+        .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))?;
+        append_kernel_event_with_executor(&mut *tx, compensation_event).await?;
+
+        let placement_delete =
+            sqlx::query("DELETE FROM loom_canvas_placements WHERE placement_id = $1")
+                .bind(&card.placement_id)
+                .execute(&mut *tx)
+                .await?;
+        if placement_delete.rows_affected() != 1 {
+            return Err(StorageError::Validation(
+                "Canvas Stage compensation ownership changed during placement delete",
+            ));
+        }
+        for query in [
+            "DELETE FROM knowledge_rich_documents WHERE rich_document_id = $1",
+            "DELETE FROM loom_block_knowledge_bridge WHERE block_id = $1",
+            "DELETE FROM loom_blocks WHERE block_id = $1",
+        ] {
+            let result = sqlx::query(query)
+                .bind(&card.placed_block_id)
+                .execute(&mut *tx)
+                .await?;
+            if result.rows_affected() != 1 {
+                return Err(StorageError::Validation(
+                    "Canvas Stage compensation ownership changed during delete",
+                ));
+            }
+        }
+        let entity_delete = sqlx::query(
+            "DELETE FROM knowledge_entities WHERE entity_id = $1 AND workspace_id = $2 AND entity_kind = 'loom_block' AND entity_key = $3",
+        )
+        .bind(&entity_id)
+        .bind(&card.workspace_id)
+        .bind(&card.placed_block_id)
+        .execute(&mut *tx)
+        .await?;
+        if entity_delete.rows_affected() != 1 {
+            return Err(StorageError::Validation(
+                "Canvas Stage compensation knowledge entity ownership changed during delete",
+            ));
+        }
+
+        tx.commit().await?;
+        Ok(LoomCanvasStageCompensation {
+            removed_by_request: true,
+        })
     }
 
     async fn update_canvas_placement(
@@ -8749,7 +9891,8 @@ impl super::Database for PostgresDatabase {
         // Flip the (already bridged) block to a view_def block carrying its
         // definition. The CHECK constraint guarantees a view_def block always
         // has a definition and nothing else ever does.
-        let res = sqlx::query(
+        let mut tx = self.pool.begin().await?;
+        let row = sqlx::query(
             r#"
             UPDATE loom_blocks
             SET
@@ -8763,6 +9906,30 @@ impl super::Database for PostgresDatabase {
                 edit_event_id = $7,
                 updated_at = $8
             WHERE workspace_id = $9 AND block_id = $10
+            RETURNING
+                block_id,
+                workspace_id,
+                content_type,
+                document_id,
+                asset_id,
+                title,
+                original_filename,
+                content_hash,
+                pinned,
+                favorite,
+                pin_order,
+                journal_date,
+                created_at,
+                updated_at,
+                imported_at,
+                backlink_count,
+                mention_count,
+                tag_count,
+                derived_json,
+                preview_status,
+                thumbnail_asset_id,
+                proxy_asset_id,
+                view_definition_json
             "#,
         )
         .bind(title)
@@ -8775,13 +9942,31 @@ impl super::Database for PostgresDatabase {
         .bind(now)
         .bind(workspace_id)
         .bind(block_id)
-        .execute(&self.pool)
+        .fetch_optional(&mut *tx)
         .await?;
-        if res.rows_affected() == 0 {
-            return Err(StorageError::NotFound("loom_block"));
-        }
-
-        self.get_block_view(workspace_id, block_id).await
+        let row = row.ok_or(StorageError::NotFound("loom_block"))?;
+        let persisted_definition: Option<String> = row.get("view_definition_json");
+        let persisted_definition = persisted_definition.ok_or(StorageError::Validation(
+            "view_def block missing definition",
+        ))?;
+        let record = BlockViewRecord {
+            block: map_loom_block(row)?,
+            definition: serde_json::from_str(&persisted_definition)?,
+        };
+        // `create_block_view` is a two-step authority write: the API first creates and indexes a
+        // normal note, then this method flips that same block to `view_def`. Refresh the derived
+        // search row after the flip so a saved view cannot remain classified as a note in
+        // LoomSearchV2 facets. The ordinary block update path performs the same projection refresh.
+        upsert_loom_block_search_text(
+            &mut *tx,
+            &record.block.workspace_id,
+            &record.block.block_id,
+            record.block.content_type.as_str(),
+            &loom_block_search_text(&record.block),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(record)
     }
 
     async fn get_block_view(
@@ -9413,110 +10598,12 @@ impl super::Database for PostgresDatabase {
         workspace_id: &str,
         block_id: &str,
     ) -> StorageResult<super::LoomKnowledgeBridge> {
-        use crate::storage::knowledge::{KnowledgeEntityKind, KnowledgeStore, NewKnowledgeEntity};
-
-        // 1. The block must exist and belong to the workspace. This both
-        //    fail-closes on a missing/foreign block and gives us the
-        //    display_name for the ProjectKnowledgeIndex entity.
-        let block = self.get_loom_block(workspace_id, block_id).await?;
-
-        // A knowledge entity REQUIRES a non-empty display_name (0135 CHECK).
-        // A LoomBlock title/filename can be absent (e.g. an imported file with
-        // no title yet), so fall back to a stable, human-meaningful label
-        // derived from the block id and content type. NEVER an absolute path.
-        let display_name = block
-            .title
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .or_else(|| {
-                block
-                    .original_filename
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|value| !value.is_empty())
-            })
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| format!("{} {}", block.content_type.as_str(), block.block_id));
-
-        // 2. Upsert the ProjectKnowledgeIndex authority entity. Natural identity
-        //    (workspace, 'loom_block', block_id) — stable + idempotent.
-        let entity = self
-            .upsert_knowledge_entity(NewKnowledgeEntity {
-                workspace_id: workspace_id.to_string(),
-                entity_kind: KnowledgeEntityKind::LoomBlock,
-                entity_key: block.block_id.clone(),
-                display_name,
-                detection_provenance: json!({
-                    "extractor": "loom_block_knowledge_bridge",
-                    "extractor_version": LOOM_KNOWLEDGE_BRIDGE_EXTRACTOR_VERSION,
-                    "method": "mt177_bridge",
-                    "content_type": block.content_type.as_str(),
-                }),
-                primary_source_id: None,
-                detected_in_run: None,
-                evidence_span_ids: Vec::new(),
-            })
-            .await?;
-
-        // 3. Append the EventLedger receipt (KNOWLEDGE_LOOM_BLOCK_INDEXED).
-        //    EventLedger is authority (§10.12 #9.1.1); the bridge row's
-        //    index_event_id FK proves a receipt exists. The bridge is a
-        //    system-internal indexing operation, so it uses a deterministic
-        //    Loom-scoped synthetic run id (mirrors KnowledgeIndexRun events
-        //    that are not driven by an interactive session).
-        let actor = kernel_actor_for_bridge(ctx);
-        let run_id = format!("LOOM-BRIDGE-{workspace_id}");
-        let payload = json!({
-            "type": "knowledge_loom_block_indexed",
-            "workspace_id": workspace_id,
-            "block_id": block.block_id,
-            "entity_id": entity.entity_id,
-            "content_type": block.content_type.as_str(),
-            "extractor_version": LOOM_KNOWLEDGE_BRIDGE_EXTRACTOR_VERSION,
-        });
-        let event = NewKernelEvent::builder(
-            run_id.clone(),
-            run_id,
-            KernelEventType::KnowledgeLoomBlockIndexed,
-            actor,
-        )
-        .aggregate("knowledge_loom_block", entity.entity_id.clone())
-        .idempotency_key(format!(
-            "KEI-loom-bridge-{}-{}",
-            entity.entity_id,
-            entity.updated_at.timestamp_nanos_opt().unwrap_or_default()
-        ))
-        .source_component("loom_block_knowledge_bridge")
-        .payload(payload)
-        .build()
-        .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))?;
-        let stored_event = self.append_kernel_event(event).await?;
-
-        // 4. Upsert the authority bridge row (block_id -> entity_id + receipt).
-        let row = sqlx::query(
-            r#"
-            INSERT INTO loom_block_knowledge_bridge
-                (block_id, workspace_id, entity_id, index_event_id)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (block_id) DO UPDATE SET
-                entity_id = EXCLUDED.entity_id,
-                index_event_id = EXCLUDED.index_event_id,
-                updated_at = NOW()
-            RETURNING block_id, workspace_id, entity_id, index_event_id,
-                      created_at, updated_at
-            "#,
-        )
-        .bind(&block.block_id)
-        .bind(workspace_id)
-        .bind(&entity.entity_id)
-        .bind(&stored_event.event_id)
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(map_loom_knowledge_bridge(&row))
+        let mut tx = self.pool.begin().await?;
+        let bridge =
+            Self::bridge_loom_block_to_knowledge_tx(&mut tx, ctx, workspace_id, block_id).await?;
+        tx.commit().await?;
+        Ok(bridge)
     }
-
     async fn get_loom_block_knowledge_bridge(
         &self,
         workspace_id: &str,
@@ -10124,7 +11211,8 @@ impl super::Database for PostgresDatabase {
         .bind(folder.sort_order)
         .bind(folder.project_ref.as_deref())
         .fetch_one(&self.pool)
-        .await?;
+        .await
+        .map_err(map_loom_folder_write_error)?;
         map_loom_folder(&row)
     }
 
@@ -10268,7 +11356,8 @@ impl super::Database for PostgresDatabase {
         .bind(update.project_ref.is_some())
         .bind(update.project_ref.clone().flatten().as_deref())
         .fetch_one(&self.pool)
-        .await?;
+        .await
+        .map_err(map_loom_folder_write_error)?;
         map_loom_folder(&row)
     }
 
@@ -10642,7 +11731,7 @@ impl super::Database for PostgresDatabase {
     ) -> StorageResult<super::LoomMarkdownImport> {
         use crate::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION;
         use crate::knowledge_document::import::{import_snippet, ImportFormat};
-        use crate::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
+        use crate::storage::knowledge::NewKnowledgeRichDocument;
 
         let title = title.trim();
         if title.is_empty() {
@@ -10654,54 +11743,50 @@ impl super::Database for PostgresDatabase {
         // document below (MT-187: a vault/markdown layout cannot be the truth).
         let outcome = import_snippet(markdown, ImportFormat::Markdown);
 
-        // Create the authority RichDocument from the parsed tree.
+        // Authority document, same-id Loom projection/search, initial
+        // backlinks, ProjectKnowledge entity, receipt, and bridge are one
+        // transaction. A bridge failure rolls the import back completely, so
+        // retrying cannot duplicate a previously committed document.
+        let mut tx = self.pool.begin().await?;
         let document = self
-            .create_knowledge_rich_document(NewKnowledgeRichDocument {
-                workspace_id: workspace_id.to_string(),
-                document_id: None,
-                title: title.to_string(),
-                schema_version: DOCUMENT_SCHEMA_VERSION.to_string(),
-                content_json: outcome.document_json,
-                crdt_document_id: None,
-                crdt_snapshot_id: None,
-                promotion_receipt_event_id: None,
-                project_ref: None,
-                folder_ref: None,
-                authority_label: None,
-                owner_actor_kind: None,
-                owner_actor_id: None,
-            })
-            .await?;
-
-        // Create the LoomBlock (a note) backed by that authority document.
-        // NOTE: loom_blocks.document_id FKs the LEGACY `documents` table, not
-        // knowledge_rich_documents, so the RichDocument link is logical (carried
-        // in the returned LoomMarkdownImport.rich_document_id), not via that
-        // column. Leave document_id NULL to avoid a cross-table FK violation.
-        let block = self
-            .create_loom_block(
-                ctx,
-                NewLoomBlock {
-                    block_id: None,
+            .create_knowledge_rich_document_tx(
+                &mut tx,
+                &NewKnowledgeRichDocument {
                     workspace_id: workspace_id.to_string(),
-                    content_type: LoomBlockContentType::Note,
                     document_id: None,
-                    asset_id: None,
-                    title: Some(title.to_string()),
-                    original_filename: None,
-                    content_hash: None,
-                    pinned: false,
-                    journal_date: None,
-                    imported_at: Some(Utc::now()),
-                    derived: LoomBlockDerived::default(),
+                    title: title.to_string(),
+                    schema_version: DOCUMENT_SCHEMA_VERSION.to_string(),
+                    content_json: outcome.document_json,
+                    crdt_document_id: None,
+                    crdt_snapshot_id: None,
+                    promotion_receipt_event_id: None,
+                    project_ref: None,
+                    folder_ref: None,
+                    authority_label: None,
+                    owner_actor_kind: None,
+                    owner_actor_id: None,
                 },
             )
             .await?;
-
-        // Bridge the new block to the ProjectKnowledgeIndex + EventLedger (so
-        // the imported note is authority-resolved, never a vault-only row).
-        self.bridge_loom_block_to_knowledge(ctx, workspace_id, &block.block_id)
+        Self::bridge_loom_block_to_knowledge_tx(&mut tx, ctx, workspace_id, &document.block_id)
             .await?;
+        let block_row = sqlx::query(
+            r#"
+            SELECT block_id, workspace_id, content_type, document_id, asset_id,
+                   title, original_filename, content_hash, pinned, favorite,
+                   pin_order, journal_date, created_at, updated_at, imported_at,
+                   backlink_count, mention_count, tag_count, derived_json,
+                   preview_status, thumbnail_asset_id, proxy_asset_id
+            FROM loom_blocks
+            WHERE workspace_id = $1 AND block_id = $2
+            "#,
+        )
+        .bind(workspace_id)
+        .bind(&document.block_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        let block = map_loom_block(block_row)?;
+        tx.commit().await?;
 
         let warnings = outcome
             .warnings
@@ -10847,7 +11932,7 @@ impl super::Database for PostgresDatabase {
         ctx: &WriteContext,
         source: CalendarSourceUpsert,
     ) -> StorageResult<CalendarSource> {
-        validate_calendar_source_upsert(&source)?;
+        validate_calendar_source_contract(&source)?;
 
         let now = Utc::now();
         let metadata = self.guard.validate_write(ctx, &source.id).await?;
@@ -11115,8 +12200,6 @@ impl super::Database for PostgresDatabase {
         ctx: &WriteContext,
         event: CalendarEventUpsert,
     ) -> StorageResult<CalendarEvent> {
-        validate_calendar_event_upsert(&event)?;
-
         let now = Utc::now();
         let metadata = self.guard.validate_write(ctx, &event.id).await?;
         let actor_kind = metadata.actor_kind.as_str();
@@ -11133,6 +12216,46 @@ impl super::Database for PostgresDatabase {
             .as_ref()
             .map(encode_json)
             .transpose()?;
+        let normalization_note = event
+            .normalization_note
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()?;
+
+        let mutation_payload = json!({
+            "type": "calendar_mutation",
+            "action": "upsert_event",
+            "workspace_id": event.workspace_id,
+            "source_id": event.source_id,
+            "event_id": event.id,
+            "job_id": job_id,
+            "workflow_id": workflow_id,
+            "edit_event_id": edit_event_id,
+            "actor_kind": actor_kind,
+            "actor_id": actor_id,
+            "start_ts_utc": event.start_ts_utc,
+            "end_ts_utc": event.end_ts_utc,
+            "start_date": event.start_date,
+            "end_date_exclusive": event.end_date_exclusive,
+            "tzid": event.tzid,
+            "all_day": event.all_day,
+            "was_floating": event.was_floating,
+        });
+        let mut tx = self.pool.begin().await?;
+        let source_row =
+            sqlx::query("SELECT workspace_id, default_tzid FROM calendar_sources WHERE id = $1")
+                .bind(&event.source_id)
+                .fetch_optional(&mut *tx)
+                .await?
+                .ok_or(StorageError::NotFound("calendar source not found"))?;
+        let source_workspace_id: String = source_row.get("workspace_id");
+        if source_workspace_id != event.workspace_id {
+            return Err(StorageError::Validation(
+                "calendar event source belongs to a different workspace",
+            ));
+        }
+        let source_default_tzid: String = source_row.get("default_tzid");
+        validate_calendar_event_contract(&event, &source_default_tzid)?;
 
         let row = if event.external_id.is_some() {
             sqlx::query(
@@ -11152,7 +12275,10 @@ impl super::Database for PostgresDatabase {
                     end_local,
                     tzid,
                     all_day,
+                    start_date,
+                    end_date_exclusive,
                     was_floating,
+                    normalization_note,
                     status,
                     visibility,
                     export_mode,
@@ -11180,7 +12306,7 @@ impl super::Database for PostgresDatabase {
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                     $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
                     $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
-                    $31, $32, $33, $34, $35, $36, $37
+                    $31, $32, $33, $34, $35, $36, $37, $38, $39, $40
                 )
                 ON CONFLICT (source_id, external_id) DO UPDATE SET
                     workspace_id = excluded.workspace_id,
@@ -11194,7 +12320,11 @@ impl super::Database for PostgresDatabase {
                     end_local = excluded.end_local,
                     tzid = excluded.tzid,
                     all_day = excluded.all_day,
+                    start_date = excluded.start_date,
+                    end_date_exclusive = excluded.end_date_exclusive,
                     was_floating = excluded.was_floating,
+                    normalization_note = excluded.normalization_note,
+                    temporal_contract_version = 'calendar-v02.201',
                     status = excluded.status,
                     visibility = excluded.visibility,
                     export_mode = excluded.export_mode,
@@ -11230,7 +12360,10 @@ impl super::Database for PostgresDatabase {
                     end_local,
                     tzid,
                     all_day,
+                    start_date,
+                    end_date_exclusive,
                     was_floating,
+                    normalization_note,
                     status,
                     visibility,
                     export_mode,
@@ -11269,7 +12402,10 @@ impl super::Database for PostgresDatabase {
             .bind(event.end_local)
             .bind(event.tzid)
             .bind(event.all_day)
+            .bind(event.start_date)
+            .bind(event.end_date_exclusive)
             .bind(event.was_floating)
+            .bind(normalization_note.clone())
             .bind(event.status.as_str())
             .bind(event.visibility.as_str())
             .bind(event.export_mode.as_str())
@@ -11292,7 +12428,7 @@ impl super::Database for PostgresDatabase {
             .bind(edit_event_id.clone())
             .bind(now)
             .bind(now)
-            .fetch_one(&self.pool)
+            .fetch_one(&mut *tx)
             .await?
         } else {
             sqlx::query(
@@ -11312,7 +12448,10 @@ impl super::Database for PostgresDatabase {
                     end_local,
                     tzid,
                     all_day,
+                    start_date,
+                    end_date_exclusive,
                     was_floating,
+                    normalization_note,
                     status,
                     visibility,
                     export_mode,
@@ -11340,7 +12479,7 @@ impl super::Database for PostgresDatabase {
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                     $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
                     $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
-                    $31, $32, $33, $34, $35, $36, $37
+                    $31, $32, $33, $34, $35, $36, $37, $38, $39, $40
                 )
                 ON CONFLICT (id) DO UPDATE SET
                     workspace_id = excluded.workspace_id,
@@ -11356,7 +12495,11 @@ impl super::Database for PostgresDatabase {
                     end_local = excluded.end_local,
                     tzid = excluded.tzid,
                     all_day = excluded.all_day,
+                    start_date = excluded.start_date,
+                    end_date_exclusive = excluded.end_date_exclusive,
                     was_floating = excluded.was_floating,
+                    normalization_note = excluded.normalization_note,
+                    temporal_contract_version = 'calendar-v02.201',
                     status = excluded.status,
                     visibility = excluded.visibility,
                     export_mode = excluded.export_mode,
@@ -11392,7 +12535,10 @@ impl super::Database for PostgresDatabase {
                     end_local,
                     tzid,
                     all_day,
+                    start_date,
+                    end_date_exclusive,
                     was_floating,
+                    normalization_note,
                     status,
                     visibility,
                     export_mode,
@@ -11431,7 +12577,10 @@ impl super::Database for PostgresDatabase {
             .bind(event.end_local)
             .bind(event.tzid)
             .bind(event.all_day)
+            .bind(event.start_date)
+            .bind(event.end_date_exclusive)
             .bind(event.was_floating)
+            .bind(normalization_note)
             .bind(event.status.as_str())
             .bind(event.visibility.as_str())
             .bind(event.export_mode.as_str())
@@ -11448,17 +12597,71 @@ impl super::Database for PostgresDatabase {
             .bind(links_json)
             .bind(provider_payload_json)
             .bind(actor_kind)
-            .bind(actor_id)
-            .bind(job_id)
-            .bind(workflow_id)
-            .bind(edit_event_id)
+            .bind(actor_id.clone())
+            .bind(job_id.clone())
+            .bind(workflow_id.clone())
+            .bind(edit_event_id.clone())
             .bind(now)
             .bind(now)
-            .fetch_one(&self.pool)
+            .fetch_one(&mut *tx)
             .await?
         };
-
-        map_calendar_event(row)
+        let calendar_event = map_calendar_event(row)?;
+        let run_id = job_id
+            .clone()
+            .or_else(|| workflow_id.clone())
+            .unwrap_or_else(|| edit_event_id.clone());
+        let mut receipt = NewKernelEvent::builder(
+            run_id.clone(),
+            workflow_id.clone().unwrap_or_else(|| run_id.clone()),
+            KernelEventType::AtelierDomainEventRecorded,
+            kernel_actor_for_bridge(ctx),
+        )
+        .aggregate("calendar_event", calendar_event.id.clone())
+        .idempotency_key(format!("KEI-calendar-mutation-{edit_event_id}"))
+        .source_component("calendar_workflow")
+        .payload(mutation_payload);
+        if let Some(workflow_id) = workflow_id.as_deref() {
+            receipt = receipt.correlation_id(workflow_id);
+        }
+        let receipt = receipt
+            .build()
+            .map_err(|_| StorageError::Validation("calendar mutation receipt build failed"))?;
+        let stored_receipt = append_kernel_event_with_executor(&mut *tx, receipt).await?;
+        sqlx::query(
+            r#"
+            INSERT INTO calendar_mutation_outbox (
+                idempotency_key, workspace_id, source_id, calendar_event_id,
+                job_id, workflow_id, actor_kind, actor_id, edit_event_id,
+                ledger_event_id, payload
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ON CONFLICT (idempotency_key) DO NOTHING
+            "#,
+        )
+        .bind(format!("calendar-mutation-{edit_event_id}"))
+        .bind(&calendar_event.workspace_id)
+        .bind(&calendar_event.source_id)
+        .bind(&calendar_event.id)
+        .bind(job_id.as_deref())
+        .bind(workflow_id.as_deref())
+        .bind(actor_kind)
+        .bind(actor_id.as_deref())
+        .bind(&edit_event_id)
+        .bind(&stored_receipt.event_id)
+        .bind(json!({
+            "message": "calendar_mutation",
+            "event_id": calendar_event.id,
+            "workspace_id": calendar_event.workspace_id,
+            "source_id": calendar_event.source_id,
+            "job_id": job_id,
+            "workflow_id": workflow_id,
+            "edit_event_id": edit_event_id,
+            "ledger_event_id": stored_receipt.event_id,
+        }))
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(calendar_event)
     }
 
     async fn query_calendar_events(
@@ -11484,7 +12687,10 @@ impl super::Database for PostgresDatabase {
                 end_local,
                 tzid,
                 all_day,
+                start_date,
+                end_date_exclusive,
                 was_floating,
+                normalization_note,
                 status,
                 visibility,
                 export_mode,
@@ -11511,10 +12717,15 @@ impl super::Database for PostgresDatabase {
             WHERE workspace_id = "#,
         );
         qb.push_bind(&query.workspace_id);
-        qb.push(" AND start_ts_utc < ")
-            .push_bind(query.window_end_utc);
-        qb.push(" AND end_ts_utc > ")
-            .push_bind(query.window_start_utc);
+        qb.push(" AND ((all_day = FALSE AND start_ts_utc < ")
+            .push_bind(query.window_end_utc)
+            .push(" AND end_ts_utc > ")
+            .push_bind(query.window_start_utc)
+            .push(") OR (all_day = TRUE AND start_date < ")
+            .push_bind(query.query_end_date_exclusive)
+            .push(" AND end_date_exclusive > ")
+            .push_bind(query.query_start_date)
+            .push("))");
 
         if !query.source_ids.is_empty() {
             qb.push(" AND source_id IN (");
@@ -11671,6 +12882,94 @@ impl super::Database for PostgresDatabase {
             nodes: parsed_nodes,
             edges: parsed_edges,
         })
+    }
+
+    async fn rename_canvas(
+        &self,
+        ctx: &WriteContext,
+        canvas_id: &str,
+        title: &str,
+        expected_updated_at: Option<chrono::DateTime<Utc>>,
+    ) -> StorageResult<Canvas> {
+        let title = title.trim();
+        if title.is_empty() {
+            return Err(StorageError::Validation("canvas_title_empty"));
+        }
+        let metadata = self.guard.validate_write(ctx, canvas_id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let job_id = metadata.job_id.map(|value| value.to_string());
+        let workflow_id = metadata.workflow_id.map(|value| value.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+        let updated_at = metadata.timestamp;
+
+        let conflict_guarded = expected_updated_at.is_some();
+        let row = if let Some(expected_updated_at) = expected_updated_at {
+            sqlx::query(
+                r#"
+                UPDATE canvases
+                SET title = $1,
+                    updated_at = $2,
+                    last_actor_kind = $3,
+                    last_actor_id = $4,
+                    last_job_id = $5,
+                    last_workflow_id = $6,
+                    edit_event_id = $7
+                WHERE id = $8 AND updated_at = $9
+                RETURNING id, workspace_id, title, created_at, updated_at
+                "#,
+            )
+            .bind(title)
+            .bind(updated_at)
+            .bind(actor_kind)
+            .bind(actor_id)
+            .bind(job_id)
+            .bind(workflow_id)
+            .bind(edit_event_id)
+            .bind(canvas_id)
+            .bind(expected_updated_at)
+            .fetch_optional(&self.pool)
+            .await?
+        } else {
+            sqlx::query(
+                r#"
+                UPDATE canvases
+                SET title = $1,
+                    updated_at = $2,
+                    last_actor_kind = $3,
+                    last_actor_id = $4,
+                    last_job_id = $5,
+                    last_workflow_id = $6,
+                    edit_event_id = $7
+                WHERE id = $8
+                RETURNING id, workspace_id, title, created_at, updated_at
+                "#,
+            )
+            .bind(title)
+            .bind(updated_at)
+            .bind(actor_kind)
+            .bind(actor_id)
+            .bind(job_id)
+            .bind(workflow_id)
+            .bind(edit_event_id)
+            .bind(canvas_id)
+            .fetch_optional(&self.pool)
+            .await?
+        };
+
+        if let Some(row) = row {
+            return Ok(map_canvas(row));
+        }
+        let exists =
+            sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM canvases WHERE id = $1)")
+                .bind(canvas_id)
+                .fetch_one(&self.pool)
+                .await?;
+        if exists && conflict_guarded {
+            Err(StorageError::Conflict("canvas_updated_at_conflict"))
+        } else {
+            Err(StorageError::NotFound("canvas"))
+        }
     }
 
     async fn update_canvas_graph(
@@ -13467,7 +14766,8 @@ impl super::Database for PostgresDatabase {
     }
 
     async fn append_kernel_event(&self, event: NewKernelEvent) -> StorageResult<KernelEvent> {
-        append_kernel_event_with_executor(&self.pool, event).await
+        let mut connection = self.pool.acquire().await?;
+        append_kernel_event_with_executor(&mut connection, event).await
     }
 
     async fn append_kernel_events_atomic(
@@ -13637,6 +14937,80 @@ impl super::Database for PostgresDatabase {
         )
         .bind(aggregate_type)
         .bind(aggregate_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(map_kernel_event).collect()
+    }
+
+    async fn list_pending_native_editor_mirrors(
+        &self,
+        after_event_sequence: i64,
+        limit: i64,
+    ) -> StorageResult<Vec<KernelEvent>> {
+        let limit = limit.clamp(1, 1_000);
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                event_id,
+                event_sequence,
+                event_version,
+                kernel_task_run_id,
+                session_run_id,
+                aggregate_type,
+                aggregate_id,
+                idempotency_key,
+                event_type,
+                actor_kind,
+                actor_id,
+                causation_id,
+                correlation_id,
+                payload_hash,
+                source_component,
+                payload::text AS payload,
+                created_at
+            FROM kernel_event_ledger pending
+            WHERE pending.event_type = $1
+              AND pending.aggregate_type = 'native_editor_event'
+              AND pending.event_sequence > $3
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM kernel_event_ledger completed
+                  WHERE completed.aggregate_type = pending.aggregate_type
+                    AND completed.aggregate_id = pending.aggregate_id
+                    AND completed.event_type = $2
+                    AND completed.event_version = pending.event_version
+                    AND completed.kernel_task_run_id = pending.kernel_task_run_id
+                    AND completed.session_run_id = pending.session_run_id
+                    AND completed.idempotency_key = 'native-editor-fr-complete:' || pending.aggregate_id
+                    AND completed.source_component = 'native_editor_fr_ingestion'
+                    AND completed.actor_kind = pending.actor_kind
+                    AND completed.actor_id = pending.actor_id
+                    AND completed.causation_id = pending.event_id
+                    AND completed.correlation_id IS NOT DISTINCT FROM
+                        COALESCE(pending.correlation_id, pending.aggregate_id)
+                    -- New pending receipts carry the Rust-canonical completion hash.
+                    -- Legacy pending rows deliberately do not suppress here: the Rust
+                    -- reconciler revalidates their exact completion without rewriting
+                    -- either append-only EventLedger row.
+                    AND pending.payload ? 'expected_completion_payload_hash'
+                    AND completed.payload_hash =
+                        pending.payload ->> 'expected_completion_payload_hash'
+                    AND completed.payload = jsonb_build_object(
+                        'receipt_kind', 'native_editor_flight_recorder_recorded',
+                        'fr_event_id', pending.aggregate_id,
+                        'fr_event_type', 'system',
+                        'envelope', pending.payload->'envelope'
+                    )
+              )
+            ORDER BY pending.event_sequence ASC
+            LIMIT $4
+            "#,
+        )
+        .bind(KernelEventType::FlightRecorderMirrorPending.as_str())
+        .bind(KernelEventType::FlightRecorderMirrorRecorded.as_str())
+        .bind(after_event_sequence.max(0))
+        .bind(limit)
         .fetch_all(&self.pool)
         .await?;
 

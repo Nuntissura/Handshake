@@ -808,6 +808,8 @@ fn page_rich_documents_surface() -> NewUserManualPage {
                  (`cloud_model` and `unauthenticated` cannot write). Key bodies:\n\n\
                  - create: `{workspace_id, title, content_json?}`\n\
                  - save: `{expected_version, content_json}` -> 409 `conflict` on stale version\n\
+                 - save receipts include `reference_targets` extracted from the exact promoted block tree\n\
+                 - EventLedger correlation: `GET /kernel/events/aggregates/knowledge_rich_document/:id`\n\
                  - import: `{workspace_id, title, format: markdown|plain_text|html, content}`\n\
                  - history: `?limit=&offset=` (paginated, newest first)\n\
                  - projection: `?format=markdown|html|plain_text|wiki_loom|context_bundle`",
@@ -835,10 +837,17 @@ fn page_rich_documents_surface() -> NewUserManualPage {
                  (`relink` | `reresolve` | `remove`) via `POST /knowledge/documents/embeds/:embed_id/repair`. \
                  Backlink drift after bulk edits: `POST .../backlinks` rebuilds the rows. \
                  Historical content is never lost — every revision is loadable via \
-                 `GET .../history/:doc_version`.",
+                 `GET .../history/:doc_version`. To audit a save, take its \
+                 `save_receipt_event_id`, read the document aggregate through \
+                 `GET /kernel/events/aggregates/knowledge_rich_document/:id`, and match the exact \
+                 `event_id`; an empty list means that aggregate has no ledger events.",
             ),
         ],
         vec![
+            route_anchor(
+                "GET",
+                "/kernel/events/aggregates/:aggregate_type/:aggregate_id",
+            ),
             page_link("permissions-and-safety"),
             page_link("quickstart-editor"),
         ],

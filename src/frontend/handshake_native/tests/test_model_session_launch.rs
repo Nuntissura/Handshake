@@ -10,10 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use egui_kittest::{
-    kittest::{NodeT, Queryable},
-    Harness,
-};
+use egui_kittest::kittest::{NodeT, Queryable};
 use handshake_native::app::{
     HandshakeApp, HealthDisplayState, ModelSessionLaunchDialogState,
     MODEL_SESSION_LAUNCH_DIALOG_AUTHOR_ID, MODEL_SESSION_LAUNCH_FOLDER_AUTHOR_ID,
@@ -131,7 +128,11 @@ fn read_captured_request(stream: &mut TcpStream) -> CapturedRequest {
     let raw = String::from_utf8(buf).expect("utf8 http request");
     let (head, body_raw) = raw.split_once("\r\n\r\n").expect("http split");
     let request_line = head.lines().next().unwrap_or_default().to_owned();
-    let body = serde_json::from_str(body_raw).expect("json body");
+    let body = if body_raw.trim().is_empty() {
+        serde_json::Value::Null
+    } else {
+        serde_json::from_str(body_raw).expect("json body")
+    };
     CapturedRequest { request_line, body }
 }
 
@@ -152,12 +153,15 @@ fn capture_server_delayed(
 ) -> (String, std::thread::JoinHandle<CapturedRequest>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind capture server");
     let base_url = format!("http://{}", listener.local_addr().expect("local addr"));
-    let join = std::thread::spawn(move || {
-        let (mut stream, _) = listener.accept().expect("accept one request");
+    let join = std::thread::spawn(move || loop {
+        let (mut stream, _) = listener.accept().expect("accept request");
         let captured = read_captured_request(&mut stream);
-        std::thread::sleep(response_delay);
-        write_json_response(&mut stream, reply_body);
-        captured
+        if captured.request_line.starts_with("POST /jobs ") {
+            std::thread::sleep(response_delay);
+            write_json_response(&mut stream, reply_body);
+            break captured;
+        }
+        write_json_response(&mut stream, r#"{"error":"not_found"}"#);
     });
     (base_url, join)
 }
@@ -182,8 +186,15 @@ fn capture_server_collecting_delayed(
         while captured.len() < max_requests {
             match listener.accept() {
                 Ok((mut stream, _)) => {
-                    let is_first = captured.is_empty();
+                    stream
+                        .set_nonblocking(false)
+                        .expect("accepted capture stream blocking");
                     let request = read_captured_request(&mut stream);
+                    if !request.request_line.starts_with("POST /jobs ") {
+                        write_json_response(&mut stream, r#"{"error":"not_found"}"#);
+                        continue;
+                    }
+                    let is_first = captured.is_empty();
                     if is_first {
                         std::thread::sleep(response_delay);
                     }
@@ -275,14 +286,13 @@ fn dispatch_foreground_safe_step(
     let receipt = sequence
         .dispatch_step(index, token, "session-secret", &snapshot, channel)
         .unwrap_or_else(|err| panic!("step {index} dispatches against fresh snapshot: {err:?}"));
-    let events = channel.drain_into_events();
+    let events = channel.drain_revalidated_into_events(&snapshot);
     assert!(!events.is_empty(), "foreground-safe dispatch emits events");
     assert!(
-        events.iter().all(|event| matches!(
-            event,
-            egui::Event::AccessKitActionRequest(_) | egui::Event::Text(_)
-        )),
-        "foreground-safe launch driver only emits egui AccessKit/Text events"
+        events
+            .iter()
+            .all(|event| matches!(event, egui::Event::AccessKitActionRequest(_))),
+        "foreground-safe launch driver only emits targeted AccessKit action requests"
     );
     for event in events {
         harness.event(event);
@@ -487,6 +497,65 @@ fn foreground_safe_navigation_launch_posts_jobs_and_surfaces_status() {
     assert!(
         saved,
         "HBR-VIS: foreground-safe model-session status screenshot PNG saved"
+    );
+}
+
+#[test]
+fn argus_set_value_authors_all_documented_model_session_text_inputs() {
+    let _test_guard = model_session_test_guard();
+    let rt = runtime();
+    let (base_url, captured) = capture_server_collecting_delayed(
+        r#"{"job_id":"job-mt101-set-value","id":"workflow-mt101-set-value","status":"queued"}"#,
+        Duration::ZERO,
+        1,
+        Duration::ZERO,
+    );
+    let mut app = ok_app();
+    app.set_backend_base_url_for_test(&base_url, rt.handle().clone());
+    app.set_model_session_launch_dialog_for_test(ModelSessionLaunchDialogState {
+        provider: ModelSessionProvider::Local,
+        workspace_folder: String::new(),
+        model_id: String::new(),
+        wrapper: String::new(),
+    });
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run();
+    harness.run();
+
+    let token = SessionToken::from_hex("session-secret");
+    let mut channel = ActionChannel::new();
+    let sequence = NavigationSequence::new(vec![
+        NavigationStep::set_value(
+            MODEL_SESSION_LAUNCH_FOLDER_AUTHOR_ID,
+            "D:/Projects/Handshake/argus-authored",
+        ),
+        NavigationStep::set_value(MODEL_SESSION_LAUNCH_MODEL_AUTHOR_ID, "qwen-argus"),
+        NavigationStep::set_value(MODEL_SESSION_LAUNCH_WRAPPER_AUTHOR_ID, "wrapper-argus"),
+        NavigationStep::click(MODEL_SESSION_LAUNCH_START_AUTHOR_ID),
+    ]);
+    for index in 0..sequence.steps().len() {
+        dispatch_foreground_safe_step(&sequence, index, &token, &mut channel, &mut harness);
+    }
+
+    let request = captured
+        .join()
+        .expect("Argus-authored launch capture thread")
+        .into_iter()
+        .next()
+        .expect("Argus-authored POST /jobs");
+    assert_eq!(
+        request.body["job_inputs"]["working_dir"],
+        serde_json::json!("D:/Projects/Handshake/argus-authored")
+    );
+    assert_eq!(
+        request.body["job_inputs"]["model_id"],
+        serde_json::json!("qwen-argus")
+    );
+    assert_eq!(
+        request.body["job_inputs"]["wrapper"],
+        serde_json::json!("wrapper-argus")
     );
 }
 
@@ -1141,3 +1210,6 @@ fn launch_dialog_rejects_jobs_response_without_job_id() {
         "pending flag clears after parse failure drains"
     );
 }
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;

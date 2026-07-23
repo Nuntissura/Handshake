@@ -179,32 +179,6 @@ impl FindEngine {
         applied
     }
 
-    /// Like [`replace_all`](Self::replace_all) but applies at most `cap` replacements, taking the
-    /// LOWEST-offset `cap` matches (document order) so repeated capped calls walk the document
-    /// top-to-bottom until the set is exhausted. This bounds the per-call work so a Replace All over a
-    /// pathologically large match set cannot block the UI thread for an unbounded time (MT-108 residual
-    /// hardening for MT-004 / RISK: a forever-running synchronous replace). `cap == 0` means no limit
-    /// (identical to [`replace_all`](Self::replace_all)). Returns the number of replacements applied;
-    /// the caller MUST re-run [`search`](Self::search) afterward (RISK-003) and can compute the
-    /// remaining count as `original_len - applied`.
-    pub fn replace_all_capped(
-        buffer: &mut TextBuffer,
-        matches: &[Match],
-        replacement: &str,
-        cap: usize,
-    ) -> usize {
-        if cap == 0 || matches.len() <= cap {
-            return Self::replace_all(buffer, matches, replacement);
-        }
-        // Take the first `cap` matches by ascending start offset (document order). `replace_all` re-sorts
-        // its input descending internally, so passing this prefix keeps offsets valid while ensuring each
-        // click consumes the top-most cap matches and the next click continues below them.
-        let mut ascending: Vec<&Match> = matches.iter().collect();
-        ascending.sort_by(|a, b| a.byte_range.start.cmp(&b.byte_range.start));
-        let capped: Vec<Match> = ascending.into_iter().take(cap).cloned().collect();
-        Self::replace_all(buffer, &capped, replacement)
-    }
-
     // ── internals ────────────────────────────────────────────────────────────────────────────────────
 
     /// Literal substring search. Case-insensitive search lowercases BOTH needle and haystack into
@@ -494,46 +468,6 @@ mod tests {
             FindEngine::compile_error(&q_re).is_some(),
             "over-long regex reports the cap error"
         );
-    }
-
-    #[test]
-    fn replace_all_capped_bounds_per_call_and_makes_forward_progress() {
-        // MT-108 (MT-004 residual): a huge match set is replaced in bounded batches, top-to-bottom.
-        // 2500 "x" matches (separated so they do not overlap); cap = 1000.
-        let mut buf = TextBuffer::new(&"x ".repeat(2500));
-        let q = FindQuery::literal("x");
-        let matches = FindEngine::search(&q, &buf);
-        assert_eq!(matches.len(), 2500);
-        // First click: exactly `cap` replacements, applied to the LOWEST-offset 1000 matches.
-        let applied = FindEngine::replace_all_capped(&mut buf, &matches, "y", REPLACE_ALL_CAP);
-        assert_eq!(applied, REPLACE_ALL_CAP, "first click capped at 1000");
-        let text = buf.to_string();
-        assert_eq!(text.matches('y').count(), 1000, "1000 replaced");
-        assert_eq!(text.matches('x').count(), 1500, "1500 remain");
-        // The replaced ones are the top-most: the first 1000 tokens are "y", the rest still "x".
-        let tokens: Vec<&str> = text.split_whitespace().collect();
-        assert!(
-            tokens[..1000].iter().all(|t| *t == "y") && tokens[1000..].iter().all(|t| *t == "x"),
-            "the lowest-offset matches were the ones replaced (forward progress)"
-        );
-    }
-
-    #[test]
-    fn replace_all_capped_under_cap_replaces_everything() {
-        // A set at or below the cap behaves exactly like the uncapped replace_all.
-        let mut buf = TextBuffer::new("foo foo foo");
-        let matches = FindEngine::search(&FindQuery::literal("foo"), &buf);
-        let applied = FindEngine::replace_all_capped(&mut buf, &matches, "bar", REPLACE_ALL_CAP);
-        assert_eq!(applied, 3);
-        assert_eq!(buf.to_string(), "bar bar bar");
-    }
-
-    #[test]
-    fn replace_all_capped_zero_cap_means_unlimited() {
-        let mut buf = TextBuffer::new(&"x ".repeat(1500));
-        let matches = FindEngine::search(&FindQuery::literal("x"), &buf);
-        let applied = FindEngine::replace_all_capped(&mut buf, &matches, "y", 0);
-        assert_eq!(applied, 1500, "cap 0 replaces the whole set");
     }
 
     #[test]

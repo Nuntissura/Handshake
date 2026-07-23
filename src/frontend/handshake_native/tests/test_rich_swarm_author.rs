@@ -1,7 +1,7 @@
 //! WP-KERNEL-012 MT-110 (E7 swarm-authoring) — the rich-editor swarm-edit AccessKit surface, the
 //! MT-080 mirror for the rich pane.
 //!
-//! MT-080 gave the CODE editor's `code_editor_text` `Role::TextInput` node `Action::SetValue` +
+//! MT-080 gave the CODE editor's `editor.code.text` `Role::TextInput` node `Action::SetValue` +
 //! `Action::ReplaceSelectedText` and a per-frame `consume_swarm_text_actions` that applies a dispatched
 //! swarm request to the buffer (proven by `test_app_host_mount_secondary`'s `code_text_*` tests). MT-110
 //! gives the RICH editor the SAME surface so an out-of-process swarm agent can author rich documents by
@@ -110,8 +110,15 @@ fn rich_root_setvalue_dispatch_authors_doc_through_undo_bus() {
 
     let mut harness = mount(Arc::clone(&state));
 
-    let before_text = state.lock().unwrap().block_plain_text(0).unwrap_or_default();
-    assert_eq!(before_text, "original body", "the doc starts as 'original body'");
+    let before_text = state
+        .lock()
+        .unwrap()
+        .block_plain_text(0)
+        .unwrap_or_default();
+    assert_eq!(
+        before_text, "original body",
+        "the doc starts as 'original body'"
+    );
 
     // Dispatch a RAW AccessKit SetValue request carrying the AGENT content (the exact shape a swarm
     // agent's `egui::Event::AccessKitActionRequest` carries — NOT key-simulation, NOT a direct st.doc
@@ -166,13 +173,20 @@ fn rich_root_setvalue_dispatch_authors_doc_through_undo_bus() {
         .expect("an entry to undo on the rich pane");
     assert!(result.ok, "the swarm-edit undo applied: {result:?}");
     assert_eq!(
-        state.lock().unwrap().block_plain_text(0).unwrap_or_default(),
+        state
+            .lock()
+            .unwrap()
+            .block_plain_text(0)
+            .unwrap_or_default(),
         "original body",
         "MT-110: undo reverted the swarm-authored doc to its pre-edit content"
     );
     let depth_after =
         InteractionBus::with_try_lock(&bus, |b| b.local_undo_count(&rich_pane)).expect("bus lock");
-    assert_eq!(depth_after, 0, "MT-110: the unified ring drained after the undo");
+    assert_eq!(
+        depth_after, 0,
+        "MT-110: the unified ring drained after the undo"
+    );
 }
 
 // ── requirement (1b): ReplaceSelectedText inserts the agent text at the caret ─────────────────────────
@@ -214,7 +228,11 @@ fn rich_root_replace_selected_text_inserts_at_caret() {
         "MT-110: the swarm ReplaceSelectedText dispatch was consumed within the frame budget"
     );
     assert_eq!(
-        state.lock().unwrap().block_plain_text(0).unwrap_or_default(),
+        state
+            .lock()
+            .unwrap()
+            .block_plain_text(0)
+            .unwrap_or_default(),
         "head-tail",
         "MT-110: a swarm Action::ReplaceSelectedText inserted the AGENT text at the caret"
     );
@@ -239,7 +257,7 @@ fn rich_wikilink_setvalue_by_id_sets_target_ref_value_headless() {
     let mut harness = mount(Arc::clone(&state));
 
     // Find the wikilink chip node — the single author-addressable node whose author_id starts with
-    // `wikilink-chip-` AND advertises the swarm SetValue action (MT-110). No live backend is wired; the
+    // `editor.rich.wikilink.chip.` AND advertises the swarm SetValue action (MT-110). No live backend is wired; the
     // chip is addressable purely from the DocJson atom.
     let chip = harness
         .root()
@@ -247,7 +265,7 @@ fn rich_wikilink_setvalue_by_id_sets_target_ref_value_headless() {
         .find(|n| {
             let ak = n.accesskit_node();
             ak.author_id()
-                .is_some_and(|a| a.starts_with("wikilink-chip-"))
+                .is_some_and(|a| a.starts_with("editor.rich.wikilink.chip."))
                 && ak.data().supports_action(egui::accesskit::Action::SetValue)
         })
         .expect("MT-110: the wikilink chip advertises the swarm SetValue action");
@@ -301,5 +319,39 @@ fn rich_wikilink_setvalue_by_id_sets_target_ref_value_headless() {
     assert!(
         link.resolved,
         "MT-110: the wikilink-target pick marked the link resolved"
+    );
+}
+
+#[test]
+fn repeated_identical_wikilinks_have_unique_full_tree_author_ids() {
+    let link = HsLinkNode::new("note", "same-target", "Same");
+    let doc = BlockNode::doc(vec![BlockNode::with_children(
+        NodeKind::Paragraph,
+        vec![
+            Child::Text(TextLeaf::new("first ")),
+            Child::HsLink(link.clone()),
+            Child::Text(TextLeaf::new(" second ")),
+            Child::HsLink(link),
+        ],
+    )]);
+    let state = Arc::new(Mutex::new(RichEditorState::new(doc)));
+    let harness = mount(state);
+    let mut all_authors = Vec::new();
+    let mut chip_authors = Vec::new();
+    for node in harness.root().children_recursive() {
+        if let Some(author) = node.accesskit_node().author_id() {
+            all_authors.push(author.to_owned());
+            if author.starts_with("editor.rich.wikilink.chip.") {
+                chip_authors.push(author.to_owned());
+            }
+        }
+    }
+    assert_eq!(chip_authors.len(), 2, "both identical links are exposed");
+    assert_ne!(chip_authors[0], chip_authors[1]);
+    let unique: std::collections::HashSet<_> = all_authors.iter().collect();
+    assert_eq!(
+        unique.len(),
+        all_authors.len(),
+        "the complete rich-editor AccessKit tree has no author_id overlap: {all_authors:?}"
     );
 }

@@ -252,8 +252,22 @@ impl LoomBlockResolver {
     /// Build a resolver against `base_url` (e.g. [`crate::backend_client::BACKEND_BASE_URL`]) bridging
     /// onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self::with_client(
+            crate::backend_client::shared_http_client(),
+            base_url,
+            runtime,
+        )
+    }
+
+    /// Explicit transport-injection seam. Production construction goes through [`Self::new`] so it
+    /// always retains the process-wide bounded pool; unit tests inject an isolated client here.
+    fn with_client(
+        client: reqwest::Client,
+        base_url: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+    ) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client,
             base_url: base_url.into(),
             runtime,
         }
@@ -366,7 +380,7 @@ mod tests {
     #[test]
     fn resolve_url_percent_encodes_workspace_and_block_segments() {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let resolver = LoomBlockResolver::new("http://backend", rt.handle().clone());
+        let resolver = isolated_resolver("http://backend", rt.handle().clone());
         let addr = LoomBlockAddr::new("ws/one", "block/a#b");
         assert_eq!(
             resolver.resolve_url(&addr),
@@ -516,7 +530,7 @@ mod tests {
 
     #[test]
     fn resolve_url_is_the_verified_get_loom_block_route() {
-        let resolver = LoomBlockResolver::new("http://127.0.0.1:37501", dummy_handle());
+        let resolver = isolated_resolver("http://127.0.0.1:37501", dummy_handle());
         let addr = LoomBlockAddr::new("ws1", "blk-7");
         assert_eq!(
             resolver.resolve_url(&addr),
@@ -535,5 +549,11 @@ mod tests {
         })
         .handle()
         .clone()
+    }
+
+    /// Explicit isolated-client seam shared by URL-only unit tests. Keeping the fresh client in one
+    /// cfg(test) helper makes the frontend-wide source inventory prove there is no live raw-client path.
+    fn isolated_resolver(base_url: &str, runtime: tokio::runtime::Handle) -> LoomBlockResolver {
+        LoomBlockResolver::with_client(reqwest::Client::new(), base_url, runtime)
     }
 }

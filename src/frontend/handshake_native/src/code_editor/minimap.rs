@@ -8,10 +8,11 @@
 //!
 //! ## Theme-driven colors (no hardcoded hex — MT step 1)
 //!
-//! Row colors come from [`scope_to_color`](super::panel::scope_to_color) unless the shell has installed a
-//! live Custom [`SyntaxPalette`](crate::workspace_settings::SyntaxPalette), in which case Custom swatches
-//! route through [`resolve_scope_color`](super::highlight::resolve_scope_color). Both paths avoid literal
-//! widget colors: either active theme `HsSyntaxTokens` or the persisted user palette owns the color.
+//! Row colors come from [`scope_to_color`](super::panel::scope_to_color) until the shell installs a live
+//! [`SyntaxPalette`](crate::workspace_settings::SyntaxPalette). Muted, Standard, and Custom then all route
+//! through [`resolve_scope_color`](super::highlight::resolve_scope_color), matching the mounted editor body.
+//! Both paths avoid literal widget colors: either active theme `HsSyntaxTokens` or the persisted user palette
+//! owns the color.
 //! An unhighlighted line uses the theme background darkened 10% (a derived shade of a theme color, not
 //! a new hardcoded token). The viewport-indicator overlay is the one explicit RGBA the contract names
 //! (`from_rgba_unmultiplied(255,255,255,30)`), exactly like the find-match / fold-summary UI tints the
@@ -37,7 +38,9 @@ use std::ops::Range;
 use super::buffer::TextBuffer;
 use super::highlight::{resolve_scope_color, HighlightScope, HighlightSpan};
 use super::panel::scope_to_color;
-use crate::workspace_settings::{SyntaxPalette, SyntaxPaletteMode};
+use crate::workspace_settings::SyntaxPalette;
+#[cfg(test)]
+use crate::workspace_settings::SyntaxPaletteMode;
 
 /// Default minimap panel width in pixels (Monaco's minimap is ~80px). Configurable via
 /// [`Minimap::with_width`].
@@ -148,9 +151,9 @@ impl Minimap {
     ///
     /// `painted_rows` is the number of minimap rows (one per `ratio` lines); `ratio` is the compression
     /// ratio. `dark_mode` selects the theme so the colors track the shell theme. `syntax_palette` carries
-    /// the live Custom syntax palette when the shell has installed one; Custom swatches repaint minimap
-    /// rows through the same resolver the code-body render path uses. The spans must be sorted by start
-    /// byte (the highlighter guarantees this).
+    /// the live Muted, Standard, or Custom palette when the shell has installed one; every mode repaints
+    /// minimap rows through the same resolver the code-body render path uses. The spans must be sorted by
+    /// start byte (the highlighter guarantees this).
     pub fn compute_row_colors(
         buffer: &TextBuffer,
         highlight_spans: &[HighlightSpan],
@@ -167,17 +170,36 @@ impl Minimap {
         let neutral = darken(syntax.background, 0.10);
         let mut row_colors = vec![neutral; painted_rows.max(1)];
         let mut row_scope: Vec<Option<HighlightScope>> = vec![None; painted_rows.max(1)];
+        // Highlight spans are sorted by byte start and the minimap only needs the COMPRESSED row, not
+        // the exact source line. Walk compressed-row byte boundaries monotonically instead of doing one
+        // O(log n) rope byte-to-line lookup per token (or even per source line). Large generated files
+        // commonly have many token spans per line; this performs at most one rope lookup per painted
+        // minimap row (a few hundred), independent of token and source-line counts.
+        let line_count = buffer.len_lines();
+        let ratio = ratio.max(1);
+        let mut row = 0usize;
+        let mut next_row_start = buffer
+            .line_to_byte(ratio.min(line_count))
+            .unwrap_or_else(|| buffer.len_bytes().saturating_add(1));
         for span in highlight_spans {
+            while row + 1 < row_colors.len() && span.byte_range.start >= next_row_start {
+                row += 1;
+                let next_row_line = row.saturating_add(1).saturating_mul(ratio);
+                next_row_start = if next_row_line < line_count {
+                    buffer
+                        .line_to_byte(next_row_line)
+                        .unwrap_or_else(|| buffer.len_bytes().saturating_add(1))
+                } else {
+                    buffer.len_bytes().saturating_add(1)
+                };
+            }
             if span.scope == HighlightScope::Other {
                 continue; // Other folds to neutral; do not let it override a real scope.
             }
-            if let Some(line) = buffer.byte_to_line(span.byte_range.start) {
-                let row = Self::row_for_line(line, ratio);
-                if row < row_colors.len() && row_scope[row].is_none() {
-                    // First non-Other scope on a row wins (deterministic; keyword/string/etc dominate).
-                    row_scope[row] = Some(span.scope);
-                    row_colors[row] = minimap_scope_color(span.scope, &syntax, syntax_palette);
-                }
+            if row < row_colors.len() && row_scope[row].is_none() {
+                // First non-Other scope on a row wins (deterministic; keyword/string/etc dominate).
+                row_scope[row] = Some(span.scope);
+                row_colors[row] = minimap_scope_color(span.scope, &syntax, syntax_palette);
             }
         }
         row_colors
@@ -308,10 +330,8 @@ fn minimap_scope_color(
     syntax_palette: Option<&SyntaxPalette>,
 ) -> egui::Color32 {
     match syntax_palette {
-        Some(palette) if palette.mode == SyntaxPaletteMode::Custom => {
-            resolve_scope_color(scope, palette)
-        }
-        _ => scope_to_color(scope, syntax),
+        Some(palette) => resolve_scope_color(scope, palette),
+        None => scope_to_color(scope, syntax),
     }
 }
 
@@ -425,5 +445,28 @@ mod tests {
             egui::Color32::from_rgba_unmultiplied(200, 30, 30, 255),
             "Custom syntax palette repaints the minimap row color through the live resolver"
         );
+    }
+
+    #[test]
+    fn row_colors_honor_muted_and_standard_syntax_palettes() {
+        let buffer = TextBuffer::new("fn main() {}\n");
+        let spans = [HighlightSpan {
+            byte_range: 0..2,
+            scope: HighlightScope::Keyword,
+        }];
+
+        for mode in [SyntaxPaletteMode::Muted, SyntaxPaletteMode::Standard] {
+            let palette = SyntaxPalette {
+                mode,
+                custom: Default::default(),
+            };
+            let colors = Minimap::compute_row_colors(&buffer, &spans, 1, 1, true, Some(&palette));
+
+            assert_eq!(
+                colors[0],
+                resolve_scope_color(HighlightScope::Keyword, &palette),
+                "{mode:?} syntax palette repaints the minimap through the same resolver as the editor body"
+            );
+        }
     }
 }

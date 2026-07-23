@@ -27,7 +27,12 @@
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
+#[path = "native_gui_support/argus_surface_proof.rs"]
+mod argus_surface_proof;
+use argus_surface_proof::{prove_argus_surface, ArgusMutation};
 
 use handshake_diag_ring::{DiagEventCode, DiagPhase, DiagSeverity};
 use handshake_native::app::HandshakeApp;
@@ -36,6 +41,7 @@ use handshake_native::diagnostics::{
     DIAGNOSTICS_HEARTBEAT_AUTHOR_ID, DIAGNOSTICS_PALMISTRY_AUTHOR_ID, DIAGNOSTICS_PANEL_AUTHOR_ID,
     DIAGNOSTICS_RESOURCE_AUTHOR_ID,
 };
+use handshake_native::visual_debugger::WORKSURFACE_INSPECTOR_DUMP_BUTTON_AUTHOR_ID;
 
 // ── wgpu serialization + artifact hygiene (CX-212E / the SCREENSHOT/TEST-ARTIFACT rule) ────────────
 
@@ -96,6 +102,48 @@ fn open_diagnostics_section(harness: &mut Harness<'_, HandshakeApp>) {
         .get_by_label("Search settings")
         .type_text("diagnostics");
     harness.run_steps(3);
+}
+
+#[test]
+fn mt108_argus_diagnostics_panel_real_server_loop() {
+    let mut harness: Harness<HandshakeApp> = Harness::builder()
+        .with_size(egui::vec2(1000.0, 1800.0))
+        .build_eframe(|cc| HandshakeApp::new(cc));
+    open_diagnostics_section(&mut harness);
+    prove_argus_surface(
+        &mut harness,
+        "diagnostics panel",
+        DIAGNOSTICS_PANEL_AUTHOR_ID,
+        ArgusMutation::Click {
+            target: WORKSURFACE_INSPECTOR_DUMP_BUTTON_AUTHOR_ID,
+        },
+        DIAGNOSTICS_PANEL_AUTHOR_ID,
+        true,
+        |harness| {
+            // The real dump request performs synchronous snapshot capture plus an external artifact
+            // write from the app's settings-outcome path. Keep the proof bounded while allowing that
+            // live mutation to settle across a few frames before judging the retained state.
+            for _ in 0..8 {
+                let panel_present = live_author_ids(harness).contains(DIAGNOSTICS_PANEL_AUTHOR_ID);
+                let dump_present = harness.state().worksurface_inspector_last_dump().is_some();
+                if panel_present && dump_present {
+                    break;
+                }
+                harness.step();
+            }
+            let panel_present = live_author_ids(harness).contains(DIAGNOSTICS_PANEL_AUTHOR_ID);
+            let dump_present = harness.state().worksurface_inspector_last_dump().is_some();
+            if !panel_present || !dump_present {
+                return Err(format!(
+                    "expected retained diagnostics panel and inspector dump; panel={panel_present}, dump={dump_present}"
+                ));
+            }
+            Ok(serde_json::json!({
+                "diagnostics_panel_present": panel_present,
+                "worksurface_inspector_dump_present": dump_present,
+            }))
+        },
+    );
 }
 
 /// Every `author_id` present in the live consumer-side AccessKit tree.

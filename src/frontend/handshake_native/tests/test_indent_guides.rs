@@ -16,7 +16,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::{
     find_matching_bracket, indent_guide_x, indent_level_of, CodeEditorPanel, Cursor, TextBuffer,
@@ -332,7 +334,8 @@ fn chrome_screenshot_shows_bracket_and_indent_guide() {
             // its bracket-pair color AND strokes the matching-bracket highlight box around it there (via
             // the same `find_matching_bracket` proven in P2). Non-background at line-4/col-0 => the
             // highlight + glyph land on the matched bracket's painted row/col, not an empty cell.
-            let close_cell = count_non_bg(text_left + 0.5 * gw, row_top(4.0) + 1.5, row_top(5.0) - 1.5);
+            let close_cell =
+                count_non_bg(text_left + 0.5 * gw, row_top(4.0) + 1.5, row_top(5.0) - 1.5);
             assert!(
                 close_cell > 0,
                 "AC-006: the matched '}}' cell (line 4 col 0) is painted (bracket glyph + highlight box); \

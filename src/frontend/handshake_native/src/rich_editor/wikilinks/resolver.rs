@@ -58,7 +58,8 @@ pub enum MatchKind {
 
 /// The result of resolving a `[[Title]]` target against a [`ResolverIndex`]. `Resolved` carries the
 /// target document id + the [`MatchKind`] that fired; `Unresolved` carries the (trimmed, original-case)
-/// title the create-from-unresolved affordance offers to create.
+/// title the create-from-unresolved affordance offers to create. `Ambiguous` is a first-class state:
+/// normalized duplicate titles must never silently select whichever document was indexed last.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WikilinkResolution {
     /// The target resolved to a live document.
@@ -67,6 +68,14 @@ pub enum WikilinkResolution {
         document_id: String,
         /// Which rule matched (ref / title / alias).
         matched_by: MatchKind,
+    },
+    /// Multiple live documents share the same normalized title. Navigation and create-note actions
+    /// are both disabled until the operator chooses an exact document identity.
+    Ambiguous {
+        /// The trimmed title that was resolved.
+        title: String,
+        /// Stable, sorted candidate document ids.
+        document_ids: Vec<String>,
     },
     /// No document matched the target — the click offers a "Create note \"{title}\"" affordance.
     Unresolved {
@@ -85,7 +94,7 @@ impl WikilinkResolution {
     pub fn document_id(&self) -> Option<&str> {
         match self {
             WikilinkResolution::Resolved { document_id, .. } => Some(document_id.as_str()),
-            WikilinkResolution::Unresolved { .. } => None,
+            WikilinkResolution::Ambiguous { .. } | WikilinkResolution::Unresolved { .. } => None,
         }
     }
 }
@@ -113,10 +122,12 @@ pub struct ResolverDocument {
 /// different documents.
 #[derive(Debug, Clone, Default)]
 pub struct ResolverIndex {
-    /// normalized-title -> document_id.
-    by_title: HashMap<String, String>,
-    /// normalized-alias -> document_id.
-    by_alias: HashMap<String, String>,
+    /// normalized-title -> all matching document ids. A vector with more than one member is an
+    /// explicit ambiguity, never a last-write-wins resolution.
+    by_title: HashMap<String, Vec<String>>,
+    /// normalized-alias -> all matching document ids. Alias collisions are explicit ambiguity,
+    /// never insertion-order-dependent last-write-wins resolution.
+    by_alias: HashMap<String, Vec<String>>,
     /// document_id -> the document's display metadata (title + aliases), for candidate rendering.
     documents: HashMap<String, ResolverDocument>,
     /// Whether the backend payload exposes an `aliases` field. `false` (the current backend reality)
@@ -151,8 +162,28 @@ impl ResolverIndex {
         let document_id = document_id.into();
         let display_title = display_title.into();
         let norm = normalize_target(&display_title);
+        if let Some(previous) = self.documents.get(&document_id) {
+            let previous_norm = normalize_target(&previous.display_title);
+            if previous_norm != norm {
+                let remove_key = self
+                    .by_title
+                    .get_mut(&previous_norm)
+                    .map(|ids| {
+                        ids.retain(|id| id != &document_id);
+                        ids.is_empty()
+                    })
+                    .unwrap_or(false);
+                if remove_key {
+                    self.by_title.remove(&previous_norm);
+                }
+            }
+        }
         if !norm.is_empty() {
-            self.by_title.insert(norm, document_id.clone());
+            let ids = self.by_title.entry(norm).or_default();
+            if !ids.iter().any(|id| id == &document_id) {
+                ids.push(document_id.clone());
+                ids.sort();
+            }
         }
         let entry = self
             .documents
@@ -177,7 +208,11 @@ impl ResolverIndex {
         if norm.is_empty() {
             return;
         }
-        self.by_alias.insert(norm, document_id.clone());
+        let ids = self.by_alias.entry(norm).or_default();
+        if !ids.iter().any(|id| id == &document_id) {
+            ids.push(document_id.clone());
+            ids.sort();
+        }
         let doc = self
             .documents
             .entry(document_id.clone())
@@ -257,15 +292,28 @@ pub fn resolve_wikilink(index: &ResolverIndex, target: &str) -> WikilinkResoluti
     }
 
     // 2) Exact title (normalized) — checked BEFORE alias so a title/alias collision favors the title.
-    if let Some(document_id) = index.by_title.get(&norm) {
-        return WikilinkResolution::Resolved {
-            document_id: document_id.clone(),
-            matched_by: MatchKind::ExactTitle,
+    if let Some(document_ids) = index.by_title.get(&norm) {
+        if document_ids.len() == 1 {
+            return WikilinkResolution::Resolved {
+                document_id: document_ids[0].clone(),
+                matched_by: MatchKind::ExactTitle,
+            };
+        }
+        return WikilinkResolution::Ambiguous {
+            title: trimmed.to_owned(),
+            document_ids: document_ids.clone(),
         };
     }
 
     // 3) Alias (normalized).
-    if let Some(document_id) = index.by_alias.get(&norm) {
+    if let Some(document_ids) = index.by_alias.get(&norm) {
+        if document_ids.len() != 1 {
+            return WikilinkResolution::Ambiguous {
+                title: trimmed.to_owned(),
+                document_ids: document_ids.clone(),
+            };
+        }
+        let document_id = &document_ids[0];
         // Surface the ORIGINAL-case alias text that matched (for the MatchKind::Alias label).
         let alias = index
             .documents
@@ -380,6 +428,72 @@ mod tests {
                 matched_by: MatchKind::ExactTitle
             },
             "MC-004: a title/alias collision resolves to the EXACT TITLE (DOC-B), deterministic"
+        );
+    }
+
+    #[test]
+    fn normalized_duplicate_aliases_are_explicitly_ambiguous_and_stable() {
+        let mut idx = ResolverIndex::new();
+        idx.add_document("DOC-Z", "Zulu");
+        idx.add_document("DOC-A", "Alpha");
+        idx.add_alias("DOC-Z", "  Project   Atlas ");
+        idx.add_alias("DOC-A", "project atlas");
+
+        assert_eq!(
+            resolve_wikilink(&idx, "PROJECT  ATLAS"),
+            WikilinkResolution::Ambiguous {
+                title: "PROJECT  ATLAS".into(),
+                document_ids: vec!["DOC-A".into(), "DOC-Z".into()],
+            }
+        );
+    }
+
+    #[test]
+    fn readding_same_alias_for_same_document_does_not_create_false_ambiguity() {
+        let mut idx = ResolverIndex::new();
+        idx.add_document("DOC-1", "Project Atlas");
+        idx.add_alias("DOC-1", "Atlas");
+        idx.add_alias("DOC-1", "  ATLAS  ");
+
+        assert_eq!(
+            resolve_wikilink(&idx, "atlas"),
+            WikilinkResolution::Resolved {
+                document_id: "DOC-1".into(),
+                matched_by: MatchKind::Alias {
+                    alias: "Atlas".into(),
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn normalized_duplicate_titles_are_explicitly_ambiguous_and_stable() {
+        let mut idx = ResolverIndex::new();
+        idx.add_document("DOC-Z", "  Project   Atlas ");
+        idx.add_document("DOC-A", "project atlas");
+
+        assert_eq!(
+            resolve_wikilink(&idx, "PROJECT  ATLAS"),
+            WikilinkResolution::Ambiguous {
+                title: "PROJECT  ATLAS".into(),
+                document_ids: vec!["DOC-A".into(), "DOC-Z".into()],
+            }
+        );
+    }
+
+    #[test]
+    fn reindexing_same_document_does_not_create_false_ambiguity_or_stale_title() {
+        let mut idx = ResolverIndex::new();
+        idx.add_document("DOC-1", "Old title");
+        idx.add_document("DOC-1", "New title");
+
+        assert!(matches!(
+            resolve_wikilink(&idx, "Old title"),
+            WikilinkResolution::Unresolved { .. }
+        ));
+        assert_eq!(
+            resolve_wikilink(&idx, "New title").document_id(),
+            Some("DOC-1")
         );
     }
 

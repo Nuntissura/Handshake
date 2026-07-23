@@ -1,54 +1,704 @@
 //! Bidirectional Editors <-> Stage (Pillar 17) interop proofs — WP-KERNEL-012 MT-066 (cluster E10).
 //!
-//! This suite proves the FULL Stage round-trip at the widget/client level, which is what is provable NOW
-//! (fixtures + an in-process mock server + egui_kittest). The Stage backend has NO `/stage/` HTTP routes
-//! in the current handshake_core build (Stage = Pillar 17, like FEMS = Pillar 12), so:
-//!   - the ROUTE leg is bus-only (EXTENDS the MT-033 `interop.route-to-stage` command — no backend POST),
-//!   - the EMBED-BACK leg's missing route is the DESIGNED typed blocker
-//!     (`StageInteropError::EmbedBackEndpointAbsent`), which is the production reality here.
+//! This suite proves the full bus-route -> privileged exact-byte capture -> retrieval -> embed round-trip.
+//! The route leg remains bus-native; capture and retrieval use the managed handshake_core Stage routes.
 //!
-//! PROOF-POSTURE GATE: the live route round-trip against a real PostgreSQL/EventLedger with live native-
-//! editor FR ingestion (AC-002) is `NEEDS_MANAGED_RESOURCE_PROOF` — both the managed PG and the live FR
-//! ingestion are gated (like MT-064) — so it is `#[ignore]`d below; the FR-emit SHAPE is proven now via the
-//! exact `NativeEditorEvent::route_to_stage` constructor the bus uses + the bus dispatch wiring.
+//! The default live proof self-seeds a managed workspace and drives the mounted native app and persisted
+//! Flight Recorder path; mock tests retain deterministic 404/501 failure coverage.
 //!
 //! Proof map:
 //! - PT-001 / AC-001: `route_payload_from_selection_and_canvas_node` — the Selection + CanvasNode payload
 //!   builders produce the correct StageRoutePayload shape (workspace_id, source variant, correlation_id).
-//! - PT-002 / AC-002 (shape now, live gated): `route_to_stage_emits_fr_event_and_stages_content` — the bus
-//!   route emits the MT-036 `route_to_stage` FR event (shape) AND stages the content the Stage pane shows;
-//!   `live_route_round_trip_real_pg` is the GATED real-PG round-trip (`#[ignore]`).
+//! - PT-002 / AC-002: `route_to_stage_prebuilds_fr_receipt_and_stages_content` — the bus
+//!   route prebuilds the MT-036 `route_to_stage` receipt AND stages the content the Stage pane shows;
+//!   `live_route_round_trip_real_pg` is the managed-PG mounted round-trip.
 //! - PT-003 / AC-003: `embed_back_inserts_mt014_nodeview_with_provenance` — a fetched artifact becomes an
 //!   MT-014 `hsLink` embed atom carrying the SHA-256 manifest provenance descriptor.
 //! - PT-004 / AC-004: `embed_back_endpoint_absent_404` + `embed_back_endpoint_absent_501` — the missing
 //!   route maps to `EmbedBackEndpointAbsent` (the typed blocker) over a mock server (BROAD: 404 AND 501);
-//!   no backend route added, no artifact fabricated.
+//!   no artifact fabricated.
 //! - PT-005 / AC-006: `stage_pane_accesskit_nodes_present` — the live AccessKit tree carries `stage-pane`
 //!   (GenericContainer), `stage-routed-content` (GenericContainer), and `stage-capture-embed-back` (Button)
 //!   with the correct roles + nesting; saves a screenshot to the EXTERNAL artifact root.
 //! - AC-005: `single_route_command_id_plus_embed_command` — exactly one route-to-stage command id (extends
 //!   MT-033) + the added embed-stage-capture command id (grep gate over the catalog + the bus descriptors).
-//! - AC-007: `no_sqlite_no_backend_edit` — the production source has no sqlite/rusqlite and no
-//!   src/backend edit; `assert_no_local_artifact_dir` guards artifact hygiene (CX-212E).
+//! - AC-007: `no_sqlite_and_shared_backend_client` — PostgreSQL authority and one shared HTTP client;
+//!   `assert_no_local_artifact_dir` guards artifact hygiene (CX-212E).
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+use sha2::Digest;
 
+use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::backend_client::HealthInfo;
+use handshake_native::context_menu_surfaces::node_menu_ids;
+use handshake_native::graph::placement_author_id;
 use handshake_native::interop::{
     build_from_canvas_node, build_from_selection, embed_artifact_as_nodeview, CanvasNodeRef,
     EditorSurfaceKind, InteractionBus, SharedSelection, StageArtifactRef, StageClient,
     StageInteropError, StageManifest, StageRouteSource, CMD_EMBED_STAGE_CAPTURE,
     CMD_ROUTE_TO_STAGE, STAGE_CAPTURE_REF_KIND,
 };
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+};
+use handshake_native::rich_editor::document_model::{DocPosition, Selection};
 use handshake_native::stage_pane::{
     EmbedTarget, StagePane, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID, STAGE_PANE_AUTHOR_ID,
     STAGE_ROUTED_CONTENT_AUTHOR_ID,
 };
+use handshake_native::tab_bar::TabState;
 use handshake_native::theme::HsTheme;
+
+static BINDING_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[path = "interconnect_support/mod.rs"]
+mod interconnect_support;
+mod stage_binding_proof {
+    //! Cross-executable serialization for tests that install the native MCP discovery binding.
+    //!
+    //! Callers reserve this guard before selecting or starting the managed backend, then publish the mounted
+    //! app token after the app exists. The guard holds the product's canonical publication lock for its full
+    //! lifetime, so another compliant publisher cannot replace the binding between install and Stage capture.
+
+    use std::path::{Path, PathBuf};
+    use std::time::{Duration, Instant};
+
+    pub struct StageBindingGuard {
+        previous: Option<handshake_native::mcp::McpBinding>,
+        installed: Option<handshake_native::mcp::McpBinding>,
+        binding_path: PathBuf,
+        env_var: &'static str,
+        previous_env: Option<std::ffi::OsString>,
+        canonical_lock: Option<std::fs::File>,
+    }
+
+    impl StageBindingGuard {
+        /// Establish the binding root and hold the canonical publication lock. This must happen before the
+        /// managed backend is selected so an owned backend inherits the same root and an attached backend's
+        /// packet-standard root cannot be concurrently displaced by another proof executable.
+        pub fn reserve(scenario: &str) -> Self {
+            Self::reserve_inner(scenario)
+        }
+
+        fn reserve_inner(_scenario: &str) -> Self {
+            #[cfg(target_os = "windows")]
+            let env_var = "LOCALAPPDATA";
+            #[cfg(not(target_os = "windows"))]
+            let env_var = "XDG_DATA_HOME";
+
+            let previous_env = std::env::var_os(env_var);
+            let binding_root = PathBuf::from(
+                std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT").expect(
+                    "HANDSHAKE_TEST_STAGE_BINDING_ROOT is required; Stage proofs must never publish into live app-data",
+                ),
+            );
+            assert!(
+                binding_root.is_absolute(),
+                "HANDSHAKE_TEST_STAGE_BINDING_ROOT must be an absolute isolated test root"
+            );
+            std::fs::create_dir_all(binding_root.join("handshake")).unwrap_or_else(|error| {
+                panic!(
+                    "create Stage binding root {}: {error}",
+                    binding_root.display()
+                )
+            });
+            restrict_directory_to_owner(&binding_root.join("handshake"));
+            let binding_path = binding_root
+                .join("handshake")
+                .join(handshake_native::mcp::BINDING_FILE_NAME);
+            let lock_path = binding_path
+                .parent()
+                .expect("binding path has parent")
+                .join("swarm_mcp_binding.lock");
+            let canonical_lock = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(&lock_path)
+                .unwrap_or_else(|error| {
+                    panic!("open canonical Stage lock {}: {error}", lock_path.display())
+                });
+            let deadline = Instant::now() + Duration::from_secs(120);
+            loop {
+                match canonical_lock.try_lock() {
+                    Ok(()) => break,
+                    Err(std::fs::TryLockError::WouldBlock) if Instant::now() < deadline => {
+                        std::thread::sleep(Duration::from_millis(25));
+                    }
+                    Err(error) => panic!(
+                        "lock canonical Stage publication file {} within 120 seconds: {error}",
+                        lock_path.display()
+                    ),
+                }
+            }
+
+            let current = read_binding(&binding_path);
+            let previous = match current {
+                Some(binding) if !binding_owner_is_live(&binding) => {
+                    // A crashed/killed publisher cannot reclaim this binding. Treat it as stale in the
+                    // ordinary reserve path too, so teardown removes our replacement instead of restoring
+                    // a credential whose recorded owner no longer exists.
+                    None
+                }
+                binding => binding,
+            };
+            std::env::set_var(env_var, &binding_root);
+            assert_eq!(
+                handshake_native::mcp::binding_path(),
+                binding_path,
+                "reserved Stage root must be the product binding root"
+            );
+
+            Self {
+                previous,
+                installed: None,
+                binding_path,
+                env_var,
+                previous_env,
+                canonical_lock: Some(canonical_lock),
+            }
+        }
+
+        pub fn publish(&mut self, session_token: &str) {
+            assert!(
+                self.installed.is_none(),
+                "Stage binding may be published once"
+            );
+            let installed = handshake_native::mcp::McpBinding::for_current_process(
+                "127.0.0.1:1".to_owned(),
+                None,
+                session_token.to_owned(),
+            )
+            .expect("current Stage binding process identity");
+            publish_locked(&self.binding_path, &installed);
+            self.installed = Some(installed.clone());
+            assert_eq!(
+                read_binding(&self.binding_path),
+                Some(installed.clone()),
+                "installed Stage binding readback drifted"
+            );
+        }
+
+        /// Hand publication ownership to a real `SwarmMcpServer`. The isolated app-data root remains
+        /// installed for the backend child, but the canonical lock must be released so the production
+        /// server can publish its actual localhost endpoint and matching token.
+        pub fn release_for_real_server(&mut self) {
+            assert!(
+                self.previous.is_none(),
+                "the isolated Stage proof root must not displace a live MCP binding"
+            );
+            assert!(
+                self.installed.is_none(),
+                "a synthetic Stage binding must not precede the real Argus server"
+            );
+            drop(self.canonical_lock.take());
+        }
+
+        pub fn install(session_token: &str, scenario: &str) -> Self {
+            let mut guard = Self::reserve(scenario);
+            guard.publish(session_token);
+            guard
+        }
+
+        pub fn binding_path(&self) -> &Path {
+            &self.binding_path
+        }
+    }
+
+    impl Drop for StageBindingGuard {
+        fn drop(&mut self) {
+            let already_panicking = std::thread::panicking();
+            let cleanup = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                if let Some(installed) = self.installed.as_ref() {
+                    let current = read_binding(&self.binding_path);
+                    if current.as_ref() == Some(installed) {
+                        match self.previous.as_ref() {
+                            Some(previous) => publish_locked(&self.binding_path, previous),
+                            None => match std::fs::remove_file(&self.binding_path) {
+                                Ok(()) => {}
+                                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                                Err(error) => panic!(
+                                    "remove scoped Stage binding {}: {error}",
+                                    self.binding_path.display()
+                                ),
+                            },
+                        }
+                    }
+                    assert_eq!(
+                        read_binding(&self.binding_path),
+                        self.previous,
+                        "Stage binding restoration did not reproduce the displaced canonical state"
+                    );
+                }
+            }));
+
+            match self.previous_env.take() {
+                Some(value) => std::env::set_var(self.env_var, value),
+                None => std::env::remove_var(self.env_var),
+            }
+            drop(self.canonical_lock.take());
+            if cleanup.is_err() && !already_panicking {
+                panic!(
+                    "Stage binding cleanup failed; environment and publication lock were restored"
+                );
+            }
+        }
+    }
+
+    fn read_binding(path: &Path) -> Option<handshake_native::mcp::McpBinding> {
+        match std::fs::read(path) {
+            Ok(bytes) => {
+                Some(serde_json::from_slice(&bytes).unwrap_or_else(|error| {
+                    panic!("parse Stage binding {}: {error}", path.display())
+                }))
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => panic!("read Stage binding {}: {error}", path.display()),
+        }
+    }
+
+    fn binding_owner_is_live(binding: &handshake_native::mcp::McpBinding) -> bool {
+        handshake_native::mcp::binding::process_birth_identity(binding.pid)
+            .ok()
+            .as_ref()
+            == Some(&binding.process_birth)
+    }
+
+    fn publish_locked(path: &Path, binding: &handshake_native::mcp::McpBinding) {
+        let bytes = serde_json::to_vec_pretty(binding).expect("serialize Stage binding");
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let temporary = path.with_extension(format!("{}.{}.tmp", std::process::id(), nonce));
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt as _;
+            options.mode(0o600);
+        }
+        let mut file = options.open(&temporary).unwrap_or_else(|error| {
+            panic!("create Stage binding temp {}: {error}", temporary.display())
+        });
+        let mut unpublished = UnpublishedStageBinding::new(temporary.clone());
+        restrict_to_owner(&temporary);
+        use std::io::Write as _;
+        file.write_all(&bytes).unwrap_or_else(|error| {
+            panic!("write Stage binding temp {}: {error}", temporary.display())
+        });
+        file.sync_all().unwrap_or_else(|error| {
+            panic!("sync Stage binding temp {}: {error}", temporary.display())
+        });
+        drop(file);
+        #[cfg(target_os = "windows")]
+        replace_file(&temporary, path);
+        #[cfg(not(target_os = "windows"))]
+        std::fs::rename(&temporary, path).unwrap_or_else(|error| {
+            panic!(
+                "publish Stage binding {} -> {}: {error}",
+                temporary.display(),
+                path.display()
+            )
+        });
+        unpublished.disarm();
+    }
+
+    struct UnpublishedStageBinding {
+        path: PathBuf,
+        armed: bool,
+    }
+
+    impl UnpublishedStageBinding {
+        fn new(path: PathBuf) -> Self {
+            Self { path, armed: true }
+        }
+
+        fn disarm(&mut self) {
+            self.armed = false;
+        }
+    }
+
+    impl Drop for UnpublishedStageBinding {
+        fn drop(&mut self) {
+            if self.armed {
+                let _ = std::fs::remove_file(&self.path);
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    fn restrict_to_owner(path: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+            .unwrap_or_else(|error| panic!("restrict Stage binding {}: {error}", path.display()));
+    }
+
+    #[cfg(unix)]
+    fn restrict_directory_to_owner(path: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
+            .unwrap_or_else(|error| panic!("restrict Stage directory {}: {error}", path.display()));
+        let mode = std::fs::metadata(path)
+            .expect("inspect Stage directory")
+            .permissions()
+            .mode()
+            & 0o777;
+        assert_eq!(mode, 0o700, "Stage directory must remain owner-only");
+    }
+
+    #[cfg(target_os = "windows")]
+    fn restrict_to_owner(path: &Path) {
+        use std::os::windows::process::CommandExt;
+        let user = std::env::var("USERNAME").expect("USERNAME for Stage binding ACL");
+        let status = std::process::Command::new("icacls")
+            .arg(path)
+            .arg("/inheritance:r")
+            .arg("/grant:r")
+            .arg(format!("{user}:F"))
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .creation_flags(0x0800_0000)
+            .status()
+            .unwrap_or_else(|error| panic!("run icacls for {}: {error}", path.display()));
+        assert!(status.success(), "icacls rejected {}", path.display());
+    }
+
+    #[cfg(target_os = "windows")]
+    fn restrict_directory_to_owner(path: &Path) {
+        restrict_to_owner(path);
+    }
+
+    #[cfg(not(any(unix, target_os = "windows")))]
+    fn restrict_to_owner(_path: &Path) {
+        panic!("owner-only Stage binding permissions unsupported on this platform");
+    }
+
+    #[cfg(not(any(unix, target_os = "windows")))]
+    fn restrict_directory_to_owner(_path: &Path) {
+        panic!("owner-only Stage binding directories unsupported on this platform");
+    }
+
+    #[cfg(target_os = "windows")]
+    fn replace_file(from: &Path, to: &Path) {
+        use std::os::windows::ffi::OsStrExt;
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn MoveFileExW(existing: *const u16, replacement: *const u16, flags: u32) -> i32;
+        }
+        let from_wide = from
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect::<Vec<_>>();
+        let to_wide = to
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect::<Vec<_>>();
+        // SAFETY: both buffers are NUL-terminated and live for the duration of the call.
+        let replaced = unsafe { MoveFileExW(from_wide.as_ptr(), to_wide.as_ptr(), 0x1 | 0x8) != 0 };
+        assert!(
+            replaced,
+            "publish Stage binding {} -> {}: {}",
+            from.display(),
+            to.display(),
+            std::io::Error::last_os_error()
+        );
+    }
+}
+
+#[test]
+fn stage_binding_guard_restores_state_and_releases_lock_during_unwind() {
+    let _env_lock = BINDING_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let root = std::env::temp_dir().join(format!(
+        "hsk_stage_binding_guard_unwind_{}_{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ));
+    let previous_root = std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT");
+    std::env::set_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT", &root);
+
+    let binding_path = root
+        .join("handshake")
+        .join(handshake_native::mcp::BINDING_FILE_NAME);
+    let lock_path = root.join("handshake").join("swarm_mcp_binding.lock");
+    let unwind = std::panic::catch_unwind(|| {
+        let _binding = stage_binding_proof::StageBindingGuard::install(
+            &"f".repeat(64),
+            "unwind-cleanup-proof",
+        );
+        assert!(binding_path.exists(), "test binding must be published");
+        panic!("exercise Stage binding guard unwind cleanup");
+    });
+
+    match previous_root {
+        Some(value) => std::env::set_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT", value),
+        None => std::env::remove_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT"),
+    }
+    assert!(unwind.is_err(), "test must exercise the unwinding path");
+    assert!(
+        !binding_path.exists(),
+        "Stage binding guard must remove its publication while unwinding"
+    );
+    let temp_residue = std::fs::read_dir(root.join("handshake"))
+        .expect("read Stage binding root after unwind")
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "tmp"))
+        .map(|entry| entry.path())
+        .collect::<Vec<_>>();
+    assert!(
+        temp_residue.is_empty(),
+        "Stage binding unwind left temp residue: {temp_residue:?}"
+    );
+    let released_lock = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(&lock_path)
+        .expect("reopen Stage publication lock");
+    released_lock
+        .try_lock()
+        .expect("Stage binding guard must release publication lock while unwinding");
+    drop(released_lock);
+    std::fs::remove_dir_all(&root).expect("remove Stage binding unwind test root");
+}
+
+struct LiveWorkspaceGuard<'a> {
+    backend: &'a interconnect_support::LiveBackend,
+    workspace_id: String,
+    native_fr_event_ids: Vec<String>,
+    stage_artifact_ids: Vec<String>,
+    stage_job_ids: Vec<String>,
+    stage_event_ids: Vec<String>,
+}
+
+impl LiveWorkspaceGuard<'_> {
+    fn track_native_fr(&mut self, row: &serde_json::Value) {
+        let event_id = row["event_id"]
+            .as_str()
+            .expect("native FR row carries event_id")
+            .to_owned();
+        uuid::Uuid::parse_str(&event_id).expect("native FR event_id is a UUID");
+        if !self.native_fr_event_ids.contains(&event_id) {
+            self.native_fr_event_ids.push(event_id);
+        }
+    }
+
+    fn track_stage_artifact(&mut self, artifact: &StageArtifactRef) {
+        if !self.stage_artifact_ids.contains(&artifact.artifact_id) {
+            self.stage_artifact_ids.push(artifact.artifact_id.clone());
+        }
+        if let Some(job_id) = artifact.job_id.as_ref() {
+            if !self.stage_job_ids.contains(job_id) {
+                self.stage_job_ids.push(job_id.clone());
+            }
+        }
+        if let Some(event_id) = artifact.event_ledger_event_id.as_ref() {
+            if !self.stage_event_ids.contains(event_id) {
+                self.stage_event_ids.push(event_id.clone());
+            }
+        }
+    }
+
+    fn cleanup_native_fr_ledger(&mut self) {
+        let rows = self
+            .backend
+            .get_json(&format!("/api/flight_recorder?wsid={}", self.workspace_id));
+        for row in rows.as_array().into_iter().flatten() {
+            if matches!(
+                row["payload"]["kind"].as_str(),
+                Some("route_to_stage" | "stage_embed_back")
+            ) {
+                self.track_native_fr(row);
+            }
+        }
+        if self.native_fr_event_ids.is_empty() {
+            return;
+        }
+        let keys = self
+            .native_fr_event_ids
+            .iter()
+            .flat_map(|event_id| {
+                [
+                    format!("native-editor-fr-pending:{event_id}"),
+                    format!("native-editor-fr-complete:{event_id}"),
+                ]
+            })
+            .map(|key| format!("'{}'", key.replace('\'', "''")))
+            .collect::<Vec<_>>()
+            .join(", ");
+        self.backend.run_fixture_sql(
+            "mt066-native-fr-ledger-cleanup",
+            &format!(
+                "BEGIN; DELETE FROM kernel_event_ledger WHERE idempotency_key IN ({keys}); \
+                 DO $native_fr_cleanup$ BEGIN IF EXISTS (SELECT 1 FROM kernel_event_ledger \
+                 WHERE idempotency_key IN ({keys})) THEN RAISE EXCEPTION \
+                 'MT-066 native FR EventLedger cleanup left fixture rows'; END IF; \
+                 END $native_fr_cleanup$; COMMIT;"
+            ),
+        );
+        self.native_fr_event_ids.clear();
+    }
+
+    fn sql_text_array(values: &[String]) -> String {
+        if values.is_empty() {
+            return "ARRAY[]::text[]".to_owned();
+        }
+        format!(
+            "ARRAY[{}]::text[]",
+            values
+                .iter()
+                .map(|value| format!("'{}'", value.replace('\'', "''")))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+
+    fn cleanup_stage_side_effects_and_assert_zero(&mut self) {
+        let workspace = self.workspace_id.replace('\'', "''");
+        let artifacts = Self::sql_text_array(&self.stage_artifact_ids);
+        let jobs = Self::sql_text_array(&self.stage_job_ids);
+        let events = Self::sql_text_array(&self.stage_event_ids);
+        self.backend.run_fixture_sql(
+            "mt066-stage-side-effect-cleanup",
+            &format!(
+                "BEGIN; \
+                 CREATE TEMP TABLE mt066_stage_cleanup_artifacts ON COMMIT DROP AS \
+                 SELECT artifact_id, job_id, event_ledger_event_id \
+                 FROM stage_capture_artifacts \
+                 WHERE artifact_id = ANY({artifacts}) OR workspace_id = '{workspace}'; \
+                 CREATE TEMP TABLE mt066_stage_cleanup_events ON COMMIT DROP AS \
+                 SELECT event_id FROM kernel_event_ledger \
+                 WHERE event_id = ANY({events}) \
+                    OR idempotency_key LIKE 'stage-capture:{workspace}:%' \
+                    OR idempotency_key LIKE 'stage-capture-decision:{workspace}:%' \
+                    OR (source_component = 'stage_capture_api' \
+                        AND payload->>'workspace_id' = '{workspace}') \
+                 UNION SELECT event_ledger_event_id FROM mt066_stage_cleanup_artifacts \
+                       WHERE event_ledger_event_id IS NOT NULL \
+                 UNION SELECT payload->>'decision_event_id' FROM kernel_event_ledger \
+                       WHERE event_id = ANY({events}) \
+                          OR event_id IN (SELECT event_ledger_event_id \
+                                          FROM mt066_stage_cleanup_artifacts \
+                                          WHERE event_ledger_event_id IS NOT NULL); \
+                 DELETE FROM stage_capture_artifacts \
+                 WHERE artifact_id = ANY({artifacts}) OR workspace_id = '{workspace}'; \
+                 DELETE FROM kernel_event_ledger \
+                 WHERE event_id IN (SELECT event_id FROM mt066_stage_cleanup_events \
+                                    WHERE event_id IS NOT NULL); \
+                 DELETE FROM ai_jobs \
+                 WHERE id = ANY({jobs}) \
+                    OR id IN (SELECT job_id FROM mt066_stage_cleanup_artifacts \
+                              WHERE job_id IS NOT NULL) \
+                    OR (job_inputs::jsonb->>'workspace_id' = '{workspace}'); \
+                 DO $stage_zero$ BEGIN \
+                 IF EXISTS (SELECT 1 FROM stage_capture_artifacts \
+                            WHERE artifact_id = ANY({artifacts}) OR workspace_id = '{workspace}') \
+                 THEN RAISE EXCEPTION 'MT-066 Stage artifact cleanup left residue'; END IF; \
+                 IF EXISTS (SELECT 1 FROM ai_jobs \
+                            WHERE id = ANY({jobs}) \
+                               OR job_inputs::jsonb->>'workspace_id' = '{workspace}') \
+                 THEN RAISE EXCEPTION 'MT-066 Stage job cleanup left residue'; END IF; \
+                 IF EXISTS (SELECT 1 FROM kernel_event_ledger \
+                            WHERE event_id IN (SELECT event_id \
+                                               FROM mt066_stage_cleanup_events \
+                                               WHERE event_id IS NOT NULL) \
+                               OR idempotency_key LIKE 'stage-capture:{workspace}:%' \
+                               OR idempotency_key LIKE 'stage-capture-decision:{workspace}:%' \
+                               OR (source_component = 'stage_capture_api' \
+                                   AND payload->>'workspace_id' = '{workspace}')) \
+                 THEN RAISE EXCEPTION 'MT-066 Stage EventLedger cleanup left residue'; END IF; \
+                 END $stage_zero$; COMMIT;"
+            ),
+        );
+        self.stage_artifact_ids.clear();
+        self.stage_job_ids.clear();
+        self.stage_event_ids.clear();
+    }
+
+    fn cleanup_all_and_assert_zero(&mut self) {
+        self.cleanup_native_fr_ledger();
+        self.cleanup_stage_side_effects_and_assert_zero();
+    }
+}
+
+impl Drop for LiveWorkspaceGuard<'_> {
+    fn drop(&mut self) {
+        let cleanup_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.cleanup_all_and_assert_zero();
+        }));
+        let status = self.backend.delete_workspace(&self.workspace_id);
+        let status_ok = (200..300).contains(&status) || status == 404;
+        let recorder_cleanup_result = if status_ok {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let rows = self
+                    .backend
+                    .get_json(&format!("/api/flight_recorder?wsid={}", self.workspace_id));
+                assert!(
+                    rows.as_array().is_some_and(Vec::is_empty),
+                    "workspace DELETE must remove persistent Stage FlightRecorder projections: {rows}"
+                );
+            }))
+        } else {
+            Ok(())
+        };
+        if !status_ok {
+            eprintln!(
+                "WARN(MT-066 cleanup): DELETE workspace {} returned {status}",
+                self.workspace_id
+            );
+        }
+        if !std::thread::panicking() {
+            if let Err(payload) = cleanup_result {
+                std::panic::resume_unwind(payload);
+            }
+            if let Err(payload) = recorder_cleanup_result {
+                std::panic::resume_unwind(payload);
+            }
+            assert!(status_ok, "MT-066 managed workspace cleanup failed");
+        }
+    }
+}
+
+fn wait_for_native_fr(
+    backend: &interconnect_support::LiveBackend,
+    workspace_id: &str,
+    kind: &str,
+    matches_fixture: impl Fn(&serde_json::Value) -> bool,
+) -> serde_json::Value {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        let rows = backend.get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
+        if let Some(row) = rows.as_array().and_then(|rows| {
+            rows.iter()
+                .find(|row| row["payload"]["kind"].as_str() == Some(kind) && matches_fixture(row))
+        }) {
+            assert!(row["event_id"].as_str().is_some());
+            assert_eq!(row["payload"]["workspace_id"].as_str(), Some(workspace_id));
+            return row.clone();
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "automatic {kind} Flight Recorder row did not arrive within five seconds"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Artifact hygiene (CX-212E / SCREENSHOT RULE): all artifacts go to the EXTERNAL root ONLY.
@@ -144,16 +794,26 @@ fn text_range(pane_id: &str, start: usize, end: usize, text: &str) -> SharedSele
 }
 
 fn evidence_artifact(id: &str) -> StageArtifactRef {
+    let content_bytes = b"stage-capture-fixture".to_vec();
+    let sha = format!("{:x}", sha2::Sha256::digest(&content_bytes));
     StageArtifactRef {
         artifact_id: id.to_owned(),
         workspace_id: "WS-1".to_owned(),
-        sha256: "c".repeat(64),
+        sha256: sha.clone(),
         manifest: StageManifest {
-            sha256: "c".repeat(64),
+            sha256: sha,
             manifest_ref: format!("manifest://{id}"),
             content_type: "image/png".to_owned(),
+            size_bytes: content_bytes.len() as u64,
         },
         label: "Capture".to_owned(),
+        content_path: String::new(),
+        size_bytes: content_bytes.len() as u64,
+        correlation_id: "stage-fixture-correlation".to_owned(),
+        job_id: None,
+        event_ledger_event_id: None,
+        replayed: false,
+        content_bytes,
     }
 }
 
@@ -212,17 +872,58 @@ fn route_payload_from_selection_and_canvas_node() {
     );
 }
 
+#[test]
+fn route_contention_retains_capture_causal_attribution() {
+    let mut pane = StagePane::new();
+    let content = handshake_native::stage_pane::StageContent::Selection(
+        "retained exact bytes".to_owned(),
+        "pane-rich:0-20".to_owned(),
+    );
+    let route = handshake_native::interop::PendingStageRoute::new(
+        content.clone(),
+        "selection",
+        Some("causal-stage-77".to_owned()),
+        "pane-rich",
+        "WS-1",
+    );
+    pane.set_route_busy(route.clone());
+    assert_eq!(pane.route_retry, Some(route));
+    let retained = pane.route_retry.as_ref().expect("retained Stage route");
+    let request = handshake_native::interop::StageCaptureRequest::from_routed_content(
+        &retained.content,
+        retained
+            .causal_action_id
+            .as_deref()
+            .expect("retained causal action id"),
+    )
+    .expect("retained route remains capturable");
+    assert_eq!(request.correlation_id, "causal-stage-77");
+    assert!(request.idempotency_key.starts_with("stage-capture:"));
+
+    let changed = handshake_native::interop::StageCaptureRequest::from_routed_content(
+        &handshake_native::stage_pane::StageContent::Selection(
+            "changed bytes at same source".to_owned(),
+            "pane-rich:0-20".to_owned(),
+        ),
+        "causal-stage-77",
+    )
+    .expect("changed routed content remains capturable");
+    assert_ne!(
+        request.idempotency_key, changed.idempotency_key,
+        "exact-byte digest prevents a stable source correlation from conflicting after content changes"
+    );
+}
+
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// PT-002 / AC-002 — the route leg emits the MT-036 route_to_stage FR event (shape) + stages content.
+// PT-002 / AC-002 — route admission prebuilds the MT-036 receipt (shape) + stages content.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn route_to_stage_emits_fr_event_and_stages_content() {
+fn route_to_stage_prebuilds_fr_receipt_and_stages_content() {
     use handshake_native::event_emitter::NativeEditorEvent;
 
-    // The FR event the bus emits on a route is the EXACT MT-036 constructor (no new event kind, MC-005).
-    // Prove its shape directly: `route_to_stage` action, the source pane as pane_id, the content_kind in
-    // the payload — the same value the bus builds at its route_to_stage call site.
+    // The receipt the bus prebuilds is the EXACT MT-036 constructor (no new event kind, MC-005).
+    // Prove its shape directly; the mounted shell emits this same identity only after Stage applies it.
     let ev = NativeEditorEvent::route_to_stage(
         "selection",
         "pane-rich",
@@ -244,7 +945,7 @@ fn route_to_stage_emits_fr_event_and_stages_content() {
     );
     assert_eq!(native["workspace_id"], "WS-1");
 
-    // The bus route_to_stage stages the routed content (the Stage pane then shows it) AND dispatches the
+    // The bus route_to_stage stages the routed content and dispatches the
     // EXISTING CMD_ROUTE_TO_STAGE (the MT-033 command — extended, not duplicated). Run inside an egui ctx
     // so the dispatch path (which requests a repaint) has a context.
     let ctx = egui::Context::default();
@@ -260,11 +961,11 @@ fn route_to_stage_emits_fr_event_and_stages_content() {
             "AC-002: the routed content was staged on the bus"
         );
         assert_eq!(ack.content_kind, "selection");
-        // The staged content drains as a Selection the Stage pane renders.
+        // The complete pending route carries the Selection the Stage pane will render.
         let staged = bus
-            .take_pending_stage_content()
-            .expect("content staged for the Stage pane drain");
-        match staged {
+            .pending_stage_route()
+            .expect("complete route staged for the Stage pane drain");
+        match &staged.content {
             handshake_native::stage_pane::StageContent::Selection(text, src) => {
                 assert_eq!(text, "hello");
                 assert_eq!(src, "pane-rich:0-5");
@@ -284,22 +985,775 @@ fn route_to_stage_emits_fr_event_and_stages_content() {
         "AC-002: the Stage pane shows the routed content"
     );
     assert!(pane.content.summary().contains("hello"));
-    println!("PT-002 FR-shape + route wiring OK: route_to_stage event shape proven, content staged + received");
+    println!("PT-002 FR-shape + route wiring OK: receipt shape proven, content staged + received");
 }
 
-/// AC-002 LIVE round-trip against a REAL PostgreSQL/EventLedger with live native-editor FR ingestion.
-/// GATED: `NEEDS_MANAGED_RESOURCE_PROOF` (both the managed PG and the live native-editor FR ingestion
-/// endpoint are gated, like MT-064). The bus-only route + the FR-emit SHAPE are proven in
-/// `route_to_stage_emits_fr_event_and_stages_content`; this asserts the LIVE ledger read once the
-/// managed resource + ingestion route exist. Run with `--ignored` against a live backend.
+/// AC-002/003 LIVE round-trip against the managed PostgreSQL/EventLedger authority. The fixture creates
+/// and removes its own workspace, so this proof has no operator-seeded workspace or `#[ignore]` gate.
 #[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: real PostgreSQL/EventLedger + live native-editor FR ingestion (gated, like MT-064)"]
 fn live_route_round_trip_real_pg() {
-    // Intentionally minimal: the live ingestion endpoint does not exist in this build (the FR closed-schema
-    // gap), so a real round-trip cannot be asserted here without fabricating it. When the native-editor FR
-    // ingestion route lands, this test reads the route_to_stage event back from the ledger and asserts the
-    // Stage pane received the content. Until then it is honestly gated rather than faked.
-    panic!("live FR ingestion route absent in this build — gated proof (see test doc)");
+    let _binding_env_guard = BINDING_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    use sha2::{Digest, Sha256};
+
+    let mut stage_binding = stage_binding_proof::StageBindingGuard::reserve("mt066-rich-stage");
+    let backend = interconnect_support::require_reachable_backend();
+    let workspace = backend.create_workspace(&format!(
+        "mt066-live-stage-{}",
+        uuid::Uuid::new_v4().simple()
+    ));
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceGuard {
+        backend: &backend,
+        workspace_id: workspace_id.clone(),
+        native_fr_event_ids: Vec::new(),
+        stage_artifact_ids: Vec::new(),
+        stage_job_ids: Vec::new(),
+        stage_event_ids: Vec::new(),
+    };
+
+    let exact_text = "MT-066 exact Stage bytes: café / LF\nsecond line";
+    let expected_sha = format!("{:x}", Sha256::digest(exact_text.as_bytes()));
+
+    // Fixture setup creates a real target document, but all feature actions below are driven through
+    // the mounted production app. In particular, the test never constructs or POSTs an FR event.
+    let created_doc = backend.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({
+            "workspace_id": workspace_id,
+            "title": "MT-066 mounted Stage embed target",
+            "content_json": {"type":"doc","content":[{"type":"paragraph","content":[
+                {"type":"text","text": exact_text}
+            ]}]},
+        }),
+    );
+    let document_id = created_doc["document"]["rich_document_id"]
+        .as_str()
+        .or_else(|| created_doc["rich_document_id"].as_str())
+        .expect("target document create returns rich_document_id")
+        .to_owned();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("MT-066 mounted runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&backend.base, runtime.handle().clone());
+    app.set_stage_embed_back_base_url_for_test(&backend.base);
+    app.bind_active_project_for_integration_test(workspace_id.clone());
+    let pane_id = PaneId::from("pane-a");
+    app.pane_registry().lock().unwrap().insert(PaneRecord::new(
+        pane_id.clone(),
+        PaneType::LoomWikiPage,
+        workspace_id.clone(),
+        Some(document_id.clone()),
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    let mut tab = TabState::new(PaneType::LoomWikiPage);
+    tab.content_id = Some(document_id.clone());
+    let bar = app
+        .tab_bar_states_mut()
+        .get_mut(&pane_id)
+        .expect("default pane-a has a tab bar");
+    bar.tabs = vec![tab];
+    bar.active_index = 0;
+    app.set_active_pane_for_test(Some(pane_id.clone()));
+    let rich_state = app.mounted_rich_state();
+    let stage = app.mounted_stage();
+    stage_binding.release_for_real_server();
+    let mut argus = CanonicalArgusDriver::bind_in_current_app_data(
+        &app,
+        "mt066-stage",
+        app.mcp_token(),
+    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    // Frames load the real target note and bind the workspace-scoped NativeEditorEventEmitter to the
+    // shared InteractionBus before the operator route begins.
+    let mount_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        harness.run_steps(1);
+        if rich_state.lock().unwrap().save.is_some() {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < mount_deadline,
+            "mounted rich target did not finish loading within five seconds"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    // Select exact bytes in the mounted production editor, then dispatch the original shared
+    // Route-to-Stage operator command exactly once. No Stage retry state is synthesized by the proof.
+    {
+        let mut state = rich_state.lock().unwrap();
+        state.selection = Selection::text(
+            DocPosition::new(vec![0, 0], 0),
+            DocPosition::new(vec![0, 0], exact_text.chars().count()),
+        );
+        assert_eq!(
+            state.selected_text().map(|(_, _, _, text)| text),
+            Some(exact_text.to_owned()),
+            "the mounted rich selection materializes the exact Stage bytes"
+        );
+    }
+    harness
+        .state_mut()
+        .set_active_pane_for_test(Some(pane_id.clone()));
+    let open_editors = argus.click_and_reinspect(&mut harness, "menu-editors");
+    assert!(
+        json_has_author_id(&open_editors.after, "menu.editors.route-to-stage"),
+        "fresh Argus inspection observes the mounted Route selection to Stage leaf"
+    );
+    let route_observation =
+        argus.click_and_reinspect(&mut harness, "menu.editors.route-to-stage");
+    assert!(
+        !route_observation.receipt_status.is_empty(),
+        "canonical Argus returns the route action receipt"
+    );
+
+    let route_surface_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        harness.run_steps(1);
+        let received = stage.lock().unwrap().content.clone();
+        if matches!(
+            received,
+            handshake_native::stage_pane::StageContent::Selection(ref text, ref source)
+                if text == exact_text && source == &document_id
+        ) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < route_surface_deadline,
+            "mounted Stage pane did not receive exact routed bytes within five seconds"
+        );
+    }
+    let route_row = wait_for_native_fr(&backend, &workspace_id, "route_to_stage", |row| {
+        row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
+    });
+    cleanup.track_native_fr(&route_row);
+    assert_eq!(
+        route_row["payload"]["native_payload"]["content_kind"].as_str(),
+        Some("selection")
+    );
+    assert_eq!(
+        route_row["payload"]["native_payload"]["causal_action_id"].as_str(),
+        stage.lock().unwrap().causal_action_id.as_deref(),
+        "route FR carries the mounted command's exact Stage correlation"
+    );
+
+    // The canonical AccessKit button remains visible and collision-free on the mounted Stage surface.
+    // This note-target live proof drives the equivalent operator-facing palette command; the mounted
+    // Canvas live proof below drives the in-pane button itself, while `embed_back_button_press_signals_host`
+    // independently proves that button emits the same host request.
+    harness.run_steps(1);
+    assert_eq!(
+        harness
+            .query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+                node.author_id() == Some(STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID)
+            })
+            .count(),
+        1,
+        "mounted Stage embed-back control must be collision-free"
+    );
+    let embed_observation =
+        argus.click_and_reinspect(&mut harness, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID);
+    assert!(
+        !embed_observation.receipt_status.is_empty(),
+        "canonical Argus returns the Stage capture action receipt"
+    );
+    let embed_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        harness.run_steps(2);
+        if matches!(
+            stage.lock().unwrap().last_embed_back.as_ref(),
+            Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded { .. })
+        ) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < embed_deadline,
+            "mounted Stage embed-back did not complete within five seconds; terminal outcome: {:?}; runtime state (panel_open,target_retained,request_pending,in_flight): {:?}",
+            stage.lock().unwrap().last_embed_back,
+            harness.state().stage_embed_runtime_state_for_test(),
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let (artifact_id, outcome_sha) = match stage.lock().unwrap().last_embed_back.clone() {
+        Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded {
+            artifact_id,
+            sha256,
+            ..
+        }) => (artifact_id, sha256),
+        other => panic!("expected embedded Stage outcome, got {other:?}"),
+    };
+    assert_eq!(outcome_sha, expected_sha);
+    let stage_token = harness.state().mcp_token();
+    let client =
+        StageClient::with_base_url(backend.base.clone()).with_session_token(stage_token.as_hex());
+    let artifact = rt()
+        .block_on(client.fetch_stage_artifact(&workspace_id, &artifact_id))
+        .expect("production Stage client retrieves and verifies exact persisted bytes");
+    cleanup.track_stage_artifact(&artifact);
+    assert_eq!(artifact.content_bytes, exact_text.as_bytes());
+    assert_eq!(artifact.sha256, expected_sha);
+    assert_eq!(
+        artifact.correlation_id,
+        route_row["payload"]["native_payload"]["causal_action_id"]
+            .as_str()
+            .expect("route causal action id")
+    );
+    assert!(
+        artifact.job_id.is_some(),
+        "capture is visible in Job History"
+    );
+    assert!(
+        artifact.event_ledger_event_id.is_some(),
+        "capture carries its EventLedger receipt"
+    );
+
+    let mounted_content =
+        handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
+            &rich_state.lock().unwrap().doc,
+        );
+    let mounted_json = mounted_content.to_string();
+    assert!(mounted_json.contains(&artifact_id));
+    assert!(mounted_json.contains(STAGE_CAPTURE_REF_KIND));
+
+    let embed_row = wait_for_native_fr(&backend, &workspace_id, "stage_embed_back", |row| {
+        row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
+    });
+    cleanup.track_native_fr(&embed_row);
+    assert_eq!(
+        embed_row["payload"]["native_payload"]["artifact_id"].as_str(),
+        Some(artifact_id.as_str())
+    );
+    assert_eq!(
+        embed_row["payload"]["native_payload"]["sha256"].as_str(),
+        Some(expected_sha.as_str())
+    );
+    assert_eq!(
+        embed_row["payload"]["native_payload"]["manifest_ref"].as_str(),
+        Some(artifact.manifest.manifest_ref.as_str())
+    );
+    assert_eq!(
+        embed_row["payload"]["native_payload"]["causal_action_id"].as_str(),
+        route_row["payload"]["native_payload"]["causal_action_id"].as_str(),
+        "embed-back FR inherits the exact same causal action id as route-to-Stage"
+    );
+    let route_ts = route_row["payload"]["ts_utc"]
+        .as_str()
+        .expect("automatic route event timestamp");
+    let embed_ts = embed_row["payload"]["ts_utc"]
+        .as_str()
+        .expect("automatic embed event timestamp");
+    assert!(
+        chrono::DateTime::parse_from_rfc3339(embed_ts).unwrap()
+            > chrono::DateTime::parse_from_rfc3339(route_ts).unwrap(),
+        "the exact embed-back event is strictly later than its exact route event"
+    );
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let rows = backend.get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
+    let route_dispatches = rows
+        .as_array()
+        .expect("Flight Recorder rows")
+        .iter()
+        .filter(|row| {
+            row["payload"]["kind"].as_str() == Some("route_to_stage")
+                && row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
+        })
+        .count();
+    assert_eq!(
+        route_dispatches, 1,
+        "the mounted rich selection dispatches the shared Route-to-Stage command exactly once"
+    );
+    argus.finish();
+    cleanup.cleanup_all_and_assert_zero();
+}
+
+/// Managed-PG proof for the real Canvas origin/target. The route starts on the shared Canvas bus, the
+/// mounted Stage button performs capture + embed, a fresh backend read validates the structured card and
+/// dereferenced exact bytes, and a repeated embed converges on the same single placement.
+#[test]
+fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
+    let _binding_env_guard = BINDING_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut stage_binding = stage_binding_proof::StageBindingGuard::reserve("mt066-canvas-stage");
+    let backend = interconnect_support::require_reachable_backend();
+    let workspace = backend.create_workspace(&format!(
+        "mt066-canvas-stage-{}",
+        uuid::Uuid::new_v4().simple()
+    ));
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceGuard {
+        backend: &backend,
+        workspace_id: workspace_id.clone(),
+        native_fr_event_ids: Vec::new(),
+        stage_artifact_ids: Vec::new(),
+        stage_job_ids: Vec::new(),
+        stage_event_ids: Vec::new(),
+    };
+    let canvas = backend.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+        &serde_json::json!({"title": "MT-066 Stage Canvas target"}),
+    );
+    let canvas_id = canvas["block_id"]
+        .as_str()
+        .expect("Canvas create returns block_id")
+        .to_owned();
+    let source_block = backend.post_json(
+        &format!("/workspaces/{workspace_id}/loom/blocks"),
+        &serde_json::json!({
+            "content_type": "note",
+            "title": "MT-066 operator-routed Canvas source"
+        }),
+    );
+    let source_block_id = source_block["block_id"]
+        .as_str()
+        .expect("Canvas source block create returns block_id")
+        .to_owned();
+    let source_placement = backend.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}/placements"),
+        &serde_json::json!({
+            "placed_block_id": source_block_id,
+            "x": 40.0,
+            "y": 40.0,
+            "w": 240.0,
+            "h": 140.0
+        }),
+    );
+    let source_placement_id = source_placement["placement_id"]
+        .as_str()
+        .expect("Canvas source placement create returns placement_id")
+        .to_owned();
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("MT-066 Canvas runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&backend.base, runtime.handle().clone());
+    app.set_stage_embed_back_base_url_for_test(&backend.base);
+    assert!(app.switch_project(&workspace_id));
+    {
+        let board = app.mounted_canvas_board();
+        let mut board = board.lock().expect("mounted Canvas board lock");
+        board.workspace_id = workspace_id.clone();
+        board.canvas_block_id = canvas_id.clone();
+    }
+    assert!(
+        app.dispatch_palette_action_for_test(handshake_native::command_registry::CMD_VIEW_CANVAS),
+        "operator-facing View Canvas command mounts the production Canvas pane"
+    );
+    assert!(
+        app.active_pane().is_some(),
+        "View Canvas targets a live pane"
+    );
+
+    stage_binding.publish(app.mcp_token().as_hex());
+
+    let host_ctx = std::sync::Arc::new(std::sync::Mutex::new(None::<egui::Context>));
+    let host_ctx_capture = std::sync::Arc::clone(&host_ctx);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(
+            move |ctx, app: &mut HandshakeApp| {
+                *host_ctx_capture.lock().expect("capture mounted context") = Some(ctx.clone());
+                app.ui(ctx);
+            },
+            app,
+        );
+    harness.run_steps(3);
+    let _ctx = host_ctx
+        .lock()
+        .expect("mounted context lock")
+        .clone()
+        .expect("mounted context captured");
+    let board_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        harness.run_steps(1);
+        if harness
+            .state()
+            .mounted_canvas_board()
+            .lock()
+            .unwrap()
+            .placements
+            .iter()
+            .any(|placement| placement.placement_id == source_placement_id)
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < board_deadline,
+            "mounted Canvas did not load the seeded source placement within five seconds"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    harness.run_steps(2);
+    let source_card_author_id = placement_author_id(&source_placement_id);
+    assert!(
+        harness
+            .root()
+            .children_recursive()
+            .any(|node| node.accesskit_node().author_id() == Some(source_card_author_id.as_str())),
+        "the operator-routed Canvas card is present in the mounted AccessKit tree"
+    );
+    let source_card_screen = {
+        let board = harness.state().mounted_canvas_board();
+        let board = board.lock().unwrap();
+        let card = board
+            .placements
+            .iter()
+            .find(|placement| placement.placement_id == source_placement_id)
+            .expect("source placement remains mounted");
+        board
+            .canvas_point_to_screen(egui::pos2(card.x + card.w * 0.5, card.y + card.h * 0.5))
+            .expect("mounted Canvas reports its live screen rect")
+    };
+    harness.event(egui::Event::PointerMoved(source_card_screen));
+    harness.event(egui::Event::PointerButton {
+        pos: source_card_screen,
+        button: egui::PointerButton::Secondary,
+        pressed: true,
+        modifiers: egui::Modifiers::default(),
+    });
+    harness.event(egui::Event::PointerButton {
+        pos: source_card_screen,
+        button: egui::PointerButton::Secondary,
+        pressed: false,
+        modifiers: egui::Modifiers::default(),
+    });
+    harness.run_steps(1);
+    let route_menu_author_id = format!("ctx-menu.{}", node_menu_ids::ROUTE_TO_STAGE);
+    let route_menu = harness.get_by(|node| node.author_id() == Some(route_menu_author_id.as_str()));
+    route_menu.click();
+
+    let stage = harness.state().mounted_stage();
+    let route_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        harness.run_steps(1);
+        if matches!(
+            stage.lock().unwrap().content,
+            handshake_native::stage_pane::StageContent::Selection(ref text, ref source)
+                if text == &format!("canvas node {source_block_id}")
+                    && source == &format!("node://{canvas_id}/{source_block_id}")
+        ) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < route_deadline,
+            "mounted Canvas route did not reach Stage within five seconds"
+        );
+    }
+    harness
+        .get_by(|node| node.author_id() == Some(STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID))
+        .click();
+    let embed_deadline = std::time::Instant::now() + std::time::Duration::from_secs(8);
+    loop {
+        harness.run_steps(2);
+        if matches!(
+            stage.lock().unwrap().last_embed_back,
+            Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded { .. })
+        ) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < embed_deadline,
+            "mounted Canvas Stage embed did not complete within eight seconds"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let (artifact_id, sha256) = match stage.lock().unwrap().last_embed_back.clone() {
+        Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded {
+            artifact_id,
+            sha256,
+            ..
+        }) => (artifact_id, sha256),
+        other => panic!("expected Canvas Stage embed outcome, got {other:?}"),
+    };
+    let stage_client = StageClient::with_base_url(backend.base.clone())
+        .with_session_token(harness.state().mcp_token().as_hex());
+    let artifact = rt()
+        .block_on(stage_client.fetch_stage_artifact(&workspace_id, &artifact_id))
+        .expect("fresh Stage dereference validates the Canvas reference");
+    cleanup.track_stage_artifact(&artifact);
+    assert_eq!(
+        artifact.content_bytes,
+        format!("canvas node {source_block_id}").as_bytes()
+    );
+    assert_eq!(artifact.sha256, sha256);
+
+    let canvas_client = handshake_native::backend_client::CanvasBoardClient::new(
+        backend.base.clone(),
+        runtime.handle().clone(),
+    );
+    let first_board = rt()
+        .block_on(canvas_client.fetch_board_now(&workspace_id, &canvas_id))
+        .expect("fresh Canvas reload after Stage embed");
+    assert_eq!(
+        first_board.placements.len(),
+        2,
+        "the operator source plus one structured Stage card persist"
+    );
+    let first_stage_placement = rt()
+        .block_on(canvas_client.find_stage_capture_card_now(
+            &workspace_id,
+            &canvas_id,
+            &artifact_id,
+            &artifact.sha256,
+            &artifact.manifest.manifest_ref,
+            &artifact.correlation_id,
+        ))
+        .expect("structured Canvas Stage reference reload")
+        .expect("fresh reload parses the exact structured provenance tuple");
+    let first_placement_id = first_stage_placement.placement_id;
+
+    let route_row = wait_for_native_fr(&backend, &workspace_id, "route_to_stage", |row| {
+        row["payload"]["native_payload"]["content_kind"].as_str() == Some("canvas_node")
+    });
+    cleanup.track_native_fr(&route_row);
+    let embed_row = wait_for_native_fr(&backend, &workspace_id, "stage_embed_back", |row| {
+        row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
+    });
+    cleanup.track_native_fr(&embed_row);
+    assert_eq!(
+        route_row["payload"]["native_payload"]["causal_action_id"],
+        embed_row["payload"]["native_payload"]["causal_action_id"]
+    );
+    assert_eq!(
+        route_row["payload"]["native_payload"]["causal_action_id"].as_str(),
+        Some(artifact.correlation_id.as_str()),
+        "operator-facing Canvas route preserves its exact causal id through capture"
+    );
+    assert_eq!(
+        embed_row["payload"]["native_payload"]["artifact_id"].as_str(),
+        Some(artifact_id.as_str())
+    );
+    assert_eq!(
+        embed_row["payload"]["native_payload"]["sha256"].as_str(),
+        Some(artifact.sha256.as_str())
+    );
+    assert_eq!(
+        embed_row["payload"]["native_payload"]["manifest_ref"].as_str(),
+        Some(artifact.manifest.manifest_ref.as_str())
+    );
+    let route_ts = chrono::DateTime::parse_from_rfc3339(
+        route_row["payload"]["ts_utc"]
+            .as_str()
+            .expect("Canvas route timestamp"),
+    )
+    .unwrap();
+    let embed_ts = chrono::DateTime::parse_from_rfc3339(
+        embed_row["payload"]["ts_utc"]
+            .as_str()
+            .expect("Canvas embed timestamp"),
+    )
+    .unwrap();
+    assert!(
+        route_ts < embed_ts,
+        "Canvas route strictly precedes embed-back"
+    );
+
+    let parallel_canvas = backend.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+        &serde_json::json!({"title": "MT-066 concurrent Stage target"}),
+    );
+    let parallel_canvas_id = parallel_canvas["block_id"]
+        .as_str()
+        .expect("parallel Canvas create returns block_id")
+        .to_owned();
+    let client_a = handshake_native::backend_client::CanvasBoardClient::with_http_client(
+        backend.base.clone(),
+        runtime.handle().clone(),
+        handshake_native::backend_client::build_backend_client(),
+    );
+    let client_b = handshake_native::backend_client::CanvasBoardClient::with_http_client(
+        backend.base.clone(),
+        runtime.handle().clone(),
+        handshake_native::backend_client::build_backend_client(),
+    );
+    let (parallel_a, parallel_b) = runtime.block_on(async {
+        tokio::join!(
+            client_a.ensure_stage_capture_card_now(
+                &workspace_id,
+                &parallel_canvas_id,
+                &artifact_id,
+                &artifact.sha256,
+                &artifact.manifest.manifest_ref,
+                &artifact.correlation_id,
+                40.0,
+                40.0,
+                260.0,
+                160.0,
+            ),
+            client_b.ensure_stage_capture_card_now(
+                &workspace_id,
+                &parallel_canvas_id,
+                &artifact_id,
+                &artifact.sha256,
+                &artifact.manifest.manifest_ref,
+                &artifact.correlation_id,
+                40.0,
+                40.0,
+                260.0,
+                160.0,
+            )
+        )
+    });
+    let parallel_a = parallel_a.expect("first concurrent Stage card request");
+    let parallel_b = parallel_b.expect("second concurrent Stage card request");
+    assert_eq!(parallel_a.placement_id, parallel_b.placement_id);
+    assert_ne!(
+        parallel_a.created_by_request, parallel_b.created_by_request,
+        "exactly one concurrent caller creates while the other reconciles"
+    );
+    let parallel_board = runtime
+        .block_on(canvas_client.fetch_board_now(&workspace_id, &parallel_canvas_id))
+        .expect("fresh concurrent Canvas reload");
+    assert_eq!(
+        parallel_board.placements.len(),
+        1,
+        "simultaneous model actions converge on one canonical placement"
+    );
+    let workspace_sql = workspace_id.replace('\'', "''");
+    let canvas_sql = parallel_canvas_id.replace('\'', "''");
+    backend.run_fixture_sql(
+        "mt066-cross-client-stage-provenance-uniqueness",
+        &format!(
+            "DO $stage_race$ DECLARE placements bigint; documents bigint; blocks bigint; bridges bigint; BEGIN \
+             SELECT COUNT(*) INTO placements FROM loom_canvas_placements \
+             WHERE workspace_id = '{workspace_sql}' AND canvas_block_id = '{canvas_sql}' \
+               AND stage_provenance_key IS NOT NULL; \
+             SELECT COUNT(*) INTO documents FROM knowledge_rich_documents document \
+             JOIN loom_canvas_placements placement \
+               ON placement.placed_block_id = document.rich_document_id \
+              AND placement.workspace_id = document.workspace_id \
+             WHERE placement.workspace_id = '{workspace_sql}' \
+               AND placement.canvas_block_id = '{canvas_sql}' \
+               AND placement.stage_provenance_key IS NOT NULL; \
+             SELECT COUNT(*) INTO blocks FROM loom_blocks block \
+             JOIN loom_canvas_placements placement \
+               ON placement.placed_block_id = block.block_id \
+              AND placement.workspace_id = block.workspace_id \
+             WHERE placement.workspace_id = '{workspace_sql}' \
+               AND placement.canvas_block_id = '{canvas_sql}' \
+               AND placement.stage_provenance_key IS NOT NULL; \
+             SELECT COUNT(*) INTO bridges FROM loom_block_knowledge_bridge bridge \
+             JOIN loom_canvas_placements placement \
+               ON placement.placed_block_id = bridge.block_id \
+              AND placement.workspace_id = bridge.workspace_id \
+             WHERE placement.workspace_id = '{workspace_sql}' \
+               AND placement.canvas_block_id = '{canvas_sql}' \
+               AND placement.stage_provenance_key IS NOT NULL; \
+             IF placements <> 1 OR documents <> 1 OR blocks <> 1 OR bridges <> 1 THEN \
+               RAISE EXCEPTION 'Stage race residue placements=%, documents=%, blocks=%, bridges=%', \
+                 placements, documents, blocks, bridges; \
+             END IF; END $stage_race$;"
+        ),
+    );
+
+    stage.lock().unwrap().last_embed_back = None;
+    harness
+        .get_by(|node| node.author_id() == Some(STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID))
+        .click();
+    let retry_deadline = std::time::Instant::now() + std::time::Duration::from_secs(8);
+    loop {
+        harness.run_steps(2);
+        if matches!(
+            stage.lock().unwrap().last_embed_back,
+            Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded { .. })
+        ) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < retry_deadline,
+            "repeated Canvas Stage embed did not converge within eight seconds"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let retry_board = rt()
+        .block_on(canvas_client.fetch_board_now(&workspace_id, &canvas_id))
+        .expect("fresh Canvas reload after repeated embed");
+    assert_eq!(
+        retry_board.placements.len(),
+        2,
+        "retry creates no duplicate card"
+    );
+    assert_eq!(
+        rt().block_on(canvas_client.find_stage_capture_card_now(
+            &workspace_id,
+            &canvas_id,
+            &artifact_id,
+            &artifact.sha256,
+            &artifact.manifest.manifest_ref,
+            &artifact.correlation_id,
+        ))
+        .expect("retry structured Canvas Stage reference reload")
+        .expect("retry retains a Stage placement")
+        .placement_id,
+        first_placement_id,
+        "retry retains the original placement identity"
+    );
+
+    let rebound_canvas = backend.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+        &serde_json::json!({"title": "MT-066 rebound Canvas"}),
+    );
+    let rebound_canvas_id = rebound_canvas["block_id"]
+        .as_str()
+        .expect("rebound Canvas create returns block_id")
+        .to_owned();
+    harness
+        .state()
+        .mounted_canvas_board()
+        .lock()
+        .unwrap()
+        .canvas_block_id = rebound_canvas_id.clone();
+    harness.run_steps(2);
+    stage.lock().unwrap().last_embed_back = None;
+    harness
+        .get_by(|node| node.author_id() == Some(STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID))
+        .click();
+    harness.run_steps(3);
+    assert!(
+        matches!(
+            stage.lock().unwrap().last_embed_back,
+            Some(handshake_native::stage_pane::EmbedBackOutcome::Failed(_))
+        ),
+        "rebinding the same pane to another Canvas invalidates the retained target"
+    );
+    let old_after_rebind = rt()
+        .block_on(canvas_client.fetch_board_now(&workspace_id, &canvas_id))
+        .expect("old Canvas reload after target rebind");
+    let rebound_after_rebind = rt()
+        .block_on(canvas_client.fetch_board_now(&workspace_id, &rebound_canvas_id))
+        .expect("rebound Canvas reload after rejected stale embed");
+    assert_eq!(old_after_rebind.placements.len(), 2);
+    assert!(
+        rebound_after_rebind.placements.is_empty(),
+        "stale target rejection mutates neither the old nor replacement Canvas"
+    );
+    cleanup.cleanup_all_and_assert_zero();
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -339,8 +1793,11 @@ fn embed_back_inserts_mt014_nodeview_with_provenance() {
     let outcome = pane.capture_and_embed_back(
         Ok(artifact.clone()),
         &target,
-        |pid| pid == "pane-rich", // target is live
-        |view, _t| cap.borrow_mut().push(view.node.ref_value.clone()),
+        |candidate| candidate.pane_id() == "pane-rich", // target is live
+        |view, _t| {
+            cap.borrow_mut().push(view.node.ref_value.clone());
+            Ok(())
+        },
     );
     match outcome {
         handshake_native::stage_pane::EmbedBackOutcome::Embedded {
@@ -441,7 +1898,10 @@ fn embed_back_blocker_surfaces_no_fake_embed() {
         }),
         &target,
         |_pid| true,
-        |_view, _t| *cap.borrow_mut() += 1,
+        |_view, _t| {
+            *cap.borrow_mut() += 1;
+            Ok(())
+        },
     );
     assert!(
         outcome.is_endpoint_absent(),
@@ -471,7 +1931,7 @@ fn embed_back_refuses_unverifiable_capture() {
         pane_id: "pane-rich".to_owned(),
         document_id: "DOC-1".to_owned(),
     };
-    let outcome = pane.capture_and_embed_back(Ok(artifact), &target, |_pid| true, |_v, _t| {});
+    let outcome = pane.capture_and_embed_back(Ok(artifact), &target, |_pid| true, |_v, _t| Ok(()));
     assert_eq!(
         outcome,
         handshake_native::stage_pane::EmbedBackOutcome::ProvenanceMissing,
@@ -491,7 +1951,7 @@ fn embed_back_refuses_dangling_target_pane() {
         Ok(evidence_artifact("ART-4")),
         &target,
         |_pid| false,
-        |_v, _t| {},
+        |_v, _t| Ok(()),
     );
     assert_eq!(
         outcome,
@@ -500,6 +1960,28 @@ fn embed_back_refuses_dangling_target_pane() {
         },
         "RISK-007/MC-007: a dangling embed target pane is refused"
     );
+}
+
+#[test]
+fn embed_back_reports_failed_when_target_rejects_insert() {
+    let mut pane = StagePane::new();
+    let target = EmbedTarget::Note {
+        pane_id: "pane-rich".to_owned(),
+        document_id: "DOC-1".to_owned(),
+    };
+    let outcome = pane.capture_and_embed_back(
+        Ok(evidence_artifact("ART-insert-rejected")),
+        &target,
+        |_pid| true,
+        |_view, _target| Err("document persistence rejected the embed".to_owned()),
+    );
+    assert_eq!(
+        outcome,
+        handshake_native::stage_pane::EmbedBackOutcome::Failed(
+            "document persistence rejected the embed".to_owned()
+        )
+    );
+    assert_eq!(pane.last_embed_back, Some(outcome));
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -676,14 +2158,13 @@ fn single_route_command_id_plus_embed_command() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-007 — no SQLite anywhere, no src/backend edit, no fabricated backend route.
+// AC-007 — PostgreSQL authority and one shared HTTP stack.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn no_sqlite_no_backend_edit() {
-    // The MT-066 production sources must NOT touch SQLite/rusqlite (PostgreSQL/EventLedger is the only
-    // durable authority — AC-007). The Stage embed-back read is the only persistence touch, and it is a
-    // GET against the existing handshake_core API surface.
+fn no_sqlite_and_shared_backend_client() {
+    // The MT-066 production sources must not touch SQLite/rusqlite; PostgreSQL/EventLedger remains the
+    // durable authority.
     let sources: [(&str, &str); 2] = [
         (
             "stage_interop.rs",
@@ -698,26 +2179,33 @@ fn no_sqlite_no_backend_edit() {
                 "AC-007: {name} must not reference '{store}' (PostgreSQL/EventLedger only)"
             );
         }
-        // No write verbs on the Stage read client (read-only embed-back fetch).
-        for verb in [".post(", ".put(", ".delete(", ".patch("] {
+        for verb in [".put(", ".delete(", ".patch("] {
             assert!(
                 !src.contains(verb),
-                "AC-007: {name} embed-back read must be GET-only — found write verb '{verb}'"
+                "AC-007: {name} must not introduce unrelated mutation verb '{verb}'"
             );
         }
     }
     // The stage_interop client reuses the shared backend pool + base url (no second HTTP stack).
     let interop_src = include_str!("../src/interop/stage_interop.rs");
     assert!(
+        interop_src.contains("x-hsk-session-token")
+            && !interop_src.contains("x-hsk-actor-kind")
+            && !interop_src.contains("native-stage-action:"),
+        "Stage must authenticate with the server-validated native session and must not assert actor privilege or fabricate approval ids"
+    );
+    assert!(
         interop_src.contains("shared_http_client") && interop_src.contains("BACKEND_BASE_URL"),
         "AC-007: the Stage client must reuse the shared backend_client pool + base url (no second stack)"
     );
-    // The embed-back GET is the only verb (the read builder).
+    // The same client performs the privileged capture POST and exact-byte GETs.
     assert!(
-        interop_src.contains(".get(&url)"),
-        "AC-007: the Stage embed-back read must issue a GET via the reqwest builder"
+        interop_src.contains(".post(self.url(&path))") && interop_src.contains(".get(&url)"),
+        "AC-007: the Stage client must implement capture and retrieval through the shared client"
     );
-    println!("AC-007 gate OK: no sqlite/rusqlite, GET-only embed-back read, shared client reused, no backend route");
+    println!(
+        "AC-007 gate OK: no sqlite/rusqlite; shared client performs Stage capture and retrieval"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -727,7 +2215,7 @@ fn no_sqlite_no_backend_edit() {
 // above. THIS proof closes the operator's reopen: pressing "Embed Stage Capture" in the REAL HandshakeApp
 // must actually RUN the embed-back read off-thread and leave the honest `EmbedBackEndpointAbsent` typed
 // blocker VISIBLE on the Stage round-trip surface — not a dead no-op. A mock backend answers the Stage
-// embed-back GET with 404 (the route is genuinely ABSENT), so the live off-thread read resolves to the
+// privileged create POST with 404, so the live off-thread operation resolves to the
 // typed blocker deterministically without a real backend.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -737,8 +2225,8 @@ fn embed_stage_capture_operator_path_surfaces_endpoint_absent() {
     use handshake_native::backend_client::HealthInfo;
     use handshake_native::stage_pane::{EmbedBackOutcome, StageContent};
 
-    // A mock backend that answers the embed-back GET with 404 (the Stage `/stage/artifacts/` route is
-    // ABSENT), so the LIVE off-thread read resolves to the honest EmbedBackEndpointAbsent typed blocker.
+    // A mock backend that answers the capture POST with 404, so the live off-thread operation resolves to
+    // the honest EmbedBackEndpointAbsent typed blocker.
     let (base_url, server) = spawn_mock(
         "HTTP/1.1 404 Not Found",
         serde_json::json!({"error": "no stage route in this build"}),
@@ -759,13 +2247,20 @@ fn embed_stage_capture_operator_path_surfaces_endpoint_absent() {
     app.set_runtime_handle(runtime.handle().clone());
     app.set_stage_embed_back_base_url_for_test(&base_url);
     // Seed routed content so the round-trip surface is a real round-trip (the embed-back button enabled).
-    app.mounted_stage()
-        .lock()
-        .unwrap()
-        .receive_routed_content(StageContent::Selection(
-            "routed selection".to_owned(),
-            "pane-rich:0-16".to_owned(),
-        ));
+    app.mounted_stage().lock().unwrap().set_content_correlated(
+        StageContent::Selection("routed selection".to_owned(), "pane-rich:0-16".to_owned()),
+        Some("stage-route-test-causal".to_owned()),
+    );
+    let target_pane = PaneId::from("pane-a");
+    let mut target_tab = TabState::new(PaneType::LoomWikiPage);
+    target_tab.content_id = Some("DOC-STAGE-ENDPOINT-ABSENT".to_owned());
+    let target_bar = app
+        .tab_bar_states_mut()
+        .get_mut(&target_pane)
+        .expect("default pane-a tab bar");
+    target_bar.tabs = vec![target_tab];
+    target_bar.active_index = 0;
+    app.set_active_pane_for_test(Some(target_pane));
 
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -782,7 +2277,7 @@ fn embed_stage_capture_operator_path_surfaces_endpoint_absent() {
         "operator route: the Embed Stage Capture palette command dispatched observably"
     );
 
-    // Drive frames so the drain spawns the off-thread read, the mock answers 404, and the typed outcome
+    // Drive frames so the drain spawns the off-thread create, the mock answers 404, and the typed outcome
     // lands on the SHARED Stage pane. Poll bounded until the blocker surfaces (the mock is a real socket).
     let stage = harness.state().mounted_stage();
     let mut outcome = None;
@@ -799,7 +2294,7 @@ fn embed_stage_capture_operator_path_surfaces_endpoint_absent() {
     match &outcome {
         EmbedBackOutcome::EndpointAbsent { probed_path } => {
             assert!(
-                probed_path.contains("/stage/artifacts/"),
+                probed_path.contains("/stage/artifacts"),
                 "the typed blocker names the probed Stage embed-back route; got '{probed_path}'"
             );
             println!("PT-066-op typed blocker OK: EndpointAbsent(probed='{probed_path}')");
@@ -852,27 +2347,12 @@ fn embed_stage_capture_operator_path_surfaces_endpoint_absent() {
 
     let req_line = server.join().unwrap();
     assert!(
-        req_line.starts_with("GET ") && req_line.contains("/stage/artifacts/"),
-        "operator route: the live embed-back drain issued the GET at the documented route; got '{req_line}'"
+        req_line.starts_with("POST ") && req_line.contains("/stage/artifacts"),
+        "operator route: the live embed-back drain issued the POST at the documented route; got '{req_line}'"
     );
     println!(
         "PT-066-op operator embed-back OK: CMD_EMBED_STAGE_CAPTURE -> live off-thread read ({req_line}) \
          -> EndpointAbsent typed blocker surfaced on the round-trip banner"
-    );
-}
-
-/// LIVE variant: the SAME operator path against a REAL backend (managed PostgreSQL/EventLedger). GATED —
-/// the Stage `/stage/artifacts/` HTTP route is ABSENT even against a live handshake_core build (Stage =
-/// Pillar 17, no `/stage/` surface), so the live outcome is STILL `EmbedBackEndpointAbsent` — proven
-/// headlessly above via a mock 404. Run with `--ignored` once a real backend is up to confirm the same
-/// typed blocker surfaces end-to-end against the live API surface.
-#[test]
-#[ignore = "requires_pg: real backend / managed PostgreSQL/EventLedger (the /stage/ HTTP surface is absent; the mock-404 headless proof stands)"]
-fn embed_stage_capture_operator_path_live_pg() {
-    panic!(
-        "run against a live backend with --ignored: dispatch CMD_EMBED_STAGE_CAPTURE and assert the Stage \
-         pane's last_embed_back == EndpointAbsent (the /stage/ route is absent even live). Headless proof: \
-         embed_stage_capture_operator_path_surfaces_endpoint_absent."
     );
 }
 

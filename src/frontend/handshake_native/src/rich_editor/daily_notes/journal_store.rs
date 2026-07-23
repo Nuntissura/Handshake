@@ -110,6 +110,10 @@ pub struct JournalDocLoad {
 /// (the same shape as MT-015's `WikilinkError` / MT-017's `MetadataError`).
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum JournalError {
+    /// `openDailyJournal` hit a retryable transport or HTTP failure. The PUT is an idempotent
+    /// get-or-create, so its mounted caller may retry it within a bounded request generation.
+    #[error("open daily journal transient failure: {0}")]
+    OpenTransient(String),
     /// `openDailyJournal` (the PUT) failed.
     #[error("open daily journal failed: {0}")]
     OpenFailed(String),
@@ -128,6 +132,7 @@ impl JournalError {
     /// Stable kebab-case kind token (the chip text + AccessKit label vocabulary).
     pub fn kind_str(&self) -> &'static str {
         match self {
+            JournalError::OpenTransient(_) => "open_transient",
             JournalError::OpenFailed(_) => "open_failed",
             JournalError::DocLoadFailed(_) => "doc_load_failed",
             JournalError::SaveFailed(_) => "save_failed",
@@ -299,13 +304,14 @@ impl JournalBackend for ReqwestJournalBackend {
                 .timeout(std::time::Duration::from_secs(5))
                 .send()
                 .await
-                .map_err(|e| JournalError::OpenFailed(format!("open {date} failed: {e}")))?;
+                .map_err(|e| JournalError::OpenTransient(format!("open {date} failed: {e}")))?;
             let status = response.status();
             if !status.is_success() {
-                return Err(JournalError::OpenFailed(status_reason(
-                    status.as_u16(),
-                    "open daily journal",
-                )));
+                let reason = status_reason(status.as_u16(), "open daily journal");
+                if matches!(status.as_u16(), 408 | 425 | 429 | 500..=599) {
+                    return Err(JournalError::OpenTransient(reason));
+                }
+                return Err(JournalError::OpenFailed(reason));
             }
             let block: JournalBlock = response
                 .json()
@@ -343,6 +349,7 @@ impl JournalBackend for ReqwestJournalBackend {
             let body = crate::backend::knowledge_documents::CreateDocumentRequest {
                 workspace_id,
                 title,
+                create_if_title_absent: false,
                 content_json: Some(serde_json::Value::Null),
                 schema_version: None,
                 project_ref: None,
@@ -599,6 +606,7 @@ pub struct JournalStore {
     pub state: JournalState,
     /// The monotonic generation; bumped on each navigation so a stale in-flight response is dropped.
     pub generation: u64,
+    generation_guard: Arc<std::sync::atomic::AtomicU64>,
     load_cell: LoadCell,
     create_cell: CreateCell,
     save_cell: SaveCell,
@@ -618,6 +626,7 @@ impl JournalStore {
             workspace_id: String::new(),
             state: JournalState::Idle,
             generation: 0,
+            generation_guard: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             load_cell: Arc::new(Mutex::new(None)),
             create_cell: Arc::new(Mutex::new(None)),
             save_cell: Arc::new(Mutex::new(None)),
@@ -632,7 +641,18 @@ impl JournalStore {
     /// Install the production reqwest backend + save seam against the standard base, spawning onto
     /// `runtime`. The shell calls this when it mounts the journal panel (the production wiring point).
     pub fn production(workspace_id: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
-        let base = crate::backend_client::BACKEND_BASE_URL;
+        Self::production_with_base(
+            workspace_id,
+            runtime,
+            crate::backend_client::BACKEND_BASE_URL,
+        )
+    }
+
+    pub fn production_with_base(
+        workspace_id: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+        base: &str,
+    ) -> Self {
         let mut store = Self::new(
             Arc::new(ReqwestJournalBackend::new(base)),
             Arc::new(ReqwestSaveSeam::new(base)),
@@ -651,6 +671,8 @@ impl JournalStore {
         let date = date.into();
         self.generation = self.generation.wrapping_add(1);
         let generation = self.generation;
+        self.generation_guard
+            .store(generation, std::sync::atomic::Ordering::Release);
 
         let Some(runtime) = self.runtime.clone() else {
             // Headless: do not enter a perpetual Loading. Stay Idle (the neutral non-animating state).
@@ -660,9 +682,32 @@ impl JournalStore {
         self.state = JournalState::Loading { date: date.clone() };
         let backend = Arc::clone(&self.backend);
         let cell = Arc::clone(&self.load_cell);
+        let generation_guard = Arc::clone(&self.generation_guard);
         let workspace_id = self.workspace_id.clone();
         runtime.spawn(async move {
-            let result = match backend.open_daily_journal(&workspace_id, &date).await {
+            let mut attempt = 1usize;
+            let opened = loop {
+                if generation_guard.load(std::sync::atomic::Ordering::Acquire) != generation {
+                    return;
+                }
+                let result = backend.open_daily_journal(&workspace_id, &date).await;
+                if generation_guard.load(std::sync::atomic::Ordering::Acquire) != generation {
+                    return;
+                }
+                match result {
+                    Err(JournalError::OpenTransient(_)) if attempt < 3 => {
+                        tokio::time::sleep(std::time::Duration::from_millis(25 * attempt as u64))
+                            .await;
+                        if generation_guard.load(std::sync::atomic::Ordering::Acquire) != generation
+                        {
+                            return;
+                        }
+                        attempt += 1;
+                    }
+                    result => break result,
+                }
+            };
+            let result = match opened {
                 Ok(block) => match block.document_id.clone() {
                     // The block links a document → load it (so the renderer paints the journal content).
                     Some(doc_id) if !doc_id.trim().is_empty() => {
@@ -1235,6 +1280,10 @@ mod tests {
 
     #[test]
     fn error_kind_strings_are_stable() {
+        assert_eq!(
+            JournalError::OpenTransient("x".into()).kind_str(),
+            "open_transient"
+        );
         assert_eq!(
             JournalError::OpenFailed("x".into()).kind_str(),
             "open_failed"

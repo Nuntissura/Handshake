@@ -254,7 +254,9 @@ pub fn view_mode_toggle(
     let container_id = group.response.id;
     ui.ctx().accesskit_node_builder(container_id, |node| {
         node.set_role(accesskit::Role::Group);
-        node.set_author_id(TOGGLE_CONTAINER_AUTHOR_ID.to_owned());
+        node.set_author_id(crate::rich_editor::scoped_author_id(
+            TOGGLE_CONTAINER_AUTHOR_ID,
+        ));
         node.set_label("View mode".to_owned());
     });
 
@@ -294,7 +296,8 @@ fn segment_button(
     // ADD the stable author_id (REUSE the WP-011 emit_interactive_node helper so the live node keeps
     // egui's interactive role/actions) and mark the ACTIVE segment toggled so the current mode is
     // readable out-of-process.
-    crate::accessibility::emit_interactive_node(ui.ctx(), resp.id, author_id);
+    let author_id = crate::rich_editor::scoped_author_id(author_id);
+    crate::accessibility::emit_interactive_node(ui.ctx(), resp.id, &author_id);
     if active {
         ui.ctx().accesskit_node_builder(resp.id, |node| {
             node.set_toggled(accesskit::Toggled::True);

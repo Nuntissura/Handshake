@@ -33,7 +33,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::CodeEditorPanel;
 use handshake_native::rich_editor::document_model::node::BlockNode;
@@ -107,7 +109,7 @@ fn push_ime(harness: &mut Harness<'_, ()>, ime: egui::ImeEvent) {
     harness.input_mut().events.push(egui::Event::Ime(ime));
 }
 
-/// Focus the editor SURFACE (the focusable `rich-editor-surface` node) by sending it an AccessKit Focus
+/// Focus the editor SURFACE (the focusable `editor.rich.text` node) by sending it an AccessKit Focus
 /// action — the same focus an out-of-process agent (or the OS routing IME to the focused widget) uses.
 /// The rich editor's input path gates on `has_focus` (the runtime-correct behavior: the OS only sends
 /// composition events to the focused widget), so the editor must be focused before IME events are
@@ -118,8 +120,8 @@ fn focus_editor(harness: &mut Harness<'_, ()>) {
         let root = harness.root();
         let surface = root
             .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
-            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+            .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
+            .expect("the editor surface node carries author_id 'editor.rich.text'");
         surface.focus();
     }
     // A FOCUSED editor animates the caret blink (the focus-guarded MT-015 blink), so it never settles —
@@ -564,12 +566,12 @@ fn code_accesskit_exposes_composition() {
         }
     }
     let value =
-        composing_value.expect("AC7: the code_editor_text node must be present + carry a value");
+        composing_value.expect("AC7: the editor.code.text node must be present + carry a value");
     assert!(
         value.contains("composing") && value.contains("nihao"),
         "AC7: the code-editor text node value must expose the composition state; got '{value}'"
     );
-    println!("AC7 (code): code_editor_text value during composition = '{value}'.");
+    println!("AC7 (code): editor.code.text value during composition = '{value}'.");
 }
 
 // ── AC6 / PROOF3: the shell wires set_ime_allowed (ViewportCommand::IMEAllowed(true)) ─────────────

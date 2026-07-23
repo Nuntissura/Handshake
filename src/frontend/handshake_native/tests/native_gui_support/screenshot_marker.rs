@@ -17,7 +17,7 @@
 //!
 //! ## Schema
 //!
-//! `schema_id = "hsk.native_gui.screenshot_marker@1"`. Serialised with serde_json so each JSONL line is
+//! `schema_id = "hsk.native_gui.screenshot_marker@2"`. Serialised with serde_json so each JSONL line is
 //! parseable with `serde_json::from_str`. Lives under `tests/native_gui_support/` and is `#[path]`
 //! -included by the screenshot proof test binaries, mirroring the sibling `proof_report.rs` convention.
 
@@ -25,12 +25,13 @@
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
 /// The stable schema id for the screenshot-marker artifact.
-pub const SCREENSHOT_MARKER_SCHEMA_ID: &str = "hsk.native_gui.screenshot_marker@1";
+pub const SCREENSHOT_MARKER_SCHEMA_ID: &str = "hsk.native_gui.screenshot_marker@2";
 
 /// The screenshot-marker JSONL artifact file name. One marker is appended per screenshot-proof outcome.
 pub const SCREENSHOT_MARKER_FILE: &str = "screenshot_marker.jsonl";
@@ -41,6 +42,7 @@ pub const SCREENSHOT_MARKER_FILE: &str = "screenshot_marker.jsonl";
 /// `Harness::render()` readback can raise an uncatchable STATUS_ACCESS_VIOLATION on a headless-GPU host,
 /// so we must NOT probe by attempting a render in an always-run test.
 pub const GPU_SCREENSHOT_ENV: &str = "HANDSHAKE_GPU_SCREENSHOT";
+pub const SCREENSHOT_RUN_ID_ENV: &str = "HANDSHAKE_SCREENSHOT_RUN_ID";
 
 /// Whether pixel screenshots are declared available on this host (see [`GPU_SCREENSHOT_ENV`]).
 pub fn gpu_screenshot_enabled() -> bool {
@@ -71,6 +73,11 @@ pub enum ScreenshotStatus {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ScreenshotMarker {
     pub schema_id: String,
+    /// Exact run identity. CI may provide it; isolated binaries receive a process-unique fallback.
+    pub run_id: String,
+    /// Unique outcome identity within the run. This prevents duplicate append rows from masquerading
+    /// as independent proof sites.
+    pub outcome_id: String,
     pub mt_id: String,
     /// Stable scenario id (e.g. `"MT-004-find-highlight"`, `"MT-079-editors-mounted"`).
     pub scenario_id: String,
@@ -89,12 +96,15 @@ impl ScreenshotMarker {
     fn build(
         mt_id: impl Into<String>,
         scenario_id: impl Into<String>,
+        outcome_id: impl Into<String>,
         status: ScreenshotStatus,
         reason: impl Into<String>,
         frame_path: Option<String>,
     ) -> Self {
         Self {
             schema_id: SCREENSHOT_MARKER_SCHEMA_ID.to_owned(),
+            run_id: screenshot_run_id(),
+            outcome_id: outcome_id.into(),
             mt_id: mt_id.into(),
             scenario_id: scenario_id.into(),
             status,
@@ -109,26 +119,68 @@ impl ScreenshotMarker {
     pub fn captured(
         mt_id: impl Into<String>,
         scenario_id: impl Into<String>,
-        frame_path: impl Into<String>,
-    ) -> Self {
-        Self::build(
+        outcome_id: impl Into<String>,
+        frame_path: impl Into<PathBuf>,
+    ) -> std::io::Result<Self> {
+        let frame_path = frame_path.into();
+        let metadata = std::fs::metadata(&frame_path)?;
+        if !metadata.is_file() || metadata.len() == 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "captured frame is missing or empty: {}",
+                    frame_path.display()
+                ),
+            ));
+        }
+        let bytes = std::fs::read(&frame_path)?;
+        const PNG_SIGNATURE: &[u8; 8] = b"\x89PNG\r\n\x1a\n";
+        if !bytes.starts_with(PNG_SIGNATURE) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("captured frame is not a PNG: {}", frame_path.display()),
+            ));
+        }
+        let decoded = image::load_from_memory_with_format(&bytes, image::ImageFormat::Png)
+            .map_err(|error| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "captured frame is not a decodable PNG at {}: {error}",
+                        frame_path.display()
+                    ),
+                )
+            })?;
+        if decoded.width() == 0 || decoded.height() == 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "captured frame has zero dimensions: {}",
+                    frame_path.display()
+                ),
+            ));
+        }
+        Ok(Self::build(
             mt_id,
             scenario_id,
+            outcome_id,
             ScreenshotStatus::Captured,
             "frame rendered and saved",
-            Some(frame_path.into()),
-        )
+            Some(frame_path.display().to_string()),
+        ))
     }
 
     /// A headless/deferred marker: no pixels were produced; the reason records why.
     pub fn deferred(
         mt_id: impl Into<String>,
         scenario_id: impl Into<String>,
+        outcome_id: impl Into<String>,
         reason: impl Into<String>,
     ) -> Self {
         Self::build(
             mt_id,
             scenario_id,
+            outcome_id,
             ScreenshotStatus::Deferred,
             reason,
             None,
@@ -140,9 +192,17 @@ impl ScreenshotMarker {
     pub fn blocked(
         mt_id: impl Into<String>,
         scenario_id: impl Into<String>,
+        outcome_id: impl Into<String>,
         reason: impl Into<String>,
     ) -> Self {
-        Self::build(mt_id, scenario_id, ScreenshotStatus::Blocked, reason, None)
+        Self::build(
+            mt_id,
+            scenario_id,
+            outcome_id,
+            ScreenshotStatus::Blocked,
+            reason,
+            None,
+        )
     }
 
     /// Serialize as a single compact JSON line (no interior newline) — one JSONL row.
@@ -157,11 +217,27 @@ impl ScreenshotMarker {
         let path = dir.join(SCREENSHOT_MARKER_FILE);
         let mut file = std::fs::OpenOptions::new()
             .create(true)
+            .read(true)
             .append(true)
             .open(&path)?;
-        let mut line = self.to_jsonl_line();
-        line.push('\n');
-        file.write_all(line.as_bytes())?;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            match file.try_lock() {
+                Ok(()) => break,
+                Err(std::fs::TryLockError::WouldBlock) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(error) => {
+                    return Err(std::io::Error::other(format!(
+                        "lock shared screenshot marker within 2s: {error}"
+                    )));
+                }
+            }
+        }
+        let mut line = serde_json::to_vec(self).map_err(std::io::Error::other)?;
+        line.push(b'\n');
+        file.write_all(&line)?;
+        file.sync_all()?;
         Ok(path)
     }
 }
@@ -169,7 +245,7 @@ impl ScreenshotMarker {
 /// Resolve the marker artifact directory. Honors `HANDSHAKE_PROOF_ARTIFACT_DIR` (CI override), else the
 /// protocol external artifact root `../Handshake_Artifacts/handshake-test/native_gui/` beside the crate
 /// (CODER_PROTOCOL [CX-212E]) — the same location `proof_report.rs` writes to.
-pub fn marker_dir() -> PathBuf {
+pub fn marker_root() -> PathBuf {
     if let Ok(dir) = std::env::var("HANDSHAKE_PROOF_ARTIFACT_DIR") {
         if !dir.trim().is_empty() {
             return PathBuf::from(dir);
@@ -179,27 +255,47 @@ pub fn marker_dir() -> PathBuf {
     manifest.join("../../../../Handshake_Artifacts/handshake-test/native_gui")
 }
 
+/// Per-run artifact directory. Run partitioning makes an isolated test binary exact and prevents old
+/// rows from a prior invocation being counted as current proof.
+pub fn marker_dir() -> PathBuf {
+    marker_root().join(screenshot_run_id())
+}
+
 /// Convenience wiring for a screenshot proof site: given the render result of `Harness::render()`
 /// (mapped to either a saved PNG path or an error string), emit the correct typed marker to the default
 /// [`marker_dir`] and return the marker written. Call this on BOTH branches so the artifact always
-/// records the real outcome. Returns the marker (already written best-effort; a write error is
-/// swallowed so proof flow is never blocked by an artifact-dir issue, but the marker value is still
-/// returned for in-test assertions).
+/// records the real outcome. Capture-path validation and durable-write failures are returned to the
+/// caller; proof flow fails closed instead of reporting an unwritten outcome.
 pub fn record_screenshot_outcome(
     mt_id: &str,
     scenario_id: &str,
+    outcome_id: &str,
     render_result: Result<String, String>,
-) -> ScreenshotMarker {
+) -> std::io::Result<ScreenshotMarker> {
+    record_screenshot_outcome_to_dir(&marker_dir(), mt_id, scenario_id, outcome_id, render_result)
+}
+
+/// The injectable-directory variant used by marker-contract tests. Synthetic outcomes must never be
+/// appended to the canonical run artifact because a temporary frame deleted at test teardown cannot
+/// remain valid CAPTURED evidence.
+pub fn record_screenshot_outcome_to_dir(
+    dir: &Path,
+    mt_id: &str,
+    scenario_id: &str,
+    outcome_id: &str,
+    render_result: Result<String, String>,
+) -> std::io::Result<ScreenshotMarker> {
     let marker = match render_result {
-        Ok(frame_path) => ScreenshotMarker::captured(mt_id, scenario_id, frame_path),
+        Ok(frame_path) => ScreenshotMarker::captured(mt_id, scenario_id, outcome_id, frame_path)?,
         Err(reason) => ScreenshotMarker::deferred(
             mt_id,
             scenario_id,
+            outcome_id,
             format!("no wgpu adapter / pixel readback unavailable: {reason}"),
         ),
     };
-    let _ = marker.write_jsonl(&marker_dir());
-    marker
+    marker.write_jsonl(dir)?;
+    Ok(marker)
 }
 
 fn now_nanos() -> u128 {
@@ -207,4 +303,37 @@ fn now_nanos() -> u128 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0)
+}
+
+/// Stable for the lifetime of this process, operator/CI-overridable for a multi-binary cargo run.
+pub fn screenshot_run_id() -> String {
+    static RUN_ID: OnceLock<String> = OnceLock::new();
+    RUN_ID
+        .get_or_init(|| {
+            std::env::var(SCREENSHOT_RUN_ID_ENV)
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+                .map(|value| sanitize_path_component(&value))
+                .filter(|value| !value.is_empty())
+                // This source is `#[path]`-included by multiple modules in some test binaries, so the
+                // fallback must be deterministic across those module-local OnceLocks. PID is exact for
+                // one live isolated binary; CI supplies SCREENSHOT_RUN_ID_ENV to group multiple binaries.
+                .unwrap_or_else(|| format!("pid-{}", std::process::id()))
+        })
+        .clone()
+}
+
+fn sanitize_path_component(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_') {
+                ch
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_owned()
 }

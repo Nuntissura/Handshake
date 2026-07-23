@@ -21,7 +21,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::rich_editor::document_model::node::{
     BlockNode, Child, HsLinkNode, NodeKind, TextLeaf, TransclusionNode,
@@ -189,10 +191,12 @@ fn mt015_wikilink_chip_screenshot() {
     harness.run();
     harness.run();
 
-    // AC-3 / AC (AccessKit): the chip is addressable by its `wikilink-chip-{hash}` author_id with
-    // Role::Link.
+    // AC-3 / AC (AccessKit): the exact chip occurrence is addressed by injective target+path identity.
     let expected_author =
-        handshake_native::rich_editor::wikilinks::inline_view::chip_author_id("WP-KERNEL-012");
+        handshake_native::rich_editor::wikilinks::inline_view::chip_occurrence_author_id(
+            "WP-KERNEL-012",
+            &[0, 1],
+        );
     let root = harness.root();
     let mut chip_found = false;
     for node in root.children_recursive() {
@@ -333,7 +337,7 @@ fn mt015_autocomplete_opens_on_double_bracket_and_escape_closes() {
     harness.run();
 
     // Focus the editor SURFACE (the focusable click_and_drag node carrying author_id
-    // `rich-editor-surface`) by sending it an AccessKit Focus action — this is the same focus an
+    // `editor.rich.text`) by sending it an AccessKit Focus action — this is the same focus an
     // out-of-process agent would request by the stable surface id. The root TextInput node is only an
     // AccessKit container (no interaction), so we focus the surface node specifically. A FOCUSED
     // editor requests a continuous blink repaint, so we advance with step() (single frame) throughout
@@ -342,8 +346,8 @@ fn mt015_autocomplete_opens_on_double_bracket_and_escape_closes() {
         let root = harness.root();
         let surface = root
             .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
-            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+            .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
+            .expect("the editor surface node carries author_id 'editor.rich.text'");
         surface.focus();
     }
     harness.step(); // process the focus action -> surface focused
@@ -832,8 +836,8 @@ fn mt020_live_wikilink_confirm_undo_restores_pre_insert_doc_and_ordering() {
         let root = harness.root();
         let surface = root
             .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
-            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+            .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
+            .expect("the editor surface node carries author_id 'editor.rich.text'");
         surface.focus();
     }
     harness.step();
@@ -1049,8 +1053,8 @@ fn mt020_live_remove_embed_undo_restores_the_transclusion() {
         let root = harness.root();
         let surface = root
             .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
-            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+            .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
+            .expect("the editor surface node carries author_id 'editor.rich.text'");
         surface.focus();
     }
     harness.step();

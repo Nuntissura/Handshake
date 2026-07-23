@@ -24,14 +24,17 @@
 //! - PT-080-B / AC-080-5: `relevant_memory_shows_endpoint_missing_empty_state` drives the FEMS read (the
 //!   `GET /memory/pack` route EXISTS — WP-009 MT-109; the live round-trip is NEEDS_MANAGED_RESOURCE_PROOF)
 //!   and asserts that with no backend the panel holds an HONEST typed blocker (honest empty-state).
-//! - PT-080-A / AC-080-6: `code_text_node_exposes_swarm_edit_actions` asserts the live `code_editor_text`
+//! - PT-080-A / AC-080-6: `code_text_node_exposes_swarm_edit_actions` asserts the live `editor.code.text`
 //!   node advertises `Action::SetValue` + `Action::ReplaceSelectedText`, and a dispatched SetValue mutates
 //!   the buffer.
 
+use std::io::{Read as _, Write as _};
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
@@ -109,6 +112,32 @@ fn secondary_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
             ), // outgoing links
             ("pane-d", PaneType::UserManual), // manual
         ],
+    );
+    (app, runtime)
+}
+
+/// A runtime-injected graph host whose current-thread runtime is deliberately not driven. Network tasks
+/// are therefore real host dispatches but remain parked, letting the test inject deterministic competing
+/// completions into the production delivery queue without a localhost race.
+fn parked_graph_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build parked current-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    retype_panes(
+        &mut app,
+        &[(
+            "pane-b",
+            handshake_native::editor_pane_factories::placeholder_pane_type(
+                handshake_native::editor_pane_factories::GRAPH_VIEW_PANE_LABEL,
+            ),
+        )],
     );
     (app, runtime)
 }
@@ -324,21 +353,21 @@ fn graph_depth_changed_requeries_with_new_backlink_depth() {
     let spec = client.local_request_with_depth(DEFAULT_PROJECT_ID, "Focused Note", 4);
     assert_eq!(
         spec.query[1],
-        ("backlink_depth".to_owned(), "4".to_owned()),
-        "AC-080-3: the re-query carries the NEW backlink_depth on the existing graph-search endpoint"
+        ("max_depth".to_owned(), "4".to_owned()),
+        "AC-080-3: the re-query carries the NEW max_depth on the existing graph/local endpoint"
     );
     // Clamp envelope (RISK-080-3): an out-of-range depth never reaches the backend as an abusive traversal.
     assert_eq!(
         client
             .local_request_with_depth(DEFAULT_PROJECT_ID, "T", 99)
             .query[1],
-        ("backlink_depth".to_owned(), MAX_BACKLINK_DEPTH.to_string())
+        ("max_depth".to_owned(), MAX_BACKLINK_DEPTH.to_string())
     );
     assert_eq!(
         client
             .local_request_with_depth(DEFAULT_PROJECT_ID, "T", 0)
             .query[1],
-        ("backlink_depth".to_owned(), MIN_BACKLINK_DEPTH.to_string())
+        ("max_depth".to_owned(), MIN_BACKLINK_DEPTH.to_string())
     );
 
     // The live mounted graph drains a DepthChanged: put the view in Local mode (so the depth re-query has a
@@ -395,6 +424,234 @@ fn graph_depth_changed_requeries_with_new_backlink_depth() {
         delivered,
         "MT-060 deliver path: the depth re-query's result was DELIVERED into the mounted view \
          (loading cleared by the per-frame graph-cell drain — no perpetual spinner)"
+    );
+}
+
+#[test]
+fn graph_host_rejects_competing_deliveries_and_retries_in_place() {
+    use handshake_native::backend_client::{
+        LoomGraphData, LoomGraphRequestIdentity, LoomGraphRequestMode,
+    };
+    use handshake_native::graph::graph_view::{GraphEdge, GraphEvent, GraphNode, RETRY_AUTHOR_ID};
+
+    let data = |id: &str, truncated: bool| LoomGraphData {
+        nodes: vec![GraphNode::new(id, format!("node-{id}"), "note")],
+        edges: Vec::<GraphEdge>::new(),
+        truncated,
+        suppressed_hub_ids: if truncated {
+            vec!["hub-suppressed".to_owned()]
+        } else {
+            vec![]
+        },
+    };
+
+    let (app, _parked_runtime) = parked_graph_shell();
+    let graph_view = app.mounted_graph_view();
+    let events = app.editor_mounts_graph_events_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    // The first mounted frame dispatches the real Global host path. Its request is deliberately left
+    // parked, then superseded by a Local mode event.
+    harness.run_steps(2);
+    let stale_global = harness
+        .state()
+        .graph_expected_request_for_test()
+        .expect("mounted graph dispatched the initial global request");
+    assert!(matches!(&stale_global.mode, LoomGraphRequestMode::Global));
+    {
+        let mut view = graph_view.lock().unwrap();
+        view.set_graph(
+            vec![GraphNode::new("focus", "Focus", "note")
+                .with_tags(vec!["old-workspace-tag".to_owned()])],
+            vec![],
+        );
+        assert!(!view.controls.groups.is_empty());
+        view.selected = Some("focus".to_owned());
+    }
+    events
+        .lock()
+        .unwrap()
+        .push(GraphEvent::ModeChanged { to_global: false });
+    harness.run_steps(2);
+    let stale_local = harness
+        .state()
+        .graph_expected_request_for_test()
+        .expect("mode event dispatched a local request");
+    assert!(matches!(
+        &stale_local.mode,
+        LoomGraphRequestMode::Local {
+            focus_block_id,
+            ..
+        } if focus_block_id == "focus"
+    ));
+    assert!(stale_local.generation > stale_global.generation);
+
+    // A workspace switch supersedes both requests and clears the unproven Local focus. The new
+    // workspace starts empty in Global mode until its own canonical projection resolves.
+    harness
+        .state_mut()
+        .bind_active_project_for_integration_test("ws-next");
+    harness.run_steps(2);
+    let current = harness
+        .state()
+        .graph_expected_request_for_test()
+        .expect("workspace rebind dispatched a replacement request");
+    assert_eq!(current.workspace_id, "ws-next");
+    assert!(current.generation > stale_local.generation);
+    assert!(matches!(&current.mode, LoomGraphRequestMode::Global));
+    {
+        let view = graph_view.lock().unwrap();
+        assert_eq!(view.workspace_id, "ws-next");
+        assert!(matches!(
+            &view.mode,
+            handshake_native::graph::GraphMode::Global
+        ));
+        assert!(view.nodes.is_empty() && view.edges.is_empty());
+        assert!(view.selected.is_none());
+        assert_eq!(view.total_available, 0);
+        assert!(!view.backend_truncated);
+        assert_eq!(view.suppressed_hub_count, 0);
+        assert!(view.controls.groups.is_empty());
+    }
+
+    // Queue completions in the adversarial order. Neither older workspace/mode result may mutate the
+    // current graph; only the exact current identity is allowed to surface its error.
+    harness
+        .state()
+        .deliver_graph_request_for_test(stale_global.clone(), Ok(data("stale-global", false)));
+    harness
+        .state()
+        .deliver_graph_request_for_test(stale_local.clone(), Ok(data("stale-local", false)));
+    harness
+        .state()
+        .deliver_graph_request_for_test(current.clone(), Err("backend unavailable".to_owned()));
+    harness.run_steps(2);
+    {
+        let view = graph_view.lock().unwrap();
+        assert_eq!(view.error.as_deref(), Some("backend unavailable"));
+        assert!(!view.loading);
+        assert!(view.nodes.is_empty() && view.edges.is_empty());
+        assert!(view.selected.is_none());
+        assert_eq!(view.total_available, 0);
+        assert!(!view.backend_truncated);
+        assert_eq!(view.suppressed_hub_count, 0);
+    }
+    assert!(
+        live_author_ids(&harness).contains(RETRY_AUTHOR_ID),
+        "backend error exposes the operator-facing Retry control"
+    );
+
+    // Retry uses the exact mounted workspace/mode/focus/depth, increments generation, and clears the
+    // error without replacing the pane. The parked runtime keeps the real request deterministic while
+    // this test injects its successful completion.
+    events.lock().unwrap().push(GraphEvent::Retry);
+    harness.run_steps(2);
+    let retry = harness
+        .state()
+        .graph_expected_request_for_test()
+        .expect("Retry dispatched a replacement request");
+    assert!(retry.generation > current.generation);
+    assert_eq!(retry.workspace_id, current.workspace_id);
+    assert_eq!(retry.mode, current.mode);
+    harness
+        .state()
+        .deliver_graph_request_for_test(current, Ok(data("late-current", false)));
+    harness
+        .state()
+        .deliver_graph_request_for_test(retry, Ok(data("recovered", true)));
+    harness.run_steps(2);
+    let view = graph_view.lock().unwrap();
+    assert_eq!(view.nodes[0].block_id, "recovered");
+    assert!(view.error.is_none());
+    assert!(!view.loading);
+    assert!(view.backend_truncated);
+    assert_eq!(view.suppressed_hub_count, 1);
+
+    // Keep the constructor referenced explicitly in this seam: identities are public testable product
+    // contracts, not opaque generation numbers.
+    assert_eq!(
+        stale_global,
+        LoomGraphRequestIdentity::global(stale_global.generation, DEFAULT_PROJECT_ID)
+    );
+}
+
+#[test]
+fn graph_hidden_workspace_rebind_and_a_b_a_epoch_reject_stale_delivery() {
+    use handshake_native::backend_client::LoomGraphData;
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, GRAPH_VIEW_PANE_LABEL};
+    use handshake_native::graph::graph_view::{GraphEdge, GraphNode};
+
+    let (app, _parked_runtime) = parked_graph_shell();
+    let graph_view = app.mounted_graph_view();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    let old_a = harness
+        .state()
+        .graph_expected_request_for_test()
+        .expect("visible graph dispatched the original workspace-A request");
+    {
+        let mut view = graph_view.lock().unwrap();
+        view.set_graph(vec![GraphNode::new("old-a-node", "Old A", "note")], vec![]);
+        view.selected = Some("old-a-node".to_owned());
+    }
+
+    // Close the graph before switching. Workspace invalidation must not depend on a hosted graph tab.
+    retype_panes(harness.state_mut(), &[("pane-b", PaneType::UserManual)]);
+    assert!(harness.state_mut().switch_project("project-b"));
+    harness.run_steps(1);
+    {
+        let view = graph_view.lock().unwrap();
+        assert_eq!(view.workspace_id, "project-b");
+        assert!(view.nodes.is_empty() && view.selected.is_none());
+    }
+    assert!(
+        harness.state().graph_expected_request_for_test().is_none(),
+        "a hidden graph invalidates the old request without dispatching a replacement"
+    );
+
+    // Return to the same textual workspace A while still hidden. The epoch must advance, so the old
+    // A completion cannot re-enter before or after the graph is reopened.
+    assert!(harness.state_mut().switch_project(DEFAULT_PROJECT_ID));
+    harness.run_steps(1);
+    harness.state().deliver_graph_request_for_test(
+        old_a.clone(),
+        Ok(LoomGraphData {
+            nodes: vec![GraphNode::new("stale-a-node", "Stale A", "note")],
+            edges: Vec::<GraphEdge>::new(),
+            truncated: false,
+            suppressed_hub_ids: vec![],
+        }),
+    );
+    harness.run_steps(1);
+    {
+        let view = graph_view.lock().unwrap();
+        assert_eq!(view.workspace_id, DEFAULT_PROJECT_ID);
+        assert!(
+            view.nodes.is_empty(),
+            "an original A delivery cannot mutate hidden state after A -> B -> A"
+        );
+    }
+
+    retype_panes(
+        harness.state_mut(),
+        &[("pane-b", placeholder_pane_type(GRAPH_VIEW_PANE_LABEL))],
+    );
+    harness.run_steps(2);
+    let new_a = harness
+        .state()
+        .graph_expected_request_for_test()
+        .expect("reopening dispatches a fresh request for the current workspace");
+    assert_eq!(new_a.workspace_id, DEFAULT_PROJECT_ID);
+    assert!(
+        new_a.generation > old_a.generation,
+        "A -> B -> A must advance graph request identity"
+    );
+    let view = graph_view.lock().unwrap();
+    assert!(
+        view.nodes.is_empty(),
+        "reopening never renders the prior workspace projection for one frame"
     );
 }
 
@@ -481,6 +738,30 @@ fn folder_tree_host_drains_expand_recolor_retry_and_open_events() {
     folder_events
         .lock()
         .unwrap()
+        .push(FolderTreeEvent::OpenFolder {
+            folder_id: "folder-host".to_owned(),
+        });
+    harness.run_steps(1);
+    assert_eq!(
+        folder_tree.lock().unwrap().selected_folder_id.as_deref(),
+        Some("folder-host"),
+        "MT-022 host: a dedicated folder id selects/reveals the folder navigation surface"
+    );
+    assert!(
+        harness
+            .state_mut()
+            .tab_bar_states_mut()
+            .values()
+            .all(|bar| bar.tabs.iter().all(|tab| {
+                !(tab.pane_type == PaneType::LoomBlock
+                    && tab.content_id.as_deref() == Some("folder-host"))
+            })),
+        "MT-022 host: an LFD folder overlay must never be routed as a nonexistent LoomBlock"
+    );
+
+    folder_events
+        .lock()
+        .unwrap()
         .push(FolderTreeEvent::OpenBlock {
             block_id: "block-host".to_owned(),
         });
@@ -513,6 +794,12 @@ fn sidebar_active_block_deliveries_bind_backlinks_and_unlinked() {
         db_status: "ok".to_string(),
         migration_version: Some(1),
     }));
+    // Keep production active-block reload tasks parked so this test controls the exact delivery order.
+    let parked_runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build parked sidebar runtime");
+    app.set_runtime_handle(parked_runtime.handle().clone());
     retype_panes(
         &mut app,
         &[("pane-a", placeholder_pane_type(SIDEBAR_PANE_LABEL))],
@@ -524,6 +811,7 @@ fn sidebar_active_block_deliveries_bind_backlinks_and_unlinked() {
 
     sidebar_events.lock().unwrap().push(SidebarEvent::Open {
         block_id: "block-a".to_owned(),
+        title: "Block A".to_owned(),
     });
     harness.run_steps(1);
     {
@@ -532,6 +820,11 @@ fn sidebar_active_block_deliveries_bind_backlinks_and_unlinked() {
             panel.active_block_id.as_deref(),
             Some("block-a"),
             "MT-024 host: SidebarEvent::Open binds the clicked Loom block as sidebar active context"
+        );
+        assert_eq!(
+            panel.breadcrumbs.last().map(|entry| entry.title.as_str()),
+            Some("Block A"),
+            "MT-024 host: runtime breadcrumbs preserve the clicked row title instead of exposing a backend id"
         );
     }
 
@@ -575,6 +868,14 @@ fn sidebar_active_block_deliveries_bind_backlinks_and_unlinked() {
         );
     }
 
+    // Move the real active LoomBlock tab to B before preparing B's deliveries. The production host
+    // mirrors the active tab into sidebar context every frame, so changing only the panel fixture would
+    // correctly be rebound to the still-active A tab on the next frame.
+    sidebar_events.lock().unwrap().push(SidebarEvent::Open {
+        block_id: "block-b".to_owned(),
+        title: "Block B".to_owned(),
+    });
+    harness.run_steps(1);
     let (fresh_backlinks_generation, _) = harness
         .state()
         .prepare_sidebar_active_block_for_test("block-b")
@@ -611,6 +912,224 @@ fn sidebar_active_block_deliveries_bind_backlinks_and_unlinked() {
 }
 
 #[test]
+fn sidebar_active_block_reload_debounces_to_the_newest_identity() {
+    let (app, _runtime) = secondary_shell();
+    app.set_sidebar_backend_base_url_for_test("http://127.0.0.1:0");
+
+    app.bind_sidebar_active_block_for_test("rapid-a");
+    std::thread::sleep(std::time::Duration::from_millis(25));
+    app.bind_sidebar_active_block_for_test("rapid-b");
+
+    let mut backlink_ids = Vec::new();
+    let mut unlinked_ids = Vec::new();
+    for _ in 0..80 {
+        let (backlinks, unlinked) = app.drain_sidebar_active_delivery_ids_for_test();
+        backlink_ids.extend(backlinks);
+        unlinked_ids.extend(unlinked);
+        if !backlink_ids.is_empty() && !unlinked_ids.is_empty() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+
+    assert_eq!(
+        backlink_ids,
+        vec!["rapid-b"],
+        "MT-024 MC-2: the cancelled A reload must never touch the backend delivery queue"
+    );
+    assert_eq!(
+        unlinked_ids,
+        vec!["rapid-b"],
+        "MT-024 MC-2: Backlinks and Unlinked must coalesce to the same newest block"
+    );
+    assert_eq!(
+        app.mounted_sidebar_panel_for_test()
+            .lock()
+            .unwrap()
+            .active_block_id
+            .as_deref(),
+        Some("rapid-b")
+    );
+}
+
+#[test]
+fn sidebar_rebinds_when_existing_loom_tabs_activate_or_close_reveals_neighbor() {
+    use handshake_native::tab_bar::TabState;
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    let pane_id = PaneId::from("pane-a");
+    let mut tab_a = TabState::new(PaneType::LoomBlock);
+    tab_a.content_id = Some("block-a".to_owned());
+    let mut tab_b = TabState::new(PaneType::LoomBlock);
+    tab_b.content_id = Some("block-b".to_owned());
+    {
+        let bar = app
+            .tab_bar_states_mut()
+            .get_mut(&pane_id)
+            .expect("seeded pane-a tab bar");
+        bar.tabs = vec![tab_a, tab_b];
+        bar.active_index = 1;
+    }
+    app.set_active_pane_for_test(Some(pane_id.clone()));
+    let panel = app.mounted_sidebar_panel_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    harness.run_steps(1);
+    assert_eq!(
+        panel.lock().unwrap().active_block_id.as_deref(),
+        Some("block-b"),
+        "the initially active existing Loom tab binds the mounted sidebar"
+    );
+
+    harness
+        .state_mut()
+        .tab_bar_states_mut()
+        .get_mut(&pane_id)
+        .unwrap()
+        .activate(0);
+    harness.run_steps(1);
+    assert_eq!(
+        panel.lock().unwrap().active_block_id.as_deref(),
+        Some("block-a"),
+        "activating an already-open tab rebinds the sidebar"
+    );
+
+    {
+        let bar = harness
+            .state_mut()
+            .tab_bar_states_mut()
+            .get_mut(&pane_id)
+            .unwrap();
+        bar.activate(1);
+    }
+    harness.run_steps(1);
+    assert_eq!(
+        panel.lock().unwrap().active_block_id.as_deref(),
+        Some("block-b")
+    );
+    assert!(harness
+        .state_mut()
+        .tab_bar_states_mut()
+        .get_mut(&pane_id)
+        .unwrap()
+        .close_tab(1));
+    harness.run_steps(1);
+    assert_eq!(
+        panel.lock().unwrap().active_block_id.as_deref(),
+        Some("block-a"),
+        "closing active B and revealing existing A rebinds the sidebar to A"
+    );
+}
+
+#[test]
+fn sidebar_failed_mutation_and_failed_refetch_restore_truthful_rows() {
+    use handshake_native::graph::sidebar_panel::{SectionKind, SidebarBlock, SidebarEvent};
+
+    let (mut app, _runtime) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[(
+            "pane-a",
+            handshake_native::editor_pane_factories::placeholder_pane_type(
+                handshake_native::editor_pane_factories::SIDEBAR_PANE_LABEL,
+            ),
+        )],
+    );
+    app.set_sidebar_backend_base_url_for_test("http://127.0.0.1:0");
+    let panel = app.mounted_sidebar_panel_for_test();
+    let sidebar_events = app.mounted_sidebar_events_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    // Let the mounted host establish its workspace epoch before seeding canonical rows. Seeding before
+    // the first frame is intentionally invalid: the first workspace bind clears prior-workspace state.
+    harness.run_steps(1);
+    panel.lock().unwrap().set_pins(vec![
+        SidebarBlock::new("pin-a", "Pin A", "note"),
+        SidebarBlock::new("pin-b", "Pin B", "file"),
+    ]);
+    sidebar_events
+        .lock()
+        .unwrap()
+        .push(SidebarEvent::RemovePin {
+            block_id: "pin-a".to_owned(),
+        });
+    harness.run_steps(1);
+    assert!(
+        !panel
+            .lock()
+            .unwrap()
+            .pins
+            .iter()
+            .any(|block| block.block_id == "pin-a"),
+        "the mounted host removes the row optimistically while the mutation is in flight"
+    );
+    for _ in 0..120 {
+        harness.run_steps(1);
+        let restored_with_error = panel
+            .lock()
+            .map(|panel| {
+                panel.pins.first().map(|block| block.block_id.as_str()) == Some("pin-a")
+                    && panel.error_section.contains_key(&SectionKind::Pins)
+            })
+            .unwrap_or(false);
+        if restored_with_error {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let panel = panel.lock().unwrap();
+    assert_eq!(
+        panel
+            .pins
+            .iter()
+            .map(|block| block.block_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["pin-a", "pin-b"],
+        "mutation failure restores the exact row and original position even when refetch also fails"
+    );
+    assert!(panel.error_section.contains_key(&SectionKind::Pins));
+}
+
+#[test]
+fn sidebar_without_runtime_never_applies_an_optimistic_disappearance() {
+    use handshake_native::command_registry::CMD_VIEW_SIDEBAR;
+    use handshake_native::graph::sidebar_panel::{SectionKind, SidebarBlock, SidebarEvent};
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    assert!(app.dispatch_palette_action_for_test(CMD_VIEW_SIDEBAR));
+    let panel = app.mounted_sidebar_panel_for_test();
+    panel
+        .lock()
+        .unwrap()
+        .set_pins(vec![SidebarBlock::new("pin-a", "Pin A", "note")]);
+    app.mounted_sidebar_events_for_test()
+        .lock()
+        .unwrap()
+        .push(SidebarEvent::RemovePin {
+            block_id: "pin-a".to_owned(),
+        });
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(1);
+
+    let panel = panel.lock().unwrap();
+    assert!(panel.pins.iter().any(|block| block.block_id == "pin-a"));
+    assert!(panel.error_section.contains_key(&SectionKind::Pins));
+    drop(panel);
+    assert!(live_author_ids(&harness).contains("sidebar.pins.retry"));
+}
+
+#[test]
 fn folder_tree_refetches_and_clears_state_after_workspace_switch() {
     use handshake_native::editor_pane_factories::{placeholder_pane_type, FOLDER_TREE_PANE_LABEL};
     use handshake_native::graph::folder_tree::FolderRow;
@@ -630,6 +1149,21 @@ fn folder_tree_refetches_and_clears_state_after_workspace_switch() {
         tree.workspace_id = DEFAULT_PROJECT_ID.to_owned();
         tree.set_folders(&[FolderRow::new("old-folder", None, "Old Folder", None)]);
     }
+    harness.state().register_folder_write_sequence_for_test(
+        DEFAULT_PROJECT_ID,
+        "rename",
+        "old-folder",
+    );
+    harness
+        .state()
+        .register_folder_recolor_sequence_for_test(DEFAULT_PROJECT_ID, "old-folder");
+    assert_eq!(
+        harness
+            .state()
+            .folder_mutation_latest_sequence_counts_for_test(),
+        (1, 1),
+        "test precondition: both mutation sequence gates are populated"
+    );
     assert!(
         harness.state_mut().switch_project("project-b"),
         "test precondition: project switch should happen"
@@ -652,6 +1186,296 @@ fn folder_tree_refetches_and_clears_state_after_workspace_switch() {
     assert!(
         tree.loading || tree.error.is_some(),
         "MT-022 host: the new workspace should start a bounded folder-list refetch when the pane is visible"
+    );
+    drop(tree);
+    assert_eq!(
+        harness
+            .state()
+            .folder_mutation_latest_sequence_counts_for_test(),
+        (0, 0),
+        "MT-022 host: workspace transition clears write and recolor latest-sequence gates"
+    );
+}
+
+#[test]
+fn folder_tree_hidden_workspace_rebind_and_a_b_a_epoch_reject_stale_delivery() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, FOLDER_TREE_PANE_LABEL};
+    use handshake_native::graph::folder_tree::FolderRow;
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(FOLDER_TREE_PANE_LABEL))],
+    );
+    let folder_tree = app.mounted_folder_tree_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    let (old_a_epoch, old_a_sequence) = harness.state().folder_request_identity_for_test();
+
+    // Hide Folders before switching. Workspace rebinding is still required immediately.
+    retype_panes(harness.state_mut(), &[("pane-a", PaneType::UserManual)]);
+    assert!(harness.state_mut().switch_project("project-b"));
+    harness.run_steps(1);
+    {
+        let tree = folder_tree.lock().unwrap();
+        assert_eq!(tree.workspace_id, "project-b");
+        assert!(tree.root_nodes.is_empty());
+    }
+
+    // Return to the same string id A while still hidden, then deliver the original A request. The
+    // epoch—not workspace text alone—must reject it.
+    assert!(harness.state_mut().switch_project(DEFAULT_PROJECT_ID));
+    harness.run_steps(1);
+    let (new_a_epoch, new_a_sequence) = harness.state().folder_request_identity_for_test();
+    assert_ne!(
+        old_a_epoch, new_a_epoch,
+        "A -> B -> A advances folder epoch"
+    );
+    harness.state().deliver_folder_list_for_test(
+        DEFAULT_PROJECT_ID,
+        old_a_epoch,
+        old_a_sequence,
+        Ok(vec![FolderRow::new(
+            "stale-folder",
+            None,
+            "Stale Folder",
+            None,
+        )]),
+    );
+    harness.run_steps(1);
+    let tree = folder_tree.lock().unwrap();
+    assert_eq!(tree.workspace_id, DEFAULT_PROJECT_ID);
+    assert!(
+        tree.root_nodes.is_empty(),
+        "an old A delivery cannot re-enter after A -> B -> A while the pane is hidden"
+    );
+    drop(tree);
+
+    harness.state().deliver_folder_list_for_test(
+        DEFAULT_PROJECT_ID,
+        new_a_epoch,
+        new_a_sequence,
+        Ok(vec![FolderRow::new(
+            "current-folder",
+            None,
+            "Current Folder",
+            None,
+        )]),
+    );
+    harness.run_steps(1);
+    let tree = folder_tree.lock().unwrap();
+    assert_eq!(tree.root_nodes.len(), 1);
+    assert_eq!(tree.root_nodes[0].folder_id, "current-folder");
+}
+
+#[test]
+fn folder_tree_same_folder_latest_child_sequence_wins_after_rebuild() {
+    use handshake_native::graph::folder_tree::{FolderRow, LeafBlock};
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(&mut app, &[("pane-a", PaneType::UserManual)]);
+    let folder_tree = app.mounted_folder_tree_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(1);
+
+    {
+        let mut tree = folder_tree.lock().unwrap();
+        tree.set_folders(&[FolderRow::new("folder-race", None, "Race", None)]);
+        let node = tree
+            .find_folder_mut("folder-race")
+            .expect("seed race folder");
+        node.expanded = true;
+        node.loading = true;
+    }
+    let epoch = harness.state().folder_request_identity_for_test().0;
+    harness
+        .state()
+        .set_folder_child_latest_sequence_for_test("folder-race", 22);
+    harness.state().deliver_folder_children_for_test(
+        DEFAULT_PROJECT_ID,
+        "folder-race",
+        epoch,
+        22,
+        Ok(vec![LeafBlock::new("current-child", "Current", "note")]),
+    );
+    harness.state().deliver_folder_children_for_test(
+        DEFAULT_PROJECT_ID,
+        "folder-race",
+        epoch,
+        21,
+        Ok(vec![LeafBlock::new("stale-child", "Stale", "note")]),
+    );
+    harness.run_steps(1);
+
+    let mut tree = folder_tree.lock().unwrap();
+    let children = tree
+        .find_folder_mut("folder-race")
+        .and_then(|node| node.child_blocks.as_ref())
+        .expect("latest children installed");
+    assert_eq!(children.len(), 1);
+    assert_eq!(children[0].block_id, "current-child");
+}
+
+#[test]
+fn folder_tree_open_folder_registers_current_child_delivery_and_clears_loading() {
+    use handshake_native::graph::folder_tree::{FolderRow, FolderTreeEvent, LeafBlock};
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(&mut app, &[("pane-a", PaneType::UserManual)]);
+    let folder_tree = app.mounted_folder_tree_for_test();
+    let folder_events = app.mounted_folder_events_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(1);
+    folder_tree.lock().unwrap().set_folders(&[FolderRow::new(
+        "folder-open",
+        None,
+        "Open Folder",
+        None,
+    )]);
+
+    folder_events
+        .lock()
+        .unwrap()
+        .push(FolderTreeEvent::OpenFolder {
+            folder_id: "folder-open".to_owned(),
+        });
+    harness.run_steps(1);
+    let sequence = harness
+        .state()
+        .folder_child_latest_sequence_for_test("folder-open")
+        .expect("OpenFolder registers its child request as the current sequence");
+    let epoch = harness.state().folder_request_identity_for_test().0;
+    harness.state().discard_folder_child_cells_for_test();
+    harness.state().deliver_folder_children_for_test(
+        DEFAULT_PROJECT_ID,
+        "folder-open",
+        epoch,
+        sequence,
+        Ok(vec![LeafBlock::new("child-open", "Current Child", "note")]),
+    );
+    harness.run_steps(1);
+
+    let mut tree = folder_tree.lock().unwrap();
+    assert_eq!(tree.selected_folder_id.as_deref(), Some("folder-open"));
+    let node = tree
+        .find_folder_mut("folder-open")
+        .expect("opened folder remains mounted");
+    assert!(node.expanded, "OpenFolder leaves the folder expanded");
+    assert!(!node.loading, "current child delivery clears loading");
+    let children = node
+        .child_blocks
+        .as_ref()
+        .expect("current child delivery installs children");
+    assert_eq!(children.len(), 1);
+    assert_eq!(children[0].block_id, "child-open");
+}
+
+#[test]
+fn folder_tree_write_older_failure_after_newer_success_is_ignored() {
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(&mut app, &[("pane-a", PaneType::UserManual)]);
+    let folder_tree = app.mounted_folder_tree_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(1);
+
+    let epoch = harness.state().folder_request_identity_for_test().0;
+    let old_sequence = harness.state().register_folder_write_sequence_for_test(
+        DEFAULT_PROJECT_ID,
+        "rename",
+        "folder-write-race",
+    );
+    let new_sequence = harness.state().register_folder_write_sequence_for_test(
+        DEFAULT_PROJECT_ID,
+        "rename",
+        "folder-write-race",
+    );
+    let list_sequence_before_newer = harness.state().folder_request_identity_for_test().1;
+    harness.state().deliver_folder_write_for_test(
+        "rename",
+        "folder-write-race",
+        DEFAULT_PROJECT_ID,
+        epoch,
+        new_sequence,
+        Ok(None),
+    );
+    harness.run_steps(1);
+    let list_sequence_after_newer = harness.state().folder_request_identity_for_test().1;
+    assert!(
+        list_sequence_after_newer > list_sequence_before_newer,
+        "newer success triggers one authoritative refetch"
+    );
+
+    harness.state().deliver_folder_write_for_test(
+        "rename",
+        "folder-write-race",
+        DEFAULT_PROJECT_ID,
+        epoch,
+        old_sequence,
+        Err("older rename failed".to_owned()),
+    );
+    harness.run_steps(1);
+    assert_eq!(
+        harness.state().folder_request_identity_for_test().1,
+        list_sequence_after_newer,
+        "older write failure cannot trigger another authoritative refetch"
+    );
+    assert!(
+        folder_tree.lock().unwrap().operation_error.is_none(),
+        "older write failure cannot restore a stale operation error"
+    );
+}
+
+#[test]
+fn folder_tree_recolor_older_failure_after_newer_success_is_ignored() {
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(&mut app, &[("pane-a", PaneType::UserManual)]);
+    let folder_tree = app.mounted_folder_tree_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(1);
+
+    let epoch = harness.state().folder_request_identity_for_test().0;
+    let old_sequence = harness
+        .state()
+        .register_folder_recolor_sequence_for_test(DEFAULT_PROJECT_ID, "folder-color-race");
+    let new_sequence = harness
+        .state()
+        .register_folder_recolor_sequence_for_test(DEFAULT_PROJECT_ID, "folder-color-race");
+    let list_sequence_before_newer = harness.state().folder_request_identity_for_test().1;
+    harness.state().deliver_folder_recolor_for_test(
+        DEFAULT_PROJECT_ID,
+        "folder-color-race",
+        epoch,
+        new_sequence,
+        Ok(()),
+    );
+    harness.run_steps(1);
+    let list_sequence_after_newer = harness.state().folder_request_identity_for_test().1;
+    assert!(
+        list_sequence_after_newer > list_sequence_before_newer,
+        "newer recolor success triggers one authoritative refetch"
+    );
+
+    harness.state().deliver_folder_recolor_for_test(
+        DEFAULT_PROJECT_ID,
+        "folder-color-race",
+        epoch,
+        old_sequence,
+        Err("older recolor failed".to_owned()),
+    );
+    harness.run_steps(1);
+    assert_eq!(
+        harness.state().folder_request_identity_for_test().1,
+        list_sequence_after_newer,
+        "older recolor failure cannot trigger another authoritative refetch"
+    );
+    assert!(
+        folder_tree.lock().unwrap().operation_error.is_none(),
+        "older recolor failure cannot restore a stale operation error"
     );
 }
 
@@ -718,6 +1542,88 @@ fn tags_pane_refetches_and_clears_state_after_workspace_switch() {
     assert!(
         tags_hub.lock().unwrap().is_none(),
         "MT-023 host: an open tag-hub page from the previous workspace must be closed on switch"
+    );
+}
+
+#[test]
+fn tags_hidden_workspace_reset_rejects_a_b_a_old_epoch_delivery() {
+    use handshake_native::graph::tags_panel::{HubMember, LoomTagHubPanel, TagEntry};
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(&mut app, &[("pane-a", PaneType::LoomBlock)]);
+    let tags_panel = app.mounted_tags_panel_for_test();
+    let tags_hub = app.mounted_tags_hub_for_test();
+    let old_epoch = app.tags_workspace_epoch_for_test();
+    let old_sequence = app.register_tag_hub_request_for_test(DEFAULT_PROJECT_ID, "hub-a");
+    {
+        let mut panel = tags_panel.lock().unwrap();
+        panel.set_tags(vec![TagEntry::new("hub-a", "Old A", Some(1))]);
+        panel.search_filter = "old".to_owned();
+    }
+    *tags_hub.lock().unwrap() = Some(LoomTagHubPanel::new(DEFAULT_PROJECT_ID, "hub-a"));
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    assert!(harness.state_mut().switch_project("project-b"));
+    harness.run_steps(1);
+    assert!(
+        harness.state().tags_workspace_epoch_for_test() > old_epoch,
+        "hidden A -> B transition increments the tags workspace epoch"
+    );
+    assert_eq!(tags_panel.lock().unwrap().workspace_id, "project-b");
+    assert!(tags_panel.lock().unwrap().tags.is_empty());
+    assert!(tags_hub.lock().unwrap().is_none());
+
+    assert!(harness.state_mut().switch_project(DEFAULT_PROJECT_ID));
+    harness.run_steps(1);
+    let current_epoch = harness.state().tags_workspace_epoch_for_test();
+    assert!(
+        current_epoch > old_epoch,
+        "B -> A creates a new A generation"
+    );
+    {
+        let mut hub = tags_hub.lock().unwrap();
+        let mut current = LoomTagHubPanel::new(DEFAULT_PROJECT_ID, "hub-a");
+        current.loading = true;
+        *hub = Some(current);
+    }
+    let current_sequence = harness
+        .state()
+        .register_tag_hub_request_for_test(DEFAULT_PROJECT_ID, "hub-a");
+    harness
+        .state()
+        .deliver_tag_hub_detail_with_identity_for_test(
+            DEFAULT_PROJECT_ID,
+            old_epoch,
+            "hub-a",
+            old_sequence,
+            Ok((
+                "Old A completion".to_owned(),
+                vec![HubMember::new("old-member", "Old Member", "note")],
+            )),
+        );
+    harness.run_steps(1);
+    assert!(
+        tags_hub.lock().unwrap().as_ref().unwrap().title.is_empty(),
+        "a completion from the first A epoch cannot bind after A -> B -> A"
+    );
+
+    harness
+        .state()
+        .deliver_tag_hub_detail_with_identity_for_test(
+            DEFAULT_PROJECT_ID,
+            current_epoch,
+            "hub-a",
+            current_sequence,
+            Ok((
+                "Current A".to_owned(),
+                vec![HubMember::new("new-member", "New Member", "note")],
+            )),
+        );
+    harness.run_steps(1);
+    assert_eq!(
+        tags_hub.lock().unwrap().as_ref().unwrap().title,
+        "Current A"
     );
 }
 
@@ -904,6 +1810,68 @@ fn tags_edge_same_hub_superseded_error_does_not_surface() {
 }
 
 #[test]
+fn tags_edge_newer_failure_survives_older_success_without_refetch() {
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, TAGS_PANE_LABEL};
+    use handshake_native::graph::tags_panel::LoomTagHubPanel;
+
+    let (mut app, _rt) = secondary_shell();
+    retype_panes(
+        &mut app,
+        &[("pane-a", placeholder_pane_type(TAGS_PANE_LABEL))],
+    );
+    let tags_hub = app.mounted_tags_hub_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+    {
+        let mut hub = tags_hub.lock().unwrap();
+        let mut current = LoomTagHubPanel::new(DEFAULT_PROJECT_ID, "hub-b");
+        current.add_tag_in_flight = true;
+        *hub = Some(current);
+    }
+    let epoch = harness.state().tags_workspace_epoch_for_test();
+    let old_sequence = harness
+        .state()
+        .register_tag_edge_request_for_test(DEFAULT_PROJECT_ID, "hub-b");
+    let new_sequence = harness
+        .state()
+        .register_tag_edge_request_for_test(DEFAULT_PROJECT_ID, "hub-b");
+    let hub_sequence_before = harness.state().tag_hub_request_sequence_for_test();
+    harness
+        .state()
+        .deliver_tag_edge_receipt_with_identity_for_test(
+            DEFAULT_PROJECT_ID,
+            epoch,
+            "hub-b",
+            new_sequence,
+            Err("newest add failed".to_owned()),
+        );
+    harness
+        .state()
+        .deliver_tag_edge_receipt_with_identity_for_test(
+            DEFAULT_PROJECT_ID,
+            epoch,
+            "hub-b",
+            old_sequence,
+            Ok(()),
+        );
+    harness.run_steps(1);
+
+    let hub = tags_hub.lock().unwrap();
+    let hub = hub.as_ref().expect("current hub remains open");
+    assert_eq!(hub.error.as_deref(), Some("newest add failed"));
+    assert!(
+        !hub.add_tag_in_flight,
+        "latest receipt releases the mutation gate"
+    );
+    assert_eq!(
+        harness.state().tag_hub_request_sequence_for_test(),
+        hub_sequence_before,
+        "an older success cannot trigger a member refetch after a newer failure"
+    );
+}
+
+#[test]
 fn tags_hub_same_key_stale_delivery_does_not_overwrite_current_detail() {
     use handshake_native::editor_pane_factories::{placeholder_pane_type, TAGS_PANE_LABEL};
     use handshake_native::graph::tags_panel::{HubMember, LoomTagHubPanel};
@@ -962,7 +1930,7 @@ fn tags_hub_same_key_stale_delivery_does_not_overwrite_current_detail() {
 }
 
 // ── PT-080-B / AC-080-2 (must-fix backend-shape): the clear-section path sends the body the REAL backend
-// accepts (`{clear_group:true}`), and an AssignSection{None} drains through the live host. ───────────────
+// accepts (`{clear_group:true}`), and an explicit AssignSection{None} drains through the live host. ─────
 
 #[test]
 fn canvas_clear_group_sends_backend_accepted_clear_body() {
@@ -991,9 +1959,9 @@ fn canvas_clear_group_sends_backend_accepted_clear_body() {
         "regression guard: the clear body is NOT the no-op {{group_id:null}} shape"
     );
 
-    // Live host path: an AssignSection{group_id:None} (a card dropped outside all section frames) drains
-    // through the mounted board's outbound queue into route_canvas_events, which maps the None arm to the
-    // clear builder above (the live PATCH round-trip is gated NEEDS_MANAGED_RESOURCE_PROOF).
+    // Live host path: an explicit AssignSection{group_id:None} drains through the mounted board's outbound
+    // queue into route_canvas_events, which maps the None arm to the clear builder above. Completed card
+    // drags use MovePlacement so x/y and clear_group persist atomically.
     let (app, _rt) = secondary_shell();
     let canvas_events = app.mounted_canvas_events();
     let mut harness =
@@ -1022,7 +1990,7 @@ fn canvas_clear_group_sends_backend_accepted_clear_body() {
 // ── WP-KERNEL-012 W3 / MT-026 remediation: EVERY canvas mutation kind maps to a HOST dispatch ─────────
 
 /// Wire-capture of the FULL `route_canvas_events` mutation wiring (the W2 audit found only
-/// ResizePlacement/AssignSection wired; PlaceBlock / AddCard / Group / RemovePlacement / SemanticEdge /
+/// ResizePlacement/AssignSection wired; MovePlacement / PlaceBlock / AddCard / Group / RemovePlacement / SemanticEdge /
 /// VisualEdgeAdded / RemoveEdge / ViewportChanged drained into a dead catch-all). A PARKED
 /// current-thread runtime is injected: `Handle::spawn` queues the off-thread mutations but nothing
 /// polls them, so every dispatched op's result cell stays IN FLIGHT — `canvas_op_cells_in_flight()` is
@@ -1085,6 +2053,12 @@ fn canvas_mutation_events_map_to_host_dispatches_with_op_cells() {
             pan_y: -8.0,
             zoom: 1.5,
         });
+        q.push(CanvasEvent::MovePlacement {
+            placement_id: "p-1".into(),
+            x: 85.0,
+            y: 110.0,
+            group_id: Some("grp-w3".into()),
+        });
         // … plus the remaining wired kinds (shape-asserted through the same builder helpers).
         q.push(CanvasEvent::Group {
             placement_ids: vec!["p-1".into(), "p-2".into()],
@@ -1113,13 +2087,14 @@ fn canvas_mutation_events_map_to_host_dispatches_with_op_cells() {
     );
     let dispatched = harness.state().canvas_op_cells_in_flight() - baseline;
     // 1 (PlaceBlock) + 1 (AddCard) + 1 (RemovePlacement) + 1 (ViewportChanged) + 2 (Group of 2
-    // placements: one PATCH per member) + 1 (SemanticEdge) + 1 (VisualEdgeAdded) + 2 (RemoveEdge x2).
+    // placements: one PATCH per member) + 1 (MovePlacement) + 1 (SemanticEdge) +
+    // 1 (VisualEdgeAdded) + 2 (RemoveEdge x2).
     assert_eq!(
-        dispatched, 10,
+        dispatched, 11,
         "W3/W2: EVERY drained canvas mutation kind mapped to a real CanvasBoardClient dispatch with a \
          tracked op cell (none swallowed by a catch-all)"
     );
-    println!("PASS W3/W2: 9 canvas mutation events -> {dispatched} host dispatches with op cells");
+    println!("PASS W3/W2: 10 canvas mutation events -> {dispatched} host dispatches with op cells");
 }
 
 #[test]
@@ -1485,7 +2460,7 @@ fn canvas_board_fetch_resolves_live_titles_into_mounted_cards() {
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
 
     harness
-        .state()
+        .state_mut()
         .deliver_canvas_board_for_test(Ok(CanvasBoardData {
             placements: vec![
                 CanvasPlacementCard::new("p-live-a", "blk-live-a", 40.0, 60.0, 220.0, 130.0),
@@ -1497,15 +2472,18 @@ fn canvas_board_fetch_resolves_live_titles_into_mounted_cards() {
             zoom: 1.0,
         }));
     harness.run_steps(2);
-    let generation = harness.state().canvas_live_block_generation_for_test();
+    let request = harness
+        .state()
+        .canvas_expected_request_for_test()
+        .expect("mounted canvas request identity");
     assert_eq!(
         board.lock().unwrap().placements[0].display_title(),
-        "(stale reference)",
-        "the raw getCanvasBoard payload is reference-only until getLoomBlock resolves"
+        "(loading reference)",
+        "the raw getCanvasBoard payload remains explicitly loading until getLoomBlock resolves"
     );
 
     harness.state_mut().deliver_canvas_live_block_for_test(
-        generation,
+        request.clone(),
         "blk-live-a",
         Ok((
             Some("Resolved Canvas Title".to_owned()),
@@ -1514,9 +2492,9 @@ fn canvas_board_fetch_resolves_live_titles_into_mounted_cards() {
         )),
     );
     harness.state_mut().deliver_canvas_live_block_for_test(
-        generation,
+        request,
         "blk-live-b",
-        Err("missing block".to_owned()),
+        Err(handshake_native::backend_client::LiveBlockResolveError::Missing),
     );
     harness.run_steps(2);
 
@@ -1559,6 +2537,148 @@ fn canvas_board_fetch_resolves_live_titles_into_mounted_cards() {
     );
 }
 
+#[test]
+fn canvas_board_rejects_cross_binding_and_out_of_order_refresh_deliveries() {
+    use handshake_native::backend_client::CanvasBoardData;
+    use handshake_native::graph::canvas_board::CanvasPlacementCard;
+
+    fn board_data(id: &str, title: &str) -> CanvasBoardData {
+        let mut placement = CanvasPlacementCard::new(
+            format!("p-{id}"),
+            format!("b-{id}"),
+            40.0,
+            60.0,
+            220.0,
+            130.0,
+        );
+        placement.live_title = Some(title.to_owned());
+        CanvasBoardData {
+            placements: vec![placement],
+            visual_edges: vec![],
+            pan_x: 0.0,
+            pan_y: 0.0,
+            zoom: 1.0,
+        }
+    }
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    retype_panes(&mut app, &[("pane-a", PaneType::AtelierEditor)]);
+    let board = app.mounted_canvas_board();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    let old_a = harness
+        .state_mut()
+        .begin_canvas_request_for_test("workspace-a", "canvas-a");
+    harness.state().deliver_canvas_board_request_for_test(
+        old_a.clone(),
+        Ok(board_data("confirmed-a", "Confirmed A")),
+    );
+    harness.run_steps(2);
+    assert!(board.lock().unwrap().projection_is_confirmed());
+
+    let failed_b = harness
+        .state_mut()
+        .begin_canvas_request_for_test("workspace-b", "canvas-b");
+    {
+        let board = board.lock().unwrap();
+        assert!(
+            board.placements.is_empty(),
+            "A projection clears while B is pending"
+        );
+        assert!(!board.projection_is_confirmed());
+    }
+    harness
+        .state()
+        .deliver_canvas_board_request_for_test(failed_b, Err("B failed".to_owned()));
+    harness.run_steps(2);
+    assert!(!board.lock().unwrap().projection_is_confirmed());
+
+    let current_b = harness
+        .state_mut()
+        .begin_canvas_request_for_test("workspace-b", "canvas-b");
+    harness.state().deliver_canvas_board_request_for_test(
+        current_b.clone(),
+        Ok(board_data("current-b", "Current B")),
+    );
+    harness
+        .state()
+        .deliver_canvas_board_request_for_test(old_a.clone(), Ok(board_data("stale-a", "Stale A")));
+    harness.run_steps(2);
+    assert_eq!(
+        board.lock().unwrap().placements[0].display_title(),
+        "Current B"
+    );
+
+    let middle_b = harness
+        .state_mut()
+        .begin_canvas_request_for_test("workspace-b", "canvas-other");
+    let returned_a = harness
+        .state_mut()
+        .begin_canvas_request_for_test("workspace-a", "canvas-a");
+    assert!(returned_a.pane_generation > old_a.pane_generation);
+    harness.state().deliver_canvas_board_request_for_test(
+        returned_a.clone(),
+        Ok(board_data("returned-a", "Returned A")),
+    );
+    harness.state().deliver_canvas_board_request_for_test(
+        middle_b,
+        Ok(board_data("stale-middle", "Stale Middle")),
+    );
+    harness
+        .state()
+        .deliver_canvas_board_request_for_test(old_a, Ok(board_data("stale-old-a", "Stale Old A")));
+    harness.run_steps(2);
+    assert_eq!(
+        board.lock().unwrap().placements[0].display_title(),
+        "Returned A"
+    );
+
+    let older_refresh = harness
+        .state_mut()
+        .begin_canvas_request_for_test("workspace-a", "canvas-a");
+    let latest_refresh = harness
+        .state_mut()
+        .begin_canvas_request_for_test("workspace-a", "canvas-a");
+    assert_eq!(
+        older_refresh.pane_generation,
+        latest_refresh.pane_generation
+    );
+    assert!(latest_refresh.request_sequence > older_refresh.request_sequence);
+    harness.state().deliver_canvas_board_request_for_test(
+        latest_refresh.clone(),
+        Ok(board_data("latest-refresh", "Latest Refresh")),
+    );
+    harness.state().deliver_canvas_board_request_for_test(
+        older_refresh.clone(),
+        Ok(board_data("stale-refresh", "Stale Refresh")),
+    );
+    harness.run_steps(2);
+    assert_eq!(
+        board.lock().unwrap().placements[0].display_title(),
+        "Latest Refresh"
+    );
+    harness.state_mut().deliver_canvas_live_block_for_test(
+        older_refresh,
+        "b-latest-refresh",
+        Ok((Some("Stale Resolve".to_owned()), "note".to_owned(), None)),
+    );
+    harness.run_steps(2);
+    assert_eq!(
+        board.lock().unwrap().placements[0].display_title(),
+        "Latest Refresh",
+        "a live-title completion stamped for an older overlapping refresh is rejected"
+    );
+    assert_eq!(
+        harness.state().canvas_expected_request_for_test(),
+        Some(latest_refresh)
+    );
+}
+
 // ── WP-KERNEL-012 MT-080 FIX A: a host-created text card reloads as an inline-editable TextCard ────────
 
 #[test]
@@ -1586,6 +2706,7 @@ fn host_created_text_card_reloads_inline_editable() {
                 y: 50.0,
                 w: 200.0,
                 h: 120.0,
+                created_by_request: true,
             },
             "canvas: add card",
             true,
@@ -1616,7 +2737,7 @@ fn host_created_text_card_reloads_inline_editable() {
     let mut marked = false;
     for _ in 0..40 {
         harness
-            .state()
+            .state_mut()
             .deliver_canvas_board_for_test(Ok(CanvasBoardData {
                 placements: vec![CanvasPlacementCard::new(
                     "LCP-card", "blk-card", 40.0, 50.0, 200.0, 120.0,
@@ -1664,6 +2785,99 @@ fn host_created_text_card_reloads_inline_editable() {
     }
 }
 
+#[test]
+fn same_board_stale_create_failure_cannot_overwrite_newer_success_in_production_drain() {
+    use handshake_native::backend_client::CreatedCanvasPlacement;
+
+    let (mut app, _parked_runtime) = parked_graph_shell();
+    app.begin_canvas_request_for_test("ws-sequence", "canvas-sequence");
+    let board = app.mounted_canvas_board();
+    board.lock().unwrap().error = Some("older visible error".to_owned());
+
+    // Dispatch order is 1 then 2, but completion order is deliberately 2 then 1.
+    app.deliver_canvas_created_placement_result_for_test(
+        "ws-sequence",
+        "canvas-sequence",
+        2,
+        Ok(CreatedCanvasPlacement {
+            placement_id: "placement-new".to_owned(),
+            placed_block_id: "block-new".to_owned(),
+            x: 0.0,
+            y: 0.0,
+            w: 200.0,
+            h: 120.0,
+            created_by_request: false,
+        }),
+        "newer success",
+        false,
+    )
+    .unwrap();
+    app.deliver_canvas_created_placement_result_for_test(
+        "ws-sequence",
+        "canvas-sequence",
+        1,
+        Err("stale failure".to_owned()),
+        "older failure",
+        false,
+    )
+    .unwrap();
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+    assert_eq!(
+        board.lock().unwrap().error,
+        None,
+        "the latest same-board success clears the error and the reordered stale failure stays inert"
+    );
+}
+
+#[test]
+fn same_board_stale_create_success_cannot_erase_newer_failure_in_production_drain() {
+    use handshake_native::backend_client::CreatedCanvasPlacement;
+
+    let (mut app, _parked_runtime) = parked_graph_shell();
+    app.begin_canvas_request_for_test("ws-sequence", "canvas-sequence");
+    let board = app.mounted_canvas_board();
+
+    // Dispatch order is 1 then 2, but completion order is deliberately 2 then 1.
+    app.deliver_canvas_created_placement_result_for_test(
+        "ws-sequence",
+        "canvas-sequence",
+        2,
+        Err("newest failure".to_owned()),
+        "newer failure",
+        false,
+    )
+    .unwrap();
+    app.deliver_canvas_created_placement_result_for_test(
+        "ws-sequence",
+        "canvas-sequence",
+        1,
+        Ok(CreatedCanvasPlacement {
+            placement_id: "placement-old".to_owned(),
+            placed_block_id: "block-old".to_owned(),
+            x: 0.0,
+            y: 0.0,
+            w: 200.0,
+            h: 120.0,
+            created_by_request: false,
+        }),
+        "older success",
+        false,
+    )
+    .unwrap();
+
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.step();
+    assert_eq!(
+        board.lock().unwrap().error.as_deref(),
+        Some("newest failure"),
+        "the latest same-board failure remains visible after a reordered stale success"
+    );
+}
+
 // ── WP-KERNEL-012 MT-080 FIX B: the host drives apply_group_identity after a graph (re)load ────────────
 
 #[test]
@@ -1689,13 +2903,17 @@ fn graph_load_applies_group_identity_from_folder_membership() {
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
 
     // Deliver a graph: blk-1 is in the "Research" folder; blk-2 is in no loaded folder.
-    harness.state().deliver_graph_for_test(Ok(LoomGraphData {
-        nodes: vec![
-            GraphNode::new("blk-1", "Note One", "note"),
-            GraphNode::new("blk-2", "Note Two", "note"),
-        ],
-        edges: vec![],
-    }));
+    harness
+        .state_mut()
+        .deliver_graph_for_test(Ok(LoomGraphData {
+            nodes: vec![
+                GraphNode::new("blk-1", "Note One", "note"),
+                GraphNode::new("blk-2", "Note Two", "note"),
+            ],
+            edges: vec![],
+            truncated: false,
+            suppressed_hub_ids: vec![],
+        }));
 
     // Drain until the graph lands + the host cross-references folder membership (apply_group_identity runs).
     let mut applied = false;
@@ -1772,6 +2990,56 @@ fn outgoing_links_click_routes_to_nav() {
 
 #[test]
 fn relevant_memory_shows_endpoint_missing_empty_state() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind deterministic 404");
+    listener
+        .set_nonblocking(true)
+        .expect("set deterministic 404 nonblocking");
+    let base_url = format!(
+        "http://{}",
+        listener.local_addr().expect("404 server address")
+    );
+    let server = std::thread::spawn(move || {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "memory-pack 404 was not requested"
+            );
+            let (mut stream, _) = match listener.accept() {
+                Ok(connection) => connection,
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                    continue;
+                }
+                Err(error) => panic!("deterministic 404 accept failed: {error}"),
+            };
+            stream
+                .set_nonblocking(false)
+                .expect("accepted deterministic 404 stream blocking");
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+                .expect("404 read timeout");
+            let mut request = [0u8; 4096];
+            let count = stream
+                .read(&mut request)
+                .expect("read deterministic request");
+            let request = String::from_utf8_lossy(&request[..count]);
+            let is_memory_pack = request.lines().next().is_some_and(|line| {
+                line.starts_with("GET /workspaces/") && line.contains("/memory/pack")
+            });
+            let body = r#"{"error":"not_found"}"#;
+            write!(
+                stream,
+                "HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .expect("write deterministic 404");
+            if is_memory_pack {
+                break;
+            }
+        }
+    });
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -1783,6 +3051,7 @@ fn relevant_memory_shows_endpoint_missing_empty_state() {
         migration_version: Some(1),
     }));
     app.set_runtime_handle(runtime.handle().clone());
+    app.set_backend_base_url_for_test(&base_url, runtime.handle().clone());
     retype_panes(
         &mut app,
         &[(
@@ -1793,10 +3062,8 @@ fn relevant_memory_shows_endpoint_missing_empty_state() {
     let panel = app.mounted_relevant_memory();
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
-    // Several frames so the shell fires the FEMS read and the off-thread fetch resolves to the typed
-    // blocker. The `GET /memory/pack` route EXISTS (WP-009 MT-109); with no backend in this harness the
-    // fetch yields a typed blocker (Transport / 404), NOT an absent route. Poll the panel until the blocker
-    // lands or a bound is hit.
+    // Several frames so the shell fires the FEMS read and the synchronized local 404 resolves to the
+    // exact EndpointMissing blocker.
     let mut got_blocker = false;
     let mut ever_in_flight = false;
     for _ in 0..80 {
@@ -1814,19 +3081,42 @@ fn relevant_memory_shows_endpoint_missing_empty_state() {
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
     println!("relevant_memory: ever_requested={ever_in_flight} got_blocker={got_blocker}");
+    server.join().expect("deterministic 404 server completed");
     assert!(
         ever_in_flight,
         "AC-080-5: the shell DROVE the FEMS refresh-for-context (the read fired) — the wiring is live"
     );
-    // The `GET /memory/pack` route EXISTS (WP-009 MT-109 shipped it); the live round-trip is
-    // NEEDS_MANAGED_RESOURCE_PROOF. With no backend reachable in this harness the fetch resolves to a typed
-    // blocker (a Transport error, or `EndpointMissing` on a 404) — either way the panel holds an HONEST
-    // typed blocker and renders its empty-state, never a faked pack.
-    let blocker = panel.lock().unwrap().blocker().is_some();
+    let blocker = panel.lock().unwrap().blocker().cloned();
     assert!(
-        got_blocker && blocker,
-        "AC-080-5: the relevant-memory pane drove the FEMS read (the route EXISTS; no backend here) to an \
-         HONEST typed blocker and shows its empty-state — never a faked pack"
+        got_blocker
+            && blocker.as_ref().is_some_and(|error| matches!(
+                error,
+                handshake_native::fems::MemoryClientError::EndpointMissing { .. }
+            )),
+        "AC-080-5: synchronized 404 must map to the exact EndpointMissing variant"
+    );
+    // The worker can publish immediately after the last rendered frame. Reinstall the exact typed value
+    // just observed from the production worker before the presentation frame so the host cannot race the
+    // AccessKit proof against another background frame; this does not fabricate or alter the error.
+    panel
+        .lock()
+        .unwrap()
+        .set_blocker(blocker.expect("typed blocker observed above"));
+    harness.run_steps(1);
+    let status_value = harness.root().children_recursive().find_map(|node| {
+        let accesskit = node.accesskit_node();
+        (accesskit.author_id()
+            == Some(
+                handshake_native::fems::relevant_memory_panel::RELEVANT_MEMORY_STATUS_AUTHOR_ID,
+            ))
+        .then(|| accesskit.value())
+        .flatten()
+    });
+    assert!(
+        status_value.as_deref().is_some_and(|value| {
+            value.contains("state=error") && value.contains("FEMS read endpoint not present")
+        }),
+        "the mounted panel exposes its typed EndpointMissing state: {status_value:?}"
     );
 }
 
@@ -1846,7 +3136,7 @@ fn code_text_node_exposes_swarm_edit_actions() {
         .root()
         .children_recursive()
         .find(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_TEXT_AUTHOR_ID))
-        .expect("the code_editor_text node is in the live tree");
+        .expect("the editor.code.text node is in the live tree");
     let node = text_node.accesskit_node();
     // Probe the RAW NodeData action set (single-arg `supports_action`, the same `test_e7_swarm_edit_proof`
     // uses) so the assertion reads the node's OWN declared actions.

@@ -2,14 +2,15 @@ use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRec
 use crate::loom_fs::{loom_asset_blob_path, resolve_handshake_root};
 use crate::models::ErrorResponse;
 use crate::storage::{
-    artifacts, Asset, BlockViewDefinition, BlockViewRecord, BlockViewResults, LoomBlock,
-    LoomBlockContentType, LoomBlockDerived, LoomBlockUpdate, LoomCanvasBoard, LoomCanvasBoardView,
-    LoomCanvasPlacement, LoomCanvasPlacementUpdate, LoomCanvasVisualEdge, LoomEdge,
+    artifacts, Asset, BlockViewDefinition, BlockViewRecord, BlockViewResults,
+    CompensateLoomCanvasStageCard, LoomBlock, LoomBlockContentType, LoomBlockDerived,
+    LoomBlockUpdate, LoomCanvasBoard, LoomCanvasBoardView, LoomCanvasPlacement,
+    LoomCanvasPlacementUpdate, LoomCanvasStageProvenance, LoomCanvasVisualEdge, LoomEdge,
     LoomEdgeCreatedBy, LoomEdgeType, LoomGraphSearchResult, LoomSearchFilters,
     LoomSearchSourceKind, LoomViewFilters, LoomViewResponse, LoomViewType, LoomVisualDebugSnapshot,
-    NewAsset, NewLoomBlock, NewLoomCanvasPlacement, NewLoomEdge, PreviewStatus,
+    NewAsset, NewLoomBlock, NewLoomCanvasPlacement, NewLoomCanvasStageCard, NewLoomEdge, PreviewStatus,
     QuickSwitcherRecent, QuickSwitcherRecentInput, StorageCapabilityStore, StorageError,
-    WriteContext,
+    WriteActorKind, WriteContext, LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA,
 };
 use crate::AppState;
 use axum::{
@@ -55,6 +56,7 @@ fn internal_error(err: impl std::fmt::Display) -> ApiError {
 fn map_storage_error(err: StorageError) -> ApiError {
     match err {
         StorageError::NotFound(code) => not_found(code),
+        StorageError::Conflict(code) => (StatusCode::CONFLICT, Json(ErrorResponse { error: code })),
         StorageError::Guard(_) | StorageError::Validation("HSK-403-SILENT-EDIT") => (
             StatusCode::FORBIDDEN,
             Json(ErrorResponse {
@@ -63,6 +65,18 @@ fn map_storage_error(err: StorageError) -> ApiError {
         ),
         StorageError::Validation(_) => bad_request("HSK-400-LOOM-VALIDATION"),
         other => internal_error(other),
+    }
+}
+
+#[cfg(test)]
+mod storage_error_mapping_tests {
+    use super::*;
+
+    #[test]
+    fn loom_storage_conflicts_are_typed_http_409_responses() {
+        let (status, body) = map_storage_error(StorageError::Conflict("loom_folder_sibling_name"));
+        assert_eq!(status, StatusCode::CONFLICT);
+        assert_eq!(body.0.error, "loom_folder_sibling_name");
     }
 }
 
@@ -342,6 +356,10 @@ pub fn routes(state: AppState) -> Router {
             post(create_canvas_card),
         )
         .route(
+            "/workspaces/:workspace_id/loom/canvas-boards/:block_id/stage-cards/:placement_id/compensate",
+            post(compensate_stage_canvas_card),
+        )
+        .route(
             "/workspaces/:workspace_id/loom/canvas-placements/:placement_id",
             patch(update_canvas_placement).delete(remove_canvas_placement),
         )
@@ -612,39 +630,36 @@ async fn get_loom_block_transclusion(
         .await
         .map_err(map_storage_error)?;
 
-    let Some(document_id) = block.document_id.clone() else {
-        return Ok(Json(LoomTransclusionResponse {
-            block_id,
-            workspace_id,
-            source_document_id: None,
-            source_doc_version: None,
-            content_json: None,
-            resolved: false,
-            unresolved_reason: Some("loom_block_has_no_source_document"),
-        }));
-    };
-
     // The rich-document authority lives on the KnowledgeStore (implemented on
     // PostgresDatabase), reached through the shared pool — mirroring the
-    // knowledge_documents API's `db_for`. A LoomBlock's `document_id` is the
-    // legacy `documents` anchor; the source rich document is the one anchored to
-    // that same row (reuse loom_blocks.document_id + knowledge_rich_documents,
-    // no new table/column).
+    // knowledge_documents API's `db_for`. Native RichDocuments have a same-ID
+    // LoomBlock projection (`block_id == rich_document_id`) and no legacy
+    // `document_id`; imported legacy blocks continue to resolve through their
+    // `documents` anchor. Both are real PostgreSQL authority paths.
     let knowledge_db = crate::storage::postgres::PostgresDatabase::new(state.postgres_pool.clone());
-    let document =
+    let document = if let Some(document_id) = block.document_id.as_deref() {
         crate::storage::knowledge::KnowledgeStore::get_knowledge_rich_document_by_document_id(
             &knowledge_db,
             &workspace_id,
-            &document_id,
+            document_id,
         )
         .await
-        .map_err(map_storage_error)?;
+        .map_err(map_storage_error)?
+    } else {
+        crate::storage::knowledge::KnowledgeStore::get_knowledge_rich_document(
+            &knowledge_db,
+            &block.block_id,
+        )
+        .await
+        .map_err(map_storage_error)?
+        .filter(|document| document.workspace_id == workspace_id)
+    };
 
     let Some(document) = document else {
         return Ok(Json(LoomTransclusionResponse {
             block_id,
             workspace_id,
-            source_document_id: Some(document_id),
+            source_document_id: block.document_id,
             source_doc_version: None,
             content_json: None,
             resolved: false,
@@ -1502,13 +1517,51 @@ struct LoomBlockPatchRequest {
     remove_tags: Vec<String>,
 }
 
+/// Canonical native-view write attribution. The native client sends the shared `x-hsk-*` identity
+/// vocabulary; Loom persists the actor kind/id through `WriteContext` instead of collapsing every
+/// collection mutation to an anonymous human write.
+fn block_view_write_context(headers: &axum::http::HeaderMap) -> WriteContext {
+    fn value<'a>(headers: &'a axum::http::HeaderMap, name: &str) -> Option<&'a str> {
+        headers
+            .get(name)
+            .and_then(|header| header.to_str().ok())
+            .map(str::trim)
+            .filter(|header| !header.is_empty())
+    }
+
+    let actor_id = value(headers, "x-hsk-actor-id").map(ToOwned::to_owned);
+    match value(headers, "x-hsk-actor-kind") {
+        Some("system") | Some("session_broker") | Some("toolgate") => {
+            WriteContext::system(actor_id)
+        }
+        Some("ai") | Some("model_adapter") => WriteContext::ai(actor_id, None, None),
+        _ => WriteContext::human(actor_id),
+    }
+}
+
+/// Mirror the persisted write actor into the canonical Flight Recorder envelope. Actor identity is an
+/// envelope field; Loom event payload schemas are deliberately closed and reject ad-hoc identity keys.
+fn block_view_flight_actor(ctx: &WriteContext) -> (FlightRecorderActor, String) {
+    let actor = match ctx.actor_kind {
+        WriteActorKind::Human => FlightRecorderActor::Human,
+        WriteActorKind::Ai => FlightRecorderActor::Agent,
+        WriteActorKind::System => FlightRecorderActor::System,
+    };
+    let actor_id = ctx
+        .actor_id
+        .clone()
+        .unwrap_or_else(|| actor.to_string());
+    (actor, actor_id)
+}
+
 async fn patch_loom_block(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<LoomBlockPatchRequest>,
 ) -> ApiResult<Json<LoomBlock>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = WriteContext::human(None);
+    let ctx = block_view_write_context(&headers);
 
     let LoomBlockPatchRequest {
         update,
@@ -1614,9 +1667,10 @@ async fn patch_loom_block(
             .map_err(map_storage_error)?;
     }
 
+    let (flight_actor, flight_actor_id) = block_view_flight_actor(&ctx);
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockUpdated,
-        FlightRecorderActor::Human,
+        flight_actor,
         Uuid::now_v7(),
         json!({
             "type": "loom_block_updated",
@@ -1624,9 +1678,10 @@ async fn patch_loom_block(
             "fields_changed": fields_changed,
             "tags_added": add_tags,
             "tags_removed": remove_tags,
-            "updated_by": "user"
+            "updated_by": "user",
         }),
     )
+    .with_actor_id(flight_actor_id)
     .with_wsids(vec![workspace_id]);
     let _ = state.flight_recorder.record_event(event).await;
 
@@ -3758,6 +3813,7 @@ async fn place_block_on_canvas(
                 // Generic block reference (existing block placed on the canvas),
                 // not the inline text-card editor path.
                 is_text_card: false,
+                stage_provenance_key: None,
             },
         )
         .await
@@ -3778,6 +3834,45 @@ struct CreateCanvasCardRequest {
     h: f64,
     #[serde(default)]
     z_index: Option<i32>,
+    /// Present only for a Stage embed-back card. The backend validates this
+    /// against the persisted body and serializes all independent clients on a
+    /// PostgreSQL transaction advisory lock before importing any content.
+    #[serde(default)]
+    stage_provenance: Option<LoomCanvasStageProvenance>,
+}
+
+fn validated_stage_provenance_key(
+    payload: &CreateCanvasCardRequest,
+) -> ApiResult<Option<String>> {
+    let Some(provenance) = payload.stage_provenance.as_ref() else {
+        return Ok(None);
+    };
+    if provenance.schema_id != LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA
+        || provenance.artifact_id.trim().is_empty()
+        || provenance.manifest_ref.trim().is_empty()
+        || provenance.causal_action_id.trim().is_empty()
+        || provenance.sha256.len() != 64
+        || !provenance
+            .sha256
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(bad_request("invalid_canvas_stage_provenance"));
+    }
+    let expected_title = format!("Stage capture {}", provenance.artifact_id);
+    let body = payload
+        .body
+        .as_deref()
+        .ok_or_else(|| bad_request("invalid_canvas_stage_provenance"))?;
+    let body_provenance = serde_json::from_str::<LoomCanvasStageProvenance>(body)
+        .map_err(|_| bad_request("invalid_canvas_stage_provenance"))?;
+    if payload.title != expected_title || body_provenance != *provenance {
+        return Err(bad_request("invalid_canvas_stage_provenance"));
+    }
+    let canonical = serde_json::to_vec(provenance).map_err(internal_error)?;
+    let mut hasher = Sha256::new();
+    hasher.update(canonical);
+    Ok(Some(format!("{:x}", hasher.finalize())))
 }
 
 #[derive(Debug, Serialize)]
@@ -3785,6 +3880,7 @@ struct CreateCanvasCardResponse {
     block: LoomBlock,
     rich_document_id: String,
     placement: LoomCanvasPlacement,
+    created_by_request: bool,
 }
 
 /// Create a free-text card: a REAL note LoomBlock (content_type=note) backed by
@@ -3796,7 +3892,39 @@ async fn create_canvas_card(
     Json(payload): Json<CreateCanvasCardRequest>,
 ) -> ApiResult<Json<CreateCanvasCardResponse>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
+    let stage_provenance_key = validated_stage_provenance_key(&payload)?;
     let ctx = WriteContext::human(None);
+
+    if let Some(stage_provenance_key) = stage_provenance_key {
+        let card = state
+            .storage
+            .create_stage_canvas_card(
+                &ctx,
+                NewLoomCanvasStageCard {
+                    canvas_block_id: block_id,
+                    workspace_id,
+                    title: payload.title,
+                    markdown: payload.body.unwrap_or_default(),
+                    stage_provenance_key,
+                    stage_provenance: payload
+                        .stage_provenance
+                        .expect("validated Stage provenance is present"),
+                    x: payload.x,
+                    y: payload.y,
+                    w: payload.w,
+                    h: payload.h,
+                    z_index: payload.z_index.unwrap_or(0),
+                },
+            )
+            .await
+            .map_err(map_storage_error)?;
+        return Ok(Json(CreateCanvasCardResponse {
+            block: card.block,
+            rich_document_id: card.rich_document_id,
+            placement: card.placement,
+            created_by_request: card.created_by_request,
+        }));
+    }
 
     let imported = state
         .storage
@@ -3826,6 +3954,7 @@ async fn create_canvas_card(
                 // Inline text-card editor origin: mark so the frontend restores
                 // an inline-editable text card across sessions (MT-080 FIX A).
                 is_text_card: true,
+                stage_provenance_key: None,
             },
         )
         .await
@@ -3835,6 +3964,56 @@ async fn create_canvas_card(
         block: imported.block,
         rich_document_id: imported.rich_document_id,
         placement,
+        created_by_request: true,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+struct CompensateCanvasStageCardRequest {
+    placed_block_id: String,
+    stage_provenance: LoomCanvasStageProvenance,
+}
+
+#[derive(Debug, Serialize)]
+struct CompensateCanvasStageCardResponse {
+    removed_by_request: bool,
+}
+
+/// Compensate only a Stage-created card whose complete ownership receipt still
+/// matches. The storage operation shares the create advisory-lock domain and
+/// removes all owned authority/projection rows in one PostgreSQL transaction.
+async fn compensate_stage_canvas_card(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id, placement_id)): Path<(String, String, String)>,
+    Json(payload): Json<CompensateCanvasStageCardRequest>,
+) -> ApiResult<Json<CompensateCanvasStageCardResponse>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let stage_provenance_key = {
+        if payload.stage_provenance.schema_id != LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA {
+            return Err(bad_request("invalid_canvas_stage_provenance"));
+        }
+        let canonical = serde_json::to_vec(&payload.stage_provenance).map_err(internal_error)?;
+        let mut hasher = Sha256::new();
+        hasher.update(canonical);
+        format!("{:x}", hasher.finalize())
+    };
+    let compensated = state
+        .storage
+        .compensate_stage_canvas_card(
+            &WriteContext::human(None),
+            CompensateLoomCanvasStageCard {
+                canvas_block_id: block_id,
+                workspace_id,
+                placement_id,
+                placed_block_id: payload.placed_block_id,
+                stage_provenance_key,
+                stage_provenance: payload.stage_provenance,
+            },
+        )
+        .await
+        .map_err(map_storage_error)?;
+    Ok(Json(CompensateCanvasStageCardResponse {
+        removed_by_request: compensated.removed_by_request,
     }))
 }
 
@@ -3964,10 +4143,11 @@ struct CreateBlockViewRequest {
 async fn create_block_view(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<CreateBlockViewRequest>,
 ) -> ApiResult<Json<BlockViewRecord>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let ctx = WriteContext::human(None);
+    let ctx = block_view_write_context(&headers);
 
     // The view is born as a normal LoomBlock first (note type), then flipped to
     // view_def with its definition — so it picks up the same bridge + receipt
@@ -4014,17 +4194,21 @@ async fn create_block_view(
         .await
         .map_err(map_storage_error)?;
 
+    let (flight_actor, flight_actor_id) = block_view_flight_actor(&ctx);
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockCreated,
-        FlightRecorderActor::Human,
+        flight_actor,
         Uuid::now_v7(),
         json!({
-            "type": "loom_block_view_created",
+            "type": "loom_block_created",
             "workspace_id": workspace_id,
             "block_id": record.block.block_id,
-            "view_kind": record.definition.kind.as_str(),
+            "content_type": "view_def",
+            "asset_id": null,
+            "content_hash": null,
         }),
     )
+    .with_actor_id(flight_actor_id)
     .with_wsids(vec![workspace_id]);
     let _ = state.flight_recorder.record_event(event).await;
 
@@ -4054,23 +4238,21 @@ struct UpdateBlockViewRequest {
 async fn update_block_view(
     State(state): State<AppState>,
     Path((workspace_id, block_id)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<UpdateBlockViewRequest>,
 ) -> ApiResult<Json<BlockViewRecord>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
+    let ctx = block_view_write_context(&headers);
     let record = state
         .storage
-        .update_block_view_definition(
-            &WriteContext::human(None),
-            &workspace_id,
-            &block_id,
-            payload.definition,
-        )
+        .update_block_view_definition(&ctx, &workspace_id, &block_id, payload.definition)
         .await
         .map_err(map_storage_error)?;
 
+    let (flight_actor, flight_actor_id) = block_view_flight_actor(&ctx);
     let event = FlightRecorderEvent::new(
         FlightRecorderEventType::LoomBlockUpdated,
-        FlightRecorderActor::Human,
+        flight_actor,
         Uuid::now_v7(),
         json!({
             "type": "loom_block_updated",
@@ -4079,6 +4261,7 @@ async fn update_block_view(
             "updated_by": "user",
         }),
     )
+    .with_actor_id(flight_actor_id)
     .with_wsids(vec![workspace_id]);
     let _ = state.flight_recorder.record_event(event).await;
 
@@ -4324,6 +4507,7 @@ mod tests {
         let _ = patch_loom_block(
             State(state.clone()),
             Path((workspace_id.clone(), block_id.clone())),
+            axum::http::HeaderMap::new(),
             Json(LoomBlockPatchRequest {
                 update: LoomBlockUpdate {
                     title: Some("Edited embedding write path note".to_string()),
@@ -4793,6 +4977,7 @@ mod tests {
         let pinned = patch_loom_block(
             State(state.clone()),
             Path((workspace_id.clone(), block_id.clone())),
+            axum::http::HeaderMap::new(),
             Json(LoomBlockPatchRequest {
                 update: LoomBlockUpdate {
                     pinned: Some(true),
@@ -4862,6 +5047,7 @@ mod tests {
         let unpinned = patch_loom_block(
             State(state.clone()),
             Path((workspace_id.clone(), block_id.clone())),
+            axum::http::HeaderMap::new(),
             Json(LoomBlockPatchRequest {
                 update: LoomBlockUpdate {
                     pinned: Some(false),
@@ -5015,6 +5201,7 @@ mod tests {
                 patch_loom_block(
                     State(state),
                     Path((workspace_id, block_id)),
+                    axum::http::HeaderMap::new(),
                     Json(LoomBlockPatchRequest {
                         update: LoomBlockUpdate::default(),
                         add_tags: add,

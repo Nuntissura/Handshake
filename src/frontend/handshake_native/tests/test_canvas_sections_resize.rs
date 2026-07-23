@@ -10,8 +10,8 @@
 //!     drag-STOP (one PATCH per gesture — RISK-061-1 / MC-061-1). Proven against the REAL widget with a
 //!     synthesized pointer drag on the handle (the MT-057/058 wire-into-live lesson — NOT isolated math).
 //!   - PT-061-2 / AC-061-3: dragging a card into a section frame assigns that frame's group_id via the
-//!     SAME placement PATCH semantics ([`CanvasEvent::AssignSection{Some}`]); dropping outside all frames
-//!     clears it ([`CanvasEvent::AssignSection{None}`]).
+//!     SAME atomic placement PATCH semantics ([`CanvasEvent::MovePlacement`] with `group_id: Some`);
+//!     dropping outside all frames clears it with `group_id: None` while persisting x/y in that same event.
 //!   - PT-061-3 / AC-061-4: double-clicking a free-text card enters in-place edit mode (egui
 //!     TextEdit::multiline) and typing/Escape-discard work LIVE. Committing fires the CONTRACT-MANDATED
 //!     typed blocker [`CanvasEvent::TextCardEditBlocked`] — the cards endpoint is create-only and the real
@@ -36,7 +36,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::graph::canvas_board::{
     placement_resize_author_id, CanvasEvent, CanvasPlacementCard, LoomCanvasBoard,
@@ -242,6 +244,12 @@ fn canvas_resize_handle_fires_one_debounced_patch() {
         (c.w, c.h)
     };
     assert!(
+        (w1 - (w0 + 60.0)).abs() < 0.5 && (h1 - (h0 + 40.0)).abs() < 0.5,
+        "multi-frame resize applies egui's per-frame drag_delta exactly once: expected {}x{}, got {w1}x{h1}",
+        w0 + 60.0,
+        h0 + 40.0
+    );
+    assert!(
         w1 > w0 + 30.0,
         "AC-061-1: resize must GROW the card width live (got {w0} -> {w1})"
     );
@@ -365,17 +373,38 @@ fn canvas_drop_into_section_assigns_then_clears() {
     let inside_frame = canvas_to_screen(&board, egui::pos2(200.0, 200.0));
     drag(&mut harness, p2_center, inside_frame);
 
-    // AC-061-3 (assign): an AssignSection{Some("g-research")} fired for p-002, and the card now reflects
-    // the group locally (the AccessKit data-group-id updates this frame).
-    let assigned = events_ck.lock().unwrap().iter().any(|e| {
-        matches!(e,
-        CanvasEvent::AssignSection { placement_id, group_id: Some(g) }
-            if placement_id == "p-002" && g == "g-research")
-    });
+    // AC-061-3 (assign): MovePlacement carries both final x/y and Some("g-research"), and the card now
+    // reflects the group locally (the AccessKit data-group-id updates this frame).
+    let assigned = events_ck
+        .lock()
+        .unwrap()
+        .iter()
+        .find_map(|event| match event {
+            CanvasEvent::MovePlacement {
+                placement_id,
+                x,
+                y,
+                group_id: Some(group_id),
+            } if placement_id == "p-002" && group_id == "g-research" => Some((*x, *y)),
+            _ => None,
+        });
+    let assigned_xy =
+        assigned.expect("AC-061-3: drop INSIDE the frame must persist x/y plus Some(g-research)");
     assert!(
-        assigned,
-        "AC-061-3: drop INSIDE the frame must AssignSection{{Some(g-research)}}"
+        (assigned_xy.0 - 140.0).abs() < 0.5 && (assigned_xy.1 - 160.0).abs() < 0.5,
+        "multi-frame move lands the 120x80 card center exactly at canvas (200,200); got {assigned_xy:?}"
     );
+    let optimistic_xy = {
+        let board = board.lock().unwrap();
+        let card = board
+            .placements
+            .iter()
+            .find(|placement| placement.placement_id == "p-002")
+            .unwrap();
+        (card.x, card.y)
+    };
+    assert!((assigned_xy.0 - optimistic_xy.0).abs() < f32::EPSILON);
+    assert!((assigned_xy.1 - optimistic_xy.1).abs() < f32::EPSILON);
     assert_eq!(
         board
             .lock()
@@ -390,7 +419,7 @@ fn canvas_drop_into_section_assigns_then_clears() {
         "the dropped card's group_id is set locally (optimistic, confirmed by the next refresh)"
     );
 
-    // Now drag p-002 back OUT of every frame -> AssignSection{None} (clear). p-002 is now inside the
+    // Now drag p-002 back OUT of every frame -> MovePlacement{group_id:None} (clear). p-002 is now inside the
     // frame; drag it far to the right (well outside the padded frame bounds).
     events_ck.lock().unwrap().clear();
     let p2_now_canvas = {
@@ -407,14 +436,32 @@ fn canvas_drop_into_section_assigns_then_clears() {
     let outside = canvas_to_screen(&board, egui::pos2(820.0, 600.0));
     drag(&mut harness, p2_now, outside);
 
-    let cleared = events_ck.lock().unwrap().iter().any(|e| {
-        matches!(e,
-        CanvasEvent::AssignSection { placement_id, group_id: None } if placement_id == "p-002")
-    });
-    assert!(
-        cleared,
-        "AC-061-3: drop OUTSIDE all frames must AssignSection{{None}} (clear)"
-    );
+    let cleared = events_ck
+        .lock()
+        .unwrap()
+        .iter()
+        .find_map(|event| match event {
+            CanvasEvent::MovePlacement {
+                placement_id,
+                x,
+                y,
+                group_id: None,
+            } if placement_id == "p-002" => Some((*x, *y)),
+            _ => None,
+        });
+    let cleared_xy =
+        cleared.expect("AC-061-3: drop OUTSIDE all frames must persist x/y plus clear the group");
+    let optimistic_xy = {
+        let board = board.lock().unwrap();
+        let card = board
+            .placements
+            .iter()
+            .find(|placement| placement.placement_id == "p-002")
+            .unwrap();
+        (card.x, card.y)
+    };
+    assert!((cleared_xy.0 - optimistic_xy.0).abs() < f32::EPSILON);
+    assert!((cleared_xy.1 - optimistic_xy.1).abs() < f32::EPSILON);
     assert_eq!(
         board
             .lock()
@@ -430,6 +477,30 @@ fn canvas_drop_into_section_assigns_then_clears() {
     println!(
         "PT-061-2/AC-061-3: drop-inside assigned g-research; drop-outside cleared the section"
     );
+}
+
+#[test]
+fn canvas_pan_drag_applies_each_frame_delta_exactly_once() {
+    let board = shared(LoomCanvasBoard::new("ws-pan", "canvas-pan"));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let events_check = Arc::clone(&events);
+    let mut harness = harness_for(Arc::clone(&board), events);
+    harness.run();
+
+    let from = egui::pos2(500.0, 400.0);
+    let to = from + egui::vec2(60.0, 40.0);
+    drag(&mut harness, from, to);
+
+    let pan = board.lock().unwrap().pan;
+    assert!(
+        (pan.x - 60.0).abs() < 0.5 && (pan.y - 40.0).abs() < 0.5,
+        "multi-frame pan applies egui's per-frame drag_delta exactly once; got {pan:?}"
+    );
+    assert!(events_check.lock().unwrap().iter().any(|event| matches!(
+        event,
+        CanvasEvent::ViewportChanged { pan_x, pan_y, .. }
+            if (*pan_x - 60.0).abs() < 0.5 && (*pan_y - 40.0).abs() < 0.5
+    )));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

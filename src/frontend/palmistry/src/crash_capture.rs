@@ -589,8 +589,9 @@ mod tests {
         let worker = std::thread::spawn(move || {
             // `catch_unwind` so an assertion panic INSIDE the body is captured and re-raised on THIS test
             // thread (not lost on the worker) — the test still fails on a real assertion, not just a hang.
-            let outcome =
-                std::panic::catch_unwind(std::panic::AssertUnwindSafe(shipped_handler_roundtrip_body));
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                shipped_handler_roundtrip_body,
+            ));
             let _ = done_tx.send(());
             outcome
         });

@@ -3,16 +3,17 @@
 //!
 //! ## Tools
 //!
-//! | method         | params                                  | result                                            |
-//! |----------------|-----------------------------------------|---------------------------------------------------|
-//! | `list_widgets` | `{}`                                    | the MT-026 [`UiTreeSnapshot`] JSON                 |
-//! | `click_widget` | `{ "target": "<author_id>", "payload"?: <json|string> }` | `{ "queued": true, "action": "Click", "node_id": N }` |
-//! | `set_value`    | `{ "target": "<author_id>", "value": "…" }` | `{ "queued": true, "action": "Focus", "node_id": N }` (Focus + text — see [`super::action`]) |
-//! | `screenshot`   | `{}`                                    | `{ png_base64, width, height, captured_at_utc }`  |
+//! | method              | params                                  | result                                            |
+//! |---------------------|-----------------------------------------|---------------------------------------------------|
+//! | `argus.inspect`     | `{}`                                    | the MT-026 [`UiTreeSnapshot`] JSON                 |
+//! | `argus.click`       | `{ "target": "<author_id>", "payload"?: <json|string> }` | `{ "queued": true, "action": "Click", "node_id": N }` |
+//! | `argus.set_value`   | `{ "target": "<author_id>", "value": "…" }` | `{ "queued": true, "action": "SetValue", "node_id": N }` (one target-specific AccessKit replacement) |
+//! | `argus.screenshot`  | `{}`                                    | `{ png_base64, width, height, captured_at_utc }`  |
 //!
-//! `click_widget` / `set_value` ENQUEUE an action onto the [`ActionChannel`]; the egui frame loop (or
+//! The legacy `list_widgets`, `click_widget`, `set_value`, and `screenshot` spellings remain aliases.
+//! `argus.click` / `argus.set_value` ENQUEUE an action onto the [`ActionChannel`]; the egui frame loop (or
 //! the live test) drains it and feeds it to egui the next frame. The result reports what was queued,
-//! NOT the post-action UI state — a reader takes a fresh `list_widgets` after a frame to observe the
+//! NOT the post-action UI state — a reader takes a fresh `argus.inspect` after a frame to observe the
 //! effect (the contract's "one frame latency" note; the live test advances a frame between the two).
 //!
 //! ## Transport independence
@@ -37,6 +38,7 @@ use egui::accesskit;
 
 use crate::accessibility::UiTreeSnapshot;
 use crate::mcp::action::{ActionChannel, ActionError, UiAction};
+use crate::mcp::argus::ArgusMethod;
 use crate::mcp::screenshot::{ScreenshotError, ScreenshotResult};
 
 /// JSON-RPC error: the `session_token` was missing or did not match (red-team: unauthorized caller).
@@ -165,7 +167,7 @@ fn key_from_hex_or_hash(hex: &str) -> [u8; 32] {
 pub struct McpRequest {
     /// JSON-RPC id echoed back in the response (number or string; kept as the raw JSON value).
     pub id: serde_json::Value,
-    /// The tool name (`list_widgets` / `click_widget` / `set_value` / `screenshot`).
+    /// The canonical `argus.*` tool name or a retained legacy alias.
     pub method: String,
     /// The method params object (`{}` for the no-arg tools).
     pub params: serde_json::Value,
@@ -304,8 +306,12 @@ impl McpToolError {
 
 impl From<ActionError> for McpError {
     fn from(e: ActionError) -> Self {
-        let code = match e {
+        let code = match &e {
             ActionError::QueueFull => ERR_ACTION_QUEUE_FULL,
+            ActionError::InvalidNumericValue { .. } | ActionError::InvalidValue { .. } => {
+                ERR_INVALID_PARAMS
+            }
+            ActionError::TargetBusy { .. } => ERR_LEASE_TIMEOUT,
             _ => ERR_TOOL_FAILED,
         };
         McpError {
@@ -328,9 +334,9 @@ impl From<ScreenshotError> for McpError {
 ///
 /// - `token`: the session's secret; the request's `session_token` is checked against it FIRST (a bad
 ///   token never reaches a tool — red-team: unauthorized caller cannot enumerate or steer).
-/// - `snapshot`: a current-frame [`UiTreeSnapshot`] (the READ surface). `list_widgets` returns it;
-///   `click_widget`/`set_value` resolve the target against it.
-/// - `channel`: the action queue `click_widget`/`set_value` enqueue onto.
+/// - `snapshot`: a current-frame [`UiTreeSnapshot`] (the READ surface). `argus.inspect` returns it;
+///   `argus.click`/`argus.set_value` resolve the target against it.
+/// - `channel`: the action queue `argus.click`/`argus.set_value` enqueue onto.
 /// - `capture`: a closure that produces a [`ScreenshotResult`] (the live test wires `Harness::render()`
 ///   + PNG encode). Taken as a closure so this dispatch stays transport- AND renderer-agnostic.
 ///
@@ -353,14 +359,30 @@ pub fn dispatch_request(
         );
     }
 
-    // 2. Method dispatch.
-    match request.method.as_str() {
-        "list_widgets" => {
-            let value = serde_json::to_value(snapshot)
+    // 2. Normalize canonical names and retained compatibility aliases once at the wire boundary.
+    let Some(method) = ArgusMethod::from_wire_name(&request.method) else {
+        return McpResponse::err(
+            request.id.clone(),
+            McpError {
+                code: ERR_METHOD_NOT_FOUND,
+                message: format!("unknown method '{}'", request.method),
+            },
+        );
+    };
+
+    match method {
+        ArgusMethod::Inspect => {
+            let mut value = serde_json::to_value(snapshot)
                 .unwrap_or_else(|_| serde_json::json!({ "error": "snapshot serialize failed" }));
+            if let Some(object) = value.as_object_mut() {
+                object.insert(
+                    "action_receipts".to_owned(),
+                    serde_json::to_value(channel.receipts()).unwrap_or_default(),
+                );
+            }
             McpResponse::ok(request.id.clone(), value)
         }
-        "click_widget" => match parse_target_and_payload(&request.params) {
+        ArgusMethod::Click => match parse_target_and_payload(&request.params) {
             Ok((target, payload)) => {
                 let action = match payload {
                     Some(payload) => UiAction::ClickWithPayload { payload },
@@ -376,7 +398,7 @@ pub fn dispatch_request(
                 },
             ),
         },
-        "set_value" => match parse_target_and_value(&request.params) {
+        ArgusMethod::SetValue => match parse_target_and_value(&request.params) {
             Ok((target, value)) => enqueue_response(
                 request,
                 snapshot,
@@ -392,17 +414,10 @@ pub fn dispatch_request(
                 },
             ),
         },
-        "screenshot" => match capture() {
+        ArgusMethod::Screenshot => match capture() {
             Ok(shot) => McpResponse::ok(request.id.clone(), shot.to_json()),
             Err(e) => McpResponse::err(request.id.clone(), e.into()),
         },
-        other => McpResponse::err(
-            request.id.clone(),
-            McpError {
-                code: ERR_METHOD_NOT_FOUND,
-                message: format!("unknown method '{other}'"),
-            },
-        ),
     }
 }
 
@@ -423,6 +438,7 @@ fn enqueue_response(
                 "action": action_name,
                 "node_id": node_id_u64(&outcome.request.target),
                 "target": target,
+                "receipt_id": outcome.receipt_id,
             }),
         ),
         Err(e) => McpResponse::err(request.id.clone(), e.into()),
@@ -605,6 +621,122 @@ mod tests {
         assert_eq!(v["result"]["action"], "Click");
         assert_eq!(v["result"]["node_id"], 10);
         assert_eq!(chan.pending(), 1);
+    }
+
+    #[test]
+    fn inspect_exposes_post_render_action_receipts() {
+        let token = SessionToken::from_hex("secret");
+        let snapshot = snap();
+        let mut chan = ActionChannel::new();
+        let queued = dispatch_request(
+            &req(
+                "argus.click",
+                serde_json::json!({"target": "btn"}),
+                "secret",
+            ),
+            &token,
+            &snapshot,
+            &mut chan,
+            ok_capture,
+        );
+        let receipt_id = queued.to_json()["result"]["receipt_id"].as_u64().unwrap();
+        assert_eq!(chan.drain_revalidated_into_events(&snapshot).len(), 1);
+        chan.acknowledge_after_render(&snapshot);
+        let inspected = dispatch_request(
+            &req("argus.inspect", serde_json::json!({}), "secret"),
+            &token,
+            &snapshot,
+            &mut chan,
+            ok_capture,
+        )
+        .to_json();
+        let receipt = inspected["result"]["action_receipts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|receipt| receipt["receipt_id"].as_u64() == Some(receipt_id))
+            .unwrap();
+        assert_eq!(receipt["status"], "indeterminate");
+    }
+
+    #[test]
+    fn inspect_exposes_timestamp_refreshed_dispatch_receipt_to_the_caller() {
+        let token = SessionToken::from_hex("secret");
+        let snapshot = snap();
+        let mut channel = ActionChannel::new();
+        let queued = dispatch_request(
+            &req(
+                "argus.click",
+                serde_json::json!({"target": "btn"}),
+                "secret",
+            ),
+            &token,
+            &snapshot,
+            &mut channel,
+            ok_capture,
+        );
+        let receipt_id = queued.to_json()["result"]["receipt_id"].as_u64().unwrap();
+        let mut newer_snapshot = snapshot.clone();
+        newer_snapshot.captured_at_utc = "1Z".to_owned();
+        assert_eq!(
+            channel.drain_revalidated_into_events(&newer_snapshot).len(),
+            1,
+            "a frame timestamp refresh alone does not invalidate an unchanged target",
+        );
+        let inspected = dispatch_request(
+            &req("argus.inspect", serde_json::json!({}), "secret"),
+            &token,
+            &newer_snapshot,
+            &mut channel,
+            ok_capture,
+        )
+        .to_json();
+        let receipt = inspected["result"]["action_receipts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|receipt| receipt["receipt_id"].as_u64() == Some(receipt_id))
+            .unwrap();
+        assert_eq!(receipt["status"], "dispatched");
+        assert_eq!(
+            receipt["expected_generation"],
+            newer_snapshot.captured_at_utc
+        );
+        assert!(receipt["rejection"].is_null());
+    }
+
+    #[test]
+    fn invalid_target_domain_is_rejected_before_it_can_report_queued() {
+        let token = SessionToken::from_hex("secret");
+        let mut snapshot = snap();
+        let target = &mut snapshot.root.children[0];
+        target.id = "settings-editor-word-wrap".to_owned();
+        target.author_id = Some("settings-editor-word-wrap".to_owned());
+        target.role = "ComboBox".to_owned();
+        target.actions = vec!["SetValue".to_owned()];
+        let mut channel = ActionChannel::new();
+        let response = dispatch_request(
+            &req(
+                "argus.set_value",
+                serde_json::json!({
+                    "target": "settings-editor-word-wrap",
+                    "value": "diagonal"
+                }),
+                "secret",
+            ),
+            &token,
+            &snapshot,
+            &mut channel,
+            ok_capture,
+        )
+        .to_json();
+        assert_eq!(response["error"]["code"], ERR_INVALID_PARAMS);
+        assert!(response["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("expected off, on, or bounded"));
+        assert_eq!(channel.pending(), 0);
+        assert!(channel.receipts().is_empty());
     }
 
     #[test]

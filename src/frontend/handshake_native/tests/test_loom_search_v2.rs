@@ -19,15 +19,16 @@
 //!     SAME builders, so a stale URL / mis-shaped body can never reach the real backend unnoticed).
 //!   - PROOF7 (PT-4, HBR-VIS): a screenshot of the rendered panel (query bar + 2 facets + 3 rows with
 //!     visible highlight coloring) to the EXTERNAL artifact root.
-//!   - PT-1/PT-2 (real-PG integration): the `#[ignore]`d live tests that spawn-against a seeded
-//!     handshake_core + PostgreSQL — NEEDS_MANAGED_RESOURCE_PROOF (run with a live backend). They NEVER
-//!     fake PG; absent a seeded backend they are skipped, the request-builder proofs covering the wire.
+//!   - PT-1/PT-2 (real-PG integration): a nonignored `integration`-feature proof owns an isolated
+//!     workspace, self-seeds three differing block types, drives the mounted HandshakeApp panel, saves
+//!     and reloads a real view definition, proves error/rebind behavior, and verifies canonical cleanup.
 //!
 //! ## Backend reality (Spec-Realism Gate / MT-022..027 pattern)
 //!
-//! AC-2 (a real query populates a real response) requires a running, seeded handshake_core; that is the
-//! `*_live_pg` `#[ignore]` integration test below (PT-1/PT-2). The standalone rendering + parser +
-//! state-machine + request-builder proofs are the deterministic, GPU/backend-free evidence.
+//! AC-2 (a real query populates a real response) requires a running handshake_core backed by PostgreSQL;
+//! the feature-gated proof below creates and removes its own fixture and is deliberately not ignored.
+//! The standalone rendering + parser + state-machine + request-builder proofs remain deterministic,
+//! GPU/backend-free regression evidence.
 //!
 //! ## Artifact hygiene (CX-212E)
 //!
@@ -40,7 +41,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::backend_client::{
     LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Client, LoomSearchV2Hit, LoomSearchV2Response,
@@ -55,6 +58,10 @@ use handshake_native::pane_registry::{
     PaneType,
 };
 use handshake_native::theme::HsTheme;
+
+#[cfg(feature = "integration")]
+#[path = "interconnect_support/mod.rs"]
+mod interconnect_support;
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic.
 fn external_artifact_dir(subdir: &str) -> PathBuf {
@@ -173,7 +180,7 @@ fn harness_for<'a>(
 }
 
 /// Collect every author_id present in the live AccessKit tree.
-fn author_ids(harness: &Harness<'_, ()>) -> HashSet<String> {
+fn author_ids<State>(harness: &Harness<'_, State>) -> HashSet<String> {
     let mut ids = HashSet::new();
     for node in harness.root().children_recursive() {
         if let Some(a) = node.accesskit_node().author_id() {
@@ -184,13 +191,13 @@ fn author_ids(harness: &Harness<'_, ()>) -> HashSet<String> {
 }
 
 /// Click the node addressed by `author_id` via the AccessKit Click action.
-fn click_author_id(harness: &Harness<'_, ()>, author_id: &str) {
+fn click_author_id<State>(harness: &Harness<'_, State>, author_id: &str) {
     let node = harness
         .root()
         .children_recursive()
         .find(|n| n.accesskit_node().author_id() == Some(author_id))
         .unwrap_or_else(|| panic!("no node with author_id '{author_id}' to click"));
-    node.click();
+    node.click_accesskit();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -200,6 +207,7 @@ fn click_author_id(harness: &Harness<'_, ()>, author_id: &str) {
 #[test]
 fn accesskit_tree_has_all_contract_author_ids() {
     let mut s = LoomSearchV2PanelState::new();
+    s.bind_workspace(Some("ws-1"));
     s.query = "alpha".to_owned();
     s.response = Some(mock_response());
     let state = Arc::new(Mutex::new(s));
@@ -229,7 +237,7 @@ fn accesskit_tree_has_all_contract_author_ids() {
         ids.contains(&facet_author_id("code")),
         "PT-3: facet.code missing"
     );
-    // A result row id (the contract names `loom-search-v2.result.{block_id_0}`).
+    // A result row id (the contract names `search.result.{block_id_0}`).
     assert!(
         ids.contains(&result_author_id("blk-1")),
         "PT-3: result.blk-1 missing"
@@ -254,6 +262,7 @@ fn accesskit_tree_has_all_contract_author_ids() {
 #[test]
 fn status_line_reflects_semantic_off() {
     let mut s = LoomSearchV2PanelState::new();
+    s.bind_workspace(Some("ws-1"));
     s.response = Some(mock_response()); // semantic_available = false, total = 3
     let state = Arc::new(Mutex::new(s));
     let opened = Arc::new(Mutex::new(Vec::new()));
@@ -276,6 +285,7 @@ fn status_line_reflects_semantic_off() {
 #[test]
 fn clicking_result_row_opens_block() {
     let mut s = LoomSearchV2PanelState::new();
+    s.bind_workspace(Some("ws-1"));
     s.query = "alpha".to_owned();
     s.response = Some(mock_response());
     let state = Arc::new(Mutex::new(s));
@@ -306,6 +316,7 @@ fn clicking_result_row_opens_block() {
 #[test]
 fn clicking_active_facet_clears_filter() {
     let mut s = LoomSearchV2PanelState::new();
+    s.bind_workspace(Some("ws-1"));
     s.query = "alpha".to_owned();
     s.active_content_type = Some("note".to_owned()); // note facet already active
     s.response = Some(mock_response());
@@ -353,6 +364,7 @@ fn save_view_button_disabled_without_results() {
 
     // With results => enabled.
     let mut s2 = LoomSearchV2PanelState::new();
+    s2.bind_workspace(Some("ws-1"));
     s2.response = Some(mock_response());
     let state2 = Arc::new(Mutex::new(s2));
     let opened2 = Arc::new(Mutex::new(Vec::new()));
@@ -533,6 +545,7 @@ fn parser_mc1_case_from_integration_crate() {
 fn loom_search_v2_screenshot() {
     let _g = wgpu_guard();
     let mut s = LoomSearchV2PanelState::new();
+    s.bind_workspace(Some("ws-1"));
     s.query = "alpha".to_owned();
     s.response = Some(mock_response());
     let state = Arc::new(Mutex::new(s));
@@ -660,6 +673,7 @@ fn pane_opens_via_registry_and_renders_real_panel() {
     // Seed the panel state with a mock response so the registry-dispatched render shows real
     // facets/rows/highlight (the in-product render path — NOT an out-of-band show() call).
     let mut state = LoomSearchV2PanelState::new();
+    state.bind_workspace(Some("ws-1"));
     state.query = "alpha".to_owned();
     state.response = Some(mock_response());
     let factory: Box<dyn PaneFactory> = Box::new(LoomSearchV2PaneFactory::with_state(
@@ -714,117 +728,1171 @@ fn pane_opens_via_registry_and_renders_real_panel() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// PT-1 / PT-2 (real-PG integration, NEEDS_MANAGED_RESOURCE_PROOF): the live search + save-as-view
-// against a seeded handshake_core + PostgreSQL. `#[ignore]` so the default `cargo test` (no backend)
-// does not depend on a running server. Run with a live, seeded backend on 127.0.0.1:37501:
-//
-//   cargo test -p handshake-native --test test_loom_search_v2 -- --ignored
-//
-// Requires env `HSK_TEST_WORKSPACE_ID` pointing at a workspace seeded with >= 3 Loom blocks of
-// differing content_types whose text matches `HSK_TEST_QUERY` (default "the"). NEVER fakes PG.
+// PT-1 / PT-2 LIVE MANAGED INTEGRATION. Feature-gated but deliberately NOT ignored. The test owns
+// its fixture lifecycle and writes its success receipt only after fresh canonical cleanup proof.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 
-#[test]
-#[ignore = "needs a live handshake_core + PostgreSQL on 127.0.0.1:37501 and HSK_TEST_WORKSPACE_ID seeded with >=3 blocks"]
-fn loom_search_v2_live_pg() {
-    use handshake_native::backend_client::LoomSearchCell;
-    use std::time::{Duration, Instant};
+/// A real loopback reverse proxy used only by the managed mounted proof. Its public base contains a
+/// path prefix that the production default does not have. The mounted product client sends genuine
+/// HTTP traffic to that distinct address; the proxy records it, strips the proof prefix, forwards the
+/// same request to the managed handshake_core/PostgreSQL backend, and relays the real response.
+/// Therefore a factory that silently kept `BACKEND_BASE_URL` could still render backend data, but the
+/// required prefixed captures would be absent and the proof would fail.
+#[cfg(feature = "integration")]
+struct ManagedRebindProxy {
+    base: String,
+    captured: Arc<Mutex<Vec<ManagedProxyRequest>>>,
+    save_response_gate: Arc<ManagedSaveResponseGate>,
+    connection_workers: Arc<Mutex<Vec<std::thread::JoinHandle<()>>>>,
+    stop: Arc<std::sync::atomic::AtomicBool>,
+    worker: Option<std::thread::JoinHandle<()>>,
+}
 
-    let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID").expect(
-        "set HSK_TEST_WORKSPACE_ID to a workspace seeded with >=3 differing-content_type blocks",
-    );
-    let query = std::env::var("HSK_TEST_QUERY").unwrap_or_else(|_| "the".to_owned());
+#[cfg(feature = "integration")]
+#[derive(Clone, Debug)]
+struct ManagedProxyRequest {
+    method: String,
+    prefixed_path: String,
+    body: serde_json::Value,
+}
 
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(1)
-        .enable_all()
-        .build()
-        .expect("build multi-thread runtime");
-    let client = LoomSearchV2Client::new(TEST_BASE, runtime.handle().clone());
+#[cfg(feature = "integration")]
+struct ParsedProxyRequest {
+    method: String,
+    path: String,
+    headers: Vec<(String, String)>,
+    body: Vec<u8>,
+}
 
-    let body = LoomSearchV2Body::baseline(query.clone(), None);
-    let cell: LoomSearchCell = Arc::new(Mutex::new(None));
-    client.search(&workspace_id, &body, Arc::clone(&cell));
+/// A deterministic response-order gate for the mounted stale-save regression. The proxy still
+/// forwards the request to the real managed backend immediately; it only holds the corresponding
+/// HTTP response after persistence succeeds, allowing a replacement facet search to finish first.
+#[cfg(feature = "integration")]
+#[derive(Default)]
+struct ManagedSaveResponseGate {
+    armed: std::sync::atomic::AtomicBool,
+    held: Mutex<bool>,
+    released: Mutex<bool>,
+    release_cv: std::sync::Condvar,
+    response_written: std::sync::atomic::AtomicBool,
+    persisted_view_ids: Mutex<Vec<String>>,
+}
 
-    let deadline = Instant::now() + Duration::from_secs(5);
-    let delivered = loop {
-        if let Some(v) = cell.lock().unwrap().take() {
-            break v;
-        }
-        if Instant::now() > deadline {
-            panic!("PT-1: loom_search_v2 did not deliver within 5s");
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    };
-
-    let resp = delivered.expect("PT-1: real search succeeded against the live backend");
-    assert!(
-        !resp.hits.is_empty(),
-        "PT-1: expected >= 1 hit for query '{query}'"
-    );
-    for h in &resp.hits {
-        assert!(
-            !h.block.block_id.is_empty(),
-            "PT-1: each hit carries a block_id"
-        );
-        assert!(
-            h.score > 0.0,
-            "PT-1: each hit has score > 0.0 (got {})",
-            h.score
-        );
+#[cfg(feature = "integration")]
+impl ManagedSaveResponseGate {
+    fn arm(&self) {
+        *self.held.lock().expect("MT-028 save gate held state") = false;
+        *self
+            .released
+            .lock()
+            .expect("MT-028 save gate release state") = false;
+        self.response_written
+            .store(false, std::sync::atomic::Ordering::Release);
+        self.armed.store(true, std::sync::atomic::Ordering::Release);
     }
-    assert!(
-        !resp.content_type_facets.is_empty(),
-        "PT-1: content_type_facets populated"
-    );
-    let first_highlight = resp.hits.iter().find(|h| !h.highlight.is_empty());
-    assert!(
-        first_highlight.is_some(),
-        "PT-1: at least one hit has a non-empty highlight"
-    );
-    println!(
-        "PT-1 PASS: {} hits, {} facets, semantic_available={}, total={} from real PG /loom/search-v2",
-        resp.hits.len(),
-        resp.content_type_facets.len(),
-        resp.semantic_available,
-        resp.total
-    );
+
+    fn claim_if_armed(&self) -> bool {
+        self.armed.swap(false, std::sync::atomic::Ordering::AcqRel)
+    }
+
+    fn hold_after_forward(&self) {
+        {
+            let mut held = self.held.lock().expect("MT-028 save gate held state");
+            *held = true;
+        }
+        let mut released = self
+            .released
+            .lock()
+            .expect("MT-028 save gate release state");
+        while !*released {
+            released = self
+                .release_cv
+                .wait(released)
+                .expect("MT-028 save gate release wait");
+        }
+    }
+
+    fn is_held(&self) -> bool {
+        *self.held.lock().expect("MT-028 save gate held state")
+    }
+
+    fn release(&self) {
+        let mut released = self
+            .released
+            .lock()
+            .expect("MT-028 save gate release state");
+        *released = true;
+        self.release_cv.notify_all();
+    }
+
+    fn mark_response_written(&self) {
+        self.response_written
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+
+    fn response_written(&self) -> bool {
+        self.response_written
+            .load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    fn record_persisted_view_id(&self, response_body: &[u8]) {
+        let value: serde_json::Value =
+            serde_json::from_slice(response_body).expect("MT-028 successful save response is JSON");
+        let block_id = value["block"]["block_id"]
+            .as_str()
+            .expect("MT-028 successful save response contains block.block_id")
+            .to_owned();
+        self.persisted_view_ids
+            .lock()
+            .expect("MT-028 persisted view ids")
+            .push(block_id);
+    }
+
+    fn persisted_view_ids(&self) -> Vec<String> {
+        self.persisted_view_ids
+            .lock()
+            .expect("MT-028 persisted view ids")
+            .clone()
+    }
+}
+
+#[cfg(feature = "integration")]
+fn read_proxy_request(stream: &mut std::net::TcpStream) -> ParsedProxyRequest {
+    use std::io::Read as _;
+
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+        .expect("set MT-028 proxy read timeout");
+    let mut bytes = Vec::new();
+    let mut header_end = None;
+    let mut expected_len = None;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let mut chunk = [0_u8; 8192];
+        let count = match stream.read(&mut chunk) {
+            Ok(count) => count,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::WouldBlock
+                        | std::io::ErrorKind::TimedOut
+                        | std::io::ErrorKind::Interrupted
+                ) && std::time::Instant::now() < deadline =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(5));
+                continue;
+            }
+            Err(error) => panic!("read MT-028 proxy request: {error}"),
+        };
+        assert!(
+            count > 0,
+            "MT-028 proxy peer closed before request completed"
+        );
+        bytes.extend_from_slice(&chunk[..count]);
+        if header_end.is_none() {
+            header_end = bytes.windows(4).position(|window| window == b"\r\n\r\n");
+            if let Some(end) = header_end {
+                let headers = String::from_utf8_lossy(&bytes[..end]);
+                let content_len = headers
+                    .lines()
+                    .find_map(|line| {
+                        let (name, value) = line.split_once(':')?;
+                        name.eq_ignore_ascii_case("content-length")
+                            .then(|| value.trim().parse::<usize>().expect("valid content-length"))
+                    })
+                    .unwrap_or(0);
+                expected_len = Some(end + 4 + content_len);
+            }
+        }
+        if expected_len.is_some_and(|expected| bytes.len() >= expected) {
+            break;
+        }
+    }
+
+    let end = header_end.expect("MT-028 proxy request has headers");
+    let header_text = String::from_utf8(bytes[..end].to_vec()).expect("ASCII HTTP headers");
+    let mut lines = header_text.lines();
+    let request_line = lines.next().expect("MT-028 proxy request line");
+    let mut request_parts = request_line.split_whitespace();
+    let method = request_parts.next().expect("request method").to_owned();
+    let path = request_parts.next().expect("request path").to_owned();
+    let headers = lines
+        .filter_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            Some((name.trim().to_owned(), value.trim().to_owned()))
+        })
+        .collect();
+    let body_start = end + 4;
+    let body_end = expected_len.expect("MT-028 proxy expected request length");
+    ParsedProxyRequest {
+        method,
+        path,
+        headers,
+        body: bytes[body_start..body_end].to_vec(),
+    }
+}
+
+#[cfg(feature = "integration")]
+fn relay_proxy_request(
+    stream: &mut std::net::TcpStream,
+    runtime: &tokio::runtime::Runtime,
+    client: &reqwest::Client,
+    upstream_base: &str,
+    captured: &Arc<Mutex<Vec<ManagedProxyRequest>>>,
+    save_response_gate: &ManagedSaveResponseGate,
+) {
+    use std::io::Write as _;
+
+    const PREFIX: &str = "/mt028-rebind";
+    let request = read_proxy_request(stream);
+    let upstream_path = request
+        .path
+        .strip_prefix(PREFIX)
+        .unwrap_or_else(|| panic!("rebound request missing {PREFIX} prefix: {}", request.path))
+        .to_owned();
+    let hold_save_response = request.method == "POST"
+        && upstream_path.ends_with("/loom/views/definitions")
+        && save_response_gate.claim_if_armed();
+    let body_json = if request.body.is_empty() {
+        serde_json::Value::Null
+    } else {
+        serde_json::from_slice(&request.body).unwrap_or_else(|_| {
+            serde_json::Value::String(String::from_utf8_lossy(&request.body).into_owned())
+        })
+    };
+    captured
+        .lock()
+        .expect("MT-028 proxy capture")
+        .push(ManagedProxyRequest {
+            method: request.method.clone(),
+            prefixed_path: request.path.clone(),
+            body: body_json,
+        });
+
+    let method = reqwest::Method::from_bytes(request.method.as_bytes()).expect("valid HTTP method");
+    let mut outbound = client.request(method, format!("{upstream_base}{upstream_path}"));
+    for (name, value) in &request.headers {
+        if ![
+            "host",
+            "content-length",
+            "connection",
+            "transfer-encoding",
+            "accept-encoding",
+        ]
+        .iter()
+        .any(|skip| name.eq_ignore_ascii_case(skip))
+        {
+            outbound = outbound.header(name.as_str(), value.as_str());
+        }
+    }
+    if !request.body.is_empty() {
+        outbound = outbound.body(request.body);
+    }
+    // Construct and poll every reqwest future while this runtime is entered. Calling
+    // `runtime.block_on(outbound.send())` still constructs `send()` first, outside the reactor, and
+    // `runtime.block_on(response.bytes())` repeats the same error for the body stream.
+    let forwarded = runtime.block_on(async move {
+        let response = outbound.send().await?;
+        let status = response.status();
+        let content_type = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("application/json")
+            .to_owned();
+        let body = response.bytes().await?.to_vec();
+        Ok::<_, reqwest::Error>((status, content_type, body))
+    });
+    let (status, content_type, body) = match forwarded {
+        Ok((status, content_type, body)) => (status, content_type, body),
+        Err(error) => (
+            reqwest::StatusCode::BAD_GATEWAY,
+            "text/plain".to_owned(),
+            format!("MT-028 managed proxy upstream failure: {error}").into_bytes(),
+        ),
+    };
+    if request.method == "POST"
+        && upstream_path.ends_with("/loom/views/definitions")
+        && status.is_success()
+    {
+        save_response_gate.record_persisted_view_id(&body);
+    }
+    if hold_save_response {
+        save_response_gate.hold_after_forward();
+    }
+    write!(
+        stream,
+        "HTTP/1.1 {} {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        status.as_u16(),
+        status.canonical_reason().unwrap_or("Unknown"),
+        content_type,
+        body.len()
+    )
+    .expect("write MT-028 proxy response headers");
+    stream
+        .write_all(&body)
+        .expect("write MT-028 proxy response body");
+    stream.flush().expect("flush MT-028 proxy response");
+    if hold_save_response {
+        save_response_gate.mark_response_written();
+    }
+}
+
+#[cfg(feature = "integration")]
+impl ManagedRebindProxy {
+    fn start(upstream_base: String) -> Self {
+        use std::sync::atomic::Ordering;
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0")
+            .expect("bind distinct MT-028 managed reverse proxy");
+        listener
+            .set_nonblocking(true)
+            .expect("set MT-028 proxy nonblocking");
+        let address = listener.local_addr().expect("MT-028 proxy address");
+        let base = format!("http://{address}/mt028-rebind");
+        let captured = Arc::new(Mutex::new(Vec::new()));
+        let captured_for_worker = Arc::clone(&captured);
+        let save_response_gate = Arc::new(ManagedSaveResponseGate::default());
+        let save_response_gate_for_worker = Arc::clone(&save_response_gate);
+        let connection_workers = Arc::new(Mutex::new(Vec::new()));
+        let connection_workers_for_accept = Arc::clone(&connection_workers);
+        let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stop_for_worker = Arc::clone(&stop);
+        let worker = std::thread::spawn(move || {
+            while !stop_for_worker.load(Ordering::Acquire) {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        let upstream_base = upstream_base.clone();
+                        let captured = Arc::clone(&captured_for_worker);
+                        let save_response_gate = Arc::clone(&save_response_gate_for_worker);
+                        let connection_worker = std::thread::spawn(move || {
+                            let runtime = tokio::runtime::Builder::new_current_thread()
+                                .enable_all()
+                                .build()
+                                .expect("MT-028 reverse-proxy connection runtime");
+                            // Reqwest's client builder consults Tokio's current reactor for its
+                            // connector. This worker owns a runtime, but merely constructing it does
+                            // not enter its context; building the client outside `enter()` panics on
+                            // the background thread with "there is no reactor running" before the
+                            // mounted request can be forwarded. Enter only for construction, then
+                            // leave before `relay_proxy_request` calls `runtime.block_on`.
+                            let client = {
+                                let _runtime_guard = runtime.enter();
+                                reqwest::Client::builder()
+                                    .timeout(std::time::Duration::from_secs(5))
+                                    .build()
+                                    .expect("MT-028 reverse-proxy connection client")
+                            };
+                            relay_proxy_request(
+                                &mut stream,
+                                &runtime,
+                                &client,
+                                &upstream_base,
+                                &captured,
+                                &save_response_gate,
+                            );
+                        });
+                        connection_workers_for_accept
+                            .lock()
+                            .expect("MT-028 proxy connection workers")
+                            .push(connection_worker);
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(std::time::Duration::from_millis(5));
+                    }
+                    Err(error) => panic!("MT-028 reverse-proxy accept failed: {error}"),
+                }
+            }
+        });
+        Self {
+            base,
+            captured,
+            save_response_gate,
+            connection_workers,
+            stop,
+            worker: Some(worker),
+        }
+    }
+
+    fn arm_next_save_response_hold(&self) {
+        self.save_response_gate.arm();
+    }
+
+    fn save_response_is_held(&self) -> bool {
+        self.save_response_gate.is_held()
+    }
+
+    fn release_held_save_response(&self) {
+        self.save_response_gate.release();
+    }
+
+    fn held_save_response_was_written(&self) -> bool {
+        self.save_response_gate.response_written()
+    }
+
+    fn persisted_view_ids(&self) -> Vec<String> {
+        self.save_response_gate.persisted_view_ids()
+    }
+
+    fn captured_requests(&self) -> Vec<ManagedProxyRequest> {
+        self.captured.lock().expect("MT-028 captures").clone()
+    }
+
+    fn finish(mut self) -> Vec<ManagedProxyRequest> {
+        self.stop_and_join().expect("MT-028 reverse-proxy worker");
+        let captures = self.captured.lock().expect("MT-028 captures").clone();
+        captures
+    }
+
+    fn stop_and_join(&mut self) -> std::thread::Result<()> {
+        self.stop.store(true, std::sync::atomic::Ordering::Release);
+        self.save_response_gate.release();
+        if let Some(worker) = self.worker.take() {
+            worker.join()?;
+        }
+        let connection_workers = {
+            let mut workers = self
+                .connection_workers
+                .lock()
+                .expect("MT-028 proxy connection workers");
+            std::mem::take(&mut *workers)
+        };
+        for worker in connection_workers {
+            worker.join()?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "integration")]
+impl Drop for ManagedRebindProxy {
+    fn drop(&mut self) {
+        // Never double-panic during test unwinding; the explicit `finish` path propagates worker failure.
+        let _ = self.stop_and_join();
+    }
+}
+
+#[cfg(feature = "integration")]
+struct ManagedWorkspaceCleanup<'a> {
+    backend: &'a interconnect_support::LiveBackend,
+    workspace_id: String,
+    cleaned: bool,
+}
+
+#[cfg(feature = "integration")]
+impl ManagedWorkspaceCleanup<'_> {
+    fn clean(&mut self) -> u16 {
+        let status = self.backend.delete_workspace(&self.workspace_id);
+        assert!(
+            matches!(status, 200 | 202 | 204 | 404),
+            "managed workspace cleanup returned HTTP {status}"
+        );
+        self.cleaned = true;
+        status
+    }
+}
+
+#[cfg(feature = "integration")]
+impl Drop for ManagedWorkspaceCleanup<'_> {
+    fn drop(&mut self) {
+        if !self.cleaned {
+            let _ = self.backend.delete_workspace(&self.workspace_id);
+        }
+    }
+}
+
+#[cfg(feature = "integration")]
+fn wait_search_cell(
+    cell: &handshake_native::backend_client::LoomSearchCell,
+) -> Result<LoomSearchV2Response, String> {
+    for _ in 0..200 {
+        if let Some(delivery) = cell.lock().expect("search cell").take() {
+            return delivery;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("managed Loom Search completion exceeded 10 seconds")
+}
+
+#[cfg(feature = "integration")]
+fn wait_panel_idle(state: &mut LoomSearchV2PanelState) {
+    for _ in 0..200 {
+        state.poll();
+        if !state.loading {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("managed Loom Search panel did not become idle within 10 seconds")
 }
 
 #[test]
-#[ignore = "needs a live handshake_core + PostgreSQL on 127.0.0.1:37501 and HSK_TEST_WORKSPACE_ID"]
-fn loom_search_v2_save_view_live_pg() {
-    use handshake_native::backend_client::SaveViewCell;
-    use std::time::{Duration, Instant};
+#[cfg(feature = "integration")]
+fn loom_search_v2_managed_mounted_search_facet_save_reload_cleanup() {
+    let live = interconnect_support::require_reachable_backend();
+    let receipt_dir = external_artifact_dir("wp-kernel-012-mt-028");
+    std::fs::create_dir_all(&receipt_dir).expect("create MT-028 external receipt directory");
+    let receipt_path = receipt_dir.join("MT-028-managed-loom-search-v2-receipt.json");
+    if receipt_path.exists() {
+        std::fs::remove_file(&receipt_path).expect("remove stale MT-028 success receipt");
+    }
+    assert!(
+        !receipt_path.exists(),
+        "stale success receipt must be absent before proof"
+    );
 
-    let workspace_id = std::env::var("HSK_TEST_WORKSPACE_ID")
-        .expect("set HSK_TEST_WORKSPACE_ID to a real workspace");
+    let unique = format!(
+        "mt028-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock after unix epoch")
+            .as_nanos()
+    );
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = ManagedWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+    let needle = format!("mt028needle{}{}", std::process::id(), unique.len());
+    let mut seeded = BTreeMap::new();
+    for (content_type, suffix) in [("note", "alpha"), ("file", "beta"), ("tag_hub", "gamma")] {
+        let created = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({
+                "content_type": content_type,
+                "title": format!("{needle} {suffix}")
+            }),
+        );
+        seeded.insert(
+            content_type.to_owned(),
+            created["block_id"]
+                .as_str()
+                .expect("block create returns block_id")
+                .to_owned(),
+        );
+    }
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(1)
+        .worker_threads(2)
         .enable_all()
         .build()
-        .expect("build multi-thread runtime");
-    let client = LoomSearchV2Client::new(TEST_BASE, runtime.handle().clone());
-
-    let cell: SaveViewCell = Arc::new(Mutex::new(None));
-    client.save_view(&workspace_id, "the", None, Arc::clone(&cell));
-
-    let deadline = Instant::now() + Duration::from_secs(5);
-    let delivered = loop {
-        if let Some(v) = cell.lock().unwrap().take() {
-            break v;
-        }
-        if Instant::now() > deadline {
-            panic!("PT-2: save-as-view did not deliver within 5s");
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    };
-
-    let block_id = delivered.expect("PT-2: save-as-view succeeded against the live backend");
-    assert!(
-        !block_id.is_empty(),
-        "PT-2: createBlockView returned a non-empty view block_id"
+        .expect("managed MT-028 runtime");
+    let client = LoomSearchV2Client::new(live.base.clone(), runtime.handle().clone());
+    let direct_cell: handshake_native::backend_client::LoomSearchCell = Arc::new(Mutex::new(None));
+    client.search(
+        &workspace_id,
+        &LoomSearchV2Body::baseline(needle.clone(), None),
+        Arc::clone(&direct_cell),
     );
-    println!("PT-2 PASS: save-as-view created Loom view block_id={block_id} via POST /loom/views/definitions");
+    let direct = wait_search_cell(&direct_cell).expect("real managed hybrid search succeeds");
+    assert_eq!(
+        direct.total, 3,
+        "isolated workspace returns its three seeded blocks"
+    );
+    assert_eq!(direct.hits.len(), 3);
+    assert_eq!(direct.content_type_facets.get("note"), Some(&1));
+    assert_eq!(direct.content_type_facets.get("file"), Some(&1));
+    assert_eq!(direct.content_type_facets.get("tag_hub"), Some(&1));
+    assert!(
+        !direct.semantic_available,
+        "managed default without an embedding model must truthfully report semantic unavailable"
+    );
+    let direct_ids: HashSet<_> = direct
+        .hits
+        .iter()
+        .map(|hit| hit.block.block_id.as_str())
+        .collect();
+    for block_id in seeded.values() {
+        assert!(direct_ids.contains(block_id.as_str()));
+    }
+    for hit in &direct.hits {
+        assert!(hit.score > 0.0, "real hit score must be positive");
+        assert_eq!(
+            hit.vector_sim, 0.0,
+            "semantic-unavailable path cannot invent vector similarity"
+        );
+        assert!(hit.highlight.contains("<mark>"));
+        let segments = parse_highlight_segments(&hit.highlight);
+        assert!(segments.iter().any(|segment| segment.marked));
+        assert!(segments.iter().all(|segment| {
+            !segment.text.contains("<mark>") && !segment.text.contains("</mark>")
+        }));
+    }
+
+    // A canonical title mutation must atomically refresh the derived search row: the old query loses
+    // this exact note id, the new query gains the same id under the same facet, and restoring the title
+    // reverses both observations. This is a real PATCH -> PostgreSQL -> search-v2 counterfactual.
+    let renamed_needle = "zephyrquartzvexingfjord".to_owned();
+    let note_block_id = seeded["note"].clone();
+    let renamed = live.patch_json(
+        &format!("/workspaces/{workspace_id}/loom/blocks/{note_block_id}"),
+        &serde_json::json!({ "title": renamed_needle }),
+    );
+    assert_eq!(renamed["block_id"], note_block_id);
+    assert_eq!(renamed["title"], renamed_needle);
+
+    let old_note_cell: handshake_native::backend_client::LoomSearchCell =
+        Arc::new(Mutex::new(None));
+    client.search(
+        &workspace_id,
+        &LoomSearchV2Body::baseline(needle.clone(), Some("note".to_owned())),
+        Arc::clone(&old_note_cell),
+    );
+    let old_note = wait_search_cell(&old_note_cell).expect("old title search succeeds");
+    assert_eq!(
+        old_note.total, 0,
+        "renamed note must leave the old note query"
+    );
+
+    let renamed_note_cell: handshake_native::backend_client::LoomSearchCell =
+        Arc::new(Mutex::new(None));
+    client.search(
+        &workspace_id,
+        &LoomSearchV2Body::baseline(renamed_needle.clone(), Some("note".to_owned())),
+        Arc::clone(&renamed_note_cell),
+    );
+    let renamed_note = wait_search_cell(&renamed_note_cell).expect("renamed title search succeeds");
+    assert_eq!(renamed_note.total, 1);
+    assert_eq!(renamed_note.hits[0].block.block_id, note_block_id);
+    assert_eq!(renamed_note.hits[0].block.content_type, "note");
+
+    let restored = live.patch_json(
+        &format!("/workspaces/{workspace_id}/loom/blocks/{note_block_id}"),
+        &serde_json::json!({ "title": format!("{needle} alpha") }),
+    );
+    assert_eq!(restored["block_id"], note_block_id);
+    let restored_note_cell: handshake_native::backend_client::LoomSearchCell =
+        Arc::new(Mutex::new(None));
+    client.search(
+        &workspace_id,
+        &LoomSearchV2Body::baseline(needle.clone(), Some("note".to_owned())),
+        Arc::clone(&restored_note_cell),
+    );
+    let restored_note =
+        wait_search_cell(&restored_note_cell).expect("restored title search succeeds");
+    assert_eq!(restored_note.total, 1);
+    assert_eq!(restored_note.hits[0].block.block_id, note_block_id);
+
+    // Empty input is rejected before transport; a real connection refusal becomes a visible terminal
+    // error, and rebinding the same state to the live client recovers without stale results.
+    let mut recovery = LoomSearchV2PanelState::new();
+    recovery.query = "   ".to_owned();
+    recovery.run_search(&client, Some(&workspace_id));
+    assert_eq!(recovery.error.as_deref(), Some("Search query is required"));
+    assert!(!recovery.loading);
+    recovery.query = needle.clone();
+    let unavailable = LoomSearchV2Client::new("http://127.0.0.1:9", runtime.handle().clone());
+    recovery.run_search(&unavailable, Some(&workspace_id));
+    wait_panel_idle(&mut recovery);
+    assert!(
+        recovery.error.is_some(),
+        "backend refusal is visible and bounded"
+    );
+    recovery.run_search(&client, Some(&workspace_id));
+    wait_panel_idle(&mut recovery);
+    assert!(recovery.error.is_none());
+    assert_eq!(
+        recovery.response.as_ref().map(|response| response.total),
+        Some(3)
+    );
+    recovery.active_content_type = Some("note".to_owned());
+    recovery.view_status = Some("stale receipt".to_owned());
+    assert!(recovery.bind_workspace(Some("different-workspace")));
+    assert!(recovery.response.is_none());
+    assert!(recovery.active_content_type.is_none());
+    assert!(recovery.view_status.is_none());
+
+    // Production-mounted proof: rebind the actual HandshakeApp factory to a DISTINCT prefixed reverse
+    // proxy, open through the operator command, submit with Enter, invalidate an already-displayed
+    // response by editing the query, rerun through a facet, and save through the mounted UI. The proxy
+    // forwards genuine product traffic to this same managed backend and captures the prefixed requests;
+    // a factory that retained BACKEND_BASE_URL cannot satisfy those capture assertions.
+    let rebind_proxy = ManagedRebindProxy::start(live.base.clone());
+    assert_ne!(rebind_proxy.base, live.base);
+    assert_ne!(
+        rebind_proxy.base,
+        handshake_native::backend_client::BACKEND_BASE_URL
+    );
+    let mut app = handshake_native::app::HandshakeApp::with_health(
+        handshake_native::app::HealthDisplayState::Ok(
+            handshake_native::backend_client::HealthInfo {
+                status: "ok".to_owned(),
+                db_status: "ok".to_owned(),
+                migration_version: Some(1),
+            },
+        ),
+    );
+    app.set_backend_base_url_for_test(&rebind_proxy.base, runtime.handle().clone());
+    app.bind_active_project_for_integration_test(workspace_id.clone());
+    assert!(app.dispatch_palette_action_for_test(
+        handshake_native::command_registry::CMD_VIEW_LOOM_SEARCH
+    ));
+    let _managed_wgpu_guard = wgpu_guard();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 760.0))
+        .wgpu()
+        .build_state(
+            |ctx, app: &mut handshake_native::app::HandshakeApp| app.ui(ctx),
+            app,
+        );
+    harness.run_steps(2);
+    let baseline_ids = author_ids(&harness);
+    for stable in [
+        QUERY_AUTHOR_ID,
+        SEARCH_AUTHOR_ID,
+        SAVE_VIEW_AUTHOR_ID,
+        STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            baseline_ids.contains(stable),
+            "mounted UI missing stable id {stable}"
+        );
+    }
+    let query_input = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(QUERY_AUTHOR_ID))
+        .expect("mounted Loom Search query input");
+    // `egui_kittest::Node::type_text` emits only `Event::Text`; it does not focus the TextEdit first.
+    // Drive the real stable AccessKit Focus action and let the mounted shell consume it before typing,
+    // otherwise the text event has no recipient and Enter truthfully dispatches no search.
+    query_input.focus();
+    harness.run_steps(1);
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(QUERY_AUTHOR_ID))
+        .expect("focused mounted Loom Search query input")
+        .type_text(&needle);
+    harness.run_steps(1);
+    harness.key_press(egui::Key::Enter);
+    for _ in 0..400 {
+        harness.run_steps(1);
+        let ids = author_ids(&harness);
+        if seeded
+            .values()
+            .all(|id| ids.contains(&result_author_id(id)))
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    // Assert delivery independently before inspecting row exposure. If this fails, the mounted
+    // transport/query/generation path did not publish the managed response; a subsequent row-id
+    // failure therefore means AccessKit exposure, not an ambiguous network/timing failure.
+    harness.get_by_label("3 results (keyword/fuzzy only)");
+    let ids = author_ids(&harness);
+    for block_id in seeded.values() {
+        assert!(
+            ids.contains(&result_author_id(block_id)),
+            "managed response delivered, but mounted AccessKit tree lacks result row {block_id}; ids={ids:?}"
+        );
+    }
+    for content_type in ["note", "file", "tag_hub"] {
+        assert!(ids.contains(&facet_author_id(content_type)));
+    }
+
+    // Edit query A after its rows are already mounted. The TextEdit's real `changed()` path must
+    // synchronously remove A's rows and disable Save before any query-B request is submitted.
+    let query_input = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(QUERY_AUTHOR_ID))
+        .expect("mounted query remains addressable after results");
+    query_input.focus();
+    harness.run_steps(1);
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(QUERY_AUTHOR_ID))
+        .expect("refocused mounted query after results")
+        .type_text("x");
+    harness.run_steps(1);
+    let edited_ids = author_ids(&harness);
+    for block_id in seeded.values() {
+        assert!(
+            !edited_ids.contains(&result_author_id(block_id)),
+            "editing query A invalidates its already-displayed row {block_id}"
+        );
+    }
+    let save_disabled = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(SAVE_VIEW_AUTHOR_ID))
+        .map(|node| node.accesskit_node().is_disabled())
+        .expect("mounted Save as view remains addressable");
+    assert!(
+        save_disabled,
+        "edited query B cannot save query A's displayed response"
+    );
+
+    // Restore the exact seeded query and exercise Enter a second time. No Search-button click is used
+    // for the mounted live search path.
+    harness.key_press(egui::Key::Backspace);
+    harness.run_steps(1);
+    harness.key_press(egui::Key::Enter);
+    for _ in 0..400 {
+        harness.run_steps(1);
+        let ids = author_ids(&harness);
+        if seeded
+            .values()
+            .all(|id| ids.contains(&result_author_id(id)))
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let restored_ids = author_ids(&harness);
+    for block_id in seeded.values() {
+        assert!(restored_ids.contains(&result_author_id(block_id)));
+    }
+    harness.get_by_label("3 results (keyword/fuzzy only)");
+
+    click_author_id(&harness, &facet_author_id("note"));
+    for _ in 0..400 {
+        harness.run_steps(1);
+        let ids = author_ids(&harness);
+        if ids.contains(&result_author_id(&seeded["note"]))
+            && !ids.contains(&result_author_id(&seeded["file"]))
+            && !ids.contains(&result_author_id(&seeded["tag_hub"]))
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let note_ids = author_ids(&harness);
+    assert!(
+        note_ids.contains(&result_author_id(&seeded["note"]))
+            && !note_ids.contains(&result_author_id(&seeded["file"]))
+            && !note_ids.contains(&result_author_id(&seeded["tag_hub"])),
+        "initial note facet must replace the unfiltered set; result_ids={:?}; captures={:#?}",
+        note_ids
+            .iter()
+            .filter(|id| id.starts_with("search.result."))
+            .collect::<Vec<_>>(),
+        rebind_proxy.captured_requests()
+    );
+    harness.get_by_label("1 result (keyword/fuzzy only)");
+    let save_disabled = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(SAVE_VIEW_AUTHOR_ID))
+        .map(|node| node.accesskit_node().is_disabled())
+        .expect("mounted note-facet Save as view remains addressable");
+    assert!(
+        !save_disabled,
+        "note-facet result must enable Save before the stale-response gate is armed"
+    );
+
+    // Hold the real note-facet save response only AFTER the proxy has forwarded it and the managed
+    // backend has persisted the view. Then clear the active facet and let that replacement search
+    // finish before releasing the old receipt. The mounted panel must retain the current unfiltered
+    // identity and never attribute the late note-facet receipt to it.
+    rebind_proxy.arm_next_save_response_hold();
+    click_author_id(&harness, SAVE_VIEW_AUTHOR_ID);
+    harness.run_steps(1);
+    for _ in 0..400 {
+        harness.run_steps(1);
+        if rebind_proxy.save_response_is_held() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(
+        rebind_proxy.save_response_is_held(),
+        "the real note-facet save response must be held after upstream persistence"
+    );
+
+    let stale_saved_view_id = rebind_proxy
+        .persisted_view_ids()
+        .into_iter()
+        .next()
+        .expect("held mounted save returned a canonical persisted block id");
+
+    let view_facet_cell: handshake_native::backend_client::LoomSearchCell =
+        Arc::new(Mutex::new(None));
+    client.search(
+        &workspace_id,
+        &LoomSearchV2Body::baseline(needle.clone(), Some("view_def".to_owned())),
+        Arc::clone(&view_facet_cell),
+    );
+    let view_facet = wait_search_cell(&view_facet_cell)
+        .expect("persisted saved view is searchable under the exact view_def facet");
+    assert_eq!(view_facet.total, 1);
+    assert_eq!(view_facet.hits.len(), 1);
+    assert_eq!(view_facet.hits[0].block.block_id, stale_saved_view_id);
+    assert_eq!(view_facet.hits[0].block.content_type, "view_def");
+    assert_eq!(view_facet.content_type_facets.get("view_def"), Some(&1));
+    assert_eq!(view_facet.content_type_facets.get("note"), Some(&1));
+    assert_eq!(view_facet.content_type_facets.get("file"), Some(&1));
+    assert_eq!(view_facet.content_type_facets.get("tag_hub"), Some(&1));
+    assert_eq!(view_facet.content_type_facets.len(), 4);
+
+    click_author_id(&harness, &facet_author_id("note"));
+    for _ in 0..400 {
+        harness.run_steps(1);
+        let ids = author_ids(&harness);
+        if seeded
+            .values()
+            .all(|block_id| ids.contains(&result_author_id(block_id)))
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let current_unfiltered_ids = author_ids(&harness);
+    for block_id in seeded.values() {
+        assert!(
+            current_unfiltered_ids.contains(&result_author_id(block_id)),
+            "replacement unfiltered search must become current before the old save response"
+        );
+    }
+    assert!(
+        current_unfiltered_ids.contains(&result_author_id(&stale_saved_view_id)),
+        "the already-persisted view definition participates in the replacement unfiltered search"
+    );
+    harness.get_by_label("4 results (keyword/fuzzy only)");
+    assert!(
+        harness
+            .query_by_label(&format!("Saved search as Loom view {stale_saved_view_id}"))
+            .is_none(),
+        "the held old-facet receipt is not visible before release"
+    );
+
+    rebind_proxy.release_held_save_response();
+    for _ in 0..400 {
+        harness.run_steps(1);
+        if rebind_proxy.held_save_response_was_written() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(
+        rebind_proxy.held_save_response_was_written(),
+        "the stale save response must actually be written after the current facet result"
+    );
+    for _ in 0..40 {
+        harness.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(
+        harness
+            .query_by_label(&format!("Saved search as Loom view {stale_saved_view_id}"))
+            .is_none(),
+        "a stale note-facet save delivered last cannot publish into the current unfiltered panel"
+    );
+    let after_stale_delivery_ids = author_ids(&harness);
+    for block_id in seeded.values() {
+        assert!(
+            after_stale_delivery_ids.contains(&result_author_id(block_id)),
+            "late stale save delivery cannot replace the current unfiltered result set"
+        );
+    }
+    assert!(after_stale_delivery_ids.contains(&result_author_id(&stale_saved_view_id)));
+    harness.get_by_label("4 results (keyword/fuzzy only)");
+
+    // Return to the note facet and perform a second, current-identity save. This preserves the
+    // original success-receipt/reload proof while distinguishing it from the intentionally orphaned
+    // first receipt.
+    click_author_id(&harness, &facet_author_id("note"));
+    for _ in 0..400 {
+        harness.run_steps(1);
+        let ids = author_ids(&harness);
+        if ids.contains(&result_author_id(&seeded["note"]))
+            && !ids.contains(&result_author_id(&seeded["file"]))
+            && !ids.contains(&result_author_id(&seeded["tag_hub"]))
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    // The mounted panel polls and publishes the async response after drawing its status row,
+    // while result rows are drawn later in the same frame. Advance once so the status surface
+    // reflects the same response generation as the rows asserted below.
+    harness.run_steps(1);
+    let restored_note_ids = author_ids(&harness);
+    assert!(
+        restored_note_ids.contains(&result_author_id(&seeded["note"]))
+            && !restored_note_ids.contains(&result_author_id(&seeded["file"]))
+            && !restored_note_ids.contains(&result_author_id(&seeded["tag_hub"])),
+        "restored note facet must replace the unfiltered set; result_ids={:?}; captures={:#?}",
+        restored_note_ids
+            .iter()
+            .filter(|id| id.starts_with("search.result."))
+            .collect::<Vec<_>>(),
+        rebind_proxy.captured_requests()
+    );
+    harness.get_by_label("1 result (keyword/fuzzy only)");
+    click_author_id(&harness, SAVE_VIEW_AUTHOR_ID);
+
+    let mut saved_view_id = None;
+    for _ in 0..400 {
+        harness.run_steps(1);
+        if let Some(id) = rebind_proxy
+            .persisted_view_ids()
+            .into_iter()
+            .find(|id| id != &stale_saved_view_id)
+        {
+            saved_view_id = Some(id);
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let saved_view_id =
+        saved_view_id.expect("mounted Save as view persisted a searchable view_def");
+    harness.run_steps(2);
+    harness.get_by_label(&format!("Saved search as Loom view {saved_view_id}"));
+    let reloaded = live.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/views/definitions/{saved_view_id}"
+    ));
+    assert_eq!(reloaded["block"]["block_id"], saved_view_id);
+    assert_eq!(reloaded["block"]["content_type"], "view_def");
+    assert_eq!(reloaded["block"]["title"], format!("Search: {needle}"));
+    assert_eq!(reloaded["definition"]["kind"], "table");
+    assert_eq!(reloaded["definition"]["query"]["content_type"], "note");
+    let stale_reloaded = live.get_json(&format!(
+        "/workspaces/{workspace_id}/loom/views/definitions/{stale_saved_view_id}"
+    ));
+    assert_eq!(stale_reloaded["block"]["block_id"], stale_saved_view_id);
+    assert_eq!(
+        stale_reloaded["definition"]["query"]["content_type"], "note",
+        "the deliberately orphaned UI receipt still corresponds to a real persisted note view"
+    );
+    let view_results = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/views/definitions/{saved_view_id}/results"),
+        &serde_json::json!({"limit":25,"offset":0}),
+    );
+    let persisted_ids: HashSet<_> = view_results["blocks"]
+        .as_array()
+        .expect("view results blocks array")
+        .iter()
+        .filter_map(|block| block["block_id"].as_str())
+        .collect();
+    assert!(persisted_ids.contains(seeded["note"].as_str()));
+    assert!(!persisted_ids.contains(seeded["file"].as_str()));
+    assert!(!persisted_ids.contains(seeded["tag_hub"].as_str()));
+
+    click_author_id(&harness, &result_author_id(&seeded["note"]));
+    harness.run_steps(1);
+    assert!(harness.state().tab_bar_states().values().any(|bar| {
+        bar.tabs.iter().any(|tab| {
+            tab.pane_type == PaneType::LoomBlock
+                && tab.content_id.as_deref() == Some(seeded["note"].as_str())
+        })
+    }));
+
+    // Stop the proxy only after every mounted mutation completed, then prove the traffic used the
+    // rebound factory rather than the production default. The path prefix is present only in the
+    // injected base and is stripped by the proxy before the real managed backend sees the request.
+    let rebound_requests = rebind_proxy.finish();
+    let prefixed_search_path = format!("/mt028-rebind/workspaces/{workspace_id}/loom/search-v2");
+    let prefixed_save_path =
+        format!("/mt028-rebind/workspaces/{workspace_id}/loom/views/definitions");
+    let mounted_search_requests: Vec<_> = rebound_requests
+        .iter()
+        .filter(|request| request.method == "POST" && request.prefixed_path == prefixed_search_path)
+        .collect();
+    assert!(
+        mounted_search_requests.len() >= 5,
+        "mounted Enter, restored Enter, note, unfiltered replacement, and restored-note searches must all hit the rebound factory; captures={rebound_requests:#?}"
+    );
+    assert!(mounted_search_requests.iter().any(|request| {
+        request.body["query"].as_str() == Some(needle.as_str())
+            && request.body.get("content_type").is_none()
+    }));
+    assert!(mounted_search_requests.iter().any(|request| {
+        request.body["query"].as_str() == Some(needle.as_str())
+            && request.body["content_type"].as_str() == Some("note")
+    }));
+    let mounted_saves: Vec<_> = rebound_requests
+        .iter()
+        .filter(|request| request.method == "POST" && request.prefixed_path == prefixed_save_path)
+        .collect();
+    assert!(
+        mounted_saves.len() >= 2,
+        "both the deliberately stale and current mounted saves hit the distinct rebound factory"
+    );
+    for mounted_save in mounted_saves {
+        assert_eq!(mounted_save.body["title"], format!("Search: {needle}"));
+        assert_eq!(
+            mounted_save.body["definition"]["query"]["content_type"],
+            "note"
+        );
+    }
+
+    let cleanup_status = cleanup.clean();
+    let workspace_list = live.get_json("/workspaces");
+    let absent = workspace_list
+        .as_array()
+        .expect("workspace list is an array")
+        .iter()
+        .all(|workspace| workspace["id"].as_str() != Some(workspace_id.as_str()));
+    assert!(absent, "fresh workspace list proves canonical cleanup");
+    assert_eq!(
+        live.get_status(&format!(
+            "/workspaces/{workspace_id}/loom/views/definitions/{saved_view_id}"
+        )),
+        404,
+        "deleted workspace cannot reload its saved view"
+    );
+    assert_eq!(
+        live.get_status(&format!(
+            "/workspaces/{workspace_id}/loom/views/definitions/{stale_saved_view_id}"
+        )),
+        404,
+        "deleted workspace also removes the persisted view whose UI receipt was orphaned"
+    );
+    assert!(
+        !receipt_path.exists(),
+        "success receipt remains absent until all proof passes"
+    );
+    let receipt = serde_json::json!({
+        "schema_id": "hsk.mt028.managed_receipt@2",
+        "workspace_id": workspace_id,
+        "seeded_blocks": seeded,
+        "search": {
+            "total": direct.total,
+            "semantic_available": direct.semantic_available,
+            "facet_counts": direct.content_type_facets,
+            "parsed_marked_highlights": true,
+            "mounted_status_truth": "3 results (keyword/fuzzy only)",
+            "mounted_facet_rerun": "note"
+        },
+        "stable_accesskit_ids": [
+            QUERY_AUTHOR_ID, SEARCH_AUTHOR_ID, SAVE_VIEW_AUTHOR_ID, STATUS_AUTHOR_ID,
+            "loom-search-v2.facet.note", "loom-search-v2.facet.file",
+            "loom-search-v2.facet.tag_hub"
+        ],
+        "exact_result_navigation": true,
+        "saved_view": {
+            "block_id": saved_view_id,
+            "reloaded": true,
+            "persisted_note_facet": true
+        },
+        "empty_query_rejected_without_request": true,
+        "backend_refusal_visible_and_live_recovery": true,
+        "workspace_rebind_clears_stale_state": true,
+        "query_edit_orphans_in_flight_and_invalidates_displayed_results": true,
+        "facet_transition_orphans_stale_save_delivered_after_current_results": true,
+        "mounted_enter_search": true,
+        "mounted_factory_rebound_proxy_capture_count": rebound_requests.len(),
+        "cleanup_http_status": cleanup_status,
+        "workspace_absent_from_fresh_list": absent,
+        "deleted_view_reload_http_status": 404,
+        "deleted_orphaned_receipt_view_reload_http_status": 404,
+        "cleanup_verified": true
+    });
+    std::fs::write(
+        &receipt_path,
+        serde_json::to_vec_pretty(&receipt).expect("serialize MT-028 receipt"),
+    )
+    .expect("write MT-028 success receipt after proof");
+    assert!(receipt_path.is_file());
+    assert_no_local_artifact_dir();
 }

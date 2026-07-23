@@ -41,7 +41,9 @@
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::Queryable;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 use unicode_segmentation::UnicodeSegmentation;
 
 use handshake_native::code_editor::virtual_lines::code_line_bidi;

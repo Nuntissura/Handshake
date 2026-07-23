@@ -204,28 +204,40 @@ struct EditorActionNodeHashView<'a>(&'a EditorActionNode);
 /// The handle a pane receives from [`EditorActionRegistry::register`]: it carries the pane's stable
 /// instance index so the pane can build canonical author_ids that are unique across multiple open
 /// panes of the same type (RISK-041-05 / CTRL-041-05).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RegistrationHandle {
     pane_type: PaneType,
     instance_index: usize,
+    instance_key: Option<String>,
 }
 
 impl RegistrationHandle {
     /// The pane type this handle registered.
-    pub fn pane_type(self) -> PaneType {
+    pub fn pane_type(&self) -> PaneType {
         self.pane_type
     }
 
     /// The 0-based stable instance index assigned at registration.
-    pub fn instance_index(self) -> usize {
+    pub fn instance_index(&self) -> usize {
         self.instance_index
+    }
+
+    pub fn instance_key(&self) -> Option<&str> {
+        self.instance_key.as_deref()
     }
 
     /// Build the canonical `editor.<pane>.<action>` author_id for `action_id`, appending the
     /// `.<instance_index>` suffix when this is not the first (index 0) pane of its type (IN-041-02).
     /// Example: `editor.code.find-open`, and `editor.code.find-open.1` for a second code pane.
-    pub fn author_id(self, action_id: &str) -> String {
-        if self.instance_index == 0 {
+    pub fn author_id(&self, action_id: &str) -> String {
+        if let Some(instance_key) = &self.instance_key {
+            format!(
+                "editor.{}.{}.{}",
+                self.pane_type.as_str(),
+                action_id,
+                instance_key
+            )
+        } else if self.instance_index == 0 {
             format!("editor.{}.{}", self.pane_type.as_str(), action_id)
         } else {
             format!(
@@ -234,6 +246,21 @@ impl RegistrationHandle {
                 action_id,
                 self.instance_index
             )
+        }
+    }
+
+    /// Decode an action id previously produced by this exact registration handle. Named split-view
+    /// registrations carry a deterministic string suffix, so callers must not infer ownership from
+    /// the legacy numeric `instance_index` alone.
+    pub fn action_id_from_author_id<'a>(&self, author_id: &'a str) -> Option<&'a str> {
+        let prefix = format!("editor.{}.", self.pane_type.as_str());
+        let rest = author_id.strip_prefix(&prefix)?;
+        if let Some(instance_key) = &self.instance_key {
+            rest.strip_suffix(&format!(".{instance_key}"))
+        } else if self.instance_index > 0 {
+            rest.strip_suffix(&format!(".{}", self.instance_index))
+        } else {
+            Some(rest)
         }
     }
 }
@@ -273,6 +300,23 @@ impl EditorActionRegistry {
         RegistrationHandle {
             pane_type,
             instance_index,
+            instance_key: None,
+        }
+    }
+
+    /// Register a pane under a complete stable identity rather than a truncated numeric hash. The
+    /// caller must supply a filesystem/transport-safe key; document panes use the full hex-encoded
+    /// normalized content identity, making distinct open documents collision-free and open-order
+    /// independent.
+    pub fn register_named(
+        &mut self,
+        pane_type: PaneType,
+        instance_key: impl Into<String>,
+    ) -> RegistrationHandle {
+        RegistrationHandle {
+            pane_type,
+            instance_index: 0,
+            instance_key: Some(instance_key.into()),
         }
     }
 
@@ -364,6 +408,26 @@ impl EditorActionRegistry {
         self.nodes.clear();
     }
 
+    /// Remove every action owned by one pane registration. Hosts call this when a document pane is
+    /// actually closed so stale, still-dispatchable actions cannot survive in the shared registry.
+    pub fn remove_registration(&mut self, handle: &RegistrationHandle) {
+        let prefix = format!("editor.{}.", handle.pane_type().as_str());
+        self.nodes.retain(|author_id, _| {
+            let Some(action_part) = author_id.strip_prefix(&prefix) else {
+                return true;
+            };
+            let owned = if let Some(instance_key) = handle.instance_key() {
+                action_part.ends_with(&format!(".{instance_key}"))
+            } else if handle.instance_index() == 0 {
+                !action_part.contains('.')
+            } else {
+                action_part.ends_with(&format!(".{}", handle.instance_index()))
+            };
+            !owned
+        });
+        self.last_push_hash = None;
+    }
+
     /// Content hash of the full PRESENT node set (author_id + role + label + actions + state), for the
     /// HBR-QUIET unchanged-skip decision (IN-041-09). Absent nodes are excluded because they are not
     /// emitted, so their state churn must not trigger a push.
@@ -453,6 +517,15 @@ impl EditorActionRegistry {
     /// (built by [`crate::mcp::action::build_action_request`]) drives a canonical node exactly like a
     /// real click.
     pub fn take_dispatched(&self, ui: &egui::Ui) -> Vec<String> {
+        self.take_dispatched_with_payload(ui)
+            .into_iter()
+            .map(|(author_id, _)| author_id)
+            .collect()
+    }
+
+    /// Payload-preserving variant for parameterized editor actions. The JSON string is carried by
+    /// AccessKit `ActionData::Value`; a plain click returns `None`.
+    pub fn take_dispatched_with_payload(&self, ui: &egui::Ui) -> Vec<(String, Option<String>)> {
         let mut activated = Vec::new();
         ui.input(|input| {
             for node in self.nodes.values() {
@@ -461,11 +534,15 @@ impl EditorActionRegistry {
                 }
                 let id = node.egui_id();
                 let mut clicked = false;
-                for _ in input.accesskit_action_requests(id, accesskit::Action::Click) {
+                let mut payload = None;
+                for request in input.accesskit_action_requests(id, accesskit::Action::Click) {
                     clicked = true;
+                    if let Some(accesskit::ActionData::Value(value)) = &request.data {
+                        payload = Some(value.to_string());
+                    }
                 }
                 if clicked {
-                    activated.push(node.author_id.clone());
+                    activated.push((node.author_id.clone(), payload));
                 }
             }
         });
@@ -979,6 +1056,49 @@ mod tests {
         assert_eq!(reg.register_auto(PaneType::Code).instance_index(), 1);
         // Distinct pane types track independently.
         assert_eq!(reg.register_auto(PaneType::Rich).instance_index(), 0);
+    }
+
+    #[test]
+    fn named_registration_uses_complete_collision_free_suffix() {
+        let mut reg = EditorActionRegistry::new();
+        let left = reg.register_named(PaneType::Code, "document-2f612e7273");
+        let right = reg.register_named(PaneType::Code, "document-2f622e7273");
+        assert_eq!(
+            left.author_id("save"),
+            "editor.code.save.document-2f612e7273"
+        );
+        assert_ne!(left.author_id("save"), right.author_id("save"));
+        assert_eq!(
+            left.action_id_from_author_id(&left.author_id("save")),
+            Some("save")
+        );
+        assert_eq!(
+            left.action_id_from_author_id(&right.author_id("save")),
+            None,
+            "a deterministic pane namespace is decoded only by its owning handle"
+        );
+    }
+
+    #[test]
+    fn removing_named_registration_drops_only_that_document_namespace() {
+        let mut reg = EditorActionRegistry::new();
+        let left = reg.register_named(PaneType::Code, "document-left");
+        let right = reg.register_named(PaneType::Code, "document-right");
+        reg.upsert(
+            left.author_id("save"),
+            AxRole::Button,
+            "Save left",
+            EditorActionState::button(),
+        );
+        reg.upsert(
+            right.author_id("save"),
+            AxRole::Button,
+            "Save right",
+            EditorActionState::button(),
+        );
+        reg.remove_registration(&left);
+        assert!(reg.node(&left.author_id("save")).is_none());
+        assert!(reg.node(&right.author_id("save")).is_some());
     }
 
     #[test]

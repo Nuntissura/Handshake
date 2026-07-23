@@ -43,6 +43,9 @@ pub const ROW_ROLE: accesskit::Role = accesskit::Role::ListItem;
 /// The AccessKit author_id PREFIX for one note row (`note-ref-{doc_id}`).
 pub const ROW_AUTHOR_ID_PREFIX: &str = "note-ref-";
 
+/// Visible retained-action status while a clicked row waits for the shared bus lock.
+pub const OPEN_PENDING_AUTHOR_ID: &str = "note-ref-open-pending";
+
 /// Build the stable AccessKit author_id for the row of the document `doc_id` (`note-ref-{doc_id}`).
 pub fn row_author_id(doc_id: &str) -> String {
     format!("{ROW_AUTHOR_ID_PREFIX}{doc_id}")

@@ -1,15 +1,9 @@
 //! FEMS memory-write PROPOSAL proofs — WP-KERNEL-012 MT-064 (cluster E9).
 //!
-//! This suite proves the editor→FEMS proposal path end to end at the unit/widget/client level, which is
-//! what is provable NOW. The FEMS proposal WRITE endpoint
-//! (`POST /workspaces/{id}/memory/proposals`) is ABSENT in the current handshake_core build (verified
-//! read-only: `api/knowledge_memory.rs` exposes only five GET reads, no proposal write route), so the
-//! typed-blocker (`MemoryProposalError::MissingEndpoint`) path is the production reality. AC-004 (a live
-//! PG proposal record + a live FR-EVT-MEM-001 ledger event) is the DOUBLE-GATE
-//! `NEEDS_MANAGED_RESOURCE_PROOF`: the proposal write route is likely absent, AND the FR ledger has no
-//! HTTP ingestion route accepting a native-editor `memory_write_proposed` event (only the closed
-//! `runtime_chat_event` — MT-036's documented backend gap). The build_proposal + dialog + typed blocker +
-//! FR payload SHAPE are all proven here against fixtures + an in-process mock server.
+//! This suite proves the editor→FEMS proposal path at unit/widget/client boundaries. The current backend
+//! owns the live review-gated proposal route and native-editor Flight Recorder ingestion; managed-PG
+//! correlation proofs live in `test_fems_interop_proofs`. The 404 typed-blocker remains covered so an
+//! older or capability-restricted backend never triggers a direct-write fallback.
 //!
 //! Proof map:
 //! - PT-001 / AC-001: `build_proposal` sets class + FULL source provenance from a TextRange selection
@@ -35,15 +29,18 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 use serde_json::{json, Value};
 
 use handshake_native::event_emitter::{
     EventLedgerTransport, NativeEditorEvent, NativeEditorEventEmitter,
 };
 use handshake_native::fems::memory_proposal::{
-    content_hash_of_selection, fems_class_author_id, submit_proposal, submit_proposal_and_emit,
-    HandshakeCoreClient, MemoryClass, MemoryProposalError, ProposeToMemoryDialog,
+    build_proposal_for_document, content_hash_of_selection, fems_class_author_id, submit_proposal,
+    submit_proposal_and_emit, HandshakeCoreClient, MemoryClass, MemoryProposalError,
+    ProposalSubmitOutcome, ProposeToMemoryDialog, FEMS_PROPOSE_CANCEL_AUTHOR_ID,
     FEMS_PROPOSE_COMMAND_ID, FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID,
     FEMS_PROPOSE_DIALOG_NODE_ID,
 };
@@ -182,7 +179,7 @@ fn text_range(pane: &str, start: usize, end: usize, text: &str) -> SharedSelecti
 fn build_proposal_full_provenance() {
     // The PT-001 named proof (matches the `cargo test build_proposal` filter): a TextRange selection
     // yields a proposal with the class set and EVERY MemorySourceProvenance field populated.
-    let sel = text_range("pane-rich", 12, 31, "the protagonist Aria");
+    let sel = text_range("pane-rich", 12, 32, "the protagonist Aria");
     let p = build_or_panic(&sel, MemoryClass::Semantic, "WS-1", "actor-3");
 
     assert_eq!(
@@ -192,13 +189,16 @@ fn build_proposal_full_provenance() {
     );
     assert_eq!(p.content, "the protagonist Aria");
     assert_eq!(
-        p.source.document_id, "pane-rich",
-        "AC-001: document_id from the owning pane"
+        p.source.document_id, "DOC-TEST",
+        "AC-001: document_id from the owning pane's authoritative active tab"
     );
     assert_eq!(p.source.pane_id, "pane-rich", "AC-001: pane_id set");
     assert_eq!(p.source.workspace_id, "WS-1", "AC-001: workspace_id set");
     assert_eq!(p.source.selection_start, 12, "AC-001: selection_start set");
-    assert_eq!(p.source.selection_end, 31, "AC-001: selection_end set");
+    assert_eq!(
+        p.source.selection_end, 32,
+        "AC-001: selection_end preserves the authoritative UTF-8 byte offset"
+    );
     assert_eq!(
         p.source.content_hash.len(),
         64,
@@ -243,7 +243,7 @@ fn procedural_review_gated() {
     let sel = text_range("pane-code", 0, 9, "step one\n");
     let proc = build_or_panic(&sel, MemoryClass::Procedural, "WS-1", "a");
     assert!(
-        proc.review_gated,
+        proc.is_review_gated(),
         "AC-002: a Procedural-class proposal is review-gated"
     );
     assert!(proc.is_review_gated());
@@ -252,24 +252,25 @@ fn procedural_review_gated() {
     for class in MemoryClass::ORDER {
         let p = build_or_panic(&sel, class, "WS-1", "a");
         assert!(
-            p.review_gated,
+            p.is_review_gated(),
             "{:?} proposal must be review_gated (never editor-direct commit)",
             class
         );
     }
 
     // No path flips it false: opening + switching class in the dialog keeps it true.
-    let mut dlg = ProposeToMemoryDialog::open(&sel, "WS-1", "a").expect("opens over a selection");
+    let mut dlg = ProposeToMemoryDialog::open_for_document(&sel, "DOC-TEST", "WS-1", "a")
+        .expect("opens over a selection");
     dlg.set_class(MemoryClass::Procedural);
     assert!(
-        dlg.proposal.review_gated,
+        dlg.proposal.is_review_gated(),
         "AC-002: dialog class switch never sets review_gated false"
     );
     println!("PT-002 OK: review_gated==true for all classes incl. Procedural; no auto-commit path");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// PT-004 / AC-005 — the missing-endpoint typed blocker (the DESIGNED primary path).
+// PT-004 / AC-005 — the missing-endpoint typed compatibility/failure path.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -297,7 +298,6 @@ fn missing_endpoint_blocker() {
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // PT-003 / AC-004 — submit to the proposal endpoint creates a proposal + the FR-EVT-MEM-001 SHAPE.
-// (The LIVE PG record + LIVE FR ingestion is the double-gate NEEDS_MANAGED_RESOURCE_PROOF.)
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 /// A capturing FR transport: records the native-editor events the emitter would post (so the test
@@ -328,17 +328,15 @@ impl EventLedgerTransport for CapturingTransport {
 
 #[test]
 fn propose_creates_proposal_via_endpoint() {
-    // A mock "proposal endpoint" that accepts the POST and returns a ProposalAck. This proves the submit
-    // PATH + the FR-EVT-MEM-001 emit SHAPE against a fixture endpoint. The LIVE managed-PG proposal record
-    // + LIVE FR ledger ingestion is NEEDS_MANAGED_RESOURCE_PROOF (the double-gate — see the module docs).
+    // A mock endpoint isolates the wire shape; the managed-PG suite separately proves durable correlation.
     let runtime = rt();
     let (base_url, server) = spawn_mock(
         "HTTP/1.1 200 OK",
-        json!({"proposal_id": "PROP-77", "status": "pending_review"}),
+        json!({"proposal_id": "PROP-7777777777777777777777777777777777777777777777777777777777777777", "status": "pending_review", "created_at": "2026-07-17T00:00:00Z", "flight_recorder_event_id": "550e8400-e29b-41d4-a716-446655440001"}),
     );
     let client = HandshakeCoreClient::with_base_url(base_url);
 
-    // A capturing FR transport so the FR-EVT-MEM-001 emit SHAPE is asserted.
+    // A capturing transport proves the frontend does not emit a duplicate event.
     let captured: Arc<std::sync::Mutex<Vec<NativeEditorEvent>>> =
         Arc::new(std::sync::Mutex::new(Vec::new()));
     let emitter = NativeEditorEventEmitter::new(
@@ -350,11 +348,17 @@ fn propose_creates_proposal_via_endpoint() {
     );
 
     let sel = text_range("pane-rich", 5, 11, "memory");
-    let proposal = build_or_panic(&sel, MemoryClass::Procedural, "WS-1", "actor-1");
+    let proposal =
+        build_proposal_for_document(&sel, MemoryClass::Procedural, "WS-1", "actor-1", "DOC-42")
+            .expect("authoritative text document identity builds");
 
     let ack = runtime
         .block_on(async { submit_proposal_and_emit(&proposal, &client, &emitter).await })
         .expect("AC-004: a 200 from the proposal endpoint yields a ProposalAck");
+    assert!(
+        matches!(&ack, ProposalSubmitOutcome::EventPersisted { .. }),
+        "a correlated success requires the backend-projected FR event UUID in the ack"
+    );
     let (req_line, req_body) = server.join().unwrap();
 
     // The submit is a POST to the documented proposal route (a WRITE — the only write path).
@@ -371,41 +375,91 @@ fn propose_creates_proposal_via_endpoint() {
     assert_eq!(body["class"], "procedural");
     assert_eq!(body["content"], "memory");
     assert_eq!(body["source"]["content_hash"], proposal.source.content_hash);
-    assert_eq!(ack.proposal_id, "PROP-77");
+    assert_eq!(body["source"]["document_id"], "DOC-42");
+    assert_eq!(
+        ack.proposal_id,
+        "PROP-7777777777777777777777777777777777777777777777777777777777777777"
+    );
     assert_eq!(ack.status, "pending_review");
 
-    // The FR-EVT-MEM-001 emit fired with the correct SHAPE (action marker + full provenance).
-    for _ in 0..50 {
-        if !captured.lock().unwrap().is_empty() {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+    // The backend acknowledgement binds the transactionally projected canonical event. The
+    // frontend must not enqueue the former duplicate native-editor envelope.
     let events = captured.lock().unwrap();
     assert_eq!(
         events.len(),
-        1,
-        "AC-008: exactly one FR-EVT-MEM-001 event emitted after the ack"
+        0,
+        "AC-008: no duplicate frontend FR event is emitted after the durable backend ack"
     );
-    let ev = &events[0];
     assert_eq!(
-        ev.action.as_str(),
-        "memory_write_proposed",
-        "AC-008: action marker"
+        match &ack {
+            ProposalSubmitOutcome::EventPersisted { event_id, .. } => event_id.as_str(),
+            other => panic!("expected canonical persisted outcome, got {other:?}"),
+        },
+        "550e8400-e29b-41d4-a716-446655440001"
     );
-    let payload = ev.to_native_payload();
-    assert_eq!(payload["payload"]["proposal_id"], "PROP-77");
-    assert_eq!(payload["payload"]["class"], "procedural");
-    assert_eq!(payload["payload"]["document_id"], "pane-rich");
-    assert_eq!(
-        payload["payload"]["content_hash"],
-        proposal.source.content_hash
-    );
-    assert_eq!(payload["payload"]["review_gated"], true);
     println!(
-        "PT-003 OK (fixture endpoint): proposal POSTed (review_gated), ack={}, FR-EVT-MEM-001 emitted. \
-         LIVE PG record + LIVE FR ingestion = NEEDS_MANAGED_RESOURCE_PROOF (double-gate).",
+        "PT-003 OK (fixture endpoint): proposal POSTed (review_gated), ack={}, canonical FR-EVT-MEM-001 acknowledged.",
         ack.proposal_id
+    );
+}
+
+#[test]
+fn authoritative_text_document_identity_is_required_by_live_dialog_path() {
+    let sel = text_range("pane-rich", 0, 6, "memory");
+    let err = ProposeToMemoryDialog::open_for_document(&sel, "", "WS-1", "actor-1")
+        .expect_err("a text selection without an active document id must fail closed");
+    assert_eq!(
+        err,
+        MemoryProposalError::MissingDocumentIdentity {
+            pane_id: "pane-rich".to_owned()
+        }
+    );
+
+    let dialog =
+        ProposeToMemoryDialog::open_for_document(&sel, "DOC-authoritative", "WS-1", "actor-1")
+            .expect("active tab document id is accepted");
+    assert_eq!(dialog.proposal.source.document_id, "DOC-authoritative");
+    assert_ne!(dialog.proposal.source.document_id, "pane-rich");
+}
+
+#[test]
+fn backend_owned_proposal_event_is_not_rejected_by_frontend_emitter_scope() {
+    let runtime = rt();
+    let (base_url, server) = spawn_mock(
+        "HTTP/1.1 200 OK",
+        json!({"proposal_id": "PROP-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "status": "pending_review", "created_at": "2026-07-17T00:00:00Z", "flight_recorder_event_id": "550e8400-e29b-41d4-a716-446655440002"}),
+    );
+    let client = HandshakeCoreClient::with_base_url(base_url);
+    let captured = Arc::new(std::sync::Mutex::new(Vec::<NativeEditorEvent>::new()));
+    let emitter = NativeEditorEventEmitter::new(
+        "WS-B",
+        Arc::new(CapturingTransport {
+            captured: captured.clone(),
+        }),
+        Some(runtime.handle().clone()),
+    );
+    let sel = text_range("pane-rich", 0, 6, "memory");
+    let proposal =
+        build_proposal_for_document(&sel, MemoryClass::Semantic, "WS-A", "actor-1", "DOC-A")
+            .expect("proposal builds");
+
+    let outcome = runtime
+        .block_on(async { submit_proposal_and_emit(&proposal, &client, &emitter).await })
+        .expect("the proposal POST itself was accepted");
+    let (_request, _body) = server.join().expect("proposal POST captured");
+    match outcome {
+        ProposalSubmitOutcome::EventPersisted { ack, event_id } => {
+            assert_eq!(
+                ack.proposal_id,
+                "PROP-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            );
+            assert_eq!(event_id, "550e8400-e29b-41d4-a716-446655440002");
+        }
+        other => panic!("backend-owned event must be durable independently of the emitter, got {other:?}"),
+    }
+    assert!(
+        captured.lock().unwrap().is_empty(),
+        "a workspace-mismatched FR event must never reach transport"
     );
 }
 
@@ -416,18 +470,65 @@ fn propose_creates_proposal_via_endpoint() {
 #[test]
 fn propose_dialog_accesskit_nodes_present() {
     let sel = text_range("pane-rich", 0, 6, "memory");
-    let dialog =
-        ProposeToMemoryDialog::open(&sel, "WS-1", "actor-1").expect("opens over a selection");
+    let dialog = ProposeToMemoryDialog::open_for_document(&sel, "DOC-TEST", "WS-1", "actor-1")
+        .expect("opens over a selection");
 
+    let mut dialog = dialog;
     let mut harness = Harness::builder()
         .with_size(egui::vec2(420.0, 320.0))
         .wgpu()
         .build_ui(move |ui| {
-            let mut dlg = dialog.clone();
-            let _ = dlg.show(ui, &dark());
+            // Match the mounted product path: the dialog renders inside an egui Window, surrounded by
+            // the host tree. This catches anonymous widget-id collisions that a direct isolated call to
+            // `show` cannot reproduce.
+            egui::Window::new("Propose to Memory")
+                .id(egui::Id::new("fems-propose-to-memory-dialog-test"))
+                .collapsible(false)
+                .resizable(false)
+                .show(ui.ctx(), |ui| {
+                    let _ = dialog.show(ui, &dark());
+                });
         });
     harness.run();
+
+    let first_radio_node_ids = MemoryClass::ORDER.map(|class| {
+        let author = fems_class_author_id(class);
+        harness
+            .root()
+            .children_recursive()
+            .find_map(|node| {
+                let access = node.accesskit_node();
+                (access.author_id() == Some(author.as_str())).then_some(access.id().0)
+            })
+            .unwrap_or_else(|| panic!("first mounted frame is missing '{author}'"))
+    });
+    let distinct_radio_node_ids = first_radio_node_ids
+        .iter()
+        .copied()
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(
+        distinct_radio_node_ids.len(),
+        MemoryClass::ORDER.len(),
+        "each mounted FEMS class radio must own a distinct AccessKit NodeId"
+    );
+
     harness.run();
+
+    let second_radio_node_ids = MemoryClass::ORDER.map(|class| {
+        let author = fems_class_author_id(class);
+        harness
+            .root()
+            .children_recursive()
+            .find_map(|node| {
+                let access = node.accesskit_node();
+                (access.author_id() == Some(author.as_str())).then_some(access.id().0)
+            })
+            .unwrap_or_else(|| panic!("second mounted frame is missing '{author}'"))
+    });
+    assert_eq!(
+        second_radio_node_ids, first_radio_node_ids,
+        "mounted FEMS class radio NodeIds must remain stable across frames"
+    );
 
     let root = harness.root();
 
@@ -452,6 +553,12 @@ fn propose_dialog_accesskit_nodes_present() {
         confirm_role.as_deref(),
         Some("Button"),
         "AC-007: '{FEMS_PROPOSE_CONFIRM_AUTHOR_ID}' must be Role::Button (got {confirm_role:?})"
+    );
+    let cancel_role = role_of(&root, FEMS_PROPOSE_CANCEL_AUTHOR_ID);
+    assert_eq!(
+        cancel_role.as_deref(),
+        Some("Button"),
+        "AC-007: '{FEMS_PROPOSE_CANCEL_AUTHOR_ID}' must be Role::Button (got {cancel_role:?})"
     );
     // RISK-010 / must-fix #5: the dialog author_id appears EXACTLY ONCE in the live tree (a swarm agent
     // gets a single deterministic match — the prior build emitted a SECOND node with the same author_id).
@@ -516,11 +623,24 @@ fn read_no_direct_commit_site() {
             "MC-001/AC-009: no direct memory-commit/write or SQLite token may appear ('{forbidden}')"
         );
     }
-    // The review_gated invariant: it is hard-set true, never assigned false.
-    assert!(
-        src.contains("review_gated: true"),
-        "MC-002: review_gated is hard-set true in build_proposal"
-    );
+    // The review-gated invariant is exposed by behavior rather than a brittle source spelling: every
+    // proposal class reports true and the module contains no false assignment.
+    for class in [
+        MemoryClass::Semantic,
+        MemoryClass::Episodic,
+        MemoryClass::Procedural,
+    ] {
+        let proposal = build_or_panic(
+            &text_range("pane-rich", 0, 4, "test"),
+            class,
+            "WS-1",
+            "actor-review-gate",
+        );
+        assert!(
+            proposal.is_review_gated(),
+            "MC-002: every proposal class is review-gated"
+        );
+    }
     assert!(
         !src.contains("review_gated: false") && !src.contains("review_gated = false"),
         "MC-002/AC-002: review_gated is NEVER set false from the editor"
@@ -581,6 +701,45 @@ fn palette_command_has_real_dispatch_arm() {
         app_src.contains("self.drive_propose_to_memory(ctx)"),
         "must-fix #2: the open dialog is rendered each frame (a visible result, not a no-op)"
     );
+    assert!(
+        app_src.contains("submit_proposal_and_emit")
+            && app_src.contains("memory_proposal_submit_cell")
+            && !app_src.contains("Proposal endpoint not present in this build"),
+        "the confirm arm must dispatch the live proposal+FR workflow off-frame and drain its real result"
+    );
+    let open_request_fn = app_src
+        .split("fn open_memory_proposal_request")
+        .nth(1)
+        .expect("open_memory_proposal_request source")
+        .split("fn invalidate_memory_proposal_state_on_workspace_change")
+        .next()
+        .expect("proposal-open request body");
+    assert!(
+        open_request_fn.contains("authoritative_selection_source")
+            && open_request_fn.contains("request.selection")
+            && open_request_fn.contains("request.emitter")
+            && open_request_fn.contains("pending_memory_proposal_emitter")
+            && open_request_fn.contains("ProposeToMemoryDialog::open_for_document")
+            && open_request_fn.contains("ProposeToMemoryDialog::open_for_document_snapshot"),
+        "dialog-open must resolve owning-tab provenance, preserve the dispatch-time emitter, and use the snapshot-aware path for code"
+    );
+    let confirm_fn = app_src
+        .split("fn drive_propose_to_memory")
+        .nth(1)
+        .expect("drive_propose_to_memory source")
+        .split("const CANVAS_Z_FRONT")
+        .next()
+        .expect("proposal driver body");
+    assert!(
+        confirm_fn.contains("pending_memory_proposal_emitter.take()")
+            && !confirm_fn.contains("bus.event_emitter().cloned()"),
+        "confirmation must consume the captured dialog-open emitter, never fetch the current workspace emitter"
+    );
+    assert!(
+        confirm_fn.contains("ProposalSubmitOutcome::EventRejected")
+            && confirm_fn.contains("correlated FR event was NOT queued"),
+        "the UI must disclose proposal-accepted/event-rejected partial success"
+    );
     // Sanity: the command id const is the addressable id a swarm agent dispatches.
     assert_eq!(FEMS_PROPOSE_COMMAND_ID, "fems.propose_to_memory");
     println!("AC-006 OK: real dispatch arm opens the dialog + registers the runtime command (no dead row)");
@@ -608,8 +767,25 @@ mod helpers {
         workspace_id: &str,
         actor_id: &str,
     ) -> handshake_native::fems::memory_proposal::MemoryWriteProposal {
-        handshake_native::fems::memory_proposal::build_proposal(sel, class, workspace_id, actor_id)
-            .expect("build_proposal must succeed")
+        match sel {
+            SharedSelection::TextRange { .. } => {
+                handshake_native::fems::memory_proposal::build_proposal_for_document(
+                    sel,
+                    class,
+                    workspace_id,
+                    actor_id,
+                    "DOC-TEST",
+                )
+                .expect("build_proposal_for_document must succeed")
+            }
+            _ => handshake_native::fems::memory_proposal::build_proposal(
+                sel,
+                class,
+                workspace_id,
+                actor_id,
+            )
+            .expect("build_proposal must succeed"),
+        }
     }
 }
 use helpers::build_or_panic;

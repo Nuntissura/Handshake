@@ -227,6 +227,9 @@ fn document_client_error_to_metadata_error(
         KnowledgeDocumentsError::SaveConflict { server_version } => MetadataError::ServerError(
             format!("metadata write conflicted (server_version={server_version:?})"),
         ),
+        KnowledgeDocumentsError::TitleAmbiguous { detail } => {
+            MetadataError::ServerError(format!("ambiguous title: {detail}"))
+        }
         KnowledgeDocumentsError::BatchTooLarge { len, max } => {
             MetadataError::ServerError(format!("batch too large: {len} > {max}"))
         }
@@ -256,7 +259,10 @@ impl KnowledgeMetadataBackend for ReqwestMetadataBackend {
             if title.is_empty() {
                 return Err(MetadataError::EmptyTitle);
             }
-            let body = crate::backend::knowledge_documents::RenameDocumentRequest { title };
+            let body = crate::backend::knowledge_documents::RenameDocumentRequest {
+                title,
+                expected_updated_at: None,
+            };
             let response = client
                 .rename_document(&headers, &document_id, &body)
                 .await

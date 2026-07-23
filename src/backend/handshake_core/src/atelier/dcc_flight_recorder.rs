@@ -134,7 +134,9 @@ fn dcc_workflow_panel_projection_from_row(
     })
 }
 
-fn validate_dcc_workflow_panel_projection(new: &NewDccWorkflowPanelProjection) -> AtelierResult<()> {
+fn validate_dcc_workflow_panel_projection(
+    new: &NewDccWorkflowPanelProjection,
+) -> AtelierResult<()> {
     if new.panel_id.trim().is_empty() || new.panel_id.trim() != new.panel_id {
         return Err(AtelierError::Validation(
             "dcc workflow panel projection panel_id must be non-empty and unpadded".into(),
@@ -374,7 +376,9 @@ impl AtelierStore {
         .bind(panel_kind.as_token())
         .fetch_all(self.pool())
         .await?;
-        rows.iter().map(dcc_workflow_panel_projection_from_row).collect()
+        rows.iter()
+            .map(dcc_workflow_panel_projection_from_row)
+            .collect()
     }
 
     /// Record one Flight Recorder workflow event (MT-191..MT-193).
@@ -543,8 +547,14 @@ mod tests {
             assert!(!row.requirement.trim().is_empty());
             assert!(row.evidence_ref.is_some());
         }
-        let reset_rows = catalog.iter().filter(|r| r.row_id.contains(".reset")).count();
-        let orphan_rows = catalog.iter().filter(|r| r.row_id.contains("orphan")).count();
+        let reset_rows = catalog
+            .iter()
+            .filter(|r| r.row_id.contains(".reset"))
+            .count();
+        let orphan_rows = catalog
+            .iter()
+            .filter(|r| r.row_id.contains("orphan"))
+            .count();
         assert!(reset_rows >= 3, "must cover reset diagnostics");
         assert!(orphan_rows >= 2, "must cover orphan diagnostics");
     }

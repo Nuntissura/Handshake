@@ -397,9 +397,9 @@ impl LoopSandbox for PgSelfImproveSandbox {
     ) -> Result<SandboxRunResult, LoopSandboxError> {
         let started_at_utc = Utc::now();
         let sandbox_run_id = Uuid::now_v7();
-        let workspace =
-            self.sandbox_root
-                .join(format!("self-improve-sandbox-{sandbox_run_id}"));
+        let workspace = self
+            .sandbox_root
+            .join(format!("self-improve-sandbox-{sandbox_run_id}"));
         std::fs::create_dir_all(&workspace).map_err(|err| {
             LoopSandboxError::new(format!(
                 "failed to provision sandbox workspace {}: {err}",
@@ -446,8 +446,8 @@ impl LoopSandbox for PgSelfImproveSandbox {
             }
         }
 
-        let snapshot_sha256 = snapshot_sha256(snapshot)
-            .map_err(|err| LoopSandboxError::new(err.to_string()))?;
+        let snapshot_sha256 =
+            snapshot_sha256(snapshot).map_err(|err| LoopSandboxError::new(err.to_string()))?;
         let record = block_on(self.store.record_self_improve_sandbox_run(
             &NewSelfImproveSandboxRun {
                 sandbox_run_id,
@@ -459,9 +459,7 @@ impl LoopSandbox for PgSelfImproveSandbox {
                 completed_at_utc: Utc::now(),
             },
         ))
-        .map_err(|err| {
-            LoopSandboxError::new(format!("failed to persist sandbox run: {err}"))
-        })?;
+        .map_err(|err| LoopSandboxError::new(format!("failed to persist sandbox run: {err}")))?;
 
         *self
             .run_slot

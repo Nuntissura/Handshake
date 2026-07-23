@@ -29,7 +29,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::rich_editor::document_model::node::{
     BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
@@ -44,7 +46,9 @@ use handshake_native::rich_editor::renderer::block_author_id;
 use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };
-use handshake_native::rich_editor::wikilinks::inline_view::{chip_author_id, EditorEvent};
+use handshake_native::rich_editor::wikilinks::inline_view::{
+    chip_occurrence_author_id, EditorEvent,
+};
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic — the crate
 /// sits at `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..` where
@@ -257,7 +261,7 @@ fn pt004_wikilink_click_in_reading_mode_routes_navigation_event() {
     harness.run();
 
     // The note wikilink chip is addressable by its stable author_id.
-    let chip_id = chip_author_id("target-doc-id");
+    let chip_id = chip_occurrence_author_id("target-doc-id", &[3, 1]);
     let ids = author_ids(&harness);
     assert!(
         ids.contains(&chip_id),

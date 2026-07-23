@@ -55,14 +55,18 @@
 //! kebab-case `author_id` under the `find-in-files.` namespace via
 //! [`crate::accessibility::emit_interactive_node`].
 
-use std::sync::{Arc, Mutex};
+use std::collections::VecDeque;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 
 use regex::Regex;
 
 use crate::accessibility;
 use crate::backend_client::{
-    BookmarkStateCell, FindReplaceCell, GraphSearchCell, LoomGraphSearchHit, RichDocClient,
-    WorkspaceSearchClient,
+    BookmarkStateCell, FindInFilesOperation, FindInFilesStamp, FindReplaceCell, GraphSearchCell,
+    LoomGraphSearchHit, RichDocClient, WorkspaceSearchClient,
 };
 use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 use crate::theme::HsPalette;
@@ -95,9 +99,15 @@ pub const APPLY_AUTHOR_ID: &str = "find-in-files.apply";
 pub const CANCEL_AUTHOR_ID: &str = "find-in-files.cancel";
 /// The `Bookmark Search` button.
 pub const SAVE_BOOKMARK_AUTHOR_ID: &str = "find-in-files.save-bookmark";
-/// Prefix for a per-result row (`find-in-files.result.{source_kind}.{stable_ref_id}`).
+/// Retry the failed mount-time bookmark load against the same active workspace.
+pub const BOOKMARK_RETRY_AUTHOR_ID: &str = "find-in-files.bookmark-retry";
+/// Prefix for one persisted bookmark's Restore action; the bookmark id is UTF-8 byte-hex encoded.
+pub const BOOKMARK_RESTORE_AUTHOR_ID_PREFIX: &str = "find-in-files.bookmark-restore.";
+/// Prefix for one persisted bookmark's Remove action; the bookmark id is UTF-8 byte-hex encoded.
+pub const BOOKMARK_REMOVE_AUTHOR_ID_PREFIX: &str = "find-in-files.bookmark-remove.";
+/// Prefix for a per-result row (both backend identity components are lowercase UTF-8 byte hex).
 pub const RESULT_AUTHOR_ID_PREFIX: &str = "find-in-files.result.";
-/// Prefix for a per-preview item (`find-in-files.preview.{document_id}`).
+/// Prefix for a per-preview item (the document id is lowercase UTF-8 byte hex).
 pub const PREVIEW_AUTHOR_ID_PREFIX: &str = "find-in-files.preview.";
 
 /// 24-char context window each side of a match preview (the React `MATCH_PREVIEW_CONTEXT_CHARS`).
@@ -110,20 +120,72 @@ pub const MAX_WORKSPACE_SEARCH_BOOKMARKS: usize = 20;
 /// reader). Asserted in the bookmark-blob test.
 pub const WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID: &str = "hsk.workspace_search_bookmark_state@1";
 
-/// The result-row author_id for a hit: `find-in-files.result.{source_kind}.{stable_ref_id}` with every
-/// non-alphanumeric char in the ref id replaced by `-` (the contract's stable-ref rule). Mirrors the
-/// React stable-key convention so the AccessKit tree + screenshot are reproducible.
-pub fn result_author_id(source_kind: &str, ref_id: &str) -> String {
-    let stable: String = ref_id
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
-        .collect();
-    format!("{RESULT_AUTHOR_ID_PREFIX}{source_kind}.{stable}")
+fn encode_author_id_component(value: &str) -> String {
+    let mut encoded = String::with_capacity(value.len() * 2);
+    for byte in value.as_bytes() {
+        use std::fmt::Write as _;
+        let _ = write!(encoded, "{byte:02x}");
+    }
+    encoded
 }
 
-/// The preview-item author_id for a planned document: `find-in-files.preview.{document_id}`.
+fn decode_author_id_component(value: &str) -> Option<String> {
+    if value.len() % 2 != 0 || !value.is_ascii() {
+        return None;
+    }
+    let bytes = (0..value.len())
+        .step_by(2)
+        .map(|index| u8::from_str_radix(&value[index..index + 2], 16).ok())
+        .collect::<Option<Vec<_>>>()?;
+    String::from_utf8(bytes).ok()
+}
+
+/// The result-row author_id for a hit. Both identity components are encoded byte-for-byte so distinct
+/// UTF-8 backend identities can never collapse onto the same AccessKit route.
+pub fn result_author_id(source_kind: &str, ref_id: &str) -> String {
+    format!(
+        "{RESULT_AUTHOR_ID_PREFIX}{}.{}",
+        encode_author_id_component(source_kind),
+        encode_author_id_component(ref_id)
+    )
+}
+
+/// Reverse an AccessKit result route into the exact backend `(source_kind, ref_id)` identity.
+pub fn hit_identity_from_result_author_id(author_id: &str) -> Option<(String, String)> {
+    let encoded = author_id.strip_prefix(RESULT_AUTHOR_ID_PREFIX)?;
+    let (source_kind, ref_id) = encoded.split_once('.')?;
+    if ref_id.contains('.') {
+        return None;
+    }
+    Some((
+        decode_author_id_component(source_kind)?,
+        decode_author_id_component(ref_id)?,
+    ))
+}
+
+/// The preview-item author_id for a planned document:
+/// `find-in-files.preview.{lowercase_hex(document_id.as_bytes())}`.
 pub fn preview_author_id(document_id: &str) -> String {
-    format!("{PREVIEW_AUTHOR_ID_PREFIX}{document_id}")
+    format!(
+        "{PREVIEW_AUTHOR_ID_PREFIX}{}",
+        encode_author_id_component(document_id)
+    )
+}
+
+/// Stable per-bookmark Restore route using the lowercase bytewise UTF-8 hex contract.
+pub fn bookmark_restore_author_id(bookmark_id: &str) -> String {
+    format!(
+        "{BOOKMARK_RESTORE_AUTHOR_ID_PREFIX}{}",
+        encode_author_id_component(bookmark_id)
+    )
+}
+
+/// Stable per-bookmark Remove route using the lowercase bytewise UTF-8 hex contract.
+pub fn bookmark_remove_author_id(bookmark_id: &str) -> String {
+    format!(
+        "{BOOKMARK_REMOVE_AUTHOR_ID_PREFIX}{}",
+        encode_author_id_component(bookmark_id)
+    )
 }
 
 // ── Kind filter ──────────────────────────────────────────────────────────────────────────────────────
@@ -199,12 +261,13 @@ impl KindFilter {
         self.source_kind().unwrap_or("all")
     }
 
-    /// Parse a bookmark blob `kind` token back to a filter (`all` → `All`; unknown → `All`).
-    pub fn from_wire(s: &str) -> KindFilter {
+    /// Parse a bookmark blob `kind` token back to a filter. Unknown persisted values fail closed so a
+    /// producer/schema drift cannot silently broaden a filtered bookmark to `All`.
+    pub fn from_wire(s: &str) -> Result<KindFilter, String> {
         KindFilter::ALL
             .into_iter()
             .find(|k| k.wire() == s)
-            .unwrap_or(KindFilter::All)
+            .ok_or_else(|| format!("unsupported bookmark kind '{s}'"))
     }
 }
 
@@ -629,6 +692,123 @@ pub fn document_id_from_hit(hit: &LoomGraphSearchHit) -> Option<String> {
     candidate.filter(|c| c.starts_with("KRD-"))
 }
 
+fn shared_find_block_field(hit: &LoomGraphSearchHit, field: &str) -> Option<String> {
+    hit.block
+        .as_ref()
+        .and_then(|block| block.get(field))
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+}
+
+/// Project raw MT-029 graph-search rows into the two typed editor result lanes carried by the shared
+/// InteractionBus. Classification is producer-backed: code files are `source_kind=file` or Loom blocks
+/// whose `content_type=file`; notes are rich-document rows or Loom blocks whose `content_type=note`.
+/// Unrelated graph entities remain in Find-in-Files but are intentionally absent from this editor bridge.
+pub fn shared_editor_find_entries(
+    hits: &[LoomGraphSearchHit],
+) -> (
+    Vec<crate::interop::SharedCodeFindEntry>,
+    Vec<crate::interop::SharedNoteFindEntry>,
+) {
+    let mut code: Vec<crate::interop::SharedCodeFindEntry> = Vec::new();
+    let mut note: Vec<crate::interop::SharedNoteFindEntry> = Vec::new();
+    let mut code_identities = std::collections::HashSet::new();
+    let mut note_identities = std::collections::HashMap::<String, usize>::new();
+    for hit in hits {
+        let content_type = shared_find_block_field(hit, "content_type").unwrap_or_else(|| {
+            if hit.source_kind == "file" {
+                "file".to_owned()
+            } else if hit.source_kind == "document" {
+                "knowledge_rich_document".to_owned()
+            } else {
+                String::new()
+            }
+        });
+        let block_id = shared_find_block_field(hit, "block_id");
+        if hit.source_kind == "file" || content_type == "file" || content_type == "code_file" {
+            let identity = block_id.clone().unwrap_or_else(|| hit.ref_id.clone());
+            if !code_identities.insert(identity) {
+                continue;
+            }
+            code.push(crate::interop::SharedCodeFindEntry {
+                source_kind: hit.source_kind.clone(),
+                result_kind: hit.result_kind.clone(),
+                ref_id: hit.ref_id.clone(),
+                block_id,
+                content_type,
+                title: hit.title.clone(),
+                excerpt: hit.excerpt.clone(),
+            });
+            continue;
+        }
+        let authority_table = hit
+            .metadata
+            .get("authority_table")
+            .and_then(serde_json::Value::as_str);
+        if hit.source_kind == "document"
+            || content_type == "note"
+            || content_type == "knowledge_rich_document"
+            || authority_table == Some("knowledge_rich_documents")
+        {
+            let document_id = document_id_from_hit(hit);
+            let identity = document_id
+                .clone()
+                .or_else(|| block_id.clone())
+                .unwrap_or_else(|| hit.ref_id.clone());
+            let entry = crate::interop::SharedNoteFindEntry {
+                source_kind: hit.source_kind.clone(),
+                result_kind: hit.result_kind.clone(),
+                ref_id: hit.ref_id.clone(),
+                block_id,
+                document_id,
+                content_type,
+                title: hit.title.clone(),
+                excerpt: hit.excerpt.clone(),
+            };
+            if let Some(index) = note_identities.get(&identity).copied() {
+                // Prefer the authority `document` row over its derived Loom-note projection while
+                // retaining one canonical note result on the shared editor lane.
+                if hit.source_kind == "document" && note[index].source_kind != "document" {
+                    note[index] = entry;
+                }
+            } else {
+                note_identities.insert(identity, note.len());
+                note.push(entry);
+            }
+        }
+    }
+    (code, note)
+}
+
+/// Typed shell-open target for a clicked Find-in-Files result. Find-in-Files intentionally reuses the
+/// production quick-switcher target model so every source kind resolves through the same exhaustive,
+/// field-tested route mapping instead of silently collapsing non-document hits into Loom blocks.
+pub type FindInFilesOpenTarget = crate::quick_switcher::QuickSwitcherTarget;
+
+pub fn shell_open_target_from_hit(hit: &LoomGraphSearchHit) -> Option<FindInFilesOpenTarget> {
+    let canonical_hit = crate::quick_switcher::LoomGraphSearchHit {
+        result_kind: hit.result_kind.clone(),
+        source_kind: hit.source_kind.clone(),
+        ref_id: hit.ref_id.clone(),
+        title: hit.title.clone(),
+        excerpt: hit.excerpt.clone(),
+        block: hit.block.clone().unwrap_or(serde_json::Value::Null),
+        score: 0.0,
+        metadata: hit.metadata.clone(),
+    };
+    let target = crate::quick_switcher::resolve_open_target(&canonical_hit);
+    target.enabled().then_some(target)
+}
+
+pub fn dispatch_shell_open_target(
+    navigator: &mut dyn crate::quick_switcher::ShellNavigator,
+    target: &FindInFilesOpenTarget,
+) -> crate::quick_switcher::NavDispatchOutcome {
+    crate::quick_switcher::dispatch_target(navigator, target)
+}
+
 // ── Client-side option filter (mirrors the React hitMatchesClientOptions) ─────────────────────────────
 
 /// Whether a hit passes the client-side option filter, mirroring the React `hitMatchesClientOptions`
@@ -721,15 +901,27 @@ pub fn replace_plan_key(search_key: &str, replacement: &str) -> String {
 /// overwrite, RISK-2 data-loss control).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReplacementPlan {
+    /// Workspace authority loaded during Preview and reverified immediately before Apply.
+    pub workspace_id: String,
     pub document_id: String,
     pub title: String,
     pub expected_version: u64,
     pub content_json_after: serde_json::Value,
+    /// SHA-256 of the exact persisted JSON loaded during preview.
+    pub before_sha256: String,
+    /// SHA-256 of the exact JSON submitted by Apply.
+    pub after_sha256: String,
     pub crdt_document_id: Option<String>,
     pub match_count: usize,
     pub before_preview: String,
     pub after_preview: String,
     pub match_previews: Vec<MatchPreview>,
+}
+
+pub fn content_json_sha256(content: &serde_json::Value) -> String {
+    use sha2::{Digest, Sha256};
+    let encoded = serde_json::to_vec(content).expect("serde_json::Value always serializes");
+    format!("{:x}", Sha256::digest(encoded))
 }
 
 // ── Bookmark ──────────────────────────────────────────────────────────────────────────────────────────
@@ -751,45 +943,28 @@ pub struct SearchBookmark {
 }
 
 impl SearchBookmark {
-    /// A stable id derived from the search params (the React `bookmarkIdForSearch`): re-saving the same
-    /// search replaces (dedups) the prior bookmark.
+    /// A stable, route-safe id derived from the exact semantic search tuple. Each component is framed
+    /// by its UTF-8 byte length and encoded with lowercase bytewise hex, so case, Unicode, empty fields,
+    /// and option values cannot collapse onto another saved search. Re-saving the same semantic search
+    /// still replaces (dedups) the prior bookmark.
     pub fn stable_id(&self) -> String {
-        let parts = [
-            if self.query.trim().is_empty() {
-                "empty"
-            } else {
-                self.query.trim()
-            },
+        let components = [
+            self.query.trim(),
             self.kind.wire(),
             self.tag_filter.trim(),
             self.path_filter.trim(),
-            if self.case_sensitive { "case" } else { "" },
-            if self.whole_word { "word" } else { "" },
-            if self.is_regex { "regex" } else { "" },
+            if self.case_sensitive { "true" } else { "false" },
+            if self.whole_word { "true" } else { "false" },
+            if self.is_regex { "true" } else { "false" },
         ];
-        let joined = parts
-            .iter()
-            .filter(|s| !s.is_empty())
-            .cloned()
-            .collect::<Vec<_>>()
-            .join(" ");
-        let stable: String = joined
-            .to_lowercase()
-            .chars()
-            .map(|c| {
-                if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                    c
-                } else {
-                    '-'
-                }
-            })
-            .collect();
-        let trimmed = stable.trim_matches('-');
-        if trimmed.is_empty() {
-            "item".to_owned()
-        } else {
-            trimmed.to_owned()
+
+        let mut stable = String::from("bookmark-v1");
+        for component in components {
+            use std::fmt::Write as _;
+            let _ = write!(stable, ".{}-", component.len());
+            stable.push_str(&encode_author_id_component(component));
         }
+        stable
     }
 
     /// The display label (the React `bookmarkLabelForSearch`): the query if any, else the kind/filters.
@@ -831,27 +1006,46 @@ impl SearchBookmark {
         })
     }
 
-    /// Parse one bookmark entry from the blob; returns `None` if any required field is missing/mistyped
-    /// (the React `isWorkspaceSearchBookmark` guard).
-    pub fn from_json(v: &serde_json::Value) -> Option<SearchBookmark> {
-        let s = |k: &str| v.get(k).and_then(|x| x.as_str()).map(str::to_owned);
-        let b = |k: &str| v.get(k).and_then(|x| x.as_bool());
+    /// Parse one bookmark entry from the blob; every required field and enum token fails closed.
+    pub fn from_json(v: &serde_json::Value) -> Result<SearchBookmark, String> {
+        let object = v
+            .as_object()
+            .ok_or_else(|| "bookmark must be an object".to_owned())?;
+        let s = |k: &str| {
+            object
+                .get(k)
+                .and_then(|x| x.as_str())
+                .map(str::to_owned)
+                .ok_or_else(|| format!("bookmark.{k} missing or not a string"))
+        };
+        let b = |k: &str| {
+            object
+                .get(k)
+                .and_then(|x| x.as_bool())
+                .ok_or_else(|| format!("bookmark.{k} missing or not a bool"))
+        };
         let id = s("id")?;
         let label = s("label")?;
         if id.trim().is_empty() || label.trim().is_empty() {
-            return None;
+            return Err("bookmark id and label must not be blank".to_owned());
         }
-        Some(SearchBookmark {
+        let saved_at = s("savedAt")?;
+        if saved_at.trim().is_empty() {
+            return Err("bookmark.savedAt must not be blank".to_owned());
+        }
+        chrono::DateTime::parse_from_rfc3339(&saved_at)
+            .map_err(|_| "bookmark.savedAt must be an RFC3339 timestamp".to_owned())?;
+        Ok(SearchBookmark {
             id,
             label,
             query: s("query")?,
-            kind: KindFilter::from_wire(&s("kind")?),
+            kind: KindFilter::from_wire(&s("kind")?)?,
             tag_filter: s("tagFilter")?,
             path_filter: s("pathFilter")?,
             case_sensitive: b("caseSensitive")?,
             whole_word: b("wholeWord")?,
             is_regex: b("isRegex")?,
-            saved_at: s("savedAt")?,
+            saved_at,
         })
     }
 }
@@ -870,19 +1064,38 @@ pub fn bookmark_state_blob(bookmarks: &[SearchBookmark]) -> serde_json::Value {
     })
 }
 
-/// Parse the `bookmark_state` blob into a bookmark list (the React `parseWorkspaceSearchBookmarks`):
-/// reads the `bookmarks` array, filters out malformed entries, caps at the max. A null/absent/mis-shaped
-/// blob yields an empty list (never an error).
-pub fn parse_bookmark_state(blob: &serde_json::Value) -> Vec<SearchBookmark> {
-    blob.get("bookmarks")
-        .and_then(|b| b.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(SearchBookmark::from_json)
-                .take(MAX_WORKSPACE_SEARCH_BOOKMARKS)
-                .collect()
+/// Strictly parse persisted bookmark state. An absent state (`{}`/`null`) is an empty list, while a
+/// present but malformed schema fails closed instead of silently deleting or hiding entries.
+pub fn parse_bookmark_state(blob: &serde_json::Value) -> Result<Vec<SearchBookmark>, String> {
+    if blob.is_null() || blob.as_object().is_some_and(serde_json::Map::is_empty) {
+        return Ok(Vec::new());
+    }
+    let object = blob
+        .as_object()
+        .ok_or_else(|| "bookmark_state must be an object".to_owned())?;
+    if object.get("schema_id").and_then(serde_json::Value::as_str)
+        != Some(WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID)
+    {
+        return Err("bookmark_state schema_id is missing or unsupported".to_owned());
+    }
+    let entries = object
+        .get("bookmarks")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "bookmark_state.bookmarks must be an array".to_owned())?;
+    if entries.len() > MAX_WORKSPACE_SEARCH_BOOKMARKS {
+        return Err(format!(
+            "bookmark_state contains {} entries; maximum is {MAX_WORKSPACE_SEARCH_BOOKMARKS}",
+            entries.len()
+        ));
+    }
+    entries
+        .iter()
+        .enumerate()
+        .map(|(index, entry)| {
+            SearchBookmark::from_json(entry)
+                .map_err(|error| format!("bookmark_state.bookmarks[{index}] is malformed: {error}"))
         })
-        .unwrap_or_default()
+        .collect()
 }
 
 // ── Panel state machine ───────────────────────────────────────────────────────────────────────────────
@@ -929,6 +1142,11 @@ pub struct FindInFilesPanelState {
     pub bookmarks: Vec<SearchBookmark>,
     /// The last bookmark op status string, or `None`.
     pub bookmark_status: Option<String>,
+    /// True only after the active workspace's mount/retry bookmark GET terminates unsuccessfully.
+    /// Drives the stable Retry control; cleared before each new attempt and after a valid response.
+    pub bookmark_load_failed: bool,
+    /// Monotonic diagnostic count of real bookmark GET attempts issued by this mounted panel state.
+    pub bookmark_load_attempt_count: u64,
 
     /// Bumps every time `results` is replaced (in [`poll`](Self::poll)); part of the visible-cache key so
     /// a new result set invalidates the memoized filter even when query+options are unchanged.
@@ -943,6 +1161,24 @@ pub struct FindInFilesPanelState {
     /// delivers a typed [`ReplaceDelivery`] into this cell.
     replace_cell: FindReplaceCell,
     bookmark_cell: BookmarkStateCell,
+    bound_workspace_id: Option<String>,
+    bound_workspace_generation: u64,
+    workspace_epoch: u64,
+    next_sequence: u64,
+    active_search: Option<FindInFilesStamp>,
+    active_preview: Option<FindInFilesStamp>,
+    active_apply: Option<FindInFilesStamp>,
+    active_apply_cancel: Option<Arc<AtomicBool>>,
+    active_bookmark_load: Option<FindInFilesStamp>,
+    active_bookmark_save: Option<FindInFilesStamp>,
+    refresh_search_after_apply: bool,
+    refresh_search_workspace_id: Option<String>,
+    /// Workspace whose last Apply terminal outcome is currently shown to the operator.
+    pub last_apply_terminal_workspace_id: Option<String>,
+    /// Workspace whose last bookmark-save terminal outcome is currently shown to the operator.
+    pub last_bookmark_save_terminal_workspace_id: Option<String>,
+    /// Durable backend event-ledger receipt for the last bookmark-save terminal outcome.
+    pub last_bookmark_save_receipt_id: Option<String>,
 }
 
 impl Default for FindInFilesPanelState {
@@ -971,12 +1207,115 @@ impl FindInFilesPanelState {
             result_set_key: None,
             bookmarks: Vec::new(),
             bookmark_status: None,
+            bookmark_load_failed: false,
+            bookmark_load_attempt_count: 0,
             results_generation: 0,
             visible_cache: std::cell::RefCell::new(None),
-            search_cell: Arc::new(Mutex::new(None)),
-            replace_cell: Arc::new(Mutex::new(None)),
-            bookmark_cell: Arc::new(Mutex::new(None)),
+            search_cell: Arc::new(Mutex::new(VecDeque::new())),
+            replace_cell: Arc::new(Mutex::new(VecDeque::new())),
+            bookmark_cell: Arc::new(Mutex::new(VecDeque::new())),
+            bound_workspace_id: None,
+            bound_workspace_generation: 0,
+            workspace_epoch: 0,
+            next_sequence: 0,
+            active_search: None,
+            active_preview: None,
+            active_apply: None,
+            active_apply_cancel: None,
+            active_bookmark_load: None,
+            active_bookmark_save: None,
+            refresh_search_after_apply: false,
+            refresh_search_workspace_id: None,
+            last_apply_terminal_workspace_id: None,
+            last_bookmark_save_terminal_workspace_id: None,
+            last_bookmark_save_receipt_id: None,
         }
+    }
+
+    fn next_stamp(
+        &mut self,
+        workspace_id: &str,
+        operation: FindInFilesOperation,
+    ) -> FindInFilesStamp {
+        self.next_sequence = self.next_sequence.wrapping_add(1);
+        FindInFilesStamp {
+            workspace_id: workspace_id.to_owned(),
+            operation,
+            epoch: self.workspace_epoch,
+            sequence: self.next_sequence,
+        }
+    }
+
+    fn refresh_loading(&mut self) {
+        self.loading = self.active_search.is_some()
+            || self.active_preview.is_some()
+            || self.active_apply.is_some()
+            || self.active_bookmark_load.is_some()
+            || self.active_bookmark_save.is_some();
+    }
+
+    /// Rebind the state machine to the active workspace. Read-only work is detached, but an old
+    /// destructive Apply is cooperatively cancelled and retained until its stamped terminal delivery
+    /// reports every commit/receipt.
+    pub fn bind_workspace(
+        &mut self,
+        workspace_id: Option<&str>,
+        workspace_generation: u64,
+    ) -> bool {
+        if self.bound_workspace_id.as_deref() == workspace_id
+            && self.bound_workspace_generation == workspace_generation
+        {
+            return false;
+        }
+        if let Some(cancel) = &self.active_apply_cancel {
+            cancel.store(true, Ordering::Release);
+        }
+        let retained_apply_workspace = self
+            .active_apply
+            .as_ref()
+            .map(|stamp| stamp.workspace_id.clone());
+        let retained_bookmark_save_workspace = self
+            .active_bookmark_save
+            .as_ref()
+            .map(|stamp| stamp.workspace_id.clone());
+        self.bound_workspace_id = workspace_id.map(str::to_owned);
+        self.bound_workspace_generation = workspace_generation;
+        self.workspace_epoch = self.workspace_epoch.wrapping_add(1);
+        self.results.clear();
+        self.preview_plans.clear();
+        self.bookmarks.clear();
+        self.bookmark_load_failed = false;
+        self.result_set_key = None;
+        self.preview_plan_key = None;
+        self.error = None;
+        self.replace_status = retained_apply_workspace.as_ref().map(|old_workspace| {
+            format!(
+                "Workspace changed; cancelling Apply for workspace {old_workspace} and waiting for its terminal receipt."
+            )
+        });
+        self.bookmark_status = retained_bookmark_save_workspace.as_ref().map(|old_workspace| {
+            format!(
+                "Workspace changed; waiting for bookmark save in workspace {old_workspace} to report its terminal receipt."
+            )
+        });
+        self.active_search = None;
+        self.active_preview = None;
+        // Never detach an in-flight mutation: its old stamped delivery remains authoritative even
+        // after the visible workspace changes.
+        self.active_bookmark_load = None;
+        if let Ok(mut queue) = self.search_cell.lock() {
+            queue.clear();
+        }
+        if let Ok(mut queue) = self.replace_cell.lock() {
+            queue.retain(|delivery| delivery.stamp.operation == FindInFilesOperation::Apply);
+        }
+        if let Ok(mut queue) = self.bookmark_cell.lock() {
+            queue.retain(|delivery| delivery.stamp.operation == FindInFilesOperation::BookmarkSave);
+        }
+        self.results_generation = self.results_generation.wrapping_add(1);
+        *self.visible_cache.borrow_mut() = None;
+        self.refresh_loading();
+        true
     }
 
     /// The current match options as a [`MatchOptions`].
@@ -1067,20 +1406,71 @@ impl FindInFilesPanelState {
         self.with_visible_indices(<[usize]>::len)
     }
 
+    /// Monotonic read-only result revision for host bridges. It advances on query/filter invalidation,
+    /// workspace rebind, and accepted backend delivery, allowing the shell to avoid cloning a large
+    /// paginated result set every frame.
+    pub fn results_generation(&self) -> u64 {
+        self.results_generation
+    }
+
     /// `true` when a non-stale preview with plans exists (gates the Apply button — AC-8).
     pub fn can_apply(&self) -> bool {
         !self.preview_plans.is_empty()
             && self.preview_plan_key.as_deref() == Some(&self.current_replace_key())
     }
 
+    pub fn search_in_flight(&self) -> bool {
+        self.active_search.is_some()
+    }
+    pub fn preview_in_flight(&self) -> bool {
+        self.active_preview.is_some()
+    }
+    pub fn apply_in_flight(&self) -> bool {
+        self.active_apply.is_some()
+    }
+    pub fn bookmark_in_flight(&self) -> bool {
+        self.active_bookmark_load.is_some() || self.active_bookmark_save.is_some()
+    }
+
+    fn invalidate_search_inputs(&mut self) {
+        self.active_search = None;
+        self.active_preview = None;
+        self.results.clear();
+        self.preview_plans.clear();
+        self.result_set_key = None;
+        self.preview_plan_key = None;
+        self.results_generation = self.results_generation.wrapping_add(1);
+        *self.visible_cache.borrow_mut() = None;
+        if let Ok(mut queue) = self.search_cell.lock() {
+            queue.clear();
+        }
+        if let Ok(mut queue) = self.replace_cell.lock() {
+            queue.retain(|delivery| delivery.stamp.operation == FindInFilesOperation::Apply);
+        }
+        self.refresh_loading();
+    }
+
+    fn invalidate_replacement_input(&mut self) {
+        self.active_preview = None;
+        self.preview_plans.clear();
+        self.preview_plan_key = None;
+        self.refresh_loading();
+    }
+
     /// Drain the off-thread delivery cells, folding any arrived result into state. Returns `true` if
     /// anything was delivered (so the caller can request a repaint).
     pub fn poll(&mut self) -> bool {
         let mut changed = false;
-        if let Ok(mut slot) = self.search_cell.lock() {
-            if let Some(result) = slot.take() {
-                self.loading = false;
-                match result {
+        let search_deliveries = self
+            .search_cell
+            .lock()
+            .ok()
+            .map(|mut queue| queue.drain(..).collect::<Vec<_>>())
+            .unwrap_or_default();
+        for delivery in search_deliveries {
+            if self.active_search.as_ref() == Some(&delivery.stamp) {
+                self.active_search = None;
+                match delivery.outcome {
                     Ok((hits, key)) => {
                         self.results = hits;
                         self.result_set_key = Some(key);
@@ -1097,26 +1487,144 @@ impl FindInFilesPanelState {
                 changed = true;
             }
         }
-        let replace_delivery = self.replace_cell.lock().ok().and_then(|mut s| s.take());
-        if let Some(delivery) = replace_delivery {
-            self.loading = false;
-            self.apply_replace_delivery(delivery);
-            changed = true;
-        }
-        if let Ok(mut slot) = self.bookmark_cell.lock() {
-            if let Some(result) = slot.take() {
-                self.loading = false;
-                match result {
-                    Ok((blob, status)) => {
-                        self.bookmarks = parse_bookmark_state(&blob);
-                        if let Some(s) = status {
-                            self.bookmark_status = Some(s);
-                        }
+        let replace_deliveries = self
+            .replace_cell
+            .lock()
+            .ok()
+            .map(|mut queue| queue.drain(..).collect::<Vec<_>>())
+            .unwrap_or_default();
+        for delivery in replace_deliveries {
+            let active = match delivery.stamp.operation {
+                FindInFilesOperation::Preview => &mut self.active_preview,
+                FindInFilesOperation::Apply => &mut self.active_apply,
+                _ => continue,
+            };
+            if active.as_ref() == Some(&delivery.stamp) {
+                *active = None;
+                if delivery.stamp.operation == FindInFilesOperation::Apply {
+                    self.active_apply_cancel = None;
+                    let terminal_workspace_id = delivery.stamp.workspace_id.clone();
+                    self.apply_replace_delivery(delivery.outcome);
+                    self.last_apply_terminal_workspace_id = Some(terminal_workspace_id.clone());
+                    if let Some(status) = self.replace_status.take() {
+                        self.replace_status =
+                            Some(format!("Workspace {terminal_workspace_id}: {status}"));
                     }
-                    Err(msg) => self.bookmark_status = Some(msg),
+                    if self.refresh_search_after_apply {
+                        self.refresh_search_workspace_id = Some(terminal_workspace_id);
+                    } else {
+                        self.refresh_search_workspace_id = None;
+                    }
+                    changed = true;
+                    continue;
                 }
+                self.apply_replace_delivery(delivery.outcome);
                 changed = true;
             }
+        }
+        let bookmark_deliveries = self
+            .bookmark_cell
+            .lock()
+            .ok()
+            .map(|mut queue| queue.drain(..).collect::<Vec<_>>())
+            .unwrap_or_default();
+        for delivery in bookmark_deliveries {
+            match delivery.stamp.operation {
+                FindInFilesOperation::BookmarkLoad => {
+                    if self.active_bookmark_load.as_ref() != Some(&delivery.stamp) {
+                        continue;
+                    }
+                    self.active_bookmark_load = None;
+                    match delivery.outcome {
+                        Ok((blob, status, _receipt)) => match parse_bookmark_state(&blob) {
+                            Ok(bookmarks) => {
+                                self.bookmarks = bookmarks;
+                                self.bookmark_load_failed = false;
+                                if status.is_some() {
+                                    self.bookmark_status = status;
+                                }
+                            }
+                            Err(error) => {
+                                self.bookmark_load_failed = true;
+                                let error = format!("Persisted bookmark state rejected: {error}");
+                                self.bookmark_status = Some(match self.bookmark_status.take() {
+                                    Some(terminal) => format!("{error}; {terminal}"),
+                                    None => error,
+                                });
+                            }
+                        },
+                        Err(msg) => {
+                            self.bookmark_load_failed = true;
+                            self.bookmark_status = Some(match self.bookmark_status.take() {
+                                Some(terminal) => format!("{msg}; {terminal}"),
+                                None => msg,
+                            });
+                        }
+                    }
+                    changed = true;
+                }
+                FindInFilesOperation::BookmarkSave => {
+                    if self.active_bookmark_save.as_ref() != Some(&delivery.stamp) {
+                        continue;
+                    }
+                    self.active_bookmark_save = None;
+                    let terminal_workspace_id = delivery.stamp.workspace_id.clone();
+                    let terminal_belongs_to_visible_binding = self.bound_workspace_id.as_deref()
+                        == Some(terminal_workspace_id.as_str())
+                        && self.workspace_epoch == delivery.stamp.epoch;
+                    let (terminal_status, receipt) = match delivery.outcome {
+                        Ok((blob, status, receipt)) => match parse_bookmark_state(&blob) {
+                            Ok(bookmarks) => {
+                                if terminal_belongs_to_visible_binding {
+                                    self.bookmarks = bookmarks;
+                                    self.bookmark_load_failed = false;
+                                }
+                                (
+                                    status.unwrap_or_else(|| "Bookmark save completed".to_owned()),
+                                    receipt,
+                                )
+                            }
+                            Err(error) => (
+                                format!("Persisted bookmark state rejected: {error}"),
+                                receipt,
+                            ),
+                        },
+                        Err(msg) => (msg, None),
+                    };
+                    self.last_bookmark_save_terminal_workspace_id =
+                        Some(terminal_workspace_id.clone());
+                    self.last_bookmark_save_receipt_id = receipt.clone();
+                    self.bookmark_status = Some(match receipt {
+                        Some(receipt) => format!(
+                            "Workspace {terminal_workspace_id}: {terminal_status}; receipt: {receipt}"
+                        ),
+                        None => format!("Workspace {terminal_workspace_id}: {terminal_status}"),
+                    });
+                    changed = true;
+                }
+                _ => continue,
+            }
+        }
+        self.refresh_loading();
+        changed
+    }
+
+    /// Drain completions and immediately refresh the current search after any committed Apply outcome.
+    /// Kept as one production state-machine step so mounted UI and managed runtime proofs exercise the
+    /// same refresh behavior.
+    pub fn poll_with_search_refresh(
+        &mut self,
+        search_client: &WorkspaceSearchClient,
+        workspace_id: Option<&str>,
+    ) -> bool {
+        let changed = self.poll();
+        if self.refresh_search_after_apply
+            && self.refresh_search_workspace_id.as_deref() == workspace_id
+            && self.run_search(search_client, workspace_id)
+        {
+            self.refresh_search_after_apply = false;
+            self.refresh_search_workspace_id = None;
+            return true;
         }
         changed
     }
@@ -1143,69 +1651,167 @@ impl FindInFilesPanelState {
             ReplaceDelivery::Applied {
                 receipts,
                 plan_count,
+                audit_receipts,
             } => {
-                self.replace_status = Some(format!(
-                    "Applied {plan_count} document replacement plan(s); receipts: {}",
-                    receipts.join(", ")
+                self.replace_status =
+                    Some(format!(
+                    "Applied {plan_count} document replacement plan(s); receipts: {}; mutation audit: {}",
+                    receipts.join(", "),
+                    audit_receipts.iter().map(format_replace_audit_receipt).collect::<Vec<_>>().join(", ")
                 ));
                 self.preview_plans = Vec::new();
                 self.preview_plan_key = None;
                 self.error = None;
+                self.refresh_search_after_apply = true;
             }
-            ReplaceDelivery::AppliedPartial { receipts, error } => {
+            ReplaceDelivery::AppliedPartial {
+                receipts,
+                audit_receipts,
+                error,
+            } => {
                 // RISK-1 / MC-1: a partial failure NEVER loses the receipts already collected.
+                let committed_count = audit_receipts
+                    .iter()
+                    .filter(|receipt| {
+                        matches!(
+                            receipt.outcome,
+                            ReplaceAuditOutcome::Saved
+                                | ReplaceAuditOutcome::CommittedWithoutReceipt
+                        )
+                    })
+                    .count();
                 self.replace_status = Some(format!(
-                    "Applied {} document replacement plan(s) before failure; receipts: {}",
-                    receipts.len(),
-                    receipts.join(", ")
+                    "Applied {} document replacement plan(s) before failure; receipts: {}; mutation audit: {}",
+                    committed_count,
+                    receipts.join(", "),
+                    audit_receipts.iter().map(format_replace_audit_receipt).collect::<Vec<_>>().join(", ")
                 ));
                 self.preview_plans = Vec::new();
                 self.preview_plan_key = None;
                 self.error = Some(error);
+                self.refresh_search_after_apply = committed_count > 0;
+            }
+            ReplaceDelivery::Cancelled {
+                receipts,
+                audit_receipts,
+                skipped_plan_count,
+            } => {
+                let committed_count = audit_receipts
+                    .iter()
+                    .filter(|receipt| {
+                        matches!(
+                            receipt.outcome,
+                            ReplaceAuditOutcome::Saved
+                                | ReplaceAuditOutcome::CommittedWithoutReceipt
+                        )
+                    })
+                    .count();
+                self.replace_status = Some(format!(
+                    "Cancellation honored after {committed_count} committed replacement plan(s); skipped {skipped_plan_count}; receipts: {}; mutation audit: {}",
+                    receipts.join(", "),
+                    audit_receipts
+                        .iter()
+                        .map(format_replace_audit_receipt)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+                self.preview_plans.clear();
+                self.preview_plan_key = None;
+                self.error = None;
+                self.refresh_search_after_apply = committed_count > 0;
             }
         }
+    }
+
+    /// Request cooperative cancellation. Apply keeps its active stamp until the worker reports exactly
+    /// which saves committed; preview can be detached immediately because it is read-only.
+    pub fn request_cancel(&mut self) {
+        if let Some(cancel) = &self.active_apply_cancel {
+            cancel.store(true, Ordering::Release);
+            self.replace_status = Some(
+                "Cancellation requested; waiting for the in-flight save receipt before reporting committed mutations."
+                    .to_owned(),
+            );
+            return;
+        }
+        if self.active_preview.take().is_some() {
+            self.preview_plans.clear();
+            self.preview_plan_key = None;
+            self.replace_status = Some("Replacement preview cancelled.".to_owned());
+            self.error = None;
+            self.refresh_loading();
+            return;
+        }
+        self.preview_plans.clear();
+        self.preview_plan_key = None;
+        self.replace_status = Some("Replacement preview cleared.".to_owned());
+        self.error = None;
     }
 
     /// Fire a workspace-wide search against `workspace_id` with the current query + filters + options.
     /// Guards no-workspace (MC-7, NO HTTP), empty-query, and regex-mode compile errors (PT-4) — each
     /// shows an error and fires no request. On a real fire, sets `loading`, clears the prior error, and
     /// resets the preview (a fresh search invalidates any stale plan).
-    pub fn run_search(&mut self, client: &WorkspaceSearchClient, workspace_id: Option<&str>) {
+    pub fn run_search(
+        &mut self,
+        client: &WorkspaceSearchClient,
+        workspace_id: Option<&str>,
+    ) -> bool {
         let Some(ws) = workspace_id else {
             self.error = Some("No workspace selected".to_owned());
-            return;
+            return false;
         };
-        let trimmed = self.query.trim();
+        if self.active_apply.is_some() {
+            self.error = Some(
+                "Search is blocked until the in-flight Apply reports its terminal receipts."
+                    .to_owned(),
+            );
+            return false;
+        }
+        if self.active_preview.take().is_some() {
+            self.invalidate_search_inputs();
+            self.error = Some(
+                "Search was blocked while Preview was in flight; the preview was detached. Run Search again."
+                    .to_owned(),
+            );
+            return false;
+        }
+        let trimmed = self.query.trim().to_owned();
         if trimmed.is_empty() {
             self.error = Some("Search query is required".to_owned());
-            return;
+            return false;
         }
         // Regex-mode pre-validation so a bad pattern shows the error WITHOUT a backend round-trip (PT-4).
         if self.is_regex {
-            if let Err(e) = compile_search_regex(trimmed, self.options()) {
+            if let Err(e) = compile_search_regex(&trimmed, self.options()) {
                 self.error = Some(e);
-                return;
+                return false;
             }
         }
+        if self.active_search.is_some() {
+            self.error = Some("Search is already in flight".to_owned());
+            return false;
+        }
         let key = self.current_search_key();
-        self.loading = true;
+        let stamp = self.next_stamp(ws, FindInFilesOperation::Search);
+        self.active_search = Some(stamp.clone());
+        self.refresh_loading();
         self.error = None;
         self.preview_plans = Vec::new();
         self.preview_plan_key = None;
         self.result_set_key = None;
-        if let Ok(mut slot) = self.search_cell.lock() {
-            *slot = None;
-        }
         client.search_paginated(
             ws,
-            trimmed,
+            &trimmed,
             self.kind.source_kind(),
             &self.tag_filter,
             &self.path_filter,
             self.options().to_search(),
             key,
+            stamp,
             Arc::clone(&self.search_cell),
         );
+        true
     }
 
     /// Begin the Preview Replace pipeline: stale-result guard (RISK-2/MC-2 — a since-changed query
@@ -1252,13 +1858,16 @@ impl FindInFilesPanelState {
             self.preview_plan_key = None;
             return;
         }
+        if self.active_preview.is_some() || self.active_apply.is_some() {
+            self.replace_status = Some("A replacement operation is already in flight".to_owned());
+            return;
+        }
         let key = self.current_replace_key();
-        self.loading = true;
+        let stamp = self.next_stamp(ws, FindInFilesOperation::Preview);
+        self.active_preview = Some(stamp.clone());
+        self.refresh_loading();
         self.error = None;
         self.replace_status = None;
-        if let Ok(mut slot) = self.replace_cell.lock() {
-            *slot = None;
-        }
         client.preview_replace(
             ws,
             document_ids,
@@ -1266,6 +1875,7 @@ impl FindInFilesPanelState {
             self.replacement.clone(),
             opts,
             key,
+            stamp,
             Arc::clone(&self.replace_cell),
         );
     }
@@ -1287,15 +1897,22 @@ impl FindInFilesPanelState {
                 Some("Preview is stale; run Preview Replace again before applying.".to_owned());
             return;
         }
-        self.loading = true;
-        self.error = None;
-        if let Ok(mut slot) = self.replace_cell.lock() {
-            *slot = None;
+        if self.active_preview.is_some() || self.active_apply.is_some() {
+            self.replace_status = Some("A replacement operation is already in flight".to_owned());
+            return;
         }
+        let stamp = self.next_stamp(ws, FindInFilesOperation::Apply);
+        let cancel = Arc::new(AtomicBool::new(false));
+        self.active_apply = Some(stamp.clone());
+        self.active_apply_cancel = Some(Arc::clone(&cancel));
+        self.refresh_loading();
+        self.error = None;
         client.apply_plans(
             ws,
             self.preview_plans.clone(),
+            stamp,
             Arc::clone(&self.replace_cell),
+            cancel,
         );
     }
 
@@ -1304,13 +1921,19 @@ impl FindInFilesPanelState {
     pub fn load_bookmarks(&mut self, client: &WorkspaceSearchClient, workspace_id: Option<&str>) {
         let Some(ws) = workspace_id else {
             self.bookmarks = Vec::new();
+            self.bookmark_load_failed = false;
             return;
         };
-        self.bookmark_status = None;
-        if let Ok(mut slot) = self.bookmark_cell.lock() {
-            *slot = None;
+        if self.active_bookmark_load.is_some() {
+            return;
         }
-        client.load_bookmarks(ws, Arc::clone(&self.bookmark_cell));
+        let stamp = self.next_stamp(ws, FindInFilesOperation::BookmarkLoad);
+        self.active_bookmark_load = Some(stamp.clone());
+        self.bookmark_load_failed = false;
+        self.bookmark_load_attempt_count = self.bookmark_load_attempt_count.wrapping_add(1);
+        self.refresh_loading();
+        self.bookmark_status = None;
+        client.load_bookmarks(ws, stamp, Arc::clone(&self.bookmark_cell));
     }
 
     /// Save the current search as a bookmark (dedup by stable id, cap at 20), persisting the whole list.
@@ -1369,10 +1992,7 @@ impl FindInFilesPanelState {
         self.case_sensitive = bookmark.case_sensitive;
         self.whole_word = bookmark.whole_word;
         self.is_regex = bookmark.is_regex;
-        self.results = Vec::new();
-        self.preview_plans = Vec::new();
-        self.preview_plan_key = None;
-        self.result_set_key = None;
+        self.invalidate_search_inputs();
         self.replace_status = None;
         self.error = None;
         self.bookmark_status = Some(format!("Restored search bookmark {}", bookmark.label));
@@ -1406,12 +2026,16 @@ impl FindInFilesPanelState {
         bookmarks: Vec<SearchBookmark>,
         status: String,
     ) {
-        self.bookmark_status = None;
-        if let Ok(mut slot) = self.bookmark_cell.lock() {
-            *slot = None;
+        if self.active_bookmark_save.is_some() {
+            self.bookmark_status = Some("A bookmark save is already in flight".to_owned());
+            return;
         }
+        let stamp = self.next_stamp(ws, FindInFilesOperation::BookmarkSave);
+        self.active_bookmark_save = Some(stamp.clone());
+        self.refresh_loading();
+        self.bookmark_status = None;
         let blob = bookmark_state_blob(&bookmarks);
-        client.save_bookmarks(ws, blob, status, Arc::clone(&self.bookmark_cell));
+        client.save_bookmarks(ws, blob, status, stamp, Arc::clone(&self.bookmark_cell));
     }
 
     /// The honest loading/status text for the header line.
@@ -1447,13 +2071,54 @@ pub enum ReplaceDelivery {
     /// All `plan_count` plans applied; `receipts` are the per-document save receipt ids.
     Applied {
         receipts: Vec<String>,
+        audit_receipts: Vec<ReplaceAuditReceipt>,
         plan_count: usize,
     },
     /// Apply failed partway: `receipts` of the docs already saved are preserved; `error` is the failure.
     AppliedPartial {
         receipts: Vec<String>,
+        audit_receipts: Vec<ReplaceAuditReceipt>,
         error: String,
     },
+    /// Apply cancellation was honored between document saves. Already committed saves and their
+    /// receipts/audit rows are preserved; `skipped_plan_count` was never submitted.
+    Cancelled {
+        receipts: Vec<String>,
+        audit_receipts: Vec<ReplaceAuditReceipt>,
+        skipped_plan_count: usize,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReplaceAuditOutcome {
+    Saved,
+    CommittedWithoutReceipt,
+    Conflict,
+    Failed,
+}
+
+/// Per-document mutation receipt. Hashes name the exact JSON loaded during preview and submitted by
+/// Apply; conflict/failure rows are retained alongside any prior successful save receipts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReplaceAuditReceipt {
+    pub document_id: String,
+    pub before_sha256: String,
+    pub after_sha256: String,
+    pub outcome: ReplaceAuditOutcome,
+    pub save_receipt_event_id: Option<String>,
+    pub error: Option<String>,
+}
+
+fn format_replace_audit_receipt(receipt: &ReplaceAuditReceipt) -> String {
+    let error = receipt
+        .error
+        .as_deref()
+        .map(|error| format!(" ({error})"))
+        .unwrap_or_default();
+    format!(
+        "{}:{:?}:{}→{}{}",
+        receipt.document_id, receipt.outcome, receipt.before_sha256, receipt.after_sha256, error
+    )
 }
 
 /// A monotonic ISO-8601-ish timestamp for the bookmark `savedAt` field. Uses `chrono` (already a
@@ -1487,7 +2152,7 @@ pub fn show(
     workspace_id: Option<&str>,
     callbacks: &mut FindInFilesCallbacks<'_>,
 ) {
-    state.poll();
+    state.poll_with_search_refresh(search_client, workspace_id);
     if state.loading {
         ui.ctx().request_repaint();
     }
@@ -1502,6 +2167,7 @@ pub fn show(
     let mut fire_apply = false;
     let mut fire_cancel = false;
     let mut fire_save_bookmark = false;
+    let mut fire_retry_bookmarks = false;
 
     // ── Query + match toggles ──
     ui.horizontal(|ui| {
@@ -1510,27 +2176,60 @@ pub fn show(
             .desired_width(220.0);
         let resp = ui.add(edit);
         accessibility::emit_interactive_node(ui.ctx(), resp.id, QUERY_AUTHOR_ID);
+        if resp.changed() {
+            state.invalidate_search_inputs();
+        }
         if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
             fire_search = true;
         }
 
         let case_btn = ui.add(egui::Button::new("Aa").selected(state.case_sensitive));
         accessibility::emit_interactive_node(ui.ctx(), case_btn.id, TOGGLE_CASE_AUTHOR_ID);
+        let case_toggled = state.case_sensitive;
+        ui.ctx().accesskit_node_builder(case_btn.id, move |node| {
+            node.set_toggled(if case_toggled {
+                egui::accesskit::Toggled::True
+            } else {
+                egui::accesskit::Toggled::False
+            });
+        });
         if case_btn.clicked() {
             state.case_sensitive = !state.case_sensitive;
+            state.invalidate_search_inputs();
         }
         let word_btn = ui.add(egui::Button::new("W").selected(state.whole_word));
         accessibility::emit_interactive_node(ui.ctx(), word_btn.id, TOGGLE_WORD_AUTHOR_ID);
+        let word_toggled = state.whole_word;
+        ui.ctx().accesskit_node_builder(word_btn.id, move |node| {
+            node.set_toggled(if word_toggled {
+                egui::accesskit::Toggled::True
+            } else {
+                egui::accesskit::Toggled::False
+            });
+        });
         if word_btn.clicked() {
             state.whole_word = !state.whole_word;
+            state.invalidate_search_inputs();
         }
         let regex_btn = ui.add(egui::Button::new(".*").selected(state.is_regex));
         accessibility::emit_interactive_node(ui.ctx(), regex_btn.id, TOGGLE_REGEX_AUTHOR_ID);
+        let regex_toggled = state.is_regex;
+        ui.ctx().accesskit_node_builder(regex_btn.id, move |node| {
+            node.set_toggled(if regex_toggled {
+                egui::accesskit::Toggled::True
+            } else {
+                egui::accesskit::Toggled::False
+            });
+        });
         if regex_btn.clicked() {
             state.is_regex = !state.is_regex;
+            state.invalidate_search_inputs();
         }
 
-        let search_btn = ui.button("Search");
+        let search_btn = ui.add_enabled(
+            !state.search_in_flight() && !state.preview_in_flight() && !state.apply_in_flight(),
+            egui::Button::new("Search"),
+        );
         accessibility::emit_interactive_node(ui.ctx(), search_btn.id, SEARCH_AUTHOR_ID);
         if search_btn.clicked() {
             fire_search = true;
@@ -1539,20 +2238,29 @@ pub fn show(
 
     // ── Replacement + replace actions ──
     ui.horizontal(|ui| {
+        let replacement_enabled = !state.apply_in_flight();
         let edit = egui::TextEdit::singleline(&mut state.replacement)
             .hint_text("Replace with")
             .desired_width(220.0);
-        let resp = ui.add(edit);
+        let resp = ui.add_enabled(replacement_enabled, edit);
         accessibility::emit_interactive_node(ui.ctx(), resp.id, REPLACE_AUTHOR_ID);
+        if resp.changed() {
+            state.invalidate_replacement_input();
+        }
 
-        let preview_enabled = state.result_set_key.is_some();
+        let preview_enabled = state.result_set_key.is_some()
+            && !state.preview_in_flight()
+            && !state.apply_in_flight();
         let preview_btn = ui.add_enabled(preview_enabled, egui::Button::new("Preview Replace"));
         accessibility::emit_interactive_node(ui.ctx(), preview_btn.id, PREVIEW_REPLACE_AUTHOR_ID);
         if preview_btn.clicked() {
             fire_preview = true;
         }
 
-        let apply_btn = ui.add_enabled(state.can_apply(), egui::Button::new("Apply"));
+        let apply_btn = ui.add_enabled(
+            state.can_apply() && !state.preview_in_flight() && !state.apply_in_flight(),
+            egui::Button::new("Apply"),
+        );
         accessibility::emit_interactive_node(ui.ctx(), apply_btn.id, APPLY_AUTHOR_ID);
         if apply_btn.clicked() {
             fire_apply = true;
@@ -1575,20 +2283,38 @@ pub fn show(
                 }
             });
         accessibility::emit_interactive_node(ui.ctx(), combo.response.id, KIND_FILTER_AUTHOR_ID);
+        let selected_kind = state.kind.label().to_owned();
+        ui.ctx()
+            .accesskit_node_builder(combo.response.id, move |node| {
+                node.set_label(format!("Kind filter: {selected_kind}"));
+                node.set_value(selected_kind.clone());
+            });
+        if combo.response.changed() {
+            state.invalidate_search_inputs();
+        }
 
         let tag = egui::TextEdit::singleline(&mut state.tag_filter)
             .hint_text("tag ids")
             .desired_width(120.0);
         let tag_resp = ui.add(tag);
         accessibility::emit_interactive_node(ui.ctx(), tag_resp.id, TAG_FILTER_AUTHOR_ID);
+        if tag_resp.changed() {
+            state.invalidate_search_inputs();
+        }
 
         let path = egui::TextEdit::singleline(&mut state.path_filter)
             .hint_text("path")
             .desired_width(120.0);
         let path_resp = ui.add(path);
         accessibility::emit_interactive_node(ui.ctx(), path_resp.id, PATH_FILTER_AUTHOR_ID);
+        if path_resp.changed() {
+            state.invalidate_search_inputs();
+        }
 
-        let bm_btn = ui.button("Bookmark Search");
+        let bm_btn = ui.add_enabled(
+            !state.bookmark_in_flight(),
+            egui::Button::new("Bookmark Search"),
+        );
         accessibility::emit_interactive_node(ui.ctx(), bm_btn.id, SAVE_BOOKMARK_AUTHOR_ID);
         if bm_btn.clicked() {
             fire_save_bookmark = true;
@@ -1601,6 +2327,16 @@ pub fn show(
     if let Some(bm_status) = &state.bookmark_status {
         ui.label(egui::RichText::new(bm_status).weak());
     }
+    if state.bookmark_load_failed {
+        let retry = ui.add_enabled(
+            !state.bookmark_in_flight(),
+            egui::Button::new("Retry saved searches"),
+        );
+        accessibility::emit_interactive_node(ui.ctx(), retry.id, BOOKMARK_RETRY_AUTHOR_ID);
+        if retry.clicked() {
+            fire_retry_bookmarks = true;
+        }
+    }
 
     // ── Saved searches (bookmarks) ──
     let mut restore_bookmark: Option<SearchBookmark> = None;
@@ -1611,10 +2347,22 @@ pub fn show(
         for bm in &state.bookmarks {
             ui.horizontal(|ui| {
                 ui.label(&bm.label);
-                if ui.small_button("Restore").clicked() {
+                let restore = ui.small_button("Restore");
+                accessibility::emit_interactive_node(
+                    ui.ctx(),
+                    restore.id,
+                    &bookmark_restore_author_id(&bm.id),
+                );
+                if restore.clicked() {
                     restore_bookmark = Some(bm.clone());
                 }
-                if ui.small_button("Remove").clicked() {
+                let remove = ui.small_button("Remove");
+                accessibility::emit_interactive_node(
+                    ui.ctx(),
+                    remove.id,
+                    &bookmark_remove_author_id(&bm.id),
+                );
+                if remove.clicked() {
                     remove_bookmark_id = Some(bm.id.clone());
                 }
             });
@@ -1734,10 +2482,7 @@ pub fn show(
         state.remove_bookmark(search_client, workspace_id, &id);
     }
     if fire_cancel {
-        state.preview_plans = Vec::new();
-        state.preview_plan_key = None;
-        state.replace_status = None;
-        state.error = None;
+        state.request_cancel();
     }
     if fire_search {
         state.run_search(search_client, workspace_id);
@@ -1751,6 +2496,9 @@ pub fn show(
     if fire_save_bookmark {
         state.save_bookmark(search_client, workspace_id);
     }
+    if fire_retry_bookmarks {
+        state.load_bookmarks(search_client, workspace_id);
+    }
 }
 
 // ── Pane factory (the in-product render path — AC, the WP-011 registry dispatch) ──────────────────────
@@ -1761,18 +2509,22 @@ pub fn show(
 /// on the factory map.
 pub struct FindInFilesPaneShared {
     pub workspace_id: Option<String>,
+    /// Monotonic shell generation. Unlike pane-local observation, this advances even while the pane is
+    /// hidden, so A→B→A cannot accept an async completion from the first A binding.
+    pub workspace_generation: u64,
     pub palette: HsPalette,
     /// Hits the operator/agent clicked this frame (FIFO), drained by the shell into the open path.
     pub open_requests: Vec<LoomGraphSearchHit>,
     /// Set true once the panel's bookmarks have been loaded for the active workspace, so the load fires
     /// exactly once per workspace (the React mount-effect equivalent).
-    bookmarks_loaded_for: Option<String>,
+    bookmarks_loaded_for: Option<(Option<String>, u64)>,
 }
 
 impl FindInFilesPaneShared {
     pub fn new(palette: HsPalette) -> Self {
         Self {
             workspace_id: None,
+            workspace_generation: 0,
             palette,
             open_requests: Vec::new(),
             bookmarks_loaded_for: None,
@@ -1786,7 +2538,7 @@ impl FindInFilesPaneShared {
 /// workspace id + palette + open-hit drain flowing through [`FindInFilesPaneShared`], and the HTTP
 /// transport reusing the real verified clients.
 pub struct FindInFilesPaneFactory {
-    state: Mutex<FindInFilesPanelState>,
+    state: Arc<Mutex<FindInFilesPanelState>>,
     search_client: WorkspaceSearchClient,
     doc_client: RichDocClient,
     shared: Arc<Mutex<FindInFilesPaneShared>>,
@@ -1813,11 +2565,16 @@ impl FindInFilesPaneFactory {
         state: FindInFilesPanelState,
     ) -> Self {
         Self {
-            state: Mutex::new(state),
+            state: Arc::new(Mutex::new(state)),
             search_client,
             doc_client,
             shared,
         }
+    }
+
+    /// Exact mounted state handle for structured diagnostics and managed runtime proofs.
+    pub fn state_handle(&self) -> Arc<Mutex<FindInFilesPanelState>> {
+        Arc::clone(&self.state)
     }
 }
 
@@ -1827,17 +2584,26 @@ impl PaneFactory for FindInFilesPaneFactory {
     }
 
     fn render(&self, ui: &mut egui::Ui, _ctx: &PaneRenderContext) {
-        let (workspace_id, palette) = {
+        let (workspace_id, workspace_generation, palette) = {
             let guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
-            (guard.workspace_id.clone(), guard.palette.clone())
+            (
+                guard.workspace_id.clone(),
+                guard.workspace_generation,
+                guard.palette.clone(),
+            )
         };
         let mut state = self.state.lock().unwrap_or_else(|p| p.into_inner());
+        if state.bind_workspace(workspace_id.as_deref(), workspace_generation) {
+            let mut guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
+            guard.open_requests.clear();
+        }
 
         // Load the workspace's bookmarks exactly once per workspace (the React mount-effect).
         let needs_bookmark_load = {
             let mut guard = self.shared.lock().unwrap_or_else(|p| p.into_inner());
-            if guard.bookmarks_loaded_for != workspace_id {
-                guard.bookmarks_loaded_for = workspace_id.clone();
+            let binding = (workspace_id.clone(), workspace_generation);
+            if guard.bookmarks_loaded_for.as_ref() != Some(&binding) {
+                guard.bookmarks_loaded_for = Some(binding);
                 workspace_id.is_some()
             } else {
                 false
@@ -1899,7 +2665,7 @@ mod tests {
     }
 
     #[test]
-    fn compile_regex_invalid_pattern_is_err() {
+    fn find_in_files_regex_compile_error() {
         // PT-4: an invalid regex returns Err with a non-empty message (no panic).
         let err = compile_search_regex(
             "[invalid",
@@ -2142,10 +2908,13 @@ mod tests {
         s.results = vec![]; // unused for the key
         s.result_set_key = Some(s.current_search_key());
         s.preview_plans = vec![ReplacementPlan {
+            workspace_id: "ws-1".into(),
             document_id: "KRD-1".into(),
             title: "T".into(),
             expected_version: 1,
             content_json_after: json!({}),
+            before_sha256: "0".repeat(64),
+            after_sha256: "1".repeat(64),
             crdt_document_id: None,
             match_count: 1,
             before_preview: String::new(),
@@ -2219,7 +2988,7 @@ mod tests {
         let blob = bookmark_state_blob(std::slice::from_ref(&bm));
         // RISK-6: the schema_id MUST be exactly the backend-validated value.
         assert_eq!(blob["schema_id"], WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID);
-        let parsed = parse_bookmark_state(&blob);
+        let parsed = parse_bookmark_state(&blob).unwrap();
         assert_eq!(parsed.len(), 1);
         assert_eq!(parsed[0], bm, "bookmark round-trips through the blob");
     }
@@ -2245,13 +3014,694 @@ mod tests {
             blob["bookmarks"].as_array().unwrap().len(),
             MAX_WORKSPACE_SEARCH_BOOKMARKS
         );
+        assert_eq!(
+            parse_bookmark_state(&blob)
+                .expect("exactly twenty bookmarks are accepted")
+                .len(),
+            MAX_WORKSPACE_SEARCH_BOOKMARKS
+        );
+        let twenty_one = json!({
+            "schema_id": WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID,
+            "bookmarks": many
+                .iter()
+                .take(MAX_WORKSPACE_SEARCH_BOOKMARKS + 1)
+                .map(SearchBookmark::to_json)
+                .collect::<Vec<_>>(),
+        });
+        assert!(parse_bookmark_state(&twenty_one)
+            .expect_err("twenty-one bookmarks must fail closed")
+            .contains("maximum is 20"));
     }
 
     #[test]
-    fn result_author_id_sanitizes_ref_id() {
+    fn malformed_bookmark_payload_fails_closed() {
+        let malformed = json!({
+            "schema_id": WORKSPACE_SEARCH_BOOKMARK_SCHEMA_ID,
+            "bookmarks": [
+                {"id":"ok"},
+                {"id":"also-incomplete"}
+            ]
+        });
+        assert!(parse_bookmark_state(&malformed).is_err());
+        assert!(parse_bookmark_state(&json!({"results": []})).is_err());
+        let mut unknown_kind = bookmark_state_blob(&[SearchBookmark {
+            id: "unknown-kind".into(),
+            label: "unknown-kind".into(),
+            query: "q".into(),
+            kind: KindFilter::All,
+            tag_filter: String::new(),
+            path_filter: String::new(),
+            case_sensitive: false,
+            whole_word: false,
+            is_regex: false,
+            saved_at: "2026-07-15T00:00:00Z".into(),
+        }]);
+        unknown_kind["bookmarks"][0]["kind"] = json!("future_kind");
+        assert!(parse_bookmark_state(&unknown_kind)
+            .expect_err("unknown kind must fail closed")
+            .contains("unsupported bookmark kind"));
+
+        let mut blank_saved_at = bookmark_state_blob(&[SearchBookmark {
+            id: "blank-saved-at".into(),
+            label: "blank-saved-at".into(),
+            query: "q".into(),
+            kind: KindFilter::All,
+            tag_filter: String::new(),
+            path_filter: String::new(),
+            case_sensitive: false,
+            whole_word: false,
+            is_regex: false,
+            saved_at: "2026-07-15T00:00:00Z".into(),
+        }]);
+        blank_saved_at["bookmarks"][0]["savedAt"] = json!("   ");
+        assert!(parse_bookmark_state(&blank_saved_at)
+            .expect_err("blank savedAt must fail closed")
+            .contains("savedAt must not be blank"));
+
+        let mut invalid_saved_at = blank_saved_at;
+        invalid_saved_at["bookmarks"][0]["savedAt"] = json!("not-a-timestamp");
+        assert!(parse_bookmark_state(&invalid_saved_at)
+            .expect_err("non-RFC3339 savedAt must fail closed")
+            .contains("savedAt must be an RFC3339 timestamp"));
+
+        let mut offset_saved_at = invalid_saved_at;
+        offset_saved_at["bookmarks"][0]["savedAt"] = json!("2026-07-15T02:00:00+02:00");
         assert_eq!(
-            result_author_id("loom_block", "blk/1:x"),
-            "find-in-files.result.loom_block.blk-1-x"
+            parse_bookmark_state(&offset_saved_at)
+                .expect("valid RFC3339 offset timestamp must round-trip")[0]
+                .saved_at,
+            "2026-07-15T02:00:00+02:00"
+        );
+    }
+
+    #[test]
+    fn bookmark_save_terminal_survives_workspace_rebind_without_state_contamination() {
+        use crate::backend_client::FindInFilesDelivery;
+
+        let bookmark_a = SearchBookmark {
+            id: "a".into(),
+            label: "A".into(),
+            query: "workspace-a".into(),
+            kind: KindFilter::Document,
+            tag_filter: String::new(),
+            path_filter: String::new(),
+            case_sensitive: false,
+            whole_word: false,
+            is_regex: false,
+            saved_at: "2026-07-15T00:00:00Z".into(),
+        };
+        let bookmark_b = SearchBookmark {
+            id: "b".into(),
+            label: "B".into(),
+            query: "workspace-b".into(),
+            ..bookmark_a.clone()
+        };
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        let stamp = state.next_stamp("A", FindInFilesOperation::BookmarkSave);
+        state.active_bookmark_save = Some(stamp.clone());
+        state.refresh_loading();
+
+        state.bind_workspace(Some("B"), 2);
+        state.bookmarks = vec![bookmark_b.clone()];
+        let load_b = state.next_stamp("B", FindInFilesOperation::BookmarkLoad);
+        state.active_bookmark_load = Some(load_b.clone());
+        assert_eq!(state.active_bookmark_save.as_ref(), Some(&stamp));
+        assert!(state.loading);
+        state
+            .bookmark_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp,
+                outcome: Ok((
+                    bookmark_state_blob(std::slice::from_ref(&bookmark_a)),
+                    Some("Saved search bookmark A".into()),
+                    Some("evt-bookmark-A".into()),
+                )),
+            });
+        state
+            .bookmark_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: load_b,
+                outcome: Ok((
+                    bookmark_state_blob(std::slice::from_ref(&bookmark_b)),
+                    None,
+                    None,
+                )),
+            });
+
+        assert!(state.poll());
+        assert!(!state.bookmark_in_flight());
+        assert_eq!(state.bookmarks, vec![bookmark_b]);
+        assert_eq!(
+            state.last_bookmark_save_terminal_workspace_id.as_deref(),
+            Some("A")
+        );
+        assert_eq!(
+            state.last_bookmark_save_receipt_id.as_deref(),
+            Some("evt-bookmark-A")
+        );
+        let status = state.bookmark_status.as_deref().unwrap_or_default();
+        assert!(status.contains("Workspace A"));
+        assert!(status.contains("Saved search bookmark A"));
+        assert!(status.contains("evt-bookmark-A"));
+    }
+
+    #[test]
+    fn bookmark_save_a_b_a_rebind_reports_old_terminal_but_never_rehydrates_old_a_state() {
+        use crate::backend_client::FindInFilesDelivery;
+
+        let bookmark = |id: &str| SearchBookmark {
+            id: id.into(),
+            label: id.into(),
+            query: id.into(),
+            kind: KindFilter::All,
+            tag_filter: String::new(),
+            path_filter: String::new(),
+            case_sensitive: false,
+            whole_word: false,
+            is_regex: false,
+            saved_at: "2026-07-15T00:00:00Z".into(),
+        };
+        let old_a = bookmark("old-a");
+        let current_a = bookmark("current-a");
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        let stamp = state.next_stamp("A", FindInFilesOperation::BookmarkSave);
+        state.active_bookmark_save = Some(stamp.clone());
+        state.bind_workspace(Some("B"), 2);
+        state.bind_workspace(Some("A"), 3);
+        state.bookmarks = vec![current_a.clone()];
+        state
+            .bookmark_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp,
+                outcome: Ok((
+                    bookmark_state_blob(std::slice::from_ref(&old_a)),
+                    Some("Saved old A".into()),
+                    Some("evt-old-A".into()),
+                )),
+            });
+
+        assert!(state.poll());
+        assert_eq!(state.bookmarks, vec![current_a]);
+        assert_eq!(
+            state.last_bookmark_save_terminal_workspace_id.as_deref(),
+            Some("A")
+        );
+        assert_eq!(
+            state.last_bookmark_save_receipt_id.as_deref(),
+            Some("evt-old-A")
+        );
+        assert!(state
+            .bookmark_status
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Saved old A"));
+    }
+
+    #[test]
+    fn a_b_a_workspace_cycle_rejects_old_search_completion() {
+        use crate::backend_client::FindInFilesDelivery;
+
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        let stale = state.next_stamp("A", FindInFilesOperation::Search);
+        state.active_search = Some(stale.clone());
+        state.bind_workspace(Some("B"), 2);
+        state.bind_workspace(Some("A"), 3);
+        let fresh = state.next_stamp("A", FindInFilesOperation::Search);
+        state.active_search = Some(fresh.clone());
+        let old_hit = LoomGraphSearchHit {
+            source_kind: "document".into(),
+            result_kind: "document".into(),
+            ref_id: "KRD-old".into(),
+            title: "old".into(),
+            excerpt: String::new(),
+            metadata: json!({}),
+            block: None,
+        };
+        let fresh_hit = LoomGraphSearchHit {
+            ref_id: "KRD-fresh".into(),
+            title: "fresh".into(),
+            ..old_hit.clone()
+        };
+        state
+            .search_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: stale,
+                outcome: Ok((vec![old_hit], "old-key".into())),
+            });
+        state
+            .search_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: fresh,
+                outcome: Ok((vec![fresh_hit], "fresh-key".into())),
+            });
+        assert!(state.poll());
+        assert_eq!(state.results[0].ref_id, "KRD-fresh");
+        assert_eq!(state.result_set_key.as_deref(), Some("fresh-key"));
+    }
+
+    #[test]
+    fn operation_completion_only_clears_its_own_in_flight_state() {
+        use crate::backend_client::FindInFilesDelivery;
+
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("ws"), 1);
+        let search = state.next_stamp("ws", FindInFilesOperation::Search);
+        let bookmark = state.next_stamp("ws", FindInFilesOperation::BookmarkLoad);
+        state.active_search = Some(search.clone());
+        state.active_bookmark_load = Some(bookmark);
+        state.refresh_loading();
+        state
+            .search_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: search,
+                outcome: Ok((Vec::new(), "key".into())),
+            });
+        state.poll();
+        assert!(!state.search_in_flight());
+        assert!(state.bookmark_in_flight());
+        assert!(state.loading, "bookmark load keeps aggregate loading true");
+    }
+
+    #[test]
+    fn hidden_a_b_a_generation_rebind_rejects_first_a_completion() {
+        use crate::backend_client::FindInFilesDelivery;
+
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        let stale = state.next_stamp("A", FindInFilesOperation::Search);
+        state.active_search = Some(stale.clone());
+
+        // The pane did not render during B. The shell generation still advances and the next render of
+        // A must rebind even though the visible workspace id equals the last rendered id.
+        state.bind_workspace(Some("A"), 3);
+        let fresh = state.next_stamp("A", FindInFilesOperation::Search);
+        state.active_search = Some(fresh.clone());
+        state
+            .search_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: stale,
+                outcome: Ok((Vec::new(), "stale".to_owned())),
+            });
+        state
+            .search_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: fresh,
+                outcome: Ok((Vec::new(), "fresh".to_owned())),
+            });
+
+        assert!(state.poll());
+        assert_eq!(state.result_set_key.as_deref(), Some("fresh"));
+    }
+
+    #[test]
+    fn apply_delivery_requests_search_refresh_for_committed_mutations() {
+        let mut state = FindInFilesPanelState::new();
+        state.apply_replace_delivery(ReplaceDelivery::Applied {
+            receipts: vec!["evt-1".to_owned()],
+            audit_receipts: vec![ReplaceAuditReceipt {
+                document_id: "KRD-1".to_owned(),
+                before_sha256: "a".repeat(64),
+                after_sha256: "b".repeat(64),
+                outcome: ReplaceAuditOutcome::Saved,
+                save_receipt_event_id: Some("evt-1".to_owned()),
+                error: None,
+            }],
+            plan_count: 1,
+        });
+        assert!(state.refresh_search_after_apply);
+    }
+
+    #[test]
+    fn apply_status_exposes_committed_without_receipt_and_receipt_error() {
+        let mut state = FindInFilesPanelState::new();
+        state.apply_replace_delivery(ReplaceDelivery::Applied {
+            receipts: Vec::new(),
+            audit_receipts: vec![ReplaceAuditReceipt {
+                document_id: "KRD-1".to_owned(),
+                before_sha256: "a".repeat(64),
+                after_sha256: "b".repeat(64),
+                outcome: ReplaceAuditOutcome::CommittedWithoutReceipt,
+                save_receipt_event_id: None,
+                error: Some("event ledger unavailable".to_owned()),
+            }],
+            plan_count: 1,
+        });
+
+        let status = state.replace_status.expect("Apply status");
+        assert!(status.contains("CommittedWithoutReceipt"));
+        assert!(status.contains("event ledger unavailable"));
+        assert!(state.refresh_search_after_apply);
+    }
+
+    #[test]
+    fn cancel_apply_retains_active_stamp_until_worker_reports_receipts() {
+        let mut state = FindInFilesPanelState::new();
+        let stamp = state.next_stamp("ws", FindInFilesOperation::Apply);
+        let cancel = Arc::new(AtomicBool::new(false));
+        state.active_apply = Some(stamp);
+        state.active_apply_cancel = Some(Arc::clone(&cancel));
+        state.refresh_loading();
+
+        state.request_cancel();
+
+        assert!(cancel.load(Ordering::Acquire));
+        assert!(state.apply_in_flight());
+        assert!(state.loading);
+        assert!(state.header_status().contains("Working"));
+    }
+
+    #[test]
+    fn workspace_rebind_retains_apply_until_workspace_attributed_terminal_receipt() {
+        use crate::backend_client::FindInFilesDelivery;
+
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        let stamp = state.next_stamp("A", FindInFilesOperation::Apply);
+        let cancel = Arc::new(AtomicBool::new(false));
+        state.active_apply = Some(stamp.clone());
+        state.active_apply_cancel = Some(Arc::clone(&cancel));
+        state.refresh_loading();
+
+        state.bind_workspace(Some("B"), 2);
+        assert!(cancel.load(Ordering::Acquire));
+        assert_eq!(state.active_apply.as_ref(), Some(&stamp));
+        assert!(state.loading);
+
+        state
+            .replace_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp,
+                outcome: ReplaceDelivery::Applied {
+                    receipts: vec!["evt-A-1".to_owned()],
+                    audit_receipts: vec![ReplaceAuditReceipt {
+                        document_id: "KRD-A-1".to_owned(),
+                        before_sha256: "a".repeat(64),
+                        after_sha256: "b".repeat(64),
+                        outcome: ReplaceAuditOutcome::Saved,
+                        save_receipt_event_id: Some("evt-A-1".to_owned()),
+                        error: None,
+                    }],
+                    plan_count: 1,
+                },
+            });
+        assert!(state.poll());
+        assert!(!state.apply_in_flight());
+        assert_eq!(state.last_apply_terminal_workspace_id.as_deref(), Some("A"));
+        let status = state.replace_status.as_deref().unwrap_or_default();
+        assert!(status.contains("Workspace A"));
+        assert!(status.contains("evt-A-1"));
+        assert_eq!(state.refresh_search_workspace_id.as_deref(), Some("A"));
+    }
+
+    #[test]
+    fn in_flight_save_commits_after_rebind_and_real_worker_receipt_remains_visible() {
+        use std::io::{Read, Write};
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        fn read_request(stream: &mut std::net::TcpStream) {
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let mut bytes = Vec::new();
+            let mut buffer = [0u8; 4096];
+            let mut expected_len = None;
+            loop {
+                let read = stream.read(&mut buffer).expect("read mock HTTP request");
+                if read == 0 {
+                    break;
+                }
+                bytes.extend_from_slice(&buffer[..read]);
+                if expected_len.is_none() {
+                    if let Some(header_end) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+                        let headers = String::from_utf8_lossy(&bytes[..header_end]);
+                        let content_len = headers
+                            .lines()
+                            .find_map(|line| {
+                                line.to_ascii_lowercase()
+                                    .strip_prefix("content-length:")
+                                    .and_then(|value| value.trim().parse::<usize>().ok())
+                            })
+                            .unwrap_or(0);
+                        expected_len = Some(header_end + 4 + content_len);
+                    }
+                }
+                if expected_len.is_some_and(|len| bytes.len() >= len) {
+                    break;
+                }
+            }
+        }
+
+        fn respond_json(stream: &mut std::net::TcpStream, value: serde_json::Value) {
+            let body = value.to_string();
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            )
+            .expect("write mock HTTP response");
+            stream.flush().unwrap();
+        }
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let (save_started_tx, save_started_rx) = mpsc::channel();
+        let (release_save_tx, release_save_rx) = mpsc::channel();
+        let server = std::thread::spawn(move || {
+            let (mut load_stream, _) = listener.accept().expect("accept revalidation GET");
+            read_request(&mut load_stream);
+            respond_json(
+                &mut load_stream,
+                serde_json::json!({
+                    "document": {
+                        "rich_document_id":"KRD-A-1", "workspace_id":"A", "doc_version":1,
+                        "title":"A", "content_json":{"type":"doc","content":[]},
+                        "crdt_document_id":null, "authority_label":"canonical",
+                        "owner_actor_kind":null, "owner_actor_id":null,
+                        "project_ref":null, "folder_ref":null,
+                        "created_at":"2026-07-15T00:00:00Z", "updated_at":"2026-07-15T00:00:00Z"
+                    },
+                    "tree":{"schema_version":"1","schema_matches":true,"block_ids":[],"blocks":[]},
+                    "code_nodes":[]
+                }),
+            );
+            let (mut save_stream, _) = listener.accept().expect("accept in-flight PUT");
+            read_request(&mut save_stream);
+            save_started_tx.send(()).unwrap();
+            release_save_rx
+                .recv_timeout(Duration::from_secs(2))
+                .expect("release in-flight save response");
+            respond_json(
+                &mut save_stream,
+                serde_json::json!({"document":{},"save_receipt_event_id":"evt-A-real"}),
+            );
+        });
+
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let client = RichDocClient::new(base, runtime.handle().clone());
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        state.query = "needle".to_owned();
+        state.replacement = "replacement".to_owned();
+        state.preview_plans = vec![ReplacementPlan {
+            workspace_id: "A".to_owned(),
+            document_id: "KRD-A-1".to_owned(),
+            title: "A".to_owned(),
+            expected_version: 1,
+            content_json_after: serde_json::json!({"type":"doc","content":[]}),
+            before_sha256: "a".repeat(64),
+            after_sha256: "b".repeat(64),
+            crdt_document_id: None,
+            match_count: 1,
+            before_preview: "needle".to_owned(),
+            after_preview: "replacement".to_owned(),
+            match_previews: Vec::new(),
+        }];
+        state.preview_plan_key = Some(state.current_replace_key());
+        state.run_apply(&client, Some("A"));
+        save_started_rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("save reached in-flight PUT");
+        state.bind_workspace(Some("B"), 2);
+        assert!(state.apply_in_flight());
+        let retained_apply_stamp = state.active_apply.clone();
+        state.preview_plans = vec![ReplacementPlan {
+            workspace_id: "B".to_owned(),
+            document_id: "KRD-B-1".to_owned(),
+            title: "B".to_owned(),
+            expected_version: 1,
+            content_json_after: serde_json::json!({}),
+            before_sha256: "c".repeat(64),
+            after_sha256: "d".repeat(64),
+            crdt_document_id: None,
+            match_count: 1,
+            before_preview: String::new(),
+            after_preview: String::new(),
+            match_previews: Vec::new(),
+        }];
+        state.preview_plan_key = Some(state.current_replace_key());
+        state.run_apply(&client, Some("B"));
+        assert_eq!(
+            state.active_apply, retained_apply_stamp,
+            "new destructive Apply stays blocked until old workspace worker terminates"
+        );
+        release_save_tx.send(()).unwrap();
+        for _ in 0..100 {
+            state.poll();
+            if !state.apply_in_flight() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        server.join().unwrap();
+        assert!(!state.apply_in_flight());
+        assert_eq!(state.last_apply_terminal_workspace_id.as_deref(), Some("A"));
+        let status = state.replace_status.as_deref().unwrap_or_default();
+        assert!(status.contains("Workspace A"));
+        assert!(status.contains("evt-A-real"));
+    }
+
+    #[test]
+    fn search_never_overlaps_apply_or_preview_completion_reordering() {
+        use crate::backend_client::FindInFilesDelivery;
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let client = WorkspaceSearchClient::new("http://127.0.0.1:9", runtime.handle().clone());
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        state.query = "same-input".to_owned();
+
+        let apply_stamp = state.next_stamp("A", FindInFilesOperation::Apply);
+        state.active_apply = Some(apply_stamp);
+        assert!(!state.run_search(&client, Some("A")));
+        assert!(state.active_search.is_none());
+        assert!(state
+            .error
+            .as_deref()
+            .unwrap_or_default()
+            .contains("blocked"));
+        state.active_apply = None;
+
+        let preview_stamp = state.next_stamp("A", FindInFilesOperation::Preview);
+        state.active_preview = Some(preview_stamp.clone());
+        assert!(!state.run_search(&client, Some("A")));
+        assert!(
+            state.active_preview.is_none(),
+            "new Search detaches Preview first"
+        );
+        assert!(
+            state.active_search.is_none(),
+            "the same click does not overlap Preview"
+        );
+        state
+            .replace_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: preview_stamp,
+                outcome: ReplaceDelivery::Preview {
+                    plans: Vec::new(),
+                    key: "same-input".to_owned(),
+                },
+            });
+        assert!(
+            !state.poll(),
+            "detached Preview delivery cannot reorder after Search intent"
+        );
+        assert!(state.preview_plan_key.is_none());
+        assert!(
+            state.run_search(&client, Some("A")),
+            "a second Search starts after detachment"
+        );
+    }
+
+    #[test]
+    fn automatic_refresh_flag_survives_until_search_actually_starts() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let client = WorkspaceSearchClient::new("http://127.0.0.1:9", runtime.handle().clone());
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        state.query = "refresh-me".to_owned();
+        state.refresh_search_after_apply = true;
+        state.refresh_search_workspace_id = Some("A".to_owned());
+        let apply_stamp = state.next_stamp("A", FindInFilesOperation::Apply);
+        state.active_apply = Some(apply_stamp);
+
+        state.poll_with_search_refresh(&client, Some("A"));
+        assert!(state.refresh_search_after_apply);
+        assert!(state.active_search.is_none());
+
+        state.active_apply = None;
+        assert!(state.poll_with_search_refresh(&client, Some("A")));
+        assert!(!state.refresh_search_after_apply);
+        assert!(state.active_search.is_some());
+    }
+
+    #[test]
+    fn result_author_id_is_injective_and_reversible() {
+        let slash = result_author_id("loom_block", "blk/1:x");
+        let dash = result_author_id("loom_block", "blk-1-x");
+        assert_ne!(slash, dash);
+        assert_eq!(
+            hit_identity_from_result_author_id(&slash),
+            Some(("loom_block".to_owned(), "blk/1:x".to_owned()))
+        );
+        let utf8 = result_author_id("文档", "résumé/東京");
+        assert_eq!(
+            hit_identity_from_result_author_id(&utf8),
+            Some(("文档".to_owned(), "résumé/東京".to_owned()))
+        );
+        assert_eq!(
+            result_author_id("document", "KRD-1:/foo?x=1"),
+            "find-in-files.result.646f63756d656e74.4b52442d313a2f666f6f3f783d31"
+        );
+        assert_eq!(
+            utf8,
+            "find-in-files.result.e69687e6a1a3.72c3a973756dc3a92fe69db1e4baac"
+        );
+        assert_eq!(
+            preview_author_id("KRD-文/1"),
+            "find-in-files.preview.4b52442de696872f31"
+        );
+        assert_eq!(
+            bookmark_restore_author_id("saved:文/1"),
+            "find-in-files.bookmark-restore.73617665643ae696872f31"
+        );
+        assert_eq!(
+            bookmark_remove_author_id("saved:文/1"),
+            "find-in-files.bookmark-remove.73617665643ae696872f31"
         );
     }
 
@@ -2282,5 +3732,73 @@ mod tests {
         assert_eq!(s.tag_filter, "tag-1");
         assert_eq!(s.path_filter, "src/app");
         assert!(s.case_sensitive && s.whole_word && s.is_regex);
+    }
+
+    #[test]
+    fn restore_bookmark_centrally_invalidates_results_cache_and_pending_reads() {
+        use crate::backend_client::FindInFilesDelivery;
+
+        let mut state = FindInFilesPanelState::new();
+        state.bind_workspace(Some("A"), 1);
+        state.query = "old".to_owned();
+        state.results = vec![LoomGraphSearchHit {
+            source_kind: "document".into(),
+            result_kind: "knowledge_entity".into(),
+            ref_id: "KRD-old".into(),
+            title: "old".into(),
+            excerpt: "old".into(),
+            metadata: json!({}),
+            block: None,
+        }];
+        state.result_set_key = Some(state.current_search_key());
+        assert_eq!(state.visible_result_count(), 1, "populate visible cache");
+        let generation_before = state.results_generation;
+        let search_stamp = state.next_stamp("A", FindInFilesOperation::Search);
+        let preview_stamp = state.next_stamp("A", FindInFilesOperation::Preview);
+        state.active_search = Some(search_stamp.clone());
+        state.active_preview = Some(preview_stamp.clone());
+        state
+            .search_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: search_stamp,
+                outcome: Ok((Vec::new(), "old-key".to_owned())),
+            });
+        state
+            .replace_cell
+            .lock()
+            .unwrap()
+            .push_back(FindInFilesDelivery {
+                stamp: preview_stamp,
+                outcome: ReplaceDelivery::Preview {
+                    plans: Vec::new(),
+                    key: "old-preview".to_owned(),
+                },
+            });
+
+        let bookmark = SearchBookmark {
+            id: "new".into(),
+            label: "new".into(),
+            query: "new".into(),
+            kind: KindFilter::Document,
+            tag_filter: String::new(),
+            path_filter: String::new(),
+            case_sensitive: false,
+            whole_word: false,
+            is_regex: false,
+            saved_at: "2026-07-15T00:00:00Z".into(),
+        };
+        state.restore_bookmark(&bookmark);
+        assert!(state.results.is_empty());
+        assert_eq!(state.visible_result_count(), 0);
+        assert!(state.results_generation > generation_before);
+        assert!(state.active_search.is_none() && state.active_preview.is_none());
+        assert!(state.search_cell.lock().unwrap().is_empty());
+        assert!(state.replace_cell.lock().unwrap().is_empty());
+        assert!(
+            !state.poll(),
+            "old completions cannot be accepted after restore"
+        );
     }
 }

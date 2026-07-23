@@ -3,12 +3,12 @@
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{
-    Arc,
     atomic::{AtomicU8, Ordering},
+    Arc,
 };
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use palmistry::child_registry::{ChildProcessProbe, ChildRegistry, read_file_counter};
+use palmistry::child_registry::{read_file_counter, ChildProcessProbe, ChildRegistry};
 use palmistry::child_stall::{
     ChildProcessState, ChildProgress, ChildStallDetector, ChildStallReasonCode, ChildStallState,
 };

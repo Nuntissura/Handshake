@@ -13,8 +13,7 @@ use super::{
     StructuredCollaborationStore, WriteContext,
 };
 use crate::managed_postgres::{ManagedPostgres, ManagedPostgresConfig};
-use chrono::Duration;
-use chrono::Utc;
+use chrono::{Duration, NaiveDate, TimeZone, Utc};
 use serde_json::json;
 use sqlx::Connection;
 #[cfg(test)]
@@ -380,6 +379,38 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
     let canvases = db.list_canvases(&workspace.id).await?;
     assert!(canvases.iter().any(|c| c.id == canvas.id));
 
+    let renamed_canvas = db
+        .rename_canvas(
+            &ctx,
+            &canvas.id,
+            "Renamed Canvas",
+            Some(canvas.updated_at.clone()),
+        )
+        .await?;
+    assert_eq!(renamed_canvas.title, "Renamed Canvas");
+    let renamed_readback = db.get_canvas_with_graph(&canvas.id).await?;
+    assert_eq!(renamed_readback.canvas.title, "Renamed Canvas");
+
+    let stale = db
+        .rename_canvas(
+            &ctx,
+            &canvas.id,
+            "Stale overwrite",
+            Some(canvas.updated_at.clone()),
+        )
+        .await;
+    assert!(matches!(
+        stale,
+        Err(StorageError::Conflict("canvas_updated_at_conflict"))
+    ));
+    let after_conflict = db.get_canvas_with_graph(&canvas.id).await?;
+    assert_eq!(after_conflict.canvas.title, "Renamed Canvas");
+
+    let missing = db
+        .rename_canvas(&ctx, "missing-canvas", "No target", None)
+        .await;
+    assert!(matches!(missing, Err(StorageError::NotFound("canvas"))));
+
     let node_a = Uuid::now_v7().to_string();
     let node_b = Uuid::now_v7().to_string();
     let graph = db
@@ -519,7 +550,7 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
     let listed_sources = db.list_calendar_sources(&workspace.id).await?;
     assert!(listed_sources.iter().any(|item| item.id == source.id));
 
-    let event_start = Utc::now() + Duration::hours(2);
+    let event_start = Utc.with_ymd_and_hms(2026, 3, 6, 9, 0, 0).unwrap();
     let event_end = event_start + Duration::hours(1);
     let event = db
         .upsert_calendar_event(
@@ -539,7 +570,10 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
                 end_local: Some("2026-03-06T11:00:00".into()),
                 tzid: "Europe/Brussels".into(),
                 all_day: false,
+                start_date: None,
+                end_date_exclusive: None,
                 was_floating: false,
+                normalization_note: None,
                 status: CalendarEventStatus::Confirmed,
                 visibility: CalendarEventVisibility::Private,
                 export_mode: CalendarEventExportMode::LocalOnly,
@@ -561,6 +595,8 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
     let queried_events = db
         .query_calendar_events(CalendarEventWindowQuery {
             workspace_id: workspace.id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 3, 6).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 3, 7).unwrap(),
             window_start_utc: event_start - Duration::minutes(30),
             window_end_utc: event_end + Duration::minutes(30),
             source_ids: Vec::new(),
@@ -573,6 +609,8 @@ pub async fn run_storage_conformance(db: Arc<dyn super::Database>) -> StorageRes
     let remaining_events = db
         .query_calendar_events(CalendarEventWindowQuery {
             workspace_id: workspace.id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 3, 6).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 3, 7).unwrap(),
             window_start_utc: event_start - Duration::minutes(30),
             window_end_utc: event_end + Duration::minutes(30),
             source_ids: Vec::new(),
@@ -1517,6 +1555,7 @@ pub async fn run_loom_storage_conformance(db: Arc<dyn super::Database>) -> Stora
                 favorite: None,
                 journal_date: Some("2026-03-14".into()),
                 pin_order: None,
+                expected_updated_at: None,
             },
         )
         .await?;
@@ -2277,7 +2316,7 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         .ok_or(StorageError::NotFound("calendar_source"))?;
     assert_eq!(fetched_source.display_name, "Google / Updated");
 
-    let provider_start = Utc::now() + Duration::days(1);
+    let provider_start = Utc.with_ymd_and_hms(2026, 3, 7, 8, 0, 0).unwrap();
     let provider_end = provider_start + Duration::hours(1);
     let original_provider_event = db
         .upsert_calendar_event(
@@ -2297,7 +2336,10 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
                 end_local: Some("2026-03-07T10:00:00".into()),
                 tzid: "Europe/Brussels".into(),
                 all_day: false,
+                start_date: None,
+                end_date_exclusive: None,
                 was_floating: false,
+                normalization_note: None,
                 status: CalendarEventStatus::Confirmed,
                 visibility: CalendarEventVisibility::Private,
                 export_mode: CalendarEventExportMode::FullExport,
@@ -2334,7 +2376,10 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
                 end_local: Some("2026-03-07T10:30:00".into()),
                 tzid: "Europe/Brussels".into(),
                 all_day: false,
+                start_date: None,
+                end_date_exclusive: None,
                 was_floating: false,
+                normalization_note: None,
                 status: CalendarEventStatus::Tentative,
                 visibility: CalendarEventVisibility::BusyOnly,
                 export_mode: CalendarEventExportMode::BusyOnly,
@@ -2388,7 +2433,10 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
                 end_local: Some("2026-03-07T16:00:00".into()),
                 tzid: "Europe/Brussels".into(),
                 all_day: false,
+                start_date: None,
+                end_date_exclusive: None,
                 was_floating: true,
+                normalization_note: None,
                 status: CalendarEventStatus::Confirmed,
                 visibility: CalendarEventVisibility::Private,
                 export_mode: CalendarEventExportMode::LocalOnly,
@@ -2412,6 +2460,8 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
     let matching_events = db
         .query_calendar_events(CalendarEventWindowQuery {
             workspace_id: workspace.id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 3, 7).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 3, 8).unwrap(),
             window_start_utc: provider_start - Duration::minutes(15),
             window_end_utc: local_end + Duration::minutes(15),
             source_ids: vec![source.id.clone()],
@@ -2424,6 +2474,8 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
     let narrow_window = db
         .query_calendar_events(CalendarEventWindowQuery {
             workspace_id: workspace.id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 3, 7).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 3, 8).unwrap(),
             window_start_utc: provider_start - Duration::minutes(15),
             window_end_utc: provider_end + Duration::minutes(15),
             source_ids: Vec::new(),
@@ -2440,6 +2492,8 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
     let no_events = db
         .query_calendar_events(CalendarEventWindowQuery {
             workspace_id: workspace.id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 3, 7).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 3, 8).unwrap(),
             window_start_utc: provider_start - Duration::minutes(15),
             window_end_utc: local_end + Duration::minutes(15),
             source_ids: Vec::new(),
@@ -2530,7 +2584,7 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
         Some(wf_str.as_str())
     );
 
-    let ai_event_start = Utc::now() + Duration::days(10);
+    let ai_event_start = Utc.with_ymd_and_hms(2026, 3, 17, 9, 0, 0).unwrap();
     let ai_event_end = ai_event_start + Duration::hours(1);
     let ai_event = db
         .upsert_calendar_event(
@@ -2550,7 +2604,10 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
                 end_local: Some("2026-03-17T10:00:00".into()),
                 tzid: "UTC".into(),
                 all_day: false,
+                start_date: None,
+                end_date_exclusive: None,
                 was_floating: false,
+                normalization_note: None,
                 status: CalendarEventStatus::Confirmed,
                 visibility: CalendarEventVisibility::Public,
                 export_mode: CalendarEventExportMode::FullExport,
@@ -2577,6 +2634,8 @@ pub async fn run_calendar_storage_conformance(db: Arc<dyn super::Database>) -> S
     let queried_ai_events = db
         .query_calendar_events(CalendarEventWindowQuery {
             workspace_id: workspace.id.clone(),
+            query_start_date: NaiveDate::from_ymd_opt(2026, 3, 17).unwrap(),
+            query_end_date_exclusive: NaiveDate::from_ymd_opt(2026, 3, 18).unwrap(),
             window_start_utc: ai_event_start - Duration::minutes(15),
             window_end_utc: ai_event_end + Duration::minutes(15),
             source_ids: vec![ai_source_id.clone()],

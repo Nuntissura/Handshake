@@ -481,8 +481,8 @@ fn ac06_dispatch_save_reaches_host_save_routing_seam() {
     // Spy the editor's real save-output seam: the host command bus channel. The production shell owns
     // the far end of this channel and routes Save to the E6 client; here we assert the dispatch reaches
     // the seam with the Save intent (the widget-layer half of CTRL-041-06; the backend half is host).
-    let (tx, rx) = mpsc::channel::<CodeEditorAction>();
-    panel.set_command_palette_sender(tx);
+    let (tx, rx) = mpsc::channel::<handshake_native::code_editor::panel::CodeEditorHostCommand>();
+    panel.set_command_palette_sender(tx, "test-document");
     harness.run();
     harness.run();
 
@@ -493,8 +493,8 @@ fn ac06_dispatch_save_reaches_host_save_routing_seam() {
 
     // The save intent must have reached the host bus (observable spy on the save-dispatch channel).
     let mut saw_save = false;
-    while let Ok(action) = rx.try_recv() {
-        if action == CodeEditorAction::Save {
+    while let Ok(command) = rx.try_recv() {
+        if command.action == CodeEditorAction::Save && command.document_id == "test-document" {
             saw_save = true;
         }
     }

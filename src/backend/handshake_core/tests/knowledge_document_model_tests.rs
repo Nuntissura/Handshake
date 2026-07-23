@@ -634,7 +634,7 @@ async fn import_markdown_then_batch_rename_and_move() {
     // MT-157 batch rename + move (metadata-only, no version bump).
     let renamed = pg
         .db
-        .rename_knowledge_rich_document(&imported.rich_document_id, "Imported Runbook")
+        .rename_knowledge_rich_document(&imported.rich_document_id, "Imported Runbook", None)
         .await
         .expect("rename");
     assert_eq!(renamed.title, "Imported Runbook");

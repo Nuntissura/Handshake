@@ -22,17 +22,13 @@
 //!
 //! ## Producers
 //!
-//! No production EMITTER exists yet: deleting a document / canvas / bookmark from another surface is a
-//! FUTURE MT. This module + the app's per-frame drain + the test below prove the CONTROL MECHANISM is
-//! real and ready, so a future MT only has to call [`ShellEventSender::send`] to make a deleted item
-//! disappear from the tree with no stale row. This intentional "bus before producer" shape is recorded
-//! as a disclosed deviation in the MT-014 handoff.
+//! MT-024's mounted Loom sidebar is a production producer for pin/favorite removals. Document and canvas
+//! delete producers remain owned by their respective surfaces; the app drains every event once per frame.
 
 use std::sync::mpsc::{Receiver, Sender};
 
-/// A cross-surface shell notification. Mirrors the three React `WorkspaceSidebar` DOM events the tree
-/// listened to. Each variant carries the id of the affected entity so the drain can remove exactly
-/// that row from the live tree.
+/// A cross-surface shell notification. Each variant carries the stable id of the affected entity so
+/// consumers can update or refresh the exact projection without parsing narrative payloads.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShellEvent {
     /// A document was deleted elsewhere (React `handshake:document-deleted`). Drop its tree row.
@@ -41,6 +37,9 @@ pub enum ShellEvent {
     CanvasDeleted { canvas_id: String },
     /// A bookmark/pin was removed elsewhere (React `handshake:loom-bookmarks-changed`). Drop its row.
     BookmarkRemoved { block_id: String },
+    /// A favorite was removed. Consumers that project favorites can refresh without conflating the
+    /// change with the left-rail pin/bookmark projection.
+    FavoriteRemoved { block_id: String },
 }
 
 /// The publish handle. Clonable so any number of producers can publish onto the same bus. A send that
@@ -98,6 +97,9 @@ mod tests {
         assert!(tx.send(ShellEvent::CanvasDeleted {
             canvas_id: "c1".into()
         }));
+        assert!(tx.send(ShellEvent::FavoriteRemoved {
+            block_id: "f1".into(),
+        }));
         let drained = rx.drain();
         assert_eq!(
             drained,
@@ -107,6 +109,9 @@ mod tests {
                 },
                 ShellEvent::CanvasDeleted {
                     canvas_id: "c1".into()
+                },
+                ShellEvent::FavoriteRemoved {
+                    block_id: "f1".into()
                 },
             ],
         );

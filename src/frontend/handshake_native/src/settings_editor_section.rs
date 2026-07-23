@@ -81,6 +81,16 @@ pub const EDITOR_BRACKET_MATCHING_AUTHOR_ID: &str = "settings-editor-bracket-mat
 pub const EDITOR_INDENT_GUIDES_AUTHOR_ID: &str = "settings-editor-indent-guides";
 /// WP-KERNEL-012 MT-035 wave-7: AccessKit author_id for the rich-editor reading-mode-default `Checkbox`.
 pub const EDITOR_READING_MODE_DEFAULT_AUTHOR_ID: &str = "settings-editor-reading-mode-default";
+/// Read-only settings posture for the generated Wiki Projection surface. The MT-025 contract defines
+/// no dedicated preference, so this node makes that absence explicit without inventing persisted state.
+pub const WIKI_PROJECTION_SETTINGS_POSTURE_AUTHOR_ID: &str =
+    "settings-editor-wiki-projection-posture";
+pub const WIKI_PROJECTION_SETTINGS_POSTURE_NOTE: &str = "Wiki Projection has no dedicated preference. It uses the active workspace and theme; generated content is read-only and edits are additive overlays.";
+/// Read-only settings posture for the Tier-1 native-editor Flight Recorder. Workspace and actor
+/// filters are shell/session authority and must not become a preference that can hide audit evidence.
+pub const FLIGHT_RECORDER_SETTINGS_POSTURE_AUTHOR_ID: &str =
+    "settings-editor-flight-recorder-posture";
+pub const FLIGHT_RECORDER_SETTINGS_POSTURE_NOTE: &str = "Flight Recorder has no dedicated preference. Its workspace and actor filters are derived from the active shell binding; the Tier-1 audit surface cannot be disabled here.";
 /// AccessKit author_id for the bounded-wrap-column `DragValue` (shown only when word_wrap = Bounded).
 pub const EDITOR_WRAP_COLUMN_AUTHOR_ID: &str = "settings-editor-wrap-column";
 /// AccessKit author_id for the syntax-palette mode `ComboBox`.
@@ -91,6 +101,63 @@ pub const SYNTAX_SWATCH_AUTHOR_ID_PREFIX: &str = "settings-syntax-swatch-";
 pub const EDITOR_KEYBIND_ROW_AUTHOR_ID_PREFIX: &str = "settings-keybind-row-";
 /// Author_id prefix for a per-action editor keybinding Reset button.
 pub const EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX: &str = "settings-keybind-reset-";
+pub const EDITOR_WORD_WRAP_OFF_AUTHOR_ID: &str = "settings-editor-word-wrap-option-off";
+pub const EDITOR_WORD_WRAP_ON_AUTHOR_ID: &str = "settings-editor-word-wrap-option-on";
+pub const EDITOR_WORD_WRAP_BOUNDED_AUTHOR_ID: &str = "settings-editor-word-wrap-option-bounded";
+pub const EDITOR_WHITESPACE_NONE_AUTHOR_ID: &str = "settings-editor-render-whitespace-option-none";
+pub const EDITOR_WHITESPACE_BOUNDARY_AUTHOR_ID: &str =
+    "settings-editor-render-whitespace-option-boundary";
+pub const EDITOR_WHITESPACE_ALL_AUTHOR_ID: &str = "settings-editor-render-whitespace-option-all";
+pub const SYNTAX_PALETTE_MUTED_AUTHOR_ID: &str = "settings-syntax-palette-option-muted";
+pub const SYNTAX_PALETTE_STANDARD_AUTHOR_ID: &str = "settings-syntax-palette-option-standard";
+pub const SYNTAX_PALETTE_CUSTOM_AUTHOR_ID: &str = "settings-syntax-palette-option-custom";
+
+/// Conditionally rendered option rows. They are actual popup widgets, not registry-only mirrors.
+pub const EDITOR_SETTINGS_OPTION_AUTHOR_IDS: &[&str] = &[
+    EDITOR_WORD_WRAP_OFF_AUTHOR_ID,
+    EDITOR_WORD_WRAP_ON_AUTHOR_ID,
+    EDITOR_WORD_WRAP_BOUNDED_AUTHOR_ID,
+    EDITOR_WHITESPACE_NONE_AUTHOR_ID,
+    EDITOR_WHITESPACE_BOUNDARY_AUTHOR_ID,
+    EDITOR_WHITESPACE_ALL_AUTHOR_ID,
+    SYNTAX_PALETTE_MUTED_AUTHOR_ID,
+    SYNTAX_PALETTE_STANDARD_AUTHOR_ID,
+    SYNTAX_PALETTE_CUSTOM_AUTHOR_ID,
+];
+
+/// Fixed Editor/Syntax settings controls exposed by the live settings section. The User Manual's
+/// structured steering reference consumes this catalog so a newly added fixed control cannot remain
+/// operator-visible but undocumented.
+pub const EDITOR_SETTINGS_CONTROL_AUTHOR_IDS: &[&str] = &[
+    EDITOR_FONT_SIZE_AUTHOR_ID,
+    EDITOR_TAB_SIZE_AUTHOR_ID,
+    EDITOR_INSERT_SPACES_AUTHOR_ID,
+    EDITOR_WORD_WRAP_AUTHOR_ID,
+    EDITOR_WRAP_COLUMN_AUTHOR_ID,
+    EDITOR_RENDER_WHITESPACE_AUTHOR_ID,
+    EDITOR_MINIMAP_AUTHOR_ID,
+    EDITOR_STICKY_SCROLL_AUTHOR_ID,
+    EDITOR_LINE_NUMBERS_AUTHOR_ID,
+    EDITOR_LINE_HEIGHT_AUTHOR_ID,
+    EDITOR_BRACKET_MATCHING_AUTHOR_ID,
+    EDITOR_INDENT_GUIDES_AUTHOR_ID,
+    EDITOR_READING_MODE_DEFAULT_AUTHOR_ID,
+    WIKI_PROJECTION_SETTINGS_POSTURE_AUTHOR_ID,
+    FLIGHT_RECORDER_SETTINGS_POSTURE_AUTHOR_ID,
+    SYNTAX_PALETTE_MODE_AUTHOR_ID,
+];
+
+/// Stable author_ids for every Custom palette swatch, in [`HighlightScope::ALL`] order.
+pub const SYNTAX_SWATCH_AUTHOR_IDS: &[&str] = &[
+    "settings-syntax-swatch-keyword",
+    "settings-syntax-swatch-string",
+    "settings-syntax-swatch-comment",
+    "settings-syntax-swatch-number",
+    "settings-syntax-swatch-function",
+    "settings-syntax-swatch-type",
+    "settings-syntax-swatch-operator",
+    "settings-syntax-swatch-other",
+];
 
 // ── Live-effect disclosure (WP-KERNEL-012 wave-6, S6 item 3 / the MT-072 open item, RESOLVED) ──────────
 //
@@ -101,22 +168,21 @@ pub const EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX: &str = "settings-keybind-reset-
 // resizes running editor body text. A Custom syntax palette is threaded into the code panel
 // (`CodeEditorPanel::set_syntax_palette`), so the code editor's highlight colors resolve through the live
 // `resolve_scope_color` — a Custom swatch edit repaints the running code pane and minimap rows. The notes
-// below are now a LIVE-effect disclosure (honest about what applies live AND the small disclosed gutter
-// sizing follow-up), NOT an inert "not yet wired" note.
+// below are now a LIVE-effect disclosure (honest about what applies live), NOT an inert "not yet wired"
+// note.
 
 /// Live-effect note shown under the editor font-size control. Distinct substring `resizes the mounted code
 /// editor and rich editor` is asserted by the section test.
 pub const EDITOR_FONT_SIZE_LIVE_EFFECT_NOTE: &str =
-    "Applied live: this resizes the mounted code editor and rich editor document text (and is persisted to \
-     workspace settings). The code gutter line-number glyph size is a small pending follow-up. Tab size, \
-     insert spaces, word wrap, and render whitespace DO apply live to the code editor.";
+    "Applied live: this resizes the mounted code editor and rich editor document text; it also resizes \
+     the code-editor gutter line numbers (and is persisted to workspace settings). Tab size, insert spaces, \
+     word wrap, and render whitespace DO apply live to the code editor.";
 
 /// Live-effect note shown under the syntax palette. Distinct substring `repaints the mounted code editor` is
 /// asserted by the section test.
 pub const SYNTAX_PALETTE_LIVE_EFFECT_NOTE: &str =
-    "Applied live in Custom mode: a swatch edit repaints the mounted code editor's highlight colors (and is \
-     persisted). Custom mode also repaints minimap syntax rows; Muted/Standard keep the theme's syntax tokens \
-     on the running pane.";
+    "Applied live: Muted, Standard, and Custom mode repaints the mounted code editor and minimap through the same \
+     highlight resolver (and are persisted). In Custom mode, swatch edits apply in the same frame.";
 
 /// The stable author_id for a Custom syntax swatch for `scope`.
 pub fn syntax_swatch_author_id(scope: HighlightScope) -> String {
@@ -208,6 +274,44 @@ pub fn editor_action_catalog() -> Vec<EditorAction> {
     catalog
 }
 
+/// Validate one editor shortcut before it enters durable workspace settings. Invalid chords and
+/// same-surface collisions are rejected visibly instead of being stored and later skipped by the live
+/// keymap. Code and rich commands may share a chord because only the focused editor consumes it.
+pub fn validate_editor_keybinding_change(
+    settings: &WorkspaceSettingsState,
+    action_id: &str,
+    chord_text: &str,
+) -> Result<(), String> {
+    let catalog = editor_action_catalog();
+    let action = catalog
+        .iter()
+        .find(|candidate| candidate.id == action_id)
+        .ok_or_else(|| format!("Unknown editor action '{action_id}'"))?;
+    let chord = crate::code_editor::keymap_settings::KeymapSettings::chord_from_str(chord_text)
+        .map_err(|error| format!("Invalid keybinding for '{}': {error}", action.label))?;
+
+    for candidate in catalog
+        .iter()
+        .filter(|candidate| candidate.surface == action.surface && candidate.id != action.id)
+    {
+        let effective = settings
+            .editor_chord_override(&candidate.id)
+            .unwrap_or(&candidate.default_chord);
+        let Ok(existing) =
+            crate::code_editor::keymap_settings::KeymapSettings::chord_from_str(effective)
+        else {
+            continue;
+        };
+        if existing == chord {
+            return Err(format!(
+                "Keybinding '{}' is already assigned to '{}'. Choose another chord or reset that action first.",
+                chord_text.trim(), candidate.label
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn format_keybinding_default(binding: &KeyBinding) -> String {
     let first = crate::code_editor::keymap_settings::KeymapSettings::chord_to_str(&binding.chord);
     match binding.second {
@@ -231,22 +335,32 @@ fn rich_editor_commands() -> Vec<(FormattingCommand, &'static str, &'static str)
         (F::ToggleBold, "Bold", "Mod+B"),
         (F::ToggleItalic, "Italic", "Mod+I"),
         (F::ToggleUnderline, "Underline", "Mod+U"),
-        (F::ToggleStrike, "Strikethrough", ""),
+        (F::ToggleStrike, "Strikethrough", "Mod+Shift+X"),
         (F::ToggleCode, "Inline code", "Mod+E"),
-        (F::SetParagraph, "Paragraph", ""),
-        (F::SetHeading(1), "Heading 1", ""),
-        (F::SetHeading(2), "Heading 2", ""),
-        (F::SetHeading(3), "Heading 3", ""),
-        (F::SetBlockquote, "Blockquote", ""),
+        (F::SetParagraph, "Paragraph", "Mod+Alt+0"),
+        (F::SetHeading(1), "Heading 1", "Mod+Alt+1"),
+        (F::SetHeading(2), "Heading 2", "Mod+Alt+2"),
+        (F::SetHeading(3), "Heading 3", "Mod+Alt+3"),
+        (F::SetBlockquote, "Blockquote", "Mod+Shift+B"),
         (F::SetCodeBlock(None), "Code block", ""),
         (F::InsertHorizontalRule, "Horizontal rule", ""),
-        (F::ToggleBulletList, "Bullet list", ""),
-        (F::ToggleOrderedList, "Ordered list", ""),
+        (F::ToggleBulletList, "Bullet list", "Mod+Shift+8"),
+        (F::ToggleOrderedList, "Ordered list", "Mod+Shift+7"),
         (F::ToggleTaskList, "Task list", ""),
+        (F::ToggleTaskItemChecked, "Toggle task item", ""),
         (F::SinkListItem, "Indent list item", "Tab"),
         (F::LiftListItem, "Outdent list item", "Shift+Tab"),
         (F::InsertTable { rows: 2, cols: 2 }, "Insert table", ""),
+        (F::AddRowBefore, "Add table row before", ""),
+        (F::AddRowAfter, "Add table row after", ""),
+        (F::DeleteRow, "Delete table row", ""),
+        (F::AddColBefore, "Add table column before", ""),
+        (F::AddColAfter, "Add table column after", ""),
+        (F::DeleteCol, "Delete table column", ""),
+        (F::DeleteTable, "Delete table", ""),
         (F::ToggleHeaderRow, "Toggle table header row", ""),
+        (F::InsertParagraphBreak, "Insert paragraph break", "Enter"),
+        (F::MergeBackward, "Merge backward", "Backspace"),
     ]
 }
 
@@ -386,13 +500,19 @@ impl EditorSettingsSection {
             set_author_id_and_label(ui, dv.id, EDITOR_FONT_SIZE_AUTHOR_ID, "Editor font size");
             changed |= dv.changed();
         });
-        // S6 item 3: the font size now applies live to the mounted editor (row height + glyphs); the note
-        // discloses that plus the small gutter sizing follow-up.
-        ui.label(
+        // S6 item 3: the font size applies live to mounted editor body text, row geometry, and gutter
+        // glyph geometry; the operator-facing note states the complete runtime effect.
+        let font_note = ui.label(
             egui::RichText::new(EDITOR_FONT_SIZE_LIVE_EFFECT_NOTE)
                 .small()
                 .weak(),
         );
+        // Keep the operator-facing live-effect disclosure discoverable through the same AccessKit
+        // tree used by no-context models and settings diagnostics, even though the visual label is
+        // intentionally weak/small text.
+        ui.ctx().accesskit_node_builder(font_note.id, |node| {
+            node.set_label(EDITOR_FONT_SIZE_LIVE_EFFECT_NOTE);
+        });
 
         ui.horizontal(|ui| {
             ui.label("Tab size");
@@ -434,9 +554,13 @@ impl EditorSettingsSection {
             let combo = egui::ComboBox::from_id_salt("settings.editor.word-wrap.combo")
                 .selected_text(wrap_label(prefs.word_wrap))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut selected, WrapKind::Off, "Off");
-                    ui.selectable_value(&mut selected, WrapKind::On, "On (viewport)");
-                    ui.selectable_value(&mut selected, WrapKind::Bounded, "Bounded column");
+                    let off = ui.selectable_value(&mut selected, WrapKind::Off, "Off");
+                    set_author_id(ui, off.id, EDITOR_WORD_WRAP_OFF_AUTHOR_ID);
+                    let on = ui.selectable_value(&mut selected, WrapKind::On, "On (viewport)");
+                    set_author_id(ui, on.id, EDITOR_WORD_WRAP_ON_AUTHOR_ID);
+                    let bounded =
+                        ui.selectable_value(&mut selected, WrapKind::Bounded, "Bounded column");
+                    set_author_id(ui, bounded.id, EDITOR_WORD_WRAP_BOUNDED_AUTHOR_ID);
                 });
             set_author_id_and_label(
                 ui,
@@ -444,6 +568,12 @@ impl EditorSettingsSection {
                 EDITOR_WORD_WRAP_AUTHOR_ID,
                 "Word wrap mode",
             );
+            add_native_set_value_action(ui, combo.response.id);
+            if let Some(value) = crate::mcp::accesskit_string_set_value(ui, combo.response.id) {
+                if let Some(kind) = parse_wrap_kind(&value) {
+                    selected = kind;
+                }
+            }
             let new_wrap = match selected {
                 WrapKind::Off => WordWrapMode::Off,
                 WrapKind::On => WordWrapMode::On,
@@ -483,9 +613,17 @@ impl EditorSettingsSection {
             let combo = egui::ComboBox::from_id_salt("settings.editor.render-whitespace.combo")
                 .selected_text(whitespace_label(prefs.render_whitespace))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut selected, RenderWhitespaceMode::None, "None");
-                    ui.selectable_value(&mut selected, RenderWhitespaceMode::Boundary, "Boundary");
-                    ui.selectable_value(&mut selected, RenderWhitespaceMode::All, "All");
+                    let none =
+                        ui.selectable_value(&mut selected, RenderWhitespaceMode::None, "None");
+                    set_author_id(ui, none.id, EDITOR_WHITESPACE_NONE_AUTHOR_ID);
+                    let boundary = ui.selectable_value(
+                        &mut selected,
+                        RenderWhitespaceMode::Boundary,
+                        "Boundary",
+                    );
+                    set_author_id(ui, boundary.id, EDITOR_WHITESPACE_BOUNDARY_AUTHOR_ID);
+                    let all = ui.selectable_value(&mut selected, RenderWhitespaceMode::All, "All");
+                    set_author_id(ui, all.id, EDITOR_WHITESPACE_ALL_AUTHOR_ID);
                 });
             set_author_id_and_label(
                 ui,
@@ -493,6 +631,12 @@ impl EditorSettingsSection {
                 EDITOR_RENDER_WHITESPACE_AUTHOR_ID,
                 "Render whitespace mode",
             );
+            add_native_set_value_action(ui, combo.response.id);
+            if let Some(value) = crate::mcp::accesskit_string_set_value(ui, combo.response.id) {
+                if let Some(mode) = parse_whitespace_mode(&value) {
+                    selected = mode;
+                }
+            }
             if selected != prefs.render_whitespace {
                 prefs.render_whitespace = selected;
                 changed = true;
@@ -554,7 +698,12 @@ impl EditorSettingsSection {
                     .range(crate::workspace_settings::EDITOR_LINE_HEIGHT_RANGE)
                     .suffix("×"),
             );
-            set_author_id_and_label(ui, dv.id, EDITOR_LINE_HEIGHT_AUTHOR_ID, "Line height multiplier");
+            set_author_id_and_label(
+                ui,
+                dv.id,
+                EDITOR_LINE_HEIGHT_AUTHOR_ID,
+                "Line height multiplier",
+            );
             changed |= dv.changed();
         });
         ui.horizontal(|ui| {
@@ -614,6 +763,30 @@ impl EditorSettingsSection {
             );
         });
 
+        let wiki_posture = ui.label(
+            egui::RichText::new(WIKI_PROJECTION_SETTINGS_POSTURE_NOTE)
+                .small()
+                .weak(),
+        );
+        set_author_id_and_label(
+            ui,
+            wiki_posture.id,
+            WIKI_PROJECTION_SETTINGS_POSTURE_AUTHOR_ID,
+            WIKI_PROJECTION_SETTINGS_POSTURE_NOTE,
+        );
+
+        let flight_recorder_posture = ui.label(
+            egui::RichText::new(FLIGHT_RECORDER_SETTINGS_POSTURE_NOTE)
+                .small()
+                .weak(),
+        );
+        set_author_id_and_label(
+            ui,
+            flight_recorder_posture.id,
+            FLIGHT_RECORDER_SETTINGS_POSTURE_AUTHOR_ID,
+            FLIGHT_RECORDER_SETTINGS_POSTURE_NOTE,
+        );
+
         if changed {
             EditorSectionOutcome::EditorPrefsChanged(prefs)
         } else {
@@ -640,9 +813,15 @@ impl EditorSettingsSection {
             let combo = egui::ComboBox::from_id_salt("settings.syntax.palette-mode.combo")
                 .selected_text(palette_mode_label(palette.mode))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut selected, SyntaxPaletteMode::Muted, "Muted");
-                    ui.selectable_value(&mut selected, SyntaxPaletteMode::Standard, "Standard");
-                    ui.selectable_value(&mut selected, SyntaxPaletteMode::Custom, "Custom");
+                    let muted =
+                        ui.selectable_value(&mut selected, SyntaxPaletteMode::Muted, "Muted");
+                    set_author_id(ui, muted.id, SYNTAX_PALETTE_MUTED_AUTHOR_ID);
+                    let standard =
+                        ui.selectable_value(&mut selected, SyntaxPaletteMode::Standard, "Standard");
+                    set_author_id(ui, standard.id, SYNTAX_PALETTE_STANDARD_AUTHOR_ID);
+                    let custom =
+                        ui.selectable_value(&mut selected, SyntaxPaletteMode::Custom, "Custom");
+                    set_author_id(ui, custom.id, SYNTAX_PALETTE_CUSTOM_AUTHOR_ID);
                 });
             set_author_id_and_label(
                 ui,
@@ -650,6 +829,12 @@ impl EditorSettingsSection {
                 SYNTAX_PALETTE_MODE_AUTHOR_ID,
                 "Syntax palette mode",
             );
+            add_native_set_value_action(ui, combo.response.id);
+            if let Some(value) = crate::mcp::accesskit_string_set_value(ui, combo.response.id) {
+                if let Some(mode) = parse_palette_mode(&value) {
+                    selected = mode;
+                }
+            }
             if selected != palette.mode {
                 palette.mode = selected;
                 changed = true;
@@ -658,11 +843,14 @@ impl EditorSettingsSection {
 
         // S6 item 3: in Custom mode the palette now applies live to the mounted code editor and minimap rows
         // via resolve_scope_color.
-        ui.label(
+        let syntax_note = ui.label(
             egui::RichText::new(SYNTAX_PALETTE_LIVE_EFFECT_NOTE)
                 .small()
                 .weak(),
         );
+        ui.ctx().accesskit_node_builder(syntax_note.id, |node| {
+            node.set_label(SYNTAX_PALETTE_LIVE_EFFECT_NOTE);
+        });
 
         // One row per scope: a label, the live-resolved preview swatch, and (in Custom mode) an editable
         // swatch button. Every scope is always shown (no gap — AC-004).
@@ -680,13 +868,27 @@ impl EditorSettingsSection {
                     // see; on change, store the sRGBA into the Custom map (live).
                     let mut color = resolved;
                     let sw = ui.color_edit_button_srgba(&mut color);
-                    set_author_id_and_label(
-                        ui,
-                        sw.id,
-                        &syntax_swatch_author_id(scope),
-                        &format!("{} color", scope_label(scope)),
+                    let author_id = syntax_swatch_author_id(scope);
+                    let label = format!("{} color", scope_label(scope));
+                    let rgba_value = format!(
+                        "#{:02x}{:02x}{:02x}{:02x}",
+                        color.r(),
+                        color.g(),
+                        color.b(),
+                        color.a()
                     );
-                    if sw.changed() {
+                    ui.ctx().accesskit_node_builder(sw.id, move |node| {
+                        node.set_author_id(author_id);
+                        node.set_label(label);
+                        node.set_value(rgba_value);
+                    });
+                    add_native_set_value_action(ui, sw.id);
+                    let native_color = crate::mcp::accesskit_string_set_value(ui, sw.id)
+                        .and_then(|value| parse_srgba(&value));
+                    if let Some(value) = native_color {
+                        color = value;
+                    }
+                    if sw.changed() || native_color.is_some() {
                         palette.set_custom(scope.scope_key(), color.to_array());
                         changed = true;
                     }
@@ -788,7 +990,13 @@ impl EditorSettingsSection {
                             &editor_keybind_row_author_id(&action.id),
                             &format!("{} keybinding", action.label),
                         );
-                        if input.changed() {
+                        add_native_set_value_action(ui, input.id);
+                        let native_replacement =
+                            crate::mcp::accesskit_string_set_value(ui, input.id);
+                        if let Some(value) = native_replacement.as_ref() {
+                            draft.clone_from(value);
+                        }
+                        if input.changed() || native_replacement.is_some() {
                             self.state.set_draft(&action.id, draft.clone());
                             let trimmed = draft.trim().to_owned();
                             // Only emit a change for a NON-empty chord (an empty input is treated as "in
@@ -831,6 +1039,15 @@ fn wrap_discriminant(mode: WordWrapMode) -> WrapKind {
     }
 }
 
+fn parse_wrap_kind(value: &str) -> Option<WrapKind> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "off" => Some(WrapKind::Off),
+        "on" | "viewport" | "on (viewport)" => Some(WrapKind::On),
+        "bounded" | "bounded column" => Some(WrapKind::Bounded),
+        _ => None,
+    }
+}
+
 fn wrap_label(mode: WordWrapMode) -> String {
     match mode {
         WordWrapMode::Off => "Off".to_owned(),
@@ -847,12 +1064,65 @@ fn whitespace_label(mode: RenderWhitespaceMode) -> &'static str {
     }
 }
 
+fn parse_whitespace_mode(value: &str) -> Option<RenderWhitespaceMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "none" => Some(RenderWhitespaceMode::None),
+        "boundary" => Some(RenderWhitespaceMode::Boundary),
+        "all" => Some(RenderWhitespaceMode::All),
+        _ => None,
+    }
+}
+
 fn palette_mode_label(mode: SyntaxPaletteMode) -> &'static str {
     match mode {
         SyntaxPaletteMode::Muted => "Muted",
         SyntaxPaletteMode::Standard => "Standard",
         SyntaxPaletteMode::Custom => "Custom",
     }
+}
+
+fn parse_palette_mode(value: &str) -> Option<SyntaxPaletteMode> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "muted" => Some(SyntaxPaletteMode::Muted),
+        "standard" => Some(SyntaxPaletteMode::Standard),
+        "custom" => Some(SyntaxPaletteMode::Custom),
+        _ => None,
+    }
+}
+
+fn parse_srgba(value: &str) -> Option<egui::Color32> {
+    let trimmed = value.trim();
+    if let Some(hex) = trimmed.strip_prefix('#') {
+        if !hex.is_ascii() || !hex.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return None;
+        }
+        let parse = |range: std::ops::Range<usize>| {
+            hex.get(range)
+                .and_then(|part| u8::from_str_radix(part, 16).ok())
+        };
+        return match hex.len() {
+            6 => Some(egui::Color32::from_rgba_unmultiplied(
+                parse(0..2)?,
+                parse(2..4)?,
+                parse(4..6)?,
+                255,
+            )),
+            8 => Some(egui::Color32::from_rgba_unmultiplied(
+                parse(0..2)?,
+                parse(2..4)?,
+                parse(4..6)?,
+                parse(6..8)?,
+            )),
+            _ => None,
+        };
+    }
+    let channels: [u8; 4] = serde_json::from_str(trimmed).ok()?;
+    Some(egui::Color32::from_rgba_unmultiplied(
+        channels[0],
+        channels[1],
+        channels[2],
+        channels[3],
+    ))
 }
 
 /// The display label for a [`HighlightScope`] in the Custom swatch list.
@@ -893,6 +1163,12 @@ fn set_author_id(ui: &egui::Ui, widget_id: egui::Id, author_id: &str) {
         .accesskit_node_builder(widget_id, move |node| node.set_author_id(author_id));
 }
 
+fn add_native_set_value_action(ui: &egui::Ui, widget_id: egui::Id) {
+    ui.ctx().accesskit_node_builder(widget_id, |node| {
+        node.add_action(accesskit::Action::SetValue);
+    });
+}
+
 /// Attach a stable author_id AND an accessible label to an already-interactive live node (for controls
 /// whose accessible name is not derivable from rendered text — DragValue / ComboBox / TextEdit / swatch).
 fn set_author_id_and_label(ui: &egui::Ui, widget_id: egui::Id, author_id: &str, label: &str) {
@@ -913,6 +1189,16 @@ pub fn is_control_role(role: accesskit::Role) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn srgba_parser_is_utf8_safe_and_rejects_malformed_values() {
+        assert_eq!(
+            parse_srgba("#0a285aff"),
+            Some(egui::Color32::from_rgba_unmultiplied(10, 40, 90, 255))
+        );
+        assert!(parse_srgba("#aéabc").is_none());
+        assert!(parse_srgba("#xyzxyz").is_none());
+    }
 
     #[test]
     fn catalog_lists_code_and_rich_actions_disjoint_ids() {
@@ -950,6 +1236,26 @@ mod tests {
     }
 
     #[test]
+    fn keybinding_validation_rejects_invalid_and_same_surface_collision() {
+        let settings = crate::workspace_settings::default_workspace_settings_state();
+        assert!(validate_editor_keybinding_change(
+            &settings,
+            "code.open_replace",
+            "Mod+DefinitelyNotAKey"
+        )
+        .is_err());
+
+        let collision = validate_editor_keybinding_change(&settings, "code.open_replace", "Mod+F")
+            .expect_err("Open Find already owns Mod+F in the code editor");
+        assert!(collision.contains("already assigned"));
+
+        assert!(
+            validate_editor_keybinding_change(&settings, "rich.toggle_bold", "Mod+F").is_ok(),
+            "the same chord on a different focused editor surface is not a collision"
+        );
+    }
+
+    #[test]
     fn author_ids_are_stable_kebab_case() {
         assert_eq!(EDITOR_FONT_SIZE_AUTHOR_ID, "settings-editor-font-size");
         assert_eq!(EDITOR_TAB_SIZE_AUTHOR_ID, "settings-editor-tab-size");
@@ -974,6 +1280,26 @@ mod tests {
             editor_keybind_row_author_id("code.open_find"),
             "settings-keybind-row-code.open_find"
         );
+    }
+
+    #[test]
+    fn syntax_swatch_catalog_matches_live_scope_ids() {
+        assert_eq!(
+            SYNTAX_SWATCH_AUTHOR_IDS.len(),
+            HighlightScope::ALL.len(),
+            "the structured manual catalog must cover every live syntax scope"
+        );
+        for (scope, expected) in HighlightScope::ALL
+            .iter()
+            .copied()
+            .zip(SYNTAX_SWATCH_AUTHOR_IDS)
+        {
+            assert_eq!(
+                syntax_swatch_author_id(scope),
+                *expected,
+                "the catalog must use the exact live AccessKit author_id"
+            );
+        }
     }
 
     #[test]

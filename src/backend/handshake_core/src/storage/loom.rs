@@ -358,6 +358,10 @@ pub struct LoomBlockUpdate {
     /// pin; send `null` via the dedicated reorder endpoint to clear it.
     #[serde(default)]
     pub pin_order: Option<i32>,
+    /// Optional optimistic-concurrency token for interactive metadata edits. When present, the
+    /// PostgreSQL update succeeds only if the block still has this exact authority timestamp.
+    #[serde(default)]
+    pub expected_updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -1212,6 +1216,16 @@ pub struct NewLoomFolder {
     pub project_ref: Option<String>,
 }
 
+/// Preserve the three PATCH states for a field: absent -> `None`, explicit JSON null ->
+/// `Some(None)`, and a value -> `Some(Some(value))`.
+fn deserialize_double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    T: Deserialize<'de>,
+    D: serde::Deserializer<'de>,
+{
+    Deserialize::deserialize(deserializer).map(Some)
+}
+
 /// Partial update for a Loom folder. `None` leaves a field unchanged; the
 /// service-layer move/recolor endpoints decide which fields to send.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -1224,11 +1238,11 @@ pub struct LoomFolderUpdate {
     pub color: Option<Option<String>>,
     #[serde(default)]
     pub sort_mode: Option<LoomFolderSortMode>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_double_option")]
     pub sort_order: Option<Option<i32>>,
     /// Re-parent the folder (move within the tree). `Some(None)` makes it a
     /// root; `Some(Some(id))` nests it under `id` (cycle-checked).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_double_option")]
     pub parent_folder_id: Option<Option<String>>,
     #[serde(default)]
     pub project_ref: Option<Option<String>>,
@@ -1349,6 +1363,66 @@ pub struct LoomMarkdownImport {
     pub warnings: Vec<String>,
 }
 
+/// One atomic Stage provenance card request. Unlike the generic Canvas card
+/// route, this operation owns its cross-process idempotency key and must commit
+/// the RichDocument/Loom projection and Canvas placement in one transaction.
+pub const LOOM_CANVAS_STAGE_PROVENANCE_SCHEMA: &str = "handshake.canvas-stage-capture-ref.v1";
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LoomCanvasStageProvenance {
+    pub schema_id: String,
+    pub artifact_id: String,
+    pub sha256: String,
+    pub manifest_ref: String,
+    pub causal_action_id: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct NewLoomCanvasStageCard {
+    pub canvas_block_id: String,
+    pub workspace_id: String,
+    pub title: String,
+    pub markdown: String,
+    pub stage_provenance_key: String,
+    pub stage_provenance: LoomCanvasStageProvenance,
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+    pub z_index: i32,
+}
+
+#[derive(Clone, Debug)]
+pub struct LoomCanvasStageCard {
+    pub block: LoomBlock,
+    pub rich_document_id: String,
+    pub placement: LoomCanvasPlacement,
+    /// True only for the transaction that inserted this authority. A caller
+    /// released from the advisory lock onto the pre-existing tuple receives
+    /// false and must not compensate/delete another caller's placement.
+    pub created_by_request: bool,
+}
+
+/// Exact ownership receipt required to compensate a Stage-created Canvas card.
+/// Every identity is supplied by the successful create response/request and is
+/// re-verified under the create operation's advisory-lock domain before delete.
+#[derive(Clone, Debug)]
+pub struct CompensateLoomCanvasStageCard {
+    pub canvas_block_id: String,
+    pub workspace_id: String,
+    pub placement_id: String,
+    pub placed_block_id: String,
+    pub stage_provenance_key: String,
+    pub stage_provenance: LoomCanvasStageProvenance,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LoomCanvasStageCompensation {
+    /// True when this call removed the complete owned tuple. False means a
+    /// previous identical call already committed and every owned row is absent.
+    pub removed_by_request: bool,
+}
+
 // ---------------------------------------------------------------------------
 // MT-261 CanvasBoard (Loom canvas-class)
 //
@@ -1423,6 +1497,10 @@ pub struct NewLoomCanvasPlacement {
     /// True only for the inline text-card path (`create_canvas_card`); generic
     /// block placement leaves this false.
     pub is_text_card: bool,
+    /// Canonical SHA-256 key for an idempotent Stage capture provenance tuple.
+    /// `None` for every ordinary Canvas placement. PostgreSQL enforces at most
+    /// one non-null key per workspace and canvas.
+    pub stage_provenance_key: Option<String>,
 }
 
 /// Partial update for a placement (move / resize / group). `None` leaves a field

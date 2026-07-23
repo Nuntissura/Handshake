@@ -5,8 +5,9 @@
 //! [`LoomFolderTree`] is a native, collapsible tree of Loom **folders** (the Obsidian-parity
 //! hierarchical navigation for the knowledge surface). Each folder node carries a small color swatch
 //! (rect) before its label; expanding a folder lazy-loads its child blocks from the backend and renders
-//! them indented beneath it; clicking a folder or a leaf block fires a typed [`FolderTreeEvent`] the
-//! host applies (the open / navigate dispatch the host routes through the shell command bus). It is the
+//! them indented beneath it; clicking a folder selects/expands that organizational overlay in this surface,
+//! while clicking a leaf block opens the real LoomBlock through the shell. Both interactions emit typed
+//! [`FolderTreeEvent`] values for the host to apply. It is the
 //! native peer of the React `WorkspaceSidebar.tsx` document/canvas lists, but a real recursive tree.
 //!
 //! ## Backend reality (Spec-Realism Gate — the MT-008/021/023 "verify, don't trust the contract" rule)
@@ -36,9 +37,8 @@
 //! leaf children by their `block_id` (the open key). The split the MT `implementation_notes` describe is
 //! honored: the flat-rows -> tree build, cycle/depth guard (RISK-1/MC-1), hex-color parse, lazy-load
 //! caching (RISK-3/MC-3), empty "No folders" (AC7), and backend-error + Retry (AC8) are ALL unit/kittest
-//! testable STANDALONE with mock row lists; the LIVE-PG node-render / expand / recolor variants are
-//! `#[ignore]`d `*_live_pg` integration tests gated behind the `integration` feature
-//! (NEEDS_MANAGED_RESOURCE_PROOF) — they NEVER fake the backend.
+//! testable STANDALONE with row lists; the live-PG integration test is gated behind the
+//! `integration` feature and requires the managed backend resource — it never fakes the backend.
 //!
 //! ## Repaint discipline (the MT-015 idle-repaint lesson)
 //!
@@ -74,6 +74,22 @@ pub const COLOR_AUTHOR_ID_PREFIX: &str = "folder-tree.color.";
 /// AccessKit author_id for the error-banner Retry button.
 pub const RETRY_AUTHOR_ID: &str = "folder-tree.retry";
 
+/// AccessKit author_ids for the create/rename dialog text inputs. TextEdit hint text is visual-only in
+/// egui, so the live nodes also receive an explicit accessible label below.
+pub const CREATE_NAME_INPUT_AUTHOR_ID: &str = "folder-tree.create.name";
+pub const RENAME_NAME_INPUT_AUTHOR_ID: &str = "folder-tree.rename.name";
+pub const NEW_FOLDER_AUTHOR_ID: &str = "folder-tree.new-folder";
+pub const CREATE_SUBMIT_AUTHOR_ID: &str = "folder-tree.create.submit";
+pub const CREATE_CANCEL_AUTHOR_ID: &str = "folder-tree.create.cancel";
+pub const RENAME_SUBMIT_AUTHOR_ID: &str = "folder-tree.rename.submit";
+pub const RENAME_CANCEL_AUTHOR_ID: &str = "folder-tree.rename.cancel";
+pub const DELETE_CONFIRM_AUTHOR_ID: &str = "folder-tree.delete.confirm";
+pub const DELETE_CANCEL_AUTHOR_ID: &str = "folder-tree.delete.cancel";
+pub const MOVE_UNDER_MENU_AUTHOR_ID: &str = "folder-tree.move-under";
+/// AccessKit author_id prefix for a concrete "Move under" target. The full id includes both the
+/// source and target folder ids, so two folders with the same visible title remain unambiguous.
+pub const MOVE_TARGET_AUTHOR_ID_PREFIX: &str = "folder-tree.move-target.";
+
 /// Indent per nesting level, in px (the contract's "16px per depth level").
 pub const INDENT_PER_LEVEL: f32 = 16.0;
 
@@ -100,14 +116,30 @@ pub const MAX_BUILD_DEPTH: usize = 20;
 /// levels of nesting. Beyond that, show a '...(deep)' truncation row").
 pub const MAX_RENDER_DEPTH: usize = 5;
 
-/// The stable AccessKit author_id for a tree row, sanitizing `id` to `[a-z0-9-]` (RISK-4 / MC-4). Reuses
-/// the shell's [`crate::project_tree::stable_part`] slugger (the SAME one the graph view uses) so a
-/// folder/block id with slashes or colons can never inject an unsafe author_id.
-pub fn node_author_id(id: &str) -> String {
-    format!(
-        "{NODE_AUTHOR_ID_PREFIX}{}",
+/// Return an AccessKit-safe, collision-resistant suffix for a raw folder/block id. Preserve canonical
+/// ids verbatim; when slugging changes the input, append deterministic FNV-1a identity so values such
+/// as `a/b` and `a:b` cannot alias onto the same live node.
+fn collision_safe_folder_part(id: &str) -> String {
+    let slug = if id.chars().any(|ch| ch.is_ascii_alphanumeric()) {
         crate::project_tree::stable_part(id)
-    )
+    } else {
+        "id".to_owned()
+    };
+    if slug == id {
+        return slug;
+    }
+
+    const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+    let hash = id.as_bytes().iter().fold(FNV_OFFSET, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(FNV_PRIME)
+    });
+    format!("{slug}-{hash:016x}")
+}
+
+/// The stable AccessKit author_id for a tree row, with a one-to-one safe suffix.
+pub fn node_author_id(id: &str) -> String {
+    format!("{NODE_AUTHOR_ID_PREFIX}{}", collision_safe_folder_part(id))
 }
 
 /// The stable AccessKit author_id for a folder's color swatch button:
@@ -115,28 +147,82 @@ pub fn node_author_id(id: &str) -> String {
 pub fn color_author_id(folder_id: &str) -> String {
     format!(
         "{COLOR_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(folder_id)
+        collision_safe_folder_part(folder_id)
     )
 }
 
-/// Parse a `#rrggbb` (or `rrggbb`) hex color string into an opaque [`Color32`], returning `None` for any
-/// malformed input (wrong length, non-hex chars). The widget paints the swatch with the active theme's
-/// `border_strong` token when a folder has no stored color, so a bad/absent color is a graceful neutral
-/// swatch, never a panic.
+/// The stable AccessKit author_id for moving `source_folder_id` under `target_folder_id`.
+pub fn move_target_author_id(source_folder_id: &str, target_folder_id: &str) -> String {
+    format!(
+        "{MOVE_TARGET_AUTHOR_ID_PREFIX}{}.{}",
+        collision_safe_folder_part(source_folder_id),
+        collision_safe_folder_part(target_folder_id)
+    )
+}
+
+/// CSS basic named colors accepted by the folder token parser. This deliberately defined vocabulary keeps
+/// backend rendering deterministic without accepting arbitrary strings as valid colors.
+const CSS_BASIC_NAMED_COLORS: [(&str, &str); 18] = [
+    ("black", "000000"),
+    ("silver", "c0c0c0"),
+    ("gray", "808080"),
+    ("grey", "808080"),
+    ("white", "ffffff"),
+    ("maroon", "800000"),
+    ("red", "ff0000"),
+    ("purple", "800080"),
+    ("fuchsia", "ff00ff"),
+    ("green", "008000"),
+    ("lime", "00ff00"),
+    ("olive", "808000"),
+    ("yellow", "ffff00"),
+    ("navy", "000080"),
+    ("blue", "0000ff"),
+    ("teal", "008080"),
+    ("aqua", "00ffff"),
+    ("cyan", "00ffff"),
+];
+
+/// Parse a legal persisted folder color token into an opaque [`Color32`]. Accepted forms are `#rgb`,
+/// `#rrggbb` (the leading `#` is optional for compatibility), and the defined CSS basic named-color
+/// vocabulary above. Unknown non-empty tokens degrade only that row to the neutral theme swatch; they do
+/// not reject the backend folder list.
 ///
 /// NOTE the no-hardcode invariant (CONTROL-4): this builds the color from RUNTIME backend data via
 /// [`Color32::from_rgba_unmultiplied`] (the sanctioned dynamic RGBA form the architecture-guard test
 /// does NOT flag), NOT an opaque-hex literal constructor. The bytes come from the persisted
 /// `loom_folders.color` string, so this is data, not a hardcoded palette color.
-pub fn parse_hex_color(hex: &str) -> Option<Color32> {
-    let s = hex.strip_prefix('#').unwrap_or(hex);
-    if s.len() != 6 || !s.bytes().all(|b| b.is_ascii_hexdigit()) {
+pub fn parse_folder_color_token(token: &str) -> Option<Color32> {
+    let named_hex = CSS_BASIC_NAMED_COLORS
+        .iter()
+        .find(|(name, _)| token.eq_ignore_ascii_case(name))
+        .map(|(_, hex)| *hex);
+    let s = named_hex.unwrap_or_else(|| token.strip_prefix('#').unwrap_or(token));
+    if !s.bytes().all(|b| b.is_ascii_hexdigit()) {
         return None;
     }
+    let expanded;
+    let s = if s.len() == 3 {
+        expanded = s
+            .chars()
+            .flat_map(|component| [component, component])
+            .collect::<String>();
+        expanded.as_str()
+    } else if s.len() == 6 {
+        s
+    } else {
+        return None;
+    };
     let r = u8::from_str_radix(&s[0..2], 16).ok()?;
     let g = u8::from_str_radix(&s[2..4], 16).ok()?;
     let b = u8::from_str_radix(&s[4..6], 16).ok()?;
     Some(Color32::from_rgba_unmultiplied(r, g, b, 255))
+}
+
+/// Compatibility name retained for existing callers; the parser now accepts every canonical folder color
+/// token, not only six-digit hex.
+pub fn parse_hex_color(token: &str) -> Option<Color32> {
+    parse_folder_color_token(token)
 }
 
 /// Encode an opaque [`Color32`] as a `#rrggbb` hex string (the form persisted into `loom_folders.color`
@@ -341,17 +427,46 @@ pub fn build_tree(rows: &[FolderRow]) -> Vec<FolderNode> {
 pub enum FolderTreeEvent {
     /// A folder row was expanded and its blocks are NOT yet loaded: the host should spawn the lazy
     /// `GET /loom/folders/{folder_id}/blocks` fetch (and set the node `loading`). Carries the folder id.
-    ExpandFolder { folder_id: String },
+    ExpandFolder {
+        folder_id: String,
+    },
     /// A folder row was collapsed (no fetch; purely a UI toggle the host may persist).
-    CollapseFolder { folder_id: String },
-    /// A folder row's label was clicked (the default open/navigate action): fire `on_open` for the
-    /// folder's own block addressing. Carries the folder id.
-    OpenFolder { folder_id: String },
+    CollapseFolder {
+        folder_id: String,
+    },
+    /// A folder row's label was clicked: select and expand that organizational overlay in the folder
+    /// surface and reveal its member blocks. A folder id is not a LoomBlock id and must never be routed
+    /// through generic LoomBlock open/navigation.
+    OpenFolder {
+        folder_id: String,
+    },
     /// A leaf block row was clicked: fire `on_open(block_id)` (AC5). Carries the block id.
-    OpenBlock { block_id: String },
+    OpenBlock {
+        block_id: String,
+    },
     /// The color swatch / "Change color" was used and a new color picked: the host should PATCH
-    /// `{ "color": "#rrggbb" }` to `/loom/folders/{folder_id}` and update the node swatch (AC4).
-    ChangeColor { folder_id: String, color: Color32 },
+    /// `{ "color": "#rrggbb" }` to `/loom/folders/{folder_id}`, then refetch the authoritative folder
+    /// list. The refetch applies the persisted swatch; the requested color is never applied optimistically.
+    ChangeColor {
+        folder_id: String,
+        color: Color32,
+    },
+    CreateFolder {
+        parent_folder_id: Option<String>,
+        name: String,
+    },
+    RenameFolder {
+        folder_id: String,
+        name: String,
+    },
+    MoveFolder {
+        folder_id: String,
+        parent_folder_id: Option<String>,
+        sort_order: Option<i32>,
+    },
+    DeleteFolder {
+        folder_id: String,
+    },
     /// The error-banner Retry button was pressed: the host should re-fire the initial folder load (AC8).
     Retry,
 }
@@ -368,6 +483,14 @@ pub struct LoomFolderTree {
     pub loading: bool,
     /// Set on a backend failure; renders the error banner + Retry (AC8). `None` => no error.
     pub error: Option<String>,
+    /// The last failed mutation. Authoritative list reconciliation must not erase this message before
+    /// an operator/model can perceive it; a new mutation or explicit Retry clears it.
+    pub operation_error: Option<String>,
+    pub selected_folder_id: Option<String>,
+    create_draft: Option<(Option<String>, String)>,
+    rename_draft: Option<(String, String)>,
+    /// Folder id, visible title, and the number of descendant folders that PostgreSQL will cascade.
+    delete_draft: Option<(String, String, usize)>,
 }
 
 impl LoomFolderTree {
@@ -383,6 +506,13 @@ impl LoomFolderTree {
     /// fetch resolves), clearing loading/error.
     pub fn set_folders(&mut self, rows: &[FolderRow]) {
         self.root_nodes = build_tree(rows);
+        if self
+            .selected_folder_id
+            .as_deref()
+            .is_some_and(|id| !rows.iter().any(|row| row.folder_id == id))
+        {
+            self.selected_folder_id = None;
+        }
         self.loading = false;
         self.error = None;
     }
@@ -409,10 +539,23 @@ impl LoomFolderTree {
     pub fn show(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<FolderTreeEvent> {
         let mut event: Option<FolderTreeEvent> = None;
 
+        let new_folder = ui.button("New folder");
+        emit_button_accesskit(ui, new_folder.id, NEW_FOLDER_AUTHOR_ID, "New folder");
+        if new_folder.clicked() {
+            self.create_draft = Some((None, String::new()));
+        }
+
         // ── Error banner (AC8) ─────────────────────────────────────────────────────────────────────
-        if let Some(err) = self.error.clone() {
+        if self.error.is_some() || self.operation_error.is_some() {
             ui.horizontal(|ui| {
-                ui.colored_label(palette.error_text, format!("⚠ {err}"));
+                ui.vertical(|ui| {
+                    if let Some(err) = self.operation_error.as_deref() {
+                        ui.colored_label(palette.error_text, format!("⚠ {err}"));
+                    }
+                    if let Some(err) = self.error.as_deref() {
+                        ui.colored_label(palette.error_text, format!("⚠ {err}"));
+                    }
+                });
                 let retry = ui.button("Retry");
                 emit_button_accesskit(ui, retry.id, RETRY_AUTHOR_ID, "Retry");
                 if retry.clicked() {
@@ -434,9 +577,12 @@ impl LoomFolderTree {
         }
 
         // ── Empty state (AC7) ───────────────────────────────────────────────────────────────────────
-        if !self.loading && self.error.is_none() && self.root_nodes.is_empty() {
+        if !self.loading
+            && self.error.is_none()
+            && self.operation_error.is_none()
+            && self.root_nodes.is_empty()
+        {
             ui.weak("No folders");
-            return event;
         }
 
         // ── The tree ────────────────────────────────────────────────────────────────────────────────
@@ -444,9 +590,27 @@ impl LoomFolderTree {
         let mut any_spinner = false;
         // We collect the produced event from the recursive render (last write wins per frame; a single
         // pointer event can only hit one row).
+        fn collect_choices(nodes: &[FolderNode], choices: &mut Vec<(String, String)>) {
+            for node in nodes {
+                choices.push((node.folder_id.clone(), node.title.clone()));
+                collect_choices(&node.child_folders, choices);
+            }
+        }
+        let mut folder_choices = Vec::new();
+        collect_choices(&self.root_nodes, &mut folder_choices);
         for i in 0..self.root_nodes.len() {
             // SAFETY of borrow: render one root subtree at a time with a fresh mutable borrow.
-            let (ev, spin) = render_folder(&mut self.root_nodes[i], ui, palette, 0);
+            let (ev, spin) = render_folder(
+                &mut self.root_nodes[i],
+                ui,
+                palette,
+                0,
+                self.selected_folder_id.as_deref(),
+                &mut self.create_draft,
+                &mut self.rename_draft,
+                &mut self.delete_draft,
+                &folder_choices,
+            );
             if ev.is_some() {
                 event = ev;
             }
@@ -458,8 +622,160 @@ impl LoomFolderTree {
             ui.ctx().request_repaint();
         }
 
+        if let Some((parent_folder_id, draft)) = &mut self.create_draft {
+            let mut close = false;
+            egui::Window::new("Create folder")
+                .collapsible(false)
+                .resizable(false)
+                .show(ui.ctx(), |ui| {
+                    let name_input =
+                        ui.add(egui::TextEdit::singleline(draft).hint_text("Folder name"));
+                    set_accessible_text_input(
+                        ui,
+                        name_input.id,
+                        CREATE_NAME_INPUT_AUTHOR_ID,
+                        "Folder name",
+                    );
+                    ui.horizontal(|ui| {
+                        let submit =
+                            ui.add_enabled(!draft.trim().is_empty(), egui::Button::new("Create"));
+                        emit_button_accesskit(
+                            ui,
+                            submit.id,
+                            CREATE_SUBMIT_AUTHOR_ID,
+                            "Create folder",
+                        );
+                        if submit.clicked() {
+                            event = Some(FolderTreeEvent::CreateFolder {
+                                parent_folder_id: parent_folder_id.clone(),
+                                name: draft.trim().to_owned(),
+                            });
+                            close = true;
+                        }
+                        let cancel = ui.button("Cancel");
+                        emit_button_accesskit(
+                            ui,
+                            cancel.id,
+                            CREATE_CANCEL_AUTHOR_ID,
+                            "Cancel create folder",
+                        );
+                        if cancel.clicked() {
+                            close = true;
+                        }
+                    });
+                });
+            if close {
+                self.create_draft = None;
+            }
+        }
+        if let Some((folder_id, draft)) = &mut self.rename_draft {
+            let mut close = false;
+            egui::Window::new("Rename folder")
+                .collapsible(false)
+                .resizable(false)
+                .show(ui.ctx(), |ui| {
+                    let name_input =
+                        ui.add(egui::TextEdit::singleline(draft).hint_text("Folder name"));
+                    set_accessible_text_input(
+                        ui,
+                        name_input.id,
+                        RENAME_NAME_INPUT_AUTHOR_ID,
+                        "Folder name",
+                    );
+                    ui.horizontal(|ui| {
+                        let submit =
+                            ui.add_enabled(!draft.trim().is_empty(), egui::Button::new("Rename"));
+                        emit_button_accesskit(
+                            ui,
+                            submit.id,
+                            RENAME_SUBMIT_AUTHOR_ID,
+                            "Rename folder",
+                        );
+                        if submit.clicked() {
+                            event = Some(FolderTreeEvent::RenameFolder {
+                                folder_id: folder_id.clone(),
+                                name: draft.trim().to_owned(),
+                            });
+                            close = true;
+                        }
+                        let cancel = ui.button("Cancel");
+                        emit_button_accesskit(
+                            ui,
+                            cancel.id,
+                            RENAME_CANCEL_AUTHOR_ID,
+                            "Cancel rename folder",
+                        );
+                        if cancel.clicked() {
+                            close = true;
+                        }
+                    });
+                });
+            if close {
+                self.rename_draft = None;
+            }
+        }
+        if let Some((folder_id, title, descendant_count)) = self.delete_draft.clone() {
+            let mut close = false;
+            egui::Window::new("Delete folder")
+                .collapsible(false)
+                .resizable(false)
+                .show(ui.ctx(), |ui| {
+                    let descendant_word = if descendant_count == 1 {
+                        "folder"
+                    } else {
+                        "folders"
+                    };
+                    ui.label(format!(
+                        "Delete folder '{title}' and its {descendant_count} descendant {descendant_word}?"
+                    ));
+                    ui.label(
+                        "This permanently removes the folder subtree and its folder memberships. The Loom blocks themselves remain.",
+                    );
+                    ui.horizontal(|ui| {
+                        let confirm = ui.button("Delete");
+                        emit_button_accesskit(
+                            ui,
+                            confirm.id,
+                            DELETE_CONFIRM_AUTHOR_ID,
+                            "Confirm delete folder",
+                        );
+                        if confirm.clicked() {
+                            event = Some(FolderTreeEvent::DeleteFolder {
+                                folder_id: folder_id.clone(),
+                            });
+                            close = true;
+                        }
+                        let cancel = ui.button("Cancel");
+                        emit_button_accesskit(
+                            ui,
+                            cancel.id,
+                            DELETE_CANCEL_AUTHOR_ID,
+                            "Cancel delete folder",
+                        );
+                        if cancel.clicked() {
+                            close = true;
+                        }
+                    });
+                });
+            if close {
+                self.delete_draft = None;
+            }
+        }
+        if let Some(FolderTreeEvent::OpenFolder { folder_id }) = &event {
+            self.selected_folder_id = Some(folder_id.clone());
+        }
+
         event
     }
+}
+
+fn set_accessible_text_input(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str) {
+    let author_id = author_id.to_owned();
+    let label = label.to_owned();
+    ui.ctx().accesskit_node_builder(id, move |node| {
+        node.set_author_id(author_id);
+        node.set_label(label);
+    });
 }
 
 /// Render one folder subtree at `depth`, returning `(event, any_spinner_active)`. Mutates the node's
@@ -470,6 +786,11 @@ fn render_folder(
     ui: &mut egui::Ui,
     palette: &HsPalette,
     depth: usize,
+    selected_folder_id: Option<&str>,
+    create_draft: &mut Option<(Option<String>, String)>,
+    rename_draft: &mut Option<(String, String)>,
+    delete_draft: &mut Option<(String, String, usize)>,
+    folder_choices: &[(String, String)],
 ) -> (Option<FolderTreeEvent>, bool) {
     if depth >= MAX_RENDER_DEPTH {
         ui.horizontal(|ui| {
@@ -511,7 +832,10 @@ fn render_folder(
         );
 
         // The folder label (clicking it opens/navigates; the row id is the addressable TreeItem).
-        let label_resp = ui.add(egui::Label::new(&node.title).sense(Sense::click()));
+        let label_resp = ui.selectable_label(
+            selected_folder_id == Some(node.folder_id.as_str()),
+            &node.title,
+        );
 
         // Inline child-load spinner while a genuine fetch is in flight (AC2 / no-perpetual-spinner rule).
         if node.loading {
@@ -545,13 +869,64 @@ fn render_folder(
         if ui.button("Change color").clicked() {
             open_row_picker = true;
         }
+        if ui.button("New subfolder").clicked() {
+            *create_draft = Some((Some(node.folder_id.clone()), String::new()));
+            ui.close();
+        }
+        if ui.button("Rename").clicked() {
+            *rename_draft = Some((node.folder_id.clone(), node.title.clone()));
+            ui.close();
+        }
+        if ui.button("Move to root").clicked() {
+            event = Some(FolderTreeEvent::MoveFolder {
+                folder_id: node.folder_id.clone(),
+                parent_folder_id: None,
+                sort_order: None,
+            });
+            ui.close();
+        }
+        let move_under = ui.menu_button("Move under", |ui| {
+            for (target_id, target_title) in folder_choices {
+                if target_id == &node.folder_id {
+                    continue;
+                }
+                let target = ui.button(target_title);
+                emit_button_accesskit(
+                    ui,
+                    target.id,
+                    &move_target_author_id(&node.folder_id, target_id),
+                    &format!("Move {} under {}", node.title, target_title),
+                );
+                if target.clicked() {
+                    event = Some(FolderTreeEvent::MoveFolder {
+                        folder_id: node.folder_id.clone(),
+                        parent_folder_id: Some(target_id.clone()),
+                        sort_order: None,
+                    });
+                    ui.close();
+                }
+            }
+        });
+        emit_button_accesskit(
+            ui,
+            move_under.response.id,
+            MOVE_UNDER_MENU_AUTHOR_ID,
+            "Move under",
+        );
+        if ui.button("Delete").clicked() {
+            *delete_draft = Some((
+                node.folder_id.clone(),
+                node.title.clone(),
+                node.folder_count().saturating_sub(1),
+            ));
+            ui.close();
+        }
     });
     if open_row_picker {
         egui::Popup::open_id(ui.ctx(), row_picker_id);
         ui.ctx().request_repaint();
     }
     if let Some(picked) = color_picker_popup_for_id(row_picker_id, &label_resp, current_color) {
-        node.color = Some(picked);
         event = Some(FolderTreeEvent::ChangeColor {
             folder_id: node.folder_id.clone(),
             color: picked,
@@ -562,7 +937,6 @@ fn render_folder(
     // The shortcut is anchored to the swatch button. It is not a replacement for the right-click row
     // flow above; both paths emit the same event and therefore exercise the same host persistence route.
     if let Some(picked) = color_picker_popup(&sw_resp, current_color) {
-        node.color = Some(picked);
         event = Some(FolderTreeEvent::ChangeColor {
             folder_id: node.folder_id.clone(),
             color: picked,
@@ -570,8 +944,23 @@ fn render_folder(
     }
 
     // ── Disclosure / label clicks ────────────────────────────────────────────────────────────────────
-    if tri_resp.clicked() {
-        node.expanded = !node.expanded;
+    let accessible_expand = ui.input(|input| {
+        input.has_accesskit_action_request(label_resp.id, accesskit::Action::Expand)
+    });
+    let accessible_collapse = ui.input(|input| {
+        input.has_accesskit_action_request(label_resp.id, accesskit::Action::Collapse)
+    });
+    let requested_expanded = if accessible_expand && !node.expanded {
+        Some(true)
+    } else if accessible_collapse && node.expanded {
+        Some(false)
+    } else if tri_resp.clicked() {
+        Some(!node.expanded)
+    } else {
+        None
+    };
+    if let Some(expanded) = requested_expanded {
+        node.expanded = expanded;
         if node.expanded {
             // First expand with no cached blocks => host should lazy-fetch (AC2). Re-expanding a folder
             // whose blocks are already cached does NOT re-fetch (the lazy-load caching rule).
@@ -596,7 +985,17 @@ fn render_folder(
     if node.expanded {
         // Child folders first (the structural tree), then leaf blocks (the lazy membership).
         for child in &mut node.child_folders {
-            let (ev, spin) = render_folder(child, ui, palette, depth + 1);
+            let (ev, spin) = render_folder(
+                child,
+                ui,
+                palette,
+                depth + 1,
+                selected_folder_id,
+                create_draft,
+                rename_draft,
+                delete_draft,
+                folder_choices,
+            );
             if ev.is_some() {
                 event = ev;
             }
@@ -897,10 +1296,41 @@ mod tests {
             parse_hex_color("#0000FF"),
             Some(Color32::from_rgba_unmultiplied(0, 0, 255, 255))
         );
-        assert_eq!(parse_hex_color("#fff"), None, "wrong length");
+        assert_eq!(
+            parse_hex_color("#fff"),
+            Some(Color32::from_rgba_unmultiplied(255, 255, 255, 255)),
+            "short CSS hex expands each nibble"
+        );
+        assert_eq!(
+            parse_hex_color("red"),
+            Some(Color32::from_rgba_unmultiplied(255, 0, 0, 255)),
+            "defined CSS named colors render"
+        );
+        assert_eq!(parse_hex_color("ReD"), parse_hex_color("red"));
+        assert_eq!(parse_hex_color("chartreuse"), None, "unknown named token");
         assert_eq!(parse_hex_color("#gggggg"), None, "non-hex");
         assert_eq!(parse_hex_color(""), None, "empty");
         assert_eq!(parse_hex_color("#ff00000"), None, "too long");
+
+        let tree = build_tree(&[
+            FolderRow::new(
+                "unknown",
+                None,
+                "Unknown token",
+                Some("chartreuse".to_owned()),
+            ),
+            FolderRow::new("valid", None, "Valid token", Some("red".to_owned())),
+        ]);
+        assert_eq!(
+            tree.len(),
+            2,
+            "one unknown token must not reject the folder list"
+        );
+        assert_eq!(
+            tree[0].color, None,
+            "only the unknown row degrades to neutral"
+        );
+        assert_eq!(tree[1].color, parse_hex_color("red"));
     }
 
     /// Round-trip: color -> hex -> color is stable for opaque colors (the recolor PATCH body shape).
@@ -925,6 +1355,16 @@ mod tests {
         );
         let color = color_author_id("a/b:c");
         assert!(color.starts_with(COLOR_AUTHOR_ID_PREFIX));
+        assert_ne!(
+            node_author_id("a/b"),
+            node_author_id("a:b"),
+            "distinct raw ids must not alias after sanitization"
+        );
+        assert_ne!(
+            move_target_author_id("a/b", "target"),
+            move_target_author_id("a:b", "target"),
+            "move targets retain exact source identity"
+        );
     }
 
     /// find_folder_mut reaches a nested node so the host can install lazy-loaded blocks after a fetch.
@@ -971,6 +1411,7 @@ mod tests {
             root_nodes: build_tree(&rows_fixture()),
             loading: false,
             error: None,
+            ..LoomFolderTree::default()
         };
         assert_eq!(
             tree.folder_count(),

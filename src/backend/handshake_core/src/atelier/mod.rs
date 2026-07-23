@@ -121,23 +121,23 @@ pub mod event_family {
     use super::action_receipt::action_receipt_event_family;
     use super::collections::collections_event_family;
     use super::comfy::comfy_event_family;
+    use super::command_corpus::command_log_event_family;
+    use super::command_corpus::diagnostics_event_family;
+    use super::dcc_flight_recorder::dcc_flight_recorder_event_family;
     use super::documents::documents_event_family;
     use super::exports::export_event_family;
     use super::filesystem_health::filesystem_health_event_family;
     use super::intake::intake_event_family;
     use super::links::links_event_family;
+    use super::model_manual_merge::model_manual_merge_event_family;
     use super::moodboards::moodboard_event_family;
     use super::pose::pose_event_family;
     use super::relationships::relationships_event_family;
     use super::scripts::scripts_event_family;
     use super::search::search_event_family;
+    use super::settings::model_workflow_event_family;
     use super::settings::settings_event_family;
     use super::source_evidence::source_evidence_event_family;
-    use super::command_corpus::diagnostics_event_family;
-    use super::command_corpus::command_log_event_family;
-    use super::dcc_flight_recorder::dcc_flight_recorder_event_family;
-    use super::model_manual_merge::model_manual_merge_event_family;
-    use super::settings::model_workflow_event_family;
     use super::state_probe::diagnostics_projection_event_family;
     use super::state_probe::state_probe_event_family;
     use super::stealth_window::stealth_ref_event_family;
@@ -206,6 +206,7 @@ pub mod event_family {
         action_receipt_event_family::ACTION_RECEIPT_RECORDED,
         intake_event_family::INTAKE_BATCH_CREATED,
         intake_event_family::INTAKE_ITEM_ADDED,
+        intake_event_family::INTAKE_ITEM_LOOM_PROJECTION_LINKED,
         intake_event_family::INTAKE_ITEM_CLASSIFIED,
         intake_event_family::INTAKE_ITEM_REJECTION_AUDITED,
         intake_event_family::INTAKE_BATCH_CLOSED,

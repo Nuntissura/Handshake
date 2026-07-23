@@ -41,12 +41,14 @@ use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 use serde_json::{json, Value};
 
 use handshake_native::fems::memory_client::{
-    clamp_pack_items, MemoryClient, MemoryClientError, MemoryContext, MemoryKind, MemoryPack,
-    MemorySource,
+    clamp_pack_items, compute_memory_pack_hash, MemoryClient, MemoryClientError, MemoryContext,
+    MemoryKind, MemoryPack, MemorySource, MEMORY_PACK_SCHEMA_VERSION,
 };
 use handshake_native::fems::relevant_memory_panel::{
     mem_item_author_id, mem_source_author_id, FnNavigationBus, MemoryNavTarget,
@@ -156,19 +158,22 @@ fn rt() -> tokio::runtime::Runtime {
 
 /// A capsule body with one item of each Pillar 12 kind, each provenance-first.
 fn three_kind_body() -> Value {
-    json!({
-        "context_key": "ws=W1|doc=D1|cur=12|sel_len=0",
-        "token_estimate": 280,
-        "truncated": false,
-        "items": [
-            {"id": "ep-1", "kind": "episodic", "summary": "You edited the intro 2h ago",
-             "source": {"event_id": "EV-100"}, "score": 0.91},
-            {"id": "sem-1", "kind": "semantic", "summary": "Aria is the protagonist",
-             "source": {"uri": "loom://block/aria"}, "score": 0.84},
-            {"id": "proc-1", "kind": "procedural", "summary": "How to render the scene",
-             "source": {"document_id": "D9", "byte_range": [10, 40]}}
-        ]
-    })
+    authoritative_body(
+        json!({
+            "context_key": "ws=W1|doc=D1|cur=12|sel_len=0",
+            "token_estimate": 280,
+            "truncated": false,
+            "items": [
+                {"id": "ep-1", "kind": "episodic", "summary": "You edited the intro 2h ago",
+                 "source": {"event_id": "EV-100"}, "score": 0.91},
+                {"id": "sem-1", "kind": "semantic", "summary": "Aria is the protagonist",
+                 "source": {"uri": "loom://block/aria"}, "score": 0.84},
+                {"id": "proc-1", "kind": "procedural", "summary": "How to render the scene",
+                 "source": {"document_id": "D9", "byte_range": [10, 40]}}
+            ]
+        }),
+        "PACK-three-kind",
+    )
 }
 
 /// A capsule body with 30 items (all episodic) to prove the client-side <=24 clamp.
@@ -179,7 +184,22 @@ fn thirty_item_body() -> Value {
                    "source": {"event_id": format!("EV-{n}")}})
         })
         .collect();
-    json!({"context_key": "k", "truncated": false, "token_estimate": 480, "items": items})
+    authoritative_body(
+        json!({"context_key": "k", "truncated": false, "token_estimate": 480, "items": items}),
+        "PACK-thirty-items",
+    )
+}
+
+fn authoritative_body(mut body: Value, pack_id: &str) -> Value {
+    let object = body.as_object_mut().expect("pack fixture object");
+    object.insert("schema_version".into(), json!(MEMORY_PACK_SCHEMA_VERSION));
+    object.insert("pack_id".into(), json!(pack_id));
+    object.insert("memory_pack_hash".into(), Value::Null);
+    let hash = compute_memory_pack_hash(&body).expect("canonical pack fixture hash");
+    body.as_object_mut()
+        .expect("pack fixture object")
+        .insert("memory_pack_hash".into(), json!(hash));
+    body
 }
 
 /// A typed pack used to seed the panel for render/interaction tests (no network).
@@ -212,8 +232,9 @@ fn golden_backend_ace_pack_decodes_with_live_provenance() {
     // `missing field id`, and every non-empty real capsule surfaced a red Decode error. The re-modeled
     // client aligns to `ace::MemoryPack` (`memory_id`/`memory_class`/`source_refs`) so real capsules
     // decode AND resolve LIVE provenance from `source_refs`.
-    let mut pack: MemoryPack = serde_json::from_str(BACKEND_FEMS_ITEMS_FIXTURE)
-        .expect("the REAL backend ace::MemoryPack item shape must decode through the client deserializer");
+    let mut pack: MemoryPack = serde_json::from_str(BACKEND_FEMS_ITEMS_FIXTURE).expect(
+        "the REAL backend ace::MemoryPack item shape must decode through the client deserializer",
+    );
 
     // The fixture carries 30 items; 4 use the `working` class (not one of the three rendered kinds) and
     // are TOLERATED — skipped with a logged warning, never a whole-capsule failure (must_fix #2). That
@@ -252,7 +273,10 @@ fn golden_backend_ace_pack_decodes_with_live_provenance() {
     // The <=24 defensive clamp still applies over the real backend shape (26 -> 24, truncated, drop 2).
     let dropped = clamp_pack_items(&mut pack);
     assert_eq!(pack.items.len(), 24, "clamped to exactly 24 client-side");
-    assert!(pack.truncated, "truncated must be set after the defensive clamp");
+    assert!(
+        pack.truncated,
+        "truncated must be set after the defensive clamp"
+    );
     assert_eq!(dropped, 2, "26 known-kind items -> 24 drops 2");
 
     // The grouped render iterates the three rendered kinds; all decoded items land in one of them.
@@ -344,15 +368,18 @@ fn fetch_decodes_capsule_with_unknown_class() {
     // The unknown-class item is skipped + logged; the known-kind items survive. Before the tolerant
     // decode, `resp.json::<MemoryPack>()` would error with `unknown variant 'working'` and the consumer
     // would surface a permanent Decode error for every such capsule.
-    let body = json!({
-        "context_key": "k",
-        "token_estimate": 120,
-        "items": [
-            {"id": "ep", "kind": "episodic", "summary": "edited", "source": {"event_id": "E"}},
-            {"id": "work", "kind": "working", "summary": "scratch buffer", "source": {"event_id": "W"}},
-            {"id": "sem", "kind": "semantic", "summary": "fact", "source": {"uri": "loom://x"}}
-        ]
-    });
+    let body = authoritative_body(
+        json!({
+            "context_key": "k",
+            "token_estimate": 120,
+            "items": [
+                {"id": "ep", "kind": "episodic", "summary": "edited", "source": {"event_id": "E"}},
+                {"id": "work", "kind": "working", "summary": "scratch buffer", "source": {"event_id": "W"}},
+                {"id": "sem", "kind": "semantic", "summary": "fact", "source": {"uri": "loom://x"}}
+            ]
+        }),
+        "PACK-unknown-class",
+    );
     let (base_url, server) = spawn_mock("HTTP/1.1 200 OK", body);
     let client = MemoryClient::with_base_url(base_url);
     let ctx = MemoryContext::for_workspace("W1");
@@ -397,6 +424,28 @@ fn fetch_live_404_is_endpoint_missing() {
             println!("PT-004 typed blocker OK: EndpointMissing(probed='{probed_path}')");
         }
         other => panic!("AC-005: a 404 must map to EndpointMissing, got {other:?}"),
+    }
+}
+
+#[test]
+fn fetch_live_unknown_workspace_404_is_not_endpoint_missing() {
+    let (base_url, server) = spawn_mock(
+        "HTTP/1.1 404 Not Found",
+        json!({"error": "not_found", "detail": "workspace"}),
+    );
+    let client = MemoryClient::with_base_url(base_url);
+    let ctx = MemoryContext::for_workspace("deleted-workspace");
+    let result = rt().block_on(async { client.fetch_pack("deleted-workspace", &ctx).await });
+    let _ = server.join();
+
+    match result {
+        Err(MemoryClientError::Http { status: 404, body }) => {
+            assert!(body.contains("\"error\":\"not_found\""));
+            assert!(body.contains("\"detail\":\"workspace\""));
+        }
+        other => panic!(
+            "a canonical unknown-workspace response must remain a resource/state HTTP error, got {other:?}"
+        ),
     }
 }
 

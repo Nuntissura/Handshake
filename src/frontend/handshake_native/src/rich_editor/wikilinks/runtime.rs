@@ -17,7 +17,7 @@
 //! - Backlinks are fetched ONCE on document load and refreshed only on an explicit refresh action
 //!   (no per-frame background polling — red-team RISK-4 / impl note 3).
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use crate::rich_editor::wikilinks::autocomplete::AutocompleteRuntime;
@@ -25,6 +25,56 @@ use crate::rich_editor::wikilinks::client::{
     BacklinksResponse, LoomBlockTransclusion, RichDocBacklink, WikilinkBackend, WikilinkError,
 };
 use crate::rich_editor::wikilinks::resolver::{normalize_target, ResolverIndex};
+
+const BACKLINKS_INVALIDATION_ID: &str = "handshake.backlinks-invalidation";
+const BACKLINKS_INVALIDATION_WINDOW: usize = 256;
+
+#[derive(Clone, Default)]
+struct BacklinksInvalidationLog {
+    revision: u64,
+    events: VecDeque<u64>,
+    current_warnings: HashMap<(String, String), String>,
+    latest_revision_by_workspace: HashMap<String, u64>,
+}
+
+/// Broadcast one backlink-projection invalidation through egui's shared context data. Every mounted
+/// rich editor observes the same revision on its next frame, so saving source A refreshes an already
+/// mounted target B panel. A post-commit indexing warning is broadcast as a visible failure instead
+/// of allowing a pane to present stale rows as current.
+pub fn publish_backlinks_invalidation(
+    ctx: &egui::Context,
+    workspace_id: impl Into<String>,
+    source_document_id: impl Into<String>,
+    warning: Option<String>,
+) -> u64 {
+    ctx.data_mut(|data| {
+        let id = egui::Id::new(BACKLINKS_INVALIDATION_ID);
+        let mut log = data
+            .get_temp::<BacklinksInvalidationLog>(id)
+            .unwrap_or_default();
+        log.revision = log.revision.wrapping_add(1);
+        let revision = log.revision;
+        let workspace_id = workspace_id.into();
+        let source_document_id = source_document_id.into();
+        let warning_key = (workspace_id.clone(), source_document_id.clone());
+        log.latest_revision_by_workspace
+            .insert(workspace_id.clone(), revision);
+        match &warning {
+            Some(message) => {
+                log.current_warnings.insert(warning_key, message.clone());
+            }
+            None => {
+                log.current_warnings.remove(&warning_key);
+            }
+        }
+        log.events.push_back(revision);
+        while log.events.len() > BACKLINKS_INVALIDATION_WINDOW {
+            log.events.pop_front();
+        }
+        data.insert_temp(id, log);
+        revision
+    })
+}
 
 /// The resolution state of one transclusion target, cached per `ref_value`. A terminal state
 /// (Resolved/Failed) is never re-fetched.
@@ -78,6 +128,9 @@ pub enum CreateNoteOutcome {
         display_title: String,
         /// The new document id.
         document_id: String,
+        /// Backend authority: true when this request inserted the document, false when the
+        /// idempotent create route opened/reused an existing document.
+        created: bool,
     },
     /// The create failed; the affordance re-enables + the editor surfaces the error.
     Failed {
@@ -86,6 +139,25 @@ pub enum CreateNoteOutcome {
         /// A human-readable failure reason (the typed backend error rendered).
         reason: String,
     },
+}
+
+/// Successful create-route projection retained across the async runtime boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CreateNoteWrite {
+    pub document_id: String,
+    pub created: bool,
+}
+
+/// Host-owned create completion stamped with the context that originated the request. The shell
+/// drains every completion even after the mounted widget changes document/workspace; the origin
+/// identity decides whether the old document mark may be rewritten, while navigation/failure still
+/// surfaces exactly once.
+#[derive(Debug, Clone)]
+pub struct CreateNoteCompletion {
+    pub context_generation: u64,
+    pub workspace_id: String,
+    pub document_id: String,
+    pub outcome: CreateNoteOutcome,
 }
 
 /// WP-KERNEL-012 MT-057: the async backend for create-from-unresolved-link. A SEPARATE trait (not an
@@ -102,7 +174,9 @@ pub trait CreateNoteBackend: Send + Sync {
         &'a self,
         workspace_id: &'a str,
         title: &'a str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>>;
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<CreateNoteWrite, String>> + Send + 'a>,
+    >;
 }
 
 /// The production [`CreateNoteBackend`]: wraps the MT-037 [`KnowledgeDocumentsClient`] and calls its
@@ -123,6 +197,19 @@ impl KnowledgeCreateNoteBackend {
             session_run_id: session_run_id.into(),
         }
     }
+
+    /// Build the same production create adapter against an explicitly selected Handshake backend.
+    /// Managed-runtime proofs use this to keep the canonical create path aligned with the backend URL
+    /// selected by the fixture; the adapter still delegates to the one MT-037 document client and the
+    /// real `POST /knowledge/documents` route.
+    pub fn with_base_url(base_url: impl Into<String>, session_run_id: impl Into<String>) -> Self {
+        Self {
+            client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_base_url(
+                base_url,
+            ),
+            session_run_id: session_run_id.into(),
+        }
+    }
 }
 
 impl CreateNoteBackend for KnowledgeCreateNoteBackend {
@@ -130,8 +217,9 @@ impl CreateNoteBackend for KnowledgeCreateNoteBackend {
         &'a self,
         workspace_id: &'a str,
         title: &'a str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>>
-    {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<CreateNoteWrite, String>> + Send + 'a>,
+    > {
         use crate::backend::knowledge_documents::{CreateDocumentRequest, HskDocumentHeaders};
         let workspace_id = workspace_id.to_owned();
         let title = title.to_owned();
@@ -145,15 +233,21 @@ impl CreateNoteBackend for KnowledgeCreateNoteBackend {
             let body = CreateDocumentRequest {
                 workspace_id,
                 title: title.clone(),
+                create_if_title_absent: true,
                 content_json: None, // empty body — the MT contract: "with the title and an empty body"
                 schema_version: None,
                 project_ref: None,
                 folder_ref: None,
             };
             match client.create_document(&headers, &body).await {
-                Ok(resp) => extract_document_id(&resp.document).ok_or_else(|| {
-                    "create succeeded but the response carried no document id".to_owned()
-                }),
+                Ok(resp) => extract_document_id(&resp.document)
+                    .map(|document_id| CreateNoteWrite {
+                        document_id,
+                        created: resp.created,
+                    })
+                    .ok_or_else(|| {
+                        "create succeeded but the response carried no document id".to_owned()
+                    }),
                 Err(e) => Err(e.to_string()),
             }
         })
@@ -190,23 +284,54 @@ fn slugify(title: &str) -> String {
     }
 }
 
-/// One-slot delivery cell for an off-thread create-note result (WP-KERNEL-012 MT-057).
-type CreateNoteDeliveryCell = Arc<Mutex<Option<CreateNoteOutcome>>>;
+/// Context-stamped off-thread create-note result (WP-KERNEL-012 MT-057).
+type CreateNoteDeliveryCell = Arc<Mutex<VecDeque<(u64, String, String, CreateNoteOutcome)>>>;
 
 /// One-slot delivery cell for the off-thread resolver-index SEED (WP-KERNEL-012 MT-057): a Loom
 /// search enumeration delivers `(document_id, title)` pairs that `drain` folds into
 /// `resolver_index.add_document` so titles classify Resolved at runtime (AC-003). `Err` carries a
-/// typed failure so a seed that fails does not silently leave the index empty (it is dropped — the
-/// links stay Unresolved + offer the create affordance, which is the correct fail-closed behavior).
-type ResolverSeedDeliveryCell = Arc<Mutex<Option<Result<Vec<(String, String)>, WikilinkError>>>>;
+/// typed failure so a seed that fails does not masquerade as an authoritative empty index. The
+/// resolver remains NOT READY and create-note consumers stay disabled, preventing duplicate notes.
+type ResolverSeedDeliveryCell = Arc<
+    Mutex<
+        VecDeque<(
+            u64,
+            String,
+            String,
+            Result<Vec<(String, String)>, WikilinkError>,
+        )>,
+    >,
+>;
 
-/// One-slot delivery cell for an off-thread transclusion resolution: `(ref_value, result)`.
-type TransclusionDeliveryCell =
-    Arc<Mutex<Option<(String, Result<LoomBlockTransclusion, WikilinkError>)>>>;
+/// Queue of off-thread transclusion resolutions. Every delivery is stamped with its context
+/// generation plus workspace/document identity so a late old-workspace result cannot repopulate the
+/// current cache. A queue also prevents concurrent transclusions overwriting one another.
+type TransclusionDeliveryCell = Arc<
+    Mutex<
+        VecDeque<(
+            u64,
+            String,
+            String,
+            String,
+            Result<LoomBlockTransclusion, WikilinkError>,
+        )>,
+    >,
+>;
 
-/// One-slot delivery cell for an off-thread backlinks fetch, tagged with the generation it was issued
-/// for (MC-004 cancellation): `(generation, result)`.
-type BacklinksDeliveryCell = Arc<Mutex<Option<(u64, Result<BacklinksResponse, WikilinkError>)>>>;
+/// Completion queue for off-thread backlinks fetches. Every completion carries the generation and
+/// exact workspace/document identity it was issued for. The identity stamp rejects stale empty
+/// responses too: an empty response has no row whose workspace could otherwise reveal a context
+/// crossover. A queue is required because explicit refreshes can overlap.
+type BacklinksDeliveryCell = Arc<
+    Mutex<
+        VecDeque<(
+            u64,
+            String,
+            String,
+            Result<BacklinksResponse, WikilinkError>,
+        )>,
+    >,
+>;
 
 /// The per-editor wikilink runtime (owned by `RichEditorState`). Holds the autocomplete runtime, the
 /// transclusion cache, the backlinks state + generation, the document id the backlinks are for, the
@@ -228,6 +353,14 @@ pub struct WikilinkRuntime {
     pub backlinks: BacklinksState,
     /// The monotonic backlinks generation; bumped on document change so a stale response is dropped.
     pub backlinks_generation: u64,
+    /// Context epoch for transclusion delivery cancellation; changes only with workspace/document.
+    context_generation: u64,
+    /// Last cross-pane backlink invalidation revision applied by this editor.
+    backlinks_invalidation_revision: u64,
+    /// Save-time backlink indexing warnings keyed by the source document whose projection update
+    /// failed. These remain sticky across read refreshes and are cleared only by a later successful
+    /// indexing publication for the same source document.
+    backlinks_index_warnings: HashMap<String, String>,
     /// Whether the backlinks header is expanded (the CollapsingHeader open state, persisted).
     pub backlinks_expanded: bool,
     /// `ref_value`s whose transclusion the operator removed via "Remove embed" — the renderer drops
@@ -245,7 +378,10 @@ pub struct WikilinkRuntime {
     /// WP-KERNEL-012 MT-057: in-flight create guard keyed on the NORMALIZED title (RISK-001 / MC-001).
     /// A title present here has a create POST in flight; a second click on the same unresolved link is
     /// a no-op so a double-click cannot POST twice = duplicate notes. Cleared when the create resolves.
-    pub creating_titles: HashSet<String>,
+    pub creating_titles: HashSet<(String, String)>,
+    /// Successfully created notes retained per workspace so an A -> B -> A workspace round-trip
+    /// cannot expose the unresolved-create affordance again before the next backend seed completes.
+    created_notes_by_workspace: HashMap<String, HashMap<String, (String, String)>>,
     /// WP-KERNEL-012 MT-057 (AC-006 / RISK-002 / MC-002): true once the missing-aliases typed-gap
     /// blocker has been recognized for THIS runtime (the backend payload lacks an `aliases` field).
     /// Drives the VISIBLE local-only banner in the rich editor; the resolver index's
@@ -263,6 +399,10 @@ pub struct WikilinkRuntime {
     /// `seed_resolver_index_from_search` is idempotent (no enumeration storm if the shell re-mounts the
     /// same document repeatedly across frames).
     resolver_seeding: bool,
+    /// True only after a successful complete resolver seed for the current workspace. Consumers that
+    /// can create notes must fail closed until this is true; an empty or failed seed is not evidence
+    /// that a title is unresolved.
+    resolver_seed_ready: bool,
 }
 
 impl WikilinkRuntime {
@@ -285,6 +425,9 @@ impl WikilinkRuntime {
             transclusions: HashMap::new(),
             backlinks: BacklinksState::Idle,
             backlinks_generation: 0,
+            context_generation: 0,
+            backlinks_invalidation_revision: 0,
+            backlinks_index_warnings: HashMap::new(),
             backlinks_expanded: true,
             removed_transclusions: HashSet::new(),
             // MT-057: the index starts empty (no aliases support — the backend payload has no
@@ -293,15 +436,17 @@ impl WikilinkRuntime {
             resolver_index: ResolverIndex::new(),
             create_backend: None,
             creating_titles: HashSet::new(),
+            created_notes_by_workspace: HashMap::new(),
             // The alias-backend gap is recognized lazily: it flips true the first time an alias path is
             // exercised while `resolver_index.aliases_supported` is false (so the banner shows only when
             // aliases are actually in play, not on every note). The shell may also set it on mount.
             alias_backend_gap: false,
-            transclusion_cell: Arc::new(Mutex::new(None)),
-            backlinks_cell: Arc::new(Mutex::new(None)),
-            create_cell: Arc::new(Mutex::new(None)),
-            resolver_seed_cell: Arc::new(Mutex::new(None)),
+            transclusion_cell: Arc::new(Mutex::new(VecDeque::new())),
+            backlinks_cell: Arc::new(Mutex::new(VecDeque::new())),
+            create_cell: Arc::new(Mutex::new(VecDeque::new())),
+            resolver_seed_cell: Arc::new(Mutex::new(VecDeque::new())),
             resolver_seeding: false,
+            resolver_seed_ready: false,
         }
     }
 
@@ -319,11 +464,48 @@ impl WikilinkRuntime {
         if document_id == self.document_id {
             return;
         }
+        self.autocomplete.reset_context(self.workspace_id.clone());
         self.document_id = document_id;
         self.backlinks_generation = self.backlinks_generation.wrapping_add(1);
+        self.context_generation = self.context_generation.wrapping_add(1);
         self.backlinks = BacklinksState::Idle;
         self.transclusions.clear();
         self.removed_transclusions.clear();
+    }
+
+    /// Atomically replace the workspace/document context. Changing either identity cancels every
+    /// in-flight backlinks completion and clears per-context caches. This is the production mount
+    /// entry point; assigning `workspace_id` before `set_document` could otherwise accept an old
+    /// empty response when the same document id exists in two workspaces.
+    pub fn set_context(&mut self, workspace_id: impl Into<String>, document_id: impl Into<String>) {
+        let workspace_id = workspace_id.into();
+        let document_id = document_id.into();
+        if workspace_id == self.workspace_id && document_id == self.document_id {
+            return;
+        }
+        let workspace_changed = workspace_id != self.workspace_id;
+        self.workspace_id = workspace_id.clone();
+        self.autocomplete.reset_context(workspace_id);
+        self.document_id = document_id;
+        self.backlinks_generation = self.backlinks_generation.wrapping_add(1);
+        self.context_generation = self.context_generation.wrapping_add(1);
+        self.backlinks = BacklinksState::Idle;
+        self.transclusions.clear();
+        self.removed_transclusions.clear();
+        if workspace_changed {
+            self.resolver_index = ResolverIndex::new();
+            if let Some(created) = self.created_notes_by_workspace.get(&self.workspace_id) {
+                for (document_id, display_title) in created.values() {
+                    self.resolver_index
+                        .add_document(document_id.clone(), display_title.clone());
+                }
+            }
+            self.alias_backend_gap = false;
+            self.resolver_seeding = false;
+            self.resolver_seed_ready = false;
+            self.backlinks_index_warnings.clear();
+            self.backlinks_invalidation_revision = 0;
+        }
     }
 
     /// Ensure a transclusion is being (or has been) resolved: if it has no terminal state and is not
@@ -343,13 +525,21 @@ impl WikilinkRuntime {
         let backend = Arc::clone(&self.backend);
         let cell = Arc::clone(&self.transclusion_cell);
         let workspace_id = self.workspace_id.clone();
+        let document_id = self.document_id.clone();
+        let context_generation = self.context_generation;
         let ref_value = ref_value.to_owned();
         runtime.spawn(async move {
             let result = backend
                 .resolve_transclusion(&workspace_id, &ref_value)
                 .await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some((ref_value, result));
+                slot.push_back((
+                    context_generation,
+                    workspace_id,
+                    document_id,
+                    ref_value,
+                    result,
+                ));
             }
         });
     }
@@ -358,6 +548,9 @@ impl WikilinkRuntime {
     /// per frame). Bumps the generation, marks `Loading`, and spawns the fetch. A no-op when the
     /// document id is empty (no document loaded) or there is no runtime (headless seeds directly).
     pub fn refresh_backlinks(&mut self) {
+        if !self.backlinks_index_warnings.is_empty() {
+            return;
+        }
         if self.document_id.trim().is_empty() {
             return;
         }
@@ -374,10 +567,11 @@ impl WikilinkRuntime {
         let backend = Arc::clone(&self.backend);
         let cell = Arc::clone(&self.backlinks_cell);
         let document_id = self.document_id.clone();
+        let workspace_id = self.workspace_id.clone();
         runtime.spawn(async move {
             let result = backend.list_backlinks(&document_id).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some((generation, result));
+                slot.push_back((generation, workspace_id, document_id, result));
             }
         });
     }
@@ -390,14 +584,70 @@ impl WikilinkRuntime {
         }
     }
 
+    /// Apply the newest cross-pane save/index invalidation. Successful indexing invalidates and
+    /// refetches this mounted document. A post-commit warning cancels in-flight work and exposes a
+    /// typed failure until the operator retries with the existing Refresh control.
+    pub fn observe_backlinks_invalidation(&mut self, ctx: &egui::Context) -> bool {
+        let log = ctx.data(|data| {
+            data.get_temp::<BacklinksInvalidationLog>(egui::Id::new(BACKLINKS_INVALIDATION_ID))
+        });
+        let Some(log) = log else {
+            return false;
+        };
+        let workspace_revision = log
+            .latest_revision_by_workspace
+            .get(&self.workspace_id)
+            .copied()
+            .unwrap_or(0);
+        let previous_warnings = self.backlinks_index_warnings.clone();
+        self.backlinks_index_warnings = log
+            .current_warnings
+            .iter()
+            .filter_map(|((workspace_id, source_document_id), warning)| {
+                (workspace_id == &self.workspace_id)
+                    .then(|| (source_document_id.clone(), warning.clone()))
+            })
+            .collect();
+        let observed = workspace_revision != self.backlinks_invalidation_revision
+            || self.backlinks_index_warnings != previous_warnings;
+        self.backlinks_invalidation_revision = workspace_revision;
+        if !observed {
+            return false;
+        }
+        self.backlinks_generation = self.backlinks_generation.wrapping_add(1);
+        if let Some((source_document_id, warning)) = self.backlinks_index_warnings.iter().next() {
+            self.backlinks = BacklinksState::Failed(WikilinkError::ServerError(format!(
+                "document '{source_document_id}' saved, but backlink indexing needs attention: {warning}"
+            )));
+        } else {
+            self.backlinks = BacklinksState::Idle;
+            self.refresh_backlinks();
+        }
+        true
+    }
+
     /// Drain any off-thread transclusion/backlinks results delivered since the last frame into the
     /// caches. A backlinks result whose generation no longer matches `backlinks_generation` is
     /// DROPPED (MC-004). Returns true when something was applied (the caller can request a repaint).
     pub fn drain(&mut self) -> bool {
         let mut applied = false;
         if let Ok(mut slot) = self.transclusion_cell.lock() {
-            if let Some((ref_value, result)) = slot.take() {
+            while let Some((generation, workspace_id, document_id, ref_value, result)) =
+                slot.pop_front()
+            {
+                if generation != self.context_generation
+                    || workspace_id != self.workspace_id
+                    || document_id != self.document_id
+                {
+                    continue;
+                }
                 let state = match result {
+                    Ok(t) if t.workspace_id != self.workspace_id || t.block_id != ref_value => {
+                        TransclusionState::Failed(WikilinkError::ServerError(format!(
+                            "transclusion response identity mismatch: requested workspace '{}' block '{}', received workspace '{}' block '{}'",
+                            self.workspace_id, ref_value, t.workspace_id, t.block_id
+                        )))
+                    }
                     Ok(t) if t.resolved => TransclusionState::Resolved(t),
                     Ok(t) => TransclusionState::Unresolved(
                         t.unresolved_reason
@@ -410,9 +660,29 @@ impl WikilinkRuntime {
             }
         }
         if let Ok(mut slot) = self.backlinks_cell.lock() {
-            if let Some((generation, result)) = slot.take() {
-                if generation == self.backlinks_generation {
+            while let Some((generation, workspace_id, document_id, result)) = slot.pop_front() {
+                if generation == self.backlinks_generation
+                    && workspace_id == self.workspace_id
+                    && document_id == self.document_id
+                {
                     self.backlinks = match result {
+                        Ok(resp) if resp.source_document_id != self.document_id => {
+                            BacklinksState::Failed(WikilinkError::ServerError(format!(
+                                "backlinks response document mismatch: requested '{}', received '{}'",
+                                self.document_id, resp.source_document_id
+                            )))
+                        }
+                        Ok(resp)
+                            if resp
+                                .backlinks
+                                .iter()
+                                .any(|row| row.workspace_id != self.workspace_id) =>
+                        {
+                            BacklinksState::Failed(WikilinkError::ServerError(format!(
+                                "backlinks response crossed workspace boundary for document '{}'",
+                                self.document_id
+                            )))
+                        }
                         Ok(resp) => BacklinksState::Loaded(resp.backlinks),
                         Err(e) => BacklinksState::Failed(e),
                     };
@@ -422,18 +692,20 @@ impl WikilinkRuntime {
             }
         }
         // WP-KERNEL-012 MT-057: fold a delivered resolver-index SEED (a Loom search enumeration) into
-        // the index so a `[[Title]]` classifies Resolved at runtime (AC-003). A failed seed is dropped
-        // (the links stay Unresolved + offer the create affordance — the correct fail-closed behavior);
-        // either way the in-flight `resolver_seeding` guard is cleared so a later refresh can re-seed.
+        // the index so a `[[Title]]` classifies Resolved at runtime (AC-003). A failed seed leaves the
+        // resolver NOT READY, so create-note consumers stay disabled instead of risking duplicates.
         if let Ok(mut slot) = self.resolver_seed_cell.lock() {
-            if let Some(result) = slot.take() {
-                self.resolver_seeding = false;
-                if let Ok(pairs) = result {
-                    for (document_id, title) in pairs {
-                        self.resolver_index.add_document(document_id, title);
+            while let Some((_generation, workspace_id, _document_id, result)) = slot.pop_front() {
+                if workspace_id == self.workspace_id {
+                    self.resolver_seeding = false;
+                    if let Ok(pairs) = result {
+                        self.resolver_seed_ready = true;
+                        for (document_id, title) in pairs {
+                            self.resolver_index.add_document(document_id, title);
+                        }
                     }
+                    applied = true;
                 }
-                applied = true;
             }
         }
         // Drain the autocomplete search delivery too (so all wikilink async results land in one place).
@@ -527,9 +799,12 @@ impl WikilinkRuntime {
             return; // headless: the test stages the seed directly.
         };
         self.resolver_seeding = true;
+        self.resolver_seed_ready = false;
         let backend = Arc::clone(&self.backend);
         let cell = Arc::clone(&self.resolver_seed_cell);
         let workspace_id = self.workspace_id.clone();
+        let document_id = self.document_id.clone();
+        let context_generation = self.context_generation;
         let query = query.to_owned();
         runtime.spawn(async move {
             // Each hit's `block_id` is the document/block id a `[[Title]]` resolves to; `title` is the
@@ -544,7 +819,7 @@ impl WikilinkRuntime {
                         .collect::<Vec<_>>()
                 });
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result);
+                slot.push_back((context_generation, workspace_id, document_id, result));
             }
         });
     }
@@ -552,10 +827,15 @@ impl WikilinkRuntime {
     /// TEST SEAM: stage a resolver-index seed delivery into the cell (so a headless test drives
     /// [`Self::drain`]'s seed-fold without a tokio runtime / real backend). Mirrors the other
     /// `stage_*` seams.
-    #[cfg(test)]
+    #[doc(hidden)]
     pub fn stage_resolver_seed(&mut self, pairs: Vec<(String, String)>) {
         self.resolver_seeding = true;
-        *self.resolver_seed_cell.lock().unwrap() = Some(Ok(pairs));
+        self.resolver_seed_cell.lock().unwrap().push_back((
+            self.context_generation,
+            self.workspace_id.clone(),
+            self.document_id.clone(),
+            Ok(pairs),
+        ));
     }
 
     /// True while a resolver-index seed search is in flight (the idempotency guard; read by a test that
@@ -564,11 +844,18 @@ impl WikilinkRuntime {
         self.resolver_seeding
     }
 
+    /// Whether the current workspace's resolver seed completed successfully. A successful empty seed
+    /// is ready; transport/server failure remains not-ready and may be retried.
+    pub fn is_resolver_index_ready(&self) -> bool {
+        self.resolver_seed_ready
+    }
+
     /// True when a create POST is already in flight for `title` (normalized) — the affordance is
     /// DISABLED while true so a double-click cannot POST twice (RISK-001 / MC-001). The egui click
     /// handler checks this before emitting/dispatching.
     pub fn is_creating(&self, title: &str) -> bool {
-        self.creating_titles.contains(&normalize_target(title))
+        self.creating_titles
+            .contains(&(self.workspace_id.clone(), normalize_target(title)))
     }
 
     /// Dispatch a create-from-unresolved note: guard against a duplicate in-flight create (RISK-001 /
@@ -585,23 +872,27 @@ impl WikilinkRuntime {
             return false;
         }
         // RISK-001 / MC-001: a create for this title is already in flight -> do NOT POST again.
-        if self.creating_titles.contains(&normalized) {
+        let guard_key = (self.workspace_id.clone(), normalized.clone());
+        if self.creating_titles.contains(&guard_key) {
             return false;
         }
         let (Some(backend), Some(runtime)) = (self.create_backend.clone(), self.runtime.clone())
         else {
             return false; // headless / unwired: the test stages the outcome directly.
         };
-        self.creating_titles.insert(normalized.clone());
+        self.creating_titles.insert(guard_key);
         let workspace_id = self.workspace_id.clone();
+        let document_id = self.document_id.clone();
+        let context_generation = self.context_generation;
         let cell = Arc::clone(&self.create_cell);
         runtime.spawn(async move {
             let result = backend.create_note(&workspace_id, &display_title).await;
             let outcome = match result {
-                Ok(document_id) => CreateNoteOutcome::Created {
+                Ok(write) => CreateNoteOutcome::Created {
                     normalized_title: normalized,
                     display_title,
-                    document_id,
+                    document_id: write.document_id,
+                    created: write.created,
                 },
                 Err(reason) => CreateNoteOutcome::Failed {
                     normalized_title: normalized,
@@ -609,7 +900,7 @@ impl WikilinkRuntime {
                 },
             };
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(outcome);
+                slot.push_back((context_generation, workspace_id, document_id, outcome));
             }
         });
         true
@@ -640,25 +931,69 @@ impl WikilinkRuntime {
     /// and on success insert the new note's title into the resolver index so a re-resolution of the
     /// same `[[Title]]` is now Resolved (AC-002 — the link goes live without a reload). Returns the
     /// outcome so the widget can rewrite the originating mark / surface an error.
-    fn apply_create_outcome(&mut self, outcome: CreateNoteOutcome) -> CreateNoteOutcome {
+    fn apply_create_outcome(
+        &mut self,
+        workspace_id: &str,
+        outcome: CreateNoteOutcome,
+    ) -> CreateNoteOutcome {
         match &outcome {
             CreateNoteOutcome::Created {
                 normalized_title,
                 display_title,
                 document_id,
+                ..
             } => {
-                self.creating_titles.remove(normalized_title);
-                // The new note is now resolvable by its title (live, no reload — AC-002).
-                self.resolver_index
-                    .add_document(document_id.clone(), display_title.clone());
+                self.creating_titles
+                    .remove(&(workspace_id.to_owned(), normalized_title.clone()));
+                self.created_notes_by_workspace
+                    .entry(workspace_id.to_owned())
+                    .or_default()
+                    .insert(
+                        normalized_title.clone(),
+                        (document_id.clone(), display_title.clone()),
+                    );
+                if workspace_id == self.workspace_id {
+                    // The new note is now resolvable by its title (live, no reload — AC-002).
+                    self.resolver_index
+                        .add_document(document_id.clone(), display_title.clone());
+                }
             }
             CreateNoteOutcome::Failed {
                 normalized_title, ..
             } => {
-                self.creating_titles.remove(normalized_title);
+                self.creating_titles
+                    .remove(&(workspace_id.to_owned(), normalized_title.clone()));
             }
         }
         outcome
+    }
+
+    fn pop_create_completion(&mut self) -> Option<CreateNoteCompletion> {
+        let (context_generation, workspace_id, document_id, outcome) = self
+            .create_cell
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.pop_front())?;
+        let outcome = self.apply_create_outcome(&workspace_id, outcome);
+        Some(CreateNoteCompletion {
+            context_generation,
+            workspace_id,
+            document_id,
+            outcome,
+        })
+    }
+
+    /// Drain the next completion for shell ownership without filtering it through the widget's
+    /// current context. This is the production path for hidden/document-switched panes.
+    pub fn drain_create_for_host(&mut self) -> Option<CreateNoteCompletion> {
+        self.pop_create_completion()
+    }
+
+    /// Whether this completion originated in the context currently mounted by this runtime.
+    pub fn create_completion_matches_current(&self, completion: &CreateNoteCompletion) -> bool {
+        completion.context_generation == self.context_generation
+            && completion.workspace_id == self.workspace_id
+            && completion.document_id == self.document_id
     }
 
     /// Drain a delivered create-note outcome (if any) into the index + in-flight guard, returning it
@@ -666,26 +1001,32 @@ impl WikilinkRuntime {
     /// failure. Separate from [`Self::drain`] because the create outcome must flow back to the WIDGET
     /// (to mutate the document mark), whereas transclusion/backlinks land entirely inside the runtime.
     pub fn drain_create(&mut self) -> Option<CreateNoteOutcome> {
-        let taken = self
-            .create_cell
-            .lock()
-            .ok()
-            .and_then(|mut slot| slot.take())?;
-        Some(self.apply_create_outcome(taken))
+        loop {
+            let completion = self.pop_create_completion()?;
+            if self.create_completion_matches_current(&completion) {
+                return Some(completion.outcome);
+            }
+        }
     }
 
     /// TEST SEAM: stage a create-note outcome into the create cell (so a headless test drives
     /// [`Self::drain_create`] without a tokio runtime / real backend).
-    #[cfg(test)]
+    #[doc(hidden)]
     pub fn stage_create(&self, outcome: CreateNoteOutcome) {
-        *self.create_cell.lock().unwrap() = Some(outcome);
+        self.create_cell.lock().unwrap().push_back((
+            self.context_generation,
+            self.workspace_id.clone(),
+            self.document_id.clone(),
+            outcome,
+        ));
     }
 
     /// TEST SEAM: directly mark a title in-flight (so a test can prove the double-dispatch guard
     /// without a runtime).
     #[cfg(test)]
     pub fn mark_creating(&mut self, title: &str) {
-        self.creating_titles.insert(normalize_target(title));
+        self.creating_titles
+            .insert((self.workspace_id.clone(), normalize_target(title)));
     }
 
     // ── Test seams (headless: stage a delivery without a tokio runtime) ──────────────────────────
@@ -697,7 +1038,13 @@ impl WikilinkRuntime {
         ref_value: &str,
         result: Result<LoomBlockTransclusion, WikilinkError>,
     ) {
-        *self.transclusion_cell.lock().unwrap() = Some((ref_value.to_owned(), result));
+        self.transclusion_cell.lock().unwrap().push_back((
+            self.context_generation,
+            self.workspace_id.clone(),
+            self.document_id.clone(),
+            ref_value.to_owned(),
+            result,
+        ));
     }
 
     /// Stage a backlinks delivery into the cell tagged with `generation` (test seam).
@@ -707,7 +1054,12 @@ impl WikilinkRuntime {
         generation: u64,
         result: Result<BacklinksResponse, WikilinkError>,
     ) {
-        *self.backlinks_cell.lock().unwrap() = Some((generation, result));
+        self.backlinks_cell.lock().unwrap().push_back((
+            generation,
+            self.workspace_id.clone(),
+            self.document_id.clone(),
+            result,
+        ));
     }
 }
 
@@ -882,6 +1234,423 @@ mod tests {
     }
 
     #[test]
+    fn loom_address_backlinks_queue_preserves_newest_completion_before_stale_delivery() {
+        let mut rt = rt();
+        rt.set_document("DOC-A");
+        let stale_generation = rt.backlinks_generation;
+        rt.set_document("DOC-B");
+        let current_generation = rt.backlinks_generation;
+        rt.backlinks = BacklinksState::Loading;
+
+        // The current response completes first, then the older request completes before the next
+        // frame drains. A one-slot cell would lose the current response and leave Loading forever.
+        rt.stage_backlinks(
+            current_generation,
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-B".into(),
+                backlinks: vec![backlink("CURRENT")],
+            }),
+        );
+        rt.stage_backlinks(
+            stale_generation,
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-A".into(),
+                backlinks: vec![backlink("STALE")],
+            }),
+        );
+
+        assert!(rt.drain(), "the current queued completion must be applied");
+        match &rt.backlinks {
+            BacklinksState::Loaded(rows) => {
+                assert_eq!(rows.len(), 1);
+                assert_eq!(rows[0].source_document_id, "CURRENT");
+            }
+            other => panic!("expected current Loaded response, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn loom_address_backlinks_response_document_mismatch_fails_closed() {
+        let mut rt = rt();
+        rt.set_document("DOC-B");
+        rt.backlinks = BacklinksState::Loading;
+        rt.stage_backlinks(
+            rt.backlinks_generation,
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-C".into(),
+                backlinks: vec![],
+            }),
+        );
+        assert!(rt.drain());
+        assert!(
+            matches!(
+                rt.backlinks,
+                BacklinksState::Failed(WikilinkError::ServerError(_))
+            ),
+            "a same-generation response for another document must not render"
+        );
+    }
+
+    #[test]
+    fn loom_address_backlinks_response_workspace_mismatch_fails_closed() {
+        let mut rt = rt();
+        rt.set_document("DOC-B");
+        rt.backlinks = BacklinksState::Loading;
+        let mut wrong_workspace = backlink("DOC-A");
+        wrong_workspace.workspace_id = "other-workspace".into();
+        rt.stage_backlinks(
+            rt.backlinks_generation,
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-B".into(),
+                backlinks: vec![wrong_workspace],
+            }),
+        );
+        assert!(rt.drain());
+        assert!(
+            matches!(
+                rt.backlinks,
+                BacklinksState::Failed(WikilinkError::ServerError(_))
+            ),
+            "a row from another workspace must not render"
+        );
+    }
+
+    #[test]
+    fn loom_address_same_document_workspace_swap_drops_stale_empty_response() {
+        let mut rt = rt();
+        rt.set_context("workspace-old", "DOC-B");
+        let old_generation = rt.backlinks_generation;
+        rt.stage_backlinks(
+            old_generation,
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-B".into(),
+                backlinks: vec![],
+            }),
+        );
+
+        rt.set_context("workspace-current", "DOC-B");
+        let current_generation = rt.backlinks_generation;
+        let mut current = backlink("CURRENT");
+        current.workspace_id = "workspace-current".into();
+        rt.stage_backlinks(
+            current_generation,
+            Ok(BacklinksResponse {
+                source_document_id: "DOC-B".into(),
+                backlinks: vec![current],
+            }),
+        );
+
+        assert!(rt.drain());
+        match &rt.backlinks {
+            BacklinksState::Loaded(rows) => {
+                assert_eq!(rows.len(), 1);
+                assert_eq!(rows[0].source_document_id, "CURRENT");
+            }
+            other => panic!("expected current workspace response, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn workspace_swap_drops_stale_transclusion_delivery() {
+        let mut rt = rt();
+        rt.set_context("workspace-old", "DOC-B");
+        let mut stale = resolved_transclusion("BLOCK-SHARED");
+        stale.workspace_id = "workspace-old".into();
+        rt.stage_transclusion("BLOCK-SHARED", Ok(stale));
+
+        rt.set_context("workspace-current", "DOC-B");
+        assert!(!rt.drain(), "old-workspace transclusion must be dropped");
+        assert!(!rt.transclusions.contains_key("BLOCK-SHARED"));
+
+        let mut current = resolved_transclusion("BLOCK-SHARED");
+        current.workspace_id = "workspace-current".into();
+        rt.stage_transclusion("BLOCK-SHARED", Ok(current));
+        assert!(rt.drain());
+        match rt.transclusions.get("BLOCK-SHARED") {
+            Some(TransclusionState::Resolved(value)) => {
+                assert_eq!(value.workspace_id, "workspace-current");
+            }
+            other => panic!("expected current transclusion, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn workspace_swap_drops_stale_resolver_seed_and_create_delivery() {
+        let mut rt = rt();
+        rt.set_context("workspace-old", "DOC-OLD");
+        rt.stage_resolver_seed(vec![("DOC-OLD-TARGET".into(), "Old title".into())]);
+        rt.stage_create(CreateNoteOutcome::Created {
+            normalized_title: "old-created".into(),
+            display_title: "Old Created".into(),
+            document_id: "DOC-OLD-CREATED".into(),
+            created: true,
+        });
+
+        rt.set_context("workspace-current", "DOC-CURRENT");
+        assert!(!rt.drain(), "old resolver seed must be dropped");
+        assert!(
+            rt.drain_create().is_none(),
+            "old create result must be dropped"
+        );
+        assert_eq!(rt.resolver_index.title_count(), 0);
+        assert!(rt.creating_titles.is_empty());
+    }
+
+    #[test]
+    fn backlinks_save_invalidation_fans_out_to_every_mounted_runtime() {
+        let ctx = egui::Context::default();
+        let mut target_b = rt();
+        target_b.set_document("DOC-B");
+        target_b.backlinks = BacklinksState::Loaded(vec![backlink("DOC-A")]);
+        let mut target_c = rt();
+        target_c.set_document("DOC-C");
+        target_c.backlinks = BacklinksState::Loaded(vec![backlink("DOC-X")]);
+
+        publish_backlinks_invalidation(&ctx, "ws", "DOC-A", None);
+        assert!(target_b.observe_backlinks_invalidation(&ctx));
+        assert!(target_c.observe_backlinks_invalidation(&ctx));
+        assert!(matches!(target_b.backlinks, BacklinksState::Idle));
+        assert!(matches!(target_c.backlinks, BacklinksState::Idle));
+    }
+
+    #[test]
+    fn backlinks_post_commit_index_warning_is_visible_in_every_mounted_runtime() {
+        let ctx = egui::Context::default();
+        let mut target_b = rt();
+        target_b.set_document("DOC-B");
+        let mut target_c = rt();
+        target_c.set_document("DOC-C");
+
+        publish_backlinks_invalidation(&ctx, "ws", "DOC-A", Some("index unavailable".into()));
+        assert!(target_b.observe_backlinks_invalidation(&ctx));
+        assert!(target_c.observe_backlinks_invalidation(&ctx));
+        for state in [&target_b.backlinks, &target_c.backlinks] {
+            match state {
+                BacklinksState::Failed(WikilinkError::ServerError(message)) => {
+                    assert!(message.contains("index unavailable"));
+                }
+                other => panic!("index warning must be visible, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn backlink_index_warning_is_queued_sticky_and_cleared_only_by_same_source_success() {
+        let ctx = egui::Context::default();
+        let mut target = rt();
+        target.set_document("DOC-TARGET");
+
+        publish_backlinks_invalidation(&ctx, "ws", "DOC-A", Some("index unavailable".into()));
+        publish_backlinks_invalidation(&ctx, "ws", "DOC-B", None);
+        assert!(target.observe_backlinks_invalidation(&ctx));
+        assert!(matches!(
+            &target.backlinks,
+            BacklinksState::Failed(WikilinkError::ServerError(message))
+                if message.contains("DOC-A") && message.contains("index unavailable")
+        ));
+
+        target.refresh_backlinks();
+        assert!(
+            matches!(target.backlinks, BacklinksState::Failed(_)),
+            "a read refresh cannot repair or hide a failed save-time index update"
+        );
+
+        publish_backlinks_invalidation(&ctx, "ws", "DOC-A", None);
+        assert!(target.observe_backlinks_invalidation(&ctx));
+        assert!(matches!(target.backlinks, BacklinksState::Idle));
+    }
+
+    #[test]
+    fn concurrent_create_deliveries_are_all_preserved() {
+        let mut rt = rt();
+        rt.set_context("ws", "DOC-A");
+        rt.mark_creating("Alpha");
+        rt.mark_creating("Beta");
+        rt.stage_create(CreateNoteOutcome::Created {
+            normalized_title: normalize_target("Alpha"),
+            display_title: "Alpha".into(),
+            document_id: "DOC-ALPHA".into(),
+            created: true,
+        });
+        rt.stage_create(CreateNoteOutcome::Created {
+            normalized_title: normalize_target("Beta"),
+            display_title: "Beta".into(),
+            document_id: "DOC-BETA".into(),
+            created: false,
+        });
+
+        assert!(
+            matches!(rt.drain_create(), Some(CreateNoteOutcome::Created { document_id, created: true, .. }) if document_id == "DOC-ALPHA")
+        );
+        assert!(
+            matches!(rt.drain_create(), Some(CreateNoteOutcome::Created { document_id, created: false, .. }) if document_id == "DOC-BETA")
+        );
+        assert!(rt.drain_create().is_none());
+        assert!(rt.creating_titles.is_empty());
+        assert_eq!(rt.resolver_index.title_count(), 2);
+    }
+
+    #[test]
+    fn same_workspace_document_switch_preserves_workspace_create_and_seed_guards() {
+        let mut rt = rt();
+        rt.set_context("ws", "DOC-OLD");
+        rt.mark_creating("Shared");
+        rt.resolver_seeding = true;
+        let old_generation = rt.context_generation;
+
+        rt.set_context("ws", "DOC-CURRENT");
+        assert!(rt.is_creating("Shared"));
+        assert!(rt.is_seeding_resolver_index());
+        assert!(
+            !rt.dispatch_create_note("Shared"),
+            "document navigation must not re-enable a duplicate workspace/title create"
+        );
+        rt.create_cell.lock().unwrap().push_back((
+            old_generation,
+            "ws".into(),
+            "DOC-OLD".into(),
+            CreateNoteOutcome::Created {
+                normalized_title: normalize_target("Shared"),
+                display_title: "Shared".into(),
+                document_id: "DOC-SHARED".into(),
+                created: false,
+            },
+        ));
+        rt.resolver_seed_cell.lock().unwrap().push_back((
+            old_generation,
+            "ws".into(),
+            "DOC-OLD".into(),
+            Ok(vec![("DOC-TARGET".into(), "Target".into())]),
+        ));
+
+        assert!(rt.drain());
+        assert!(!rt.is_seeding_resolver_index());
+        assert_eq!(rt.resolver_index.title_count(), 1);
+        assert!(
+            rt.drain_create().is_none(),
+            "the old document receives no UI outcome"
+        );
+        assert!(!rt.is_creating("Shared"));
+        assert_eq!(rt.resolver_index.title_count(), 2);
+    }
+
+    #[test]
+    fn backlink_invalidation_is_workspace_scoped_and_history_is_bounded() {
+        let ctx = egui::Context::default();
+        let mut target = rt();
+        target.set_context("workspace-a", "DOC-TARGET");
+        publish_backlinks_invalidation(
+            &ctx,
+            "workspace-b",
+            "DOC-SOURCE",
+            Some("other workspace failure".into()),
+        );
+        assert!(!target.observe_backlinks_invalidation(&ctx));
+        assert!(target.backlinks_index_warnings.is_empty());
+        target.set_context("workspace-b", "DOC-TARGET");
+        assert!(
+            target.observe_backlinks_invalidation(&ctx),
+            "workspace selection hydrates its existing warning snapshot without a new publication"
+        );
+        assert_eq!(target.backlinks_index_warnings.len(), 1);
+        target.set_context("workspace-a", "DOC-TARGET");
+
+        publish_backlinks_invalidation(
+            &ctx,
+            "workspace-a",
+            "DOC-SOURCE",
+            Some("current workspace failure".into()),
+        );
+        assert!(target.observe_backlinks_invalidation(&ctx));
+        assert_eq!(target.backlinks_index_warnings.len(), 1);
+        target.set_context("workspace-b", "DOC-TARGET");
+        assert!(target.backlinks_index_warnings.is_empty());
+
+        for index in 0..(BACKLINKS_INVALIDATION_WINDOW + 32) {
+            publish_backlinks_invalidation(&ctx, "workspace-b", format!("DOC-{index}"), None);
+        }
+        let log = ctx
+            .data(|data| {
+                data.get_temp::<BacklinksInvalidationLog>(egui::Id::new(BACKLINKS_INVALIDATION_ID))
+            })
+            .expect("invalidation log exists");
+        assert_eq!(log.events.len(), BACKLINKS_INVALIDATION_WINDOW);
+    }
+
+    #[test]
+    fn successful_workspace_invalidation_survives_event_window_eviction() {
+        let ctx = egui::Context::default();
+        let mut target = rt();
+        target.set_context("workspace-a", "DOC-TARGET");
+        target.backlinks = BacklinksState::Loaded(vec![backlink("DOC-STALE")]);
+        publish_backlinks_invalidation(&ctx, "workspace-a", "DOC-SOURCE", None);
+        for index in 0..(BACKLINKS_INVALIDATION_WINDOW + 8) {
+            publish_backlinks_invalidation(&ctx, "workspace-b", format!("DOC-{index}"), None);
+        }
+        assert!(target.observe_backlinks_invalidation(&ctx));
+        assert!(
+            matches!(target.backlinks, BacklinksState::Idle),
+            "the compact per-workspace revision refreshes stale rows after the event was evicted"
+        );
+    }
+
+    #[test]
+    fn workspace_round_trip_never_reenables_duplicate_create() {
+        use crate::rich_editor::wikilinks::resolver::{resolve_wikilink, WikilinkResolution};
+
+        let mut rt = rt();
+        rt.set_context("workspace-a", "DOC-A");
+        rt.mark_creating("Shared");
+        let generation = rt.context_generation;
+        rt.set_context("workspace-b", "DOC-B");
+        assert!(
+            !rt.is_creating("Shared"),
+            "workspace B has an independent title guard"
+        );
+        rt.set_context("workspace-a", "DOC-A");
+        assert!(
+            rt.is_creating("Shared"),
+            "A -> B -> A retains the original A create guard"
+        );
+        assert!(!rt.dispatch_create_note("Shared"));
+
+        rt.set_context("workspace-b", "DOC-B");
+        rt.create_cell.lock().unwrap().push_back((
+            generation,
+            "workspace-a".into(),
+            "DOC-A".into(),
+            CreateNoteOutcome::Created {
+                normalized_title: normalize_target("Shared"),
+                display_title: "Shared".into(),
+                document_id: "DOC-SHARED".into(),
+                created: false,
+            },
+        ));
+        assert!(rt.drain_create().is_none());
+        rt.set_context("workspace-a", "DOC-A");
+        assert!(!rt.is_creating("Shared"));
+        assert!(matches!(
+            resolve_wikilink(&rt.resolver_index, "Shared"),
+            WikilinkResolution::Resolved { document_id, .. } if document_id == "DOC-SHARED"
+        ));
+    }
+
+    #[test]
+    fn transclusion_response_identity_mismatch_fails_closed() {
+        let mut rt = rt();
+        rt.set_context("workspace-current", "DOC-A");
+        let mut mismatched = resolved_transclusion("BLOCK-OTHER");
+        mismatched.workspace_id = "workspace-current".into();
+        rt.stage_transclusion("BLOCK-REQUESTED", Ok(mismatched));
+        assert!(rt.drain());
+        assert!(matches!(
+            rt.transclusions.get("BLOCK-REQUESTED"),
+            Some(TransclusionState::Failed(WikilinkError::ServerError(message)))
+                if message.contains("identity mismatch")
+        ));
+    }
+
+    #[test]
     fn set_document_clears_transclusions_and_resets_backlinks() {
         let mut rt = rt();
         rt.set_document("DOC-A");
@@ -1031,6 +1800,7 @@ mod tests {
             normalized_title: normalize_target("My New Note"),
             display_title: "My New Note".into(),
             document_id: "DOC-NEW".into(),
+            created: true,
         });
         let outcome = rt.drain_create().expect("a staged create outcome drains");
         assert!(
@@ -1168,6 +1938,10 @@ mod tests {
             !rt.is_seeding_resolver_index(),
             "the seed-in-flight guard clears after the drain"
         );
+        assert!(
+            rt.is_resolver_index_ready(),
+            "a successful seed, including an empty one, authorizes unresolved classification"
+        );
         assert_eq!(
             rt.resolver_index.title_count(),
             2,
@@ -1178,6 +1952,21 @@ mod tests {
             resolve_wikilink(&rt.resolver_index, "project atlas"),
             WikilinkResolution::Resolved { matched_by: MatchKind::ExactTitle, ref document_id } if document_id == "DOC-1"
         ));
+    }
+
+    #[test]
+    fn failed_resolver_seed_stays_not_ready_and_create_consumers_fail_closed() {
+        let mut rt = rt();
+        rt.resolver_seeding = true;
+        rt.resolver_seed_cell.lock().unwrap().push_back((
+            rt.context_generation,
+            rt.workspace_id.clone(),
+            rt.document_id.clone(),
+            Err(WikilinkError::ServerError("resolver unavailable".into())),
+        ));
+        assert!(rt.drain());
+        assert!(!rt.is_seeding_resolver_index());
+        assert!(!rt.is_resolver_index_ready());
     }
 
     #[test]

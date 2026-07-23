@@ -46,7 +46,9 @@ mod proof_report;
 
 use egui::accesskit;
 use egui_kittest::kittest::Queryable;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::accessibility::{
     assert_no_unnamed_interactive, collect_ui_tree_snapshot, UiTreeNode, UiTreeSnapshot,

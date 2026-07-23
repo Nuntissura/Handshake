@@ -27,7 +27,10 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::pane_registry::PaneType;
@@ -36,6 +39,7 @@ use handshake_native::quick_switcher::{
     NavDispatchOutcome, NavEditorKind, QuickSwitcherTarget, SearchTransportError, ShellNavigator,
     SWITCHER_DIALOG_AUTHOR_ID, SWITCHER_LIST_AUTHOR_ID, SWITCHER_SEARCH_AUTHOR_ID,
 };
+use screenshot_harness::ScreenshotHarness as Harness;
 use serde_json::{json, Value};
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. EVERY screenshot
@@ -295,6 +299,54 @@ fn typing_fires_graph_search_and_renders_hits() {
             .any(|(a, _)| *a == "quick-switcher.option.work_packet.wp-9"),
         "WP-9 work-packet row rendered: {rows:?}"
     );
+}
+
+#[test]
+fn mt070_mounted_quick_switcher_localhost_argus_navigates_with_fresh_post_state() {
+    use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+
+    let mut harness = shell_harness_with_stub(StubTransport {
+        hits: vec![make_hit(
+            "document",
+            "KRD-ARGUS",
+            "Argus Design Doc",
+            json!({ "rich_document_id": "KRD-ARGUS" }),
+        )],
+        recents: vec![],
+    });
+    harness.run();
+    harness
+        .state_mut()
+        .set_active_project_id_for_test("workspace-argus");
+    harness.state_mut().open_quick_switcher();
+    harness.run_steps(2);
+    switcher_search(&harness).type_text("argus");
+    assert!(step_until(&mut harness, |app| !app
+        .quick_switcher_search_results()
+        .is_empty()));
+    harness.run_steps(2);
+
+    let target = "quick-switcher.option.document.krd-argus";
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt070-quick-switcher");
+    let before = argus.inspect(&mut harness);
+    assert!(json_has_author_id(&before, target));
+    let observation = argus.click_from_snapshot_and_reinspect(&mut harness, target, before);
+    assert!(matches!(
+        observation.receipt_status.as_str(),
+        "applied" | "indeterminate"
+    ));
+    assert!(!harness.state().quick_switcher_open());
+    assert!(harness
+        .state()
+        .tab_bar_states()
+        .values()
+        .any(|bar| bar.tabs.iter().any(|tab| {
+            tab.content_id.as_deref() == Some("KRD-ARGUS")
+                && tab.pane_type == PaneType::LoomWikiPage
+        })));
+    let after = argus.inspect(&mut harness);
+    assert!(!json_has_author_id(&after, SWITCHER_DIALOG_AUTHOR_ID));
+    argus.finish();
 }
 
 // ── Enter on the selection OPENS the hit's typed target (a tab on the active pane) + closes ───────────

@@ -1,96 +1,10 @@
-//! Other-pillar interop proof suite — WP-KERNEL-012 MT-074 (cluster E10, the E10 end-to-end interop
-//! guarantee for the three named pillars beyond CKC/Loom).
+//! WP-KERNEL-012 MT-074 end-to-end proof suite for the Stage, Calendar, and Locus interop edges.
 //!
-//! ## What this suite proves (the three "other-pillar" interop edges of the native editors)
-//!
-//! This is a PROOF-ONLY MT: it adds NO app/product code (the only files this MT creates are this test
-//! file + its sibling `other_pillar_interop_manifest.json` + one `[[test]]` line in `Cargo.toml`). It
-//! exercises and asserts the already-built interop behavior delivered by:
-//!   - MT-068 — the Stage (Pillar 17) round-trip: route-to-Stage (the MT-033 `interop.route-to-stage` bus
-//!     command) and embed-back with SHA-256 manifest provenance
-//!     ([`handshake_native::stage_pane::StagePane`] and
-//!     [`handshake_native::interop::embed_artifact_as_nodeview`]); pane ids `stage-pane`,
-//!     `stage-routed-content`, and `stage-capture-embed-back`.
-//!   - MT-067 — the Calendar (Pillar 2) edge: daily-note<->CalendarEvent binding + read-only ActivitySpan
-//!     correlation ([`handshake_native::graph::daily_journal_panel::DailyJournalPanel`] +
-//!     [`handshake_native::interop::CalendarInteropService`]); pane ids `daily-journal-panel`,
-//!     `daily-journal-calendar-event-chip`, `daily-journal-activity-strip`.
-//!   - MT-066 — the Locus (Pillar 6) edge: `locus://` cross-reference resolve + persisted reverse lookup
-//!     ([`handshake_native::interop::LocusInteropService`] + the `locus-ref-chip-{kind}-{id}` chip);
-//!     keyed on the MT-032 single normalized key.
-//!   - MT-041 — editor actions exposed through the WP-011 AccessKit surface (the canonical kittest harness
-//!     pattern in `tests/test_e7_editor_action_accesskit.rs`, reused here for app construction, frame
-//!     advancement, AccessKit tree query by author_id, and AccessKit action dispatch — see [`find_node`]
-//!     / [`click_event`]).
-//!   - MT-042 — the KnowledgeGraph AccessKit registry (the graph/canvas swarm surface).
-//!
-//! It REUSES the WP-011 shell primitives (the `command_registry` command bus, the `accessibility`
-//! AccessKit id registry, the `interop`/`theme` surfaces) and the MT-066/067/068 interop widgets — it does
-//! NOT re-create any shell, AccessKit glue, or persistence fixture (this MT authors NO second PG fixture;
-//! the live PG halves reuse the MT-044/045/046 fixture PATTERN and stay GATED — see the gate below).
-//!
-//! ## ROUTE REALITY (updated: the three interop edge routes now EXIST; the live proofs are `requires_pg`).
-//!
-//! The earlier "routes VERIFIED ABSENT" gate is STALE. The three load-bearing interop edge routes this
-//! suite's live proofs bind were landed on the managed-PG backend and are wired in
-//! `src/backend/handshake_core/src/api/mod.rs` (proven by the `other_pillar_fr_route_resolved` source
-//! scan below, which reads the real backend router):
-//!   - STAGE (Pillar 17): `POST /workspaces/{ws}/stage/artifacts` + `GET /workspaces/{ws}/stage/artifacts/{id}`
-//!     — the Stage capture-store (`api/stage.rs`, MT-066); the GET returns the evidence-grade
-//!     `StageArtifactRef` (`sha256` + `manifest.manifest_ref` always non-empty).
-//!   - CALENDAR (Pillar 2): `GET /workspaces/{ws}/calendar/events` + `GET/POST
-//!     /workspaces/{ws}/calendar/activity-spans` — the calendar events + activity-span store
-//!     (`api/calendar.rs`, MT-067).
-//!   - LOCUS (Pillar 6): `GET /workspaces/{ws}/locus/work-packets/{id}` + `/locus/microtasks/{id}` — the
-//!     Locus resolve routes over the canonical `work_packets`/`micro_tasks` tables (`api/locus.rs`, MT-068).
-//!
-//! The FR/EventLedger read route (`GET /api/flight_recorder`) exists, AND the native-editor FR INGESTION
-//! route `POST /api/flight_recorder/native_editor_event` now ACCEPTS the 5 interop kinds
-//! (`StageEmbedBack`, `CalendarEventBound`, `ActivitySpanCorrelated`, `LocusRefResolved`,
-//! `LocusReverseLookup` — `api/flight_recorder.rs::NativeEditorFrEventKind`). So the backend FR gap is
-//! CLOSED.
-//!
-//! The ONE remaining interop gap is FRONTEND EMISSION: the frontend `event_emitter.rs`
-//! `NativeEditorAction` enum has NO variants for the 5 interop kinds, and its production transport still
-//! posts to `/flight_recorder/runtime_chat_event` (not the new `native_editor_event` route). So the
-//! product does not yet EMIT the interop FR events even though the backend accepts them. That is recorded
-//! as `fr_event_not_emitted_frontend` in [`OTHER_PILLAR_TYPED_BLOCKERS`] + the manifest — a
-//! frontend-emission follow-up (MT-036 emitter + the interop-edge wiring MTs), NOT a backend-route-absent
-//! blocker.
-//!
-//! Therefore the three live edge-drive proofs (`*_live`) now carry REAL bodies that bind the existing
-//! routes via the MT-044/045/046 `require_live_backend` gate (`pg_proof_support`), and are `#[ignore =
-//! "requires_pg"]` — the routes EXIST, but the headless default suite has no managed PostgreSQL, so the
-//! live-PG batch runs them with `--ignored`. They assert only the route round-trips the product's interop
-//! services actually perform (no FR-event assertion, since that awaits the frontend-emission follow-up) —
-//! honest about what is provable against the live backend today.
-//!
-//! ## The four contract scenarios (OP-01..OP-04) — what is provable NOW vs gated
-//!
-//! Each contract scenario `other_pillar_op{NN}` is a NON-IGNORED function that proves the part of its edge
-//! that needs NO live backend (the structural/provable-NOW half, mirroring MT-066/067/068's own
-//! non-ignored proofs); the `*_live` companion proves the route round-trip against a managed PostgreSQL
-//! (`requires_pg`):
-//!   - `other_pillar_op01_stage_route_embed_back` (OP-01): the route-leg payload + the embed-back leg
-//!     inserts the MT-014 hsLink NodeView whose SHA-256 manifest provenance EQUALS the recomputed SHA-256
-//!     of the exact routed bytes (CTRL-3 — recomputed, never non-empty-only). The live Stage capture-store
-//!     route round-trip (`POST`/`GET /workspaces/{ws}/stage/artifacts/{id}`) is the `requires_pg`
-//!     `other_pillar_op01_stage_route_embed_back_live`.
-//!   - `other_pillar_op02_calendar_bind_activity_span` (OP-02): the idempotent daily-note<->CalendarEvent
-//!     binding DELEGATES to the MT-019 service (single doc/date) and the ActivitySpan correlation returns
-//!     the edited documents — both proven against the counted MT-019/MT-067 backend. The live calendar
-//!     activity-span POST/GET + events-window round-trip is the `requires_pg`
-//!     `other_pillar_op02_calendar_bind_activity_span_live`.
-//!   - `other_pillar_op03_locus_resolve_reverse` (OP-03): a `locus://` ref parses + resolves (a 200-status
-//!     projection from an in-process one-shot server) and the PERSISTED reverse lookup lists the
-//!     referencing document(s) keyed on the single normalized key, driven through the REAL MT-034
-//!     `find_notes_with` pipeline. The live `GET /workspaces/{ws}/locus/work-packets/{id}` resolve
-//!     round-trip is the `requires_pg` `other_pillar_op03_locus_resolve_reverse_live`.
-//!   - `other_pillar_op04_swarm_accesskit` (OP-04): the swarm-parity guarantee (HBR-SWARM) — an
-//!     out-of-process-style agent reaches AND activates each of the three interop edges PURELY via stable
-//!     AccessKit author_ids (no coordinates, no label-scraping), verifying each id is present + STABLE
-//!     across two re-queries + the AccessKit Click dispatch reaches the node. The live edge-drive uses the
-//!     OP-01/02/03 `requires_pg` proofs; the reachability/stability/dispatch half is proven NOW.
+//! OP-01..OP-03 are default managed-runtime scenarios: each starts or attaches to the real product backend,
+//! creates its own workspace, drives the production interop client over PostgreSQL, verifies persisted
+//! state, and verifies the required native-editor Flight Recorder events. OP-04 drives all three stable
+//! operator-facing triggers through AccessKit action requests. The `unit_*` tests retain fast projection
+//! and boundary coverage but do not substitute for the managed scenarios.
 
 use std::collections::{HashMap, HashSet};
 use std::io::{Read as IoRead, Write as IoWrite};
@@ -101,20 +15,25 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use chrono::{NaiveDate, TimeZone, Utc};
-use egui_kittest::kittest::NodeT;
+use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 use sha2::{Digest, Sha256};
 
 // REUSE: the MT-066 Stage round-trip (pane + embed-back provenance) — imported, never re-created.
+use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::backend_client::HealthInfo;
 use handshake_native::interop::{
     build_from_selection, embed_artifact_as_nodeview, ActivitySpan, CalendarEvent,
-    CalendarInteropService, CrossRefError, DocId, EditorSurfaceKind, FindNotesSearch,
-    LocusInteropService, LocusRefKind, SharedSelection, StageArtifactRef, StageManifest,
-    StageRouteSource,
+    CalendarInteropService, CrossRefError, DocId, EditorSurfaceKind, FindNotesHttp,
+    FindNotesSearch, LocusInteropService, LocusRefKind, SharedSelection, StageArtifactRef,
+    StageClient, StageManifest, StageRouteSource, CMD_ROUTE_TO_STAGE,
+};
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
 use handshake_native::stage_pane::{
-    EmbedTarget, StageContent, StagePane, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID, STAGE_PANE_AUTHOR_ID,
-    STAGE_ROUTED_CONTENT_AUTHOR_ID,
+    EmbedTarget, StageContent, StagePane, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
+    STAGE_EMBED_BACK_STATUS_AUTHOR_ID, STAGE_PANE_AUTHOR_ID, STAGE_ROUTED_CONTENT_AUTHOR_ID,
 };
 // REUSE: the MT-067 Calendar daily-journal panel + service.
 use handshake_native::graph::daily_journal_panel::{
@@ -130,22 +49,367 @@ use handshake_native::backend_client::{
     LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response,
 };
 use handshake_native::interop::{parse_locus_ref, LOCUS_REF_KIND};
+use handshake_native::rich_editor::daily_notes::journal_store::ReqwestJournalBackend;
+use handshake_native::rich_editor::document_model::doc_json::to_content_json_value;
 use handshake_native::rich_editor::document_model::node::{
     BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
 };
+use handshake_native::rich_editor::document_model::{DocPosition, Selection};
 use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };
 use handshake_native::rich_editor::wikilinks::inline_view::locus_ref_chip_author_id;
+use handshake_native::tab_bar::TabState;
 use handshake_native::theme::{HsPalette, HsTheme};
 
-// REUSE (not re-authored — CTRL-1 / CTRL-8): the MT-044/045/046 shared live-PostgreSQL backend gate.
-// `require_live_backend()` resolves `HSK_TEST_BASE` (default http://127.0.0.1:37501) +
-// `HSK_TEST_WORKSPACE_ID`, verifies `/health`, and PANICS with a `requires_pg` message otherwise (no
-// fake-pass, no substitute store). Only the `#[ignore = "requires_pg"]` `*_live` proofs below use it; it
-// lives in a `tests/` SUBDIRECTORY so Cargo does not compile it as a standalone test binary.
+// Shared managed-PostgreSQL product fixture. It attaches to a healthy root-managed backend or starts an
+// already-built product executable, creates an isolated workspace, and never invokes Cargo.
 #[path = "pg_proof_support/mod.rs"]
 mod pg_proof_support;
+mod stage_binding_proof {
+    //! Cross-executable serialization for tests that install the native MCP discovery binding.
+    //!
+    //! Callers reserve this guard before selecting or starting the managed backend, then publish the mounted
+    //! app token after the app exists. The guard holds the product's canonical publication lock for its full
+    //! lifetime, so another compliant publisher cannot replace the binding between install and Stage capture.
+
+    use std::path::{Path, PathBuf};
+    use std::time::{Duration, Instant};
+
+    pub struct StageBindingGuard {
+        previous: Option<handshake_native::mcp::McpBinding>,
+        installed: Option<handshake_native::mcp::McpBinding>,
+        binding_path: PathBuf,
+        env_var: &'static str,
+        previous_env: Option<std::ffi::OsString>,
+        canonical_lock: Option<std::fs::File>,
+    }
+
+    impl StageBindingGuard {
+        /// Establish the binding root and hold the canonical publication lock. This must happen before the
+        /// managed backend is selected so an owned backend inherits the same root and an attached backend's
+        /// packet-standard root cannot be concurrently displaced by another proof executable.
+        pub fn reserve(scenario: &str) -> Self {
+            Self::reserve_inner(scenario)
+        }
+
+        fn reserve_inner(_scenario: &str) -> Self {
+            #[cfg(target_os = "windows")]
+            let env_var = "LOCALAPPDATA";
+            #[cfg(not(target_os = "windows"))]
+            let env_var = "XDG_DATA_HOME";
+
+            let previous_env = std::env::var_os(env_var);
+            let binding_root = PathBuf::from(
+                std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT").expect(
+                    "HANDSHAKE_TEST_STAGE_BINDING_ROOT is required; Stage proofs must never publish into live app-data",
+                ),
+            );
+            assert!(
+                binding_root.is_absolute(),
+                "HANDSHAKE_TEST_STAGE_BINDING_ROOT must be an absolute isolated test root"
+            );
+            std::fs::create_dir_all(binding_root.join("handshake")).unwrap_or_else(|error| {
+                panic!(
+                    "create Stage binding root {}: {error}",
+                    binding_root.display()
+                )
+            });
+            restrict_directory_to_owner(&binding_root.join("handshake"));
+            let binding_path = binding_root
+                .join("handshake")
+                .join(handshake_native::mcp::BINDING_FILE_NAME);
+            let lock_path = binding_path
+                .parent()
+                .expect("binding path has parent")
+                .join("swarm_mcp_binding.lock");
+            let canonical_lock = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(&lock_path)
+                .unwrap_or_else(|error| {
+                    panic!("open canonical Stage lock {}: {error}", lock_path.display())
+                });
+            let deadline = Instant::now() + Duration::from_secs(120);
+            loop {
+                match canonical_lock.try_lock() {
+                    Ok(()) => break,
+                    Err(std::fs::TryLockError::WouldBlock) if Instant::now() < deadline => {
+                        std::thread::sleep(Duration::from_millis(25));
+                    }
+                    Err(error) => panic!(
+                        "lock canonical Stage publication file {} within 120 seconds: {error}",
+                        lock_path.display()
+                    ),
+                }
+            }
+
+            let current = read_binding(&binding_path);
+            let previous = match current {
+                Some(binding) if !binding_owner_is_live(&binding) => {
+                    // A crashed/killed publisher cannot reclaim this binding. Treat it as stale in the
+                    // ordinary reserve path too, so teardown removes our replacement instead of restoring
+                    // a credential whose recorded owner no longer exists.
+                    None
+                }
+                binding => binding,
+            };
+            std::env::set_var(env_var, &binding_root);
+            assert_eq!(
+                handshake_native::mcp::binding_path(),
+                binding_path,
+                "reserved Stage root must be the product binding root"
+            );
+
+            Self {
+                previous,
+                installed: None,
+                binding_path,
+                env_var,
+                previous_env,
+                canonical_lock: Some(canonical_lock),
+            }
+        }
+
+        pub fn publish(&mut self, session_token: &str) {
+            assert!(
+                self.installed.is_none(),
+                "Stage binding may be published once"
+            );
+            let installed = handshake_native::mcp::McpBinding::for_current_process(
+                "127.0.0.1:1".to_owned(),
+                None,
+                session_token.to_owned(),
+            )
+            .expect("current Stage binding process identity");
+            publish_locked(&self.binding_path, &installed);
+            self.installed = Some(installed.clone());
+            assert_eq!(
+                read_binding(&self.binding_path),
+                Some(installed.clone()),
+                "installed Stage binding readback drifted"
+            );
+        }
+
+        pub fn install(session_token: &str, scenario: &str) -> Self {
+            let mut guard = Self::reserve(scenario);
+            guard.publish(session_token);
+            guard
+        }
+
+        pub fn binding_path(&self) -> &Path {
+            &self.binding_path
+        }
+    }
+
+    impl Drop for StageBindingGuard {
+        fn drop(&mut self) {
+            let already_panicking = std::thread::panicking();
+            let cleanup = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                if let Some(installed) = self.installed.as_ref() {
+                    let current = read_binding(&self.binding_path);
+                    if current.as_ref() == Some(installed) {
+                        match self.previous.as_ref() {
+                            Some(previous) => publish_locked(&self.binding_path, previous),
+                            None => match std::fs::remove_file(&self.binding_path) {
+                                Ok(()) => {}
+                                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                                Err(error) => panic!(
+                                    "remove scoped Stage binding {}: {error}",
+                                    self.binding_path.display()
+                                ),
+                            },
+                        }
+                    }
+                    assert_eq!(
+                        read_binding(&self.binding_path),
+                        self.previous,
+                        "Stage binding restoration did not reproduce the displaced canonical state"
+                    );
+                }
+            }));
+
+            match self.previous_env.take() {
+                Some(value) => std::env::set_var(self.env_var, value),
+                None => std::env::remove_var(self.env_var),
+            }
+            drop(self.canonical_lock.take());
+            if cleanup.is_err() && !already_panicking {
+                panic!(
+                    "Stage binding cleanup failed; environment and publication lock were restored"
+                );
+            }
+        }
+    }
+
+    fn read_binding(path: &Path) -> Option<handshake_native::mcp::McpBinding> {
+        match std::fs::read(path) {
+            Ok(bytes) => {
+                Some(serde_json::from_slice(&bytes).unwrap_or_else(|error| {
+                    panic!("parse Stage binding {}: {error}", path.display())
+                }))
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => panic!("read Stage binding {}: {error}", path.display()),
+        }
+    }
+
+    fn binding_owner_is_live(binding: &handshake_native::mcp::McpBinding) -> bool {
+        handshake_native::mcp::process_birth_identity(binding.pid)
+            .ok()
+            .as_ref()
+            == Some(&binding.process_birth)
+    }
+
+    fn publish_locked(path: &Path, binding: &handshake_native::mcp::McpBinding) {
+        let bytes = serde_json::to_vec_pretty(binding).expect("serialize Stage binding");
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let temporary = path.with_extension(format!("{}.{}.tmp", std::process::id(), nonce));
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt as _;
+            options.mode(0o600);
+        }
+        let mut file = options.open(&temporary).unwrap_or_else(|error| {
+            panic!("create Stage binding temp {}: {error}", temporary.display())
+        });
+        let mut unpublished = UnpublishedStageBinding::new(temporary.clone());
+        restrict_to_owner(&temporary);
+        use std::io::Write as _;
+        file.write_all(&bytes).unwrap_or_else(|error| {
+            panic!("write Stage binding temp {}: {error}", temporary.display())
+        });
+        file.sync_all().unwrap_or_else(|error| {
+            panic!("sync Stage binding temp {}: {error}", temporary.display())
+        });
+        drop(file);
+        #[cfg(target_os = "windows")]
+        replace_file(&temporary, path);
+        #[cfg(not(target_os = "windows"))]
+        std::fs::rename(&temporary, path).unwrap_or_else(|error| {
+            panic!(
+                "publish Stage binding {} -> {}: {error}",
+                temporary.display(),
+                path.display()
+            )
+        });
+        unpublished.disarm();
+    }
+
+    struct UnpublishedStageBinding {
+        path: PathBuf,
+        armed: bool,
+    }
+
+    impl UnpublishedStageBinding {
+        fn new(path: PathBuf) -> Self {
+            Self { path, armed: true }
+        }
+
+        fn disarm(&mut self) {
+            self.armed = false;
+        }
+    }
+
+    impl Drop for UnpublishedStageBinding {
+        fn drop(&mut self) {
+            if self.armed {
+                let _ = std::fs::remove_file(&self.path);
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    fn restrict_to_owner(path: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+            .unwrap_or_else(|error| panic!("restrict Stage binding {}: {error}", path.display()));
+    }
+
+    #[cfg(unix)]
+    fn restrict_directory_to_owner(path: &Path) {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
+            .unwrap_or_else(|error| panic!("restrict Stage directory {}: {error}", path.display()));
+        let mode = std::fs::metadata(path)
+            .expect("inspect Stage directory")
+            .permissions()
+            .mode()
+            & 0o777;
+        assert_eq!(mode, 0o700, "Stage directory must remain owner-only");
+    }
+
+    #[cfg(target_os = "windows")]
+    fn restrict_to_owner(path: &Path) {
+        use std::os::windows::process::CommandExt;
+        let user = std::env::var("USERNAME").expect("USERNAME for Stage binding ACL");
+        let status = std::process::Command::new("icacls")
+            .arg(path)
+            .arg("/inheritance:r")
+            .arg("/grant:r")
+            .arg(format!("{user}:F"))
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .creation_flags(0x0800_0000)
+            .status()
+            .unwrap_or_else(|error| panic!("run icacls for {}: {error}", path.display()));
+        assert!(status.success(), "icacls rejected {}", path.display());
+    }
+
+    #[cfg(target_os = "windows")]
+    fn restrict_directory_to_owner(path: &Path) {
+        restrict_to_owner(path);
+    }
+
+    #[cfg(not(any(unix, target_os = "windows")))]
+    fn restrict_to_owner(_path: &Path) {
+        panic!("owner-only Stage binding permissions unsupported on this platform");
+    }
+
+    #[cfg(not(any(unix, target_os = "windows")))]
+    fn restrict_directory_to_owner(_path: &Path) {
+        panic!("owner-only Stage binding directories unsupported on this platform");
+    }
+
+    #[cfg(target_os = "windows")]
+    fn replace_file(from: &Path, to: &Path) {
+        use std::os::windows::ffi::OsStrExt;
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn MoveFileExW(existing: *const u16, replacement: *const u16, flags: u32) -> i32;
+        }
+        let from_wide = from
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect::<Vec<_>>();
+        let to_wide = to
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect::<Vec<_>>();
+        // SAFETY: both buffers are NUL-terminated and live for the duration of the call.
+        let replaced = unsafe { MoveFileExW(from_wide.as_ptr(), to_wide.as_ptr(), 0x1 | 0x8) != 0 };
+        assert!(
+            replaced,
+            "publish Stage binding {} -> {}: {}",
+            from.display(),
+            to.display(),
+            std::io::Error::last_os_error()
+        );
+    }
+}
+
+// These proofs intentionally exercise process-global DSN and native-binding environment variables.
+// Serialize only the environment-sensitive scenarios so Rust's default parallel test runner cannot let
+// the negative DSN proof or a second mounted native app change another scenario's live authority.
+static PROCESS_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Artifact hygiene (CX-212E / SCREENSHOT-RULE): all artifacts go to the EXTERNAL root ONLY.
@@ -174,64 +438,13 @@ fn assert_no_local_artifact_dir() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// The TYPED FOLLOW-UP MANIFEST (CTRL-4 / CTRL-8): the interop edge routes now EXIST (stage/calendar/locus
-// in `api/mod.rs`, FR ingestion accepts the 5 interop kinds), so the earlier `missing_api`
-// backend-route-absent blockers are RETIRED. The one remaining interop gap is FRONTEND EMISSION: the
-// frontend `event_emitter.rs` `NativeEditorAction` enum has NO variants for the 5 interop kinds and its
-// production transport posts to `/flight_recorder/runtime_chat_event`, not the new
-// `/flight_recorder/native_editor_event` route — so the product does not yet EMIT the interop FR events
-// even though the backend accepts them. That is `fr_event_not_emitted_frontend` (a frontend-emission
-// follow-up, MT-036 emitter + the interop-edge wiring MTs). The 4th entry records the managed-PostgreSQL
-// runtime precondition of the `requires_pg` `*_live` route round-trips. This is the source of truth that
-// drives the sibling `other_pillar_interop_manifest.json`.
+// The sibling manifest records the four remediated scenario verdicts and their exact proof functions.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-
-/// One typed blocker: `kind`, the missing detail, and the owning MT that verified it absent.
-struct TypedBlocker {
-    kind: &'static str,
-    detail: &'static str,
-    source_mt: &'static str,
-}
-
-impl TypedBlocker {
-    fn line(&self) -> String {
-        format!(
-            "BLOCKER[kind={} detail='{}' source_mt={}]",
-            self.kind, self.detail, self.source_mt
-        )
-    }
-}
-
-/// The four typed follow-ups: the three per-edge FRONTEND-emission gaps for the 5 un-emitted interop FR
-/// kinds (the backend routes + FR ingestion now EXIST; the frontend does not yet emit the kinds) + the
-/// managed-PostgreSQL runtime precondition of the `requires_pg` `*_live` route round-trips.
-const OTHER_PILLAR_TYPED_BLOCKERS: [TypedBlocker; 4] = [
-    TypedBlocker {
-        kind: "fr_event_not_emitted_frontend",
-        detail: "STAGE_EMBED_BACK interop FR kind is not emitted by the frontend: event_emitter.rs NativeEditorAction has no StageEmbedBack variant and the production transport posts to /flight_recorder/runtime_chat_event, not the /flight_recorder/native_editor_event route that accepts the interop kinds. The stage route + FR ingestion EXIST (api/stage.rs + api/flight_recorder.rs). Frontend-emission follow-up (STAGE_ROUTE itself is emittable via NativeEditorAction::RouteToStage).",
-        source_mt: "MT-036 (+MT-066 stage wiring)",
-    },
-    TypedBlocker {
-        kind: "fr_event_not_emitted_frontend",
-        detail: "CALENDAR_EVENT_BOUND + ACTIVITY_SPAN_CORRELATED interop FR kinds are not emitted by the frontend (no NativeEditorAction variants; transport targets runtime_chat_event). The calendar routes + FR ingestion EXIST (api/calendar.rs). Frontend-emission follow-up.",
-        source_mt: "MT-036 (+MT-067 calendar wiring)",
-    },
-    TypedBlocker {
-        kind: "fr_event_not_emitted_frontend",
-        detail: "LOCUS_REF_RESOLVED + LOCUS_REVERSE_LOOKUP interop FR kinds are not emitted by the frontend (no NativeEditorAction variants; transport targets runtime_chat_event). The locus routes + FR ingestion EXIST (api/locus.rs). Frontend-emission follow-up.",
-        source_mt: "MT-036 (+MT-068 locus wiring)",
-    },
-    TypedBlocker {
-        kind: "requires_managed_postgres",
-        detail: "the OP-01/02/03 *_live route round-trips need a managed PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID); run them in the live-PG batch with --ignored. The stage/calendar/locus routes now EXIST (wired in api/mod.rs); a live PG + seed is the only runtime precondition.",
-        source_mt: "MT-074",
-    },
-];
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Live-resource config resolution (HARD): PostgreSQL/EventLedger only — never a file-backed local store,
-// never a fake substitute, never an in-process fallback. Mirrors the MT-065 resolver. Only the gated live
-// proofs call it. (The forbidden local-store scheme literal is assembled via `concat!` below so this file
+// never a fake substitute, never an in-process fallback. (The forbidden local-store scheme literal is
+// assembled via `concat!` below so this file
 // carries no raw `sql`+`ite` token — the contract's proof_target greps the file for it and expects ZERO.)
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -289,6 +502,442 @@ fn rt() -> tokio::runtime::Runtime {
         .expect("tokio runtime")
 }
 
+fn sql_literal(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+fn psql_executable() -> PathBuf {
+    if let Ok(explicit) = std::env::var("HSK_PSQL_PATH") {
+        let path = PathBuf::from(explicit);
+        assert!(
+            path.is_file(),
+            "HSK_PSQL_PATH does not name psql: {}",
+            path.display()
+        );
+        return path;
+    }
+    let mut version_command = std::process::Command::new("psql");
+    version_command.arg("--version");
+    if command_output_with_timeout(version_command, std::time::Duration::from_secs(5))
+        .is_ok_and(|output| output.status.success())
+    {
+        return PathBuf::from("psql");
+    }
+    #[cfg(windows)]
+    if let Some(program_files) = std::env::var_os("ProgramFiles") {
+        let root = PathBuf::from(program_files).join("PostgreSQL");
+        if let Ok(versions) = std::fs::read_dir(root) {
+            let mut candidates = versions
+                .filter_map(Result::ok)
+                .map(|entry| entry.path().join("bin").join("psql.exe"))
+                .filter(|path| path.is_file())
+                .collect::<Vec<_>>();
+            candidates.sort();
+            if let Some(path) = candidates.pop() {
+                return path;
+            }
+        }
+    }
+    panic!("managed PostgreSQL proof requires psql");
+}
+
+fn run_pg_sql(sql: &str) {
+    let mut command = std::process::Command::new(psql_executable());
+    command
+        .args(["-X", "-v", "ON_ERROR_STOP=1", "-q", "--dbname"])
+        .arg(resolve_live_pg_dsn())
+        .arg("-c")
+        .arg(sql);
+    let output = command_output_with_timeout(command, std::time::Duration::from_secs(15))
+        .expect("bounded psql execution for MT-074 fixture");
+    assert!(
+        output.status.success(),
+        "MT-074 canonical fixture failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+fn command_output_with_timeout(
+    mut command: std::process::Command,
+    timeout: std::time::Duration,
+) -> std::io::Result<std::process::Output> {
+    command
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    let mut child = command.spawn()?;
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        match child.try_wait()? {
+            Some(_) => return child.wait_with_output(),
+            None if std::time::Instant::now() < deadline => {
+                std::thread::sleep(std::time::Duration::from_millis(25));
+            }
+            None => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    format!("child process exceeded {} seconds", timeout.as_secs()),
+                ));
+            }
+        }
+    }
+}
+
+/// Fail-safe cleanup for every canonical row an MT-074 scenario creates. `LiveBackend` also owns an
+/// isolated workspace and deletes it on Drop; this inner guard removes each fixture first so a panic
+/// cannot leave test rows visible until the outer workspace guard eventually runs.
+struct Mt074FixtureCleanup<'a> {
+    backend: &'a pg_proof_support::LiveBackend,
+    document_ids: Vec<String>,
+    loom_block_ids: Vec<String>,
+    calendar_source_ids: Vec<String>,
+    calendar_event_ids: Vec<String>,
+    calendar_span_ids: Vec<String>,
+    stage_artifact_ids: Vec<String>,
+    work_packet_ids: Vec<String>,
+    native_fr_event_ids: Vec<String>,
+}
+
+impl<'a> Mt074FixtureCleanup<'a> {
+    fn new(backend: &'a pg_proof_support::LiveBackend) -> Self {
+        Self {
+            backend,
+            document_ids: Vec::new(),
+            loom_block_ids: Vec::new(),
+            calendar_source_ids: Vec::new(),
+            calendar_event_ids: Vec::new(),
+            calendar_span_ids: Vec::new(),
+            stage_artifact_ids: Vec::new(),
+            work_packet_ids: Vec::new(),
+            native_fr_event_ids: Vec::new(),
+        }
+    }
+
+    fn document(&mut self, id: impl Into<String>) {
+        self.document_ids.push(id.into());
+    }
+
+    fn loom_block(&mut self, id: impl Into<String>) {
+        self.loom_block_ids.push(id.into());
+    }
+
+    fn calendar_source(&mut self, id: impl Into<String>) {
+        self.calendar_source_ids.push(id.into());
+    }
+
+    fn calendar_event(&mut self, id: impl Into<String>) {
+        self.calendar_event_ids.push(id.into());
+    }
+
+    fn calendar_span(&mut self, id: impl Into<String>) {
+        self.calendar_span_ids.push(id.into());
+    }
+
+    fn stage_artifact(&mut self, id: impl Into<String>) {
+        self.stage_artifact_ids.push(id.into());
+    }
+
+    fn work_packet(&mut self, id: impl Into<String>) {
+        self.work_packet_ids.push(id.into());
+    }
+
+    fn native_fr(&mut self, row: &serde_json::Value) {
+        let event_id = row["event_id"]
+            .as_str()
+            .expect("native FR row carries event_id")
+            .to_owned();
+        uuid::Uuid::parse_str(&event_id).expect("native FR event_id is a UUID");
+        if !self.native_fr_event_ids.contains(&event_id) {
+            self.native_fr_event_ids.push(event_id);
+        }
+    }
+
+    fn assert_cleanup(&mut self) {
+        for document_id in &self.document_ids {
+            let status = self
+                .backend
+                .delete(&format!("/knowledge/documents/{document_id}"));
+            assert!(
+                matches!(status, 200 | 202 | 204 | 404),
+                "MT-074 cleanup: document {document_id} delete returned {status}"
+            );
+        }
+
+        let mut statements = Vec::new();
+        for span_id in &self.calendar_span_ids {
+            statements.push(format!(
+                "DELETE FROM calendar_activity_spans WHERE span_id = {};",
+                sql_literal(span_id)
+            ));
+        }
+        for event_id in &self.calendar_event_ids {
+            statements.push(format!(
+                "DELETE FROM calendar_events WHERE id = {};",
+                sql_literal(event_id)
+            ));
+        }
+        for source_id in &self.calendar_source_ids {
+            statements.push(format!(
+                "DELETE FROM calendar_sources WHERE id = {};",
+                sql_literal(source_id)
+            ));
+        }
+        for artifact_id in &self.stage_artifact_ids {
+            statements.push(format!(
+                "DO $stage_cleanup$ DECLARE v_job TEXT; v_stored TEXT; v_decision TEXT; BEGIN \
+                 SELECT job_id, event_ledger_event_id INTO v_job, v_stored \
+                 FROM stage_capture_artifacts WHERE artifact_id = {artifact}; \
+                 SELECT payload->>'decision_event_id' INTO v_decision \
+                 FROM kernel_event_ledger WHERE event_id = v_stored; \
+                 DELETE FROM stage_capture_artifacts WHERE artifact_id = {artifact}; \
+                 DELETE FROM kernel_event_ledger WHERE event_id IN (v_stored, v_decision); \
+                 DELETE FROM ai_jobs WHERE id = v_job; END $stage_cleanup$;",
+                artifact = sql_literal(artifact_id)
+            ));
+        }
+        if !self.backend.workspace_id.is_empty() {
+            statements.push(format!(
+                "DO $stage_workspace_cleanup$ DECLARE v RECORD; v_decision TEXT; BEGIN \
+                 FOR v IN SELECT artifact_id, job_id, event_ledger_event_id \
+                 FROM stage_capture_artifacts WHERE workspace_id = {workspace} LOOP \
+                 SELECT payload->>'decision_event_id' INTO v_decision \
+                 FROM kernel_event_ledger WHERE event_id = v.event_ledger_event_id; \
+                 DELETE FROM stage_capture_artifacts WHERE artifact_id = v.artifact_id; \
+                 DELETE FROM kernel_event_ledger \
+                 WHERE event_id IN (v.event_ledger_event_id, v_decision); \
+                 DELETE FROM ai_jobs WHERE id = v.job_id; END LOOP; \
+                 END $stage_workspace_cleanup$;",
+                workspace = sql_literal(&self.backend.workspace_id)
+            ));
+        }
+        for wp_id in &self.work_packet_ids {
+            statements.push(format!(
+                "DELETE FROM work_packets WHERE wp_id = {};",
+                sql_literal(wp_id)
+            ));
+        }
+        for block_id in &self.loom_block_ids {
+            statements.push(format!(
+                "DELETE FROM loom_blocks WHERE block_id = {};",
+                sql_literal(block_id)
+            ));
+        }
+        if !self.native_fr_event_ids.is_empty() {
+            let keys = self
+                .native_fr_event_ids
+                .iter()
+                .flat_map(|event_id| {
+                    [
+                        format!("native-editor-fr-pending:{event_id}"),
+                        format!("native-editor-fr-complete:{event_id}"),
+                    ]
+                })
+                .map(|key| sql_literal(&key))
+                .collect::<Vec<_>>()
+                .join(", ");
+            statements.push(format!(
+                "DELETE FROM kernel_event_ledger WHERE idempotency_key IN ({keys}); \
+                 DO $native_fr_cleanup$ BEGIN IF EXISTS (SELECT 1 FROM kernel_event_ledger \
+                 WHERE idempotency_key IN ({keys})) THEN RAISE EXCEPTION \
+                 'MT-074 native FR EventLedger cleanup left fixture rows'; END IF; \
+                 END $native_fr_cleanup$;"
+            ));
+        }
+        if !statements.is_empty() {
+            let sql = format!("BEGIN; {} COMMIT;", statements.join(" "));
+            let mut command = std::process::Command::new(psql_executable());
+            command
+                .args(["-X", "-v", "ON_ERROR_STOP=1", "-q", "--dbname"])
+                .arg(resolve_live_pg_dsn())
+                .arg("-c")
+                .arg(sql);
+            let output = command_output_with_timeout(command, std::time::Duration::from_secs(15))
+                .expect("MT-074 bounded canonical-row cleanup completed");
+            assert!(
+                output.status.success(),
+                "MT-074 canonical-row cleanup failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        self.document_ids.clear();
+        self.loom_block_ids.clear();
+        self.calendar_source_ids.clear();
+        self.calendar_event_ids.clear();
+        self.calendar_span_ids.clear();
+        self.stage_artifact_ids.clear();
+        self.work_packet_ids.clear();
+        // Keep the exact UUIDs through Drop so an explicit scenario cleanup is immediately repeated and
+        // proves idempotent zero-row cleanup against the same pending/completion key set.
+    }
+}
+
+impl Drop for Mt074FixtureCleanup<'_> {
+    fn drop(&mut self) {
+        if std::thread::panicking() {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                self.assert_cleanup();
+            }));
+        } else {
+            self.assert_cleanup();
+        }
+    }
+}
+
+fn created_doc_id(created: &serde_json::Value) -> String {
+    created
+        .pointer("/document/rich_document_id")
+        .or_else(|| created.get("rich_document_id"))
+        .and_then(serde_json::Value::as_str)
+        .expect("created document has rich_document_id")
+        .to_owned()
+}
+
+fn created_doc_version(created: &serde_json::Value) -> i64 {
+    created
+        .pointer("/document/doc_version")
+        .or_else(|| created.get("doc_version"))
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(1)
+}
+
+fn loaded_content_json(loaded: &serde_json::Value) -> serde_json::Value {
+    loaded
+        .pointer("/document/content_json")
+        .or_else(|| loaded.get("content_json"))
+        .cloned()
+        .expect("loaded document has content_json")
+}
+
+fn wait_for_native_fr(
+    backend: &pg_proof_support::LiveBackend,
+    kind: &str,
+    matches_fixture: impl Fn(&serde_json::Value) -> bool,
+) -> serde_json::Value {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        let rows = backend.get_json(&format!(
+            "/api/flight_recorder?wsid={}",
+            backend.workspace_id
+        ));
+        if let Some(row) = rows.as_array().and_then(|rows| {
+            rows.iter()
+                .find(|row| row["payload"]["kind"].as_str() == Some(kind) && matches_fixture(row))
+        }) {
+            assert!(row["event_id"].as_str().is_some());
+            return row.clone();
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "automatic {kind} Flight Recorder row did not arrive within ten seconds"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+fn assert_causal_order(first: &serde_json::Value, second: &serde_json::Value, label: &str) {
+    let first_ts = first["payload"]["ts_utc"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{label}: first event has ts_utc"));
+    let second_ts = second["payload"]["ts_utc"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{label}: second event has ts_utc"));
+    assert!(
+        chrono::DateTime::parse_from_rfc3339(second_ts).unwrap()
+            > chrono::DateTime::parse_from_rfc3339(first_ts).unwrap(),
+        "{label}: second event must be strictly later than its causal predecessor"
+    );
+}
+
+fn mount_managed_app(
+    backend: &pg_proof_support::LiveBackend,
+    pane_type: PaneType,
+    content_id: Option<String>,
+) -> (
+    tokio::runtime::Runtime,
+    Harness<'static, HandshakeApp>,
+    PaneId,
+) {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("managed mounted runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&backend.base, runtime.handle().clone());
+    app.set_stage_embed_back_base_url_for_test(&backend.base);
+    app.bind_active_project_for_integration_test(backend.workspace_id.clone());
+    let pane_id = PaneId::from("pane-a");
+    app.pane_registry().lock().unwrap().insert(PaneRecord::new(
+        pane_id.clone(),
+        pane_type.clone(),
+        backend.workspace_id.clone(),
+        content_id.clone(),
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    let mut tab = TabState::new(pane_type);
+    tab.content_id = content_id;
+    let bar = app.tab_bar_states_mut().get_mut(&pane_id).unwrap();
+    bar.tabs = vec![tab];
+    bar.active_index = 0;
+    app.set_active_pane_for_test(Some(pane_id.clone()));
+    let harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    (runtime, harness, pane_id)
+}
+
+fn select_mounted_rich_text(harness: &mut Harness<'static, HandshakeApp>, exact_text: &str) {
+    let rich = harness.state().mounted_rich_state();
+    let mut state = rich.lock().unwrap();
+    state.selection = Selection::text(
+        DocPosition::new(vec![0, 0], 0),
+        DocPosition::new(vec![0, 0], exact_text.chars().count()),
+    );
+    assert_eq!(
+        state.selected_text().map(|(_, _, _, text)| text),
+        Some(exact_text.to_owned()),
+        "mounted rich editor materializes the exact Stage selection"
+    );
+}
+
+fn drive_stage_palette_route(harness: &mut Harness<'static, HandshakeApp>, exact_text: &str) {
+    select_mounted_rich_text(harness, exact_text);
+    let ctx = harness.ctx.clone();
+    assert!(
+        harness
+            .state_mut()
+            .dispatch_palette_action_for_test_with_ctx(&ctx, CMD_ROUTE_TO_STAGE),
+        "original shared Route-to-Stage operator command dispatches"
+    );
+}
+
+fn drive_stage_accesskit_route(harness: &mut Harness<'static, HandshakeApp>, exact_text: &str) {
+    select_mounted_rich_text(harness, exact_text);
+
+    // Drive the production EDITORS menu route exactly as an out-of-process client does: resolve each
+    // live node by stable author_id, then enqueue a raw AccessKit Click request at its AccessKit node id.
+    // This deliberately avoids kittest's pointer-backed Node::click / Node::click_secondary helpers.
+    let editors_menu = find_node(&harness.root(), "menu-editors")
+        .expect("stable EDITORS top-level AccessKit action");
+    assert_eq!(editors_menu.role, "MenuItem");
+    assert!(!editors_menu.disabled);
+    harness.event(click_event(editors_menu.node_id));
+    harness.run_steps(2);
+
+    let route_to_stage = find_node(&harness.root(), "menu.editors.route-to-stage")
+        .expect("stable EDITORS Route-to-Stage AccessKit action");
+    assert_eq!(route_to_stage.role, "MenuItem");
+    assert!(!route_to_stage.disabled);
+    harness.event(click_event(route_to_stage.node_id));
+}
+
 fn d(y: i32, m: u32, day: u32) -> NaiveDate {
     NaiveDate::from_ymd_opt(y, m, day).unwrap()
 }
@@ -321,6 +970,7 @@ struct FoundNode {
     node_id: egui::accesskit::NodeId,
     role: String,
     disabled: bool,
+    value: Option<String>,
 }
 
 /// Resolve a canonical `author_id` to its live AccessKit node in the harness tree (the MT-041 `find_node`
@@ -333,6 +983,7 @@ fn find_node(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<FoundNode
                 node_id: ak.id(),
                 role: format!("{:?}", ak.role()),
                 disabled: ak.is_disabled(),
+                value: ak.value(),
             });
         }
     }
@@ -455,6 +1106,7 @@ fn activity_span(id: &str, docs: &[&str]) -> ActivitySpan {
 /// local-store persistence substitute (the live PG-backed reverse index is the gated OP-03 live proof).
 struct CountingReverseLookup {
     hits: Vec<LoomSearchV2Hit>,
+    contents: HashMap<String, serde_json::Value>,
     last_query: std::sync::Mutex<Option<String>>,
     calls: AtomicUsize,
 }
@@ -463,9 +1115,31 @@ impl CountingReverseLookup {
     fn new(hits: Vec<LoomSearchV2Hit>) -> Self {
         Self {
             hits,
+            contents: HashMap::new(),
             last_query: std::sync::Mutex::new(None),
             calls: AtomicUsize::new(0),
         }
+    }
+
+    fn with_locus_content(mut self, document_id: &str, locus_uri: &str) -> Self {
+        self.contents.insert(
+            document_id.to_owned(),
+            serde_json::json!({
+                "type": "doc",
+                "content": [{
+                    "type": "paragraph",
+                    "content": [{
+                        "type": "hsLink",
+                        "attrs": {
+                            "refKind": "locus",
+                            "refValue": locus_uri,
+                            "label": "MT"
+                        }
+                    }]
+                }]
+            }),
+        );
+        self
     }
 }
 
@@ -483,13 +1157,40 @@ impl FindNotesSearch for CountingReverseLookup {
     > {
         self.calls.fetch_add(1, Ordering::SeqCst);
         *self.last_query.lock().unwrap() = Some(body.query.clone());
-        let hits = self.hits.clone();
+        let content_type = body.content_type.clone();
+        let offset = body.offset as usize;
+        let limit = body.limit as usize;
+        let hits = self
+            .hits
+            .iter()
+            .filter(|hit| {
+                content_type
+                    .as_deref()
+                    .is_none_or(|expected| hit.block.content_type == expected)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
         Box::pin(async move {
+            let total = i64::try_from(hits.len()).expect("search hit count fits i64");
             Ok(LoomSearchV2Response {
-                hits,
+                hits: hits.into_iter().skip(offset).take(limit).collect(),
                 content_type_facets: Default::default(),
                 semantic_available: false,
-                total: 0,
+                total,
+            })
+        })
+    }
+
+    fn load_document_content<'a>(
+        &'a self,
+        document_id: &'a str,
+    ) -> Pin<
+        Box<dyn std::future::Future<Output = Result<serde_json::Value, CrossRefError>> + Send + 'a>,
+    > {
+        let content = self.contents.get(document_id).cloned();
+        Box::pin(async move {
+            content.ok_or_else(|| {
+                CrossRefError::NotFound(format!("counted reverse-lookup document {document_id}"))
             })
         })
     }
@@ -529,8 +1230,16 @@ fn artifact_for_routed_bytes(id: &str, routed_bytes: &[u8]) -> StageArtifactRef 
             sha256: sha,
             manifest_ref: format!("manifest://{id}"),
             content_type: "image/png".to_owned(),
+            size_bytes: routed_bytes.len() as u64,
         },
         label: "Capture".to_owned(),
+        content_path: String::new(),
+        size_bytes: routed_bytes.len() as u64,
+        correlation_id: "mt074-fixture-correlation".to_owned(),
+        job_id: None,
+        event_ledger_event_id: None,
+        replayed: false,
+        content_bytes: routed_bytes.to_vec(),
     }
 }
 
@@ -596,7 +1305,7 @@ fn read_request_line(stream: &mut std::net::TcpStream) -> String {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn other_pillar_op01_stage_route_embed_back() {
+fn unit_op01_stage_payload_and_embed_projection() {
     // (1) The route leg: a TextRange selection routes to Stage via the MT-033/066 payload builder (the
     // SAME shared command/dispatch edge — bus-only here, the backend POST is absent). These are the exact
     // routed bytes whose SHA-256 the embed-back provenance must carry.
@@ -668,8 +1377,11 @@ fn other_pillar_op01_stage_route_embed_back() {
     let outcome = pane.capture_and_embed_back(
         Ok(artifact.clone()),
         &target,
-        |pid| pid == "pane-rich",
-        |v, _t| cap.borrow_mut().push(v.provenance.sha256.clone()),
+        |candidate| candidate.pane_id() == "pane-rich",
+        |v, _t| {
+            cap.borrow_mut().push(v.provenance.sha256.clone());
+            Ok(())
+        },
     );
     assert!(
         matches!(
@@ -700,7 +1412,7 @@ fn other_pillar_op01_stage_route_embed_back() {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn other_pillar_op02_calendar_bind_activity_span() {
+fn unit_op02_calendar_binding_and_span_projection() {
     // (1) The daily-note<->CalendarEvent binding: open-or-create is idempotent and DELEGATES to the MT-019
     // daily-note service (single doc/date, no second creation path) — the MT-067 counted backend proves
     // the delegation (the live PG bind is the gated half).
@@ -770,7 +1482,7 @@ fn other_pillar_op02_calendar_bind_activity_span() {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn other_pillar_op03_locus_resolve_reverse() {
+fn unit_op03_locus_projection_and_reverse_keying() {
     // (1) The resolve leg: a locus:// reference parses to its WP/MT target, and a 200-status record body
     // projects to a LocusRecord with a non-empty title (the resolved-record content). The kind + id come
     // from the LocusRef (request authority).
@@ -819,7 +1531,9 @@ fn other_pillar_op03_locus_resolve_reverse() {
             "again locus://mt/MT-066",
         ),
     ];
-    let lookup = Arc::new(CountingReverseLookup::new(hits));
+    let lookup = Arc::new(
+        CountingReverseLookup::new(hits).with_locus_content(referencing_doc, "locus://mt/MT-066"),
+    );
     let lookup_dyn: Arc<dyn FindNotesSearch> = lookup.clone();
     let svc2 = LocusInteropService::with_base_url("http://unused", "WS-MT074", lookup_dyn);
     let mt = parse_locus_ref("locus://mt/MT-066").unwrap();
@@ -853,16 +1567,11 @@ fn other_pillar_op03_locus_resolve_reverse() {
 // SCENARIO OP-04 — Swarm path: out-of-process agent reaches + activates each interop edge PURELY via
 // AccessKit author_ids (no coordinates, no label-scraping). This is the swarm-parity guarantee
 // (HBR-SWARM) and is PROVABLE NOW: build each interop pane's widget tree with egui_kittest, look up the
-// trigger ONLY by author_id, assert role + STABILITY across two re-queries, and dispatch an AccessKit
-// Click. The live edge-drive + FR-event half stays gated (it needs the absent routes + PG).
+// trigger ONLY by author_id, assert the post-action result/effect, and read the exact automatically
+// persisted FR sequence from managed PostgreSQL.
 //
-// NOTE on `flush_pending_updates`: the MT contract names
-// `handshake_native::accessibility::flush_pending_updates()`. That function DOES NOT EXIST in the crate
-// (verified read-only across `src/accessibility/**` and the whole crate). The established flush mechanism
-// in this codebase — used by MT-065/066/067/068 — is `egui_kittest::Harness::run()`, which advances a
-// frame and re-collects the AccessKit tree. This suite uses `harness.run()` accordingly and records the
-// API-name discrepancy as a documented typed note (it is a layout-level AccessKit proof, mirroring
-// MT-046 CTRL-3 — NOT a GPU-render proof, and NOT a fabricated call to a nonexistent function).
+// `Harness::run()` advances the mounted product frame and re-collects the resulting AccessKit tree after
+// each dispatch; assertions are made only against that post-action tree and the persisted product state.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 /// One interop edge a swarm agent reaches purely by author_id, with the pane that renders it.
@@ -876,294 +1585,399 @@ struct SwarmEdge {
 
 #[test]
 fn other_pillar_op04_swarm_accesskit() {
-    // ── Stage edge: mount the real StagePane (seeded with routed content) and assert its swarm ids. ──
-    let mut stage_harness = Harness::builder()
-        .with_size(egui::vec2(420.0, 300.0))
-        .build_ui(|ui| {
-            let mut pane = StagePane::new();
-            pane.receive_routed_content(StageContent::Selection(
-                "routed selection".to_owned(),
-                "pane-rich:0-16".to_owned(),
+    let _env_guard = PROCESS_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut stage_binding = stage_binding_proof::StageBindingGuard::reserve("mt074-op04-stage");
+    let mut be = pg_proof_support::require_live_backend();
+    let mut fixtures = Mt074FixtureCleanup::new(&be);
+    let ws = be.workspace_id.clone();
+    let suffix = uuid::Uuid::new_v4().simple().to_string();
+
+    // Stage: mounted route -> privileged runtime capture -> exact-byte retrieval -> mounted mutation.
+    let stage_routed_text = "OP-04 routed bytes";
+    let stage_doc = be.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({
+            "workspace_id": ws,
+            "title": "MT-074 OP-04 Stage target",
+            "content_json": {"type":"doc","content":[{"type":"paragraph","content":[
+                {"type":"text","text": stage_routed_text}
+            ]}]},
+        }),
+    );
+    let stage_doc_id = created_doc_id(&stage_doc);
+    fixtures.document(stage_doc_id.clone());
+    let (_stage_runtime, mut stage_app, _stage_pane_id) =
+        mount_managed_app(&be, PaneType::LoomWikiPage, Some(stage_doc_id.clone()));
+    stage_binding.publish(stage_app.state().mcp_token().as_hex());
+    let stage_state = stage_app.state().mounted_stage();
+    let rich_state = stage_app.state().mounted_rich_state();
+    let stage_ready = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        stage_app.run_steps(1);
+        if rich_state.lock().unwrap().save.is_some() {
+            break;
+        }
+        assert!(std::time::Instant::now() < stage_ready);
+    }
+    drive_stage_accesskit_route(&mut stage_app, stage_routed_text);
+    let stage_surface_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        stage_app.run_steps(1);
+        if find_node(&stage_app.root(), STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID)
+            .is_some_and(|node| !node.disabled)
+        {
+            assert!(matches!(
+                stage_state.lock().unwrap().content,
+                StageContent::Selection(ref text, ref source)
+                    if text == stage_routed_text && source == &stage_doc_id
             ));
-            pane.show_round_trip(ui, &dark());
-        });
-    stage_harness.run();
-    stage_harness.run();
-
-    // ── Calendar edge: mount the real DailyJournalPanel (seeded with a resolved event + spans). ──
-    let date = d(2026, 6, 21);
-    let mut cal_harness = Harness::builder()
-        .with_size(egui::vec2(440.0, 360.0))
-        .build_ui(move |ui| {
-            let mut state = DailyJournalState::new(DateNav::new(date, date));
-            state.set_event_with_spans(
-                calendar_event("E-1", "Sprint planning"),
-                vec![activity_span("S-1", &["DOC-A"])],
-            );
-            let _ = DailyJournalPanel::show(ui, &mut state, &dark());
-        });
-    cal_harness.run();
-    cal_harness.run();
-
-    // ── Locus edge: mount the real rich editor over a doc carrying a locus-ref chip. ──
-    let locus_uri = "locus://wp/WP-KERNEL-012";
-    let locus_state = std::sync::Arc::new(std::sync::Mutex::new(RichEditorState::new(
-        doc_with_locus_ref(locus_uri, "WP-KERNEL-012", true),
-    )));
-    let locus_state_ui = std::sync::Arc::clone(&locus_state);
-    let mut locus_harness = Harness::builder()
-        .with_size(egui::vec2(800.0, 480.0))
-        .build_ui(move |ui| {
-            RichEditorWidget::new(std::sync::Arc::clone(&locus_state_ui)).show(ui);
-        });
-    locus_harness.run();
-    locus_harness.run();
-
-    let locus_chip_id = locus_ref_chip_author_id(locus_uri);
-    assert_eq!(
-        locus_chip_id, "locus-ref-chip-wp-WP-KERNEL-012",
-        "OP-04: the contract locus chip author_id"
-    );
-
-    // The three interop-edge triggers a swarm agent drives PURELY by author_id (CTRL-5: never by
-    // coordinates, never by label-scraping). The Stage embed-back button, the Calendar event chip, and the
-    // Locus cross-ref chip are the three edge triggers.
-    let edges = [
-        (
-            "stage",
-            &stage_harness,
-            SwarmEdge {
-                edge: "stage",
-                trigger_author_id: STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID.to_owned(),
-                expect_role: "Button",
-            },
-        ),
-        (
-            "calendar",
-            &cal_harness,
-            SwarmEdge {
-                edge: "calendar",
-                trigger_author_id: DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID.to_owned(),
-                expect_role: "Button",
-            },
-        ),
-        (
-            "locus",
-            &locus_harness,
-            SwarmEdge {
-                edge: "locus",
-                trigger_author_id: locus_chip_id.clone(),
-                expect_role: "Link",
-            },
-        ),
-    ];
-
-    println!("--- OP-04 swarm flow: each interop edge reached PURELY via AccessKit author_id ---");
-    // First pass: resolve each trigger, assert role + determinism, and capture each NodeId for the
-    // stability re-query.
-    let mut first_ids: Vec<(&'static str, String, egui::accesskit::NodeId)> = Vec::new();
-    for (_name, harness, edge) in &edges {
-        assert!(
-            has_no_random_segment(&edge.trigger_author_id),
-            "CTRL-5: the '{}' trigger author_id '{}' must be deterministic (no random segment)",
-            edge.edge,
-            edge.trigger_author_id
-        );
-        let found = find_node(&harness.root(), &edge.trigger_author_id).unwrap_or_else(|| {
-            panic!(
-                "OP-04: the '{}' interop edge must be reachable purely via its AccessKit author_id '{}'",
-                edge.edge, edge.trigger_author_id
-            )
-        });
-        assert_eq!(
-            found.role, edge.expect_role,
-            "OP-04: the '{}' trigger '{}' role must be {} (got {})",
-            edge.edge, edge.trigger_author_id, edge.expect_role, found.role
-        );
-        assert!(
-            !found.disabled,
-            "OP-04: the '{}' trigger must be enabled (dispatchable headless)",
-            edge.edge
-        );
-        println!(
-            "  edge={} trigger='{}' role={} node_id={:?}",
-            edge.edge, edge.trigger_author_id, found.role, found.node_id
-        );
-        first_ids.push((edge.edge, edge.trigger_author_id.clone(), found.node_id));
-    }
-
-    // Stability: re-render two frames and re-query each pane; every targeted NodeId must be IDENTICAL
-    // (a stored swarm reference must not drift across frames) — CTRL-5.
-    stage_harness.run();
-    stage_harness.run();
-    cal_harness.run();
-    cal_harness.run();
-    locus_harness.run();
-    locus_harness.run();
-    let harness_for = |edge: &str| -> &Harness<'_, ()> {
-        match edge {
-            "stage" => &stage_harness,
-            "calendar" => &cal_harness,
-            "locus" => &locus_harness,
-            _ => unreachable!(),
+            break;
         }
+        assert!(
+            std::time::Instant::now() < stage_surface_deadline,
+            "OP-04 Stage capture action did not become enabled after the mounted rich route was drained"
+        );
+    }
+    let stage_trigger = find_node(&stage_app.root(), STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID).unwrap();
+    assert_eq!(stage_trigger.role, "Button");
+    assert!(!stage_trigger.disabled);
+    stage_app.event(click_event(stage_trigger.node_id));
+    let stage_effect_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        stage_app.run_steps(2);
+        if matches!(
+            stage_state.lock().unwrap().last_embed_back.as_ref(),
+            Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded { .. })
+        ) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < stage_effect_deadline,
+            "OP-04 Stage embed-back did not complete: {:?}",
+            stage_state.lock().unwrap().last_embed_back
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let artifact_id = match stage_state.lock().unwrap().last_embed_back.clone() {
+        Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded { artifact_id, .. }) => {
+            artifact_id
+        }
+        other => panic!("OP-04 expected Stage embed, got {other:?}"),
     };
-    for (edge, author_id, first_node_id) in &first_ids {
-        let again = find_node(&harness_for(edge).root(), author_id).unwrap_or_else(|| {
-            panic!("CTRL-5: the '{edge}' trigger '{author_id}' must still resolve on re-query")
-        });
-        assert_eq!(
-            again.node_id, *first_node_id,
-            "CTRL-5: the '{edge}' trigger '{author_id}' NodeId must be STABLE across frame re-queries"
-        );
-    }
-    println!("  all 3 interop-edge triggers stable across two frame re-queries (no drift)");
+    fixtures.stage_artifact(artifact_id.clone());
+    assert!(to_content_json_value(&rich_state.lock().unwrap().doc)
+        .to_string()
+        .contains(&artifact_id));
+    stage_app.run_steps(2);
+    let stage_result = find_node(&stage_app.root(), STAGE_EMBED_BACK_STATUS_AUTHOR_ID)
+        .expect("OP-04 Stage post-action AccessKit result node");
+    assert!(
+        stage_result
+            .value
+            .as_deref()
+            .is_some_and(|value| value.contains(&artifact_id)),
+        "OP-04 Stage result node exposes the exact embedded artifact"
+    );
 
-    // Dispatch an AccessKit Click ACTIVATE on each edge trigger purely via its NodeId (the out-of-process
-    // agent path — an AccessKit Click action, never a synthetic key event, never a coordinate). Each
-    // trigger remains addressable after the dispatch (the swarm reference survives the activation; the
-    // LIVE edge-drive that hits the backend is the gated `*_live` half).
-    for (edge, author_id, node_id) in &first_ids {
-        match *edge {
-            "stage" => {
-                stage_harness.event(click_event(*node_id));
-                stage_harness.run();
-                stage_harness.run();
-                assert!(
-                    find_node(&stage_harness.root(), author_id).is_some(),
-                    "OP-04: the stage trigger remains addressable after the AccessKit activate dispatch"
-                );
-            }
-            "calendar" => {
-                cal_harness.event(click_event(*node_id));
-                cal_harness.run();
-                cal_harness.run();
-                assert!(
-                    find_node(&cal_harness.root(), author_id).is_some(),
-                    "OP-04: the calendar trigger remains addressable after the AccessKit activate dispatch"
-                );
-            }
-            "locus" => {
-                locus_harness.event(click_event(*node_id));
-                locus_harness.run();
-                locus_harness.run();
-                assert!(
-                    find_node(&locus_harness.root(), author_id).is_some(),
-                    "OP-04: the locus trigger remains addressable after the AccessKit activate dispatch"
-                );
-            }
-            _ => unreachable!(),
+    // Calendar: today's canonical rows -> mounted journal loader -> stable AccessKit event activation.
+    let today = chrono::Local::now().date_naive();
+    let source_id = format!("CAL-SRC-OP04-{suffix}");
+    let event_id = format!("CAL-EVT-OP04-{suffix}");
+    let span_id = format!("CAS-OP04-{suffix}");
+    let event_start = format!("{} 11:00:00", today.format("%Y-%m-%d"));
+    let event_end = format!("{} 12:00:00", today.format("%Y-%m-%d"));
+    run_pg_sql(&format!(
+        "BEGIN; \
+         INSERT INTO calendar_sources \
+           (id, workspace_id, display_name, provider_type, write_policy, default_tzid, config_json) \
+         VALUES ({source}, {workspace}, 'MT-074 OP-04', 'local', 'read_only_import', 'UTC', '{{}}'); \
+         INSERT INTO calendar_events \
+           (id, workspace_id, source_id, title, start_ts_utc, end_ts_utc, tzid, status, visibility, export_mode) \
+         VALUES ({event}, {workspace}, {source}, 'MT-074 OP-04 event', TIMESTAMP {start}, \
+                 TIMESTAMP {end}, 'UTC', 'confirmed', 'private', 'full_export'); COMMIT;",
+        source = sql_literal(&source_id),
+        workspace = sql_literal(&ws),
+        event = sql_literal(&event_id),
+        start = sql_literal(&event_start),
+        end = sql_literal(&event_end),
+    ));
+    fixtures.calendar_source(source_id.clone());
+    fixtures.calendar_event(event_id.clone());
+    let journal = CalendarInteropService::with_base_url(
+        be.base.clone(),
+        ws.clone(),
+        Arc::new(ReqwestJournalBackend::new(be.base.clone())),
+    );
+    let binding = rt()
+        .block_on(journal.open_or_create_daily_note(today))
+        .expect("OP-04 daily note");
+    fixtures.loom_block(binding.doc_id.as_str().to_owned());
+    be.post_json(
+        &format!("/workspaces/{ws}/calendar/activity-spans"),
+        &serde_json::json!({
+            "calendar_event_id": event_id,
+            "span_id": span_id,
+            "started_utc": format!("{}T11:05:00Z", today.format("%Y-%m-%d")),
+            "ended_utc": format!("{}T11:45:00Z", today.format("%Y-%m-%d")),
+            "edited_doc_ids": [binding.doc_id.as_str()],
+        }),
+    );
+    fixtures.calendar_span(span_id.clone());
+    let (_calendar_runtime, mut calendar_app, _) = mount_managed_app(
+        &be,
+        PaneType::LoomDailyJournal,
+        Some(binding.doc_id.as_str().to_owned()),
+    );
+    let calendar_state = calendar_app.state().mounted_daily_journal();
+    let calendar_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        calendar_app.run_steps(1);
+        let state = calendar_state.lock().unwrap().clone();
+        if state
+            .event
+            .as_ref()
+            .is_some_and(|event| event.id == event_id)
+            && matches!(
+                state.activity,
+                handshake_native::graph::daily_journal_panel::ActivityCorrelation::Spans(ref spans)
+                    if spans.iter().any(|span| span.span_id == span_id)
+            )
+        {
+            break;
         }
+        assert!(std::time::Instant::now() < calendar_deadline);
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
-
-    // The three contract-named pane container ids are also present (the no-vision agent can locate each
-    // surface, not just the trigger): stage-pane, stage-routed-content, daily-journal-panel,
-    // daily-journal-activity-strip.
+    let calendar_trigger = find_node(
+        &calendar_app.root(),
+        DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+    )
+    .expect("OP-04 Calendar AccessKit trigger");
+    assert_eq!(calendar_trigger.role, "Button");
     assert!(
-        find_node(&stage_harness.root(), STAGE_PANE_AUTHOR_ID).is_some(),
-        "OP-04: the stage-pane container is addressable"
+        find_node(
+            &calendar_app.root(),
+            handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_PANE_AUTHOR_ID,
+        )
+        .is_none(),
+        "OP-04 Calendar destination must not be mounted before the event activation"
     );
-    assert!(
-        find_node(&stage_harness.root(), STAGE_ROUTED_CONTENT_AUTHOR_ID).is_some(),
-        "OP-04: the stage-routed-content region is addressable"
-    );
-    assert!(
-        find_node(&cal_harness.root(), DAILY_JOURNAL_PANEL_AUTHOR_ID).is_some(),
-        "OP-04: the daily-journal-panel container is addressable"
-    );
-    assert!(
-        find_node(&cal_harness.root(), DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID).is_some(),
-        "OP-04: the daily-journal-activity-strip is addressable"
-    );
-
-    // A best-effort screenshot to the EXTERNAL root ONLY (HBR-VIS), proving the swarm surface renders.
-    if let Ok(image) = stage_harness.render() {
-        let ext_dir = external_artifact_dir("wp-kernel-012-mt-074");
-        let _ = std::fs::create_dir_all(&ext_dir);
-        let ext_path = ext_dir.join("MT-074-stage-swarm-surface.png");
-        let saved = image.save(&ext_path).is_ok();
-        println!(
-            "OP-04 screenshot: {}x{} saved_ext={saved} ({})",
-            image.width(),
-            image.height(),
-            ext_path.display()
-        );
-    } else {
-        println!(
-            "OP-04 screenshot: GPU readback unavailable on this host (structural proof stands)"
+    calendar_app.event(click_event(calendar_trigger.node_id));
+    let destination_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        calendar_app.run_steps(1);
+        if find_node(
+            &calendar_app.root(),
+            handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_PANE_AUTHOR_ID,
+        )
+        .is_some()
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < destination_deadline,
+            "OP-04 Calendar event activation did not mount the destination"
         );
     }
-
-    // The contract proof_target greps for `accesskit.*driven` on this scenario's stdout.
-    println!(
-        "OP-04 OK (swarm-parity / HBR-SWARM): all 3 interop edges (stage, calendar, locus) DRIVEN purely \
-         via stable AccessKit author_ids — reached, role-confirmed, stable across re-queries, and \
-         activated via an AccessKit Click dispatch (no coordinates, no label-scraping). The accesskit \
-         driven surface is headless-operable. The LIVE edge-drive + FR-event half is the GATED live proof."
+    let active_pane = calendar_app
+        .state()
+        .active_pane()
+        .cloned()
+        .expect("OP-04 active pane after CalendarEvent activation");
+    let active_tab = calendar_app
+        .state()
+        .tab_bar_states()
+        .get(&active_pane)
+        .and_then(|bar| bar.tabs.get(bar.active_index))
+        .expect("OP-04 active CalendarEvent tab");
+    assert_eq!(active_tab.pane_type, PaneType::CalendarEvent);
+    assert_eq!(active_tab.content_id.as_deref(), Some(event_id.as_str()));
+    assert!(
+        find_node(
+            &calendar_app.root(),
+            handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_DETAILS_AUTHOR_ID,
+        )
+        .is_some_and(|node| {
+            node.value
+                .as_deref()
+                .is_some_and(|value| value.contains(&event_id))
+        }),
+        "OP-04 Calendar Details must expose the exact activated event id"
     );
+
+    let activity_tab = find_node(
+        &calendar_app.root(),
+        handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+    )
+    .expect("OP-04 Calendar Activity tab");
+    calendar_app.event(click_event(activity_tab.node_id));
+    calendar_app.run_steps(2);
+    assert!(
+        find_node(
+            &calendar_app.root(),
+            &handshake_native::graph::daily_journal_panel::calendar_event_span_author_id(&span_id),
+        )
+        .is_some(),
+        "OP-04 Calendar Activity must expose the exact correlated span"
+    );
+    let calendar_result_id = handshake_native::graph::daily_journal_panel::activity_item_author_id(
+        &handshake_native::interop::DocId(binding.doc_id.as_str().to_owned()),
+    );
+    assert!(
+        find_node(&calendar_app.root(), &calendar_result_id).is_some(),
+        "OP-04 Calendar destination exposes the exact correlated document chip"
+    );
+
+    // Locus: persisted reference -> mounted rich chip -> resolve and reverse lookup product effects.
+    let wp_id = format!("WP-OP04-{suffix}");
+    run_pg_sql(&format!(
+        "INSERT INTO work_packets \
+           (wp_id, version, title, description, status, priority, phase, routing, task_packet_path, \
+            task_board_status, assignee, reporter, created_at, updated_at, vector_clock, metadata) \
+         VALUES ({wp}, 1, 'MT-074 OP-04 Locus', 'aggregate AccessKit proof', 'in_progress', 1, \
+                 'validation', 'native-editors', '', 'in_progress', NULL, 'mt074-proof', \
+                 '2026-07-16T00:00:00Z', '2026-07-16T00:00:00Z', '{{}}', '{{}}');",
+        wp = sql_literal(&wp_id),
+    ));
+    fixtures.work_packet(wp_id.clone());
+    let locus_uri = format!("locus://wp/{wp_id}");
+    let locus_doc = doc_with_locus_ref(&locus_uri, &wp_id, true);
+    let locus_created = be.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({
+            "workspace_id": ws,
+            "title": "MT-074 OP-04 Locus note",
+            "content_json": to_content_json_value(&locus_doc),
+        }),
+    );
+    let locus_doc_id = created_doc_id(&locus_created);
+    fixtures.document(locus_doc_id.clone());
+    be.put_json(
+        &format!("/knowledge/documents/{locus_doc_id}/save"),
+        &serde_json::json!({
+            "expected_version": created_doc_version(&locus_created),
+            "content_json": to_content_json_value(&locus_doc),
+        }),
+    );
+    let (_locus_runtime, mut locus_app, _) =
+        mount_managed_app(&be, PaneType::LoomWikiPage, Some(locus_doc_id.clone()));
+    let locus_chip_id = locus_ref_chip_author_id(&locus_uri);
+    let locus_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let locus_trigger = loop {
+        locus_app.run_steps(1);
+        if let Some(trigger) = find_node(&locus_app.root(), &locus_chip_id) {
+            break trigger;
+        }
+        assert!(std::time::Instant::now() < locus_deadline);
+    };
+    assert_eq!(locus_trigger.role, "Link");
+    locus_app.event(click_event(locus_trigger.node_id));
+    locus_app.run_steps(2);
+    let active_pane = locus_app
+        .state()
+        .active_pane()
+        .cloned()
+        .expect("active Locus pane");
+    let active_tab = locus_app
+        .state()
+        .tab_bar_states()
+        .get(&active_pane)
+        .and_then(|bar| bar.tabs.get(bar.active_index))
+        .expect("OP-04 Locus navigation produced an active tab");
+    let expected_locus_content_id = format!("WP:{wp_id}");
+    assert_eq!(
+        active_tab.content_id.as_deref(),
+        Some(expected_locus_content_id.as_str()),
+        "OP-04 Locus AccessKit click routes to the exact WP target"
+    );
+
+    let route_row = wait_for_native_fr(&be, "route_to_stage", |row| {
+        row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
+    });
+    let embed_row = wait_for_native_fr(&be, "stage_embed_back", |row| {
+        row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
+    });
+    assert_eq!(
+        embed_row["payload"]["native_payload"]["causal_action_id"].as_str(),
+        route_row["payload"]["native_payload"]["causal_action_id"].as_str(),
+        "OP-04 Stage embed-back inherits the exact route correlation"
+    );
+    let bound_row = wait_for_native_fr(&be, "calendar_event_bound", |row| {
+        row["payload"]["native_payload"]["calendar_event_id"].as_str() == Some(event_id.as_str())
+    });
+    let span_row = wait_for_native_fr(&be, "activity_span_correlated", |row| {
+        row["payload"]["native_payload"]["calendar_event_id"].as_str() == Some(event_id.as_str())
+            && row["payload"]["native_payload"]["activity_span_id"].as_str()
+                == Some(span_id.as_str())
+    });
+    let resolved_row = wait_for_native_fr(&be, "locus_ref_resolved", |row| {
+        row["payload"]["native_payload"]["locus_uri"].as_str() == Some(locus_uri.as_str())
+    });
+    let reverse_row = wait_for_native_fr(&be, "locus_reverse_lookup", |row| {
+        row["payload"]["native_payload"]["locus_uri"].as_str() == Some(locus_uri.as_str())
+            && row["payload"]["native_payload"]["document_ids"]
+                .as_array()
+                .is_some_and(|ids| {
+                    ids.iter()
+                        .any(|id| id.as_str() == Some(locus_doc_id.as_str()))
+                })
+    });
+    for row in [
+        &route_row,
+        &embed_row,
+        &bound_row,
+        &span_row,
+        &resolved_row,
+        &reverse_row,
+    ] {
+        fixtures.native_fr(row);
+    }
+    let rows = be.get_json(&format!("/api/flight_recorder?wsid={ws}"));
+    let stage_route_dispatches = rows
+        .as_array()
+        .expect("OP-04 Flight Recorder rows")
+        .iter()
+        .filter(|row| {
+            row["payload"]["kind"].as_str() == Some("route_to_stage")
+                && row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
+        })
+        .count();
+    assert_eq!(
+        stage_route_dispatches, 1,
+        "OP-04 rich AccessKit action dispatches the shared Route-to-Stage command exactly once"
+    );
+    assert_causal_order(&route_row, &embed_row, "OP-04 Stage route/embed");
+    assert_causal_order(&bound_row, &span_row, "OP-04 Calendar bind/correlate");
+    assert_causal_order(&resolved_row, &reverse_row, "OP-04 Locus resolve/reverse");
+
+    let mut event_ids = HashSet::new();
+    for row in [
+        route_row,
+        embed_row,
+        bound_row,
+        span_row,
+        resolved_row,
+        reverse_row,
+    ] {
+        assert!(event_ids.insert(row["event_id"].as_str().unwrap().to_owned()));
+    }
+    assert_eq!(event_ids.len(), 6);
 
     assert_no_local_artifact_dir();
+    fixtures.assert_cleanup();
+    drop(fixtures);
+    be.assert_cleanup();
 }
-
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// PROOF (NON-IGNORED) — the typed FOLLOW-UP MANIFEST: the interop edge routes now EXIST, so the remaining
-// interop gap is FRONTEND EMISSION of the 5 interop FR kinds (fr_event_not_emitted_frontend) + the
-// managed-PostgreSQL runtime precondition of the `requires_pg` `*_live` route round-trips. The suite emits
-// + asserts the structured `BLOCKER[...]` lines AND validates the sibling JSON manifest so the gap is
-// honest-red-not-green and routes back to the owning MT.
+// Manifest consistency proof for the four remediated scenarios.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn other_pillar_typed_blocker_manifest() {
-    println!("--- MT-074 typed follow-up manifest (routes EXIST; remaining gap = frontend emission + requires_pg) ---");
-    for blocker in &OTHER_PILLAR_TYPED_BLOCKERS {
-        let line = blocker.line();
-        println!("{line}");
-        assert!(line.starts_with("BLOCKER[kind="), "structured blocker form");
-        assert!(
-            line.contains("detail='") && line.contains("source_mt="),
-            "detail + source_mt present"
-        );
-    }
-    let all = OTHER_PILLAR_TYPED_BLOCKERS
-        .iter()
-        .map(|b| b.line())
-        .collect::<Vec<_>>()
-        .join("\n");
-    // The remaining interop gap is FRONTEND EMISSION of the 5 interop kinds (the backend routes + FR
-    // ingestion now EXIST). Each un-emitted interop kind is named in a fr_event_not_emitted_frontend entry.
-    assert!(
-        all.contains("fr_event_not_emitted_frontend"),
-        "the frontend-emission gap kind is recorded"
-    );
-    for kind in [
-        "STAGE_EMBED_BACK",
-        "CALENDAR_EVENT_BOUND",
-        "ACTIVITY_SPAN_CORRELATED",
-        "LOCUS_REF_RESOLVED",
-        "LOCUS_REVERSE_LOOKUP",
-    ] {
-        assert!(
-            all.contains(kind),
-            "the un-emitted interop FR kind {kind} is named in a frontend-emission blocker"
-        );
-    }
-    assert!(
-        all.contains("MT-036"),
-        "the frontend-emission gap is attributed to the MT-036 emitter schema"
-    );
-    assert!(
-        all.contains("requires_managed_postgres"),
-        "the managed-PostgreSQL runtime precondition of the *_live proofs is recorded"
-    );
-    // The stale backend-route-absent claim is GONE: the stage/calendar/locus routes now EXIST.
-    assert!(
-        !all.contains("missing_api"),
-        "no stale missing_api backend-route-absent blocker remains (the routes now exist)"
-    );
-
-    // Validate the sibling JSON manifest: exactly 4 entries (OP-01..OP-04), each with the required fields,
-    // 0 FAIL entries, and every BLOCKED entry carrying a typed blocker string.
+fn other_pillar_runtime_readiness_manifest() {
+    // Validate the sibling JSON manifest: exactly 4 entries (OP-01..OP-04), each with the required fields
+    // and a pre-validation READY_FOR_RUNTIME status. Runtime PASS is written only after exact tests run.
     let manifest_src = include_str!("other_pillar_interop_manifest.json");
     let manifest: serde_json::Value =
         serde_json::from_str(manifest_src).expect("the manifest is valid JSON");
@@ -1204,15 +2018,8 @@ fn other_pillar_typed_blocker_manifest() {
             "duplicate scenario_id '{id}' in the manifest"
         );
         let status = entry["status"].as_str().expect("status is a string");
-        if status == "FAIL" {
+        if status != "READY_FOR_RUNTIME" {
             fail_count += 1;
-        }
-        if status == "BLOCKED" {
-            let blocker = entry.get("blocker").and_then(|v| v.as_str()).unwrap_or("");
-            assert!(
-                !blocker.trim().is_empty(),
-                "a BLOCKED entry ('{id}') must carry a typed blocker string"
-            );
         }
         // The proof_fn must name a function in THIS file (the manifest's proof_fn field matches a test fn).
         let proof_fn = entry["proof_fn"].as_str().expect("proof_fn is a string");
@@ -1223,7 +2030,7 @@ fn other_pillar_typed_blocker_manifest() {
     }
     assert_eq!(
         fail_count, 0,
-        "after a full passing run the manifest has 0 FAIL entries"
+        "before validation every MT-074 scenario is READY_FOR_RUNTIME"
     );
     for expected in ["OP-01", "OP-02", "OP-03", "OP-04"] {
         assert!(
@@ -1231,7 +2038,7 @@ fn other_pillar_typed_blocker_manifest() {
             "the manifest contains scenario {expected}"
         );
     }
-    println!("blocker-manifest OK: 4 typed follow-ups (3 fr_event_not_emitted_frontend for the 5 un-emitted interop kinds + requires_managed_postgres) emitted; the JSON manifest has 4 entries, 0 FAIL; the 3 *_live route round-trips are requires_pg (routes exist), the FR-event half is a frontend-emission follow-up");
+    println!("MT-074 manifest OK: OP-01..OP-04 are READY_FOR_RUNTIME; validation owns PASS");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1269,8 +2076,7 @@ fn other_pillar_fr_route_resolved() {
         fr_src.contains("\"/flight_recorder/native_editor_event\""),
         "flight_recorder.rs must register the native-editor FR ingestion route"
     );
-    // The FR ingestion closed vocabulary now ACCEPTS the 5 interop kinds (backend gap CLOSED; the remaining
-    // gap is FRONTEND emission — see OTHER_PILLAR_TYPED_BLOCKERS[fr_event_not_emitted_frontend]).
+    // The FR ingestion closed vocabulary accepts the 5 interop kinds emitted by the frontend.
     for kind in [
         "StageEmbedBack",
         "CalendarEventBound",
@@ -1287,8 +2093,11 @@ fn other_pillar_fr_route_resolved() {
     // (3) The three edge routes the `*_live` proofs bind (route-exists reality, read from real source).
     let stage_src = include_str!("../../../backend/handshake_core/src/api/stage.rs");
     assert!(
-        stage_src.contains("/stage/artifacts/:artifact_id"),
-        "api/stage.rs must register GET /workspaces/:ws/stage/artifacts/:artifact_id"
+        stage_src.contains("/stage/artifacts/:artifact_id")
+            && stage_src.contains("/stage/artifacts/:artifact_id/content")
+            && stage_src.contains("deny_unknown_fields")
+            && stage_src.contains("post(create_stage_artifact)"),
+        "api/stage.rs must register strict create plus descriptor and exact-content retrieval routes"
     );
     let calendar_src = include_str!("../../../backend/handshake_core/src/api/calendar.rs");
     assert!(
@@ -1305,9 +2114,8 @@ fn other_pillar_fr_route_resolved() {
     println!(
         "FR-route + interop routes RESOLVED (backend source scan): api/mod.rs declares+wires \
          stage/calendar/locus/flight_recorder; GET /api/flight_recorder + POST \
-         /flight_recorder/native_editor_event registered; the FR ingestion accepts the 5 interop kinds. \
-         The one remaining gap is FRONTEND emission (event_emitter.rs), recorded as \
-         fr_event_not_emitted_frontend."
+         /flight_recorder/native_editor_event registered; the FR ingestion accepts the 5 interop kinds \
+         emitted by the managed-runtime scenarios."
     );
 }
 
@@ -1319,6 +2127,9 @@ fn other_pillar_fr_route_resolved() {
 
 #[test]
 fn op_dsn_absent_panics() {
+    let _env_guard = PROCESS_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let saved_primary = std::env::var(LIVE_PG_DSN_ENV).ok();
     let saved_alt = std::env::var(LIVE_PG_DSN_ENV_ALT).ok();
 
@@ -1351,7 +2162,243 @@ fn op_dsn_absent_panics() {
             && msg.contains("refusing to run against a fake backend"),
         "the absent-DSN panic must carry the mandated message; got '{msg}'"
     );
-    println!("DSN-absent OK: no live DSN -> panic 'refusing to run against a fake backend' (no file-backed local-store / in-process / fake fallback)");
+    println!(
+        "DSN-absent OK: no live DSN -> panic 'refusing to run against a fake backend' (no file-backed local-store / in-process / fake fallback)"
+    );
+}
+
+#[test]
+fn direct_sql_and_cleanup_use_exact_live_dsn() {
+    let source = include_str!("test_other_pillar_interop_proofs.rs");
+    let exact_dsn_arg = concat!(".arg(resolve_live_pg_", "dsn())");
+    assert_eq!(
+        source.matches(exact_dsn_arg).count(),
+        2,
+        "fixture SQL and Drop cleanup must both use the suite's exact accepted live DSN"
+    );
+    for forbidden in [
+        concat!("fn managed_pg", "_url"),
+        concat!("POSTGRES", "_TEST_URL"),
+        concat!("DATABASE", "_URL"),
+        concat!("postgres://postgres@127.0.0.1:5544/", "handshake"),
+    ] {
+        assert!(
+            !source.contains(forbidden),
+            "direct SQL must not resolve or default an unrelated database via '{forbidden}'"
+        );
+    }
+}
+
+#[test]
+fn stage_binding_guard_holds_canonical_root_and_restores() {
+    let _env_guard = PROCESS_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    #[cfg(target_os = "windows")]
+    let env_var = "LOCALAPPDATA";
+    #[cfg(not(target_os = "windows"))]
+    let env_var = "XDG_DATA_HOME";
+    let original_env = std::env::var_os(env_var);
+    let packet_root = std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    let canonical_path = packet_root
+        .join("handshake")
+        .join(handshake_native::mcp::BINDING_FILE_NAME);
+    let previous_bytes = std::fs::read(&canonical_path).ok();
+
+    let guard = stage_binding_proof::StageBindingGuard::install(
+        &"0".repeat(64),
+        "mt074-binding-restoration-proof",
+    );
+    let installed_path = handshake_native::mcp::binding_path();
+    assert!(installed_path.is_file(), "the scoped binding is installed");
+    assert!(
+        installed_path.starts_with(&packet_root),
+        "the binding stays below the packet-standard root"
+    );
+    assert_eq!(
+        installed_path.parent().and_then(std::path::Path::parent),
+        Some(packet_root.as_path()),
+        "the backend and test must share the packet's canonical binding root while the OS lock is held"
+    );
+    let competing_lock = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(
+            installed_path
+                .parent()
+                .expect("binding parent")
+                .join("swarm_mcp_binding.lock"),
+        )
+        .expect("open the product canonical publication lock");
+    assert!(
+        matches!(
+            competing_lock.try_lock(),
+            Err(std::fs::TryLockError::WouldBlock)
+        ),
+        "the scenario holds the product canonical publication lock, not a test-only side lock"
+    );
+
+    drop(guard);
+    assert_eq!(
+        std::env::var_os(env_var),
+        original_env,
+        "the process app-data environment is restored"
+    );
+    assert_eq!(
+        std::fs::read(&installed_path).ok(),
+        previous_bytes,
+        "the exact displaced canonical bytes are restored"
+    );
+}
+
+#[test]
+fn stage_binding_killed_subprocess_helper() {
+    let Some(ready_path) = std::env::var_os("HSK_STAGE_BINDING_CHILD_READY").map(PathBuf::from)
+    else {
+        return;
+    };
+    let mut guard = stage_binding_proof::StageBindingGuard::reserve("mt074-killed-child");
+    guard.publish(&"3".repeat(64));
+    std::fs::write(&ready_path, std::process::id().to_string())
+        .expect("killed-child helper publishes readiness");
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+}
+
+struct OwnedBindingChild(Option<std::process::Child>);
+
+impl OwnedBindingChild {
+    fn child_mut(&mut self) -> &mut std::process::Child {
+        self.0.as_mut().expect("owned binding child exists")
+    }
+
+    fn kill_and_wait(&mut self) {
+        if let Some(mut child) = self.0.take() {
+            child
+                .kill()
+                .expect("kill only the binding child owned by this proof");
+            child.wait().expect("reap owned killed-binding child");
+        }
+    }
+}
+
+impl Drop for OwnedBindingChild {
+    fn drop(&mut self) {
+        if let Some(child) = self.0.as_mut() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+}
+
+struct ScopedEnvVar {
+    key: &'static str,
+    previous: Option<std::ffi::OsString>,
+}
+
+impl ScopedEnvVar {
+    fn set(key: &'static str, value: &std::ffi::OsStr) -> Self {
+        let previous = std::env::var_os(key);
+        std::env::set_var(key, value);
+        Self { key, previous }
+    }
+}
+
+impl Drop for ScopedEnvVar {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => std::env::set_var(self.key, value),
+            None => std::env::remove_var(self.key),
+        }
+    }
+}
+
+#[test]
+fn stage_binding_recovers_exact_killed_child_owner() {
+    let _env_guard = PROCESS_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let root = std::env::temp_dir().join(format!(
+        "mt074-stage-killed-child-{}-{}",
+        std::process::id(),
+        uuid::Uuid::new_v4().simple()
+    ));
+    std::fs::create_dir_all(&root).expect("create private killed-child recovery root");
+    let ready = root.join("child-ready");
+    let mut command = std::process::Command::new(
+        std::env::current_exe().expect("current MT-074 test executable"),
+    );
+    command
+        .args([
+            "--exact",
+            "stage_binding_killed_subprocess_helper",
+            "--nocapture",
+        ])
+        .env("HANDSHAKE_TEST_STAGE_BINDING_ROOT", &root)
+        .env("HSK_STAGE_BINDING_CHILD_READY", &ready)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let mut child = OwnedBindingChild(Some(
+        command.spawn().expect("spawn owned killed-binding child"),
+    ));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !ready.is_file() {
+        assert!(
+            child
+                .child_mut()
+                .try_wait()
+                .expect("poll owned binding child")
+                .is_none(),
+            "owned binding child exited before publishing its stale fixture"
+        );
+        assert!(
+            std::time::Instant::now() < deadline,
+            "owned binding child did not publish within ten seconds"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let child_pid = child.child_mut().id();
+    child.kill_and_wait();
+
+    let _configured_root = ScopedEnvVar::set("HANDSHAKE_TEST_STAGE_BINDING_ROOT", root.as_os_str());
+    let stale_path = root
+        .join("handshake")
+        .join(handshake_native::mcp::BINDING_FILE_NAME);
+    let stale_binding: handshake_native::mcp::McpBinding = serde_json::from_slice(
+        &std::fs::read(&stale_path).expect("killed child binding remains for automatic recovery"),
+    )
+    .expect("parse killed child binding");
+    assert_eq!(
+        stale_binding.pid, child_pid,
+        "automatic recovery counterfactual starts from the exact killed child owner"
+    );
+    let mut recovered =
+        stage_binding_proof::StageBindingGuard::reserve("mt074-killed-child-recovery");
+    recovered.publish(&"4".repeat(64));
+    let recovered_binding: handshake_native::mcp::McpBinding = serde_json::from_slice(
+        &std::fs::read(recovered.binding_path()).expect("read recovered binding"),
+    )
+    .expect("parse recovered binding");
+    assert_eq!(recovered_binding.pid, std::process::id());
+    assert_eq!(recovered_binding.token, "4".repeat(64));
+    drop(recovered);
+    assert!(
+        !root
+            .join("handshake")
+            .join(handshake_native::mcp::BINDING_FILE_NAME)
+            .exists(),
+        "recovered private root contains no stale or replacement binding after teardown"
+    );
+    std::fs::remove_dir_all(&root).expect("remove private killed-child recovery root");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1407,7 +2454,9 @@ fn other_pillar_no_local_store_no_fake_db() {
         suite_src.contains("let forbidden_local_scheme = concat!"),
         "CTRL-1: the live-DSN resolver must build the forbidden local-store scheme token via concat! (no raw literal)"
     );
-    println!("no-local-store OK (CTRL-1/RISK-1): zero local-store/fake-DB/in-memory token in the suite source; PostgreSQL/EventLedger is the only authority");
+    println!(
+        "no-local-store OK (CTRL-1/RISK-1): zero local-store/fake-DB/in-memory token in the suite source; PostgreSQL/EventLedger is the only authority"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1442,6 +2491,31 @@ fn other_pillar_reuses_interop_modules_no_glue() {
             && src.contains("egui::accesskit::Action::Click"),
         "the swarm dispatch must reuse the MT-041 AccessKit action-request pattern"
     );
+    let stage_accesskit_route = src
+        .split_once("fn drive_stage_accesskit_route")
+        .expect("Stage AccessKit route helper exists")
+        .1
+        .split_once("\nfn d(")
+        .expect("Stage AccessKit route helper has a bounded source region")
+        .0;
+    assert!(
+        stage_accesskit_route.contains("menu-editors")
+            && stage_accesskit_route.contains("menu.editors.route-to-stage")
+            && stage_accesskit_route.contains("harness.event(click_event("),
+        "OP-04 Stage route must resolve stable menu author_ids and inject raw AccessKit action requests"
+    );
+    for forbidden_pointer_route in [
+        "click_secondary(",
+        ".click(",
+        "PointerButton",
+        "PointerMoved",
+        "get_by_label(",
+    ] {
+        assert!(
+            !stage_accesskit_route.contains(forbidden_pointer_route),
+            "OP-04 Stage route must not inject pointer coordinates or scrape labels (found {forbidden_pointer_route})"
+        );
+    }
     // It does NOT re-create the interop widgets or the AccessKit id registry: no local DEFINITION of the
     // panes/services or the id-builder fns (assembled from fragments so the guard literals do not
     // self-match the include_str! self-scan above).
@@ -1460,80 +2534,207 @@ fn other_pillar_reuses_interop_modules_no_glue() {
             "CTRL-8: the suite must NOT re-create interop/shell/AccessKit glue (found a local '{forbidden}' definition)"
         );
     }
-    println!("reuse OK (CTRL-8): suite reuses MT-066/067/068 interop widgets + MT-041 harness; no glue re-created, no src/backend edit");
+    println!(
+        "reuse OK (CTRL-8): suite reuses MT-066/067/068 interop widgets + MT-041 harness; no interop glue re-created"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// LIVE ROUTE-ROUND-TRIP PROOFS (#[ignore = "requires_pg"]) — the interop edge routes now EXIST.
-//
-// These three proofs carry REAL bodies that bind the now-existing stage/calendar/locus routes through the
-// shared MT-044/045/046 `require_live_backend` gate (`pg_proof_support`), which attaches the identity
-// headers and PANICS `requires_pg` when there is no reachable managed PostgreSQL + seeded workspace. They
-// are `#[ignore]` because the headless default suite has no managed PG; the live-PG batch runs them with
-// `--ignored`. They assert ONLY the route round-trips the product's interop services actually perform —
-// they do NOT assert the 5 interop FR events, because those await the frontend-emission follow-up
-// (`fr_event_not_emitted_frontend`): the backend FR ingestion route accepts the kinds, but the frontend
-// `event_emitter.rs` does not yet emit them. Reruns are collision-free (stage uses server-minted ids,
-// the calendar span is an idempotent upsert on a fixed span_id, locus is read-only) — CTRL-9.
+// Default managed-runtime scenario proofs. Every test owns a fresh workspace and unique fixture ids.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// OP-01 (LIVE, requires_pg): the Stage capture-store route round-trip against REAL PostgreSQL. POST an
-/// inline-text Stage artifact, then GET it back by id and assert the evidence-grade provenance persists
-/// (`sha256` equals the created digest, is 64-hex, and `manifest.manifest_ref` is non-empty). The route
-/// EXISTS (`api/stage.rs`, MT-066). The STAGE_EMBED_BACK Flight Recorder event is a separate
-/// FRONTEND-emission follow-up (event_emitter.rs has no StageEmbedBack action), so it is NOT asserted here.
+/// OP-01 (LIVE): drive the mounted bus route, privileged capture, exact-byte retrieval, and embed-back
+/// against managed PostgreSQL, then persist and reload the provenance-bearing rich document.
 #[test]
-#[ignore = "requires_pg: live Handshake-managed PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID). \
-            The stage/calendar/locus routes EXIST; run in the live-PG batch with --ignored."]
-fn other_pillar_op01_stage_route_embed_back_live() {
+fn other_pillar_op01_stage_route_embed_back() {
+    let _env_guard = PROCESS_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut stage_binding = stage_binding_proof::StageBindingGuard::reserve("mt074-op01-stage");
     let be = pg_proof_support::require_live_backend();
+    let mut fixtures = Mt074FixtureCleanup::new(&be);
     let ws = &be.workspace_id;
-
-    // Capture an inline-text Stage artifact; the backend computes the evidence-grade sha256 + manifest_ref.
-    let created = be.post_json(
-        &format!("/workspaces/{ws}/stage/artifacts"),
+    let routed_text = "route this selection to the Stage pane (live)";
+    let document = BlockNode::doc(vec![BlockNode::paragraph(routed_text)]);
+    let created_doc = be.post_json(
+        "/knowledge/documents",
         &serde_json::json!({
-            "content_kind": "selection",
-            "label": "MT-074 live capture",
-            "content_type": "text/plain",
-            "content_json": { "text": "route this selection to the Stage pane (live)" },
-            "source_ref": "pane-rich:0-45",
+            "workspace_id": ws,
+            "title": "MT-074 OP-01 Stage embed-back",
+            "content_json": to_content_json_value(&document),
         }),
     );
-    let artifact_id = created["artifact_id"]
-        .as_str()
-        .expect("OP-01 live: the created Stage artifact carries an artifact_id")
-        .to_owned();
-    let created_sha = created["sha256"]
-        .as_str()
-        .expect("OP-01 live: the created Stage artifact carries a sha256")
-        .to_owned();
-    assert_eq!(created_sha.len(), 64, "OP-01 live: the stage artifact sha256 is 64-hex");
+    let document_id = created_doc_id(&created_doc);
+    fixtures.document(document_id.clone());
 
-    // Read it back by id (the embed-back leg's GET) and assert the evidence-grade provenance persists.
-    let fetched = be.get_json(&format!("/workspaces/{ws}/stage/artifacts/{artifact_id}"));
-    assert_eq!(
-        fetched["sha256"].as_str(),
-        Some(created_sha.as_str()),
-        "OP-01 live: the reloaded Stage artifact sha256 matches the created digest"
-    );
-    assert_eq!(
-        fetched["manifest"]["sha256"].as_str(),
-        Some(created_sha.as_str()),
-        "OP-01 live: the manifest sha256 is the same evidence-grade digest"
-    );
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("OP-01 mounted runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    stage_binding.publish(app.mcp_token().as_hex());
+    app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
+    app.set_stage_embed_back_base_url_for_test(&be.base);
+    app.bind_active_project_for_integration_test(ws.clone());
+    let pane_id = PaneId::from("pane-a");
+    app.pane_registry().lock().unwrap().insert(PaneRecord::new(
+        pane_id.clone(),
+        PaneType::LoomWikiPage,
+        ws.clone(),
+        Some(document_id.clone()),
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    let mut tab = TabState::new(PaneType::LoomWikiPage);
+    tab.content_id = Some(document_id.clone());
+    let bar = app.tab_bar_states_mut().get_mut(&pane_id).unwrap();
+    bar.tabs = vec![tab];
+    bar.active_index = 0;
+    app.set_active_pane_for_test(Some(pane_id.clone()));
+    let rich_state = app.mounted_rich_state();
+    let stage = app.mounted_stage();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mount_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        harness.run_steps(1);
+        if rich_state.lock().unwrap().save.is_some() {
+            break;
+        }
+        assert!(std::time::Instant::now() < mount_deadline);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    drive_stage_palette_route(&mut harness, routed_text);
+    let route_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        harness.run_steps(1);
+        if matches!(stage.lock().unwrap().content.clone(), StageContent::Selection(ref text, ref source) if text == routed_text && source == &document_id)
+        {
+            break;
+        }
+        assert!(std::time::Instant::now() < route_deadline);
+    }
+    let stage_button = find_node(&harness.root(), STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID)
+        .expect("OP-01 mounted Stage embed-back AccessKit trigger");
+    harness.event(click_event(stage_button.node_id));
+    let embed_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        harness.run_steps(2);
+        if matches!(
+            stage.lock().unwrap().last_embed_back.as_ref(),
+            Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded { .. })
+        ) {
+            break;
+        }
+        assert!(std::time::Instant::now() < embed_deadline);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let (artifact_id, created_sha) = match stage.lock().unwrap().last_embed_back.clone() {
+        Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded {
+            artifact_id,
+            sha256,
+            ..
+        }) => (artifact_id, sha256),
+        other => panic!("OP-01 expected Stage embed, got {other:?}"),
+    };
+    fixtures.stage_artifact(artifact_id.clone());
+    let stage_token = harness.state().mcp_token();
+    let stage_client =
+        StageClient::with_base_url(be.base.clone()).with_session_token(stage_token.as_hex());
+    let artifact = rt()
+        .block_on(stage_client.fetch_stage_artifact(ws, &artifact_id))
+        .expect("OP-01 production Stage client verifies the exact stored bytes");
+    assert_eq!(artifact.content_bytes, routed_text.as_bytes());
+    assert_eq!(artifact.sha256, created_sha);
+    assert!(artifact.job_id.is_some());
+    assert!(artifact.event_ledger_event_id.is_some());
+
+    // Return to the rich tab and save through its mounted AccessKit control so the operator-produced
+    // embed, including provenance, becomes canonical PostgreSQL state.
+    {
+        let bar = harness
+            .state_mut()
+            .tab_bar_states_mut()
+            .get_mut(&pane_id)
+            .unwrap();
+        bar.active_index = bar
+            .tabs
+            .iter()
+            .position(|tab| tab.pane_type == PaneType::LoomWikiPage)
+            .expect("rich target tab remains mounted");
+    }
+    harness.run_steps(2);
+    let save = find_node(&harness.root(), "editor.rich.save")
+        .expect("OP-01 mounted rich-save AccessKit trigger");
+    harness.event(click_event(save.node_id));
+    let save_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        harness.run_steps(1);
+        if rich_state
+            .lock()
+            .unwrap()
+            .save
+            .as_ref()
+            .and_then(|save| save.last_save_receipt_event_id.as_ref())
+            .is_some()
+        {
+            break;
+        }
+        assert!(std::time::Instant::now() < save_deadline);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let reloaded =
+        loaded_content_json(&be.get_json(&format!("/knowledge/documents/{document_id}")))
+            .to_string();
     assert!(
-        !fetched["manifest"]["manifest_ref"]
-            .as_str()
-            .unwrap_or_default()
-            .is_empty(),
-        "OP-01 live: the manifest_ref is non-empty (evidence-grade)"
+        reloaded.contains(&artifact_id)
+            && reloaded.contains(&created_sha)
+            && reloaded.contains(artifact.manifest.manifest_ref.as_str(),),
+        "OP-01: saved/reloaded embed retains artifact id, sha256, and manifest_ref provenance"
     );
+
+    let route_row = wait_for_native_fr(&be, "route_to_stage", |row| {
+        row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
+    });
+    let embed_row = wait_for_native_fr(&be, "stage_embed_back", |row| {
+        row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
+    });
+    fixtures.native_fr(&route_row);
+    fixtures.native_fr(&embed_row);
+    assert_eq!(route_row["payload"]["kind"], "route_to_stage");
+    assert_eq!(embed_row["payload"]["kind"], "stage_embed_back");
+    assert_eq!(
+        embed_row["payload"]["native_payload"]["artifact_id"].as_str(),
+        Some(artifact_id.as_str())
+    );
+    assert_causal_order(&route_row, &embed_row, "OP-01 Stage route/embed");
+    let rows = be.get_json(&format!("/api/flight_recorder?wsid={ws}"));
+    let stage_route_dispatches = rows
+        .as_array()
+        .expect("OP-01 Flight Recorder rows")
+        .iter()
+        .filter(|row| {
+            row["payload"]["kind"].as_str() == Some("route_to_stage")
+                && row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
+        })
+        .count();
+    assert_eq!(
+        stage_route_dispatches, 1,
+        "OP-01 mounted rich selection dispatches the shared Route-to-Stage command exactly once"
+    );
+    fixtures.assert_cleanup();
 
     println!(
         "OP-01 LIVE OK: stage artifact {artifact_id} round-tripped on real PG; sha256 {created_sha} \
-         matches on reload; manifest_ref non-empty. The STAGE_EMBED_BACK FR event is a frontend-emission \
-         follow-up (fr_event_not_emitted_frontend)."
+         matches on reload; manifest_ref persisted in a real rich document; route_to_stage + \
+         stage_embed_back Flight Recorder events persisted."
     );
 }
 
@@ -1543,16 +2744,52 @@ fn other_pillar_op01_stage_route_embed_back_live() {
 /// GET the events window responds with a JSON array. The routes EXIST (`api/calendar.rs`, MT-067). The
 /// CALENDAR_EVENT_BOUND/ACTIVITY_SPAN_CORRELATED FR events are a FRONTEND-emission follow-up.
 #[test]
-#[ignore = "requires_pg: live Handshake-managed PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID). \
-            The calendar routes EXIST; run in the live-PG batch with --ignored."]
-fn other_pillar_op02_calendar_bind_activity_span_live() {
+fn other_pillar_op02_calendar_bind_activity_span() {
+    let _env_guard = PROCESS_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let be = pg_proof_support::require_live_backend();
-    let ws = &be.workspace_id;
+    let mut fixtures = Mt074FixtureCleanup::new(&be);
+    let ws = be.workspace_id.clone();
+    let suffix = uuid::Uuid::new_v4().simple().to_string();
+    let source_id = format!("CAL-SRC-MT074-{suffix}");
+    let event_id = format!("CAL-EVT-MT074-{suffix}");
+    let span_id = format!("CAS-MT074-{suffix}");
+    // The mounted daily journal is explicitly calendar-date based and initializes from the local
+    // operator date. Seed that same date: around local midnight `Utc::now().date_naive()` is the prior
+    // day, which proves a different date and leaves the mounted event/span state correctly empty.
+    let date = chrono::Local::now().date_naive();
+    let event_start = format!("{} 09:00:00", date.format("%Y-%m-%d"));
+    let event_end = format!("{} 10:00:00", date.format("%Y-%m-%d"));
+    run_pg_sql(&format!(
+        "BEGIN; \
+         INSERT INTO calendar_sources \
+           (id, workspace_id, display_name, provider_type, write_policy, default_tzid, config_json) \
+         VALUES ({source}, {workspace}, 'MT-074 live fixture', 'local', 'read_only_import', 'UTC', '{{}}'); \
+         INSERT INTO calendar_events \
+           (id, workspace_id, source_id, title, start_ts_utc, end_ts_utc, tzid, status, visibility, export_mode) \
+         VALUES ({event}, {workspace}, {source}, 'MT-074 live calendar event', \
+                 TIMESTAMP {event_start}, TIMESTAMP {event_end}, \
+                 'UTC', 'confirmed', 'private', 'full_export'); \
+         COMMIT;",
+        source = sql_literal(&source_id),
+        workspace = sql_literal(&ws),
+        event = sql_literal(&event_id),
+        event_start = sql_literal(&event_start),
+        event_end = sql_literal(&event_end),
+    ));
+    fixtures.calendar_source(source_id.clone());
+    fixtures.calendar_event(event_id.clone());
 
-    let event_id = "CAL-EVT-MT074";
-    let span_id = "CAS-MT074-op02";
-    let started = Utc.with_ymd_and_hms(2026, 6, 21, 9, 5, 0).unwrap().to_rfc3339();
-    let ended = Utc.with_ymd_and_hms(2026, 6, 21, 9, 45, 0).unwrap().to_rfc3339();
+    let backend = Arc::new(ReqwestJournalBackend::new(be.base.clone()));
+    let service = CalendarInteropService::with_base_url(be.base.clone(), ws.clone(), backend);
+    let binding = rt()
+        .block_on(service.open_or_create_daily_note(date))
+        .expect("OP-02: production Calendar service creates the persisted daily note");
+    fixtures.loom_block(binding.doc_id.as_str().to_owned());
+
+    let started = format!("{}T09:05:00Z", date.format("%Y-%m-%d"));
+    let ended = format!("{}T09:45:00Z", date.format("%Y-%m-%d"));
 
     // Record the edit-activity span (idempotent upsert on the fixed span_id — collision-free on rerun).
     let created = be.post_json(
@@ -1562,51 +2799,129 @@ fn other_pillar_op02_calendar_bind_activity_span_live() {
             "span_id": span_id,
             "started_utc": started,
             "ended_utc": ended,
-            "edited_doc_ids": ["DOC-A", "DOC-B"],
+            "edited_doc_ids": [binding.doc_id.as_str()],
         }),
     );
+    fixtures.calendar_span(span_id.clone());
     assert_eq!(
         created["span_id"].as_str(),
-        Some(span_id),
+        Some(span_id.as_str()),
         "OP-02 live: the activity span persists under the requested (idempotent) span_id"
     );
 
-    // The read-only correlation returns the edited documents for the bound event.
-    let spans = be.get_json(&format!(
-        "/workspaces/{ws}/calendar/activity-spans?event_id={event_id}"
-    ));
-    let arr = spans
-        .as_array()
-        .expect("OP-02 live: the activity-spans correlation returns a JSON array");
-    let ours = arr
+    let (events, spans) = rt().block_on(async {
+        let events = service.events_for_range(date, date).await.unwrap();
+        let spans = service.activity_spans_for_event(&event_id).await.unwrap();
+        (events, spans)
+    });
+    let event = events
         .iter()
-        .find(|s| s["span_id"].as_str() == Some(span_id))
-        .expect("OP-02 live: our span is returned by the correlation");
-    let empty = Vec::new();
-    let edited: Vec<&str> = ours["edited_doc_ids"]
-        .as_array()
-        .unwrap_or(&empty)
+        .find(|event| event.id == event_id)
+        .expect("OP-02: production Calendar service resolves the seeded event");
+    assert_eq!(
+        event.daily_note_doc_id.as_ref(),
+        Some(&binding.doc_id),
+        "OP-02: the persisted event reload resolves back to the exact daily-note document"
+    );
+    let ours = spans
         .iter()
-        .filter_map(|v| v.as_str())
-        .collect();
-    assert!(
-        edited.contains(&"DOC-A") && edited.contains(&"DOC-B"),
-        "OP-02 live: the ActivitySpan correlation returns the set of edited documents, got {edited:?}"
+        .find(|span| span.span_id == span_id)
+        .expect("OP-02: production Calendar service resolves the persisted activity span");
+    let edited = ours
+        .edited_doc_ids
+        .iter()
+        .map(|id| id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        edited,
+        vec![binding.doc_id.as_str()],
+        "OP-02 live: the ActivitySpan correlation returns the exact persisted daily-note document"
     );
 
-    // The events-window query (the daily-note<->CalendarEvent linkage route) responds with a JSON array.
-    let events = be.get_json(&format!(
-        "/workspaces/{ws}/calendar/events?from=2026-06-21&to=2026-06-21"
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("OP-02 mounted runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
+    app.bind_active_project_for_integration_test(ws.clone());
+    let pane_id = PaneId::from("pane-a");
+    app.pane_registry().lock().unwrap().insert(PaneRecord::new(
+        pane_id.clone(),
+        PaneType::LoomDailyJournal,
+        ws.clone(),
+        Some(binding.doc_id.as_str().to_owned()),
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
     ));
-    assert!(
-        events.is_array(),
-        "OP-02 live: the calendar events window query returns a JSON array"
+    let mut tab = TabState::new(PaneType::LoomDailyJournal);
+    tab.content_id = Some(binding.doc_id.as_str().to_owned());
+    let bar = app.tab_bar_states_mut().get_mut(&pane_id).unwrap();
+    bar.tabs = vec![tab];
+    bar.active_index = 0;
+    app.set_active_pane_for_test(Some(pane_id));
+    let mounted = app.mounted_daily_journal();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let load_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        harness.run_steps(1);
+        let state = mounted.lock().unwrap().clone();
+        if state
+            .event
+            .as_ref()
+            .is_some_and(|loaded| loaded.id == event_id)
+            && matches!(
+                state.activity,
+                handshake_native::graph::daily_journal_panel::ActivityCorrelation::Spans(ref spans)
+                    if spans.iter().any(|span| span.span_id == span_id)
+            )
+        {
+            break;
+        }
+        assert!(std::time::Instant::now() < load_deadline);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let chip = find_node(&harness.root(), DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID)
+        .expect("OP-02 mounted CalendarEvent AccessKit trigger");
+    harness.event(click_event(chip.node_id));
+    harness.run_steps(2);
+
+    let bound_row = wait_for_native_fr(&be, "calendar_event_bound", |row| {
+        row["payload"]["native_payload"]["calendar_event_id"].as_str() == Some(event_id.as_str())
+    });
+    let span_row = wait_for_native_fr(&be, "activity_span_correlated", |row| {
+        row["payload"]["native_payload"]["calendar_event_id"].as_str() == Some(event_id.as_str())
+            && row["payload"]["native_payload"]["activity_span_id"].as_str()
+                == Some(span_id.as_str())
+    });
+    fixtures.native_fr(&bound_row);
+    fixtures.native_fr(&span_row);
+    assert_eq!(bound_row["payload"]["kind"], "calendar_event_bound");
+    assert_eq!(span_row["payload"]["kind"], "activity_span_correlated");
+    assert_eq!(
+        bound_row["payload"]["native_payload"]["calendar_event_id"].as_str(),
+        Some(event_id.as_str())
     );
+    assert_eq!(
+        span_row["payload"]["native_payload"]["activity_span_id"].as_str(),
+        Some(span_id.as_str())
+    );
+    assert_causal_order(&bound_row, &span_row, "OP-02 Calendar bind/correlate");
+    fixtures.assert_cleanup();
 
     println!(
         "OP-02 LIVE OK: activity-span {span_id} upserted on real PG; correlation returns edited docs \
-         [DOC-A, DOC-B]; the calendar events window responds. The CALENDAR_EVENT_BOUND / \
-         ACTIVITY_SPAN_CORRELATED FR events are a frontend-emission follow-up."
+         [{}]; daily note {} persisted bidirectionally on event {}; calendar_event_bound + \
+         activity_span_correlated Flight Recorder events persisted.",
+        binding.doc_id, binding.doc_id, event.id,
     );
 }
 
@@ -1616,30 +2931,149 @@ fn other_pillar_op02_calendar_bind_activity_span_live() {
 /// reverse index is the existing loom/search-v2 pipeline, proven non-ignored in op03). The
 /// LOCUS_REF_RESOLVED/LOCUS_REVERSE_LOOKUP FR events are a FRONTEND-emission follow-up.
 #[test]
-#[ignore = "requires_pg: live Handshake-managed PostgreSQL + seeded workspace (HSK_TEST_WORKSPACE_ID) + a \
-            seeded Locus work_packets row (HSK_TEST_LOCUS_WP_ID, default WP-KERNEL-012). The locus routes \
-            EXIST; run in the live-PG batch with --ignored."]
-fn other_pillar_op03_locus_resolve_reverse_live() {
+fn other_pillar_op03_locus_resolve_reverse() {
+    let _env_guard = PROCESS_ENV_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let be = pg_proof_support::require_live_backend();
-    let ws = &be.workspace_id;
-
-    // Resolve a locus:// work-packet reference to its display record via the now-existing read route. The
-    // record id is the seeded WP under proof (overridable for the live batch).
-    let wp_id = std::env::var("HSK_TEST_LOCUS_WP_ID")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| "WP-KERNEL-012".to_owned());
-    let record = be.get_json(&format!("/workspaces/{ws}/locus/work-packets/{wp_id}"));
-    let title = record["title"].as_str().unwrap_or_default();
-    assert!(
-        !title.is_empty(),
-        "OP-03 live: the resolved Locus work-packet has a non-empty (resolvable) title"
+    let mut fixtures = Mt074FixtureCleanup::new(&be);
+    let ws = be.workspace_id.clone();
+    let suffix = uuid::Uuid::new_v4().simple().to_string();
+    let wp_id = format!("WP-MT074-{suffix}");
+    run_pg_sql(&format!(
+        "INSERT INTO work_packets \
+           (wp_id, version, title, description, status, priority, phase, routing, task_packet_path, \
+            task_board_status, assignee, reporter, created_at, updated_at, vector_clock, metadata) \
+         VALUES ({wp}, 1, 'MT-074 live Locus target', 'persisted reverse lookup proof', 'in_progress', \
+                 1, 'validation', 'native-editors', '', 'in_progress', NULL, 'mt074-proof', \
+                 '2026-07-16T00:00:00Z', '2026-07-16T00:00:00Z', '{{}}', '{{}}');",
+        wp = sql_literal(&wp_id),
+    ));
+    fixtures.work_packet(wp_id.clone());
+    let locus_uri = format!("locus://wp/{wp_id}");
+    let document = doc_with_locus_ref(&locus_uri, &wp_id, true);
+    let created = be.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({
+            "workspace_id": ws,
+            "title": "MT-074 OP-03 Locus reference",
+            "content_json": to_content_json_value(&document),
+        }),
+    );
+    let document_id = created_doc_id(&created);
+    fixtures.document(document_id.clone());
+    be.put_json(
+        &format!("/knowledge/documents/{document_id}/save"),
+        &serde_json::json!({
+            "expected_version": created_doc_version(&created),
+            "content_json": to_content_json_value(&document),
+        }),
+    );
+    let service = LocusInteropService::with_base_url(
+        be.base.clone(),
+        ws.clone(),
+        Arc::new(FindNotesHttp::new(be.base.clone())),
+    );
+    let reference = parse_locus_ref(&locus_uri).unwrap();
+    let (record, documents) = rt().block_on(async {
+        (
+            service.resolve_locus_ref(&reference).await.unwrap(),
+            service
+                .find_documents_referencing(&reference)
+                .await
+                .unwrap(),
+        )
+    });
+    assert!(!record.title.is_empty());
+    let matching = documents
+        .iter()
+        .filter(|document| document.document_id == document_id)
+        .count();
+    assert_eq!(
+        matching, 1,
+        "OP-03: persisted reverse lookup dedups the note"
     );
 
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("OP-03 mounted runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
+    app.bind_active_project_for_integration_test(ws.clone());
+    let pane_id = PaneId::from("pane-a");
+    app.pane_registry().lock().unwrap().insert(PaneRecord::new(
+        pane_id.clone(),
+        PaneType::LoomWikiPage,
+        ws.clone(),
+        Some(document_id.clone()),
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    let mut tab = TabState::new(PaneType::LoomWikiPage);
+    tab.content_id = Some(document_id.clone());
+    let bar = app.tab_bar_states_mut().get_mut(&pane_id).unwrap();
+    bar.tabs = vec![tab];
+    bar.active_index = 0;
+    app.set_active_pane_for_test(Some(pane_id));
+    let rich_state = app.mounted_rich_state();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1100.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let chip_id = locus_ref_chip_author_id(&locus_uri);
+    let load_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let chip = loop {
+        harness.run_steps(1);
+        if rich_state.lock().unwrap().save.is_some() {
+            if let Some(chip) = find_node(&harness.root(), &chip_id) {
+                break chip;
+            }
+        }
+        assert!(std::time::Instant::now() < load_deadline);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    harness.event(click_event(chip.node_id));
+    harness.run_steps(2);
+
+    let resolved_row = wait_for_native_fr(&be, "locus_ref_resolved", |row| {
+        row["payload"]["native_payload"]["locus_uri"].as_str() == Some(locus_uri.as_str())
+    });
+    let reverse_row = wait_for_native_fr(&be, "locus_reverse_lookup", |row| {
+        row["payload"]["native_payload"]["locus_uri"].as_str() == Some(locus_uri.as_str())
+            && row["payload"]["native_payload"]["document_ids"]
+                .as_array()
+                .is_some_and(|ids| {
+                    ids.iter()
+                        .any(|id| id.as_str() == Some(document_id.as_str()))
+                })
+    });
+    fixtures.native_fr(&resolved_row);
+    fixtures.native_fr(&reverse_row);
+    assert_eq!(resolved_row["payload"]["kind"], "locus_ref_resolved");
+    assert_eq!(reverse_row["payload"]["kind"], "locus_reverse_lookup");
+    assert_eq!(
+        resolved_row["payload"]["native_payload"]["locus_uri"].as_str(),
+        Some(locus_uri.as_str())
+    );
+    assert!(reverse_row["payload"]["native_payload"]["document_ids"]
+        .as_array()
+        .is_some_and(|ids| ids
+            .iter()
+            .any(|id| id.as_str() == Some(document_id.as_str()))));
+    assert_causal_order(&resolved_row, &reverse_row, "OP-03 Locus resolve/reverse");
+    fixtures.assert_cleanup();
+
     println!(
-        "OP-03 LIVE OK: locus work-packet {wp_id} resolved on real PG -> title '{title}'. The persisted \
-         reverse lookup runs through the existing loom/search-v2 pipeline (proven non-ignored in op03); \
-         the LOCUS_REF_RESOLVED / LOCUS_REVERSE_LOOKUP FR events are a frontend-emission follow-up."
+        "OP-03 LIVE OK: locus work-packet {wp_id} resolved on real PG -> title '{}'; persisted reverse \
+         lookup returned document {document_id} exactly once; locus_ref_resolved + locus_reverse_lookup \
+         Flight Recorder events persisted.",
+        record.title,
     );
 }
 

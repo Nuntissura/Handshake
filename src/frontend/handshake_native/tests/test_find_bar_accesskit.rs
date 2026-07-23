@@ -23,16 +23,15 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+use egui_kittest::kittest::{NodeT, Queryable};
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
+#[path = "native_gui_support/argus_surface_proof.rs"]
+mod argus_surface_proof;
+use argus_surface_proof::{prove_argus_surface, ArgusMutation};
 
 use handshake_native::code_editor::{CodeEditorPanel, CODE_EDITOR_FIND_BAR_AUTHOR_ID};
-
-// MT-108 residual item (11) / AC-108-2: typed screenshot marker so a headless run records a DEFERRED
-// marker instead of silently passing the pixel proof.
-#[path = "native_gui_support/screenshot_marker.rs"]
-mod screenshot_marker;
-use screenshot_marker::{record_screenshot_outcome, ScreenshotStatus};
 
 /// A multi-line Rust snippet with several `fn` occurrences so "fn" highlights are unambiguous.
 const SNIPPET: &str = "fn main() {}\nfn helper() {}\nlet fname = 1;";
@@ -130,6 +129,17 @@ fn find_bar_accesskit_ctrl_f_makes_find_bar_node() {
         "AC-004: '{CODE_EDITOR_FIND_BAR_AUTHOR_ID}' must be Role::SearchInput (field-correct for the \
          contract's SearchBox, which does not exist in accesskit 0.21)"
     );
+    let find_node = root
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(CODE_EDITOR_FIND_BAR_AUTHOR_ID))
+        .expect("find-bar node remains addressable after role verification")
+        .accesskit_node();
+    assert!(
+        find_node
+            .data()
+            .supports_action(egui::accesskit::Action::SetValue),
+        "MT-108: stable find-bar node advertises SetValue for Argus query mutation"
+    );
     println!("PT-004 find bar node: {{\"{CODE_EDITOR_FIND_BAR_AUTHOR_ID}\":\"{found_role:?}\"}}");
 
     // The find-next button is also addressable (HBR-SWARM).
@@ -137,6 +147,40 @@ fn find_bar_accesskit_ctrl_f_makes_find_bar_node() {
         root.children_recursive()
             .any(|n| n.accesskit_node().author_id() == Some("code_editor_find_next")),
         "AC-004: the find-next button is AccessKit-addressable"
+    );
+}
+
+#[test]
+fn mt108_argus_find_bar_real_server_loop() {
+    let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+    panel.open_find(false);
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(700.0, 220.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run_steps(2);
+
+    prove_argus_surface(
+        &mut harness,
+        "find bar",
+        CODE_EDITOR_FIND_BAR_AUTHOR_ID,
+        ArgusMutation::SetValue {
+            target: CODE_EDITOR_FIND_BAR_AUTHOR_ID,
+            value: "fn",
+        },
+        CODE_EDITOR_FIND_BAR_AUTHOR_ID,
+        true,
+        |_| {
+            let pattern = panel
+                .find_state()
+                .ok_or_else(|| "find panel closed after mutation".to_owned())?
+                .query
+                .pattern;
+            if pattern != "fn" {
+                return Err(format!("expected query 'fn', observed {pattern:?}"));
+            }
+            Ok(serde_json::json!({ "query_pattern": pattern }))
+        },
     );
 }
 
@@ -181,6 +225,183 @@ fn find_bar_typing_into_textedit_updates_query_and_matches() {
         "MT-108: typed 'fn' into the find TextEdit -> pattern={:?}, matches={}",
         state.query.pattern,
         state.matches.len()
+    );
+}
+
+#[test]
+fn replace_all_button_caps_each_click_and_exposes_repeat_recovery() {
+    let text = "x ".repeat(handshake_native::code_editor::REPLACE_ALL_CAP + 25);
+    let panel = Arc::new(CodeEditorPanel::new(&text, "txt"));
+    panel.open_find(true);
+    panel.set_find_query("x");
+    panel.set_replace_text("y");
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 320.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run_steps(2);
+
+    harness.get_by_label("Replace All").click();
+    harness.run_steps(2);
+    let first = panel.find_state().expect("replace bar remains open");
+    assert_eq!(first.replace_all_remaining, 25);
+    assert!(
+        harness
+            .query_by_label_contains("25 more not yet replaced")
+            .is_some(),
+        "the mounted find bar exposes the bounded-operation recovery instruction"
+    );
+
+    harness.get_by_label("Replace All").click();
+    harness.run_steps(2);
+    let second = panel.find_state().expect("replace bar remains open");
+    assert_eq!(second.replace_all_remaining, 0);
+    assert!(second.matches.is_empty());
+    assert!(
+        harness
+            .query_by_label_contains("more not yet replaced")
+            .is_none(),
+        "repeat action completes the remaining batch and clears the progress hint"
+    );
+}
+
+#[test]
+fn replace_all_refreshes_live_matches_after_intervening_mounted_edit() {
+    let count = handshake_native::code_editor::REPLACE_ALL_CAP + 4;
+    let panel = Arc::new(CodeEditorPanel::new(&"x ".repeat(count), "txt"));
+    panel.open_find(true);
+    panel.set_find_query("x");
+    panel.set_replace_text("y");
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 320.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run_steps(2);
+
+    harness.get_by_label("Replace All").click();
+    harness.run_steps(2);
+    assert_eq!(
+        panel
+            .find_state()
+            .expect("replace bar remains open")
+            .replace_all_remaining,
+        4
+    );
+
+    // Shift every cached byte range through the mounted panel's ordinary whole-buffer edit path.
+    // The next click must search this live document before rebuilding its continuation plan.
+    let shifted = format!("guard-prefix {}", panel.buffer().to_string());
+    panel.set_text(&shifted);
+    harness.run_steps(2);
+    harness.get_by_label("Replace All").click();
+    harness.run_steps(2);
+
+    assert_eq!(
+        panel.buffer().to_string(),
+        format!("guard-prefix {}", "y ".repeat(count)),
+        "the second mounted click used refreshed live ranges and preserved the intervening edit"
+    );
+    let state = panel.find_state().expect("replace bar remains open");
+    assert_eq!(state.replace_all_remaining, 0);
+    assert!(state.matches.is_empty());
+}
+
+#[test]
+fn replace_all_same_text_advances_across_original_matches() {
+    let count = handshake_native::code_editor::REPLACE_ALL_CAP + 25;
+    let text = "x ".repeat(count);
+    let panel = Arc::new(CodeEditorPanel::new(&text, "txt"));
+    panel.open_find(true);
+    panel.set_find_query("x");
+    panel.set_replace_text("x");
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 320.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run_steps(2);
+
+    harness.get_by_label("Replace All").click();
+    harness.run_steps(2);
+    assert_eq!(
+        panel.find_state().expect("replace bar remains open").replace_all_remaining,
+        25,
+        "the first click records progress through the original set even though the query still matches"
+    );
+
+    harness.get_by_label("Replace All").click();
+    harness.run_steps(2);
+    let state = panel.find_state().expect("replace bar remains open");
+    assert_eq!(state.replace_all_remaining, 0);
+    assert_eq!(
+        state.matches.len(),
+        count,
+        "same-text replacement still matches"
+    );
+    assert_eq!(panel.buffer().to_string(), text);
+    assert!(
+        harness
+            .query_by_label_contains("more not yet replaced")
+            .is_none(),
+        "the continuation terminates instead of retrying the first batch forever"
+    );
+}
+
+#[test]
+fn replace_all_expanding_text_advances_across_original_matches() {
+    let count = handshake_native::code_editor::REPLACE_ALL_CAP + 25;
+    let panel = Arc::new(CodeEditorPanel::new(&"x ".repeat(count), "txt"));
+    panel.open_find(true);
+    panel.set_find_query("x");
+    panel.set_replace_text("xx");
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 320.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run_steps(2);
+
+    harness.get_by_label("Replace All").click();
+    harness.run_steps(2);
+    assert_eq!(
+        panel
+            .find_state()
+            .expect("replace bar remains open")
+            .replace_all_remaining,
+        25
+    );
+
+    harness.get_by_label("Replace All").click();
+    harness.run_steps(2);
+    let state = panel.find_state().expect("replace bar remains open");
+    assert_eq!(state.replace_all_remaining, 0);
+    assert_eq!(panel.buffer().to_string(), "xx ".repeat(count));
+    assert_eq!(
+        state.matches.len(),
+        count * 2,
+        "replacement-generated matches remain searchable but are not reprocessed by the continuation"
+    );
+}
+
+#[test]
+fn find_opening_frame_text_never_leaks_into_code_buffer() {
+    let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 700.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run();
+    let before = panel.buffer().to_string();
+
+    // Adversarial event ordering: the command and printable event are delivered in one input frame,
+    // before egui has rendered the newly opened TextEdit and can report that it owns focus.
+    harness.event(ctrl_f());
+    harness.event(egui::Event::Text("f".to_owned()));
+    harness.run();
+
+    assert!(panel.is_find_open(), "Ctrl+F still opens the find surface");
+    assert_eq!(
+        panel.buffer().to_string(),
+        before,
+        "opening-frame query text must never mutate the code document"
     );
 }
 
@@ -286,20 +507,14 @@ fn find_bar_highlight_screenshot_has_yellow_rect() {
             let ext_dir = external_artifact_dir("wp-kernel-012-mt-004");
             let _ = std::fs::create_dir_all(&ext_dir);
             let png_path = ext_dir.join("MT-004-find-highlight.png");
-            let saved = image.save(&png_path).is_ok();
+            image
+                .save(&png_path)
+                .expect("find-highlight proof frame saves to the external artifact root");
             println!(
                 "PT-005 find-highlight screenshot: {w}x{h}, yellow_pixels={yellow_pixels}, \
-                 saved={saved} ({})",
+                 saved=true ({})",
                 png_path.display()
             );
-
-            // MT-108 (11): record a typed CAPTURED marker so the artifact proves real pixels here.
-            let marker = record_screenshot_outcome(
-                "MT-108",
-                "MT-004-find-highlight",
-                Ok(png_path.display().to_string()),
-            );
-            assert_eq!(marker.status, ScreenshotStatus::Captured);
 
             // A single "fn" highlight rect over a ~13px line height and ~2 glyphs wide is dozens of
             // pixels; two matches are well over 50. Assert a generous lower bound so the proof is the
@@ -313,22 +528,10 @@ fn find_bar_highlight_screenshot_has_yellow_rect() {
         Err(e) => {
             // MT-108 residual item (11) / AC-108-2: instead of a silent GREEN pass, record a typed
             // DEFERRED marker so a headless run never implies pixels were captured.
-            let marker = record_screenshot_outcome(
-                "MT-108",
-                "MT-004-find-highlight",
-                Err(format!("{e}")),
-            );
-            assert_eq!(
-                marker.status,
-                ScreenshotStatus::Deferred,
-                "AC-108-2: a headless screenshot proof records a typed DEFERRED marker, not silent GREEN"
-            );
             println!(
                 "DEFERRED(typed marker): MT-004 find-highlight screenshot render unavailable (no wgpu \
                  adapter): {e}. The match-state + highlight-overlay logic is proven by the find_bar \
-                 AccessKit test and the engine tests; the PNG + yellow-pixel check is a GPU-host item. \
-                 Marker: {}",
-                marker.to_jsonl_line()
+                 AccessKit test and the engine tests; the PNG + yellow-pixel check is a GPU-host item."
             );
         }
     }

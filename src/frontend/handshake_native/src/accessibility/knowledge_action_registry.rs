@@ -96,6 +96,9 @@ pub const VIEWPORT_LOOKAHEAD: usize = 50;
 /// the SAME prefix [`crate::graph::graph_view::NODE_AUTHOR_ID_PREFIX`] uses, so MT-042 reuses it.
 pub const GRAPH_NODE_AUTHOR_ID_PREFIX: &str = "graph.node.";
 
+/// Prefix for a persisted graph edge identity node: `graph.edge.<edge_id>` (Role::Link).
+pub const GRAPH_EDGE_AUTHOR_ID_PREFIX: &str = "graph.edge.";
+
 /// Prefix for a canvas placement identity node: `canvas.card.<sanitized_placement_id>` (Role::Group).
 pub const CANVAS_CARD_AUTHOR_ID_PREFIX: &str = "canvas.card.";
 
@@ -105,12 +108,48 @@ pub const COLLECTION_ROW_AUTHOR_ID_PREFIX: &str = "collection.row.";
 /// Prefix for a collection Kanban lane container node: `collection.lane.<sanitized_tag>` (Role::Group).
 pub const COLLECTION_LANE_AUTHOR_ID_PREFIX: &str = "collection.lane.";
 
-/// The stable AccessKit author_id for a graph node identity (`graph.node.<block_id>`), block id
-/// sanitized to `[a-z0-9-]` (RISK / id-integrity), reusing the shell's [`crate::project_tree::stable_part`].
+/// Return a graph identity suffix that is both AccessKit-safe and injective for arbitrary UTF-8 ids.
+///
+/// Canonical lowercase `[a-z0-9-]` ids retain their historical spelling. Every other id is encoded as
+/// `u8-` followed by the lowercase hexadecimal form of its complete UTF-8 byte sequence. The `u8-`
+/// namespace is reserved: a raw canonical-looking id beginning with `u8-` is itself encoded, so it can
+/// never collide with an encoded value. Unlike a finite hash suffix, this mapping loses no identity
+/// information and therefore cannot probabilistically route an action to the wrong block.
+fn collision_safe_identity_part(identity: &str) -> String {
+    let canonical = !identity.is_empty()
+        && !identity.starts_with("u8-")
+        && identity
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        && crate::project_tree::stable_part(identity) == identity;
+    if canonical {
+        return identity.to_owned();
+    }
+
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(3 + identity.len() * 2);
+    encoded.push_str("u8-");
+    for byte in identity.as_bytes() {
+        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
+        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
+    }
+    encoded
+}
+
+/// The stable AccessKit author_id for a graph node identity (`graph.node.<block_id>`), with a
+/// collision-safe suffix restricted to `[a-z0-9-]`.
 pub fn graph_node_author_id(block_id: &str) -> String {
     format!(
         "{GRAPH_NODE_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
+        collision_safe_identity_part(block_id)
+    )
+}
+
+/// The stable AccessKit author_id for a persisted graph edge identity.
+pub fn graph_edge_author_id(edge_id: &str) -> String {
+    format!(
+        "{GRAPH_EDGE_AUTHOR_ID_PREFIX}{}",
+        collision_safe_identity_part(edge_id)
     )
 }
 
@@ -118,7 +157,7 @@ pub fn graph_node_author_id(block_id: &str) -> String {
 pub fn canvas_card_author_id(placement_id: &str) -> String {
     format!(
         "{CANVAS_CARD_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(placement_id)
+        collision_safe_identity_part(placement_id)
     )
 }
 
@@ -126,7 +165,7 @@ pub fn canvas_card_author_id(placement_id: &str) -> String {
 pub fn collection_row_author_id(block_id: &str) -> String {
     format!(
         "{COLLECTION_ROW_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
+        collision_safe_identity_part(block_id)
     )
 }
 
@@ -134,7 +173,7 @@ pub fn collection_row_author_id(block_id: &str) -> String {
 pub fn collection_lane_author_id(lane_tag: &str) -> String {
     format!(
         "{COLLECTION_LANE_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(lane_tag)
+        collision_safe_identity_part(lane_tag)
     )
 }
 
@@ -171,6 +210,8 @@ pub enum AxRole {
     Button,
     /// A graph node identity node (`graph.node.<block_id>`).
     TreeItem,
+    /// A persisted graph edge (`graph.edge.<edge_id>`).
+    Link,
     /// A canvas placement / Kanban lane container identity node.
     Group,
     /// A collection table/calendar row identity node.
@@ -183,6 +224,7 @@ impl AxRole {
         match self {
             AxRole::Button => accesskit::Role::Button,
             AxRole::TreeItem => accesskit::Role::TreeItem,
+            AxRole::Link => accesskit::Role::Link,
             AxRole::Group => accesskit::Role::Group,
             AxRole::Row => accesskit::Role::Row,
         }
@@ -193,6 +235,7 @@ impl AxRole {
         match self {
             AxRole::Button => "Button",
             AxRole::TreeItem => "TreeItem",
+            AxRole::Link => "Link",
             AxRole::Group => "Group",
             AxRole::Row => "Row",
         }
@@ -305,6 +348,10 @@ pub struct KnowledgeActionRegistry {
     /// The content hash of the last node set pushed to the AccessKit surface, for the unchanged-skip
     /// decision (HBR-QUIET). `None` until the first push.
     last_push_hash: Option<u64>,
+    /// The graph, Canvas, and collection panes can render in the same frame while sharing this
+    /// registry. Their node sets are intentionally different, so quiet-state comparison must be
+    /// scoped per surface instead of making the three panes invalidate one another forever.
+    last_surface_push_hash: BTreeMap<KnowledgeSurface, u64>,
 }
 
 impl KnowledgeActionRegistry {
@@ -490,6 +537,16 @@ impl KnowledgeActionRegistry {
         changed
     }
 
+    /// Per-surface HBR-QUIET gate for hosts that share one registry across multiple knowledge panes.
+    pub fn state_changed_since_last_surface_push(&mut self, surface: KnowledgeSurface) -> bool {
+        let hash = self.content_hash();
+        let changed = self.last_surface_push_hash.get(&surface).copied() != Some(hash);
+        if changed {
+            self.last_surface_push_hash.insert(surface, hash);
+        }
+        changed
+    }
+
     /// Emit every PRESENT registered node into the live AccessKit tree through the shell's own
     /// `ctx.accesskit_node_builder` hook ([`crate::accessibility::live`] uses the same path), plus the
     /// always-present health canary. Each node is keyed by its STABLE `egui::Id::new(author_id)`
@@ -514,6 +571,7 @@ impl KnowledgeActionRegistry {
                 continue;
             }
             let role = node.role.accesskit_role();
+            let egui_id = node.egui_id();
             let author_id = node.author_id.clone();
             let label = node.label.clone();
             let value = node.value.clone();
@@ -522,6 +580,8 @@ impl KnowledgeActionRegistry {
             // are surfaced as real AccessKit CUSTOM actions so a swarm agent genuinely READS them on the
             // node (not a faked string): each gets a stable id (its index) + the capability name as the
             // description. The pane routes a custom-action dispatch to the matching event.
+            let supports_click = node.actions.iter().any(|action| action == "Click");
+            let supports_focus = node.actions.iter().any(|action| action == "Focus");
             let custom: Vec<accesskit::CustomAction> = node
                 .actions
                 .iter()
@@ -532,7 +592,12 @@ impl KnowledgeActionRegistry {
                     description: name.clone().into(),
                 })
                 .collect();
-            ctx.accesskit_node_builder(node.egui_id(), move |n| {
+            // These identities are painter-backed rather than normal egui widgets. Register a
+            // zero-area focusable interaction so egui includes the id in its live-widget set and
+            // AccessKit focus survives the end-of-frame dead-man check.
+            let focus_rect = egui::Rect::from_min_size(ui.min_rect().min, egui::Vec2::ZERO);
+            ui.interact(focus_rect, egui_id, egui::Sense::focusable_noninteractive());
+            ctx.accesskit_node_builder(egui_id, move |n| {
                 n.set_role(role);
                 n.set_author_id(author_id.clone());
                 n.set_label(label.clone());
@@ -542,8 +607,12 @@ impl KnowledgeActionRegistry {
                 // Click is the activation a swarm agent dispatches; Focus lets it move to the node first
                 // (the AccessKit default-action contract). A parameterized action carries its JSON in the
                 // request's `ActionData::Value` payload (IN-042-04); the action itself is still Click.
-                n.add_action(accesskit::Action::Click);
-                n.add_action(accesskit::Action::Focus);
+                if supports_click {
+                    n.add_action(accesskit::Action::Click);
+                }
+                if supports_focus {
+                    n.add_action(accesskit::Action::Focus);
+                }
                 if !custom.is_empty() {
                     // Declare the CustomAction capability set + the CustomAction action so a swarm sees it.
                     n.add_action(accesskit::Action::CustomAction);
@@ -568,6 +637,7 @@ impl KnowledgeActionRegistry {
     /// [`crate::mcp::action`]) drives a canonical node exactly like a real click.
     pub fn take_dispatched(&self, ui: &egui::Ui) -> Vec<(String, Option<String>)> {
         let mut activated = Vec::new();
+        let mut focus_requests = Vec::new();
         ui.input(|input| {
             for node in self.nodes.values() {
                 if !node.state.present || !node.state.enabled {
@@ -576,16 +646,26 @@ impl KnowledgeActionRegistry {
                 let id = node.egui_id();
                 let mut payload: Option<String> = None;
                 let mut clicked = false;
-                for request in input.accesskit_action_requests(id, accesskit::Action::Click) {
-                    clicked = true;
-                    // Parameterized action payload (IN-042-04): the JSON string travels in
-                    // `ActionData::Value`. Last request of the frame wins (a swarm normally sends one).
-                    if let Some(accesskit::ActionData::Value(v)) = &request.data {
-                        payload = Some(v.to_string());
+                if node.actions.iter().any(|action| action == "Click") {
+                    for request in input.accesskit_action_requests(id, accesskit::Action::Click) {
+                        clicked = true;
+                        // Parameterized action payload (IN-042-04): the JSON string travels in
+                        // `ActionData::Value`. Last request of the frame wins (a swarm normally sends one).
+                        if let Some(accesskit::ActionData::Value(v)) = &request.data {
+                            payload = Some(v.to_string());
+                        }
                     }
                 }
                 if clicked {
                     activated.push((node.author_id.clone(), payload));
+                }
+                if node.actions.iter().any(|action| action == "Focus")
+                    && input
+                        .accesskit_action_requests(id, accesskit::Action::Focus)
+                        .next()
+                        .is_some()
+                {
+                    focus_requests.push((id, node.author_id.clone()));
                 }
                 // CustomAction dispatch (AC-042-03 card `delete`): a swarm CustomAction request carries the
                 // capability index in `ActionData::CustomAction(i)`; map it back to the node's extra-action
@@ -610,6 +690,13 @@ impl KnowledgeActionRegistry {
                 }
             }
         });
+        // Synthetic painter-backed identities have no egui `Response` to perform the normal Focus
+        // action handling. Apply the request to egui's real focus authority and surface a typed
+        // dispatch so the owning pane can synchronize selection without treating Focus as activation.
+        for (id, author_id) in focus_requests {
+            ui.memory_mut(|memory| memory.request_focus(id));
+            activated.push((format!("{author_id}#focus"), None));
+        }
         activated
     }
 }
@@ -874,6 +961,40 @@ mod tests {
                 .chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'),
             "author_id suffix must be [a-z0-9-]; got '{suffix}'"
+        );
+
+        let slash = graph_node_author_id("a/b");
+        let colon = graph_node_author_id("a:b");
+        assert_ne!(
+            slash, colon,
+            "lossy slugging must not alias distinct block identities"
+        );
+        assert_eq!(graph_node_author_id("a/b"), slash);
+        assert!(slash.starts_with("graph.node.u8-"));
+        assert_ne!(
+            slash,
+            graph_node_author_id("u8-612f62"),
+            "the reserved encoded namespace cannot collide with a raw canonical-looking id"
+        );
+        assert_ne!(
+            graph_node_author_id("é"),
+            graph_node_author_id("e"),
+            "UTF-8 bytes are encoded exactly rather than transliterated"
+        );
+        assert_ne!(
+            collection_lane_author_id("a/b"),
+            collection_lane_author_id("a:b"),
+            "distinct arbitrary lane values must never share an AccessKit identity"
+        );
+        assert_ne!(
+            collection_row_author_id("a/b"),
+            collection_row_author_id("a:b"),
+            "distinct arbitrary collection row ids must never share an AccessKit identity"
+        );
+        assert_ne!(
+            canvas_card_author_id("a/b"),
+            canvas_card_author_id("a:b"),
+            "distinct arbitrary canvas placement ids must never share an AccessKit identity"
         );
     }
 

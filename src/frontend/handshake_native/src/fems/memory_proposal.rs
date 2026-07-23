@@ -3,15 +3,14 @@
 //! ## What this is (the editor entry point into the FEMS proposal→review→commit loop)
 //!
 //! This module turns the current editor selection (the MT-031 [`SharedSelection`]) into a typed,
-//! review-gated FEMS memory-write PROPOSAL and submits it to the EXISTING review-gated FEMS write path.
-//! It is the editor's ONLY write into Pillar 12 memory, and it is a PROPOSAL — never a direct commit.
-//! The commit step is downstream and review-gated (operator/reviewer), never editor-direct
-//! (RISK-001/002, MC-001/002, AC-002). There is exactly ONE write path here: the proposal POST. There
-//! is NO direct memory-commit / write-direct call site anywhere in this file (grep-gate MC-001).
+//! review-gated FEMS memory-write PROPOSAL and submits it to the governed FEMS write path. The editor
+//! never writes a `MemoryItem` directly: approval first records the auditable review decision, then an
+//! explicit commit request asks the backend to atomically write the canonical item, `MemoryCommitReport`,
+//! strict `MemoryPack`, EventLedger receipt, and FR-EVT-MEM-003 projection.
 //!
 //! ## THE LOAD-BEARING INVARIANT (review-gated, never-editor-direct)
 //!
-//! - [`MemoryWriteProposal::review_gated`] is ALWAYS `true`. It is HARD-set `true` for the `Procedural`
+//! - [`MemoryWriteProposal::is_review_gated`] is ALWAYS `true`. It is HARD-set `true` for the `Procedural`
 //!   class (the spec requirement) and `true` for `Episodic`/`Semantic` too — the editor can NEVER set it
 //!   `false` for any class. There is no constructor, setter, or method that yields a `review_gated=false`
 //!   proposal (MC-002, AC-002).
@@ -19,35 +18,22 @@
 //!   [`MemoryProposalError::MissingEndpoint`] and writes nothing — it does NOT fall back to a direct
 //!   memory write (RISK-004, MC-004, AC-005).
 //!
-//! ## The proposal WRITE endpoint is ABSENT in this handshake_core build (the DESIGNED primary path)
+//! ## Live backend path
 //!
-//! A read-only verification of `src/backend/handshake_core` (the KERNEL_BUILDER gate 2026-06-25,
-//! re-confirmed here) found that `POST /workspaces/{id}/memory/proposals` DOES NOT EXIST in the current
-//! build. `api/knowledge_memory.rs` exposes only five GET reads
-//! (`/knowledge/memory/{claims,conflicts,facts,entities,visual-debug}`) — there is NO proposal WRITE
-//! route, and the only `MemoryPack`/proposal surfaces are an INTERNAL builder + `.handshake/fems/...`
-//! artifacts. So [`submit_proposal`] returns [`MemoryProposalError::MissingEndpoint`] on a 404 /
-//! route-absent / capability-missing response — the TYPED BLOCKER the coder surfaces. It does NOT add,
-//! rewrite, or bypass the backend, and it does NOT silently commit (RISK-004/009, MC-004/009, AC-005).
-//! The pure builder + the dialog/command wiring + the FR payload SHAPE are all PROVABLE NOW against
-//! fixtures; the live PG proposal record + live FR ledger ingestion are `NEEDS_MANAGED_RESOURCE_PROOF`
-//! (AC-004, the double-gate below).
+//! `handshake_core::api::memory` owns `POST /workspaces/{id}/memory/proposals`. A successful request
+//! stores a pending-review proposal and returns its durable proposal id. A 404 still maps to the typed
+//! [`MemoryProposalError::MissingEndpoint`] for compatibility with a backend that has not mounted the
+//! capability; no failure path falls back to a direct memory write.
+//! [`review_proposal`] records an explicit native operator approval/rejection through the closed review
+//! route. Approval then calls the separate approved-proposal commit route and returns both review and
+//! commit receipt identities; rejection performs no commit.
 //!
-//! ## FR-EVT-MEM-001 emit via the MT-036 emitter (DOUBLE-GATED) — no new emitter, no new event_type
+//! ## FR-EVT-MEM-001 transaction outbox
 //!
-//! After a successful proposal ack, this module emits a [`NativeEditorEvent`] with action
-//! [`NativeEditorAction::MemoryWriteProposed`] (`"memory_write_proposed"`) through the EXISTING MT-036
-//! [`NativeEditorEventEmitter`] (reused via `event_bus`) — NO new emitter (RISK-007, MC-007, AC-008).
-//! `FR-EVT-MEM-001` is the stable event-NAME marker carried in the payload `action`, NOT a new ledger
-//! `event_type` (the `event_type` stays `'system'`/the closed FR schema per MT-036). The backend FR
-//! ledger DOES model a `memory_write_proposed` event whose `event_id` is the fixed string
-//! `"FR-EVT-MEM-001"` (verified read-only in `flight_recorder/mod.rs::validate_memory_write_proposed_payload`),
-//! but there is NO HTTP ingestion route that accepts it from the native editor — the only FR HTTP
-//! ingestion endpoint is `runtime_chat_event` (the closed `RuntimeChatEventV0_1`, MT-036's documented
-//! backend gap). So the FR emit SHAPE is provable now, but LIVE FR ingestion of the native-editor
-//! `memory_write_proposed` event needs the FR-schema extension MT-036 already flagged. Combined with the
-//! likely `MissingEndpoint`, AC-004 (a live PG proposal record + a live FR event) is the DOUBLE-GATE
-//! `NEEDS_MANAGED_RESOURCE_PROOF`.
+//! handshake_core commits the proposal, EventLedger receipt, and normative FR-EVT-MEM-001 outbox row
+//! in one PostgreSQL transaction. It projects that row idempotently and returns its durable event UUID
+//! in the acknowledgement. [`submit_proposal_and_emit`] retains its historical signature but does not
+//! enqueue a duplicate native-editor envelope.
 //!
 //! ## content_hash REUSES the MT-032 loom content-hash primitive (no second hashing scheme)
 //!
@@ -70,6 +56,8 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
+use sha2::{Digest, Sha256};
+use unicode_normalization::UnicodeNormalization;
 
 use crate::accessibility::emit_interactive_node;
 use crate::event_emitter::{NativeEditorEvent, NativeEditorEventEmitter};
@@ -86,6 +74,24 @@ pub const FEMS_PROPOSE_DIALOG_AUTHOR_ID: &str = "fems-propose-dialog";
 
 /// AccessKit author_id for the confirm button (`Role::Button`).
 pub const FEMS_PROPOSE_CONFIRM_AUTHOR_ID: &str = "fems-propose-confirm";
+
+/// AccessKit author_id for the cancel button (`Role::Button`).
+pub const FEMS_PROPOSE_CANCEL_AUTHOR_ID: &str = "fems-propose-cancel";
+
+/// AccessKit author_id for the mounted proposal outcome (`Role::Status`). Its value is a stable
+/// semicolon-delimited machine projection containing `state`, `outcome`, and correlation ids.
+pub const FEMS_PROPOSE_STATUS_AUTHOR_ID: &str = "fems-propose-status";
+
+/// AccessKit author_id for the operator approval control shown after a proposal is durably queued.
+pub const FEMS_REVIEW_APPROVE_AUTHOR_ID: &str = "fems-review-approve";
+
+/// AccessKit author_id for the operator rejection control shown after a proposal is durably queued.
+pub const FEMS_REVIEW_REJECT_AUTHOR_ID: &str = "fems-review-reject";
+
+/// AccessKit author_id for the structured terminal/pending review status.
+pub const FEMS_REVIEW_STATUS_AUTHOR_ID: &str = "fems-review-status";
+/// AccessKit author_id for retrying a failed canonical pending-review list refresh.
+pub const FEMS_REVIEW_REFRESH_RETRY_AUTHOR_ID: &str = "fems-review-refresh-retry";
 
 /// AccessKit author_id PREFIX for a class radio (`fems-class-{episodic|semantic|procedural}`,
 /// `Role::RadioButton`). The full id is built by [`fems_class_author_id`].
@@ -177,9 +183,9 @@ impl MemoryClass {
 /// MT-032 loom hash so it matches the document block hash for identical content (RISK-005, AC-003).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemorySourceProvenance {
-    /// The document/block the content was selected from. For a `TextRange` selection this is the owning
-    /// pane id (the stable document-surface identifier the host maps to a live document id at E11/MT-069);
-    /// for a `BlockRef`/`NodeRef` selection it is the block/node id (already loom-addressable).
+    /// The canonical document/source the content was selected from. Rich text carries its persisted
+    /// RichDocument id; code carries its PostgreSQL `KnowledgeSource` (`KSRC-*`) id separately from the
+    /// filesystem tab key. A `BlockRef`/`NodeRef` carries its already-addressable block/node id.
     pub document_id: String,
     /// The start byte offset of the selection inside the document (a whole-block/whole-node selection
     /// uses `0`).
@@ -190,6 +196,10 @@ pub struct MemorySourceProvenance {
     /// The MT-032 loom content hash of the exact selected content (lowercase hex, 64 chars). Byte-
     /// identical to the document block hash for identical content (no second hashing scheme — AC-003).
     pub content_hash: String,
+    /// Raw SHA-256 of the complete source document when the source is a canonical code file. The
+    /// backend compares this to the `KnowledgeSource.content_hash` before trusting the selected slice.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_content_hash: Option<String>,
     /// The pane that owns the selection (the editor surface instance the proposal originated from).
     pub pane_id: String,
     /// The workspace the proposal is scoped to (the path parameter of the proposal POST).
@@ -198,8 +208,9 @@ pub struct MemorySourceProvenance {
 
 /// A typed, review-gated FEMS memory-write proposal built from an editor selection. The editor submits
 /// this to the review-gated FEMS write path; the commit is downstream and review-gated, never
-/// editor-direct. [`Self::review_gated`] is ALWAYS `true` (the load-bearing invariant — MC-002, AC-002).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// editor-direct. [`Self::is_review_gated`] is ALWAYS `true` (the load-bearing invariant — MC-002,
+/// AC-002); no deserializer or public field can construct a false-gated value.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MemoryWriteProposal {
     /// The Pillar 12 class this proposal targets.
     pub class: MemoryClass,
@@ -207,52 +218,80 @@ pub struct MemoryWriteProposal {
     pub content: String,
     /// Full source provenance (document_id + selection range + content hash + pane + workspace).
     pub source: MemorySourceProvenance,
-    /// ALWAYS `true`. Hard-set `true` for `Procedural` (spec) and `true` for every other class too; the
-    /// editor can never set it `false`. The commit is downstream + review-gated, never editor-direct.
-    pub review_gated: bool,
+    /// Transient complete code-document snapshot used only by the backend provenance gate. It is sent
+    /// with the intake request but is not included in the stored proposal or Flight Recorder payload.
+    pub source_document_content: Option<String>,
+    /// Private zero-sized proof that this value came through the review-gated constructor. Keeping this
+    /// private and non-deserializable prevents untrusted JSON or a public struct literal from forging an
+    /// editor-direct proposal. The wire and FR projections always emit the literal `true`.
+    review_gate: ReviewGate,
     /// The acting operator/model session id (for attribution on the review queue).
     pub actor_id: String,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ReviewGate;
 
 impl MemoryWriteProposal {
     /// True iff this proposal is review-gated (ALWAYS true — the invariant). Exposed so a test/consumer
     /// can assert the never-editor-direct contract without reaching into the field.
     pub fn is_review_gated(&self) -> bool {
-        self.review_gated
+        true
     }
 
-    /// The typed FR-EVT-MEM-001 (`memory_write_proposed`) payload this proposal emits through the MT-036
-    /// emitter after a successful ack. The payload carries the action marker + the proposal identity +
-    /// the provenance the swarm-observability loop needs (AC-008). `proposal_id` comes from the ack.
-    /// The `event_type` stays the CLOSED FR vocabulary (set by the MT-036 emitter); this is ONLY the
-    /// native-editor payload (`FR-EVT-MEM-001` is carried as the `action`, not a new ledger event_type).
+    /// Legacy native-editor correlation payload retained for decoding older proof data. New proposal
+    /// submissions do not emit this envelope: handshake_core projects the normative FR-EVT-MEM-001
+    /// from the PostgreSQL transaction outbox and returns its durable event UUID in [`ProposalAck`].
     pub fn fr_payload(&self, proposal_id: &str) -> JsonValue {
         json!({
             "action": "memory_write_proposed",
             "proposal_id": proposal_id,
+            "status": "pending_review",
             "class": self.class.wire(),
             "document_id": self.source.document_id,
             "selection_start": self.source.selection_start,
             "selection_end": self.source.selection_end,
             "content_hash": self.source.content_hash,
-            "review_gated": self.review_gated,
+            "review_gated": true,
             "pane_id": self.source.pane_id,
         })
     }
 
-    /// Build the MT-036 [`NativeEditorEvent`] for this proposal's FR-EVT-MEM-001 emit. The event carries
-    /// action [`NativeEditorAction::MemoryWriteProposed`] and this proposal's FR payload, addressed from
-    /// the proposal's pane + workspace. Reuses the MT-036 event schema (no new schema, AC-008).
+    /// Rebuild a legacy native-editor correlation event for historical proof-data compatibility.
+    /// Production submission uses the backend-owned normative event and never calls this method.
     pub fn fr_event(&self, proposal_id: &str) -> NativeEditorEvent {
-        use crate::event_emitter::{native_editor_actor_id, NativeEditorAction};
-        NativeEditorEvent::new(
+        use crate::event_emitter::NativeEditorAction;
+        let mut event = NativeEditorEvent::new(
             NativeEditorAction::MemoryWriteProposed,
             self.source.pane_id.clone(),
-            native_editor_actor_id(&self.source.pane_id),
+            self.actor_id.clone(),
             self.source.workspace_id.clone(),
             self.fr_payload(proposal_id),
-        )
+        );
+        if let Some(event_id) = stable_proposal_event_id(proposal_id) {
+            event.event_id = event_id;
+        }
+        event
     }
+}
+
+/// Map the backend's stable `PROP-<sha256>` identity to a standards-shaped UUIDv8. A retry of the same
+/// review-gated proposal must address the same Flight Recorder/EventLedger event instead of producing a
+/// second observability row. UUIDv8 is the RFC custom namespace; the 122 payload bits remain derived from
+/// the proposal digest while the version and variant bits are normalized.
+fn stable_proposal_event_id(proposal_id: &str) -> Option<String> {
+    let digest = proposal_id.strip_prefix("PROP-")?;
+    if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return None;
+    }
+    let mut bytes = [0_u8; 16];
+    for (index, byte) in bytes.iter_mut().enumerate() {
+        let offset = index * 2;
+        *byte = u8::from_str_radix(&digest[offset..offset + 2], 16).ok()?;
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x80;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    Some(uuid::Uuid::from_bytes(bytes).to_string())
 }
 
 /// The typed outcome of a proposal build/submit. [`Self::MissingEndpoint`] is the FIRST-CLASS TYPED
@@ -264,9 +303,28 @@ pub enum MemoryProposalError {
     /// The FEMS proposal write route is absent in this handshake_core build (the TYPED BLOCKER). Carries
     /// the path probed so the validator sees exactly which route is missing.
     MissingEndpoint { probed_path: String },
+    /// The review route exists, but the durable proposal is no longer present in this workspace.
+    ReviewTargetMissing { probed_path: String },
+    /// Another reviewer already recorded a different terminal decision for this proposal.
+    ReviewConflict(String),
+    /// The server returned a syntactically valid acknowledgement that did not match the requested
+    /// proposal/decision identity. Treat this as terminal uncertainty rather than reporting success.
+    ReviewAckMismatch(String),
     /// The [`SharedSelection`] was [`SharedSelection::None`] — there is nothing to propose. The dialog
     /// is not opened / the command is a no-op in this state (never a fabricated empty proposal).
     NoSelection,
+    /// A text selection identifies its owning pane but the SharedSelection contract does not carry the
+    /// pane's active document id. The app must resolve that id from the owning pane's active tab before
+    /// building a proposal; using the pane id as a document id would forge provenance.
+    MissingDocumentIdentity { pane_id: String },
+    /// The materialized selection is empty, so it cannot carry reviewable memory content.
+    EmptySelection,
+    /// SharedSelection byte offsets must cover exactly the selected UTF-8 bytes.
+    SelectionRangeMismatch {
+        start: usize,
+        end: usize,
+        content_bytes: usize,
+    },
     /// The proposal POST reached the server but failed (non-2xx that is NOT a 404, transport, or decode).
     /// Carries the reason. NOT a typed blocker — an ordinary submit failure surfaced to the operator.
     SubmitFailed(String),
@@ -279,7 +337,30 @@ impl std::fmt::Display for MemoryProposalError {
                 f,
                 "FEMS proposal write endpoint not present in this build (probed {probed_path})"
             ),
+            Self::ReviewTargetMissing { probed_path } => write!(
+                f,
+                "FEMS proposal is no longer available for review (probed {probed_path})"
+            ),
+            Self::ReviewConflict(reason) => {
+                write!(f, "FEMS proposal already has a conflicting review: {reason}")
+            }
+            Self::ReviewAckMismatch(reason) => {
+                write!(f, "FEMS proposal review acknowledgement mismatch: {reason}")
+            }
             Self::NoSelection => write!(f, "no selection to propose to memory"),
+            Self::MissingDocumentIdentity { pane_id } => write!(
+                f,
+                "selection in pane {pane_id} has no authoritative active document identity"
+            ),
+            Self::EmptySelection => write!(f, "memory proposal selection must not be empty"),
+            Self::SelectionRangeMismatch {
+                start,
+                end,
+                content_bytes,
+            } => write!(
+                f,
+                "selection byte range {start}..{end} does not cover the {content_bytes}-byte content"
+            ),
             Self::SubmitFailed(reason) => write!(f, "proposal submit failed: {reason}"),
         }
     }
@@ -302,6 +383,228 @@ pub struct ProposalAck {
     pub proposal_id: String,
     /// The proposal's review status (e.g. `"pending_review"`). Never `"committed"` from the editor path.
     pub status: String,
+    /// Canonical proposal creation time returned from PostgreSQL. Retries return the original value so
+    /// the correlated native-editor event can replay the exact same immutable envelope.
+    pub created_at: String,
+    /// Durable canonical FR-EVT-MEM-001 UUID projected by handshake_core's transactional outbox.
+    pub flight_recorder_event_id: String,
+}
+
+fn is_canonical_proposal_id(value: &str) -> bool {
+    value.strip_prefix("PROP-").is_some_and(|digest| {
+        digest.len() == 64
+            && digest
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    })
+}
+
+fn validate_proposal_ack(ack: &ProposalAck) -> Result<(), MemoryProposalError> {
+    if !is_canonical_proposal_id(&ack.proposal_id) {
+        return Err(MemoryProposalError::ReviewAckMismatch(format!(
+            "proposal acknowledgement id is not canonical: {}",
+            ack.proposal_id
+        )));
+    }
+    if !matches!(
+        ack.status.as_str(),
+        "pending_review" | "approved" | "rejected" | "committed"
+    ) {
+        return Err(MemoryProposalError::ReviewAckMismatch(format!(
+            "proposal acknowledgement status expected a canonical lifecycle state, received {}",
+            ack.status
+        )));
+    }
+    if chrono::DateTime::parse_from_rfc3339(&ack.created_at).is_err() {
+        return Err(MemoryProposalError::ReviewAckMismatch(
+            "proposal acknowledgement created_at expected RFC3339".to_owned(),
+        ));
+    }
+    if uuid::Uuid::parse_str(&ack.flight_recorder_event_id).is_err() {
+        return Err(MemoryProposalError::ReviewAckMismatch(
+            "proposal acknowledgement Flight Recorder event id expected UUID".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+/// The two operator decisions accepted by the closed FEMS proposal-review route.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProposalReviewDecision {
+    Approved,
+    Rejected,
+}
+
+impl ProposalReviewDecision {
+    pub const fn wire(self) -> &'static str {
+        match self {
+            Self::Approved => "approved",
+            Self::Rejected => "rejected",
+        }
+    }
+}
+
+/// Durable acknowledgement returned by the FEMS proposal-review route. These identities bridge the
+/// native control to the exact EventLedger and Flight Recorder evidence rows.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ProposalReviewAck {
+    pub proposal_id: String,
+    pub status: String,
+    pub decision: ProposalReviewDecision,
+    pub reviewer_kind: String,
+    pub actor_id: String,
+    pub correlation_id: String,
+    pub event_ledger_event_id: String,
+    pub flight_recorder_event_id: String,
+    pub reviewed_at: String,
+    /// Present only when an approval completed the explicit governed commit step.
+    #[serde(default)]
+    pub commit: Option<ProposalCommitAck>,
+}
+
+/// Durable acknowledgement returned by the explicit approved-proposal commit route.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ProposalCommitAck {
+    pub proposal_id: String,
+    pub status: String,
+    pub commit_id: String,
+    pub memory_id: String,
+    pub memory_pack_id: String,
+    pub memory_pack_hash: String,
+    pub commit_report: MemoryCommitReport,
+    pub commit_report_hash: String,
+    pub event_ledger_event_id: String,
+    pub flight_recorder_event_id: String,
+    pub committed_at: String,
+}
+
+/// Lifecycle states which expose a native operator action. Terminal proposals are deliberately not
+/// representable here, so a replayed rejected/committed acknowledgement cannot revive review controls.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActionableProposalLifecycle {
+    PendingReview,
+    Approved,
+}
+
+impl ActionableProposalLifecycle {
+    pub const fn wire(self) -> &'static str {
+        match self {
+            Self::PendingReview => "pending_review",
+            Self::Approved => "approved",
+        }
+    }
+}
+
+/// Typed native projection of the backend `MemoryCommitReport` contract.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MemoryCommitReport {
+    pub schema_version: String,
+    pub commit_id: String,
+    pub created_at: String,
+    pub source_proposal_id: String,
+    pub applied_ops: Vec<MemoryCommitAppliedOp>,
+    pub warnings: Vec<String>,
+    pub pack_rebuild_hints: Vec<MemoryPackRebuildHint>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MemoryCommitAppliedOp {
+    pub op: String,
+    pub memory_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_version: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub new_version: Option<u32>,
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MemoryPackRebuildHint {
+    pub scope_ref: MemoryCommitScopeRef,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MemoryCommitScopeRef {
+    pub artefact_type: String,
+    pub artefact_id: String,
+    pub selector: String,
+}
+
+/// Minimal canonical row needed to recover an actionable native review/commit after dismissal,
+/// restart, or workspace rebinding. Extra backend projection fields are deliberately ignored.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ActionableProposalSummary {
+    pub proposal_id: String,
+    pub workspace_id: String,
+    pub status: ActionableProposalLifecycle,
+    pub review_gated: bool,
+    pub created_at: String,
+}
+
+const REVIEW_ACTOR_ID: &str = "native-editor-fems-reviewer";
+
+fn validate_review_ack(
+    ack: &ProposalReviewAck,
+    proposal_id: &str,
+    decision: ProposalReviewDecision,
+) -> Result<(), MemoryProposalError> {
+    let expected_correlation = format!("fems-memory-proposal-review:{proposal_id}");
+    let mismatch = if ack.proposal_id != proposal_id {
+        Some(format!(
+            "proposal_id expected {proposal_id}, received {}",
+            ack.proposal_id
+        ))
+    } else if ack.decision != decision {
+        Some(format!(
+            "decision expected {}, received {}",
+            decision.wire(),
+            ack.decision.wire()
+        ))
+    } else if ack.status != decision.wire()
+        && !(decision == ProposalReviewDecision::Approved && ack.status == "committed")
+    {
+        Some(format!(
+            "status expected {} lifecycle-compatible state, received {}",
+            decision.wire(),
+            ack.status
+        ))
+    } else if ack.reviewer_kind != "user" {
+        Some(format!(
+            "reviewer_kind expected user, received {}",
+            ack.reviewer_kind
+        ))
+    } else if ack.actor_id != REVIEW_ACTOR_ID {
+        Some(format!(
+            "actor_id expected {REVIEW_ACTOR_ID}, received {}",
+            ack.actor_id
+        ))
+    } else if ack.correlation_id != expected_correlation {
+        Some(format!(
+            "correlation_id expected {expected_correlation}, received {}",
+            ack.correlation_id
+        ))
+    } else if !ack
+        .event_ledger_event_id
+        .strip_prefix("KE-")
+        .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok())
+    {
+        Some("event_ledger_event_id expected KE-<uuid>".to_owned())
+    } else if uuid::Uuid::parse_str(&ack.flight_recorder_event_id).is_err() {
+        Some("flight_recorder_event_id expected UUID".to_owned())
+    } else if chrono::DateTime::parse_from_rfc3339(&ack.reviewed_at).is_err() {
+        Some("reviewed_at expected RFC3339".to_owned())
+    } else {
+        None
+    };
+    match mismatch {
+        Some(reason) => Err(MemoryProposalError::ReviewAckMismatch(reason)),
+        None => Ok(()),
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -323,9 +626,9 @@ pub fn content_hash_of_selection(content: &str) -> String {
 /// output as separate steps.
 ///
 /// Provenance is read from the selection variant:
-/// - [`SharedSelection::TextRange`] gives the exact byte range + the selected text; `document_id` is the
-///   owning pane id (the stable document-surface identifier the host maps to a live document id at
-///   E11/MT-069).
+/// - [`SharedSelection::TextRange`] gives the exact byte range + selected text but not a document id.
+///   The live shell must resolve the owning pane's active-tab `content_id` and call
+///   [`build_proposal_for_document`]; pane identity is not document provenance.
 /// - [`SharedSelection::BlockRef`] / [`SharedSelection::NodeRef`] resolve their `document_id` from the
 ///   block/node id and use a whole-block/whole-node range (`0..content_len`, where the content is the
 ///   ref's loom address — the materialized block text is not carried by the ref variant, so the content
@@ -340,6 +643,60 @@ pub fn build_proposal(
     workspace_id: &str,
     actor_id: &str,
 ) -> Result<MemoryWriteProposal, MemoryProposalError> {
+    build_proposal_with_text_document_id(sel, class, workspace_id, actor_id, None, None)
+}
+
+/// Build a proposal while supplying the owning text pane's authoritative active document identity.
+///
+/// `SharedSelection::TextRange` deliberately carries only pane/surface/range/text. The shell owns the
+/// pane -> active-tab -> document mapping, so the live product path must resolve that mapping and call
+/// this function. BlockRef and NodeRef already carry their canonical addressable identity and ignore the
+/// optional text-document argument.
+pub fn build_proposal_for_document(
+    sel: &SharedSelection,
+    class: MemoryClass,
+    workspace_id: &str,
+    actor_id: &str,
+    document_id: &str,
+) -> Result<MemoryWriteProposal, MemoryProposalError> {
+    build_proposal_with_text_document_id(
+        sel,
+        class,
+        workspace_id,
+        actor_id,
+        Some(document_id),
+        None,
+    )
+}
+
+/// Build a text proposal with a complete mounted code-document snapshot. The snapshot is hashed here
+/// and later verified by the backend against the canonical `KnowledgeSource` row before range slicing.
+pub fn build_proposal_for_document_snapshot(
+    sel: &SharedSelection,
+    class: MemoryClass,
+    workspace_id: &str,
+    actor_id: &str,
+    document_id: &str,
+    document_content: String,
+) -> Result<MemoryWriteProposal, MemoryProposalError> {
+    build_proposal_with_text_document_id(
+        sel,
+        class,
+        workspace_id,
+        actor_id,
+        Some(document_id),
+        Some(document_content),
+    )
+}
+
+fn build_proposal_with_text_document_id(
+    sel: &SharedSelection,
+    class: MemoryClass,
+    workspace_id: &str,
+    actor_id: &str,
+    text_document_id: Option<&str>,
+    source_document_content: Option<String>,
+) -> Result<MemoryWriteProposal, MemoryProposalError> {
     let (document_id, pane_id, selection_start, selection_end, content) = match sel {
         SharedSelection::None => return Err(MemoryProposalError::NoSelection),
         SharedSelection::TextRange {
@@ -349,11 +706,19 @@ pub fn build_proposal(
             text,
             ..
         } => {
-            // document_id derives from the owning pane (the pane→document map is a host concern resolved
-            // live at E11/MT-069); the exact byte range + materialized text come straight from the
-            // selection.
+            // A pane id is a surface-instance identity, never document provenance. Every TextRange caller
+            // must supply the owning pane's authoritative active content_id. Fail closed even in fixtures:
+            // accepting pane identity here would make a test-only shortcut reachable as false provenance.
+            let document_id = match text_document_id {
+                Some(document_id) if !document_id.trim().is_empty() => document_id.trim(),
+                Some(_) | None => {
+                    return Err(MemoryProposalError::MissingDocumentIdentity {
+                        pane_id: pane_id.to_string(),
+                    })
+                }
+            };
             (
-                pane_id.to_string(),
+                document_id.to_owned(),
                 pane_id.to_string(),
                 *start,
                 *end,
@@ -389,7 +754,36 @@ pub fn build_proposal(
         }
     };
 
+    if content.is_empty() {
+        return Err(MemoryProposalError::EmptySelection);
+    }
+    let range_len = selection_end.checked_sub(selection_start).ok_or(
+        MemoryProposalError::SelectionRangeMismatch {
+            start: selection_start,
+            end: selection_end,
+            content_bytes: content.len(),
+        },
+    )?;
+    if range_len != content.len() {
+        return Err(MemoryProposalError::SelectionRangeMismatch {
+            start: selection_start,
+            end: selection_end,
+            content_bytes: content.len(),
+        });
+    }
+
     let content_hash = content_hash_of_selection(&content);
+
+    let document_content_hash = source_document_content.as_ref().map(|content| {
+        Sha256::digest(content.as_bytes()).iter().fold(
+            String::with_capacity(64),
+            |mut encoded, byte| {
+                use std::fmt::Write as _;
+                let _ = write!(&mut encoded, "{byte:02x}");
+                encoded
+            },
+        )
+    });
 
     Ok(MemoryWriteProposal {
         class,
@@ -399,13 +793,15 @@ pub fn build_proposal(
             selection_start,
             selection_end,
             content_hash,
+            document_content_hash,
             pane_id,
             workspace_id: workspace_id.to_owned(),
         },
+        source_document_content,
         // THE LOAD-BEARING INVARIANT: review_gated is ALWAYS true. There is no path — no constructor, no
         // setter, no class — that yields review_gated=false from the editor. Procedural is review-gated
         // by spec; every other class is review-gated too because the commit is never editor-direct.
-        review_gated: true,
+        review_gate: ReviewGate,
         actor_id: actor_id.to_owned(),
     })
 }
@@ -418,6 +814,7 @@ pub fn build_proposal(
 /// is attributable on the review queue). A proposal is a WRITE-CAPABLE action, so the
 /// `x-hsk-actor-kind=human` write-capable kind is attached (unlike the read-only FEMS capsule read).
 const FEMS_PROPOSE_ACTOR_KIND: &str = "human";
+const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
 
 /// Read timeout for a single proposal submit. A bounded timeout so a hung backend cannot stall the
 /// editor (the submit runs off the frame thread on the shared async runtime).
@@ -429,6 +826,57 @@ pub fn proposal_path(workspace_id: &str) -> String {
     format!("/workspaces/{workspace_id}/memory/proposals")
 }
 
+/// The closed native review route for one durable proposal.
+pub fn proposal_review_path(workspace_id: &str, proposal_id: &str) -> String {
+    format!("/workspaces/{workspace_id}/memory/proposals/{proposal_id}/review")
+}
+
+/// The explicit commit route. It accepts only a previously approved proposal.
+pub fn proposal_commit_path(workspace_id: &str, proposal_id: &str) -> String {
+    format!("/workspaces/{workspace_id}/memory/proposals/{proposal_id}/commit")
+}
+
+/// Read the bounded canonical actionable projection used to recover pending review and approved commit.
+pub async fn list_actionable_proposals(
+    workspace_id: &str,
+    client: &HandshakeCoreClient,
+) -> Result<Vec<ActionableProposalSummary>, MemoryProposalError> {
+    let path = format!("{}?limit=200", proposal_path(workspace_id));
+    let response = client
+        .authenticated(client.client.get(client.url(&path)).timeout(SUBMIT_TIMEOUT))
+        .send()
+        .await
+        .map_err(|error| {
+            MemoryProposalError::SubmitFailed(format!("review list transport: {error}"))
+        })?;
+    let status = response.status();
+    if !status.is_success() {
+        let code = status.as_u16();
+        let text = response.text().await.unwrap_or_default();
+        return Err(MemoryProposalError::SubmitFailed(format!(
+            "review list status {code}: {text}"
+        )));
+    }
+    let rows = response
+        .json::<Vec<ActionableProposalSummary>>()
+        .await
+        .map_err(|error| {
+            MemoryProposalError::SubmitFailed(format!("review list decode: {error}"))
+        })?;
+    if let Some(invalid) = rows.iter().find(|row| {
+        row.workspace_id != workspace_id
+            || !row.review_gated
+            || !is_canonical_proposal_id(&row.proposal_id)
+            || chrono::DateTime::parse_from_rfc3339(&row.created_at).is_err()
+    }) {
+        return Err(MemoryProposalError::ReviewAckMismatch(format!(
+            "actionable projection returned invalid row proposal={} workspace={} status={} review_gated={}",
+            invalid.proposal_id, invalid.workspace_id, invalid.status.wire(), invalid.review_gated
+        )));
+    }
+    Ok(rows)
+}
+
 /// The minimal typed HTTP client for the proposal submit. Holds ONLY a shared [`reqwest::Client`] (the
 /// process-wide [`crate::backend_client::shared_http_client`] pool — NO second HTTP stack, RISK-008-style
 /// fork avoidance) + the config-resolved base URL — the same pattern
@@ -438,6 +886,7 @@ pub fn proposal_path(workspace_id: &str) -> String {
 pub struct HandshakeCoreClient {
     client: reqwest::Client,
     base_url: String,
+    session_token: Option<String>,
 }
 
 impl Default for HandshakeCoreClient {
@@ -454,6 +903,7 @@ impl HandshakeCoreClient {
         Self {
             client: crate::backend_client::shared_http_client(),
             base_url: crate::backend_client::BACKEND_BASE_URL.to_owned(),
+            session_token: None,
         }
     }
 
@@ -463,12 +913,311 @@ impl HandshakeCoreClient {
         Self {
             client: reqwest::Client::new(),
             base_url: base_url.into(),
+            session_token: None,
         }
+    }
+
+    /// Bind every FEMS request to the authenticated native MCP session.
+    pub fn with_session_token(mut self, session_token: impl Into<String>) -> Self {
+        self.session_token = Some(session_token.into());
+        self
+    }
+
+    fn authenticated(&self, mut request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        if let Some(session_token) = &self.session_token {
+            request = request.header(HSK_HEADER_SESSION_TOKEN, session_token);
+        }
+        request
     }
 
     fn url(&self, path: &str) -> String {
         format!("{}{}", self.base_url, path)
     }
+}
+
+/// Record an operator approval/rejection through the production FEMS review route. Rejection returns
+/// the review receipt only. Approval then invokes the separate explicit commit route and returns both
+/// immutable receipts; an exact retry converges on those same identities.
+pub async fn review_proposal(
+    workspace_id: &str,
+    proposal_id: &str,
+    decision: ProposalReviewDecision,
+    client: &HandshakeCoreClient,
+) -> Result<ProposalReviewAck, MemoryProposalError> {
+    use crate::backend_client::{
+        HSK_HEADER_ACTOR_ID, HSK_HEADER_ACTOR_KIND, HSK_HEADER_KERNEL_TASK_RUN_ID,
+        HSK_HEADER_SESSION_RUN_ID,
+    };
+
+    let path = proposal_review_path(workspace_id, proposal_id);
+    let response = client
+        .authenticated(
+            client
+                .client
+                .post(client.url(&path))
+                .timeout(SUBMIT_TIMEOUT)
+                .header(HSK_HEADER_ACTOR_ID, REVIEW_ACTOR_ID)
+                .header(HSK_HEADER_ACTOR_KIND, "operator")
+                .header(
+                    HSK_HEADER_KERNEL_TASK_RUN_ID,
+                    format!("native-editor-fems-review-{workspace_id}"),
+                )
+                .header(HSK_HEADER_SESSION_RUN_ID, "native-editor-session")
+                .json(&json!({
+                    "decision": decision.wire(),
+                    "reviewer_kind": "user",
+                    "reason": format!("Native editor operator {} decision", decision.wire()),
+                })),
+        )
+        .send()
+        .await
+        .map_err(|error| MemoryProposalError::SubmitFailed(format!("review transport: {error}")))?;
+
+    let status = response.status();
+    if status == reqwest::StatusCode::NOT_FOUND {
+        let text = response.text().await.unwrap_or_default();
+        let canonical_missing = serde_json::from_str::<serde_json::Value>(&text)
+            .ok()
+            .is_some_and(|body| {
+                body.get("error").and_then(serde_json::Value::as_str) == Some("not_found")
+                    && body.get("detail").and_then(serde_json::Value::as_str)
+                        == Some("memory proposal in workspace")
+            });
+        return if canonical_missing {
+            Err(MemoryProposalError::ReviewTargetMissing { probed_path: path })
+        } else {
+            Err(MemoryProposalError::SubmitFailed(format!(
+                "review route status 404: {text}"
+            )))
+        };
+    }
+    if status == reqwest::StatusCode::CONFLICT {
+        let text = response.text().await.unwrap_or_default();
+        return Err(MemoryProposalError::ReviewConflict(text));
+    }
+    if !status.is_success() {
+        let code = status.as_u16();
+        let text = response.text().await.unwrap_or_default();
+        return Err(MemoryProposalError::SubmitFailed(format!(
+            "review status {code}: {text}"
+        )));
+    }
+    let mut ack = response
+        .json::<ProposalReviewAck>()
+        .await
+        .map_err(|error| {
+            MemoryProposalError::SubmitFailed(format!("review ack decode: {error}"))
+        })?;
+    validate_review_ack(&ack, proposal_id, decision)?;
+    if decision == ProposalReviewDecision::Approved {
+        ack.commit = Some(commit_proposal(workspace_id, proposal_id, client).await?);
+    }
+    Ok(ack)
+}
+
+async fn commit_proposal(
+    workspace_id: &str,
+    proposal_id: &str,
+    client: &HandshakeCoreClient,
+) -> Result<ProposalCommitAck, MemoryProposalError> {
+    use crate::backend_client::{
+        HSK_HEADER_ACTOR_ID, HSK_HEADER_ACTOR_KIND, HSK_HEADER_KERNEL_TASK_RUN_ID,
+        HSK_HEADER_SESSION_RUN_ID,
+    };
+
+    let path = proposal_commit_path(workspace_id, proposal_id);
+    let response = client
+        .authenticated(
+            client
+                .client
+                .post(client.url(&path))
+                .timeout(SUBMIT_TIMEOUT)
+                .header(HSK_HEADER_ACTOR_ID, REVIEW_ACTOR_ID)
+                .header(HSK_HEADER_ACTOR_KIND, "operator")
+                .header(
+                    HSK_HEADER_KERNEL_TASK_RUN_ID,
+                    format!("native-editor-fems-commit-{workspace_id}"),
+                )
+                .header(HSK_HEADER_SESSION_RUN_ID, "native-editor-session"),
+        )
+        .send()
+        .await
+        .map_err(|error| MemoryProposalError::SubmitFailed(format!("commit transport: {error}")))?;
+    let status = response.status();
+    if status == reqwest::StatusCode::CONFLICT {
+        let text = response.text().await.unwrap_or_default();
+        return Err(MemoryProposalError::ReviewConflict(text));
+    }
+    if status == reqwest::StatusCode::NOT_FOUND {
+        return Err(MemoryProposalError::ReviewTargetMissing { probed_path: path });
+    }
+    if !status.is_success() {
+        let code = status.as_u16();
+        let text = response.text().await.unwrap_or_default();
+        return Err(MemoryProposalError::SubmitFailed(format!(
+            "commit status {code}: {text}"
+        )));
+    }
+    let ack = response
+        .json::<ProposalCommitAck>()
+        .await
+        .map_err(|error| {
+            MemoryProposalError::SubmitFailed(format!("commit ack decode: {error}"))
+        })?;
+    validate_commit_ack(&ack, proposal_id)?;
+    Ok(ack)
+}
+
+/// Resume the only valid action for a durable approved proposal recovered after interruption.
+pub async fn commit_approved_proposal(
+    workspace_id: &str,
+    proposal_id: &str,
+    client: &HandshakeCoreClient,
+) -> Result<ProposalCommitAck, MemoryProposalError> {
+    commit_proposal(workspace_id, proposal_id, client).await
+}
+
+fn validate_commit_ack(
+    ack: &ProposalCommitAck,
+    proposal_id: &str,
+) -> Result<(), MemoryProposalError> {
+    let canonical_hash = |value: &str| {
+        value.len() == 64
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    };
+    let report = &ack.commit_report;
+    let report_hash = compute_memory_commit_report_hash(report)
+        .map_err(MemoryProposalError::ReviewAckMismatch)?;
+    let canonical = ack.proposal_id == proposal_id
+        && ack.status == "committed"
+        && uuid::Uuid::parse_str(&ack.commit_id).is_ok()
+        && uuid::Uuid::parse_str(&ack.memory_id).is_ok()
+        && uuid::Uuid::parse_str(&ack.memory_pack_id).is_ok()
+        && canonical_hash(&ack.memory_pack_hash)
+        && canonical_hash(&ack.commit_report_hash)
+        && ack
+            .event_ledger_event_id
+            .strip_prefix("KE-")
+            .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok())
+        && uuid::Uuid::parse_str(&ack.flight_recorder_event_id).is_ok()
+        && chrono::DateTime::parse_from_rfc3339(&ack.committed_at).is_ok()
+        && report.schema_version == "hsk.memory_commit_report@0.1"
+        && report.commit_id == ack.commit_id
+        && report.source_proposal_id == ack.proposal_id
+        && report.created_at == ack.committed_at
+        && report_hash == ack.commit_report_hash
+        && report.applied_ops.len() == 1
+        && report.applied_ops[0].op == "add"
+        && report.applied_ops[0].memory_id == ack.memory_id
+        && report.applied_ops[0].previous_version.is_none()
+        && report.applied_ops[0].new_version == Some(1)
+        && report.applied_ops[0].status == "applied"
+        && report.applied_ops[0].reason.is_none()
+        && !report.pack_rebuild_hints.is_empty()
+        && report.pack_rebuild_hints.iter().all(|hint| {
+            hint.reason == "memory_changed"
+                && uuid::Uuid::parse_str(&hint.scope_ref.artefact_id).is_ok()
+        });
+    if !canonical {
+        return Err(MemoryProposalError::ReviewAckMismatch(
+            "proposal commit acknowledgement is not canonically bound".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+/// Re-hash a dereferenced commit-report artifact with the exact backend NFC canonical JSON contract.
+pub fn compute_memory_commit_report_hash(report: &MemoryCommitReport) -> Result<String, String> {
+    serde_json::to_value(report)
+        .map(|value| sha256_hex(&canonical_json_bytes_nfc(&value)))
+        .map_err(|error| error.to_string())
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+/// Byte-for-byte port of the backend's NFC canonical JSON used by `MemoryCommitReport::compute_hash`.
+fn canonical_json_bytes_nfc(value: &JsonValue) -> Vec<u8> {
+    fn write_string(out: &mut String, value: &str) {
+        out.push('"');
+        for ch in value.nfc() {
+            match ch {
+                '"' => out.push_str("\\\""),
+                '\\' => out.push_str("\\\\"),
+                '\u{08}' => out.push_str("\\b"),
+                '\u{0c}' => out.push_str("\\f"),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                ch if (ch as u32) < 0x20 => out.push_str(&format!("\\u{:04X}", ch as u32)),
+                ch if (ch as u32) <= 0x7f => out.push(ch),
+                ch if (ch as u32) <= 0xffff => out.push_str(&format!("\\u{:04X}", ch as u32)),
+                ch => {
+                    let code = (ch as u32) - 0x1_0000;
+                    out.push_str(&format!(
+                        "\\u{:04X}\\u{:04X}",
+                        0xd800 + ((code >> 10) & 0x3ff),
+                        0xdc00 + (code & 0x3ff)
+                    ));
+                }
+            }
+        }
+        out.push('"');
+    }
+    fn write_value(out: &mut String, value: &JsonValue) {
+        match value {
+            JsonValue::Null => out.push_str("null"),
+            JsonValue::Bool(value) => out.push_str(if *value { "true" } else { "false" }),
+            JsonValue::Number(number) => {
+                if let Some(value) = number.as_i64() {
+                    out.push_str(&value.to_string());
+                } else if let Some(value) = number.as_u64() {
+                    out.push_str(&value.to_string());
+                } else if let Some(value) = number.as_f64() {
+                    out.push_str(&format!("{:.6}", if value == 0.0 { 0.0 } else { value }));
+                } else {
+                    out.push_str(&number.to_string());
+                }
+            }
+            JsonValue::String(value) => write_string(out, value),
+            JsonValue::Array(values) => {
+                out.push('[');
+                for (index, value) in values.iter().enumerate() {
+                    if index > 0 {
+                        out.push(',');
+                    }
+                    write_value(out, value);
+                }
+                out.push(']');
+            }
+            JsonValue::Object(map) => {
+                out.push('{');
+                let mut keys = map
+                    .keys()
+                    .map(|key| (key, key.nfc().collect::<String>()))
+                    .collect::<Vec<_>>();
+                keys.sort_by(|(a_raw, a_norm), (b_raw, b_norm)| {
+                    a_norm.cmp(b_norm).then_with(|| a_raw.cmp(b_raw))
+                });
+                for (index, (key, _)) in keys.iter().enumerate() {
+                    if index > 0 {
+                        out.push(',');
+                    }
+                    write_string(out, key);
+                    out.push(':');
+                    write_value(out, &map[*key]);
+                }
+                out.push('}');
+            }
+        }
+    }
+    let mut out = String::new();
+    write_value(&mut out, value);
+    out.into_bytes()
 }
 
 /// Submit a review-gated proposal to the EXISTING FEMS write path
@@ -478,8 +1227,8 @@ impl HandshakeCoreClient {
 /// Behavior contract:
 /// - A 404 / route-absent response maps to [`MemoryProposalError::MissingEndpoint`] — the TYPED BLOCKER
 ///   (RISK-004, MC-004, AC-005). It does NOT commit and does NOT fall back to any direct memory write.
-///   This is the DESIGNED PRIMARY PATH in the current build, where the route does not exist.
-/// - A 2xx body is decoded into a [`ProposalAck`]; the caller then emits the FR-EVT-MEM-001 event.
+/// - A 2xx body is decoded into a [`ProposalAck`] carrying the backend's already-durable
+///   FR-EVT-MEM-001 UUID.
 /// - Any other non-success status / transport / decode failure maps to
 ///   [`MemoryProposalError::SubmitFailed`] (an ordinary failure surfaced to the operator — never a
 ///   silent commit, never a fallback write).
@@ -498,26 +1247,32 @@ pub async fn submit_proposal(
 
     // The typed proposal body (class, content, source provenance, review_gated, actor_id). review_gated
     // is serialized as true (the invariant); the backend's review queue is the authority for the commit.
-    let body = json!({
+    let mut body = json!({
         "class": proposal.class.wire(),
         "content": proposal.content,
         "source": proposal.source,
-        "review_gated": proposal.review_gated,
+        "review_gated": true,
         "actor_id": proposal.actor_id,
     });
+    if let Some(document_content) = proposal.source_document_content.as_ref() {
+        body["source_document_content"] = JsonValue::String(document_content.clone());
+    }
 
     let resp = client
-        .client
-        .post(&url)
-        .timeout(SUBMIT_TIMEOUT)
-        .header(HSK_HEADER_ACTOR_ID, proposal.actor_id.as_str())
-        .header(HSK_HEADER_ACTOR_KIND, FEMS_PROPOSE_ACTOR_KIND)
-        .header(
-            HSK_HEADER_KERNEL_TASK_RUN_ID,
-            format!("native-editor-fems-propose-{workspace_id}"),
+        .authenticated(
+            client
+                .client
+                .post(&url)
+                .timeout(SUBMIT_TIMEOUT)
+                .header(HSK_HEADER_ACTOR_ID, proposal.actor_id.as_str())
+                .header(HSK_HEADER_ACTOR_KIND, FEMS_PROPOSE_ACTOR_KIND)
+                .header(
+                    HSK_HEADER_KERNEL_TASK_RUN_ID,
+                    format!("native-editor-fems-propose-{workspace_id}"),
+                )
+                .header(HSK_HEADER_SESSION_RUN_ID, "native-editor-session")
+                .json(&body),
         )
-        .header(HSK_HEADER_SESSION_RUN_ID, "native-editor-session")
-        .json(&body)
         .send()
         .await
         .map_err(|e| MemoryProposalError::SubmitFailed(format!("transport: {e}")))?;
@@ -538,28 +1293,80 @@ pub async fn submit_proposal(
         )));
     }
 
-    resp.json::<ProposalAck>()
+    let ack = resp
+        .json::<ProposalAck>()
         .await
-        .map_err(|e| MemoryProposalError::SubmitFailed(format!("ack decode: {e}")))
+        .map_err(|e| MemoryProposalError::SubmitFailed(format!("ack decode: {e}")))?;
+    validate_proposal_ack(&ack)?;
+    Ok(ack)
 }
 
-/// Submit a proposal AND, on success, emit the FR-EVT-MEM-001 (`memory_write_proposed`) event through the
-/// MT-036 emitter (no new emitter, AC-008). Runs off the frame thread. The FR emit reuses the MT-036
-/// emitter's semaphore-bounded off-frame spawn + error ring (a failed emit lands in the ring, never
-/// panics — RISK-006/007, MC-006/007). On [`MemoryProposalError::MissingEndpoint`] (the typed blocker)
-/// it writes nothing and emits nothing — the editor never falls back to a direct write. Returns the ack
-/// on success so the host can surface the proposal id.
+/// Submit a proposal and return the canonical FR-EVT-MEM-001 UUID that handshake_core persisted through
+/// its transaction outbox before acknowledging the request. The emitter parameter remains for source
+/// compatibility with existing callers, but no duplicate native-editor event is queued.
 pub async fn submit_proposal_and_emit(
     proposal: &MemoryWriteProposal,
     client: &HandshakeCoreClient,
-    emitter: &NativeEditorEventEmitter,
-) -> Result<ProposalAck, MemoryProposalError> {
+    _emitter: &NativeEditorEventEmitter,
+) -> Result<ProposalSubmitOutcome, MemoryProposalError> {
     let ack = submit_proposal(proposal, client).await?;
-    // FR-EVT-MEM-001: emit AFTER a successful ack, via the MT-036 emitter. The emit is non-blocking and
-    // a failure is recorded in the MT-036 error ring (never crashes the frame); we do NOT propagate an
-    // emit failure as a proposal failure — the proposal WAS accepted.
-    let _ = emitter.emit(proposal.fr_event(&ack.proposal_id));
-    Ok(ack)
+    // handshake_core owns the canonical FR-EVT-MEM-001. Its transactional outbox is committed with
+    // the proposal and the API acknowledges only after the projection is durable, eliminating the
+    // former frontend-after-ack crash gap and duplicate non-normative native-editor event.
+    let event_id = ack.flight_recorder_event_id.clone();
+    Ok(ProposalSubmitOutcome::EventPersisted { ack, event_id })
+}
+
+/// The two materially different outcomes after the proposal POST succeeds. The proposal may already be
+/// durable even when the FR event cannot be queued, so collapsing both states into `ProposalAck` would
+/// let the UI claim correlated success that did not happen.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProposalSubmitOutcome {
+    /// The proposal and its canonical backend-projected event are both durable.
+    EventPersisted { ack: ProposalAck, event_id: String },
+    /// The proposal was accepted, but the correlated event was rejected before queueing (workspace
+    /// mismatch, backpressure, missing runtime, or a closed worker). This is partial success, not a
+    /// correlated-success result.
+    EventRejected {
+        ack: ProposalAck,
+        error: crate::event_emitter::EmitError,
+    },
+    /// The proposal is durable, but the queued event reached a terminal transport failure.
+    EventPersistenceFailed {
+        ack: ProposalAck,
+        event_id: String,
+        error: crate::event_emitter::EmitError,
+    },
+    /// The proposal is durable and the event was queued, but no final persistence receipt arrived
+    /// inside the hard bound. Persistence is unknown and must not be presented as success.
+    EventPersistenceTimedOut {
+        ack: ProposalAck,
+        event_id: String,
+        timeout_ms: u64,
+    },
+}
+
+impl ProposalSubmitOutcome {
+    pub fn ack(&self) -> &ProposalAck {
+        match self {
+            Self::EventPersisted { ack, .. }
+            | Self::EventRejected { ack, .. }
+            | Self::EventPersistenceFailed { ack, .. }
+            | Self::EventPersistenceTimedOut { ack, .. } => ack,
+        }
+    }
+
+    pub fn event_was_persisted(&self) -> bool {
+        matches!(self, Self::EventPersisted { .. })
+    }
+}
+
+impl std::ops::Deref for ProposalSubmitOutcome {
+    type Target = ProposalAck;
+
+    fn deref(&self) -> &Self::Target {
+        self.ack()
+    }
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -596,8 +1403,10 @@ pub struct ProposeToMemoryDialog {
 
 impl ProposeToMemoryDialog {
     /// Open the dialog over `selection`, defaulting to [`MemoryClass::DEFAULT`]. Returns
-    /// [`MemoryProposalError::NoSelection`] when there is no selection (the dialog is not opened — never a
-    /// fabricated empty proposal). `workspace_id`/`actor_id` come from the live app state.
+    /// [`MemoryProposalError::NoSelection`] when there is no selection and
+    /// [`MemoryProposalError::MissingDocumentIdentity`] for a text range whose host did not supply the
+    /// active document through [`Self::open_for_document`]. `workspace_id`/`actor_id` come from live app
+    /// state; a fabricated empty proposal or pane-id provenance is never accepted.
     pub fn open(
         selection: &SharedSelection,
         workspace_id: &str,
@@ -608,19 +1417,73 @@ impl ProposeToMemoryDialog {
         Ok(Self { class, proposal })
     }
 
+    /// Open the live dialog using the authoritative active document id resolved by the shell for the
+    /// selection's owning pane. This is the production TextRange path; it never substitutes pane identity
+    /// for document provenance.
+    pub fn open_for_document(
+        selection: &SharedSelection,
+        document_id: &str,
+        workspace_id: &str,
+        actor_id: &str,
+    ) -> Result<Self, MemoryProposalError> {
+        let class = MemoryClass::DEFAULT;
+        if matches!(selection, SharedSelection::TextRange { .. }) && document_id.trim().is_empty() {
+            let pane_id = selection
+                .pane_id()
+                .map(|pane| pane.to_string())
+                .unwrap_or_default();
+            return Err(MemoryProposalError::MissingDocumentIdentity { pane_id });
+        }
+        let proposal =
+            build_proposal_for_document(selection, class, workspace_id, actor_id, document_id)?;
+        Ok(Self { class, proposal })
+    }
+
+    /// Open the live dialog for a canonical code source, retaining the complete mounted snapshot only
+    /// for the backend's raw-hash and exact-slice provenance validation.
+    pub fn open_for_document_snapshot(
+        selection: &SharedSelection,
+        document_id: &str,
+        document_content: String,
+        workspace_id: &str,
+        actor_id: &str,
+    ) -> Result<Self, MemoryProposalError> {
+        let class = MemoryClass::DEFAULT;
+        if matches!(selection, SharedSelection::TextRange { .. }) && document_id.trim().is_empty() {
+            let pane_id = selection
+                .pane_id()
+                .map(|pane| pane.to_string())
+                .unwrap_or_default();
+            return Err(MemoryProposalError::MissingDocumentIdentity { pane_id });
+        }
+        let proposal = build_proposal_for_document_snapshot(
+            selection,
+            class,
+            workspace_id,
+            actor_id,
+            document_id,
+            document_content,
+        )?;
+        Ok(Self { class, proposal })
+    }
+
     /// Switch the picked class, rebuilding the previewed proposal (so the previewed content_hash +
     /// review_gated reflect the new class). The selection is re-read from the existing proposal's source
     /// (the content + provenance are unchanged by a class switch; only `class` differs).
     pub fn set_class(&mut self, class: MemoryClass) {
-        if class == self.class {
+        if class == self.class && class == self.proposal.class {
             return;
         }
         self.class = class;
-        // Rebuild keeping the same content + provenance; only the class changes. review_gated stays true.
-        self.proposal = MemoryWriteProposal {
-            class,
-            ..self.proposal.clone()
-        };
+        if self.proposal.class != class {
+            // Rebuild keeping the same content + provenance; only the class changes. review_gated stays
+            // true. `radio_value` updates `self.class` before this method is called, so the proposal class
+            // is the authoritative no-op check here.
+            self.proposal = MemoryWriteProposal {
+                class,
+                ..self.proposal.clone()
+            };
+        }
     }
 
     /// The outcome of one [`Self::show`] frame: what the operator did this frame.
@@ -650,8 +1513,29 @@ impl ProposeToMemoryDialog {
             // not the fixed registry band.
             ui.horizontal(|ui| {
                 for class in MemoryClass::ORDER {
-                    let resp = ui.radio_value(&mut self.class, class, class.label());
-                    emit_interactive_node(ui.ctx(), resp.id, &fems_class_author_id(class));
+                    let author_id = fems_class_author_id(class);
+                    // Give each radio its own stable id scope. The previous anonymous auto-id worked in
+                    // the isolated widget harness but could be overwritten in the complete mounted app
+                    // tree, leaving the control absent from the MCP/AccessKit snapshot. The real egui
+                    // radio remains the interactive node; this scope only makes its identity collision-
+                    // proof across frames and surrounding work-surface widgets.
+                    let resp = ui
+                        .push_id(&author_id, |ui| {
+                            ui.radio_value(&mut self.class, class, class.label())
+                        })
+                        .inner;
+                    emit_interactive_node(ui.ctx(), resp.id, &author_id);
+                    ui.ctx().accesskit_node_builder(resp.id, |node| {
+                        node.clear_disabled();
+                    });
+                    if ui.input(|input| {
+                        input
+                            .accesskit_action_requests(resp.id, egui::accesskit::Action::Click)
+                            .next()
+                            .is_some()
+                    }) {
+                        self.class = class;
+                    }
                 }
             });
             // Keep the previewed proposal's class in sync with the radio selection.
@@ -679,10 +1563,30 @@ impl ProposeToMemoryDialog {
                 // author_id (AC-007); like the radios it lives in egui's hashed id space.
                 let confirm = ui.button("Propose");
                 emit_interactive_node(ui.ctx(), confirm.id, FEMS_PROPOSE_CONFIRM_AUTHOR_ID);
-                if confirm.clicked() {
+                ui.ctx().accesskit_node_builder(confirm.id, |node| {
+                    node.clear_disabled();
+                });
+                let confirm_accesskit = ui.input(|input| {
+                    input
+                        .accesskit_action_requests(confirm.id, egui::accesskit::Action::Click)
+                        .next()
+                        .is_some()
+                });
+                if confirm.clicked() || confirm_accesskit {
                     outcome = ProposeDialogOutcome::Confirmed(Box::new(self.proposal.clone()));
                 }
-                if ui.button("Cancel").clicked() {
+                let cancel = ui.button("Cancel");
+                emit_interactive_node(ui.ctx(), cancel.id, FEMS_PROPOSE_CANCEL_AUTHOR_ID);
+                ui.ctx().accesskit_node_builder(cancel.id, |node| {
+                    node.clear_disabled();
+                });
+                let cancel_accesskit = ui.input(|input| {
+                    input
+                        .accesskit_action_requests(cancel.id, egui::accesskit::Action::Click)
+                        .next()
+                        .is_some()
+                });
+                if cancel.clicked() || cancel_accesskit {
                     outcome = ProposeDialogOutcome::Cancelled;
                 }
             });
@@ -738,11 +1642,11 @@ fn short_hash(hash: &str) -> &str {
 }
 
 /// The runtime [`crate::interop::CommandDescriptor`] for the "Propose to Memory" command. The shell's
-/// palette dispatch arm (`app::dispatch_palette_action`) registers this on the live MT-031
-/// [`crate::interop::InteractionBus`] and then opens the [`ProposeToMemoryDialog`] over the live
-/// `SharedSelection` — the dialog mount IS the visible result the dispatch produces NOW. The handler
-/// here is the bus-side seam: it requests a repaint so the shell's dialog render runs next frame (the
-/// same stage-then-drain split the MT-033 route-to-stage / MT-032 open-document commands use). It
+/// palette dispatch arm and shell startup register this on the live MT-031
+/// [`crate::interop::InteractionBus`]. The handler captures the workspace-versioned selection and
+/// emitter, then requests a repaint so the mounted app drains the request and opens the
+/// [`ProposeToMemoryDialog`] next frame (the same stage-then-drain split the MT-033 route-to-stage /
+/// MT-032 open-document commands use). It
 /// performs NO direct memory write (the only write path is the review-gated proposal POST). Palette-
 /// driven: NO keybind (does not steal a VS Code binding — RISK-010).
 pub fn propose_to_memory_descriptor() -> crate::interop::CommandDescriptor {
@@ -758,9 +1662,8 @@ pub fn propose_to_memory_descriptor() -> crate::interop::CommandDescriptor {
         ],
         keybind: None,
         handler: Arc::new(
-            |ctx: &egui::Context, _bus: &mut crate::interop::InteractionBus| {
-                // The shell's dispatch arm opens the dialog over the live selection (the visible result);
-                // this bus-side handler requests a repaint so that render runs. NO direct memory write here.
+            |ctx: &egui::Context, bus: &mut crate::interop::InteractionBus| {
+                bus.request_memory_proposal();
                 ctx.request_repaint();
             },
         ),
@@ -769,9 +1672,8 @@ pub fn propose_to_memory_descriptor() -> crate::interop::CommandDescriptor {
 
 /// Register the "Propose to Memory" command into the WP-011 command registry's runtime command bus,
 /// reusing the existing [`crate::interop::InteractionBus`] registration API (NO duplicate registry/bus,
-/// RISK-008, MC-008, AC-006). Idempotent (last registration wins). Called from the shell's palette
-/// dispatch arm (`app::dispatch_palette_action`) — a LIVE call site — so the command is addressable
-/// out-of-process before the dialog opens over the live selection.
+/// RISK-008, MC-008, AC-006). Idempotent (last registration wins). Called during shell frames and from
+/// the palette dispatch arm, so MCP/shared-bus callers and the palette use the same live handler.
 ///
 /// This is the WRAP-not-fork registration: the static [`crate::command_registry`] catalog carries the
 /// discoverable palette row ([`PROPOSE_TO_MEMORY_COMMAND`]); this registers the runtime handler on the
@@ -803,18 +1705,20 @@ mod tests {
     /// TextRange selection.
     #[test]
     fn build_proposal_sets_class_and_full_provenance_from_text_range() {
-        let sel = text_range("pane-rich", 10, 25, "hello memory");
-        let p = build_proposal(&sel, MemoryClass::Semantic, "WS-1", "actor-7").expect("builds");
+        let sel = text_range("pane-rich", 10, 22, "hello memory");
+        let p =
+            build_proposal_for_document(&sel, MemoryClass::Semantic, "WS-1", "actor-7", "DOC-1")
+                .expect("builds");
         assert_eq!(p.class, MemoryClass::Semantic);
         assert_eq!(p.content, "hello memory");
         assert_eq!(
-            p.source.document_id, "pane-rich",
-            "document_id derives from the owning pane"
+            p.source.document_id, "DOC-1",
+            "document_id comes from the owning pane's active tab"
         );
         assert_eq!(p.source.pane_id, "pane-rich");
         assert_eq!(p.source.workspace_id, "WS-1");
         assert_eq!(p.source.selection_start, 10);
-        assert_eq!(p.source.selection_end, 25);
+        assert_eq!(p.source.selection_end, 22);
         assert_eq!(p.actor_id, "actor-7");
         // content_hash is 64-char lowercase hex (the loom primitive).
         assert_eq!(p.source.content_hash.len(), 64);
@@ -858,21 +1762,26 @@ mod tests {
     fn review_gated_is_always_true_hard_true_for_procedural() {
         let sel = text_range("pane-code", 0, 4, "step");
         for class in MemoryClass::ORDER {
-            let p = build_proposal(&sel, class, "WS-1", "a").expect("builds");
-            assert!(p.review_gated, "{:?} proposal must be review_gated", class);
+            let p = build_proposal_for_document(&sel, class, "WS-1", "a", "DOC-1").expect("builds");
+            assert!(
+                p.is_review_gated(),
+                "{:?} proposal must be review_gated",
+                class
+            );
             assert!(p.is_review_gated());
         }
         // Procedural explicitly (the spec requirement).
-        let proc = build_proposal(&sel, MemoryClass::Procedural, "WS-1", "a").unwrap();
+        let proc = build_proposal_for_document(&sel, MemoryClass::Procedural, "WS-1", "a", "DOC-1")
+            .unwrap();
         assert!(
-            proc.review_gated,
+            proc.is_review_gated(),
             "AC-002: Procedural-class proposal is review-gated"
         );
         // There is no field/setter that flips it false: a class switch keeps it true.
-        let mut dlg = ProposeToMemoryDialog::open(&sel, "WS-1", "a").unwrap();
+        let mut dlg = ProposeToMemoryDialog::open_for_document(&sel, "DOC-1", "WS-1", "a").unwrap();
         dlg.set_class(MemoryClass::Procedural);
         assert!(
-            dlg.proposal.review_gated,
+            dlg.proposal.is_review_gated(),
             "class switch never sets review_gated false"
         );
     }
@@ -911,17 +1820,72 @@ mod tests {
         assert!(!err.is_missing_endpoint());
     }
 
+    #[test]
+    fn build_proposal_rejects_empty_and_mismatched_utf8_byte_ranges() {
+        let empty = text_range("pane-rich", 7, 7, "");
+        assert_eq!(
+            build_proposal_for_document(&empty, MemoryClass::Semantic, "WS-1", "actor", "DOC-1")
+                .unwrap_err(),
+            MemoryProposalError::EmptySelection
+        );
+
+        let unicode = "é🙂"; // 6 UTF-8 bytes, 2 Unicode scalar values.
+        let wrong_scalar_range = text_range("pane-rich", 10, 12, unicode);
+        assert_eq!(
+            build_proposal_for_document(
+                &wrong_scalar_range,
+                MemoryClass::Semantic,
+                "WS-1",
+                "actor",
+                "DOC-1"
+            )
+            .unwrap_err(),
+            MemoryProposalError::SelectionRangeMismatch {
+                start: 10,
+                end: 12,
+                content_bytes: 6,
+            }
+        );
+
+        let byte_range = text_range("pane-rich", 10, 16, unicode);
+        let proposal = build_proposal_for_document(
+            &byte_range,
+            MemoryClass::Semantic,
+            "WS-1",
+            "actor",
+            "DOC-1",
+        )
+        .expect("UTF-8 byte offsets are authoritative");
+        assert_eq!(
+            proposal.source.selection_end - proposal.source.selection_start,
+            6
+        );
+    }
+
+    #[test]
+    fn text_range_without_authoritative_document_identity_fails_closed() {
+        let sel = text_range("pane-rich", 0, 6, "memory");
+        assert_eq!(
+            build_proposal(&sel, MemoryClass::Episodic, "WS-1", "a").unwrap_err(),
+            MemoryProposalError::MissingDocumentIdentity {
+                pane_id: "pane-rich".to_owned()
+            }
+        );
+    }
+
     /// AC-008: the FR payload carries action='memory_write_proposed' + proposal_id + class + document_id
-    /// + selection range + content_hash + review_gated + pane_id.
+    /// + pending-review status + selection range + content_hash + review_gated + pane_id.
     #[test]
     fn fr_payload_carries_full_marker_and_provenance() {
         let sel = text_range("pane-rich", 3, 9, "memory");
-        let p = build_proposal(&sel, MemoryClass::Procedural, "WS-1", "a").unwrap();
+        let p = build_proposal_for_document(&sel, MemoryClass::Procedural, "WS-1", "a", "DOC-1")
+            .unwrap();
         let payload = p.fr_payload("PROP-42");
         assert_eq!(payload["action"], "memory_write_proposed");
         assert_eq!(payload["proposal_id"], "PROP-42");
+        assert_eq!(payload["status"], "pending_review");
         assert_eq!(payload["class"], "procedural");
-        assert_eq!(payload["document_id"], "pane-rich");
+        assert_eq!(payload["document_id"], "DOC-1");
         assert_eq!(payload["selection_start"], 3);
         assert_eq!(payload["selection_end"], 9);
         assert_eq!(payload["content_hash"], p.source.content_hash);
@@ -935,17 +1899,32 @@ mod tests {
     fn fr_event_uses_mt036_schema_and_action() {
         use crate::event_emitter::{NativeEditorAction, NATIVE_EDITOR_SCHEMA_VERSION};
         let sel = text_range("pane-rich", 0, 6, "memory");
-        let p = build_proposal(&sel, MemoryClass::Episodic, "WS-9", "a").unwrap();
-        let ev = p.fr_event("PROP-1");
+        let p =
+            build_proposal_for_document(&sel, MemoryClass::Episodic, "WS-9", "a", "DOC-9").unwrap();
+        let proposal_id = format!("PROP-{}", "1a".repeat(32));
+        let ev = p.fr_event(&proposal_id);
+        let replay = p.fr_event(&proposal_id);
         assert_eq!(ev.action, NativeEditorAction::MemoryWriteProposed);
         assert_eq!(ev.action.as_str(), "memory_write_proposed");
         assert_eq!(ev.schema_version, NATIVE_EDITOR_SCHEMA_VERSION);
         assert_eq!(ev.workspace_id, "WS-9");
         assert_eq!(ev.pane_id, "pane-rich");
+        assert_eq!(
+            ev.actor_id, p.actor_id,
+            "the persisted proposal and FR event must share one canonical actor identity"
+        );
+        assert_eq!(
+            replay.event_id, ev.event_id,
+            "a proposal replay must address the same correlated Flight Recorder event"
+        );
+        assert_ne!(
+            uuid::Uuid::parse_str(&ev.event_id).unwrap(),
+            uuid::Uuid::nil()
+        );
         // The native payload nests under the MT-036 schema (no invented top-level event_type).
         let np = ev.to_native_payload();
         assert_eq!(np["action"], "memory_write_proposed");
-        assert_eq!(np["payload"]["proposal_id"], "PROP-1");
+        assert_eq!(np["payload"]["proposal_id"], proposal_id);
     }
 
     /// The command descriptor is the WP-011 palette catalog row for 'fems.propose_to_memory', enabled
@@ -965,6 +1944,26 @@ mod tests {
         );
         assert_eq!(row.label, FEMS_PROPOSE_COMMAND_LABEL);
         assert_eq!(row.kind, crate::command_registry::CommandKind::App);
+    }
+
+    #[test]
+    fn shared_bus_command_captures_workspace_versioned_selection() {
+        let ctx = egui::Context::default();
+        let mut bus = crate::interop::InteractionBus::new();
+        assert!(bus.bind_workspace("workspace-command"));
+        let selection = SharedSelection::BlockRef {
+            pane_id: pane("pane-command"),
+            block_id: "block-command".to_owned(),
+        };
+        assert!(bus.set_selection(selection.clone()));
+        register_propose_to_memory_command(&mut bus);
+        assert!(bus.dispatch_command(&ctx, FEMS_PROPOSE_COMMAND_ID));
+        let request = bus
+            .take_pending_memory_proposal_request()
+            .expect("shared command stages one proposal-open request");
+        assert_eq!(request.workspace_id, "workspace-command");
+        assert_eq!(request.workspace_generation, bus.workspace_generation());
+        assert_eq!(request.selection, selection);
     }
 
     /// The class radio author ids follow the fems-class-{class} convention.
@@ -989,19 +1988,208 @@ mod tests {
     #[test]
     fn submit_body_shape_is_review_gated_proposal() {
         let sel = text_range("pane-rich", 0, 6, "memory");
-        let p = build_proposal(&sel, MemoryClass::Semantic, "WS-1", "actor-1").unwrap();
+        let p =
+            build_proposal_for_document(&sel, MemoryClass::Semantic, "WS-1", "actor-1", "DOC-1")
+                .unwrap();
         let body = json!({
             "class": p.class.wire(),
             "content": p.content,
             "source": p.source,
-            "review_gated": p.review_gated,
+            "review_gated": p.is_review_gated(),
             "actor_id": p.actor_id,
         });
         assert_eq!(body["class"], "semantic");
         assert_eq!(body["content"], "memory");
         assert_eq!(body["review_gated"], true);
-        assert_eq!(body["source"]["document_id"], "pane-rich");
+        assert_eq!(body["source"]["document_id"], "DOC-1");
         assert_eq!(body["source"]["content_hash"], p.source.content_hash);
         assert_eq!(body["actor_id"], "actor-1");
+    }
+
+    fn valid_review_ack() -> ProposalReviewAck {
+        ProposalReviewAck {
+            proposal_id: "proposal-1".to_owned(),
+            status: "approved".to_owned(),
+            decision: ProposalReviewDecision::Approved,
+            reviewer_kind: "user".to_owned(),
+            actor_id: REVIEW_ACTOR_ID.to_owned(),
+            correlation_id: "fems-memory-proposal-review:proposal-1".to_owned(),
+            event_ledger_event_id: "KE-550e8400-e29b-41d4-a716-446655440000".to_owned(),
+            flight_recorder_event_id: "550e8400-e29b-41d4-a716-446655440001".to_owned(),
+            reviewed_at: "2026-07-17T00:00:00Z".to_owned(),
+            commit: None,
+        }
+    }
+
+    #[test]
+    fn review_ack_must_match_requested_identity_and_durable_receipts() {
+        let ack = valid_review_ack();
+        assert_eq!(
+            validate_review_ack(&ack, "proposal-1", ProposalReviewDecision::Approved),
+            Ok(())
+        );
+
+        let mutations: Vec<Box<dyn Fn(&mut ProposalReviewAck)>> = vec![
+            Box::new(|ack| ack.proposal_id = "other".to_owned()),
+            Box::new(|ack| ack.decision = ProposalReviewDecision::Rejected),
+            Box::new(|ack| ack.status = "pending_review".to_owned()),
+            Box::new(|ack| ack.reviewer_kind = "policy".to_owned()),
+            Box::new(|ack| ack.actor_id = "other-actor".to_owned()),
+            Box::new(|ack| ack.correlation_id = "wrong".to_owned()),
+            Box::new(|ack| ack.event_ledger_event_id.clear()),
+            Box::new(|ack| ack.flight_recorder_event_id.clear()),
+            Box::new(|ack| ack.reviewed_at.clear()),
+        ];
+        for mutate in mutations {
+            let mut mismatched = valid_review_ack();
+            mutate(&mut mismatched);
+            assert!(matches!(
+                validate_review_ack(&mismatched, "proposal-1", ProposalReviewDecision::Approved),
+                Err(MemoryProposalError::ReviewAckMismatch(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn exact_approved_review_retry_accepts_committed_lifecycle_only_for_approval() {
+        let mut committed = valid_review_ack();
+        committed.status = "committed".to_owned();
+        assert_eq!(
+            validate_review_ack(&committed, "proposal-1", ProposalReviewDecision::Approved),
+            Ok(())
+        );
+
+        committed.decision = ProposalReviewDecision::Rejected;
+        assert!(matches!(
+            validate_review_ack(&committed, "proposal-1", ProposalReviewDecision::Rejected),
+            Err(MemoryProposalError::ReviewAckMismatch(_))
+        ));
+    }
+
+    fn valid_commit_ack() -> ProposalCommitAck {
+        let proposal_id = format!("PROP-{}", "a".repeat(64));
+        let commit_id = "550e8400-e29b-41d4-a716-446655440010".to_owned();
+        let memory_id = "550e8400-e29b-41d4-a716-446655440011".to_owned();
+        let committed_at = "2026-07-17T00:00:00+00:00".to_owned();
+        let report = MemoryCommitReport {
+            schema_version: "hsk.memory_commit_report@0.1".to_owned(),
+            commit_id: commit_id.clone(),
+            created_at: committed_at.clone(),
+            source_proposal_id: proposal_id.clone(),
+            applied_ops: vec![MemoryCommitAppliedOp {
+                op: "add".to_owned(),
+                memory_id: memory_id.clone(),
+                previous_version: None,
+                new_version: Some(1),
+                status: "applied".to_owned(),
+                reason: None,
+            }],
+            warnings: Vec::new(),
+            pack_rebuild_hints: vec![MemoryPackRebuildHint {
+                scope_ref: MemoryCommitScopeRef {
+                    artefact_type: "workspace".to_owned(),
+                    artefact_id: "550e8400-e29b-41d4-a716-446655440012".to_owned(),
+                    selector: "workspace".to_owned(),
+                },
+                reason: "memory_changed".to_owned(),
+            }],
+        };
+        let report_hash = sha256_hex(&canonical_json_bytes_nfc(
+            &serde_json::to_value(&report).unwrap(),
+        ));
+        ProposalCommitAck {
+            proposal_id,
+            status: "committed".to_owned(),
+            commit_id,
+            memory_id,
+            memory_pack_id: "550e8400-e29b-41d4-a716-446655440013".to_owned(),
+            memory_pack_hash: "b".repeat(64),
+            commit_report: report,
+            commit_report_hash: report_hash,
+            event_ledger_event_id: "KE-550e8400-e29b-41d4-a716-446655440014".to_owned(),
+            flight_recorder_event_id: "550e8400-e29b-41d4-a716-446655440015".to_owned(),
+            committed_at,
+        }
+    }
+
+    fn rehash_commit_report(ack: &mut ProposalCommitAck) {
+        ack.commit_report_hash = sha256_hex(&canonical_json_bytes_nfc(
+            &serde_json::to_value(&ack.commit_report).unwrap(),
+        ));
+    }
+
+    #[test]
+    fn commit_ack_recomputes_report_hash_and_binds_all_receipt_identities() {
+        let canonical = valid_commit_ack();
+        assert_eq!(
+            validate_commit_ack(&canonical, &canonical.proposal_id),
+            Ok(())
+        );
+
+        let mut wrong_hash = canonical.clone();
+        wrong_hash.commit_report_hash = "c".repeat(64);
+        assert!(validate_commit_ack(&wrong_hash, &canonical.proposal_id).is_err());
+
+        let mut wrong_commit = canonical.clone();
+        wrong_commit.commit_report.commit_id = "550e8400-e29b-41d4-a716-446655440099".to_owned();
+        rehash_commit_report(&mut wrong_commit);
+        assert!(validate_commit_ack(&wrong_commit, &canonical.proposal_id).is_err());
+
+        let mut wrong_proposal = canonical.clone();
+        wrong_proposal.commit_report.source_proposal_id = format!("PROP-{}", "d".repeat(64));
+        rehash_commit_report(&mut wrong_proposal);
+        assert!(validate_commit_ack(&wrong_proposal, &canonical.proposal_id).is_err());
+
+        let mut wrong_memory = canonical.clone();
+        wrong_memory.commit_report.applied_ops[0].memory_id =
+            "550e8400-e29b-41d4-a716-446655440098".to_owned();
+        rehash_commit_report(&mut wrong_memory);
+        assert!(validate_commit_ack(&wrong_memory, &canonical.proposal_id).is_err());
+
+        let mut uppercase_hash = canonical.clone();
+        uppercase_hash.memory_pack_hash.make_ascii_uppercase();
+        assert!(validate_commit_ack(&uppercase_hash, &canonical.proposal_id).is_err());
+    }
+
+    #[test]
+    fn proposal_ack_requires_canonical_identity_and_lifecycle_status() {
+        let canonical = ProposalAck {
+            proposal_id: format!("PROP-{}", "a".repeat(64)),
+            status: "pending_review".to_owned(),
+            created_at: "2026-07-17T00:00:00Z".to_owned(),
+            flight_recorder_event_id: "550e8400-e29b-41d4-a716-446655440000".to_owned(),
+        };
+        assert_eq!(validate_proposal_ack(&canonical), Ok(()));
+        for ack in [
+            ProposalAck {
+                proposal_id: "PROP-short".to_owned(),
+                status: "pending_review".to_owned(),
+                created_at: canonical.created_at.clone(),
+                flight_recorder_event_id: canonical.flight_recorder_event_id.clone(),
+            },
+            ProposalAck {
+                proposal_id: format!("PROP-{}", "A".repeat(64)),
+                status: "pending_review".to_owned(),
+                created_at: canonical.created_at.clone(),
+                flight_recorder_event_id: canonical.flight_recorder_event_id.clone(),
+            },
+            ProposalAck {
+                proposal_id: format!("PROP-{}", "b".repeat(64)),
+                status: "not-a-lifecycle-state".to_owned(),
+                created_at: canonical.created_at.clone(),
+                flight_recorder_event_id: canonical.flight_recorder_event_id.clone(),
+            },
+            ProposalAck {
+                proposal_id: format!("PROP-{}", "b".repeat(64)),
+                status: "pending_review".to_owned(),
+                created_at: "not-a-timestamp".to_owned(),
+                flight_recorder_event_id: canonical.flight_recorder_event_id.clone(),
+            },
+        ] {
+            assert!(matches!(
+                validate_proposal_ack(&ack),
+                Err(MemoryProposalError::ReviewAckMismatch(_))
+            ));
+        }
     }
 }

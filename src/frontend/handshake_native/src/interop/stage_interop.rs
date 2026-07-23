@@ -10,34 +10,25 @@
 //!   [`build_from_canvas_node`] build the typed route payload deterministically from the MT-031
 //!   [`crate::interop::SharedSelection`] (a `TextRange` selection, a `BlockRef`, or a graph/canvas
 //!   `NodeRef`). [`route_to_stage`] carries it across panes via the EXISTING MT-033 bus command
-//!   ([`crate::interop::CMD_ROUTE_TO_STAGE`] = `interop.route-to-stage`) and emits the MT-036
-//!   `route_to_stage` Flight-Recorder event. It does NOT duplicate the MT-033 command id (AC-005 /
+//!   ([`crate::interop::CMD_ROUTE_TO_STAGE`] = `interop.route-to-stage`) and prebuilds the MT-036
+//!   `route_to_stage` Flight-Recorder receipt for emission after mounted Stage application. It does NOT duplicate the MT-033 command id (AC-005 /
 //!   MC-003); it EXTENDS it with the Selection + CanvasNode payload builders the one-way path lacked.
 //!
-//! - **Embed-back leg (Stage capture -> note/canvas):** [`StageClient::fetch_stage_artifact`] GETs a
-//!   Stage capture artifact (with its SHA-256 manifest provenance) and
+//! - **Capture/embed-back leg (Stage -> note/canvas):** [`StageClient::create_stage_capture`] persists
+//!   the exact routed bytes through the privileged, idempotent Stage endpoint;
+//!   [`StageClient::fetch_stage_artifact`] then GETs the descriptor and exact bytes and
 //!   [`embed_artifact_as_nodeview`] converts it into an MT-014 embed NodeView ([`EmbedNodeView`]
 //!   wrapping the existing [`crate::rich_editor::document_model::node::HsLinkNode`] `hsLink` atom by
 //!   `ref_kind`) so an evidence-grade capture flows back into a note or canvas with its provenance
 //!   intact.
 //!
-//! ## NO Stage backend HTTP routes exist — the route leg is bus-only, the embed-back leg is a typed blocker
-//!
-//! VERIFIED (KERNEL_BUILDER gate 2026-06-25, grep over `src/backend/handshake_core`): there are NO
-//! `/stage/` HTTP routes in handshake_core. Stage (Pillar 17) — like FEMS (Pillar 12) — is a separate
-//! system not yet wired into the frozen handshake_core HTTP surface. The MT contract's "POST
-//! /workspaces/{id}/stage/route (MT-033 uses it)" is WRONG: MT-033's route-to-Stage is the BUS COMMAND
-//! [`crate::interop::CMD_ROUTE_TO_STAGE`] (`interop.route-to-stage`), drained cross-pane by the shell —
-//! NOT a backend POST. So:
+//! ## The route leg stays bus-native; capture/retrieval is backend-authoritative
 //!
 //! 1. [`route_to_stage`] EXTENDS that bus command (it stages the payload via
-//!    [`crate::interop::InteractionBus::request_route_to_stage`] and dispatches the same id). There is
-//!    NO backend POST and the routing stays bus-only — exactly what MT-033 does (HARD no-backend-rewrite
-//!    rule, RISK-001/MC-001).
-//! 2. The embed-back route `GET /workspaces/{id}/stage/artifacts/{id}` is ABSENT, so
-//!    [`StageClient::fetch_stage_artifact`] returns [`StageInteropError::EmbedBackEndpointAbsent`] — the
-//!    contract's DESIGNED typed blocker (detection is BROAD: 404 / 501 / route-not-registered / a missing
-//!    client method, RISK-008/MC-008). NO backend route is added; NO artifact is fabricated.
+//!    [`crate::interop::InteractionBus::route_to_stage`] and dispatches the same id). There is
+//!    no route-to-Stage backend POST; cross-pane routing stays on the shared bus.
+//! 2. Capture uses `POST /workspaces/{id}/stage/artifacts`; retrieval uses descriptor and `/content`
+//!    GETs. A 404/501 remains a typed endpoint-absent failure, never a fabricated artifact.
 //!
 //! ## SHA-256 manifest provenance MUST survive the embed (evidence-grade integrity)
 //!
@@ -56,17 +47,16 @@
 //!   stack, NO new async runtime (RISK-006/MC-005 sibling).
 //! - The embed is the EXISTING MT-014 `hsLink` atom by `ref_kind` (`"stage_capture"`), NOT an invented
 //!   node (RISK-004/MC-004).
-//! - [`route_to_stage`]'s FR emit reuses the MT-036 `route_to_stage` emitter exactly, via the bus's
-//!   [`crate::interop::InteractionBus::route_to_stage`] call site — NO new FR event kind (RISK-005/MC-005).
+//! - [`route_to_stage`] prebuilds the MT-036 `route_to_stage` receipt exactly; the mounted shell emits it
+//!   only after Stage applies and acknowledges that exact event — NO new FR event kind (RISK-005/MC-005).
 
 use std::time::Duration;
 
-use serde::Deserialize;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
-use crate::backend_client::{
-    shared_http_client, BACKEND_BASE_URL, HSK_HEADER_ACTOR_ID, HSK_HEADER_KERNEL_TASK_RUN_ID,
-    HSK_HEADER_SESSION_RUN_ID,
-};
+use crate::backend_client::{shared_http_client, BACKEND_BASE_URL};
 use crate::interop::SharedSelection;
 use crate::pane_registry::PaneId;
 use crate::rich_editor::document_model::node::HsLinkNode;
@@ -81,9 +71,18 @@ pub const STAGE_CAPTURE_REF_KIND: &str = "stage_capture";
 /// The embed-back read timeout (a bounded timeout so a hung backend cannot stall the editor frame loop).
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 
-/// The least-privileged read-only actor id used for the Stage artifact read (no `x-hsk-actor-kind` =>
-/// read-only server-side, the same least-privilege default the FEMS/knowledge read paths use).
-const STAGE_READ_ACTOR_ID: &str = "native-editor-stage-reader";
+const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+
+    let digest = Sha256::digest(bytes);
+    let mut encoded = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        let _ = write!(encoded, "{byte:02x}");
+    }
+    encoded
+}
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Typed error — EmbedBackEndpointAbsent + ProvenanceMissing are the first-class typed gates.
@@ -103,17 +102,19 @@ pub enum StageInteropError {
     BadSelection(String),
     /// The built payload had no routable content (an empty selection text / empty node id).
     EmptyPayload,
-    /// The route was rejected with a non-success status (reserved: the route leg is bus-only today, so
-    /// this is produced only if a Stage route backend POST is ever added and rejects).
+    /// The bus route was rejected by a future transport adapter.
     RouteRejected { status: u16 },
-    /// THE TYPED BLOCKER: the embed-back read route `GET /workspaces/{id}/stage/artifacts/{id}` is absent
-    /// in this build (404 / 501 / route-not-registered / a missing client method). Carries the probed path
-    /// so the validator sees exactly which route is missing. NO backend route is added; NO artifact is
-    /// fabricated (the HARD no-backend-rewrite rule).
+    /// A required create, descriptor, or content route is absent (404/501). Carries the exact probed
+    /// path; no artifact is fabricated.
     EmbedBackEndpointAbsent { probed_path: String },
     /// A fetched artifact lacked SHA-256 / manifest provenance, so it CANNOT be embedded as an
     /// evidence-grade capture (RISK-002/MC-002). Refuse rather than embed an unverifiable artifact.
     ProvenanceMissing,
+    /// The create/capture write was rejected by the privileged Stage endpoint.
+    CaptureRejected { status: u16, detail: String },
+    /// The exact bytes returned by the artifact content endpoint did not match
+    /// the persisted manifest digest or declared size.
+    ContentIntegrityMismatch,
     /// A transport / HTTP / decode failure that is NOT the typed endpoint-absent blocker (connect /
     /// timeout / TLS / a non-404/501 status / a decode error). Carries the reason.
     Transport(String),
@@ -132,6 +133,13 @@ impl std::fmt::Display for StageInteropError {
             Self::ProvenanceMissing => write!(
                 f,
                 "stage embed-back refused: fetched artifact has no SHA-256 / manifest provenance"
+            ),
+            Self::CaptureRejected { status, detail } => {
+                write!(f, "stage capture rejected: HTTP {status} ({detail})")
+            }
+            Self::ContentIntegrityMismatch => write!(
+                f,
+                "stage embed-back refused: exact artifact bytes do not match the manifest"
             ),
             Self::Transport(e) => write!(f, "stage interop transport error: {e}"),
         }
@@ -383,13 +391,13 @@ pub struct RouteAck {
 
 /// Route `payload` to Stage by EXTENDING the MT-033 bus command. This stages the payload's content as a
 /// [`crate::stage_pane::StageContent`] on the MT-031 [`crate::interop::InteractionBus`] and dispatches the
-/// EXISTING [`crate::interop::CMD_ROUTE_TO_STAGE`] (`interop.route-to-stage`), which is where the bus emits
-/// the MT-036 `route_to_stage` Flight-Recorder event (NO new FR event kind, RISK-005/MC-005). The shell
+/// EXISTING [`crate::interop::CMD_ROUTE_TO_STAGE`] (`interop.route-to-stage`), where the bus prebuilds
+/// the MT-036 `route_to_stage` Flight-Recorder receipt (NO new FR event kind, RISK-005/MC-005). The shell
 /// drains the staged content cross-pane to open/focus the Stage pane (the same drain MT-033 uses).
 ///
-/// HARD no-backend-rewrite rule (RISK-001/MC-001): there is NO Stage route backend POST — Stage has no
-/// `/stage/` HTTP surface — so the route stays bus-only, exactly as MT-033 does. This MT's NEW
-/// contribution is the Selection + CanvasNode payload builders above; this function carries them over the
+/// There is no route-to-Stage backend POST: cross-pane navigation stays bus-native exactly as MT-033
+/// defined it. Capture/create and exact-byte retrieval are separate backend operations performed only
+/// after the content reaches Stage. This function carries Selection + CanvasNode payloads over the
 /// existing bus command without duplicating its id (AC-005/MC-003).
 pub fn route_to_stage(
     ctx: &egui::Context,
@@ -397,9 +405,14 @@ pub fn route_to_stage(
     payload: &StageRoutePayload,
 ) -> StageResult<RouteAck> {
     let content = stage_content_for(payload)?;
-    // The bus's route_to_stage emits the MT-036 route_to_stage FR event AND dispatches the EXISTING
-    // CMD_ROUTE_TO_STAGE (reuse, do not fork — AC-005/MC-003, RISK-005/MC-005).
-    let dispatched = bus.route_to_stage(ctx, content);
+    // The bus prebuilds the MT-036 route_to_stage receipt and dispatches the EXISTING command. The
+    // mounted shell emits only after Stage applies and acknowledges the exact event.
+    let dispatched = bus.route_to_stage_correlated_with_kind(
+        ctx,
+        content,
+        payload.content_kind(),
+        Some(&payload.correlation_id),
+    );
     Ok(RouteAck {
         correlation_id: payload.correlation_id.clone(),
         content_kind: payload.content_kind().to_owned(),
@@ -507,6 +520,8 @@ pub struct StageManifest {
     /// The capture's content type (e.g. `image/png`), surfaced on the embed chip.
     #[serde(default)]
     pub content_type: String,
+    #[serde(default)]
+    pub size_bytes: u64,
 }
 
 impl StageManifest {
@@ -532,6 +547,23 @@ pub struct StageArtifactRef {
     /// A display label for the capture (shown on the embed chip; falls back to the artifact id).
     #[serde(default)]
     pub label: String,
+    #[serde(default)]
+    pub content_path: String,
+    #[serde(default)]
+    pub size_bytes: u64,
+    #[serde(default)]
+    pub correlation_id: String,
+    #[serde(default)]
+    pub job_id: Option<String>,
+    #[serde(default)]
+    pub event_ledger_event_id: Option<String>,
+    #[serde(default)]
+    pub replayed: bool,
+    /// Exact bytes read from the dedicated content endpoint. This field is not
+    /// part of the descriptor JSON; [`StageClient::fetch_stage_artifact`]
+    /// populates it only after SHA-256 verification succeeds.
+    #[serde(skip)]
+    pub content_bytes: Vec<u8>,
 }
 
 impl StageArtifactRef {
@@ -547,7 +579,113 @@ impl StageArtifactRef {
     /// True when the artifact carries verifiable SHA-256 manifest provenance (the gate for an
     /// evidence-grade embed). Checks the hoisted sha256 AND the manifest's evidence-grade flag.
     pub fn is_evidence_grade(&self) -> bool {
-        !self.sha256.trim().is_empty() && self.manifest.is_evidence_grade()
+        if self.sha256.trim().is_empty()
+            || !self.manifest.is_evidence_grade()
+            || self.sha256 != self.manifest.sha256
+            || self.content_bytes.is_empty()
+            || self.size_bytes != self.content_bytes.len() as u64
+            || self.manifest.size_bytes != self.size_bytes
+        {
+            return false;
+        }
+        sha256_hex(&self.content_bytes) == self.sha256
+    }
+}
+
+pub const STAGE_CAPTURE_CREATE_SCHEMA: &str = "hsk.stage.capture.create@1";
+pub const STAGE_CAPTURE_MAX_BYTES: usize = 16 * 1024;
+/// Strict privileged capture DTO sent by the operator-facing Stage action.
+#[derive(Debug, Clone, Serialize)]
+pub struct StageCaptureRequest {
+    pub schema_version: &'static str,
+    pub idempotency_key: String,
+    pub correlation_id: String,
+    pub content_kind: String,
+    pub label: String,
+    pub content_type: String,
+    pub content_base64: String,
+    pub source_ref: Option<String>,
+}
+
+impl StageCaptureRequest {
+    /// Build the exact-byte create request from the content currently visible
+    /// in the mounted Stage pane. The route correlation is also the stable
+    /// idempotency/approval lineage for a retry of the same operator action.
+    pub fn from_routed_content(
+        content: &crate::stage_pane::StageContent,
+        causal_action_id: &str,
+    ) -> StageResult<Self> {
+        if causal_action_id.trim().is_empty() || causal_action_id.len() > 200 {
+            return Err(StageInteropError::BadSelection(
+                "Stage capture requires a bounded route correlation id".to_owned(),
+            ));
+        }
+        let (content_kind, label, content_type, bytes, source_ref) = match content {
+            crate::stage_pane::StageContent::Empty => return Err(StageInteropError::EmptyPayload),
+            crate::stage_pane::StageContent::Document(doc) => {
+                let (bytes, content_type) = match &doc.content_json {
+                    Some(value) => (
+                        serde_json::to_vec(value)
+                            .map_err(|error| StageInteropError::Transport(error.to_string()))?,
+                        "application/json",
+                    ),
+                    None => (
+                        doc.rich_document_id.as_bytes().to_vec(),
+                        "text/plain; charset=utf-8",
+                    ),
+                };
+                (
+                    "document",
+                    content.summary(),
+                    content_type,
+                    bytes,
+                    Some(format!("note://{}", doc.rich_document_id)),
+                )
+            }
+            crate::stage_pane::StageContent::Selection(text, source_ref) => (
+                if source_ref.starts_with("node://") {
+                    "canvas_node"
+                } else {
+                    "selection"
+                },
+                content.summary(),
+                "text/plain; charset=utf-8",
+                text.as_bytes().to_vec(),
+                Some(source_ref.clone()),
+            ),
+            crate::stage_pane::StageContent::AtelierItem(item) => (
+                "atelier_item",
+                content.summary(),
+                "application/json",
+                serde_json::to_vec(item)
+                    .map_err(|error| StageInteropError::Transport(error.to_string()))?,
+                Some(format!("atelier://{}", item.item_id)),
+            ),
+        };
+        if bytes.is_empty() {
+            return Err(StageInteropError::EmptyPayload);
+        }
+        if bytes.len() > STAGE_CAPTURE_MAX_BYTES {
+            return Err(StageInteropError::CaptureRejected {
+                status: 413,
+                detail: format!(
+                    "routed Stage content is {} bytes; maximum is {STAGE_CAPTURE_MAX_BYTES}",
+                    bytes.len()
+                ),
+            });
+        }
+        let content_sha256 = sha256_hex(&bytes);
+        let causal_sha256 = sha256_hex(causal_action_id.as_bytes());
+        Ok(Self {
+            schema_version: STAGE_CAPTURE_CREATE_SCHEMA,
+            idempotency_key: format!("stage-capture:{causal_sha256}:{content_sha256}"),
+            correlation_id: causal_action_id.to_owned(),
+            content_kind: content_kind.to_owned(),
+            label,
+            content_type: content_type.to_owned(),
+            content_base64: BASE64.encode(bytes),
+            source_ref,
+        })
     }
 }
 
@@ -602,12 +740,16 @@ pub fn embed_artifact_as_nodeview(artifact: &StageArtifactRef) -> StageResult<Em
     if !artifact.is_evidence_grade() {
         return Err(StageInteropError::ProvenanceMissing);
     }
-    let node = HsLinkNode::new(
+    let provenance = StageEmbedProvenance::from_artifact(artifact);
+    let mut node = HsLinkNode::new(
         STAGE_CAPTURE_REF_KIND,
         artifact.artifact_id.clone(),
         artifact.display_label(),
     );
-    let provenance = StageEmbedProvenance::from_artifact(artifact);
+    node.provenance = Some(
+        serde_json::to_value(&provenance)
+            .expect("StageEmbedProvenance is a closed serializable product type"),
+    );
     Ok(EmbedNodeView { node, provenance })
 }
 
@@ -619,7 +761,7 @@ pub fn embed_artifact_as_nodeview(artifact: &StageArtifactRef) -> StageResult<Em
 pub struct StageClient {
     client: reqwest::Client,
     base_url: String,
-    session_run_id: String,
+    session_token: Option<String>,
 }
 
 impl Default for StageClient {
@@ -636,14 +778,14 @@ impl StageClient {
         Self::with_client(shared_http_client(), BACKEND_BASE_URL)
     }
 
-    /// Construct against an explicit base URL on a FRESH client (used by tests to point at a mock server
-    /// with an isolated pool). The base URL is the host authority — never hardcoded at a call site
-    /// (GLOBAL-PORTABILITY-004).
+    /// Construct against an explicit base URL while retaining the process-wide bounded HTTP pool. Tests
+    /// point the base URL at a local capture server; production uses this path for Stage-provided artifact
+    /// URLs, so it must keep the same connect/request deadlines as every mounted backend interaction.
     pub fn with_base_url(base_url: impl Into<String>) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
-            session_run_id: "native-editor-session".to_owned(),
+            session_token: None,
         }
     }
 
@@ -653,34 +795,94 @@ impl StageClient {
         Self {
             client,
             base_url: base_url.into(),
-            session_run_id: "native-editor-session".to_owned(),
+            session_token: None,
         }
     }
 
-    /// Override the session run id on the read identity headers (so swarm/operator co-work is
-    /// attributable). Builder-style.
-    pub fn with_session_run_id(mut self, session_run_id: impl Into<String>) -> Self {
-        self.session_run_id = session_run_id.into();
+    /// Bind requests to the running native app's owner-restricted MCP session token. The backend
+    /// validates this against the canonical binding file and derives identity/approval server-side.
+    pub fn with_session_token(mut self, session_token: impl Into<String>) -> Self {
+        self.session_token = Some(session_token.into());
         self
     }
 
     /// The artifact read path for a workspace + artifact (the documented Stage embed-back route). Built
     /// here so the [`StageInteropError::EmbedBackEndpointAbsent`] blocker can report the exact probed path.
     pub fn artifact_path(workspace_id: &str, artifact_id: &str) -> String {
-        format!("/workspaces/{workspace_id}/stage/artifacts/{artifact_id}")
+        format!(
+            "/workspaces/{}/stage/artifacts/{}",
+            encode_path_segment(workspace_id),
+            encode_path_segment(artifact_id)
+        )
+    }
+
+    pub fn create_path(workspace_id: &str) -> String {
+        format!(
+            "/workspaces/{}/stage/artifacts",
+            encode_path_segment(workspace_id)
+        )
+    }
+
+    /// Persist the currently routed Stage content through the privileged,
+    /// idempotent capture endpoint. The returned descriptor is intentionally
+    /// not yet embeddable; callers then use [`Self::fetch_stage_artifact`] to
+    /// retrieve and verify the exact stored bytes.
+    pub async fn create_stage_capture(
+        &self,
+        workspace_id: &str,
+        request: &StageCaptureRequest,
+    ) -> StageResult<StageArtifactRef> {
+        let path = Self::create_path(workspace_id);
+        let mut request_builder = self
+            .client
+            .post(self.url(&path))
+            .timeout(REQUEST_TIMEOUT)
+            .json(request);
+        if let Some(token) = &self.session_token {
+            request_builder = request_builder.header(HSK_HEADER_SESSION_TOKEN, token);
+        }
+        let response = request_builder
+            .send()
+            .await
+            .map_err(|error| StageInteropError::Transport(error.to_string()))?;
+        let status = response.status();
+        if matches!(
+            status,
+            reqwest::StatusCode::NOT_FOUND | reqwest::StatusCode::NOT_IMPLEMENTED
+        ) {
+            return Err(StageInteropError::EmbedBackEndpointAbsent { probed_path: path });
+        }
+        if !status.is_success() {
+            let detail = response.text().await.unwrap_or_default();
+            return Err(StageInteropError::CaptureRejected {
+                status: status.as_u16(),
+                detail,
+            });
+        }
+        if !response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.split(';').next() == Some("application/json"))
+        {
+            return Err(StageInteropError::ContentIntegrityMismatch);
+        }
+        response
+            .json::<StageArtifactRef>()
+            .await
+            .map_err(|error| StageInteropError::Transport(format!("decode: {error}")))
     }
 
     fn url(&self, path: &str) -> String {
         format!("{}{}", self.base_url, path)
     }
 
-    /// Fetch a Stage capture artifact for embed-back. READ-ONLY: a single GET, never a write verb.
+    /// Fetch a Stage capture descriptor and exact bytes for embed-back. Both operations are read-only.
     ///
     /// Behavior contract:
     /// - A 404 / 501 (route absent / not implemented) maps to
     ///   [`StageInteropError::EmbedBackEndpointAbsent`] — the TYPED BLOCKER, never a panic or a fabricated
-    ///   artifact (RISK-008/MC-008, AC-004). This is the DESIGNED PRIMARY PATH in the current build, where
-    ///   the Stage HTTP surface does not exist.
+    ///   artifact (RISK-008/MC-008, AC-004).
     /// - A success body is decoded into a [`StageArtifactRef`]; a decode failure is
     ///   [`StageInteropError::Transport`].
     /// - Other non-success statuses map to [`StageInteropError::Transport`] (carrying the status); a
@@ -692,17 +894,11 @@ impl StageClient {
     ) -> StageResult<StageArtifactRef> {
         let path = Self::artifact_path(workspace_id, artifact_id);
         let url = self.url(&path);
-        let resp = self
-            .client
-            .get(&url)
-            .timeout(REQUEST_TIMEOUT)
-            // READ identity: least-privileged read-only actor (no x-hsk-actor-kind => read-only).
-            .header(HSK_HEADER_ACTOR_ID, STAGE_READ_ACTOR_ID)
-            .header(
-                HSK_HEADER_KERNEL_TASK_RUN_ID,
-                format!("native-editor-stage-{workspace_id}"),
-            )
-            .header(HSK_HEADER_SESSION_RUN_ID, &self.session_run_id)
+        let mut descriptor_builder = self.client.get(&url).timeout(REQUEST_TIMEOUT);
+        if let Some(token) = &self.session_token {
+            descriptor_builder = descriptor_builder.header(HSK_HEADER_SESSION_TOKEN, token);
+        }
+        let resp = descriptor_builder
             .send()
             .await
             .map_err(|e| StageInteropError::Transport(e.to_string()))?;
@@ -722,11 +918,124 @@ impl StageClient {
             let body = resp.text().await.unwrap_or_default();
             return Err(StageInteropError::Transport(format!("HTTP {code}: {body}")));
         }
+        if !resp
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(|value| value.split(';').next() == Some("application/json"))
+        {
+            return Err(StageInteropError::ContentIntegrityMismatch);
+        }
 
-        resp.json::<StageArtifactRef>()
+        let mut artifact = resp
+            .json::<StageArtifactRef>()
             .await
-            .map_err(|e| StageInteropError::Transport(format!("decode: {e}")))
+            .map_err(|e| StageInteropError::Transport(format!("decode: {e}")))?;
+        if artifact.artifact_id != artifact_id || artifact.workspace_id != workspace_id {
+            return Err(StageInteropError::ContentIntegrityMismatch);
+        }
+        let expected_path = format!("{}/content", Self::artifact_path(workspace_id, artifact_id));
+        let content_path = if artifact.content_path.is_empty() {
+            expected_path.clone()
+        } else if artifact.content_path == expected_path {
+            artifact.content_path.clone()
+        } else {
+            return Err(StageInteropError::ContentIntegrityMismatch);
+        };
+        let mut content_builder = self
+            .client
+            .get(self.url(&content_path))
+            .timeout(REQUEST_TIMEOUT);
+        if let Some(token) = &self.session_token {
+            content_builder = content_builder.header(HSK_HEADER_SESSION_TOKEN, token);
+        }
+        let mut content_response = content_builder
+            .send()
+            .await
+            .map_err(|error| StageInteropError::Transport(error.to_string()))?;
+        if matches!(
+            content_response.status(),
+            reqwest::StatusCode::NOT_FOUND | reqwest::StatusCode::NOT_IMPLEMENTED
+        ) {
+            return Err(StageInteropError::EmbedBackEndpointAbsent {
+                probed_path: content_path,
+            });
+        }
+        if !content_response.status().is_success() {
+            return Err(StageInteropError::Transport(format!(
+                "content HTTP {}",
+                content_response.status().as_u16()
+            )));
+        }
+        validate_content_response_headers(&artifact, content_response.headers())?;
+        if content_response
+            .content_length()
+            .is_some_and(|length| length > STAGE_CAPTURE_MAX_BYTES as u64)
+        {
+            return Err(StageInteropError::ContentIntegrityMismatch);
+        }
+        let mut bytes = Vec::with_capacity(
+            usize::try_from(artifact.size_bytes)
+                .unwrap_or(STAGE_CAPTURE_MAX_BYTES)
+                .min(STAGE_CAPTURE_MAX_BYTES),
+        );
+        while let Some(chunk) = content_response
+            .chunk()
+            .await
+            .map_err(|error| StageInteropError::Transport(error.to_string()))?
+        {
+            if bytes.len().saturating_add(chunk.len()) > STAGE_CAPTURE_MAX_BYTES {
+                return Err(StageInteropError::ContentIntegrityMismatch);
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        if artifact.size_bytes != bytes.len() as u64
+            || artifact.manifest.size_bytes != artifact.size_bytes
+            || artifact.sha256 != artifact.manifest.sha256
+            || sha256_hex(&bytes) != artifact.sha256
+        {
+            return Err(StageInteropError::ContentIntegrityMismatch);
+        }
+        artifact.content_bytes = bytes;
+        Ok(artifact)
     }
+}
+
+fn encode_path_segment(value: &str) -> String {
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.as_bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+            encoded.push(char::from(*byte));
+        } else {
+            use std::fmt::Write as _;
+            let _ = write!(encoded, "%{byte:02X}");
+        }
+    }
+    encoded
+}
+
+fn validate_content_response_headers(
+    artifact: &StageArtifactRef,
+    headers: &reqwest::header::HeaderMap,
+) -> StageResult<()> {
+    let response_content_type = headers
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok());
+    let response_etag = headers
+        .get(reqwest::header::ETAG)
+        .and_then(|value| value.to_str().ok());
+    let response_content_length = headers
+        .get(reqwest::header::CONTENT_LENGTH)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok());
+    let expected_etag = format!("\"sha256:{}\"", artifact.sha256);
+    if response_content_type != Some(artifact.manifest.content_type.as_str())
+        || response_etag != Some(expected_etag.as_str())
+        || response_content_length != Some(artifact.size_bytes)
+    {
+        return Err(StageInteropError::ContentIntegrityMismatch);
+    }
+    Ok(())
 }
 
 /// Sanitize an id fragment to `[a-z0-9-]` (collision-resistant, addressable) — reuses the same slug
@@ -755,16 +1064,26 @@ mod tests {
     }
 
     fn evidence_artifact(id: &str) -> StageArtifactRef {
+        let content_bytes = b"stage-capture-fixture".to_vec();
+        let sha = sha256_hex(&content_bytes);
         StageArtifactRef {
             artifact_id: id.to_owned(),
             workspace_id: "WS-1".to_owned(),
-            sha256: "a".repeat(64),
+            sha256: sha.clone(),
             manifest: StageManifest {
-                sha256: "a".repeat(64),
+                sha256: sha,
                 manifest_ref: format!("manifest://{id}"),
                 content_type: "image/png".to_owned(),
+                size_bytes: content_bytes.len() as u64,
             },
             label: "Capture 1".to_owned(),
+            content_path: String::new(),
+            size_bytes: content_bytes.len() as u64,
+            correlation_id: "stage-fixture-correlation".to_owned(),
+            job_id: None,
+            event_ledger_event_id: None,
+            replayed: false,
+            content_bytes,
         }
     }
 
@@ -904,7 +1223,7 @@ mod tests {
         // The provenance descriptor matches the contract shape AND the artifact's sha256.
         assert_eq!(view.provenance.source, "stage_capture");
         assert_eq!(view.provenance.artifact_id, "ART-42");
-        assert_eq!(view.provenance.sha256, "a".repeat(64));
+        assert_eq!(view.provenance.sha256, artifact.sha256);
         assert_eq!(view.provenance.manifest_ref, "manifest://ART-42");
         // The provenance round-trips as JSON (durable inside content_json).
         let json = serde_json::to_string(&view.provenance).unwrap();
@@ -955,19 +1274,104 @@ mod tests {
         );
     }
 
+    #[test]
+    fn artifact_paths_percent_encode_untrusted_segments() {
+        assert_eq!(
+            StageClient::artifact_path("ws/../../other", "STGA/%2f?雪"),
+            "/workspaces/ws%2F..%2F..%2Fother/stage/artifacts/STGA%2F%252f%3F%E9%9B%AA"
+        );
+        assert_eq!(
+            StageClient::create_path("workspace#fragment"),
+            "/workspaces/workspace%23fragment/stage/artifacts"
+        );
+    }
+
+    #[test]
+    fn content_response_rejects_content_type_and_etag_mismatch() {
+        let artifact = evidence_artifact("ART-headers");
+        let expected_etag = format!("\"sha256:{}\"", artifact.sha256);
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::CONTENT_TYPE,
+            artifact.manifest.content_type.parse().unwrap(),
+        );
+        headers.insert(reqwest::header::ETAG, expected_etag.parse().unwrap());
+        headers.insert(
+            reqwest::header::CONTENT_LENGTH,
+            artifact.size_bytes.to_string().parse().unwrap(),
+        );
+        assert!(validate_content_response_headers(&artifact, &headers).is_ok());
+
+        headers.insert(
+            reqwest::header::CONTENT_TYPE,
+            "application/octet-stream".parse().unwrap(),
+        );
+        assert_eq!(
+            validate_content_response_headers(&artifact, &headers),
+            Err(StageInteropError::ContentIntegrityMismatch)
+        );
+        headers.insert(
+            reqwest::header::CONTENT_TYPE,
+            artifact.manifest.content_type.parse().unwrap(),
+        );
+        headers.insert(reqwest::header::ETAG, "\"sha256:wrong\"".parse().unwrap());
+        assert_eq!(
+            validate_content_response_headers(&artifact, &headers),
+            Err(StageInteropError::ContentIntegrityMismatch)
+        );
+    }
+
+    #[test]
+    fn content_response_requires_exact_valid_content_length() {
+        let artifact = evidence_artifact("ART-content-length");
+        let expected_etag = format!("\"sha256:{}\"", artifact.sha256);
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::CONTENT_TYPE,
+            artifact.manifest.content_type.parse().unwrap(),
+        );
+        headers.insert(reqwest::header::ETAG, expected_etag.parse().unwrap());
+
+        for invalid in [None, Some("invalid"), Some("1"), Some("999999")] {
+            headers.remove(reqwest::header::CONTENT_LENGTH);
+            if let Some(value) = invalid {
+                headers.insert(reqwest::header::CONTENT_LENGTH, value.parse().unwrap());
+            }
+            assert_eq!(
+                validate_content_response_headers(&artifact, &headers),
+                Err(StageInteropError::ContentIntegrityMismatch),
+                "Content-Length {invalid:?} must not pass integrity validation"
+            );
+        }
+
+        headers.insert(
+            reqwest::header::CONTENT_LENGTH,
+            artifact.size_bytes.to_string().parse().unwrap(),
+        );
+        assert!(validate_content_response_headers(&artifact, &headers).is_ok());
+    }
+
     /// The StageArtifactRef decodes from the documented body shape (the wire the read returns) and
     /// surfaces the evidence-grade flag.
     #[test]
     fn artifact_decodes_and_is_evidence_grade() {
+        let content_bytes = b"exact Stage bytes".to_vec();
+        let sha256 = sha256_hex(&content_bytes);
         let body = serde_json::json!({
             "artifact_id": "ART-7",
             "workspace_id": "WS-1",
-            "sha256": "b".repeat(64),
-            "manifest": {"sha256": "b".repeat(64), "manifest_ref": "manifest://ART-7", "content_type": "image/png"},
+            "sha256": sha256,
+            "manifest": {"sha256": sha256, "manifest_ref": "manifest://ART-7", "content_type": "text/plain", "size_bytes": content_bytes.len()},
+            "size_bytes": content_bytes.len(),
             "label": "Render 7"
         });
-        let artifact: StageArtifactRef = serde_json::from_value(body).expect("decodes");
+        let mut artifact: StageArtifactRef = serde_json::from_value(body).expect("decodes");
         assert_eq!(artifact.artifact_id, "ART-7");
+        assert!(
+            !artifact.is_evidence_grade(),
+            "descriptor alone has no verified bytes"
+        );
+        artifact.content_bytes = content_bytes;
         assert!(artifact.is_evidence_grade());
         assert_eq!(artifact.display_label(), "Render 7");
         // A blank label falls back to the stage_capture:{id} form.

@@ -285,7 +285,8 @@ impl Drop for FileGuard {
 /// real-host run requires. Best-effort on the copy (a failed archive is reported, not a proof failure —
 /// the validation itself already passed) but loud on stdout either way.
 fn archive_validated_dump(dump_path: &Path, label: &str) {
-    let dir = Path::new("../../../../Handshake_Artifacts/handshake-test").join("wp-kernel-012-mt-092");
+    let dir =
+        Path::new("../../../../Handshake_Artifacts/handshake-test").join("wp-kernel-012-mt-092");
     if let Err(err) = std::fs::create_dir_all(&dir) {
         println!("MT-092 dump archive UNAVAILABLE (create dir failed): {err}");
         return;
@@ -739,16 +740,27 @@ fn launched_client_connects_to_launched_crash_server_via_derived_socket() {
         Duration::from_secs(10),
     );
     match ack {
-        Ok(reply) => assert!(reply.contains("Ack"), "expected Ack to Shutdown, got: {reply}"),
+        Ok(reply) => assert!(
+            reply.contains("Ack"),
+            "expected Ack to Shutdown, got: {reply}"
+        ),
         Err(err) => {
             // Tolerate a lost ack only if the watcher still exits cleanly (same policy as the
             // clean-shutdown test above).
             let code = wait_for_exit(watcher.child_mut(), Duration::from_secs(2));
-            assert_eq!(code, Some(0), "shutdown ack failed and the watcher did not exit 0: {err}");
+            assert_eq!(
+                code,
+                Some(0),
+                "shutdown ack failed and the watcher did not exit 0: {err}"
+            );
         }
     }
     let code = wait_for_exit(watcher.child_mut(), Duration::from_secs(5));
-    assert_eq!(code, Some(0), "clean Shutdown after the rendezvous must exit 0");
+    assert_eq!(
+        code,
+        Some(0),
+        "clean Shutdown after the rendezvous must exit 0"
+    );
 
     kill_child(parent.child_mut());
 }

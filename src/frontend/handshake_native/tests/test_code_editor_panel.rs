@@ -5,7 +5,7 @@
 //! - PT-003 / AC-004: `code_editor_panel_basic` renders a 5-line Rust snippet and verifies colored
 //!   text (>= 2 distinct foreground colors) by pixel-sampling the rendered image.
 //! - PT-004 / AC-005: `code_editor_panel_accesskit` dumps the live AccessKit tree and asserts a
-//!   `code_editor_panel` (GenericContainer) node with a descendant `code_editor_text` (TextInput).
+//!   `code_editor_panel` (GenericContainer) node with a descendant `editor.code.text` (TextInput).
 //! - MT step 5 wiring proof: the `CodeEditorPaneFactory` renders through the EXISTING WP-011
 //!   `PaneHostWidget` (pane_registry) so the editor mounts as a named pane without forking the shell.
 //!
@@ -37,7 +37,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::panel::{scope_to_color, CodeEditorPaneFactory};
 use handshake_native::code_editor::{

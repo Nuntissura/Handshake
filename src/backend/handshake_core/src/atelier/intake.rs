@@ -45,6 +45,9 @@ pub mod intake_event_family {
     pub const INTAKE_BATCH_CREATED: &str = "atelier.intake.batch_created";
     /// A source file was registered as an item in a batch.
     pub const INTAKE_ITEM_ADDED: &str = "atelier.intake.item_added";
+    /// An intake item acquired its immutable canonical Loom projection.
+    pub const INTAKE_ITEM_LOOM_PROJECTION_LINKED: &str =
+        "atelier.intake.item_loom_projection_linked";
     /// An item moved into a lifecycle state.
     pub const INTAKE_ITEM_CLASSIFIED: &str = "atelier.intake.item_classified";
     /// A negative item state wrote a durable rejection audit row.
@@ -66,6 +69,7 @@ pub mod intake_event_family {
     pub const ALL: &[&str] = &[
         INTAKE_BATCH_CREATED,
         INTAKE_ITEM_ADDED,
+        INTAKE_ITEM_LOOM_PROJECTION_LINKED,
         INTAKE_ITEM_CLASSIFIED,
         INTAKE_ITEM_REJECTION_AUDITED,
         INTAKE_BATCH_CLOSED,
@@ -254,6 +258,18 @@ pub struct IntakeItem {
     pub lane_reason: Option<String>,
     pub created_at_utc: DateTime<Utc>,
     pub updated_at_utc: DateTime<Utc>,
+}
+
+/// Durable identity bridge consumed by native editor/canvas drag payloads.
+/// The relation is immutable: an Atelier item cannot silently move to a
+/// different Loom block after a document or canvas has stored the reference.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IntakeItemLoomProjection {
+    pub item_id: Uuid,
+    pub loom_block_id: String,
+    pub workspace_id: String,
+    pub linked_by: String,
+    pub linked_at_utc: DateTime<Utc>,
 }
 
 /// Durable audit row for negative intake lifecycle outcomes. Rejected,
@@ -872,6 +888,126 @@ fn orphan_intake_file_name(content_hash: &str, mime: &str) -> String {
 }
 
 impl AtelierStore {
+    /// Persist the authoritative Atelier item -> Loom block relation.
+    ///
+    /// The target block must already be a real Loom authority row carrying a
+    /// source document or asset. Repeating the same link is idempotent; trying
+    /// to repoint an already-linked item fails closed.
+    pub async fn link_intake_item_loom_projection(
+        &self,
+        item_id: Uuid,
+        loom_block_id: &str,
+        linked_by: &str,
+    ) -> AtelierResult<IntakeItemLoomProjection> {
+        let loom_block_id = require_scan_text("loom_block_id", loom_block_id)?;
+        let linked_by = require_scan_text("linked_by", linked_by)?;
+        reject_legacy_runtime_ref("loom_block_id", loom_block_id)?;
+        reject_legacy_runtime_ref("linked_by", linked_by)?;
+
+        let mut tx = self.pool().begin().await?;
+        let item_exists = sqlx::query_scalar::<_, Uuid>(
+            "SELECT item_id FROM atelier_intake_item WHERE item_id = $1 FOR UPDATE",
+        )
+        .bind(item_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .is_some();
+        if !item_exists {
+            tx.rollback().await?;
+            return Err(AtelierError::NotFound(format!("intake item {item_id}")));
+        }
+
+        let block = sqlx::query(
+            r#"SELECT workspace_id, document_id, asset_id
+               FROM loom_blocks
+               WHERE block_id = $1
+               FOR SHARE"#,
+        )
+        .bind(loom_block_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AtelierError::NotFound(format!("Loom block {loom_block_id}")))?;
+        let workspace_id: String = block.get("workspace_id");
+        let document_id: Option<String> = block.get("document_id");
+        let asset_id: Option<String> = block.get("asset_id");
+        if document_id.is_none() && asset_id.is_none() {
+            tx.rollback().await?;
+            return Err(AtelierError::Validation(format!(
+                "Loom block {loom_block_id} has no source document or asset"
+            )));
+        }
+
+        if let Some(row) = sqlx::query(
+            r#"SELECT item_id, loom_block_id, workspace_id, linked_by, linked_at_utc
+               FROM atelier_intake_item_loom_projection
+               WHERE item_id = $1
+               FOR UPDATE"#,
+        )
+        .bind(item_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        {
+            let existing_block_id: String = row.get("loom_block_id");
+            if existing_block_id != loom_block_id {
+                tx.rollback().await?;
+                return Err(AtelierError::Conflict(format!(
+                    "intake item {item_id} is already linked to Loom block {existing_block_id}"
+                )));
+            }
+            let projection = IntakeItemLoomProjection {
+                item_id: row.get("item_id"),
+                loom_block_id: existing_block_id,
+                workspace_id: row.get("workspace_id"),
+                linked_by: row.get("linked_by"),
+                linked_at_utc: row.get("linked_at_utc"),
+            };
+            tx.commit().await?;
+            return Ok(projection);
+        }
+
+        let row = sqlx::query(
+            r#"INSERT INTO atelier_intake_item_loom_projection
+                  (item_id, loom_block_id, workspace_id, linked_by)
+               VALUES ($1, $2, $3, $4)
+               ON CONFLICT DO NOTHING
+               RETURNING item_id, loom_block_id, workspace_id, linked_by, linked_at_utc"#,
+        )
+        .bind(item_id)
+        .bind(loom_block_id)
+        .bind(&workspace_id)
+        .bind(linked_by)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some(row) = row else {
+            tx.rollback().await?;
+            return Err(AtelierError::Conflict(format!(
+                "Loom block {loom_block_id} already has a canonical Atelier intake item"
+            )));
+        };
+        let projection = IntakeItemLoomProjection {
+            item_id: row.get("item_id"),
+            loom_block_id: row.get("loom_block_id"),
+            workspace_id: row.get("workspace_id"),
+            linked_by: row.get("linked_by"),
+            linked_at_utc: row.get("linked_at_utc"),
+        };
+
+        self.record_event_in_tx(
+            &mut tx,
+            intake_event_family::INTAKE_ITEM_LOOM_PROJECTION_LINKED,
+            "atelier_intake_item",
+            &item_id.to_string(),
+            serde_json::json!({
+                "loom_block_id": &projection.loom_block_id,
+                "workspace_id": &projection.workspace_id,
+                "linked_by": &projection.linked_by,
+            }),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(projection)
+    }
+
     /// Scan a configured inbox directory and register direct child image files
     /// as pending intake items. The scan is read-only with respect to
     /// `inbox_root`: it reads directory entries and file bytes for hashing but

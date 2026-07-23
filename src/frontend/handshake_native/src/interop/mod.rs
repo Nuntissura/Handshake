@@ -57,9 +57,11 @@ pub mod locus_interop;
 pub use interaction_bus::{
     command_list_item_author_id, default_keybind_for, interaction_bus_id, ClipboardCommand,
     ClipboardPayload, CommandBus, CommandDescriptor, CommandHandler, EditorSurfaceKind,
-    InteractionBus, SharedSelection, CMD_COMMAND_PALETTE, CMD_COPY, CMD_CUT,
-    CMD_EMBED_STAGE_CAPTURE, CMD_FIND, CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT, CMD_OPEN_LOCUS_REF,
-    CMD_PASTE, CMD_REDO, CMD_ROUTE_TO_STAGE, CMD_SELECT_ALL, CMD_UNDO, CMD_UNDO_CROSS_PANE,
+    InteractionBus, PendingStageRoute, SharedCodeFindEntry, SharedCodeFindResults, SharedFindQuery,
+    SharedFindResults, SharedNoteFindEntry, SharedNoteFindResults, SharedSelection,
+    CMD_COMMAND_PALETTE, CMD_COPY, CMD_CUT, CMD_EMBED_STAGE_CAPTURE, CMD_FIND,
+    CMD_OPEN_CODE_SYMBOL, CMD_OPEN_DOCUMENT, CMD_OPEN_LOCUS_REF, CMD_PASTE, CMD_REDO,
+    CMD_ROUTE_TO_STAGE, CMD_SELECT_ALL, CMD_UNDO, CMD_UNDO_CROSS_PANE,
     COMMAND_LIST_ITEM_AUTHOR_PREFIX, COMMAND_PALETTE_SEARCH_AUTHOR_ID,
     COMMAND_PALETTE_TRIGGER_AUTHOR_ID, INTERACTION_BUS_KEY,
 };
@@ -89,8 +91,8 @@ pub use stage_interop::{
     build_from_canvas_node, build_from_canvas_node_live, build_from_selection,
     build_from_selection_live, embed_artifact_as_nodeview, embed_stage_capture_descriptor,
     register_embed_stage_capture_command, route_to_stage, CanvasNodeRef, EmbedNodeView, RouteAck,
-    StageArtifactRef, StageClient, StageEmbedProvenance, StageInteropError, StageManifest,
-    StageRoutePayload, StageRouteSource, STAGE_CAPTURE_REF_KIND,
+    StageArtifactRef, StageCaptureRequest, StageClient, StageEmbedProvenance, StageInteropError,
+    StageManifest, StageRoutePayload, StageRouteSource, STAGE_CAPTURE_REF_KIND,
 };
 
 pub use calendar_interop::{

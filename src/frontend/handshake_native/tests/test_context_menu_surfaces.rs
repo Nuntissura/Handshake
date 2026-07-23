@@ -22,13 +22,17 @@
 
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
-use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::app::{ExplorerRenameTarget, HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::context_menu_surfaces::EXPLORER_RENAME_INPUT_AUTHOR_ID;
 use handshake_native::pane_registry::{LockState, PaneId, PaneType};
 use handshake_native::project_tabs::ProjectItem;
 use handshake_native::project_tree::{BookmarkSummary, CanvasSummary, DocumentSummary};
 use handshake_native::tab_bar::{TabBarState, TabState};
 use std::sync::Arc;
+
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -67,16 +71,61 @@ fn harness_for(app: HandshakeApp) -> Harness<'static, HandshakeApp> {
     harness
 }
 
-/// The explorer rename dialog's text field, if the dialog is open — disambiguated from the always-visible
-/// MT-022 bottom search rail input (which is ALSO a `Role::TextInput` in every frame). The rail input
-/// carries the stable author_id `bottom-rail.input`; the rename field does not, so the NON-rail
-/// TextInput is the rename field. `None` => the rename dialog is not open (only the rail input exists).
-/// (Before MT-022 the rename field was the only TextInput, so this test used a bare `query_by_role`; the
-/// always-visible rail made that ambiguous.)
+fn json_author_count(value: &serde_json::Value, author_id: &str) -> usize {
+    match value {
+        serde_json::Value::Object(object) => {
+            usize::from(
+                object.get("author_id").and_then(serde_json::Value::as_str) == Some(author_id),
+            ) + object
+                .values()
+                .map(|value| json_author_count(value, author_id))
+                .sum::<usize>()
+        }
+        serde_json::Value::Array(values) => values
+            .iter()
+            .map(|value| json_author_count(value, author_id))
+            .sum(),
+        _ => 0,
+    }
+}
+
+fn json_author<'a>(value: &'a serde_json::Value, author_id: &str) -> Option<&'a serde_json::Value> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if object.get("author_id").and_then(serde_json::Value::as_str) == Some(author_id) {
+                return Some(value);
+            }
+            object
+                .values()
+                .find_map(|value| json_author(value, author_id))
+        }
+        serde_json::Value::Array(values) => values
+            .iter()
+            .find_map(|value| json_author(value, author_id)),
+        _ => None,
+    }
+}
+
+fn secondary_click_at(harness: &mut Harness<'_, HandshakeApp>, position: egui::Pos2) {
+    harness.event(egui::Event::PointerMoved(position));
+    for pressed in [true, false] {
+        harness.event(egui::Event::PointerButton {
+            pos: position,
+            button: egui::PointerButton::Secondary,
+            pressed,
+            modifiers: egui::Modifiers::default(),
+        });
+    }
+    harness.run();
+}
+
+/// The explorer rename dialog's exact text field, if the dialog is open. Role-only discovery is
+/// deliberately forbidden here because the shell contains concurrent search-rail and Runtime Chat
+/// text inputs. The production author id is the durable model/operator interaction address.
 fn rename_field<'h>(harness: &'h Harness<'_, HandshakeApp>) -> Option<egui_kittest::Node<'h>> {
     harness
         .query_all_by_role(egui::accesskit::Role::TextInput)
-        .find(|n| n.accesskit_node().author_id() != Some("bottom-rail.input"))
+        .find(|n| n.accesskit_node().author_id() == Some(EXPLORER_RENAME_INPUT_AUTHOR_ID))
 }
 
 /// Every live author-id node: (author_id, role, label).
@@ -110,12 +159,12 @@ fn header_targets_present_menus_closed_by_default() {
     let harness = harness_for(app_three_tab_pane_a());
     let nodes = live_author_nodes(&harness);
 
-    // The four MT-020 per-pane header right-click targets are live and named.
+    // The three MT-098 default-pane header right-click targets are live and named. Four-pane behavior
+    // is covered by tests that seed pane-d explicitly rather than rewriting the product default.
     for hid in [
         "pane-pane-a-header",
         "pane-pane-b-header",
         "pane-pane-c-header",
-        "pane-pane-d-header",
     ] {
         let found = nodes
             .iter()
@@ -408,7 +457,11 @@ fn app_with_explorer_rows() -> HandshakeApp {
     let mut app = ok_app();
     app.set_left_rail_open(true);
     app.left_rail_mut().project_tree.set_content_with_bookmarks(
-        vec![DocumentSummary::new("doc-1", "My Document")],
+        vec![DocumentSummary {
+            id: "KRD-explorer-1".to_owned(),
+            title: "My Document".to_owned(),
+            updated_at: Some("2026-07-16T10:20:30Z".to_owned()),
+        }],
         vec![CanvasSummary::new("canvas-1", "My Canvas")],
         vec![BookmarkSummary::new("blk-1", "My Bookmark", "block", None)],
     );
@@ -472,11 +525,10 @@ fn explorer_rename_opens_rename_dialog_seeded_with_title() {
 }
 
 #[test]
-fn explorer_document_rename_is_disabled() {
-    // FIX (BLOCKER): a document row's id is a DOCUMENT id, NOT a Loom-block id. PATCHing
-    // `/loom/blocks/{document_id}` would 404 at runtime, so the document Rename item is present +
-    // addressable but DISABLED (no fake-enable), mirroring the canvas-disabled proof. Clicking it must
-    // open NO rename dialog — proving a document id can never reach the Loom-block PATCH.
+fn explorer_document_rename_opens_the_document_rename_dialog() {
+    // A document row uses the dedicated knowledge-document rename handler. Opening the shared dialog
+    // proves the menu action is live; the typed target in app state prevents the document id from ever
+    // reaching the Loom-block PATCH.
     let mut harness = harness_for(app_with_explorer_rows());
 
     harness
@@ -495,20 +547,26 @@ fn explorer_document_rename_is_disabled() {
             "explorer {leaf} present + addressable on document row: {nodes:?}"
         );
     }
-    // Clicking the disabled rename fires nothing -> no rename dialog opens.
     harness.get_by_label("Rename").click();
     harness.run();
     assert!(
-        rename_field(&harness).is_none(),
-        "disabled document Rename did not open the rename dialog (no fake-enable; wrong id space)"
+        rename_field(&harness).is_some(),
+        "document Rename opened the shared dialog backed by the document-specific handler"
     );
-    println!("PASS: document row Rename is addressable but disabled (document id is not a Loom-block id)");
+    assert_eq!(
+        harness.state().pending_explorer_rename_target(),
+        Some(&ExplorerRenameTarget::Document {
+            document_id: "KRD-explorer-1".to_owned(),
+            expected_updated_at: Some("2026-07-16T10:20:30Z".to_owned()),
+        }),
+        "the mounted explorer retains the RichDocument authority id and matching optimistic token",
+    );
+    println!("PASS: document row Rename reaches the document-specific rename path");
 }
 
 #[test]
-fn explorer_canvas_rename_is_disabled() {
-    // A canvas row is not a Loom block, so its rename item is present + addressable but DISABLED
-    // (no fake-enable). reveal_in_graph is disabled for every row kind.
+fn explorer_canvas_rename_opens_the_canvas_rename_dialog() {
+    // Canvas rename has its own typed backend target; it must not route to the Loom dialog handler.
     let mut harness = harness_for(app_with_explorer_rows());
 
     harness
@@ -527,14 +585,21 @@ fn explorer_canvas_rename_is_disabled() {
             "explorer {leaf} present + addressable on canvas row: {nodes:?}"
         );
     }
-    // Clicking the disabled rename fires nothing -> no rename dialog opens.
     harness.get_by_label("Rename").click();
     harness.run();
     assert!(
-        rename_field(&harness).is_none(),
-        "disabled canvas Rename did not open the rename dialog (no fake-enable)"
+        rename_field(&harness).is_some(),
+        "canvas Rename opened the shared dialog"
     );
-    println!("PASS: canvas row Rename is addressable but disabled (no fake-enable)");
+    assert_eq!(
+        harness.state().pending_explorer_rename_target(),
+        Some(&ExplorerRenameTarget::Canvas {
+            canvas_id: "canvas-1".to_owned(),
+            expected_updated_at: None,
+        }),
+        "the live dialog retains a typed Canvas target",
+    );
+    println!("PASS: canvas row Rename reaches the canvas-specific rename path");
 }
 
 // ── Surface 3: project tab ────────────────────────────────────────────────────────────────────────────
@@ -598,9 +663,9 @@ fn secondary_click_project_tab_switches_project() {
 use handshake_native::context_menu::{ContextMenu, ContextMenuItem};
 use handshake_native::context_menu_surfaces::{
     editor_body_action_for_id, editor_body_context_items, editor_body_ids, node_action_for_id,
-    node_context_items, node_navigation_target, show_editor_body_menu, show_node_menu,
-    EditorBodyAvailability, EditorBodyMenuAction, NodeMenuAction, NodeMenuAvailability,
-    EDITOR_BODY_REQUIRED_IDS, NODE_MENU_REQUIRED_IDS,
+    node_context_items, node_menu_ids, node_navigation_target, show_editor_body_menu,
+    show_node_menu, EditorBodyAvailability, EditorBodyMenuAction, NodeMenuAction,
+    NodeMenuAvailability, EDITOR_BODY_REQUIRED_IDS, NODE_MENU_REQUIRED_IDS,
 };
 use handshake_native::navigation_bus::NavigationTarget;
 
@@ -621,8 +686,10 @@ fn full_editor_availability() -> EditorBodyAvailability {
 /// A fully-available node (note + id + unresolved link), so every node entry is enabled.
 fn full_node_availability() -> NodeMenuAvailability {
     NodeMenuAvailability {
+        canvas_projection_confirmed: None,
         has_note: true,
         has_node_id: true,
+        can_route_to_stage: true,
         unresolved_link: true,
     }
 }
@@ -692,6 +759,61 @@ fn mt070_author_nodes(harness: &Harness<'_>) -> Vec<(String, String, Option<Stri
     found
 }
 
+/// Project the mounted kittest surface into the same full-tree shape the canonical Argus tools read.
+/// This deliberately uses the live AccessKit nodes instead of rebuilding menu state from the builder.
+fn mt070_argus_snapshot(harness: &Harness<'_>) -> handshake_native::accessibility::UiTreeSnapshot {
+    use handshake_native::accessibility::{UiTreeNode, UiTreeSnapshot};
+
+    let actions = [
+        egui::accesskit::Action::Click,
+        egui::accesskit::Action::Focus,
+        egui::accesskit::Action::SetValue,
+    ];
+    let children: Vec<_> = harness
+        .root()
+        .children_recursive()
+        .map(|node| {
+            let access = node.accesskit_node();
+            let node_id = access.id().0;
+            UiTreeNode {
+                id: access
+                    .author_id()
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| format!("node:{node_id}")),
+                author_id: access.author_id().map(str::to_owned),
+                node_id,
+                role: format!("{:?}", access.role()),
+                label: access.label(),
+                value: access.value(),
+                disabled: access.is_disabled(),
+                actions: actions
+                    .iter()
+                    .filter(|action| access.data().supports_action(**action))
+                    .map(|action| format!("{action:?}"))
+                    .collect(),
+                bounds: None,
+                children: Vec::new(),
+            }
+        })
+        .collect();
+    UiTreeSnapshot {
+        widget_count: children.len() + 1,
+        root: UiTreeNode {
+            id: "mt070-argus-root".to_owned(),
+            author_id: None,
+            node_id: 0,
+            role: "Window".to_owned(),
+            label: None,
+            value: None,
+            disabled: false,
+            actions: Vec::new(),
+            bounds: None,
+            children,
+        },
+        captured_at_utc: "mt070-argus-frame".to_owned(),
+    }
+}
+
 // ── AC-070-9: the editor-body menu renders Role::Menu container + Role::MenuItem items by stable id ────
 
 #[test]
@@ -727,14 +849,14 @@ fn mt070_editor_body_menu_renders_menuitems_with_stable_ids() {
             });
         assert_eq!(found.1, "MenuItem", "{want} is a Role::MenuItem (AC-070-9)");
     }
-    // AC-070-9 (container): the menu is open inside the WP-011 ContextMenu primitive's egui POPUP
-    // container — the SAME popup `top_menu_bar` / every MT-020/021 surface uses. egui's menu popup
-    // container is a foreground Area node (it does NOT itself carry Role::Menu — the WP-011 primitive
-    // emits the addressable surface on the ITEMS, which is what an out-of-process swarm agent activates;
-    // forking the primitive to stamp a Role::Menu on the container would violate the dispatch-only,
-    // reuse-WP-011 scope, RISK-070-4). The container's presence is proven by the required MenuItem nodes
-    // existing ONLY while the popup is open (they are absent in the closed default frame — see the closed
-    // assertion below), so the items are genuinely nested in the live popup, not memory-only.
+    // AC-070-9 (container): the live WP-011 ContextMenu popup exposes an addressable Role::Menu parent.
+    // Its stable surface author id lets a no-context agent discover the menu topology before activating
+    // one of the MenuItem children.
+    let menu = nodes
+        .iter()
+        .find(|(a, r, _)| a == "ctx-menu.surface.editor-body" && r == "Menu")
+        .expect("the open editor-body popup exposes a Role::Menu container");
+    assert_eq!(menu.1, "Menu");
     let menu_item_count = nodes.iter().filter(|(_, r, _)| r == "MenuItem").count();
     assert!(
         menu_item_count >= EDITOR_BODY_REQUIRED_IDS.len(),
@@ -941,6 +1063,1057 @@ fn mt070_no_required_entry_is_a_dead_handler() {
     println!("PASS AC-070-5: no required context-menu entry is a dead/placeholder handler");
 }
 
+#[test]
+fn mt070_node_menu_enabled_state_matches_action_resolution_for_every_availability() {
+    for has_note in [false, true] {
+        for has_node_id in [false, true] {
+            for can_route_to_stage in [false, true] {
+                for unresolved_link in [false, true] {
+                    let availability = NodeMenuAvailability {
+                        canvas_projection_confirmed: None,
+                        has_note,
+                        has_node_id,
+                        can_route_to_stage,
+                        unresolved_link,
+                    };
+                    for item in node_context_items(availability).iter().filter(|item| {
+                        !matches!(
+                            item.kind,
+                            handshake_native::context_menu::MenuItemKind::Separator
+                        )
+                    }) {
+                        let resolves = node_action_for_id(item.id, availability).is_some();
+                        assert_eq!(
+                            item.enabled, resolves,
+                            "node menu item '{}' enabled={} but action resolution={} for availability {:?}",
+                            item.id, item.enabled, resolves, availability
+                        );
+                        if !item.enabled {
+                            assert!(
+                                item.disabled_reason.is_some(),
+                                "disabled node menu item '{}' must disclose why",
+                                item.id
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let unavailable = NodeMenuAvailability::default();
+    let route = node_context_items(unavailable)
+        .into_iter()
+        .find(|item| item.id == node_menu_ids::ROUTE_TO_STAGE)
+        .expect("Route to Stage entry is rendered");
+    assert!(
+        !route.enabled,
+        "Route to Stage requires both a stable node id and a live Canvas route"
+    );
+    assert!(route.disabled_reason.is_some());
+    assert_eq!(
+        node_action_for_id(node_menu_ids::ROUTE_TO_STAGE, unavailable),
+        None
+    );
+}
+
+#[test]
+fn mt070_argus_dispatch_seam_observes_and_enforces_stage_route_availability() {
+    use handshake_native::graph::canvas_board::{placement_menu_availability, CanvasPlacementCard};
+    use handshake_native::graph::graph_view::{graph_node_menu_availability, GraphNode};
+    use handshake_native::mcp::{
+        dispatch_request, ActionChannel, McpRequest, ScreenshotError, SessionToken,
+    };
+
+    let target = format!("ctx-menu.{}", node_menu_ids::ROUTE_TO_STAGE);
+    let token = SessionToken::from_hex("mt070-argus");
+
+    // Graph is an explicitly unavailable source: canonical inspect sees a disabled live MenuItem and
+    // canonical click rejects it before an event can reach the host.
+    let graph_availability =
+        graph_node_menu_availability(&GraphNode::new("blk-graph", "Graph", "note"));
+    let graph_captured = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let mut graph = node_menu_harness(graph_availability, graph_captured.clone());
+    graph.run();
+    graph.get_by_label(MT070_SURFACE_LABEL).click_secondary();
+    graph.run_steps(2);
+    let disabled_route = graph.get_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(target.as_str())
+    });
+    assert_eq!(
+        disabled_route.accesskit_node().value().as_deref(),
+        Some("Route to Stage requires a stable node id and a live Canvas board context")
+    );
+    assert!(
+        !disabled_route
+            .accesskit_node()
+            .data()
+            .supports_action(egui::accesskit::Action::Click),
+        "disabled AccessKit MenuItem exposes its reason but no Click action"
+    );
+    let graph_snapshot = mt070_argus_snapshot(&graph);
+    let graph_node = graph_snapshot
+        .find_by_author_id(&target)
+        .expect("canonical Argus snapshot contains the graph Route-to-Stage MenuItem");
+    assert!(
+        graph_node.disabled,
+        "graph Route to Stage is visibly disabled"
+    );
+    let mut graph_channel = ActionChannel::new();
+    let inspect = dispatch_request(
+        &McpRequest {
+            id: serde_json::json!(1),
+            method: handshake_native::mcp::argus::ARGUS_INSPECT_METHOD.to_owned(),
+            params: serde_json::json!({}),
+            session_token: "mt070-argus".to_owned(),
+        },
+        &token,
+        &graph_snapshot,
+        &mut graph_channel,
+        || Err(ScreenshotError("not requested".to_owned())),
+    )
+    .to_json();
+    assert_eq!(
+        inspect["result"]["widget_count"],
+        graph_snapshot.widget_count
+    );
+    let rejected = dispatch_request(
+        &McpRequest {
+            id: serde_json::json!(2),
+            method: handshake_native::mcp::argus::ARGUS_CLICK_METHOD.to_owned(),
+            params: serde_json::json!({"target": target}),
+            session_token: "mt070-argus".to_owned(),
+        },
+        &token,
+        &graph_snapshot,
+        &mut graph_channel,
+        || Err(ScreenshotError("not requested".to_owned())),
+    )
+    .to_json();
+    assert_eq!(rejected["error"]["code"], -32000);
+    assert!(rejected["error"]["message"]
+        .as_str()
+        .is_some_and(|message| message.contains("disabled")));
+    assert_eq!(*graph_captured.lock().unwrap(), None);
+
+    // A live Canvas board with both authority ids exposes the same stable target as enabled. Canonical
+    // click crosses ActionChannel into the mounted production menu, and a fresh inspect carries the
+    // terminal post-render receipt instead of inferring success from the queue response.
+    let card = CanvasPlacementCard::new("placement-live", "block-live", 0.0, 0.0, 200.0, 120.0);
+    let canvas_availability = placement_menu_availability(&card, true);
+    let canvas_captured = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let mut canvas = node_menu_harness(canvas_availability, canvas_captured.clone());
+    canvas.run();
+    canvas.get_by_label(MT070_SURFACE_LABEL).click_secondary();
+    canvas.run_steps(2);
+    let before = mt070_argus_snapshot(&canvas);
+    assert!(
+        !before
+            .find_by_author_id(&target)
+            .expect("canonical Argus snapshot contains the Canvas Route-to-Stage MenuItem")
+            .disabled
+    );
+    let mut canvas_channel = ActionChannel::new();
+    let queued = dispatch_request(
+        &McpRequest {
+            id: serde_json::json!(3),
+            method: handshake_native::mcp::argus::ARGUS_CLICK_METHOD.to_owned(),
+            params: serde_json::json!({"target": target}),
+            session_token: "mt070-argus".to_owned(),
+        },
+        &token,
+        &before,
+        &mut canvas_channel,
+        || Err(ScreenshotError("not requested".to_owned())),
+    )
+    .to_json();
+    assert_eq!(queued["result"]["queued"], true);
+    let receipt_id = queued["result"]["receipt_id"]
+        .as_u64()
+        .expect("canonical Argus click returns a receipt id");
+    for event in canvas_channel.drain_revalidated_into_events(&before) {
+        canvas.event(event);
+    }
+    canvas.run_steps(3);
+    assert_eq!(
+        *canvas_captured.lock().unwrap(),
+        Some(NodeMenuAction::RouteToStage),
+        "canonical Argus click reaches the mounted real menu action"
+    );
+    let after = mt070_argus_snapshot(&canvas);
+    canvas_channel.acknowledge_after_render(&after);
+    let reinspect = dispatch_request(
+        &McpRequest {
+            id: serde_json::json!(4),
+            method: handshake_native::mcp::argus::ARGUS_INSPECT_METHOD.to_owned(),
+            params: serde_json::json!({}),
+            session_token: "mt070-argus".to_owned(),
+        },
+        &token,
+        &after,
+        &mut canvas_channel,
+        || Err(ScreenshotError("not requested".to_owned())),
+    )
+    .to_json();
+    assert!(reinspect["result"]["action_receipts"]
+        .as_array()
+        .is_some_and(|receipts| receipts.iter().any(|receipt| {
+            receipt["receipt_id"].as_u64() == Some(receipt_id) && receipt["status"] != "queued"
+        })));
+}
+
+#[test]
+fn mt070_mounted_canvas_argus_routes_exact_source_into_stage() {
+    use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+    use handshake_native::context_menu_surfaces::node_menu_ids;
+    use handshake_native::graph::canvas_board::{placement_author_id, CanvasPlacementCard};
+    use handshake_native::stage_pane::{StageContent, STAGE_ROUTED_CONTENT_AUTHOR_ID};
+
+    fn find_author<'a>(
+        value: &'a serde_json::Value,
+        author_id: &str,
+    ) -> Option<&'a serde_json::Value> {
+        match value {
+            serde_json::Value::Object(object) => {
+                if object.get("author_id").and_then(serde_json::Value::as_str) == Some(author_id) {
+                    return Some(value);
+                }
+                object
+                    .values()
+                    .find_map(|value| find_author(value, author_id))
+            }
+            serde_json::Value::Array(values) => values
+                .iter()
+                .find_map(|value| find_author(value, author_id)),
+            _ => None,
+        }
+    }
+
+    let pane_a = PaneId::from("pane-a");
+    let mut app = ok_app();
+    app.set_active_project_id_for_test("workspace-live");
+    app.set_active_pane_for_test(Some(pane_a.clone()));
+    app.tab_bar_states_mut().insert(
+        pane_a.clone(),
+        TabBarState::new(
+            pane_a.clone(),
+            vec![TabState {
+                pane_type: PaneType::AtelierEditor,
+                content_id: Some("canvas-live".to_owned()),
+                pinned: false,
+                dirty: false,
+                label_override: None,
+            }],
+        ),
+    );
+    app.set_left_rail_open(false);
+    app.begin_canvas_request_for_test("workspace-live", "canvas-live");
+    {
+        let board = app.mounted_canvas_board();
+        let mut board = board.lock().unwrap();
+        let mut card =
+            CanvasPlacementCard::new("placement-live", "block-live", 40.0, 40.0, 200.0, 120.0);
+        card.mark_live_resolved(Some("Live block".to_owned()), "note".to_owned(), None);
+        board.set_board(vec![card], Vec::new(), egui::Vec2::ZERO, 1.0);
+    }
+
+    let mut harness = harness_for(app);
+    let placement_id = placement_author_id("placement-live");
+    let click_pos = harness
+        .state()
+        .mounted_canvas_board()
+        .lock()
+        .unwrap()
+        .canvas_point_to_screen(egui::pos2(80.0, 80.0))
+        .expect("mounted Canvas recorded its real transform");
+    harness.event(egui::Event::PointerMoved(click_pos));
+    harness.event(egui::Event::PointerButton {
+        pos: click_pos,
+        button: egui::PointerButton::Secondary,
+        pressed: true,
+        modifiers: egui::Modifiers::default(),
+    });
+    harness.event(egui::Event::PointerButton {
+        pos: click_pos,
+        button: egui::PointerButton::Secondary,
+        pressed: false,
+        modifiers: egui::Modifiers::default(),
+    });
+    harness.run();
+    assert_eq!(
+        harness
+            .state()
+            .mounted_canvas_board()
+            .lock()
+            .unwrap()
+            .context_menu_placement_for_test(),
+        Some("placement-live"),
+        "real secondary click attaches the menu to the mounted placement"
+    );
+    let route_id = format!("ctx-menu.{}", node_menu_ids::ROUTE_TO_STAGE);
+    assert!(harness
+        .state()
+        .mounted_canvas_board()
+        .lock()
+        .unwrap()
+        .projection_is_confirmed());
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt070-mounted-canvas-stage");
+    let before = argus.inspect(&mut harness);
+    assert!(
+        harness
+            .state()
+            .mounted_canvas_board()
+            .lock()
+            .unwrap()
+            .projection_is_confirmed(),
+        "canonical capture preserves the confirmed projection"
+    );
+    assert!(json_has_author_id(&before, &placement_id));
+    assert!(json_has_author_id(&before, &route_id));
+    let route_before = find_author(&before, &route_id).unwrap();
+    assert_eq!(route_before["disabled"], false, "{route_before}");
+    // Change focus only after the canonical client observed pane-a's menu. The subsequent click uses
+    // that exact inspected snapshot and must not reconstruct source identity from active pane-b.
+    harness
+        .state_mut()
+        .set_active_pane_for_test(Some(PaneId::from("pane-b")));
+    let observation =
+        argus.click_from_snapshot_and_reinspect(&mut harness, &route_id, before.clone());
+    assert!(
+        matches!(
+            observation.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
+        "receipt is terminal; concrete Stage state below is the success gate"
+    );
+    harness.run_steps(3);
+
+    assert!(matches!(
+        harness.state().stage_content(),
+        StageContent::Selection(ref text, ref source)
+            if text == "canvas node block-live"
+                && source == "node://canvas-live/block-live"
+    ));
+    let post_state = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&post_state, STAGE_ROUTED_CONTENT_AUTHOR_ID),
+        "fresh canonical inspect sees the mounted Stage post-state"
+    );
+    argus.finish();
+}
+
+#[test]
+fn mt070_mounted_editor_body_localhost_argus_action_matrix() {
+    use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+    use handshake_native::code_editor::{
+        Cursor, RenameState, CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID,
+    };
+    use handshake_native::context_menu_surfaces::editor_body_ids;
+    use handshake_native::rich_editor::wikilinks::runtime::{CreateNoteBackend, CreateNoteWrite};
+
+    struct PendingCreate;
+    impl CreateNoteBackend for PendingCreate {
+        fn create_note<'a>(
+            &'a self,
+            _workspace_id: &'a str,
+            _title: &'a str,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<CreateNoteWrite, String>> + Send + 'a>,
+        > {
+            Box::pin(std::future::pending())
+        }
+    }
+
+    fn click_body_action(
+        argus: &mut CanonicalArgusDriver,
+        harness: &mut Harness<'_, HandshakeApp>,
+        action_id: &str,
+    ) {
+        let opened = argus.click_and_reinspect(harness, CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID);
+        let target = format!("ctx-menu.{action_id}");
+        assert!(
+            json_has_author_id(&opened.after, &target),
+            "fresh localhost Argus inspection sees the real mounted editor popup target {target}"
+        );
+        let action = argus.click_and_reinspect(harness, &target);
+        assert!(matches!(
+            action.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ));
+    }
+
+    let pane_a = PaneId::from("pane-a");
+    let mut app = ok_app();
+    let editor_runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    app.set_runtime_handle(editor_runtime.handle().clone());
+    app.set_active_project_id_for_test("workspace-editor");
+    app.set_active_pane_for_test(Some(pane_a.clone()));
+    app.tab_bar_states_mut().insert(
+        pane_a.clone(),
+        TabBarState::new(pane_a, vec![TabState::new(PaneType::CodeSymbol)]),
+    );
+    app.set_left_rail_open(false);
+    let panel = app.mounted_code_panel();
+    panel.set_runtime(editor_runtime.handle().clone());
+    panel.set_text("fn alpha() { let beta = 1; }\n// [[Missing Note]]\n");
+    panel.set_workspace_id("workspace-editor");
+    panel.set_single_cursor(4);
+
+    // Make the mounted rich runtime authoritative for an empty title index and keep the real create
+    // request observably in-flight without touching the network.
+    {
+        let rich = app.mounted_rich_state();
+        let mut rich = rich.lock().unwrap();
+        rich.wikilinks.set_context("workspace-editor", "note-host");
+        rich.wikilinks.set_create_backend(Arc::new(PendingCreate));
+        rich.wikilinks.stage_resolver_seed(Vec::new());
+    }
+
+    let mut harness = harness_for(app);
+    harness.run_steps(2);
+    assert!(harness
+        .state()
+        .mounted_rich_state()
+        .lock()
+        .unwrap()
+        .wikilinks
+        .is_resolver_index_ready());
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt070-mounted-editor-matrix");
+
+    // Rename reaches the real panel state machine and the fresh post-state exposes its mounted input.
+    click_body_action(&mut argus, &mut harness, editor_body_ids::RENAME_SYMBOL);
+    assert!(matches!(panel.rename_state(), RenameState::Editing { .. }));
+    let rename_post = argus.inspect(&mut harness);
+    assert!(json_has_author_id(&rename_post, "code_editor_rename_input"));
+    panel.cancel_rename();
+    harness.run_steps(2);
+
+    // Quick Fix reaches the same request/menu controller as Ctrl+.; the mounted popup is concrete state.
+    panel.set_single_cursor(4);
+    let quick_fix_before = panel.quick_fix_request_generation_for_test();
+    click_body_action(&mut argus, &mut harness, editor_body_ids::QUICK_FIX);
+    assert_eq!(
+        panel.quick_fix_request_generation_for_test(),
+        quick_fix_before + 1,
+        "canonical click reached the real quick-fix request handler exactly once"
+    );
+    assert_eq!(
+        panel.last_quick_fix_request_for_test(),
+        Some((0, panel.buffer_version_for_test(), true)),
+        "fresh concrete state retains the requested line/version and open-menu intent"
+    );
+
+    // Format Selection reaches the real formatter gate. This mounted headless panel has no formatter,
+    // so the truthful concrete post-state is the existing non-blocking no-formatter toast.
+    panel.set_cursors(vec![Cursor::selection(3, 8)]);
+    click_body_action(&mut argus, &mut harness, editor_body_ids::FORMAT_SELECTION);
+    assert!(panel
+        .last_format_toast()
+        .as_deref()
+        .is_some_and(|message| message.contains("formatter")));
+
+    // Peek reaches the actual go-to-definition request path, proven by its monotonic generation.
+    panel.set_single_cursor(4);
+    let definition_before = panel.definition_request_generation_for_test();
+    click_body_action(&mut argus, &mut harness, editor_body_ids::PEEK_DEFINITION);
+    assert!(panel.definition_request_generation_for_test() > definition_before);
+
+    // Create-note uses an authoritative missing-link title and the mounted host drains it into the
+    // existing rich-editor create runtime. The pending stub preserves the concrete in-flight state.
+    let link_cursor = "fn alpha() { let beta = 1; }\n// [[Missing Note]]\n"
+        .find("Missing Note")
+        .unwrap()
+        + 2;
+    panel.set_single_cursor(link_cursor);
+    harness.run_steps(2);
+    click_body_action(
+        &mut argus,
+        &mut harness,
+        editor_body_ids::CREATE_NOTE_FROM_LINK,
+    );
+    assert!(harness
+        .state()
+        .mounted_rich_state()
+        .lock()
+        .unwrap()
+        .wikilinks
+        .is_creating("Missing Note"));
+
+    argus.finish();
+}
+
+#[test]
+fn mt070_two_canvas_panes_retain_one_localhost_menu_owner_and_route_exact_origin() {
+    use canonical_argus_driver::CanonicalArgusDriver;
+    use handshake_native::context_menu_surfaces::node_menu_ids;
+    use handshake_native::graph::canvas_board::CanvasPlacementCard;
+
+    let pane_a = PaneId::from("pane-a");
+    let pane_b = PaneId::from("pane-b");
+    let mut app = ok_app();
+    app.set_left_rail_open(false);
+    app.set_active_project_id_for_test("workspace-owner");
+    app.set_active_pane_for_test(Some(pane_b.clone()));
+    for pane_id in [&pane_a, &pane_b] {
+        app.tab_bar_states_mut().insert(
+            pane_id.clone(),
+            TabBarState::new(
+                pane_id.clone(),
+                vec![TabState::new(PaneType::AtelierEditor)],
+            ),
+        );
+    }
+    {
+        let board = app.mounted_canvas_board();
+        let mut board = board.lock().unwrap();
+        board.begin_projection_load("workspace-owner", "canvas-owner");
+        let mut card =
+            CanvasPlacementCard::new("placement-owner", "block-owner", 40.0, 40.0, 200.0, 120.0);
+        card.mark_live_resolved(Some("Owner card".to_owned()), "artifact".to_owned(), None);
+        board.set_board(vec![card], Vec::new(), egui::Vec2::ZERO, 1.0);
+    }
+
+    let mut harness = harness_for(app);
+    let click = harness
+        .state()
+        .mounted_canvas_board()
+        .lock()
+        .unwrap()
+        .canvas_point_to_screen_for_pane(&pane_a, egui::pos2(80.0, 80.0))
+        .expect("first-rendered pane-a canvas rect is retained independently");
+    secondary_click_at(&mut harness, click);
+    assert_eq!(
+        harness
+            .state()
+            .mounted_canvas_board()
+            .lock()
+            .unwrap()
+            .context_menu_owner_pane_for_test(),
+        Some(&pane_a),
+        "right-click boundary retains pane-a even though pane-b renders later"
+    );
+
+    harness
+        .state_mut()
+        .set_active_pane_for_test(Some(pane_b.clone()));
+    let target = format!("ctx-menu.{}", node_menu_ids::REVEAL_NODE);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt070-two-canvas-owner");
+    let snapshot = argus.inspect(&mut harness);
+    assert_eq!(
+        json_author_count(&snapshot, &target),
+        1,
+        "snapshot reconstruction emits one global target from only the owning pane"
+    );
+    let observation = argus.click_from_snapshot_and_reinspect(&mut harness, &target, snapshot);
+    assert!(matches!(
+        observation.receipt_status.as_str(),
+        "applied" | "indeterminate"
+    ));
+    harness.run_steps(3);
+
+    let pane_a_tabs = &harness.state().tab_bar_states()[&pane_a].tabs;
+    let pane_b_tabs = &harness.state().tab_bar_states()[&pane_b].tabs;
+    assert!(pane_a_tabs.iter().any(|tab| {
+        tab.pane_type == PaneType::LoomBlock && tab.content_id.as_deref() == Some("block-owner")
+    }));
+    assert!(!pane_b_tabs.iter().any(|tab| {
+        tab.pane_type == PaneType::LoomBlock && tab.content_id.as_deref() == Some("block-owner")
+    }));
+    assert_eq!(
+        harness
+            .state()
+            .mounted_canvas_board()
+            .lock()
+            .unwrap()
+            .context_menu_owner_pane_for_test(),
+        None,
+        "confirmed action clears the retained owner"
+    );
+    argus.finish();
+}
+
+#[test]
+fn mt070_two_graph_panes_localhost_action_channel_routes_owner_and_route_stays_disabled() {
+    use canonical_argus_driver::CanonicalArgusDriver;
+    use handshake_native::context_menu_surfaces::node_menu_ids;
+    use handshake_native::editor_pane_factories::{placeholder_pane_type, GRAPH_VIEW_PANE_LABEL};
+    use handshake_native::graph::graph_view::GraphNode;
+
+    let pane_a = PaneId::from("pane-a");
+    let pane_b = PaneId::from("pane-b");
+    let graph_pane_type = placeholder_pane_type(GRAPH_VIEW_PANE_LABEL);
+    let mut app = ok_app();
+    app.set_left_rail_open(false);
+    app.set_active_project_id_for_test("workspace-graph-owner");
+    app.set_active_pane_for_test(Some(pane_b.clone()));
+    for pane_id in [&pane_a, &pane_b] {
+        app.tab_bar_states_mut().insert(
+            pane_id.clone(),
+            TabBarState::new(
+                pane_id.clone(),
+                vec![TabState::new(graph_pane_type.clone())],
+            ),
+        );
+    }
+    {
+        let graph = app.mounted_graph_view();
+        let mut graph = graph.lock().unwrap();
+        graph.reset_for_workspace("workspace-graph-owner");
+        graph.controls.show_orphans = true;
+        graph.set_graph(
+            vec![GraphNode::new("graph-owner", "Graph owner", "artifact")],
+            Vec::new(),
+        );
+    }
+
+    let mut harness = harness_for(app);
+    harness.run_steps(4);
+    {
+        let graph = harness.state().mounted_graph_view();
+        let mut graph = graph.lock().unwrap();
+        // Two graph panes leave a narrow canvas beside each controls strip. Center the deterministic
+        // one-node layout so the proof right-clicks a genuinely visible node in first-rendered pane A.
+        graph.nodes[0].x = 0.0;
+        graph.nodes[0].y = 0.0;
+    }
+    let click = harness
+        .state()
+        .mounted_graph_view()
+        .lock()
+        .unwrap()
+        .node_screen_position_for_pane(&pane_a, "graph-owner")
+        .expect("first-rendered pane-a graph rect and node are retained independently");
+    assert_eq!(
+        harness
+            .state()
+            .mounted_graph_view()
+            .lock()
+            .unwrap()
+            .node_at_screen_for_pane_for_test(&pane_a, click),
+        Some("graph-owner"),
+        "the exact pane-a pointer hits the visible graph node before event dispatch"
+    );
+    secondary_click_at(&mut harness, click);
+    {
+        let graph = harness.state().mounted_graph_view();
+        let graph = graph.lock().unwrap();
+        assert_eq!(
+            graph.context_menu_owner_pane_for_test(),
+            Some(&pane_a),
+            "Graph right-click retains pane-a even though pane-b renders later; selected={:?}, rect={:?}",
+            graph.selected,
+            graph.canvas_rect_for_pane_for_test(&pane_a)
+        );
+    }
+    harness
+        .state_mut()
+        .set_active_pane_for_test(Some(pane_b.clone()));
+
+    let reveal_target = format!("ctx-menu.{}", node_menu_ids::REVEAL_NODE);
+    let route_target = format!("ctx-menu.{}", node_menu_ids::ROUTE_TO_STAGE);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt070-two-graph-owner");
+    let snapshot = argus.inspect(&mut harness);
+    assert_eq!(json_author_count(&snapshot, &reveal_target), 1);
+    assert_eq!(json_author_count(&snapshot, &route_target), 1);
+    let route = json_author(&snapshot, &route_target).expect("Graph Route target is inspectable");
+    assert_eq!(route["disabled"], true, "{route}");
+    assert_eq!(
+        route["value"],
+        "Route to Stage requires a stable node id and a live Canvas board context"
+    );
+    assert!(
+        !route["actions"]
+            .as_array()
+            .is_some_and(|actions| actions.iter().any(|action| action == "Click")),
+        "disabled Graph Route exposes no Click action: {route}"
+    );
+    argus.click_expect_rejected(&mut harness, &route_target, "disabled");
+    let reveal_snapshot = argus.inspect(&mut harness);
+    let observation =
+        argus.click_from_snapshot_and_reinspect(&mut harness, &reveal_target, reveal_snapshot);
+    assert!(matches!(
+        observation.receipt_status.as_str(),
+        "applied" | "indeterminate"
+    ));
+    harness.run_steps(3);
+
+    let pane_a_tabs = &harness.state().tab_bar_states()[&pane_a].tabs;
+    let pane_b_tabs = &harness.state().tab_bar_states()[&pane_b].tabs;
+    assert!(pane_a_tabs.iter().any(|tab| {
+        tab.pane_type == PaneType::LoomBlock && tab.content_id.as_deref() == Some("graph-owner")
+    }));
+    assert!(!pane_b_tabs.iter().any(|tab| {
+        tab.pane_type == PaneType::LoomBlock && tab.content_id.as_deref() == Some("graph-owner")
+    }));
+    assert_eq!(
+        harness
+            .state()
+            .mounted_graph_view()
+            .lock()
+            .unwrap()
+            .context_menu_owner_pane_for_test(),
+        None
+    );
+    argus.finish();
+}
+
+#[test]
+fn mt070_mounted_editor_body_localhost_argus_disabled_matrix_is_truthful() {
+    use canonical_argus_driver::CanonicalArgusDriver;
+    use handshake_native::code_editor::CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID;
+
+    fn find_author<'a>(
+        value: &'a serde_json::Value,
+        author_id: &str,
+    ) -> Option<&'a serde_json::Value> {
+        match value {
+            serde_json::Value::Object(object) => {
+                if object.get("author_id").and_then(serde_json::Value::as_str) == Some(author_id) {
+                    return Some(value);
+                }
+                object
+                    .values()
+                    .find_map(|value| find_author(value, author_id))
+            }
+            serde_json::Value::Array(values) => values
+                .iter()
+                .find_map(|value| find_author(value, author_id)),
+            _ => None,
+        }
+    }
+
+    let pane_a = PaneId::from("pane-a");
+    let mut app = ok_app();
+    app.set_active_pane_for_test(Some(pane_a.clone()));
+    app.tab_bar_states_mut().insert(
+        pane_a.clone(),
+        TabBarState::new(pane_a, vec![TabState::new(PaneType::CodeSymbol)]),
+    );
+    app.set_left_rail_open(false);
+    let panel = app.mounted_code_panel();
+    panel.set_text("");
+    panel.set_single_cursor(0);
+    panel.set_workspace_id("");
+
+    let mut harness = harness_for(app);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt070-editor-disabled-matrix");
+    let opened = argus.click_and_reinspect(&mut harness, CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID);
+    for (id, reason_fragment) in [
+        (editor_body_ids::RENAME_SYMBOL, "symbol"),
+        (editor_body_ids::QUICK_FIX, "quick fix"),
+        (editor_body_ids::FORMAT_SELECTION, "select"),
+        (editor_body_ids::PEEK_DEFINITION, "definition"),
+        (editor_body_ids::CREATE_NOTE_FROM_LINK, "unresolved"),
+    ] {
+        let target = format!("ctx-menu.{id}");
+        let node =
+            find_author(&opened.after, &target).unwrap_or_else(|| panic!("missing {target}"));
+        assert_eq!(node["disabled"], true, "{node}");
+        assert!(
+            node["value"]
+                .as_str()
+                .is_some_and(|value| value.to_ascii_lowercase().contains(reason_fragment)),
+            "{node}"
+        );
+        assert!(
+            !node["actions"]
+                .as_array()
+                .is_some_and(|actions| actions.iter().any(|action| action == "Click")),
+            "{node}"
+        );
+        argus.click_expect_rejected(&mut harness, &target, "disabled");
+    }
+    assert!(matches!(
+        panel.rename_state(),
+        handshake_native::code_editor::RenameState::Idle
+    ));
+    assert!(!panel.quick_fix_request_armed_for_test());
+    assert!(!panel.format_request_armed_for_test());
+    assert_eq!(panel.take_pending_create_note_link(), None);
+    argus.finish();
+}
+
+#[test]
+fn mt070_mounted_canvas_pending_and_failed_projection_argus_disables_all_actions() {
+    use canonical_argus_driver::CanonicalArgusDriver;
+    use handshake_native::graph::canvas_board::CanvasPlacementCard;
+
+    fn find_author<'a>(
+        value: &'a serde_json::Value,
+        author_id: &str,
+    ) -> Option<&'a serde_json::Value> {
+        match value {
+            serde_json::Value::Object(object) => {
+                if object.get("author_id").and_then(serde_json::Value::as_str) == Some(author_id) {
+                    return Some(value);
+                }
+                object
+                    .values()
+                    .find_map(|value| find_author(value, author_id))
+            }
+            serde_json::Value::Array(values) => {
+                values.iter().find_map(|v| find_author(v, author_id))
+            }
+            _ => None,
+        }
+    }
+
+    let pane_a = PaneId::from("pane-a");
+    let mut app = ok_app();
+    app.set_active_project_id_for_test("workspace-projection");
+    app.set_active_pane_for_test(Some(pane_a.clone()));
+    app.tab_bar_states_mut().insert(
+        pane_a.clone(),
+        TabBarState::new(
+            pane_a,
+            vec![TabState {
+                pane_type: PaneType::AtelierEditor,
+                content_id: Some("canvas-projection".to_owned()),
+                pinned: false,
+                dirty: false,
+                label_override: None,
+            }],
+        ),
+    );
+    app.set_left_rail_open(false);
+    app.begin_canvas_request_for_test("workspace-projection", "canvas-projection");
+    {
+        let board = app.mounted_canvas_board();
+        let mut board = board.lock().unwrap();
+        let mut card = CanvasPlacementCard::new(
+            "placement-retained",
+            "block-retained",
+            40.0,
+            40.0,
+            200.0,
+            120.0,
+        );
+        card.mark_live_resolved(Some("Retained Note".to_owned()), "note".to_owned(), None);
+        board.set_board(vec![card], Vec::new(), egui::Vec2::ZERO, 1.0);
+    }
+
+    let mut harness = harness_for(app);
+    {
+        let board = harness.state().mounted_canvas_board();
+        let mut board = board.lock().unwrap();
+        board.begin_projection_load("workspace-projection", "canvas-projection");
+        assert_eq!(board.placements.len(), 1);
+    }
+    harness.run_steps(1);
+    let click_pos = harness
+        .state()
+        .mounted_canvas_board()
+        .lock()
+        .unwrap()
+        .canvas_point_to_screen(egui::pos2(80.0, 80.0))
+        .unwrap();
+    harness.event(egui::Event::PointerMoved(click_pos));
+    for pressed in [true, false] {
+        harness.event(egui::Event::PointerButton {
+            pos: click_pos,
+            button: egui::PointerButton::Secondary,
+            pressed,
+            modifiers: egui::Modifiers::default(),
+        });
+    }
+    harness.run_steps(2);
+
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt070-canvas-projection-disabled");
+    for phase in ["pending", "failed"] {
+        if phase == "failed" {
+            harness
+                .state()
+                .mounted_canvas_board()
+                .lock()
+                .unwrap()
+                .fail_projection("backend unavailable");
+        }
+        let snapshot = argus.inspect(&mut harness);
+        for id in NODE_MENU_REQUIRED_IDS {
+            let target = format!("ctx-menu.{id}");
+            let node =
+                find_author(&snapshot, &target).unwrap_or_else(|| panic!("missing {target}"));
+            assert_eq!(node["disabled"], true, "{phase}: {node}");
+            assert_eq!(
+                node["value"],
+                "Canvas projection is pending, failed, or stale"
+            );
+            assert!(
+                !node["actions"]
+                    .as_array()
+                    .is_some_and(|actions| actions.iter().any(|action| action == "Click")),
+                "{node}"
+            );
+            argus.click_expect_rejected(&mut harness, &target, "disabled");
+        }
+        assert_eq!(
+            harness
+                .state()
+                .mounted_canvas_board()
+                .lock()
+                .unwrap()
+                .placements
+                .len(),
+            1,
+            "same-binding {phase} retains its visible card"
+        );
+    }
+    argus.finish();
+}
+
+#[test]
+fn mt070_mounted_canvas_localhost_argus_open_reveal_create_matrix() {
+    use canonical_argus_driver::CanonicalArgusDriver;
+    use handshake_native::graph::canvas_board::CanvasPlacementCard;
+    use handshake_native::rich_editor::wikilinks::runtime::{CreateNoteBackend, CreateNoteWrite};
+
+    struct PendingCreate;
+    impl CreateNoteBackend for PendingCreate {
+        fn create_note<'a>(
+            &'a self,
+            _workspace_id: &'a str,
+            _title: &'a str,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<CreateNoteWrite, String>> + Send + 'a>,
+        > {
+            Box::pin(std::future::pending())
+        }
+    }
+
+    for action in [
+        NodeMenuAction::OpenNote,
+        NodeMenuAction::RevealNode,
+        NodeMenuAction::CreateNoteFromLink,
+    ] {
+        let pane_a = PaneId::from("pane-a");
+        let canvas_id = format!("canvas-{action:?}");
+        let block_id = format!("block-{action:?}");
+        let mut app = ok_app();
+        let action_runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        app.set_runtime_handle(action_runtime.handle().clone());
+        app.set_active_project_id_for_test("workspace-matrix");
+        app.set_active_pane_for_test(Some(pane_a.clone()));
+        app.tab_bar_states_mut().insert(
+            pane_a.clone(),
+            TabBarState::new(
+                pane_a,
+                vec![TabState {
+                    pane_type: PaneType::AtelierEditor,
+                    content_id: Some(canvas_id.clone()),
+                    pinned: false,
+                    dirty: false,
+                    label_override: None,
+                }],
+            ),
+        );
+        app.set_left_rail_open(false);
+        app.begin_canvas_request_for_test("workspace-matrix", &canvas_id);
+        {
+            let rich_state = app.mounted_rich_state();
+            let mut rich = rich_state.lock().unwrap();
+            rich.wikilinks.set_context("workspace-matrix", "note-host");
+            rich.wikilinks.set_create_backend(Arc::new(PendingCreate));
+        }
+        {
+            let board = app.mounted_canvas_board();
+            let mut board = board.lock().unwrap();
+            let mut card =
+                CanvasPlacementCard::new("placement-matrix", &block_id, 40.0, 40.0, 200.0, 120.0);
+            match action {
+                NodeMenuAction::OpenNote => {
+                    card.mark_live_resolved(Some("Open Me".to_owned()), "note".to_owned(), None)
+                }
+                NodeMenuAction::RevealNode => card.mark_live_resolved(
+                    Some("Reveal Me".to_owned()),
+                    "artifact".to_owned(),
+                    None,
+                ),
+                NodeMenuAction::CreateNoteFromLink => {
+                    card.mark_live_unresolved(Some("Missing Canvas Note".to_owned()))
+                }
+                NodeMenuAction::RouteToStage => unreachable!(),
+            }
+            board.set_board(vec![card], Vec::new(), egui::Vec2::ZERO, 1.0);
+        }
+
+        let mut harness = harness_for(app);
+        if action == NodeMenuAction::CreateNoteFromLink {
+            harness
+                .state()
+                .mounted_rich_state()
+                .lock()
+                .unwrap()
+                .wikilinks
+                .set_create_backend(Arc::new(PendingCreate));
+        }
+        let click_pos = harness
+            .state()
+            .mounted_canvas_board()
+            .lock()
+            .unwrap()
+            .canvas_point_to_screen(egui::pos2(80.0, 80.0))
+            .unwrap();
+        harness.event(egui::Event::PointerMoved(click_pos));
+        for pressed in [true, false] {
+            harness.event(egui::Event::PointerButton {
+                pos: click_pos,
+                button: egui::PointerButton::Secondary,
+                pressed,
+                modifiers: egui::Modifiers::default(),
+            });
+        }
+        harness.run_steps(2);
+        let target = match action {
+            NodeMenuAction::OpenNote => node_menu_ids::OPEN_NOTE,
+            NodeMenuAction::RevealNode => node_menu_ids::REVEAL_NODE,
+            NodeMenuAction::CreateNoteFromLink => node_menu_ids::CREATE_NOTE_FROM_LINK,
+            NodeMenuAction::RouteToStage => unreachable!(),
+        };
+        let mut argus =
+            CanonicalArgusDriver::bind(harness.state(), &format!("mt070-canvas-{action:?}"));
+        let observation = argus.click_and_reinspect(&mut harness, &format!("ctx-menu.{target}"));
+        assert!(matches!(
+            observation.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ));
+        match action {
+            NodeMenuAction::OpenNote => {
+                assert!(harness.state().tab_bar_states().values().any(|bar| {
+                    bar.tabs.iter().any(|tab| {
+                        tab.content_id.as_deref() == Some(block_id.as_str())
+                            && tab.pane_type == PaneType::LoomWikiPage
+                    })
+                }))
+            }
+            NodeMenuAction::RevealNode => {
+                assert!(harness.state().tab_bar_states().values().any(|bar| {
+                    bar.tabs.iter().any(|tab| {
+                        tab.content_id.as_deref() == Some(block_id.as_str())
+                            && tab.pane_type == PaneType::LoomBlock
+                    })
+                }))
+            }
+            NodeMenuAction::CreateNoteFromLink => assert!(harness
+                .state()
+                .mounted_rich_state()
+                .lock()
+                .unwrap()
+                .wikilinks
+                .is_creating("Missing Canvas Note")),
+            NodeMenuAction::RouteToStage => unreachable!(),
+        }
+        argus.finish();
+    }
+}
+
 // ── WP-KERNEL-012 MT-080 FIX E: graph/canvas node-menu availability is read from the node payload ──────
 
 #[test]
@@ -953,26 +2126,43 @@ fn mt080_graph_and_canvas_node_availability_from_payload() {
     // hardcoded `false`). The enabled entry maps to a REAL action (no dead handler).
     let note_node = GraphNode::new("blk-note", "A Note", "note");
     let navail = graph_node_menu_availability(&note_node);
-    assert!(navail.has_note, "FIX E: a `note` graph node has a backing note");
+    assert!(
+        navail.has_note,
+        "FIX E: a `note` graph node has a backing note"
+    );
     assert_eq!(
         node_action_for_id(node_menu_ids::OPEN_NOTE, navail),
         Some(NodeMenuAction::OpenNote),
         "FIX E: a note-backed node ENABLES Open Note (maps to a real action)"
     );
+    assert!(
+        !navail.can_route_to_stage,
+        "graph nodes never advertise the Canvas-only live Stage route"
+    );
+    assert_eq!(
+        node_action_for_id(node_menu_ids::ROUTE_TO_STAGE, navail),
+        None,
+        "a stable graph-node id does not create a live Canvas Stage route"
+    );
 
     // A NON-note graph node keeps Open Note DISABLED — the invariant (disabled entry maps to None).
     let file_node = GraphNode::new("blk-file", "A File", "file");
     let favail = graph_node_menu_availability(&file_node);
-    assert!(!favail.has_note, "FIX E: a non-note node has no backing note");
+    assert!(
+        !favail.has_note,
+        "FIX E: a non-note node has no backing note"
+    );
     assert_eq!(
         node_action_for_id(node_menu_ids::OPEN_NOTE, favail),
         None,
         "FIX E: a non-note node keeps Open Note disabled (no dead ENABLED entry)"
     );
 
-    // An UNRESOLVED-LINK canvas placement (a stale reference: live_title None) ENABLES Create-note.
-    let stale = CanvasPlacementCard::new("p-stale", "blk-missing", 0.0, 0.0, 200.0, 120.0);
-    let savail = placement_menu_availability(&stale);
+    // Loading stays disabled; confirmed unresolved with a retained source title enables Create-note.
+    let mut stale = CanvasPlacementCard::new("p-stale", "blk-missing", 0.0, 0.0, 200.0, 120.0);
+    assert!(!placement_menu_availability(&stale, true).unresolved_link);
+    stale.mark_live_unresolved(Some("Missing Note".to_owned()));
+    let savail = placement_menu_availability(&stale, true);
     assert!(
         savail.unresolved_link,
         "FIX E: a stale reference is an unresolved link"
@@ -986,7 +2176,7 @@ fn mt080_graph_and_canvas_node_availability_from_payload() {
     // A free-text canvas card ENABLES Open Note (it owns a note) and is NOT an unresolved link.
     let text = CanvasPlacementCard::new("p-text", "blk-text", 0.0, 0.0, 200.0, 120.0)
         .as_text_card("hello");
-    let tavail = placement_menu_availability(&text);
+    let tavail = placement_menu_availability(&text, true);
     assert!(tavail.has_note, "FIX E: a text card has a backing note");
     assert!(
         !tavail.unresolved_link,
@@ -996,6 +2186,14 @@ fn mt080_graph_and_canvas_node_availability_from_payload() {
         node_action_for_id(node_menu_ids::OPEN_NOTE, tavail),
         Some(NodeMenuAction::OpenNote),
         "FIX E: a text card ENABLES Open Note"
+    );
+    assert!(
+        tavail.can_route_to_stage,
+        "a mounted Canvas board with both authority ids exposes the live Stage route capability"
+    );
+    assert_eq!(
+        node_action_for_id(node_menu_ids::ROUTE_TO_STAGE, tavail),
+        Some(NodeMenuAction::RouteToStage)
     );
     println!("PASS FIX E: graph/canvas node-menu availability reads the node payload (no hardcoded false)");
 }

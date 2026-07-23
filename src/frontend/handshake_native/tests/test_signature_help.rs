@@ -46,7 +46,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::code_nav::{CodeNavClient, CodeSymbolNavProjection};
 use handshake_native::code_editor::lsp_client::LspClient;
@@ -526,7 +528,11 @@ fn run_until(harness: &mut Harness, cond: impl Fn() -> bool) -> bool {
 /// off-thread request -> drain -> open pipeline (NOT `open_signature_help(synthetic)`).
 fn live_panel_with_mock_lsp(
     text: &str,
-) -> (Arc<CodeEditorPanel>, tokio::runtime::Runtime, Arc<AtomicUsize>) {
+) -> (
+    Arc<CodeEditorPanel>,
+    tokio::runtime::Runtime,
+    Arc<AtomicUsize>,
+) {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()

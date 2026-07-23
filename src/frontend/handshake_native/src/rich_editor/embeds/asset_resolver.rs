@@ -38,6 +38,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::Duration;
 
 use thiserror::Error;
 
@@ -58,6 +59,22 @@ pub const MAX_SEQUENCE_ITEMS: usize = 100;
 /// a 50-thumbnail album never opens 50 simultaneous backend connections.
 pub const MAX_CONCURRENT_RESOLUTIONS: usize = 6;
 
+/// Bounded transport/decode limits. These reject oversized bodies and decompression bombs with a
+/// typed visible error before an allocation can grow without bound.
+pub const MAX_METADATA_BYTES: usize = 1024 * 1024;
+pub const MAX_THUMBNAIL_BYTES: usize = 8 * 1024 * 1024;
+pub const MAX_POSTER_BYTES: usize = 16 * 1024 * 1024;
+pub const MAX_PREVIEW_BYTES: usize = 32 * 1024 * 1024;
+pub const MAX_FULL_IMAGE_BYTES: usize = 64 * 1024 * 1024;
+pub const MAX_IMAGE_DIMENSION: u32 = 16_384;
+pub const MAX_IMAGE_PIXELS: u64 = 80_000_000;
+
+/// Hard transport/operation deadlines for every production embed request. The request timeout
+/// covers response-body streaming as well as the initial response, while the shorter connect
+/// timeout prevents an unreachable host from consuming the entire operation budget.
+pub const EMBED_HTTP_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+pub const EMBED_OPERATION_TIMEOUT: Duration = Duration::from_secs(15);
+
 /// The longest an asset id may be (mirrors `ASSET_ID_MAX_LENGTH`).
 const ASSET_ID_MAX_LENGTH: usize = 256;
 
@@ -72,6 +89,36 @@ pub enum MediaEmbedKind {
     Album,
     /// `slideshow`: an ordered one-at-a-time image sequence.
     Slideshow,
+}
+
+/// The byte tier a view requests. Grid cells use `Thumbnail`, video uses `Poster`, and only an
+/// active slideshow frame or open modal requests `Full`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MediaTier {
+    Thumbnail,
+    Preview,
+    Poster,
+    Full,
+}
+
+impl MediaTier {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Thumbnail => "thumb",
+            Self::Preview => "preview",
+            Self::Poster => "poster",
+            Self::Full => "full",
+        }
+    }
+
+    pub fn max_body_bytes(self) -> usize {
+        match self {
+            Self::Thumbnail => MAX_THUMBNAIL_BYTES,
+            Self::Preview => MAX_PREVIEW_BYTES,
+            Self::Poster => MAX_POSTER_BYTES,
+            Self::Full => MAX_FULL_IMAGE_BYTES,
+        }
+    }
 }
 
 impl MediaEmbedKind {
@@ -156,6 +203,12 @@ pub enum EmbedError {
     /// The decoder could not decode/play the resolved bytes (corrupt/unsupported media).
     #[error("media load failed: {0}")]
     MediaLoadFailed(String),
+    /// A backend fetch or decode did not finish inside the bounded embed deadline.
+    #[error("embed operation timed out: {0}")]
+    TimedOut(String),
+    /// A response body or decoded image exceeded the explicit media safety bounds.
+    #[error("embed resource limit exceeded: {0}")]
+    ResourceLimit(String),
 }
 
 impl EmbedError {
@@ -176,6 +229,8 @@ impl EmbedError {
             EmbedError::NetworkError(_) => "network_error",
             EmbedError::KindMismatch(_) => "kind_mismatch",
             EmbedError::MediaLoadFailed(_) => "media_load_failed",
+            EmbedError::TimedOut(_) => "timed_out",
+            EmbedError::ResourceLimit(_) => "resource_limit",
         }
     }
 }
@@ -214,7 +269,22 @@ pub struct ResolvedAsset {
     pub content_url: String,
     /// `GET /workspaces/{ws}/assets/{id}/thumbnail` — thumbnail bytes (grid/sequence first load).
     pub thumbnail_url: String,
+    /// Mid-resolution tier used by an enlarged preview before/while full pixels are available.
+    pub preview_url: String,
+    /// Video poster tier; this is fetched without loading the full video body.
+    pub poster_url: String,
 }
+
+/// Backend-owned ordered album/slideshow membership (`collection:<id>` parity).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct EmbedCollection {
+    pub collection_id: String,
+    #[serde(default)]
+    pub title: Option<String>,
+    pub members: Vec<String>,
+}
+
+pub const COLLECTION_REF_PREFIX: &str = "collection:";
 
 /// The resolution state of ONE embed target, cached per asset id so a repeated render does
 /// not re-fetch (AC-9). This is the value stored in the per-editor resolution cache.
@@ -330,6 +400,36 @@ pub fn asset_thumbnail_url(base_url: &str, workspace_id: &str, asset_id: &str) -
     )
 }
 
+/// Tier-aware content URL used by the current React parity surface.
+pub fn asset_tier_url(
+    base_url: &str,
+    workspace_id: &str,
+    asset_id: &str,
+    tier: MediaTier,
+) -> String {
+    if tier == MediaTier::Full {
+        asset_content_url(base_url, workspace_id, asset_id)
+    } else {
+        format!(
+            "{}?tier={}",
+            asset_content_url(base_url, workspace_id, asset_id),
+            tier.as_str()
+        )
+    }
+}
+
+pub fn collection_url(base_url: &str, workspace_id: &str, collection_id: &str) -> String {
+    format!("{base_url}/workspaces/{workspace_id}/loom/collections/{collection_id}")
+}
+
+pub fn collection_ref_id(ref_value: &str) -> Option<&str> {
+    ref_value
+        .trim()
+        .strip_prefix(COLLECTION_REF_PREFIX)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
 /// A boxed, `Send` future yielding fetched asset metadata, returned by
 /// [`AssetMetadataFetcher::fetch_metadata`]. Spelled out (rather than the `async-trait` macro)
 /// so this module adds ZERO new dependency families — the resolution path stays on the crate's
@@ -341,6 +441,9 @@ pub type MetadataFuture<'a> =
 /// `GET /workspaces/{ws}/assets/{id}/content`), returned by [`AssetMetadataFetcher::fetch_content`].
 /// These are the bytes the image-embed pipeline decodes off-thread (MC-001) into a texture.
 pub type ContentFuture<'a> = Pin<Box<dyn Future<Output = Result<Vec<u8>, EmbedError>> + Send + 'a>>;
+
+pub type CollectionFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<EmbedCollection, EmbedError>> + Send + 'a>>;
 
 /// The transport an async resolution uses to fetch asset metadata AND content bytes. A trait
 /// (rather than a hard `reqwest` call) so the FULL resolution + content-fetch + decode path —
@@ -372,6 +475,34 @@ pub trait AssetMetadataFetcher: Send + Sync {
             )))
         })
     }
+
+    /// Fetch a bounded presentation tier for a validated media kind. `kind` is part of the
+    /// transport contract so production fallback policy cannot accidentally treat a video poster
+    /// or an album-grid thumbnail like a single-image thumbnail. The default preserves
+    /// compatibility for focused metadata mocks.
+    fn fetch_tier<'a>(
+        &'a self,
+        workspace_id: &'a str,
+        asset_id: &'a str,
+        _kind: MediaEmbedKind,
+        _tier: MediaTier,
+    ) -> ContentFuture<'a> {
+        self.fetch_content(workspace_id, asset_id)
+    }
+
+    /// Resolve backend-owned album/slideshow membership.
+    fn fetch_collection<'a>(
+        &'a self,
+        _workspace_id: &'a str,
+        collection_id: &'a str,
+    ) -> CollectionFuture<'a> {
+        let collection_id = collection_id.to_owned();
+        Box::pin(async move {
+            Err(EmbedError::ServerError(format!(
+                "fetcher does not provide collection '{collection_id}'"
+            )))
+        })
+    }
 }
 
 /// Resolve ONE media asset fail-closed: validate the ref, fetch metadata through `fetcher`,
@@ -388,11 +519,52 @@ pub async fn resolve_one(
     base_url: &str,
     fetcher: &dyn AssetMetadataFetcher,
 ) -> Result<ResolvedAsset, EmbedError> {
+    resolve_one_with_timeout(
+        kind,
+        workspace_id,
+        ref_value,
+        base_url,
+        fetcher,
+        EMBED_OPERATION_TIMEOUT,
+    )
+    .await
+}
+
+async fn resolve_one_with_timeout(
+    kind: MediaEmbedKind,
+    workspace_id: &str,
+    ref_value: &str,
+    base_url: &str,
+    fetcher: &dyn AssetMetadataFetcher,
+    operation_timeout: Duration,
+) -> Result<ResolvedAsset, EmbedError> {
     if workspace_id.trim().is_empty() {
         return Err(EmbedError::NoWorkspace);
     }
     let asset_id = validate_asset_ref(ref_value)?;
-    let metadata = fetcher.fetch_metadata(workspace_id, &asset_id).await?;
+    let metadata = run_with_deadline(
+        operation_timeout,
+        format!("resolving metadata for asset '{asset_id}'"),
+        fetcher.fetch_metadata(workspace_id, &asset_id),
+    )
+    .await?;
+    if metadata.asset_id != asset_id {
+        return Err(EmbedError::ServerError(format!(
+            "asset metadata id '{}' does not match requested '{asset_id}'",
+            metadata.asset_id
+        )));
+    }
+    if metadata.workspace_id != workspace_id {
+        return Err(EmbedError::ServerError(format!(
+            "asset metadata workspace '{}' does not match requested '{workspace_id}'",
+            metadata.workspace_id
+        )));
+    }
+    if metadata.mime.trim().is_empty() {
+        return Err(EmbedError::ServerError(format!(
+            "asset '{asset_id}' metadata has an empty mime"
+        )));
+    }
     if !kind.mime_matches(&metadata.mime) {
         return Err(EmbedError::KindMismatch(format!(
             "asset '{asset_id}' is '{}', which does not match the '{}' embed kind",
@@ -402,7 +574,9 @@ pub async fn resolve_one(
     }
     Ok(ResolvedAsset {
         content_url: asset_content_url(base_url, workspace_id, &asset_id),
-        thumbnail_url: asset_thumbnail_url(base_url, workspace_id, &asset_id),
+        thumbnail_url: asset_tier_url(base_url, workspace_id, &asset_id, MediaTier::Thumbnail),
+        preview_url: asset_tier_url(base_url, workspace_id, &asset_id, MediaTier::Preview),
+        poster_url: asset_tier_url(base_url, workspace_id, &asset_id, MediaTier::Poster),
         asset: metadata,
     })
 }
@@ -415,16 +589,45 @@ pub async fn resolve_one(
 /// touched (consume-via-API-only).
 #[derive(Clone)]
 pub struct ReqwestAssetFetcher {
-    client: reqwest::Client,
+    client: Option<reqwest::Client>,
+    client_init_error: Option<Arc<str>>,
     base_url: String,
+    request_timeout: Duration,
 }
 
 impl ReqwestAssetFetcher {
     /// Build a fetcher against `base_url` (e.g. `backend_client::BACKEND_BASE_URL`).
     pub fn new(base_url: impl Into<String>) -> Self {
-        Self {
-            client: reqwest::Client::new(),
-            base_url: base_url.into(),
+        Self::with_timeouts(
+            base_url,
+            EMBED_HTTP_CONNECT_TIMEOUT,
+            EMBED_OPERATION_TIMEOUT,
+        )
+    }
+
+    fn with_timeouts(
+        base_url: impl Into<String>,
+        connect_timeout: Duration,
+        request_timeout: Duration,
+    ) -> Self {
+        let base_url = base_url.into();
+        let client = reqwest::Client::builder()
+            .connect_timeout(connect_timeout)
+            .timeout(request_timeout)
+            .build();
+        match client {
+            Ok(client) => Self {
+                client: Some(client),
+                client_init_error: None,
+                base_url,
+                request_timeout,
+            },
+            Err(error) => Self {
+                client: None,
+                client_init_error: Some(Arc::from(error.to_string())),
+                base_url,
+                request_timeout,
+            },
         }
     }
 
@@ -438,6 +641,89 @@ impl ReqwestAssetFetcher {
     pub fn base_url(&self) -> &str {
         &self.base_url
     }
+
+    fn cloned_client(&self) -> Result<reqwest::Client, EmbedError> {
+        self.client.clone().ok_or_else(|| {
+            EmbedError::NetworkError(format!(
+                "bounded embed HTTP client could not initialize: {}",
+                self.client_init_error.as_deref().unwrap_or("unknown error")
+            ))
+        })
+    }
+}
+
+async fn run_with_deadline<T, F>(
+    deadline: Duration,
+    label: String,
+    future: F,
+) -> Result<T, EmbedError>
+where
+    F: Future<Output = Result<T, EmbedError>>,
+{
+    tokio::time::timeout(deadline, future)
+        .await
+        .unwrap_or_else(|_| {
+            Err(EmbedError::TimedOut(format!(
+                "{label} exceeded {deadline:?}"
+            )))
+        })
+}
+
+fn map_reqwest_error(label: &str, error: reqwest::Error) -> EmbedError {
+    if error.is_timeout() {
+        EmbedError::TimedOut(format!("{label} exceeded its transport deadline: {error}"))
+    } else {
+        EmbedError::NetworkError(format!("{label} failed: {error}"))
+    }
+}
+
+async fn read_bounded_response(
+    mut response: reqwest::Response,
+    max_bytes: usize,
+    label: &str,
+) -> Result<Vec<u8>, EmbedError> {
+    if let Some(length) = response.content_length() {
+        if length > max_bytes as u64 {
+            return Err(EmbedError::ResourceLimit(format!(
+                "{label} content-length {length} exceeds {max_bytes} bytes"
+            )));
+        }
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| map_reqwest_error(&format!("{label} body read"), error))?
+    {
+        if body.len().saturating_add(chunk.len()) > max_bytes {
+            return Err(EmbedError::ResourceLimit(format!(
+                "{label} streamed body exceeds {max_bytes} bytes"
+            )));
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
+fn map_response_status(status: reqwest::StatusCode, label: &str) -> Result<(), EmbedError> {
+    match status.as_u16() {
+        404 => Err(EmbedError::NotFound(format!("{label} not found"))),
+        401 | 403 => Err(EmbedError::Forbidden(format!(
+            "{label} is not accessible (HTTP {status})"
+        ))),
+        _ if !status.is_success() => Err(EmbedError::ServerError(format!(
+            "{label} request returned HTTP {status}"
+        ))),
+        _ => Ok(()),
+    }
+}
+
+fn tier_body_limit(tier: MediaTier, used_original_fallback: bool) -> usize {
+    if used_original_fallback {
+        MAX_FULL_IMAGE_BYTES
+    } else {
+        tier.max_body_bytes()
+    }
 }
 
 impl AssetMetadataFetcher for ReqwestAssetFetcher {
@@ -447,63 +733,143 @@ impl AssetMetadataFetcher for ReqwestAssetFetcher {
         asset_id: &'a str,
     ) -> MetadataFuture<'a> {
         let url = asset_metadata_url(&self.base_url, workspace_id, asset_id);
-        let client = self.client.clone();
+        let client = self.cloned_client();
         let asset_id = asset_id.to_owned();
+        let request_timeout = self.request_timeout;
         Box::pin(async move {
-            let response = client.get(&url).send().await.map_err(|e| {
-                EmbedError::NetworkError(format!("asset metadata request failed: {e}"))
-            })?;
-            let status = response.status();
-            if status.as_u16() == 404 {
-                return Err(EmbedError::NotFound(format!(
-                    "asset '{asset_id}' not found"
-                )));
-            }
-            if status.as_u16() == 401 || status.as_u16() == 403 {
-                return Err(EmbedError::Forbidden(format!(
-                    "asset '{asset_id}' is not accessible (HTTP {status})"
-                )));
-            }
-            if !status.is_success() {
-                return Err(EmbedError::ServerError(format!(
-                    "asset metadata request returned HTTP {status}"
-                )));
-            }
-            let metadata: EmbedAssetMetadata = response.json().await.map_err(|e| {
-                EmbedError::ServerError(format!("asset metadata body is invalid: {e}"))
-            })?;
-            Ok(metadata)
+            run_with_deadline(
+                request_timeout,
+                format!("asset '{asset_id}' metadata request"),
+                async move {
+                    let client = client?;
+                    let response = client
+                        .get(&url)
+                        .send()
+                        .await
+                        .map_err(|error| map_reqwest_error("asset metadata request", error))?;
+                    let status = response.status();
+                    map_response_status(status, &format!("asset '{asset_id}' metadata"))?;
+                    let body =
+                        read_bounded_response(response, MAX_METADATA_BYTES, "asset metadata")
+                            .await?;
+                    serde_json::from_slice(&body).map_err(|error| {
+                        EmbedError::ServerError(format!("asset metadata body is invalid: {error}"))
+                    })
+                },
+            )
+            .await
         })
     }
 
     fn fetch_content<'a>(&'a self, workspace_id: &'a str, asset_id: &'a str) -> ContentFuture<'a> {
         let url = asset_content_url(&self.base_url, workspace_id, asset_id);
-        let client = self.client.clone();
+        let client = self.cloned_client();
         let asset_id = asset_id.to_owned();
+        let request_timeout = self.request_timeout;
         Box::pin(async move {
-            let response = client.get(&url).send().await.map_err(|e| {
-                EmbedError::NetworkError(format!("asset content request failed: {e}"))
-            })?;
-            let status = response.status();
-            if status.as_u16() == 404 {
-                return Err(EmbedError::NotFound(format!(
-                    "asset content '{asset_id}' not found"
-                )));
-            }
-            if status.as_u16() == 401 || status.as_u16() == 403 {
-                return Err(EmbedError::Forbidden(format!(
-                    "asset content '{asset_id}' is not accessible (HTTP {status})"
-                )));
-            }
-            if !status.is_success() {
-                return Err(EmbedError::ServerError(format!(
-                    "asset content request returned HTTP {status}"
-                )));
-            }
-            let bytes = response.bytes().await.map_err(|e| {
-                EmbedError::NetworkError(format!("asset content body read failed: {e}"))
-            })?;
-            Ok(bytes.to_vec())
+            run_with_deadline(
+                request_timeout,
+                format!("asset '{asset_id}' content request"),
+                async move {
+                    let client = client?;
+                    let response = client
+                        .get(&url)
+                        .send()
+                        .await
+                        .map_err(|error| map_reqwest_error("asset content request", error))?;
+                    let status = response.status();
+                    map_response_status(status, &format!("asset content '{asset_id}'"))?;
+                    read_bounded_response(response, MAX_FULL_IMAGE_BYTES, "asset content").await
+                },
+            )
+            .await
+        })
+    }
+
+    fn fetch_tier<'a>(
+        &'a self,
+        workspace_id: &'a str,
+        asset_id: &'a str,
+        kind: MediaEmbedKind,
+        tier: MediaTier,
+    ) -> ContentFuture<'a> {
+        let url = asset_tier_url(&self.base_url, workspace_id, asset_id, tier);
+        let original_url = asset_content_url(&self.base_url, workspace_id, asset_id);
+        let client = self.cloned_client();
+        let asset_id = asset_id.to_owned();
+        let request_timeout = self.request_timeout;
+        Box::pin(async move {
+            run_with_deadline(
+                request_timeout,
+                format!("{} tier request for asset '{asset_id}'", tier.as_str()),
+                async move {
+                    let client = client?;
+                    let mut response = client.get(&url).send().await.map_err(|error| {
+                        map_reqwest_error(&format!("{} request", tier.as_str()), error)
+                    })?;
+
+                    // React parity only falls a single-image thumbnail back to its original. Album and
+                    // slideshow grids keep a missing thumbnail typed/visible, and a missing video poster
+                    // must never trigger a full video-body download.
+                    let used_original_fallback = kind == MediaEmbedKind::Images
+                        && tier == MediaTier::Thumbnail
+                        && response.status() == reqwest::StatusCode::NOT_FOUND;
+                    if used_original_fallback {
+                        response = client.get(&original_url).send().await.map_err(|error| {
+                            map_reqwest_error(
+                                &format!("{} fallback content request", tier.as_str()),
+                                error,
+                            )
+                        })?;
+                    }
+                    map_response_status(
+                        response.status(),
+                        &format!("{} tier for asset '{asset_id}'", tier.as_str()),
+                    )?;
+                    read_bounded_response(
+                        response,
+                        tier_body_limit(tier, used_original_fallback),
+                        tier.as_str(),
+                    )
+                    .await
+                },
+            )
+            .await
+        })
+    }
+
+    fn fetch_collection<'a>(
+        &'a self,
+        workspace_id: &'a str,
+        collection_id: &'a str,
+    ) -> CollectionFuture<'a> {
+        let url = collection_url(&self.base_url, workspace_id, collection_id);
+        let client = self.cloned_client();
+        let collection_id = collection_id.to_owned();
+        let request_timeout = self.request_timeout;
+        Box::pin(async move {
+            run_with_deadline(
+                request_timeout,
+                format!("collection '{collection_id}' request"),
+                async move {
+                    let client = client?;
+                    let response = client
+                        .get(&url)
+                        .send()
+                        .await
+                        .map_err(|error| map_reqwest_error("collection request", error))?;
+                    map_response_status(
+                        response.status(),
+                        &format!("collection '{collection_id}'"),
+                    )?;
+                    let body =
+                        read_bounded_response(response, MAX_METADATA_BYTES, "collection").await?;
+                    serde_json::from_slice(&body).map_err(|error| {
+                        EmbedError::ServerError(format!("collection body is invalid: {error}"))
+                    })
+                },
+            )
+            .await
         })
     }
 }
@@ -519,6 +885,19 @@ pub struct SequenceItem {
     pub resolution: Result<ResolvedAsset, EmbedError>,
 }
 
+/// Owns the per-member tasks spawned by [`resolve_sequence`]. Dropping the parent resolution
+/// future (for example on workspace rebind or timeout) aborts every still-running member instead
+/// of detaching background HTTP work from the editor that requested it.
+struct SequenceTaskSet(Vec<tokio::task::JoinHandle<SequenceItem>>);
+
+impl Drop for SequenceTaskSet {
+    fn drop(&mut self) {
+        for task in self.0.drain(..) {
+            task.abort();
+        }
+    }
+}
+
 /// Resolve an album/slideshow ordered sequence with a BOUNDED concurrency of
 /// [`MAX_CONCURRENT_RESOLUTIONS`] (MC-002): the members resolve in parallel but at most six
 /// metadata fetches are in flight at once, gated by a [`tokio::sync::Semaphore`]. An empty
@@ -531,10 +910,94 @@ pub async fn resolve_sequence(
     base_url: &str,
     fetcher: Arc<dyn AssetMetadataFetcher>,
 ) -> Result<Vec<SequenceItem>, EmbedError> {
+    resolve_sequence_with_budget(
+        kind,
+        workspace_id,
+        ref_value,
+        base_url,
+        fetcher,
+        Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_RESOLUTIONS)),
+    )
+    .await
+}
+
+/// Runtime variant using the editor's shared media budget. The same six permits are also used by
+/// single metadata, tier-body, and decode work, so multiple embeds cannot each create a private
+/// six-request fan-out.
+pub async fn resolve_sequence_with_budget(
+    kind: MediaEmbedKind,
+    workspace_id: &str,
+    ref_value: &str,
+    base_url: &str,
+    fetcher: Arc<dyn AssetMetadataFetcher>,
+    semaphore: Arc<tokio::sync::Semaphore>,
+) -> Result<Vec<SequenceItem>, EmbedError> {
+    resolve_sequence_with_budget_and_timeout(
+        kind,
+        workspace_id,
+        ref_value,
+        base_url,
+        fetcher,
+        semaphore,
+        EMBED_OPERATION_TIMEOUT,
+    )
+    .await
+}
+
+async fn resolve_sequence_with_budget_and_timeout(
+    kind: MediaEmbedKind,
+    workspace_id: &str,
+    ref_value: &str,
+    base_url: &str,
+    fetcher: Arc<dyn AssetMetadataFetcher>,
+    semaphore: Arc<tokio::sync::Semaphore>,
+    operation_timeout: Duration,
+) -> Result<Vec<SequenceItem>, EmbedError> {
+    run_with_deadline(
+        operation_timeout,
+        format!("resolving {} sequence", kind.ref_kind()),
+        resolve_sequence_with_budget_inner(
+            kind,
+            workspace_id,
+            ref_value,
+            base_url,
+            fetcher,
+            semaphore,
+        ),
+    )
+    .await
+}
+
+async fn resolve_sequence_with_budget_inner(
+    kind: MediaEmbedKind,
+    workspace_id: &str,
+    ref_value: &str,
+    base_url: &str,
+    fetcher: Arc<dyn AssetMetadataFetcher>,
+    semaphore: Arc<tokio::sync::Semaphore>,
+) -> Result<Vec<SequenceItem>, EmbedError> {
     if workspace_id.trim().is_empty() {
         return Err(EmbedError::NoWorkspace);
     }
-    let refs = parse_asset_ref_list(ref_value);
+    let refs = if let Some(collection_id) = collection_ref_id(ref_value) {
+        let collection_id = validate_asset_ref(collection_id)?;
+        let _permit = Arc::clone(&semaphore)
+            .acquire_owned()
+            .await
+            .map_err(|_| EmbedError::ServerError("embed work budget closed".to_owned()))?;
+        let collection = fetcher
+            .fetch_collection(workspace_id, &collection_id)
+            .await?;
+        if collection.collection_id != collection_id {
+            return Err(EmbedError::ServerError(format!(
+                "collection response id '{}' does not match requested '{collection_id}'",
+                collection.collection_id
+            )));
+        }
+        collection.members
+    } else {
+        parse_asset_ref_list(ref_value)
+    };
     if refs.is_empty() {
         return Err(EmbedError::EmptyRef);
     }
@@ -545,19 +1008,25 @@ pub async fn resolve_sequence(
         )));
     }
 
-    let semaphore = Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_RESOLUTIONS));
-    let mut handles = Vec::with_capacity(refs.len());
+    let mut handles = SequenceTaskSet(Vec::with_capacity(refs.len()));
     for member in refs {
         let sem = Arc::clone(&semaphore);
         let fetcher = Arc::clone(&fetcher);
         let workspace_id = workspace_id.to_owned();
         let base_url = base_url.to_owned();
-        handles.push(tokio::spawn(async move {
+        handles.0.push(tokio::spawn(async move {
             // Hold a permit for the whole member resolution so at most six run concurrently.
-            let _permit = sem
-                .acquire()
-                .await
-                .expect("embed-sequence semaphore is never closed before all permits return");
+            let _permit = match sem.acquire_owned().await {
+                Ok(permit) => permit,
+                Err(_) => {
+                    return SequenceItem {
+                        ref_value: member,
+                        resolution: Err(EmbedError::ServerError(
+                            "embed work budget closed".to_owned(),
+                        )),
+                    };
+                }
+            };
             let resolution =
                 resolve_one(kind, &workspace_id, &member, &base_url, fetcher.as_ref()).await;
             SequenceItem {
@@ -567,8 +1036,10 @@ pub async fn resolve_sequence(
         }));
     }
 
-    let mut items = Vec::with_capacity(handles.len());
-    for handle in handles {
+    let mut items = Vec::with_capacity(handles.0.len());
+    // Await by mutable reference so every handle remains owned by `SequenceTaskSet`; if this
+    // parent future is cancelled while one member is awaited, Drop still aborts that member too.
+    for handle in &mut handles.0 {
         match handle.await {
             Ok(item) => items.push(item),
             // A spawned member task panicked (should not happen — resolve_one never panics);
@@ -610,6 +1081,15 @@ impl EmbedResolutionCache {
         self.states.insert(asset_id.into(), state);
     }
 
+    pub fn remove(&mut self, key: &str) -> Option<EmbedResolutionState> {
+        self.states.remove(key)
+    }
+
+    /// Remove every workspace-local resolution when the owning editor changes workspace.
+    pub fn clear(&mut self) {
+        self.states.clear();
+    }
+
     /// True when `asset_id` has NO cached state yet, OR its cached state is still `Resolving`
     /// (i.e. a fetch has not completed). A TERMINAL state (Ok/Err) returns `false` — the AC-9
     /// caching invariant: a resolved/failed asset is never re-fetched. The renderer marks the
@@ -645,7 +1125,143 @@ impl EmbedResolutionCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn scripted_http_server(
+        responses: Vec<(&'static str, u16, Vec<u8>)>,
+    ) -> (String, std::thread::JoinHandle<Vec<String>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind scripted HTTP server");
+        let address = listener.local_addr().expect("scripted server address");
+        listener
+            .set_nonblocking(true)
+            .expect("bound scripted accept");
+        let handle = std::thread::spawn(move || {
+            let mut observed = Vec::new();
+            for (expected_path, status, body) in responses {
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+                let (mut stream, _) = loop {
+                    match listener.accept() {
+                        Ok(connection) => break connection,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            assert!(
+                                std::time::Instant::now() < deadline,
+                                "timed out waiting for scripted request {expected_path}"
+                            );
+                            std::thread::sleep(std::time::Duration::from_millis(5));
+                        }
+                        Err(error) => panic!("accept scripted request failed: {error}"),
+                    }
+                };
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                    .expect("bound scripted request read");
+                let mut request = [0_u8; 4096];
+                let read = stream.read(&mut request).expect("read scripted request");
+                let request = String::from_utf8_lossy(&request[..read]);
+                let path = request
+                    .lines()
+                    .next()
+                    .and_then(|line| line.split_whitespace().nth(1))
+                    .expect("HTTP request path")
+                    .to_owned();
+                assert_eq!(path, expected_path);
+                observed.push(path);
+                let reason = match status {
+                    200 => "OK",
+                    404 => "Not Found",
+                    500 => "Internal Server Error",
+                    _ => "Test Status",
+                };
+                write!(
+                    stream,
+                    "HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                )
+                .expect("write scripted response headers");
+                stream
+                    .write_all(&body)
+                    .expect("write scripted response body");
+            }
+            observed
+        });
+        (format!("http://{address}"), handle)
+    }
+
+    fn raw_http_server(
+        response: Vec<u8>,
+        delay_before_response: Duration,
+    ) -> (String, std::thread::JoinHandle<String>) {
+        raw_http_server_parts(Vec::new(), delay_before_response, response)
+    }
+
+    fn raw_http_server_parts(
+        response_prefix: Vec<u8>,
+        delay_before_suffix: Duration,
+        response_suffix: Vec<u8>,
+    ) -> (String, std::thread::JoinHandle<String>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind raw HTTP server");
+        let address = listener.local_addr().expect("raw server address");
+        listener.set_nonblocking(true).expect("bound raw accept");
+        let handle = std::thread::spawn(move || {
+            let deadline = std::time::Instant::now() + Duration::from_secs(3);
+            let (mut stream, _) = loop {
+                match listener.accept() {
+                    Ok(connection) => break connection,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        assert!(
+                            std::time::Instant::now() < deadline,
+                            "timed out waiting for raw HTTP request"
+                        );
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(error) => panic!("accept raw request failed: {error}"),
+                }
+            };
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .expect("bound raw request read");
+            stream
+                .set_write_timeout(Some(Duration::from_secs(3)))
+                .expect("bound raw response write");
+            let mut request = [0_u8; 4096];
+            let read = stream.read(&mut request).expect("read raw request");
+            let request = String::from_utf8_lossy(&request[..read]);
+            let path = request
+                .lines()
+                .next()
+                .and_then(|line| line.split_whitespace().nth(1))
+                .expect("raw HTTP request path")
+                .to_owned();
+            // A timeout or an oversized Content-Length may make the client close before the
+            // test server writes. That is the expected negative path, so BrokenPipe is not a
+            // server-test failure.
+            let _ = stream.write_all(&response_prefix);
+            let _ = stream.flush();
+            if !delay_before_suffix.is_zero() {
+                std::thread::sleep(delay_before_suffix);
+            }
+            let _ = stream.write_all(&response_suffix);
+            path
+        });
+        (format!("http://{address}"), handle)
+    }
+
+    fn metadata_body(workspace_id: &str, asset_id: &str, mime: &str) -> Vec<u8> {
+        serde_json::to_vec(&EmbedAssetMetadata {
+            asset_id: asset_id.to_owned(),
+            workspace_id: workspace_id.to_owned(),
+            kind: "image".to_owned(),
+            mime: mime.to_owned(),
+            original_filename: Some(format!("{asset_id}.png")),
+            content_hash: "test-hash".to_owned(),
+            size_bytes: 16,
+            width: Some(1),
+            height: Some(1),
+        })
+        .expect("serialize metadata fixture")
+    }
 
     // ── AC-3 / AC-4 / MC-003: fail-closed ref validation (no backend) ────────────────────────
 
@@ -765,6 +1381,244 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn single_image_thumbnail_404_falls_back_to_bounded_original() {
+        let tier_path = "/workspaces/ws/assets/img/content?tier=thumb";
+        let original_path = "/workspaces/ws/assets/img/content";
+        let fallback_len = MAX_THUMBNAIL_BYTES + 1;
+        let (base_url, server) = scripted_http_server(vec![
+            (tier_path, 404, Vec::new()),
+            (original_path, 200, vec![0x5a; fallback_len]),
+        ]);
+        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let bytes = fetcher
+            .fetch_tier("ws", "img", MediaEmbedKind::Images, MediaTier::Thumbnail)
+            .await
+            .expect("single-image thumbnail fallback succeeds");
+        assert_eq!(
+            bytes.len(),
+            fallback_len,
+            "fallback accepts an original larger than the thumbnail limit but within the full-image limit"
+        );
+        assert!(bytes.iter().all(|byte| *byte == 0x5a));
+        assert_eq!(
+            server.join().expect("scripted server completed"),
+            vec![tier_path.to_owned(), original_path.to_owned()]
+        );
+        assert_eq!(
+            tier_body_limit(MediaTier::Thumbnail, true),
+            MAX_FULL_IMAGE_BYTES,
+            "a selected original fallback must use the full-image byte bound"
+        );
+        assert_eq!(
+            tier_body_limit(MediaTier::Thumbnail, false),
+            MAX_THUMBNAIL_BYTES,
+            "a real thumbnail response keeps the tighter thumbnail bound"
+        );
+    }
+
+    #[tokio::test]
+    async fn video_poster_404_never_fetches_full_video_body() {
+        let poster_path = "/workspaces/ws/assets/video/content?tier=poster";
+        let (base_url, server) = scripted_http_server(vec![(poster_path, 404, Vec::new())]);
+        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let error = fetcher
+            .fetch_tier("ws", "video", MediaEmbedKind::Video, MediaTier::Poster)
+            .await
+            .expect_err("missing poster remains a typed error");
+        assert_eq!(error.kind_str(), "not_found");
+        assert_eq!(
+            server.join().expect("scripted server completed"),
+            vec![poster_path.to_owned()],
+            "no request may reach the canonical full video content route"
+        );
+    }
+
+    #[tokio::test]
+    async fn album_thumbnail_404_does_not_expand_into_original_body_fanout() {
+        let thumb_path = "/workspaces/ws/assets/cell/content?tier=thumb";
+        let (base_url, server) = scripted_http_server(vec![(thumb_path, 404, Vec::new())]);
+        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let error = fetcher
+            .fetch_tier("ws", "cell", MediaEmbedKind::Album, MediaTier::Thumbnail)
+            .await
+            .expect_err("missing album thumbnail remains typed/visible");
+        assert_eq!(error.kind_str(), "not_found");
+        assert_eq!(
+            server.join().expect("scripted server completed"),
+            vec![thumb_path.to_owned()]
+        );
+    }
+
+    #[tokio::test]
+    async fn derived_tier_server_error_never_falls_back_to_original() {
+        let thumb_path = "/workspaces/ws/assets/img/content?tier=thumb";
+        let (base_url, server) = scripted_http_server(vec![(thumb_path, 500, Vec::new())]);
+        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let error = fetcher
+            .fetch_tier("ws", "img", MediaEmbedKind::Images, MediaTier::Thumbnail)
+            .await
+            .expect_err("only a 404 may enter the single-image fallback path");
+        assert_eq!(error.kind_str(), "server_error");
+        assert_eq!(
+            server.join().expect("scripted server completed"),
+            vec![thumb_path.to_owned()]
+        );
+    }
+
+    #[tokio::test]
+    async fn malformed_and_missing_required_metadata_are_typed_server_errors() {
+        let path = "/workspaces/ws/assets/img";
+        for body in [
+            br#"{"asset_id":"img","workspace_id":"ws","mime": }"#.to_vec(),
+            br#"{"asset_id":"img","workspace_id":"ws"}"#.to_vec(),
+        ] {
+            let (base_url, server) = scripted_http_server(vec![(path, 200, body)]);
+            let fetcher = ReqwestAssetFetcher::new(base_url);
+            let error = fetcher
+                .fetch_metadata("ws", "img")
+                .await
+                .expect_err("invalid metadata must fail closed");
+            assert_eq!(error.kind_str(), "server_error");
+            assert_eq!(
+                server.join().expect("scripted server completed"),
+                vec![path.to_owned()]
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn metadata_identity_workspace_and_mime_bindings_fail_closed() {
+        let cases = [
+            ("other", "ws", "image/png", "id"),
+            ("img", "other-workspace", "image/png", "workspace"),
+            ("img", "ws", "   ", "mime"),
+        ];
+        for (returned_id, returned_workspace, mime, expected_message) in cases {
+            let path = "/workspaces/ws/assets/img";
+            let body = metadata_body(returned_workspace, returned_id, mime);
+            let (base_url, server) = scripted_http_server(vec![(path, 200, body)]);
+            let fetcher = ReqwestAssetFetcher::new(base_url.clone());
+            let error = resolve_one(MediaEmbedKind::Images, "ws", "img", &base_url, &fetcher)
+                .await
+                .expect_err("unbound metadata must fail closed");
+            assert_eq!(error.kind_str(), "server_error");
+            assert!(error.to_string().contains(expected_message));
+            assert_eq!(
+                server.join().expect("scripted server completed"),
+                vec![path.to_owned()]
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn missing_asset_metadata_is_typed_not_found() {
+        let path = "/workspaces/ws/assets/missing";
+        let (base_url, server) = scripted_http_server(vec![(path, 404, Vec::new())]);
+        let fetcher = ReqwestAssetFetcher::new(base_url.clone());
+        let error = resolve_one(MediaEmbedKind::Images, "ws", "missing", &base_url, &fetcher)
+            .await
+            .expect_err("missing asset must remain visible and typed");
+        assert_eq!(error.kind_str(), "not_found");
+        assert_eq!(
+            server.join().expect("scripted server completed"),
+            vec![path.to_owned()]
+        );
+    }
+
+    #[tokio::test]
+    async fn oversized_declared_content_length_is_rejected_before_body_read() {
+        let declared = MAX_METADATA_BYTES + 1;
+        let response =
+            format!("HTTP/1.1 200 OK\r\nContent-Length: {declared}\r\nConnection: close\r\n\r\n")
+                .into_bytes();
+        let (base_url, server) = raw_http_server(response, Duration::ZERO);
+        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let error = fetcher
+            .fetch_metadata("ws", "oversized")
+            .await
+            .expect_err("oversized Content-Length must fail before allocation/body read");
+        assert_eq!(error.kind_str(), "resource_limit");
+        assert!(error.to_string().contains("content-length"));
+        assert_eq!(
+            server.join().expect("raw server completed"),
+            "/workspaces/ws/assets/oversized"
+        );
+    }
+
+    #[tokio::test]
+    async fn oversized_chunked_stream_is_rejected_while_reading() {
+        let body = vec![b'x'; MAX_METADATA_BYTES + 1];
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:X}\r\n",
+            body.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(&body);
+        response.extend_from_slice(b"\r\n0\r\n\r\n");
+        let (base_url, server) = raw_http_server(response, Duration::ZERO);
+        let fetcher = ReqwestAssetFetcher::new(base_url);
+        let error = fetcher
+            .fetch_metadata("ws", "streamed")
+            .await
+            .expect_err("streamed body must be bounded even without Content-Length");
+        assert_eq!(error.kind_str(), "resource_limit");
+        assert!(error.to_string().contains("streamed body"));
+        assert_eq!(
+            server.join().expect("raw server completed"),
+            "/workspaces/ws/assets/streamed"
+        );
+    }
+
+    #[tokio::test]
+    async fn reqwest_request_deadline_bounds_headers_and_body() {
+        let response =
+            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".to_vec();
+        let (base_url, server) = raw_http_server(response, Duration::from_millis(150));
+        let fetcher = ReqwestAssetFetcher::with_timeouts(
+            base_url,
+            Duration::from_millis(25),
+            Duration::from_millis(40),
+        );
+        let started = std::time::Instant::now();
+        let error = fetcher
+            .fetch_metadata("ws", "slow")
+            .await
+            .expect_err("slow headers must hit the request deadline");
+        assert_eq!(error.kind_str(), "timed_out");
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "the short test deadline must not inherit the production 15-second timeout"
+        );
+        assert_eq!(
+            server.join().expect("raw server completed"),
+            "/workspaces/ws/assets/slow"
+        );
+    }
+
+    #[tokio::test]
+    async fn reqwest_request_deadline_bounds_a_stalled_streamed_body() {
+        let headers = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n".to_vec();
+        let (base_url, server) =
+            raw_http_server_parts(headers, Duration::from_millis(150), b"{}".to_vec());
+        let fetcher = ReqwestAssetFetcher::with_timeouts(
+            base_url,
+            Duration::from_millis(25),
+            Duration::from_millis(40),
+        );
+        let started = std::time::Instant::now();
+        let error = fetcher
+            .fetch_metadata("ws", "slow-body")
+            .await
+            .expect_err("a stalled response body must hit the request deadline");
+        assert_eq!(error.kind_str(), "timed_out");
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert_eq!(
+            server.join().expect("raw server completed"),
+            "/workspaces/ws/assets/slow-body"
+        );
+    }
+
     #[test]
     fn mime_matches_kind() {
         assert!(MediaEmbedKind::Images.mime_matches("image/png"));
@@ -852,6 +1706,54 @@ mod tests {
         }
     }
 
+    struct PendingMetadataFetcher;
+
+    impl AssetMetadataFetcher for PendingMetadataFetcher {
+        fn fetch_metadata<'a>(
+            &'a self,
+            _workspace_id: &'a str,
+            _asset_id: &'a str,
+        ) -> MetadataFuture<'a> {
+            Box::pin(std::future::pending())
+        }
+    }
+
+    #[tokio::test]
+    async fn direct_resolve_one_path_has_a_hard_deadline() {
+        let started = std::time::Instant::now();
+        let error = resolve_one_with_timeout(
+            MediaEmbedKind::Images,
+            "ws",
+            "hung",
+            "http://b",
+            &PendingMetadataFetcher,
+            Duration::from_millis(5),
+        )
+        .await
+        .expect_err("a direct resolver call may not wait forever");
+        assert_eq!(error.kind_str(), "timed_out");
+        assert!(started.elapsed() < Duration::from_secs(1));
+    }
+
+    #[tokio::test]
+    async fn direct_sequence_budget_wait_has_a_hard_deadline() {
+        let fetcher: Arc<dyn AssetMetadataFetcher> = Arc::new(PendingMetadataFetcher);
+        let started = std::time::Instant::now();
+        let error = resolve_sequence_with_budget_and_timeout(
+            MediaEmbedKind::Album,
+            "ws",
+            "one",
+            "http://b",
+            fetcher,
+            Arc::new(tokio::sync::Semaphore::new(0)),
+            Duration::from_millis(5),
+        )
+        .await
+        .expect_err("a direct sequence semaphore wait may not outlive the operation budget");
+        assert_eq!(error.kind_str(), "timed_out");
+        assert!(started.elapsed() < Duration::from_secs(1));
+    }
+
     #[tokio::test]
     async fn resolve_one_validates_before_any_fetch_ac3() {
         // AC-3: a `..` ref is rejected with TraversalRejected BEFORE any fetch is issued.
@@ -909,7 +1811,7 @@ mod tests {
         );
         assert_eq!(
             resolved.thumbnail_url,
-            "http://127.0.0.1:37501/workspaces/ws1/assets/a1/thumbnail"
+            "http://127.0.0.1:37501/workspaces/ws1/assets/a1/content?tier=thumb"
         );
         assert_eq!(fetcher.call_count(), 1);
     }
@@ -922,6 +1824,44 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(err.kind_str(), "kind_mismatch");
+    }
+
+    #[tokio::test]
+    async fn resolve_one_does_not_reject_large_original_before_bounded_tier_fetch() {
+        struct OversizedFetcher;
+        impl AssetMetadataFetcher for OversizedFetcher {
+            fn fetch_metadata<'a>(
+                &'a self,
+                workspace_id: &'a str,
+                asset_id: &'a str,
+            ) -> MetadataFuture<'a> {
+                Box::pin(async move {
+                    Ok(EmbedAssetMetadata {
+                        asset_id: asset_id.to_owned(),
+                        workspace_id: workspace_id.to_owned(),
+                        kind: "image".to_owned(),
+                        mime: "image/png".to_owned(),
+                        original_filename: None,
+                        content_hash: String::new(),
+                        size_bytes: (MAX_FULL_IMAGE_BYTES + 1) as u64,
+                        width: Some(1),
+                        height: Some(1),
+                    })
+                })
+            }
+        }
+
+        let resolved = resolve_one(
+            MediaEmbedKind::Images,
+            "ws",
+            "too-large",
+            "http://b",
+            &OversizedFetcher,
+        )
+        .await
+        .expect("metadata size must not block a separately bounded thumbnail fetch");
+        assert_eq!(resolved.asset.size_bytes, (MAX_FULL_IMAGE_BYTES + 1) as u64);
+        assert!(resolved.thumbnail_url.ends_with("/content?tier=thumb"));
     }
 
     #[tokio::test]
@@ -984,6 +1924,76 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn backend_collection_owns_sequence_membership_and_order() {
+        struct CollectionFetcher {
+            metadata_calls: std::sync::Mutex<Vec<String>>,
+        }
+        impl AssetMetadataFetcher for CollectionFetcher {
+            fn fetch_metadata<'a>(
+                &'a self,
+                workspace_id: &'a str,
+                asset_id: &'a str,
+            ) -> MetadataFuture<'a> {
+                Box::pin(async move {
+                    self.metadata_calls
+                        .lock()
+                        .unwrap()
+                        .push(asset_id.to_owned());
+                    Ok(EmbedAssetMetadata {
+                        asset_id: asset_id.to_owned(),
+                        workspace_id: workspace_id.to_owned(),
+                        kind: "image".to_owned(),
+                        mime: "image/png".to_owned(),
+                        original_filename: None,
+                        content_hash: String::new(),
+                        size_bytes: 16,
+                        width: Some(1),
+                        height: Some(1),
+                    })
+                })
+            }
+
+            fn fetch_collection<'a>(
+                &'a self,
+                _workspace_id: &'a str,
+                collection_id: &'a str,
+            ) -> CollectionFuture<'a> {
+                Box::pin(async move {
+                    Ok(EmbedCollection {
+                        collection_id: collection_id.to_owned(),
+                        title: Some("Backend order".to_owned()),
+                        members: vec!["third".to_owned(), "first".to_owned(), "second".to_owned()],
+                    })
+                })
+            }
+        }
+
+        let fetcher = Arc::new(CollectionFetcher {
+            metadata_calls: std::sync::Mutex::new(Vec::new()),
+        });
+        let fetcher_dyn: Arc<dyn AssetMetadataFetcher> = fetcher.clone();
+        let items = resolve_sequence(
+            MediaEmbedKind::Album,
+            "ws",
+            "collection:ordered-set",
+            "http://b",
+            fetcher_dyn,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            items
+                .iter()
+                .map(|item| item.ref_value.as_str())
+                .collect::<Vec<_>>(),
+            vec!["third", "first", "second"]
+        );
+        let mut calls = fetcher.metadata_calls.lock().unwrap().clone();
+        calls.sort();
+        assert_eq!(calls, vec!["first", "second", "third"]);
+    }
+
+    #[tokio::test]
     async fn empty_and_oversized_sequences_are_typed_errors() {
         let fetcher: Arc<dyn AssetMetadataFetcher> = Arc::new(MockFetcher::new("image/png", 0));
         assert_eq!(
@@ -1040,6 +2050,8 @@ mod tests {
                 },
                 content_url: "u".into(),
                 thumbnail_url: "t".into(),
+                preview_url: "p".into(),
+                poster_url: "v".into(),
             }),
         );
         assert!(

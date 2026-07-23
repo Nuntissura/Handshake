@@ -281,6 +281,15 @@ pub struct DividerColors {
 /// owns nothing, so it is safe to construct per frame (mirrors [`crate::pane_registry::PaneHostWidget`]).
 pub struct SplitLayoutWidget;
 
+/// Tab-close intent emitted by the stateless split host for the app to reconcile. The app owns
+/// dirty confirmation, save/discard, editor-panel lifetime, and LSP `didClose`; removing the tab in
+/// this layout widget would bypass those document responsibilities.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TabCloseRequest {
+    pub pane_id: PaneId,
+    pub tab_index: usize,
+}
+
 impl SplitLayoutWidget {
     /// Fixed `egui::Id` for a divider. `from_high_entropy_bits` (NOT `Id::new`, which hashes) so the
     /// live AccessKit `NodeId` equals the fixed `node_id` — the same convention chrome (20/21) and
@@ -352,6 +361,7 @@ impl SplitLayoutWidget {
         undo_counts: &HashMap<PaneId, usize>,
         lock_requests: &mut Vec<PaneId>,
         pop_out_requests: &mut Vec<PaneId>,
+        tab_close_requests: &mut Vec<TabCloseRequest>,
         is_popped_out: P,
         merge_requests: &mut Vec<PaneId>,
         placeholder_text: egui::Color32,
@@ -556,13 +566,16 @@ impl SplitLayoutWidget {
                     .layout(egui::Layout::top_down(egui::Align::Min)),
             );
             child.set_clip_rect(body_rect);
-            factory.render(&mut child, &render_ctx);
-            // Register the pane's stable id on its content rect so the live AccessKit node attaches
-            // under this scope, and capture a click so the operator can activate a pane.
+            // Register the pane activation hit target BEFORE rendering child controls. The pane is the
+            // background interaction: child buttons, editor rows, and context-menu surfaces registered
+            // later in this same layer must remain topmost. Registering the full-body click target after
+            // `factory.render` shadowed secondary clicks on every nested context surface while still
+            // exposing those dead surfaces in AccessKit.
             let pane_response = child.interact(body_rect, pane_egui_id, egui::Sense::click());
             if pane_response.clicked() {
                 *active_pane = Some(pane_id.clone());
             }
+            factory.render(&mut child, &render_ctx);
             emit_accesskit(ui.ctx(), pane_egui_id, pane_id.as_ref(), role, &label);
         }
         drop(registry_guard);
@@ -586,7 +599,10 @@ impl SplitLayoutWidget {
                     }
                 }
                 if let Some(idx) = resp.closed_index {
-                    bar.close_tab(idx);
+                    tab_close_requests.push(TabCloseRequest {
+                        pane_id: pane_id.clone(),
+                        tab_index: idx,
+                    });
                 }
                 // MT-020 "Close Others": close every tab EXCEPT the right-clicked one. Iterate from the
                 // highest index downward so each removal does not shift the indices still to be visited,
@@ -594,14 +610,20 @@ impl SplitLayoutWidget {
                 if let Some(keep) = resp.close_others_index {
                     for idx in (0..bar.tabs.len()).rev() {
                         if idx != keep {
-                            bar.close_tab(idx);
+                            tab_close_requests.push(TabCloseRequest {
+                                pane_id: pane_id.clone(),
+                                tab_index: idx,
+                            });
                         }
                     }
                 }
                 // MT-020 "Close All": close every tab (highest-index-first so indices stay valid).
                 if resp.close_all {
                     for idx in (0..bar.tabs.len()).rev() {
-                        bar.close_tab(idx);
+                        tab_close_requests.push(TabCloseRequest {
+                            pane_id: pane_id.clone(),
+                            tab_index: idx,
+                        });
                     }
                 }
             }

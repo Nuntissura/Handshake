@@ -75,13 +75,9 @@ pub enum NavigationTarget {
     /// stable code-pane id the reveal should land on; `symbol` is the symbol entity id.
     EditorAtSymbol { pane_id: PaneId, symbol: String },
     /// Open the code editor at a byte location (MT-008 peek/go-to-def landing). Reconciles to
-    /// [`ShellNavigator::open_code_symbol`] using the `symbol` carried alongside the location (the live
-    /// code-nav seam resolves by symbol, not raw byte). KNOWN GAP (carried, not yet applied): `byte_offset`
-    /// is the intended in-pane scroll/reveal target, but the current `reveal` arm routes through
-    /// `open_code_symbol(symbol)` only and does NOT forward the offset — the live `ShellNavigator` exposes
-    /// no scroll-to-byte seam, so a peek lands on the symbol, not the precise byte. Forwarding the offset
-    /// needs a new mounted-pane reveal seam (owned by the code-pane MT, outside MT-070 `allowed_paths`);
-    /// tracked under BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE. `pane_id` is the stable code-pane id.
+    /// the mounted exact-pane reveal seam using both the stable `pane_id` and `byte_offset`. A stale or
+    /// closed pane returns [`NavError::PaneNotFound`]; a live pane places the caret at the requested byte
+    /// instead of falling back to symbol-only navigation.
     EditorAtLocation {
         pane_id: PaneId,
         symbol: String,
@@ -154,9 +150,8 @@ impl NavError {
 ///
 /// A blanket impl below makes EVERY [`ShellNavigator`] a `NavHandler`, so the live `HandshakeApp` shell
 /// (which already `impl ShellNavigator`) is a `NavHandler` for free — no second registration. The
-/// `focus_pane` method is the one capability beyond the `open_*` seams the `FocusPane` target needs;
-/// it defaults to opening the pane's own surface (which focuses it) so a plain `ShellNavigator` still
-/// satisfies it, and a richer shell can override it to focus WITHOUT re-opening content.
+/// `focus_pane` method is the one capability beyond the content-opening seams the `FocusPane` target
+/// needs; the blanket implementation below delegates to the navigator's exact stable-id focus seam.
 pub trait NavHandler {
     /// Reveal `target` on its addressed pane, returning the typed outcome (never panic). The default
     /// impl in [`dispatch`] is what callers use; this trait method exists so the seam is named and a
@@ -170,34 +165,32 @@ pub trait NavHandler {
 }
 
 /// Every [`ShellNavigator`] is a [`NavHandler`]: `reveal` maps each [`NavigationTarget`] onto the
-/// navigator's matching open_* seam (the RECONCILED mapping — RISK-070-2), and `focus_pane` reuses the
-/// navigator's loom-block seam to focus the addressed pane (a node/pane focus is an open-on-the-pane,
-/// which the shell de-dupes so it focuses rather than duplicates). This blanket impl is what makes the
-/// live `HandshakeApp` a `NavHandler` without a second handler table (RISK-070-4 — no forked substrate).
+/// navigator's matching exact-pane seam (the RECONCILED mapping — RISK-070-2), while `focus_pane`
+/// delegates to the dedicated focus-only seam. This blanket impl is what makes the live `HandshakeApp`
+/// a `NavHandler` without a second handler table (RISK-070-4 — no forked substrate).
 impl<N: ShellNavigator + ?Sized> NavHandler for N {
     fn reveal(&mut self, target: &NavigationTarget) -> NavDispatchOutcome {
         match target {
-            NavigationTarget::EditorAtSymbol { symbol, .. } => self.open_code_symbol(symbol),
-            // EditorAtLocation reveals through the same code-symbol seam (the live code-nav resolves by
-            // symbol). NOTE: `byte_offset` is intentionally IGNORED here — no `ShellNavigator` seam accepts
-            // a raw byte offset, so reusing open_code_symbol keeps ONE tab-open path (no forked
-            // navigation), at the cost that the pane lands on the symbol, not the precise byte. Honestly
-            // applying the offset needs a new mounted-pane scroll-to-byte reveal seam owned by the code-pane
-            // MT (outside MT-070 allowed_paths) — see the variant doc + BLOCKER-MT-070-ALLOWED-PATHS-VS-SCOPE.
-            NavigationTarget::EditorAtLocation { symbol, .. } => self.open_code_symbol(symbol),
+            NavigationTarget::EditorAtSymbol { pane_id, symbol } => {
+                self.open_code_symbol_in_pane(pane_id.as_ref(), symbol)
+            }
+            // EditorAtLocation uses the exact-pane location seam, preserving both the symbol identity and
+            // byte offset through dispatch so the mounted code pane can place the caret precisely.
+            NavigationTarget::EditorAtLocation {
+                pane_id,
+                symbol,
+                byte_offset,
+            } => self.open_code_location_in_pane(pane_id.as_ref(), symbol, *byte_offset),
             NavigationTarget::OpenNote { note_id } => self.open_document(note_id),
-            NavigationTarget::RevealNode { node_id, .. } => self.open_loom_block(node_id),
+            NavigationTarget::RevealNode { pane_id, node_id } => {
+                self.open_loom_block_in_pane(pane_id.as_ref(), node_id)
+            }
             NavigationTarget::FocusPane { pane_id } => self.focus_pane(pane_id),
         }
     }
 
     fn focus_pane(&mut self, pane_id: &PaneId) -> NavDispatchOutcome {
-        // A pane focus reuses the loom-block open seam keyed by the pane's stable id: the shell's
-        // open_navigator_tab de-dupes by (pane surface, content) and ACTIVATES + FOCUSES the existing
-        // tab rather than creating a duplicate, so opening "the pane's own id" focuses it. This keeps a
-        // single tab-mutation path (no forked focus call). A navigator that has a dedicated focus-only
-        // seam can override this.
-        self.open_loom_block(pane_id.as_ref())
+        self.focus_pane_by_id(pane_id.as_ref())
     }
 }
 
@@ -275,6 +268,48 @@ mod tests {
     }
 
     impl ShellNavigator for RecordingNavigator {
+        fn focus_pane_by_id(&mut self, pane_id: &str) -> NavDispatchOutcome {
+            self.calls.push(("focus_pane_by_id", pane_id.to_owned()));
+            self.outcome_for(pane_id, "Pane focus")
+        }
+        fn open_code_symbol_in_pane(
+            &mut self,
+            pane_id: &str,
+            symbol_entity_id: &str,
+        ) -> NavDispatchOutcome {
+            self.calls.push((
+                "open_code_symbol_in_pane",
+                format!("{pane_id}:{symbol_entity_id}"),
+            ));
+            if self
+                .unmounted_symbols
+                .iter()
+                .any(|symbol| symbol == symbol_entity_id)
+            {
+                NavDispatchOutcome::EditorPaneNotMounted {
+                    editor: NavEditorKind::Code,
+                }
+            } else {
+                self.outcome_for(pane_id, "Code")
+            }
+        }
+        fn open_code_location_in_pane(
+            &mut self,
+            pane_id: &str,
+            symbol_entity_id: &str,
+            byte_offset: usize,
+        ) -> NavDispatchOutcome {
+            self.calls.push((
+                "open_code_location_in_pane",
+                format!("{pane_id}:{symbol_entity_id}:{byte_offset}"),
+            ));
+            self.outcome_for(pane_id, "Code")
+        }
+        fn open_loom_block_in_pane(&mut self, pane_id: &str, block_id: &str) -> NavDispatchOutcome {
+            self.calls
+                .push(("open_loom_block_in_pane", format!("{pane_id}:{block_id}")));
+            self.outcome_for(pane_id, "Loom Block")
+        }
         fn open_document(&mut self, document_id: &str) -> NavDispatchOutcome {
             self.calls.push(("open_document", document_id.to_owned()));
             self.outcome_for(document_id, "Notes")
@@ -372,11 +407,14 @@ mod tests {
         assert_eq!(
             nav.calls,
             vec![
-                ("open_code_symbol", "sym-42".to_owned()),
-                ("open_code_symbol", "sym-7".to_owned()),
+                ("open_code_symbol_in_pane", "pane-code:sym-42".to_owned()),
+                (
+                    "open_code_location_in_pane",
+                    "pane-code:sym-7:1280".to_owned(),
+                ),
                 ("open_document", "KRD-9".to_owned()),
-                ("open_loom_block", "blk-3".to_owned()),
-                ("open_loom_block", "pane-a".to_owned()),
+                ("open_loom_block_in_pane", "pane-graph:blk-3".to_owned()),
+                ("focus_pane_by_id", "pane-a".to_owned()),
             ],
         );
     }
@@ -386,7 +424,7 @@ mod tests {
     #[test]
     fn dispatch_returns_pane_not_found_for_closed_pane() {
         let mut nav = RecordingNavigator {
-            closed_panes: vec!["blk-gone".to_owned(), "pane-closed".to_owned()],
+            closed_panes: vec!["pane-graph".to_owned(), "pane-closed".to_owned()],
             ..Default::default()
         };
 

@@ -39,7 +39,7 @@ use std::sync::{Arc, Mutex};
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
-use tokio::sync::broadcast;
+use tokio::sync::watch;
 
 use crate::accessibility::UiTreeSnapshot;
 use crate::mcp::action::ActionChannel;
@@ -67,7 +67,7 @@ pub struct SwarmMcpServer {
     /// The resolved binding (tcp addr, pipe name, token) — also persisted to the discovery file.
     binding: McpBinding,
     /// Broadcast sender the accept loops select on; sending (or dropping) signals shutdown.
-    shutdown_tx: broadcast::Sender<()>,
+    shutdown_tx: watch::Sender<bool>,
     /// Whether the binding file has already been removed (so shutdown is idempotent).
     binding_removed: bool,
     /// MT-028: the shared swarm-safety state (lease registry + attribution log) every connection uses.
@@ -89,6 +89,8 @@ struct ServerState {
     /// The screenshot capture used by the `screenshot` tool. Boxed so tests can inject an
     /// offscreen-render closure in place of the OS-window grab.
     capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
+    connection_counter: Arc<std::sync::atomic::AtomicU64>,
+    attribute_each_connection: bool,
 }
 
 impl SwarmMcpServer {
@@ -107,7 +109,7 @@ impl SwarmMcpServer {
         // MT-028: build the per-server swarm-safety state (fresh lease registry + attribution log) over
         // the same token + shared snapshot/channel MT-027 used, then bind through the shared-safety path.
         let safety = SwarmSafetyState::new(token, snapshot, channel);
-        Self::bind_with_safety(safety, capture).await
+        Self::bind_with_safety_mode(safety, capture, true).await
     }
 
     /// Bind a server over an EXISTING [`SwarmSafetyState`] (MT-028). Use this when multiple per-token
@@ -118,28 +120,69 @@ impl SwarmMcpServer {
         safety: SwarmSafetyState,
         capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
     ) -> std::io::Result<Self> {
+        Self::bind_with_safety_mode(safety, capture, false).await
+    }
+
+    async fn bind_with_safety_mode(
+        safety: SwarmSafetyState,
+        capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
+        attribute_each_connection: bool,
+    ) -> std::io::Result<Self> {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
         let tcp_addr = listener.local_addr()?.to_string();
-        let (shutdown_tx, _) = broadcast::channel(1);
+        let (shutdown_tx, _) = watch::channel(false);
 
         let state = ServerState {
             safety: safety.clone(),
             capture,
+            connection_counter: Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            attribute_each_connection,
         };
+
+        // Reserve every advertised endpoint before publication, but do not spawn any detached accept
+        // task until the owner-restricted binding is safely durable. A publication failure therefore
+        // drops the listeners here and cannot leave an undiscoverable live server behind.
+        #[cfg(target_os = "windows")]
+        let prepared_pipe = Self::prepare_named_pipe();
+        #[cfg(target_os = "windows")]
+        let pipe_name = prepared_pipe.as_ref().map(|(name, _)| name.clone());
+        #[cfg(not(target_os = "windows"))]
+        let pipe_name = None;
+
+        let binding = McpBinding::for_current_process(
+            tcp_addr,
+            pipe_name,
+            state.safety.token.as_hex().to_owned(),
+        )
+        .map_err(|error| {
+            std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                format!("MCP process identity could not be verified: {error}"),
+            )
+        })?;
+        let path = binding::write_binding(&binding).map_err(|error| {
+            std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                format!("MCP discovery binding was not safely published: {error}"),
+            )
+        })?;
+        tracing::info!(path = %path.display(), tcp = %binding.tcp_addr, "mcp binding written");
 
         // Spawn the TCP accept loop (detached background task — HBR-QUIET).
         {
             let state = state.clone();
             let mut shutdown_rx = shutdown_tx.subscribe();
+            let connection_shutdown_tx = shutdown_tx.clone();
             tokio::spawn(async move {
                 loop {
                     tokio::select! {
-                        _ = shutdown_rx.recv() => break,
+                        _ = wait_for_shutdown(&mut shutdown_rx) => break,
                         accepted = listener.accept() => match accepted {
                             Ok((stream, _peer)) => {
                                 let state = state.clone();
+                                let shutdown_rx = connection_shutdown_tx.subscribe();
                                 tokio::spawn(async move {
-                                    if let Err(e) = serve_connection(stream, state).await {
+                                    if let Err(e) = serve_connection(stream, state, shutdown_rx).await {
                                         tracing::debug!(error = %e, "mcp tcp connection closed with error");
                                     }
                                 });
@@ -154,22 +197,9 @@ impl SwarmMcpServer {
             });
         }
 
-        // Windows named pipe (non-fatal on failure — TCP-only fallback).
-        let pipe_name = Self::spawn_named_pipe(&state, &shutdown_tx);
-
-        let binding = McpBinding {
-            tcp_addr,
-            pipe_name,
-            token: state.safety.token.as_hex().to_owned(),
-            pid: std::process::id(),
-        };
-        match binding::write_binding(&binding) {
-            Ok(path) => {
-                tracing::info!(path = %path.display(), tcp = %binding.tcp_addr, "mcp binding written")
-            }
-            Err(e) => {
-                tracing::warn!(error = %e, "mcp binding file write failed (server still running)")
-            }
+        #[cfg(target_os = "windows")]
+        if let Some((pipe_name, first)) = prepared_pipe {
+            Self::spawn_named_pipe(&state, &shutdown_tx, pipe_name, first);
         }
 
         Ok(Self {
@@ -186,36 +216,44 @@ impl SwarmMcpServer {
         Arc::new(capture_handshake_window)
     }
 
-    /// Spawn the Windows named-pipe accept loop. Returns the pipe name on success, `None` (TCP-only) on
-    /// any bind failure (non-fatal — red-team: named-pipe exhaustion must not crash the server).
+    /// Reserve the first Windows named-pipe instance without spawning a task. This lets binding
+    /// publication fail cleanly before any accept loop exists.
     #[cfg(target_os = "windows")]
-    fn spawn_named_pipe(
-        state: &ServerState,
-        shutdown_tx: &broadcast::Sender<()>,
-    ) -> Option<String> {
+    fn prepare_named_pipe() -> Option<(String, tokio::net::windows::named_pipe::NamedPipeServer)> {
         use tokio::net::windows::named_pipe::ServerOptions;
 
         let pipe_name = format!(r"\\.\pipe\handshake_swarm_{}", std::process::id());
-        // Try to create the first pipe instance up front so a bind failure is reported as TCP-only now.
-        let first = match ServerOptions::new()
+        match ServerOptions::new()
             .first_pipe_instance(true)
             .create(&pipe_name)
         {
-            Ok(server) => server,
-            Err(e) => {
-                tracing::warn!(error = %e, pipe = %pipe_name, "named pipe bind failed; running TCP-only");
-                return None;
+            Ok(server) => Some((pipe_name, server)),
+            Err(error) => {
+                tracing::warn!(error = %error, pipe = %pipe_name, "named pipe bind failed; running TCP-only");
+                None
             }
-        };
+        }
+    }
+
+    /// Spawn the Windows named-pipe accept loop only after the discovery binding is durable.
+    #[cfg(target_os = "windows")]
+    fn spawn_named_pipe(
+        state: &ServerState,
+        shutdown_tx: &watch::Sender<bool>,
+        pipe_name: String,
+        first: tokio::net::windows::named_pipe::NamedPipeServer,
+    ) {
+        use tokio::net::windows::named_pipe::ServerOptions;
 
         let state = state.clone();
         let name = pipe_name.clone();
         let mut shutdown_rx = shutdown_tx.subscribe();
+        let connection_shutdown_tx = shutdown_tx.clone();
         tokio::spawn(async move {
             let mut server = first;
             loop {
                 tokio::select! {
-                    _ = shutdown_rx.recv() => break,
+                    _ = wait_for_shutdown(&mut shutdown_rx) => break,
                     connected = server.connect() => {
                         match connected {
                             Ok(()) => {
@@ -232,8 +270,9 @@ impl SwarmMcpServer {
                                     },
                                 );
                                 let state = state.clone();
+                                let connection_shutdown = connection_shutdown_tx.subscribe();
                                 tokio::spawn(async move {
-                                    if let Err(e) = serve_connection(this, state).await {
+                                    if let Err(e) = serve_connection(this, state, connection_shutdown).await {
                                         tracing::debug!(error = %e, "mcp pipe connection closed with error");
                                     }
                                 });
@@ -247,16 +286,6 @@ impl SwarmMcpServer {
             }
             tracing::debug!("mcp named-pipe accept loop stopped");
         });
-        Some(pipe_name)
-    }
-
-    /// No named pipe on non-Windows builds (TCP-only).
-    #[cfg(not(target_os = "windows"))]
-    fn spawn_named_pipe(
-        _state: &ServerState,
-        _shutdown_tx: &broadcast::Sender<()>,
-    ) -> Option<String> {
-        None
     }
 
     /// The bound localhost TCP address (e.g. `127.0.0.1:54321`).
@@ -269,7 +298,7 @@ impl SwarmMcpServer {
         self.binding.pipe_name.as_deref()
     }
 
-    /// The discovery binding (tcp/pipe/token/pid).
+    /// The discovery binding (tcp/pipe/token/PID/process-birth identity).
     pub fn binding(&self) -> &McpBinding {
         &self.binding
     }
@@ -292,15 +321,21 @@ impl SwarmMcpServer {
         &self.safety
     }
 
+    pub fn binding_removed(&self) -> bool {
+        self.binding_removed
+    }
+
     /// Stop the accept loops and remove the discovery file. Idempotent.
     pub fn shutdown(&mut self) {
         // A send error just means there are no live receivers (loops already stopped) — fine.
-        let _ = self.shutdown_tx.send(());
+        let _ = self.shutdown_tx.send(true);
         if !self.binding_removed {
-            if let Err(e) = binding::remove_binding() {
-                tracing::warn!(error = %e, "mcp binding file removal failed on shutdown");
+            match binding::remove_binding(&self.binding) {
+                Ok(()) => self.binding_removed = true,
+                Err(e) => {
+                    tracing::warn!(error = %e, "mcp binding file removal failed on shutdown");
+                }
             }
-            self.binding_removed = true;
         }
     }
 }
@@ -311,9 +346,24 @@ impl Drop for SwarmMcpServer {
     }
 }
 
+async fn wait_for_shutdown(shutdown_rx: &mut watch::Receiver<bool>) {
+    if *shutdown_rx.borrow() {
+        return;
+    }
+    while shutdown_rx.changed().await.is_ok() {
+        if *shutdown_rx.borrow() {
+            return;
+        }
+    }
+}
+
 /// Serve one connection: read newline-delimited JSON-RPC requests, dispatch, write newline-delimited
 /// responses, until EOF or a fatal framing/IO error. Each connection has its own rate-limit bucket.
-async fn serve_connection<S>(stream: S, state: ServerState) -> std::io::Result<()>
+async fn serve_connection<S>(
+    stream: S,
+    state: ServerState,
+    mut shutdown_rx: watch::Receiver<bool>,
+) -> std::io::Result<()>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
@@ -321,16 +371,30 @@ where
     let mut reader = BufReader::new(read_half);
     let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
 
-    // MT-028: one McpSession PER CONNECTION, so its agent_id (derived from the session token) is stable
-    // for every request on this connection and the shared lease registry + attribution log are reused.
-    let session = state.safety.session();
+    // One base McpSession per connection. A valid request client_session_id replaces its connection
+    // qualification with a stable participant qualification, preserving attribution across reconnects.
+    let connection_id = state
+        .connection_counter
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let session = if state.attribute_each_connection {
+        state.safety.session_for_connection(connection_id)
+    } else {
+        state.safety.session()
+    };
 
     let mut line = String::new();
     loop {
         line.clear();
-        let n = read_line_bounded(&mut reader, &mut line, MAX_LINE_BYTES).await?;
+        let n = tokio::select! {
+            biased;
+            _ = wait_for_shutdown(&mut shutdown_rx) => break,
+            result = read_line_bounded(&mut reader, &mut line, MAX_LINE_BYTES) => result?,
+        };
         if n == 0 {
             break; // EOF
+        }
+        if *shutdown_rx.borrow() {
+            break;
         }
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -390,9 +454,33 @@ async fn handle_line(
         }
     };
 
-    dispatch_with_session(&request, session, state)
-        .await
-        .to_json()
+    let attributed_session = match value.get("client_session_id") {
+        None => None,
+        Some(serde_json::Value::String(id))
+            if !id.is_empty()
+                && id.len() <= 64
+                && id.bytes().all(|byte| {
+                    byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.')
+                }) =>
+        {
+            Some(state.safety.session_for_client(id))
+        }
+        Some(_) => {
+            return serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": request.id,
+                "error": { "code": ERR_INVALID_PARAMS, "message": "client_session_id must be 1..=64 ASCII letters, digits, '-', '_' or '.'" },
+            });
+        }
+    };
+
+    dispatch_with_session(
+        &request,
+        attributed_session.as_ref().unwrap_or(session),
+        state,
+    )
+    .await
+    .to_json()
 }
 
 /// Dispatch one request through `session` so MT-028 leasing + attribution are applied, taking each
@@ -408,8 +496,8 @@ async fn handle_line(
 ///
 /// `async` because the lease wait is now `tokio::time::sleep`-based, yielding the worker thread.
 ///
-/// The per-CONNECTION `session` is built once when the connection is accepted (so its `agent_id` is
-/// stable for the connection's whole lifetime) and reused for every request on that connection.
+/// The per-connection session is the fallback identity. A valid top-level `client_session_id` selects
+/// a token-scoped stable participant session for this request, so reconnects do not fragment receipts.
 async fn dispatch_with_session(
     request: &McpRequest,
     session: &McpSession,
@@ -553,6 +641,8 @@ mod tests {
         ServerState {
             safety,
             capture: Arc::new(|| Ok(crate::mcp::screenshot::screenshot_from_png(b"foobar", 4, 3))),
+            connection_counter: Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            attribute_each_connection: true,
         }
     }
 
@@ -561,7 +651,7 @@ mod tests {
         let state = test_state("secret-token-1234567890");
         let session = state.safety.session();
         let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
-        let line = r#"{"jsonrpc":"2.0","id":1,"method":"list_widgets","params":{},"session_token":"secret-token-1234567890"}"#;
+        let line = r#"{"jsonrpc":"2.0","id":1,"method":"argus.inspect","params":{},"session_token":"secret-token-1234567890"}"#;
         let resp = handle_line(line, &state, &session, &mut limiter).await;
         assert_eq!(resp["result"]["widget_count"], 2);
         assert_eq!(resp["result"]["root"]["role"], "Window");
@@ -584,7 +674,7 @@ mod tests {
         let state = test_state("secret-token-1234567890");
         let session = state.safety.session();
         let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
-        let line = r#"{"jsonrpc":"2.0","id":3,"method":"click_widget","params":{"target":"btn"},"session_token":"secret-token-1234567890"}"#;
+        let line = r#"{"jsonrpc":"2.0","id":3,"method":"argus.click","params":{"target":"btn"},"session_token":"secret-token-1234567890"}"#;
         let resp = handle_line(line, &state, &session, &mut limiter).await;
         assert_eq!(resp["result"]["queued"], true);
         // MAJOR #2 / AC#2: the success result carries the acting agent_id over the wire shape.
@@ -607,6 +697,68 @@ mod tests {
         );
         assert_eq!(entries[0].agent_id, session.agent_id());
         assert_eq!(entries[0].target_key, "btn");
+    }
+
+    #[tokio::test]
+    async fn stable_client_session_id_survives_connection_replacement() {
+        let state = test_state("secret-token-1234567890");
+        let line = r#"{"jsonrpc":"2.0","id":1,"method":"argus.click","params":{"target":"btn"},"session_token":"secret-token-1234567890","client_session_id":"agent-alpha"}"#;
+
+        let first_connection = state.safety.session_for_connection(1);
+        let first = handle_line(
+            line,
+            &state,
+            &first_connection,
+            &mut RateLimiter::new(MAX_REQUESTS_PER_SEC),
+        )
+        .await;
+        let stable_id = first["result"]["agent_id"]
+            .as_str()
+            .expect("first response carries stable agent id")
+            .to_owned();
+        assert!(stable_id.ends_with(":client:agent-alpha"));
+        state.safety.channel.lock().unwrap().drain_into_events();
+
+        let second_connection = state.safety.session_for_connection(2);
+        let second = handle_line(
+            line,
+            &state,
+            &second_connection,
+            &mut RateLimiter::new(MAX_REQUESTS_PER_SEC),
+        )
+        .await;
+        assert_eq!(second["result"]["agent_id"], stable_id);
+        let entries = state.safety.log().drain_log();
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter().all(|entry| entry.agent_id == stable_id));
+    }
+
+    #[tokio::test]
+    async fn buffered_request_is_not_dispatched_after_shutdown_is_durable() {
+        use tokio::io::AsyncWriteExt as _;
+
+        let state = test_state("secret-token-1234567890");
+        let (mut client, server) = tokio::io::duplex(4096);
+        client
+            .write_all(
+                b"{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"argus.click\",\"params\":{\"target\":\"btn\"},\"session_token\":\"secret-token-1234567890\"}\n",
+            )
+            .await
+            .expect("buffer complete request before shutdown");
+
+        let (shutdown_tx, shutdown_rx) = watch::channel(false);
+        shutdown_tx
+            .send(true)
+            .expect("publish durable shutdown while request is buffered");
+        serve_connection(server, state.clone(), shutdown_rx)
+            .await
+            .expect("connection exits cleanly");
+
+        assert_eq!(
+            state.safety.channel.lock().unwrap().pending(),
+            0,
+            "a request buffered before durable shutdown must never dispatch"
+        );
     }
 
     #[tokio::test]

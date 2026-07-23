@@ -74,19 +74,19 @@ pub const CODE_EDITOR_RENAME_APPLY_AUTHOR_ID: &str = "code_editor_rename_apply";
 pub const CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID: &str = "code_editor_rename_cancel";
 pub const CODE_EDITOR_RENAME_NO_LSP_BANNER_AUTHOR_ID: &str = "code_editor_rename_no_lsp_banner";
 pub const CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID: &str = "code_editor_ctx_rename_symbol";
+/// The mounted context-menu item uses the shared menu prefix; this is the actual node Argus clicks.
+pub const CODE_EDITOR_CTX_RENAME_SYMBOL_MENU_AUTHOR_ID: &str =
+    "ctx-menu.code_editor_ctx_rename_symbol";
 
 /// The exact warning-banner text the no-LSP single-file path must render (MC-004 / AC-003). A swarm
 /// agent reads this off the banner node's value so it is never misled that a single-file rename was
 /// project-wide.
 pub const NO_LSP_BANNER_TEXT: &str = "LSP-required for cross-file rename";
 
-/// Fixed AccessKit/egui `NodeId`s for the rename overlay nodes. A fresh band (710..) ABOVE the MT-047
+/// Fixed AccessKit/egui `NodeId`s for non-interactive rename status nodes. A fresh band (710..) ABOVE the MT-047
 /// signature-help node (700) and the MT-008 overlay band (completion 600..665, hover 680/681) so the
 /// rename nodes never collide with another overlay node id.
-pub(crate) const RENAME_INPUT_NODE_ID: u64 = 710;
 pub(crate) const RENAME_PREVIEW_NODE_ID: u64 = 711;
-pub(crate) const RENAME_APPLY_NODE_ID: u64 = 712;
-pub(crate) const RENAME_CANCEL_NODE_ID: u64 = 713;
 pub(crate) const RENAME_NO_LSP_BANNER_NODE_ID: u64 = 714;
 
 /// A half-open LSP-style line/character range (0-based), the wire form an LSP `TextEdit` carries. Kept
@@ -889,7 +889,6 @@ pub fn render_inline_input(
     let input_egui_id = egui::Id::new(("code-editor-rename-input", instance));
     let area_id = egui::Id::new(("code-editor-rename-input-area", instance));
 
-    let value_for_node = draft.clone();
     let first_frame = !*focus_requested;
 
     egui::Area::new(area_id)
@@ -902,6 +901,18 @@ pub fn render_inline_input(
                     .desired_width(180.0)
                     .hint_text("New name");
                 let resp = ui.add(edit);
+                let input_author = author.clone();
+                ui.ctx().accesskit_node_builder(resp.id, move |node| {
+                    // Augment the REAL TextEdit node so an addressed Argus SetValue reaches the widget
+                    // that owns `draft`; a detached synthetic node would be visible but not steerable.
+                    node.set_author_id(input_author);
+                    node.set_label("Rename symbol".to_owned());
+                    node.add_action(accesskit::Action::SetValue);
+                });
+                if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, resp.id) {
+                    *draft = replacement;
+                    ui.ctx().request_repaint();
+                }
                 if first_frame {
                     // ONE-SHOT focus + select-all on the first frame only (RISK-005 / MC-005 / HBR-QUIET).
                     resp.request_focus();
@@ -923,20 +934,6 @@ pub fn render_inline_input(
         });
     // Mark the one-shot focus request done AFTER rendering (so the next frame does not re-request).
     *focus_requested = true;
-
-    // Emit the TextInput AccessKit node carrying the draft value, so a swarm agent reads/sets the rename
-    // by id (AC-006). The node value is the current draft.
-    let node_id = rename_node_id(
-        RENAME_INPUT_NODE_ID,
-        CODE_EDITOR_RENAME_INPUT_AUTHOR_ID,
-        instance,
-    );
-    ctx.accesskit_node_builder(node_id, move |node| {
-        node.set_role(accesskit::Role::TextInput);
-        node.set_author_id(author.clone());
-        node.set_label("Rename symbol".to_owned());
-        node.set_value(value_for_node.clone());
-    });
 }
 
 /// Render the multi-file rename preview (AC-004): lists every changed file (open buffer vs to-disk noted)
@@ -1023,16 +1020,10 @@ pub fn render_preview(
                     action = PreviewAction::Apply;
                 }
                 let apply_author = suffixed(CODE_EDITOR_RENAME_APPLY_AUTHOR_ID, instance);
-                let apply_node_id = rename_node_id(
-                    RENAME_APPLY_NODE_ID,
-                    CODE_EDITOR_RENAME_APPLY_AUTHOR_ID,
-                    instance,
-                );
-                ui.ctx().accesskit_node_builder(apply_node_id, move |node| {
-                    node.set_role(accesskit::Role::Button);
+                ui.ctx().accesskit_node_builder(apply_resp.id, move |node| {
+                    // Attach the stable id to the REAL button so AccessKit Click drives `clicked()`.
                     node.set_author_id(apply_author.clone());
                     node.set_label("Apply rename".to_owned());
-                    node.add_action(accesskit::Action::Click);
                 });
 
                 let cancel_resp = ui.button("Cancel");
@@ -1040,17 +1031,11 @@ pub fn render_preview(
                     action = PreviewAction::Cancel;
                 }
                 let cancel_author = suffixed(CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID, instance);
-                let cancel_node_id = rename_node_id(
-                    RENAME_CANCEL_NODE_ID,
-                    CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID,
-                    instance,
-                );
                 ui.ctx()
-                    .accesskit_node_builder(cancel_node_id, move |node| {
-                        node.set_role(accesskit::Role::Button);
+                    .accesskit_node_builder(cancel_resp.id, move |node| {
+                        // Attach the stable id to the REAL button so AccessKit Click drives `clicked()`.
                         node.set_author_id(cancel_author.clone());
                         node.set_label("Cancel rename".to_owned());
-                        node.add_action(accesskit::Action::Click);
                     });
             });
 

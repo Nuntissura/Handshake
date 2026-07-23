@@ -146,22 +146,32 @@ fn code_symbol_target_opens_mounted_code_pane() {
     );
 }
 
+#[test]
+fn code_location_target_applies_byte_offset_in_requested_pane() {
+    let mut app = editor_shell();
+    let panel = app.mounted_code_panel();
+    panel.set_text("0123456789\nsecond line");
+
+    let result = dispatch(
+        &mut app,
+        &NavigationTarget::EditorAtLocation {
+            pane_id: PaneId::from("pane-a"),
+            symbol: "sym-location".to_owned(),
+            byte_offset: 7,
+        },
+    );
+    assert_eq!(result, Ok(()));
+    assert_eq!(app.active_pane().map(|pane| pane.as_ref()), Some("pane-a"));
+    assert_eq!(panel.primary_cursor_byte_offset(), 7);
+}
+
 // ── AC-070-6 (Err path) / RISK-070-3 / MC-070-3: unknown pane -> typed PaneNotFound, never a panic ─────
 
 #[test]
 fn unknown_pane_focus_returns_pane_not_found_never_panics() {
-    // A shell with NO tab-bar panes at all: `module_target_pane` returns None, so every open_* seam
-    // returns `NoTargetPane`, which the bus maps to the typed `PaneNotFound` (never a panic). This is the
-    // "stale/closed pane id" + "empty work surface" path the red-team requires to be guarded.
-    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
-        status: "ok".to_string(),
-        db_status: "ok".to_string(),
-        migration_version: Some(1),
-    }));
-    // Drain every tab bar so there is no landing pane (simulate a fully-closed work surface): with no
-    // tab-bar pane, the shell's `module_target_pane` returns None and every open_* seam yields
-    // `NoTargetPane`, which the bus maps to the typed `PaneNotFound` guard.
-    app.tab_bar_states_mut().clear();
+    // Keep several valid panes open. The stale id must still fail closed instead of falling back to one
+    // of them (the prior empty-layout-only proof could pass even when pane_id was completely ignored).
+    let mut app = editor_shell();
 
     let focus_err = dispatch(
         &mut app,
@@ -174,6 +184,21 @@ fn unknown_pane_focus_returns_pane_not_found_never_panics() {
         "FocusPane on a work surface with no landing pane -> PaneNotFound, got {focus_err:?}",
     );
 
+    let symbol_err = dispatch(
+        &mut app,
+        &NavigationTarget::EditorAtSymbol {
+            pane_id: PaneId::from("pane-closed"),
+            symbol: "sym-stale".to_owned(),
+        },
+    );
+    assert_eq!(
+        symbol_err,
+        Err(NavError::PaneNotFound {
+            pane_id: "pane-closed".to_owned(),
+        }),
+        "EditorAtSymbol cannot redirect an unknown requested pane into an unrelated open code pane",
+    );
+
     let reveal_err = dispatch(
         &mut app,
         &NavigationTarget::RevealNode {
@@ -184,6 +209,13 @@ fn unknown_pane_focus_returns_pane_not_found_never_panics() {
     assert!(
         matches!(&reveal_err, Err(NavError::PaneNotFound { .. })),
         "RevealNode on a closed pane -> PaneNotFound, got {reveal_err:?}",
+    );
+    assert!(
+        app.tab_bar_states_mut().values().all(|bar| !bar
+            .tabs
+            .iter()
+            .any(|tab| tab.content_id.as_deref() == Some("blk-stale"))),
+        "a stale RevealNode target never mutates another open pane"
     );
 }
 
@@ -208,8 +240,24 @@ fn graph_node_menu_action_dispatches_through_navigation_bus() {
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run_steps(2);
 
+    assert!(
+        harness
+            .state_mut()
+            .dispatch_palette_action_for_test("view.graph"),
+        "MT-070: open the real Graph View operator surface before delivering its node-menu event"
+    );
+    harness.run_steps(2);
+
     events.lock().unwrap().push(GraphEvent::NodeMenu {
         block_id: "blk-node-menu-1".to_owned(),
+        source_pane_id: Some(PaneId::from("pane-a")),
+        source_workspace_id: harness
+            .state()
+            .mounted_graph_view()
+            .lock()
+            .unwrap()
+            .workspace_id
+            .clone(),
         action: NodeMenuAction::RevealNode,
     });
     harness.run_steps(2);

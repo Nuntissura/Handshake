@@ -21,16 +21,19 @@
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use egui_kittest::kittest::Queryable;
-use egui_kittest::Harness;
+use egui_kittest::kittest::{NodeT, Queryable};
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::accessibility::editor_action_registry::{
     rich_action_catalog, CODE_ACTION_CATALOG,
 };
 use handshake_native::accessibility::{
-    CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, DECLARED_IDENTITIES, GRAPH_CONTROL_CATALOG,
-    PALETTE_AUTHOR_IDS,
+    UiTreeNode, UiTreeSnapshot, CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG,
+    DECLARED_IDENTITIES, GRAPH_CONTROL_CATALOG, PALETTE_AUTHOR_IDS,
 };
 use handshake_native::manual_content_editors::{
     agent_tool_rows, editors_manual_section, INTEROP_EDGES, REQUIRED_HEADINGS,
@@ -39,6 +42,11 @@ use handshake_native::manual_pane::{
     ManualPane, ManualPaneState, ManualRegistry, ManualSurface, MANUAL_SEARCH_AUTHOR_ID,
 };
 use handshake_native::theme::HsPalette;
+use handshake_native::{
+    app::{HandshakeApp, HealthDisplayState},
+    backend_client::HealthInfo,
+    code_editor::CodeEditorPanel,
+};
 
 /// The crate-relative path to the external artifacts root (CX-212E), disk-agnostic. The crate sits at
 /// `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..` where `Handshake_Artifacts` is a
@@ -67,8 +75,13 @@ fn wgpu_guard() -> std::sync::MutexGuard<'static, ()> {
     WGPU_SERIAL_GUARD.lock().unwrap_or_else(|p| p.into_inner())
 }
 
-/// The FOUR real MCP tool names from mcp/tools.rs (the only legal `mcp_tool` values).
-const REAL_MCP_TOOLS: &[&str] = &["list_widgets", "click_widget", "set_value", "screenshot"];
+/// The FOUR canonical Argus method names (legacy aliases are not valid product-manual rows).
+const REAL_MCP_TOOLS: &[&str] = &[
+    handshake_native::mcp::ARGUS_INSPECT_METHOD,
+    handshake_native::mcp::ARGUS_CLICK_METHOD,
+    handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
+    handshake_native::mcp::ARGUS_SCREENSHOT_METHOD,
+];
 
 /// Build the LIVE author_id set — the union of every real registered/static author_id across the surfaces
 /// the manual documents. This is the id-audit's source of truth; a documented author_id absent from this
@@ -106,6 +119,11 @@ fn live_author_id_set() -> HashSet<String> {
     for id in handshake_native::top_menu_bar::SWARM_ACCESSIBLE_ACTIONS {
         set.insert((*id).to_owned());
     }
+    set.insert(
+        handshake_native::top_menu_bar::MenuId::Editors
+            .author_id()
+            .to_owned(),
+    );
     for command in handshake_native::command_registry::all_commands() {
         set.insert(format!(
             "{}{}",
@@ -179,12 +197,29 @@ fn live_author_id_set() -> HashSet<String> {
             .to_owned(),
     );
     set.insert(handshake_native::code_editor::note_refs_panel::PANEL_AUTHOR_ID.to_owned());
+    set.insert(
+        handshake_native::code_editor::code_actions::CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID.to_owned(),
+    );
+    set.insert(
+        handshake_native::code_editor::code_actions::CODE_EDITOR_QUICKFIX_MENU_AUTHOR_ID.to_owned(),
+    );
+    set.insert(handshake_native::code_editor::code_actions::quickfix_item_author_id(0, ""));
+    set.insert(
+        handshake_native::code_editor::formatting::FORMAT_SELECTION_CTX_AUTHOR_ID.to_owned(),
+    );
 
     // FEMS fixed ids.
     set.insert(handshake_native::fems::RELEVANT_MEMORY_PANEL_AUTHOR_ID.to_owned());
     set.insert(handshake_native::fems::RELEVANT_MEMORY_LIST_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::fems::RELEVANT_MEMORY_REFRESH_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::fems::RELEVANT_MEMORY_STATUS_AUTHOR_ID.to_owned());
     set.insert(handshake_native::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::fems::FEMS_PROPOSE_CANCEL_AUTHOR_ID.to_owned());
     set.insert(handshake_native::fems::FEMS_PROPOSE_CONFIRM_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::fems::FEMS_PROPOSE_STATUS_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::fems::FEMS_REVIEW_APPROVE_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::fems::FEMS_REVIEW_REJECT_AUTHOR_ID.to_owned());
+    set.insert(handshake_native::fems::FEMS_REVIEW_STATUS_AUTHOR_ID.to_owned());
 
     // Stage fixed ids.
     set.insert(handshake_native::stage_pane::STAGE_PANE_AUTHOR_ID.to_owned());
@@ -349,6 +384,20 @@ fn agent_tool_reference_rows_are_complete_and_use_real_tools() {
             row.mcp_tool,
             REAL_MCP_TOOLS
         );
+        for (legacy, canonical) in [
+            ("list_widgets", "argus.inspect"),
+            ("click_widget", "argus.click"),
+            ("set_value", "argus.set_value"),
+            ("screenshot", "argus.screenshot"),
+        ] {
+            let without_canonical = row.description.replace(canonical, "");
+            assert!(
+                !without_canonical.contains(legacy),
+                "canonical manual row '{}' still presents legacy-only method '{legacy}' in its example: {}",
+                row.author_id,
+                row.description
+            );
+        }
     }
     // The reference must cover EACH editor + knowledge + FEMS + interop surface (no surface omitted).
     let surfaces: HashSet<ManualSurface> = rows.iter().map(|r| r.surface).collect();
@@ -370,6 +419,450 @@ fn agent_tool_reference_rows_are_complete_and_use_real_tools() {
             "AC-002: surface {required:?} has no agent-tool rows"
         );
     }
+
+    let row_ids: HashSet<&str> = rows.iter().map(|row| row.author_id).collect();
+    assert!(
+        row_ids.contains(handshake_native::top_menu_bar::MenuId::Editors.author_id()),
+        "AC-002: the actionable EDITORS dropdown must have an author_id -> tool row"
+    );
+    for expected in handshake_native::settings_editor_section::EDITOR_SETTINGS_CONTROL_AUTHOR_IDS
+        .iter()
+        .chain(handshake_native::settings_editor_section::EDITOR_SETTINGS_OPTION_AUTHOR_IDS)
+        .chain(handshake_native::settings_editor_section::SYNTAX_SWATCH_AUTHOR_IDS)
+    {
+        assert!(
+            row_ids.contains(*expected),
+            "AC-002: addressable Editor/Syntax settings control '{expected}' is missing from the agent-tool reference"
+        );
+    }
+    for expected in handshake_native::settings_editor_section::EDITOR_SETTINGS_OPTION_AUTHOR_IDS {
+        let row = rows
+            .iter()
+            .find(|row| row.author_id == *expected)
+            .unwrap_or_else(|| panic!("missing popup option row '{expected}'"));
+        assert_eq!(row.mcp_tool, handshake_native::mcp::ARGUS_CLICK_METHOD);
+    }
+    for expected in handshake_native::settings_editor_section::SYNTAX_SWATCH_AUTHOR_IDS {
+        let row = rows
+            .iter()
+            .find(|row| row.author_id == *expected)
+            .unwrap_or_else(|| panic!("missing syntax swatch row '{expected}'"));
+        assert_eq!(row.mcp_tool, handshake_native::mcp::ARGUS_SET_VALUE_METHOD);
+    }
+    for expected in [
+        handshake_native::settings_editor_section::EDITOR_WORD_WRAP_AUTHOR_ID,
+        handshake_native::settings_editor_section::EDITOR_RENDER_WHITESPACE_AUTHOR_ID,
+        handshake_native::settings_editor_section::SYNTAX_PALETTE_MODE_AUTHOR_ID,
+    ] {
+        let row = rows
+            .iter()
+            .find(|row| row.author_id == expected)
+            .unwrap_or_else(|| panic!("missing selector row '{expected}'"));
+        assert_eq!(row.mcp_tool, handshake_native::mcp::ARGUS_SET_VALUE_METHOD);
+    }
+
+    // The live keybinding table renders exactly two addressable controls for every action in its source
+    // catalog: a TextEdit row driven by set_value and a Reset button driven by click_widget. Compare the
+    // complete generated id set in both directions so a missing row, stale row, duplicate row, new live
+    // action, or removed live action cannot silently drift from the structured manual reference.
+    let actions = handshake_native::settings_editor_section::editor_action_catalog();
+    let mut expected_keybinding_ids = HashSet::with_capacity(actions.len() * 2);
+    for action in &actions {
+        expected_keybinding_ids.insert(
+            handshake_native::settings_editor_section::editor_keybind_row_author_id(&action.id),
+        );
+        expected_keybinding_ids.insert(format!(
+            "{}{}",
+            handshake_native::settings_editor_section::EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX,
+            action.id
+        ));
+    }
+    let keybinding_rows: Vec<_> = rows
+        .iter()
+        .filter(|row| {
+            row.author_id.starts_with(
+                handshake_native::settings_editor_section::EDITOR_KEYBIND_ROW_AUTHOR_ID_PREFIX,
+            ) || row.author_id.starts_with(
+                handshake_native::settings_editor_section::EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX,
+            )
+        })
+        .collect();
+    let actual_keybinding_ids: HashSet<String> = keybinding_rows
+        .iter()
+        .map(|row| row.author_id.to_owned())
+        .collect();
+    assert_eq!(
+        keybinding_rows.len(),
+        actions.len() * 2,
+        "AC-002: the manual must contain exactly one row and one Reset entry per live keybinding action"
+    );
+    assert_eq!(
+        actual_keybinding_ids, expected_keybinding_ids,
+        "AC-002: structured keybinding rows must exactly match the live runtime-generated control ids"
+    );
+    for action in actions {
+        let expected_surface = match action.surface {
+            handshake_native::settings_editor_section::EditorActionSurface::Code => {
+                ManualSurface::Code
+            }
+            handshake_native::settings_editor_section::EditorActionSurface::Rich => {
+                ManualSurface::RichText
+            }
+        };
+        let row_id =
+            handshake_native::settings_editor_section::editor_keybind_row_author_id(&action.id);
+        let reset_id = format!(
+            "{}{}",
+            handshake_native::settings_editor_section::EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX,
+            action.id
+        );
+        let row = keybinding_rows
+            .iter()
+            .find(|row| row.author_id == row_id.as_str())
+            .unwrap_or_else(|| panic!("missing live keybinding TextEdit row '{row_id}'"));
+        assert_eq!(
+            row.mcp_tool,
+            handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
+            "wrong MCP tool for '{row_id}'"
+        );
+        assert_eq!(
+            row.surface, expected_surface,
+            "wrong manual surface for '{row_id}'"
+        );
+        let reset = keybinding_rows
+            .iter()
+            .find(|row| row.author_id == reset_id.as_str())
+            .unwrap_or_else(|| panic!("missing live keybinding Reset row '{reset_id}'"));
+        assert_eq!(
+            reset.mcp_tool,
+            handshake_native::mcp::ARGUS_CLICK_METHOD,
+            "wrong MCP tool for '{reset_id}'"
+        );
+        assert_eq!(
+            reset.surface, expected_surface,
+            "wrong manual surface for '{reset_id}'"
+        );
+    }
+
+    // Reverse audit for conditionally rendered editor controls: source the complete expected inventory
+    // from the live owning modules, then require exactly one canonical structured row per control.
+    let conditional_editor_controls = vec![
+        (
+            handshake_native::code_editor::rename::CODE_EDITOR_RENAME_INPUT_AUTHOR_ID.to_owned(),
+            handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
+        ),
+        (
+            handshake_native::code_editor::rename::CODE_EDITOR_RENAME_APPLY_AUTHOR_ID.to_owned(),
+            handshake_native::mcp::ARGUS_CLICK_METHOD,
+        ),
+        (
+            handshake_native::code_editor::rename::CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID.to_owned(),
+            handshake_native::mcp::ARGUS_CLICK_METHOD,
+        ),
+        (
+            handshake_native::code_editor::rename::CODE_EDITOR_CTX_RENAME_SYMBOL_MENU_AUTHOR_ID
+                .to_owned(),
+            handshake_native::mcp::ARGUS_CLICK_METHOD,
+        ),
+        (
+            handshake_native::code_editor::code_actions::CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID
+                .to_owned(),
+            handshake_native::mcp::ARGUS_CLICK_METHOD,
+        ),
+        (
+            handshake_native::code_editor::code_actions::CODE_EDITOR_QUICKFIX_MENU_AUTHOR_ID
+                .to_owned(),
+            handshake_native::mcp::ARGUS_INSPECT_METHOD,
+        ),
+        (
+            handshake_native::code_editor::code_actions::quickfix_item_author_id(0, ""),
+            handshake_native::mcp::ARGUS_CLICK_METHOD,
+        ),
+        (
+            handshake_native::code_editor::formatting::FORMAT_SELECTION_CTX_AUTHOR_ID.to_owned(),
+            handshake_native::mcp::ARGUS_CLICK_METHOD,
+        ),
+    ];
+    for (author_id, expected_method) in conditional_editor_controls {
+        let matching: Vec<_> = rows
+            .iter()
+            .filter(|row| row.author_id == author_id.as_str())
+            .collect();
+        assert_eq!(
+            matching.len(),
+            1,
+            "live conditional editor control '{author_id}' must have exactly one manual row"
+        );
+        assert_eq!(
+            matching[0].mcp_tool, expected_method,
+            "live conditional editor control '{author_id}' uses the wrong canonical Argus method"
+        );
+    }
+}
+
+fn has_live_author_id<S>(harness: &Harness<'_, S>, author_id: &str) -> bool {
+    harness
+        .root()
+        .children_recursive()
+        .any(|node| node.accesskit_node().author_id().as_deref() == Some(author_id))
+}
+
+fn click_live_author_id<S>(harness: &mut Harness<'_, S>, author_id: &str) {
+    harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id().as_deref() == Some(author_id))
+        .unwrap_or_else(|| panic!("actual mounted widget '{author_id}' is absent"))
+        .click_accesskit();
+    harness.run_steps(3);
+}
+
+fn argus_snapshot<S>(harness: &Harness<'_, S>) -> UiTreeSnapshot {
+    let actions = [
+        egui::accesskit::Action::Click,
+        egui::accesskit::Action::Focus,
+        egui::accesskit::Action::SetValue,
+    ];
+    let children: Vec<_> = harness
+        .root()
+        .children_recursive()
+        .map(|node| {
+            let access = node.accesskit_node();
+            let node_id = access.id().0;
+            UiTreeNode {
+                id: access
+                    .author_id()
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| format!("node:{node_id}")),
+                author_id: access.author_id().map(str::to_owned),
+                node_id,
+                role: format!("{:?}", access.role()),
+                label: access.label(),
+                value: access.value(),
+                disabled: access.is_disabled(),
+                actions: actions
+                    .iter()
+                    .filter(|action| access.data().supports_action(**action))
+                    .map(|action| format!("{action:?}"))
+                    .collect(),
+                bounds: None,
+                children: Vec::new(),
+            }
+        })
+        .collect();
+    UiTreeSnapshot {
+        widget_count: children.len() + 1,
+        root: UiTreeNode {
+            id: "manual-argus-root".to_owned(),
+            author_id: None,
+            node_id: 0,
+            role: "Window".to_owned(),
+            label: None,
+            value: None,
+            disabled: false,
+            actions: Vec::new(),
+            bounds: None,
+            children,
+        },
+        captured_at_utc: "manual-argus-generation".to_owned(),
+    }
+}
+
+fn canonical_argus_action<S>(
+    harness: &mut Harness<'_, S>,
+    channel: &mut handshake_native::mcp::ActionChannel,
+    method: &str,
+    target: &str,
+    value: Option<&str>,
+) {
+    let snapshot = argus_snapshot(harness);
+    let mut params = serde_json::json!({"target": target});
+    if let Some(value) = value {
+        params["value"] = serde_json::Value::String(value.to_owned());
+    }
+    let token = handshake_native::mcp::SessionToken::from_hex("manual-argus");
+    let response = handshake_native::mcp::dispatch_request(
+        &handshake_native::mcp::McpRequest {
+            id: serde_json::json!(1),
+            method: method.to_owned(),
+            params,
+            session_token: "manual-argus".to_owned(),
+        },
+        &token,
+        &snapshot,
+        channel,
+        || Err(handshake_native::mcp::ScreenshotError("unused".to_owned())),
+    );
+    assert_eq!(response.to_json()["result"]["queued"], true, "{response:?}");
+    let receipt_id = response.to_json()["result"]["receipt_id"]
+        .as_u64()
+        .expect("canonical Argus action returns a receipt id");
+    for event in channel.drain_revalidated_into_events(&snapshot) {
+        harness.event(event);
+    }
+    harness.run_steps(3);
+    let observed = argus_snapshot(harness);
+    channel.acknowledge_after_render(&observed);
+    let receipt = channel
+        .receipts()
+        .into_iter()
+        .find(|receipt| receipt.receipt_id == receipt_id)
+        .expect("canonical Argus action retains its receipt");
+    if method == handshake_native::mcp::ARGUS_SET_VALUE_METHOD {
+        assert_eq!(
+            receipt.status,
+            handshake_native::mcp::ActionReceiptStatus::Indeterminate,
+            "set-value must expose exact mounted readback without claiming causal attribution: {receipt:?}"
+        );
+    } else {
+        assert!(
+            matches!(
+                receipt.status,
+                handshake_native::mcp::ActionReceiptStatus::Applied
+                    | handshake_native::mcp::ActionReceiptStatus::Indeterminate
+            ),
+            "click must be terminal without fabricating success: {receipt:?}"
+        );
+    }
+}
+
+#[test]
+fn manual_settings_rows_are_actual_mounted_widgets_and_popup_options() {
+    use handshake_native::settings_editor_section::*;
+
+    let app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 1100.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run_steps(4);
+
+    click_live_author_id(&mut harness, EDITOR_WORD_WRAP_AUTHOR_ID);
+    for option in [
+        EDITOR_WORD_WRAP_OFF_AUTHOR_ID,
+        EDITOR_WORD_WRAP_ON_AUTHOR_ID,
+        EDITOR_WORD_WRAP_BOUNDED_AUTHOR_ID,
+    ] {
+        assert!(
+            has_live_author_id(&harness, option),
+            "manual option row '{option}' must come from the actual mounted word-wrap popup"
+        );
+    }
+    click_live_author_id(&mut harness, EDITOR_WORD_WRAP_BOUNDED_AUTHOR_ID);
+    assert!(has_live_author_id(&harness, EDITOR_WRAP_COLUMN_AUTHOR_ID));
+
+    click_live_author_id(&mut harness, EDITOR_RENDER_WHITESPACE_AUTHOR_ID);
+    for option in [
+        EDITOR_WHITESPACE_NONE_AUTHOR_ID,
+        EDITOR_WHITESPACE_BOUNDARY_AUTHOR_ID,
+        EDITOR_WHITESPACE_ALL_AUTHOR_ID,
+    ] {
+        assert!(
+            has_live_author_id(&harness, option),
+            "manual option row '{option}' must come from the actual mounted whitespace popup"
+        );
+    }
+    click_live_author_id(&mut harness, EDITOR_WHITESPACE_BOUNDARY_AUTHOR_ID);
+
+    click_live_author_id(&mut harness, SYNTAX_PALETTE_MODE_AUTHOR_ID);
+    for option in [
+        SYNTAX_PALETTE_MUTED_AUTHOR_ID,
+        SYNTAX_PALETTE_STANDARD_AUTHOR_ID,
+        SYNTAX_PALETTE_CUSTOM_AUTHOR_ID,
+    ] {
+        assert!(
+            has_live_author_id(&harness, option),
+            "manual option row '{option}' must come from the actual mounted syntax popup"
+        );
+    }
+    click_live_author_id(&mut harness, SYNTAX_PALETTE_CUSTOM_AUTHOR_ID);
+
+    for author_id in EDITOR_SETTINGS_CONTROL_AUTHOR_IDS
+        .iter()
+        .chain(SYNTAX_SWATCH_AUTHOR_IDS)
+    {
+        assert!(
+            has_live_author_id(&harness, author_id),
+            "manual settings row '{author_id}' is not an actual mounted widget"
+        );
+    }
+    let editor_keybindings_header = format!(
+        "{}keybindings-editor",
+        handshake_native::settings_dialog::SECTION_HEADER_AUTHOR_ID_PREFIX
+    );
+    click_live_author_id(&mut harness, &editor_keybindings_header);
+    for action in editor_action_catalog() {
+        for author_id in [
+            editor_keybind_row_author_id(&action.id),
+            format!("{EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX}{}", action.id),
+        ] {
+            assert!(
+                has_live_author_id(&harness, &author_id),
+                "manual keybinding row '{author_id}' is not an actual mounted widget"
+            );
+        }
+    }
+}
+
+#[test]
+fn manual_rename_rows_drive_the_actual_context_popup_and_inline_widget() {
+    use handshake_native::code_editor::rename::{
+        CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID, CODE_EDITOR_CTX_RENAME_SYMBOL_MENU_AUTHOR_ID,
+        CODE_EDITOR_RENAME_INPUT_AUTHOR_ID,
+    };
+
+    let source = "fn rename_me() { rename_me(); }\n";
+    let panel = Arc::new(CodeEditorPanel::new(source, "rs"));
+    panel.set_single_cursor(source.find("rename_me").unwrap() + 2);
+    let shown = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(760.0, 320.0))
+        .build_ui(move |ui| shown.show(ui));
+    harness.run_steps(3);
+
+    let mut channel = handshake_native::mcp::ActionChannel::new();
+    canonical_argus_action(
+        &mut harness,
+        &mut channel,
+        handshake_native::mcp::ARGUS_CLICK_METHOD,
+        CODE_EDITOR_CTX_RENAME_SYMBOL_AUTHOR_ID,
+        None,
+    );
+    assert!(has_live_author_id(
+        &harness,
+        CODE_EDITOR_CTX_RENAME_SYMBOL_MENU_AUTHOR_ID
+    ));
+    canonical_argus_action(
+        &mut harness,
+        &mut channel,
+        handshake_native::mcp::ARGUS_CLICK_METHOD,
+        CODE_EDITOR_CTX_RENAME_SYMBOL_MENU_AUTHOR_ID,
+        None,
+    );
+
+    assert!(has_live_author_id(
+        &harness,
+        CODE_EDITOR_RENAME_INPUT_AUTHOR_ID
+    ));
+    canonical_argus_action(
+        &mut harness,
+        &mut channel,
+        handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
+        CODE_EDITOR_RENAME_INPUT_AUTHOR_ID,
+        Some("renamed_by_argus"),
+    );
+    let value = harness
+        .root()
+        .children_recursive()
+        .find(|node| {
+            node.accesskit_node().author_id().as_deref() == Some(CODE_EDITOR_RENAME_INPUT_AUTHOR_ID)
+        })
+        .and_then(|node| node.accesskit_node().value());
+    assert_eq!(value.as_deref(), Some("renamed_by_argus"));
 }
 
 // ── AC-004 / PT-004: id-audit — no documented author_id is an orphan ──────────────────────────────────
@@ -390,6 +883,13 @@ fn id_audit_no_documented_author_id_missing_from_live_registry() {
             .iter()
             .copied()
             .collect();
+    let dynamic_settings_ids: HashSet<&str> =
+        handshake_native::settings_editor_section::EDITOR_SETTINGS_CONTROL_AUTHOR_IDS
+            .iter()
+            .chain(handshake_native::settings_editor_section::EDITOR_SETTINGS_OPTION_AUTHOR_IDS)
+            .chain(handshake_native::settings_editor_section::SYNTAX_SWATCH_AUTHOR_IDS)
+            .copied()
+            .collect();
     for row in &rows {
         if row.author_id == handshake_native::manual_content_editors::TERMINAL_MENU_AUTHOR_ID {
             // The terminal leaf is dynamic: it exists only while the RUN menu is open. MT-100 proves its
@@ -408,6 +908,44 @@ fn id_audit_no_documented_author_id_missing_from_live_registry() {
             // FILE/EDIT/GO editor leaves are dynamic menu-popup nodes, so the static registry must not
             // seed them from the documentation list. MT-069's live menu-render proof opens the dropdowns
             // and asserts these author_ids exist as MenuItem nodes.
+            continue;
+        }
+        if dynamic_settings_ids.contains(row.author_id)
+            || row.author_id.starts_with(
+                handshake_native::settings_editor_section::EDITOR_KEYBIND_ROW_AUTHOR_ID_PREFIX,
+            )
+            || row.author_id.starts_with(
+                handshake_native::settings_editor_section::EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX,
+            )
+        {
+            // Settings controls are real dialog/popup widgets and keybinding rows are generated from the
+            // live catalog. `manual_settings_rows_are_actual_mounted_widgets_and_popup_options` opens the
+            // real dialog and popups and audits every one; do not make this static set tautological.
+            continue;
+        }
+        if [
+            handshake_native::code_editor::rename::CODE_EDITOR_RENAME_INPUT_AUTHOR_ID,
+            handshake_native::code_editor::rename::CODE_EDITOR_RENAME_APPLY_AUTHOR_ID,
+            handshake_native::code_editor::rename::CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID,
+            handshake_native::code_editor::rename::CODE_EDITOR_CTX_RENAME_SYMBOL_MENU_AUTHOR_ID,
+        ]
+        .contains(&row.author_id)
+        {
+            // The focused runtime audit above opens the actual context popup and steers the actual inline
+            // rename TextEdit; none of these conditional nodes belongs in a static seeded registry.
+            continue;
+        }
+        if [
+            "graph.retry",
+            "canvas.retry",
+            "stage-embed-back-status",
+            handshake_native::app::NOTES_LOAD_RETRY_AUTHOR_ID,
+            handshake_native::fems::memory_proposal::FEMS_REVIEW_REFRESH_RETRY_AUTHOR_ID,
+        ]
+        .contains(&row.author_id)
+        {
+            // Truthful conditional status/retry nodes are absent from the healthy default tree. Their
+            // focused recovery-path tests prove the mounted nodes instead of seeding static identities.
             continue;
         }
         if !live.contains(row.author_id) {

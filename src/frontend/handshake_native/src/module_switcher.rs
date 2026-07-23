@@ -420,6 +420,7 @@ pub fn pane_type_tab_id(pane_type: &PaneType) -> &'static str {
         PaneType::CodeSymbol => "code-symbol",
         PaneType::SourceControl => "source-control",
         PaneType::LoomDailyJournal => "loom-daily-journal",
+        PaneType::CalendarEvent => "calendar-event",
         PaneType::LoomBlock => "loom-block",
         PaneType::LoomWikiPage => "loom-wiki-page",
         PaneType::AtelierEditor => "atelier",

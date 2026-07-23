@@ -25,7 +25,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::{
     DiffEditorPaneFactory, DiffEditorPanel, DiffMode, MergeChoice, MergeStatus, TextBuffer,
@@ -166,8 +168,8 @@ fn side_by_side_mounts_two_disjoint_panes_risk_004() {
     );
     // The two text areas are also disjoint (#left / #right) — independent scroll ids by construction.
     assert!(
-        authors.iter().any(|a| a == "code_editor_text#left")
-            && authors.iter().any(|a| a == "code_editor_text#right"),
+        authors.iter().any(|a| a == "editor.code.text#left")
+            && authors.iter().any(|a| a == "editor.code.text#right"),
         "RISK-004: both pane text areas are disjoint; got {authors:?}"
     );
     println!("RISK-004: two-panel mount addressable + disjoint (#left / #right)");

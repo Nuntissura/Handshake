@@ -529,6 +529,13 @@ pub fn show(ui: &mut egui::Ui, view: RailView) -> RailFrame {
                 .desired_width(f32::INFINITY);
             let edit_response = ui.add(edit);
             emit_interactive_node(ui.ctx(), input_egui_id, RAIL_INPUT_AUTHOR_ID);
+            ui.ctx().accesskit_node_builder(input_egui_id, |node| {
+                node.add_action(egui::accesskit::Action::SetValue);
+            });
+            if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, input_egui_id) {
+                state.query = replacement;
+                ui.ctx().request_repaint();
+            }
             // Enter emits the search intent (AC-022-3: only Enter or Loom fires).
             if edit_response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                 fire = true;

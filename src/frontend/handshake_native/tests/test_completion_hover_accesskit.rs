@@ -1,13 +1,11 @@
 //! MT-008 completion popup + hover tooltip + staleness-gutter LIVE proofs (WP-KERNEL-012 E1).
 //!
 //! These egui_kittest tests drive the panel's REAL public completion/hover/staleness API and inspect
-//! the LIVE AccessKit tree + the rendered frame — the same nodes a swarm agent reads out-of-process and
-//! the same pixels an operator sees. They run STANDALONE: the popup/tooltip/gutter RENDERING + AccessKit
-//! emission is independent of the backend (the backend supplies the symbol DATA, which these tests feed
-//! synthetically through the panel's `open_completion`/`open_hover`/`push_staleness_markers` API). The
-//! LIVE-PG halves (the data actually coming FROM the backend) are gated + documented as a
-//! NEEDS_MANAGED_RESOURCE_PROOF blocker per the KERNEL_BUILDER Spec-Realism Gate — see
-//! test_code_nav_client.rs.
+//! the LIVE AccessKit tree + rendered state — the same nodes a swarm agent reads out-of-process and the
+//! same pixels an operator sees. Standalone tests isolate rendering and interaction semantics. With
+//! `--features integration`, strict live tests consume the managed-PostgreSQL fixture values from
+//! `HANDSHAKE_TEST_DB_URL` and `HANDSHAKE_TEST_WORKSPACE_ID`, drive the real async CodeNavClient path,
+//! and require populated backend data to reach the AccessKit popup/tooltip and stale gutter marker.
 //!
 //! AC-005 / PT-005: trigger completion -> the live tree contains `code_editor_completion_popup`
 //! (Role::ListBox) with >= 1 item node (`code_editor_completion_item_0`).
@@ -22,18 +20,49 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::code_editor::code_nav::{
     CodeNavClient, CodeStaleness, CodeSymbolDefinition, CodeSymbolNavProjection, CompletionItem,
     CompletionKind, HOVER_DWELL_MS,
 };
 use handshake_native::code_editor::editor_view::{
+    CodeNavigationLocation, CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX,
     CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID, CODE_EDITOR_HOVER_AUTHOR_ID,
 };
+use handshake_native::code_editor::lsp_client::{LspClient, LspServerConfig};
 use handshake_native::code_editor::{CodeEditorPanel, HoverState};
 
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+
 const SNIPPET: &str = "fn add(a: i32, b: i32) -> i32 { a + b }\nfn caller() -> i32 { add(1, 2) }";
+
+fn hover_target(line: u32) -> CodeNavigationLocation {
+    CodeNavigationLocation {
+        uri: "file:///hover.rs".to_owned(),
+        path: Some("hover.rs".to_owned()),
+        range: lsp_types::Range::new(
+            lsp_types::Position::new(line, 0),
+            lsp_types::Position::new(line, 0),
+        ),
+    }
+}
+
+#[cfg(feature = "integration")]
+fn live_fixture() -> (String, String) {
+    let base_url = std::env::var("HANDSHAKE_TEST_DB_URL")
+        .expect("MT-008 live UI proof requires HANDSHAKE_TEST_DB_URL from the ready fixture");
+    assert!(
+        base_url.starts_with("http://") || base_url.starts_with("https://"),
+        "HANDSHAKE_TEST_DB_URL must be the fixture HTTP base URL; got {base_url:?}"
+    );
+    let workspace_id = std::env::var("HANDSHAKE_TEST_WORKSPACE_ID")
+        .expect("MT-008 live UI proof requires HANDSHAKE_TEST_WORKSPACE_ID from the ready fixture");
+    (base_url, workspace_id)
+}
 
 fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
@@ -121,6 +150,187 @@ fn synthetic_completions() -> Vec<CompletionItem> {
             symbol_entity_id: "ent-adder".into(),
         },
     ]
+}
+
+#[cfg(feature = "integration")]
+#[test]
+fn ac005_live_backend_completion_reaches_accesskit_and_stale_gutter() {
+    let (base_url, workspace_id) = live_fixture();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build MT-008 live completion runtime");
+    let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+    panel.set_runtime(runtime.handle().clone());
+    panel.set_workspace_id(workspace_id);
+    panel.set_code_nav_client(CodeNavClient::new(base_url));
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 300.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run();
+    let completion_offset = panel
+        .buffer()
+        .to_string()
+        .find("add")
+        .expect("managed fixture buffer contains add")
+        + "add".len();
+    panel.set_single_cursor(completion_offset);
+    press_key(
+        &mut harness,
+        egui::Key::Space,
+        egui::Modifiers {
+            ctrl: true,
+            ..Default::default()
+        },
+    );
+    harness.run();
+    for _ in 0..150 {
+        harness.run();
+        if panel.is_completion_open() && !panel.diagnostic_markers().is_empty() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+
+    let completion = panel
+        .completion_state()
+        .expect("AC-005 managed-backend response opens completion popup");
+    let add = completion
+        .items
+        .iter()
+        .find(|item| item.label == "add")
+        .expect("AC-005 popup contains the seeded add completion");
+    assert!(
+        !add.detail.trim().is_empty(),
+        "live completion detail is populated"
+    );
+    assert!(
+        !add.symbol_entity_id.trim().is_empty(),
+        "live completion retains the backend symbol entity id"
+    );
+
+    harness.run();
+    let root = harness.root();
+    let popup = root
+        .children_recursive()
+        .find(|node| {
+            node.accesskit_node().author_id() == Some(CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID)
+        })
+        .expect("AC-005 live ListBox is AccessKit-visible");
+    assert_eq!(format!("{:?}", popup.accesskit_node().role()), "ListBox");
+    let live_item_value = root
+        .children_recursive()
+        .filter_map(|node| {
+            let accesskit = node.accesskit_node();
+            accesskit
+                .author_id()
+                .filter(|author_id| author_id.starts_with("code_editor_completion_item_"))
+                .and_then(|_| accesskit.value())
+        })
+        .find(|value| value.contains("add"))
+        .expect("AC-005 live completion item exposes add through AccessKit");
+    let markers = panel.diagnostic_markers();
+    assert!(
+        markers
+            .iter()
+            .any(|marker| marker.message.contains("Stale code intelligence")),
+        "AC-007 real marked-stale backend symbol reaches the diagnostic gutter: {markers:?}"
+    );
+    println!(
+        "AC-005/007 populated live UI: popup=ListBox item={live_item_value:?} stale_markers={}",
+        markers.len()
+    );
+
+    drop(harness);
+    drop(panel);
+    runtime.shutdown_timeout(std::time::Duration::from_secs(2));
+}
+
+#[cfg(feature = "integration")]
+#[test]
+fn ac006_live_backend_hover_reaches_accesskit_with_definition_and_doc() {
+    let (base_url, workspace_id) = live_fixture();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build MT-008 live hover runtime");
+    let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+    panel.set_runtime(runtime.handle().clone());
+    panel.set_workspace_id(workspace_id);
+    panel.set_code_nav_client(CodeNavClient::new(base_url));
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 300.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    let hover_offset = panel
+        .buffer()
+        .to_string()
+        .find("add")
+        .expect("managed fixture buffer contains add")
+        + 1;
+    panel.set_single_cursor(hover_offset);
+    harness.run();
+    std::thread::sleep(std::time::Duration::from_millis(
+        handshake_native::code_editor::code_nav::HOVER_DWELL_MS + 60,
+    ));
+    harness.run();
+    for _ in 0..150 {
+        harness.run();
+        if panel.is_hover_open() && !panel.diagnostic_markers().is_empty() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+
+    let hover = panel
+        .hover_state()
+        .expect("AC-006 managed-backend response opens hover tooltip");
+    assert_eq!(hover.display_name, "add");
+    assert!(
+        hover.definition_target.is_some(),
+        "live hover has a definition target"
+    );
+    assert!(hover.markdown.contains("Kind: `function`"));
+    assert!(hover.markdown.contains("marked_stale"));
+    assert!(
+        hover.markdown.contains("Adds two numbers."),
+        "live file-lens documentation reaches hover: {:?}",
+        hover.markdown
+    );
+
+    harness.run();
+    let root = harness.root();
+    let tooltip = root
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(CODE_EDITOR_HOVER_AUTHOR_ID))
+        .expect("AC-006 live Tooltip is AccessKit-visible");
+    assert_eq!(format!("{:?}", tooltip.accesskit_node().role()), "Tooltip");
+    let value = tooltip
+        .accesskit_node()
+        .value()
+        .expect("live hover AccessKit node carries text");
+    assert!(value.contains("add"));
+    assert!(value.contains("Adds two numbers."));
+    assert!(
+        root.children_recursive()
+            .any(|node| node.accesskit_node().author_id() == Some("code_editor_hover_gotodef")),
+        "live hover definition action is AccessKit-visible"
+    );
+    println!(
+        "AC-006 populated live UI: tooltip contains add, definition={:?}, documentation=true",
+        hover
+            .definition_target
+            .map(|target| target.range.start.line as usize)
+    );
+
+    drop(harness);
+    drop(panel);
+    runtime.shutdown_timeout(std::time::Duration::from_secs(2));
 }
 
 // ── AC-005 / PT-005: completion popup ListBox + item nodes ─────────────────────────────────────────
@@ -237,6 +447,43 @@ fn ac005_completion_keyboard_select_and_accept_inserts() {
     println!("PT-005 keyboard: ArrowDown->'adder', Enter inserted it (buffer now {text:?})");
 }
 
+#[test]
+fn ac005_accesskit_click_accepts_completion_and_post_action_state_is_observable() {
+    let panel = Arc::new(CodeEditorPanel::new("", "rs"));
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 300.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run();
+    panel.open_completion(synthetic_completions());
+    harness.run_steps(2);
+
+    let item_node_id = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("code_editor_completion_item_0"))
+        .expect("Argus inspect sees completion item 0")
+        .accesskit_node()
+        .id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: item_node_id,
+            data: None,
+        },
+    ));
+    harness.run_steps(3);
+
+    assert_eq!(panel.buffer().to_string(), "add");
+    assert!(!panel.is_completion_open());
+    assert!(
+        !harness.root().children_recursive().any(|node| {
+            node.accesskit_node().author_id() == Some(CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID)
+        }),
+        "fresh post-action inspection shows the popup closed"
+    );
+}
+
 // ── AC-006 / PT-006: hover tooltip node contains the identifier ────────────────────────────────────
 
 #[test]
@@ -259,7 +506,7 @@ fn ac006_hover_tooltip_contains_identifier() {
                 .into(),
         display_name: "add".into(),
         anchor: egui::pos2(120.0, 60.0),
-        definition_line: Some(0),
+        definition_target: Some(hover_target(0)),
     });
     harness.run();
     harness.run(); // settle so the tooltip node is emitted.
@@ -306,6 +553,93 @@ fn ac006_hover_tooltip_contains_identifier() {
             .any(|n| n.accesskit_node().author_id() == Some(CODE_EDITOR_HOVER_AUTHOR_ID)),
         "AC-006: the hover node is removed after closing"
     );
+}
+
+#[test]
+fn ac006_accesskit_click_go_to_definition_moves_caret_and_closes_hover() {
+    let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+    panel.set_file_path("hover.rs");
+    panel.set_single_cursor(SNIPPET.len());
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 300.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run();
+    panel.open_hover(HoverState {
+        markdown: "**add**\nKind: `function`".into(),
+        display_name: "add".into(),
+        anchor: egui::pos2(120.0, 60.0),
+        definition_target: Some(hover_target(0)),
+    });
+    harness.run_steps(2);
+
+    let link_node_id = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("code_editor_hover_gotodef"))
+        .expect("Argus inspect sees hover go-to-definition link")
+        .accesskit_node()
+        .id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: link_node_id,
+            data: None,
+        },
+    ));
+    harness.run_steps(3);
+
+    assert_eq!(panel.cursors().primary().head, 0);
+    assert!(!panel.is_hover_open());
+    assert!(
+        !harness
+            .root()
+            .children_recursive()
+            .any(|node| { node.accesskit_node().author_id() == Some(CODE_EDITOR_HOVER_AUTHOR_ID) }),
+        "fresh post-action inspection shows the tooltip closed"
+    );
+}
+
+#[test]
+fn hover_cross_file_accesskit_click_parks_host_jump() {
+    let panel = Arc::new(CodeEditorPanel::new(SNIPPET, "rs"));
+    panel.set_file_path("source.rs");
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 300.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run();
+    let mut target = hover_target(7);
+    target.uri = "file:///target.rs".to_owned();
+    target.path = Some("target.rs".to_owned());
+    panel.open_hover(HoverState {
+        markdown: "cross-file definition".into(),
+        display_name: "target".into(),
+        anchor: egui::pos2(120.0, 60.0),
+        definition_target: Some(target),
+    });
+    harness.run_steps(2);
+    let link_node_id = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("code_editor_hover_gotodef"))
+        .expect("cross-file hover link is AccessKit-visible")
+        .accesskit_node()
+        .id();
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target: link_node_id,
+            data: None,
+        },
+    ));
+    harness.run_steps(3);
+    let pending = panel
+        .pending_cross_file_jump()
+        .expect("hover click parks cross-file jump for host drain");
+    assert_eq!(pending.file_path, PathBuf::from("target.rs"));
+    assert_eq!(pending.position.line, 7);
+    assert!(!panel.is_hover_open());
 }
 
 // ── AC-007: staleness check pushes a Warning gutter marker (diagnostic dot) ────────────────────────
@@ -399,16 +733,19 @@ fn ac007_staleness_check_pushes_gutter_diagnostic_marker() {
                 png_path.display()
             );
             assert!(
+                saved,
+                "AC-007: the current diagnostic-gutter screenshot must be saved at {}",
+                png_path.display()
+            );
+            assert!(
                 yellow >= 10,
                 "AC-007: the gutter must render a yellow Warning diagnostic dot/bar; got {yellow} \
                  yellow-dominant pixels"
             );
         }
         Err(e) => {
-            println!(
-                "BLOCKER(non-fatal): MT-008 staleness-gutter screenshot render unavailable (no wgpu \
-                 adapter): {e}. The marker push + the diagnostic AccessKit node prove the staleness \
-                 gutter logic; the PNG yellow-pixel check is a GPU-host item."
+            panic!(
+                "AC-007: current diagnostic-gutter screenshot rendering is required; renderer failed: {e}"
             );
         }
     }
@@ -758,6 +1095,56 @@ fn mustfix_ctrl_space_arms_and_pump_fires_trigger() {
     rt.shutdown_timeout(std::time::Duration::from_secs(2));
 }
 
+#[test]
+fn cursor_workspace_and_delete_invalidate_visible_or_armed_intelligence() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("invalidation runtime");
+    let panel = Arc::new(CodeEditorPanel::new("abc", "rs"));
+    panel.set_runtime(rt.handle().clone());
+    panel.open_completion(synthetic_completions());
+    panel.open_hover(HoverState {
+        markdown: "hover".into(),
+        display_name: "abc".into(),
+        anchor: egui::pos2(10.0, 10.0),
+        definition_target: None,
+    });
+    panel.set_single_cursor(1);
+    assert!(!panel.is_completion_open());
+    assert!(!panel.is_hover_open());
+
+    panel.open_completion(synthetic_completions());
+    panel.open_hover(HoverState {
+        markdown: "hover".into(),
+        display_name: "abc".into(),
+        anchor: egui::pos2(10.0, 10.0),
+        definition_target: None,
+    });
+    panel.set_workspace_id("changed-workspace");
+    assert!(!panel.is_completion_open());
+    assert!(!panel.is_hover_open());
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 300.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run();
+    harness.event(egui::Event::Text(".".to_owned()));
+    harness.run();
+    assert!(panel.completion_request_armed_for_test());
+    panel.set_single_cursor(0);
+    assert!(!panel.completion_request_armed_for_test());
+
+    panel.set_single_cursor(panel.buffer().len_bytes());
+    harness.event(egui::Event::Text("_".to_owned()));
+    harness.run();
+    assert!(panel.completion_request_armed_for_test());
+    assert_eq!(panel.delete_text(), 1);
+    assert!(!panel.completion_request_armed_for_test());
+}
+
 /// must-fix #2 (hover dwell pump): the per-frame pump advances the hover-dwell clock for the live caret
 /// offset and, once the dwell elapses at the same offset, fires the off-thread hover trigger — driven
 /// from the live `show()` loop, not a direct `open_hover` call. With no backend the lookup yields no
@@ -792,6 +1179,7 @@ fn mustfix_hover_dwell_pump_fires_trigger() {
 
     // Frame 1 starts the dwell clock at this offset (the pump returns false on the first observation).
     harness.run();
+    let generation_before_dwell = panel.hover_request_generation_for_test();
     // Sleep past the dwell window, then run again: the pump now observes the elapsed dwell and fires the
     // hover trigger (off-thread). No backend -> no hover opens, but the path must not panic.
     std::thread::sleep(std::time::Duration::from_millis(
@@ -799,6 +1187,10 @@ fn mustfix_hover_dwell_pump_fires_trigger() {
     ));
     harness.run();
     harness.run();
+    assert!(
+        panel.hover_request_generation_for_test() > generation_before_dwell,
+        "must-fix: the stable-caret dwell reached the production hover trigger"
+    );
     println!(
         "must-fix hover dwell pump: dwell elapsed at the caret word, hover trigger fired off-thread \
          (hover_open={})",
@@ -845,4 +1237,473 @@ fn hover_dwell_gate_fires_once_per_stable_offset() {
         panel.update_hover_dwell(offset + 1),
         "new settled offset can fire after its own dwell"
     );
+}
+
+#[test]
+fn moved_caret_dwell_can_replace_an_already_open_hover() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("replacement hover runtime");
+    let panel = Arc::new(CodeEditorPanel::new("add next", "rs"));
+    panel.set_runtime(rt.handle().clone());
+    panel.set_single_cursor(1);
+    panel.open_hover(HoverState {
+        markdown: "old add hover".into(),
+        display_name: "add".into(),
+        anchor: egui::pos2(10.0, 10.0),
+        definition_target: None,
+    });
+
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 300.0))
+        .build_ui(move |ui| panel_ui.show(ui));
+    harness.run();
+    panel.set_single_cursor("add nex".len());
+    harness.run();
+    std::thread::sleep(std::time::Duration::from_millis(HOVER_DWELL_MS + 20));
+    harness.run();
+
+    assert!(
+        !panel.is_hover_open(),
+        "the settled caret at a new word triggered replacement lookup and dismissed the old tooltip"
+    );
+    drop(harness);
+    drop(panel);
+    rt.shutdown_timeout(std::time::Duration::from_secs(2));
+}
+
+/// MT-008 V2 closure proof: a generated, indexed C++ workspace is opened by the production
+/// `HandshakeApp`, an actual clangd process feeds diagnostics/hover/completion into the mounted code
+/// panel, and the canonical localhost Argus transport inspects and steers the resulting live tree.
+/// This is deliberately an integration test: it must not silently substitute a mock LSP, a panel-only
+/// harness, or direct AccessKit event injection for the shipped host and MCP action path.
+#[cfg(feature = "integration")]
+#[test]
+fn mt008_mounted_real_lsp_canonical_argus() {
+    use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+    use handshake_native::app::{HandshakeApp, HealthDisplayState};
+    use handshake_native::backend_client::HealthInfo;
+    use handshake_native::pane_registry::{PaneId, PaneType};
+    use handshake_native::tab_bar::{TabBarState, TabState};
+
+    struct WorkspaceCleanup(PathBuf);
+    impl Drop for WorkspaceCleanup {
+        fn drop(&mut self) {
+            if let Err(error) = std::fs::remove_dir_all(&self.0) {
+                if error.kind() != std::io::ErrorKind::NotFound {
+                    panic!(
+                        "remove MT-008 generated real-LSP workspace {}: {error}",
+                        self.0.display()
+                    );
+                }
+            }
+        }
+    }
+
+    fn json_author<'a>(
+        value: &'a serde_json::Value,
+        author_id: &str,
+    ) -> Option<&'a serde_json::Value> {
+        match value {
+            serde_json::Value::Object(object) => {
+                if object.get("author_id").and_then(serde_json::Value::as_str) == Some(author_id) {
+                    return Some(value);
+                }
+                object
+                    .values()
+                    .find_map(|value| json_author(value, author_id))
+            }
+            serde_json::Value::Array(values) => values
+                .iter()
+                .find_map(|value| json_author(value, author_id)),
+            _ => None,
+        }
+    }
+
+    fn json_has_author_prefix(value: &serde_json::Value, expected_prefix: &str) -> bool {
+        match value {
+            serde_json::Value::Object(object) => {
+                object
+                    .get("author_id")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some_and(|author_id| author_id.starts_with(expected_prefix))
+                    || object
+                        .values()
+                        .any(|value| json_has_author_prefix(value, expected_prefix))
+            }
+            serde_json::Value::Array(values) => values
+                .iter()
+                .any(|value| json_has_author_prefix(value, expected_prefix)),
+            _ => false,
+        }
+    }
+
+    fn process_alive(pid: u32) -> bool {
+        #[cfg(windows)]
+        {
+            std::process::Command::new("tasklist")
+                .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
+                .output()
+                .map(|output| {
+                    String::from_utf8_lossy(&output.stdout).contains(&format!("\"{pid}\""))
+                })
+                .unwrap_or(false)
+        }
+        #[cfg(not(windows))]
+        {
+            std::process::Command::new("kill")
+                .args(["-0", &pid.to_string()])
+                .status()
+                .map(|status| status.success())
+                .unwrap_or(false)
+        }
+    }
+
+    fn wait_for_process_exit(pid: u32) -> bool {
+        for _ in 0..100 {
+            if !process_alive(pid) {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        false
+    }
+
+    let unique = uuid::Uuid::new_v4().simple().to_string();
+    let workspace = std::env::temp_dir().join(format!("handshake-mt008-mounted-{unique}"));
+    std::fs::create_dir_all(&workspace).expect("create mounted real-LSP workspace");
+    let _workspace_cleanup = WorkspaceCleanup(workspace.clone());
+    let header_path = workspace.join("math_ops.h");
+    let source_path = workspace.join("main.cpp");
+    let header =
+        "/// Add two integers.\ninline int add_numbers(int lhs, int rhs) { return lhs + rhs; }\n";
+    let source = concat!(
+        "#include \"math_ops.h\"\n",
+        "\n",
+        "int main() {\n",
+        "    int result = add_numbers(20, 22);\n",
+        "    int repeat = add_numbers(result, 1);\n",
+        "    int broken = \"not an int\";\n",
+        "    int candidate = ;\n",
+        "    return result + repeat;\n",
+        "}\n",
+    );
+    std::fs::write(&header_path, header).expect("write mounted indexed header");
+    std::fs::write(&source_path, source).expect("write mounted source");
+    std::fs::write(workspace.join("compile_flags.txt"), "-std=c++17\n-I.\n")
+        .expect("write mounted clangd compile flags");
+
+    let server = std::env::var("HANDSHAKE_REAL_LSP_SERVER").unwrap_or_else(|_| "clangd".to_owned());
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("mounted real-LSP runtime");
+    let client = Arc::new(LspClient::new(LspServerConfig {
+        command: server.clone(),
+        args: vec![
+            "--background-index=false".to_owned(),
+            "--clang-tidy=false".to_owned(),
+            "--header-insertion=never".to_owned(),
+            "--log=error".to_owned(),
+        ],
+    }));
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    app.set_active_project_id_for_test("mt008-real-lsp");
+    let pane_id = PaneId::from("pane-a");
+    app.set_active_pane_for_test(Some(pane_id.clone()));
+    app.tab_bar_states_mut().insert(
+        pane_id.clone(),
+        TabBarState::new(pane_id, vec![TabState::new(PaneType::CodeSymbol)]),
+    );
+    app.set_left_rail_open(false);
+    let panel = app.mounted_code_panel();
+    panel.set_file_path(source_path.to_string_lossy().to_string());
+    panel.set_text(source);
+    panel.set_language_override(Some(
+        handshake_native::code_editor::language_mode::LanguageId::new("cpp"),
+    ));
+    panel.set_workspace_id("mt008-real-lsp");
+    assert_eq!(panel.resolved_language().detected.as_str(), "cpp");
+    app.install_code_lsp_client_for_language_for_test("cpp", Arc::clone(&client), server.clone());
+
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1200.0, 800.0))
+        .wgpu()
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+
+    let expected_version = panel.buffer_version_for_test();
+    for _ in 0..600 {
+        harness.run_steps(1);
+        if client.is_running()
+            && harness
+                .state()
+                .lsp_doc_sync_watermark()
+                .is_some_and(|(_, version)| version == expected_version)
+            && !panel.diagnostic_markers().is_empty()
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    assert!(
+        client.is_running(),
+        "{server:?} is a live semantic LSP process"
+    );
+    let lsp_pid = client
+        .spawned_process_id_for_test()
+        .expect("mounted production transport exposes its clangd PID");
+    assert!(
+        process_alive(lsp_pid),
+        "mounted clangd PID {lsp_pid} is alive"
+    );
+    let (opened_uri, opened_version) = harness
+        .state()
+        .lsp_doc_sync_watermark()
+        .expect("production app frame pump completed mounted didOpen");
+    let opened_path = lsp_types::Url::parse(&opened_uri)
+        .expect("didOpen watermark is a valid URI")
+        .to_file_path()
+        .expect("didOpen watermark is a file URI");
+    assert_eq!(
+        std::fs::canonicalize(opened_path).expect("canonicalize didOpen path"),
+        std::fs::canonicalize(&source_path).expect("canonicalize generated source path"),
+        "production didOpen targets the exact mounted file despite Windows long/short path spelling"
+    );
+    assert_eq!(
+        opened_version, expected_version,
+        "production didOpen targets the mounted buffer version"
+    );
+    assert!(
+        panel
+            .diagnostic_markers()
+            .iter()
+            .any(|marker| marker.line == 5 || marker.line == 6),
+        "real publishDiagnostics reached the mounted gutter: {:?}",
+        panel.diagnostic_markers()
+    );
+
+    let hover_offset = source
+        .find("add_numbers(20")
+        .expect("source carries hover symbol")
+        + 3;
+    panel.set_single_cursor(hover_offset);
+    panel.trigger_hover(runtime.handle(), "add_numbers");
+    for _ in 0..400 {
+        harness.run_steps(1);
+        if panel.is_hover_open() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    assert!(
+        panel.is_hover_open(),
+        "real clangd hover reached the mounted panel"
+    );
+
+    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-008/canonical-argus");
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-008 Argus artifact dir");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "mt008-mounted-real-lsp");
+    let hover_tree = argus.inspect(&mut harness);
+    let hover_node = json_author(&hover_tree, CODE_EDITOR_HOVER_AUTHOR_ID)
+        .expect("canonical argus.inspect sees the mounted real-LSP hover Tooltip");
+    assert!(
+        hover_node.to_string().contains("add_numbers"),
+        "canonical hover tree carries populated semantic content: {hover_node}"
+    );
+    assert!(
+        json_has_author_id(&hover_tree, "code-editor.lsp-status"),
+        "canonical tree exposes the mounted LSP lifecycle status"
+    );
+    assert!(
+        json_has_author_prefix(&hover_tree, "code_editor_diagnostic_"),
+        "canonical tree exposes the real-server diagnostic gutter state"
+    );
+    panel.close_hover();
+    harness.run_steps(2);
+
+    let completion_offset = source
+        .find("int candidate = ;")
+        .expect("source carries completion expression")
+        + "int candidate = ".len();
+    panel.set_single_cursor(completion_offset);
+    panel.trigger_completion(runtime.handle(), "add_numbers");
+    for _ in 0..400 {
+        harness.run_steps(1);
+        if panel.completion_state().is_some_and(|state| {
+            state
+                .items
+                .iter()
+                .any(|item| item.label.contains("add_numbers"))
+        }) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let completion = panel
+        .completion_state()
+        .expect("real clangd completion reached the mounted panel");
+    let completion_index = completion
+        .items
+        .iter()
+        .position(|item| item.label.contains("add_numbers"))
+        .unwrap_or_else(|| {
+            panic!(
+                "mounted real completion lacks add_numbers: {:?}",
+                completion.items
+            )
+        });
+    let expected_insert = completion.items[completion_index].insert_text.clone();
+    let completion_item_id =
+        format!("{CODE_EDITOR_COMPLETION_ITEM_AUTHOR_PREFIX}{completion_index}");
+    let completion_before = argus.inspect(&mut harness);
+    assert!(json_has_author_id(
+        &completion_before,
+        CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID
+    ));
+    assert!(json_has_author_id(&completion_before, &completion_item_id));
+    let completion_item_bounds = json_author(&completion_before, &completion_item_id)
+        .and_then(|node| node.get("bounds"))
+        .expect("canonical completion item carries screenshot-space bounds");
+    std::fs::write(
+        artifact_dir.join("mt008-mounted-real-lsp-completion-before.json"),
+        serde_json::to_vec_pretty(&completion_before)
+            .expect("serialize pre-action canonical completion tree"),
+    )
+    .expect("write pre-action canonical completion tree externally");
+
+    // `argus.inspect` renders its production capture pass into an isolated context. Refresh the
+    // ordinary paint frame before the GPU capture so the PNG and canonical tree represent the same
+    // still-open popup state; retain `completion_before` as the exact action snapshot.
+    harness.run_steps(1);
+    assert!(
+        panel.is_completion_open(),
+        "the canonical pre-action completion remains open for the corresponding screenshot"
+    );
+    let screenshot = harness
+        .render()
+        .expect("canonical mounted completion/diagnostic screenshot must render");
+    let bound = |name: &str| {
+        completion_item_bounds
+            .get(name)
+            .and_then(serde_json::Value::as_f64)
+            .unwrap_or_else(|| panic!("canonical completion item bounds carry numeric {name}"))
+    };
+    let x_start = bound("x").floor().max(0.0) as u32;
+    let y_start = bound("y").floor().max(0.0) as u32;
+    let x_end = (bound("x") + bound("w")).ceil().max(0.0) as u32;
+    let y_end = (bound("y") + bound("h")).ceil().max(0.0) as u32;
+    assert!(
+        x_end <= screenshot.width() && y_end <= screenshot.height(),
+        "canonical completion item bounds fit the mounted screenshot"
+    );
+    let visible_foreground_pixels = (y_start..y_end)
+        .flat_map(|y| (x_start..x_end).map(move |x| (x, y)))
+        .filter(|&(x, y)| screenshot.get_pixel(x, y).0[..3].iter().copied().max() >= Some(120))
+        .count();
+    assert!(
+        visible_foreground_pixels >= 100,
+        "the canonical completion row is visibly painted in its own tree bounds; found only \
+         {visible_foreground_pixels} foreground pixels"
+    );
+    let screenshot_path = artifact_dir.join("mt008-mounted-real-lsp-before-click.png");
+    screenshot
+        .save(&screenshot_path)
+        .expect("save canonical mounted completion screenshot");
+
+    let text_before = panel.buffer().to_string();
+    let expected_text_after = format!(
+        "{}{}{}",
+        &text_before[..completion_offset],
+        expected_insert,
+        &text_before[completion_offset..]
+    );
+    let observation = argus.click_from_snapshot_and_reinspect(
+        &mut harness,
+        &completion_item_id,
+        completion_before.clone(),
+    );
+    assert!(matches!(
+        observation.receipt_status.as_str(),
+        "applied" | "indeterminate"
+    ));
+    assert!(
+        observation
+            .agent_id
+            .contains(":client:mt008-mounted-real-lsp-agent"),
+        "canonical receipt retains the external caller attribution: {}",
+        observation.agent_id
+    );
+    assert!(
+        !panel.is_completion_open(),
+        "Argus click closed the mounted popup"
+    );
+    let text_after = panel.buffer().to_string();
+    assert_ne!(
+        text_after, text_before,
+        "Argus click changed the real editor buffer"
+    );
+    assert_eq!(
+        text_after, expected_text_after,
+        "the exact clicked semantic completion was inserted at the mounted caret"
+    );
+    assert!(
+        !json_has_author_id(&observation.after, CODE_EDITOR_COMPLETION_POPUP_AUTHOR_ID),
+        "fresh canonical reinspection observes the post-action popup closure"
+    );
+    let changed_version = panel.buffer_version_for_test();
+    for _ in 0..400 {
+        harness.run_steps(1);
+        if harness
+            .state()
+            .lsp_doc_sync_watermark()
+            .is_some_and(|(_, version)| version == changed_version)
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    assert!(
+        harness
+            .state()
+            .lsp_doc_sync_watermark()
+            .is_some_and(|(_, version)| version == changed_version),
+        "production app frame pump completed didChange after the Argus editor action"
+    );
+
+    let tree_path = artifact_dir.join("mt008-mounted-real-lsp-tree.json");
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "hover": hover_tree,
+            "completion_before": completion_before,
+            "completion_after": observation.after,
+            "receipt_id": observation.receipt_id,
+            "receipt_status": observation.receipt_status,
+            "agent_id": observation.agent_id,
+            "lsp_pid": lsp_pid,
+        }))
+        .expect("serialize canonical MT-008 tree evidence"),
+    )
+    .expect("write canonical MT-008 tree evidence externally");
+    assert!(screenshot_path.is_file());
+    assert!(tree_path.is_file());
+    argus.finish();
+
+    client.shutdown_for_host();
+    assert!(
+        wait_for_process_exit(lsp_pid),
+        "mounted host cleanup reaps exact clangd PID {lsp_pid}"
+    );
+    assert_no_local_test_output();
 }

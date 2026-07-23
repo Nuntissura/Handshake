@@ -17,7 +17,7 @@
 //! - AC-042-04: dispatch `graph.open-node {block_id}` via the AccessKit Action channel => the pane emits
 //!   an OpenNode for that block (the cross-pane open), observable within a frame.
 //! - AC-042-05: dispatch `canvas.place-block {block_id,x,y}` => a PlaceBlock event with the right route
-//!   SHAPE (the request-shape half is standalone; the DB round-trip is the gated `#[ignore]` test).
+//!   SHAPE (the request-shape half is standalone; live graph persistence is covered by AC-042-10).
 //! - AC-042-06: dispatch `collection.kanban-move {block_id,from,to}` => a CardMove event with the right
 //!   `add_tags`/`remove_tags` (the updateLoomBlock tag-edge request shape).
 //! - AC-042-07: dispatch `graph.add-edge {source_id,target_id}` => an AddEdge INTENT event carrying ONLY
@@ -37,15 +37,11 @@
 //!
 //! ## Backend reality (Spec-Realism Gate / the MT-021/026/027 pattern)
 //!
-//! AC-042-05/06/07/10 + PROOF-042-D's DB ROUND-TRIP halves (place-block -> loom_canvas_placements row,
-//! kanban-move -> tag edge, add-edge -> edge row) are NEEDS_MANAGED_RESOURCE_PROOF: they need a running
-//! Handshake-managed PostgreSQL with a seeded loom canvas + view. They are the `#[ignore]`d `*_live_pg`
-//! tests, harness-recognized via `#[ignore = "requires_pg: ..."]` and run with `-- --ignored` (the
-//! sibling `test_parity_knowledge.rs` pattern — NO cargo feature). Absent a seeded backend they are NOT
-//! faked and NOT a fake-PG (the MT contract's REAL-PG REALITY gate). The AccessKit registration +
-//! dispatch + the typed
-//! EVENT SHAPE the host would send to the E6 loom client are proven STANDALONE here with an in-memory
-//! graph-projection fixture (IN-042-09 permits this when a real-PG fixture is not yet wired).
+//! AC-042-10 is a non-ignored integration test. It creates an isolated workspace on the reachable
+//! Handshake-managed PostgreSQL backend, observes the real empty projection, seeds real blocks/edges,
+//! fetches through the production graph client, drives stable author_ids, persists add/remove, performs
+//! fresh-client reload, and proves the backend-loss negative. It never consumes an operator-seeded
+//! workspace and never substitutes an in-memory projection for the live verdict.
 //!
 //! ## Artifact hygiene (CX-212E)
 //!
@@ -54,33 +50,40 @@
 //! needed"). [`assert_no_local_artifact_dir`] still fails the run if a repo-local `tests/screenshots/`
 //! or `test_output/` dir exists (the reviewer also greps `git ls-files "src/**/*.png"`).
 
-mod pg_proof_support;
+#[path = "interconnect_support/mod.rs"]
+mod interconnect_support;
 
+use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 
 use handshake_native::accessibility::knowledge_action_registry::{
     canvas_card_author_id, collection_lane_author_id, collection_row_author_id,
-    graph_node_author_id, KnowledgeActionRegistry, CANVAS_CONTROL_CATALOG,
+    graph_edge_author_id, graph_node_author_id, KnowledgeActionRegistry, CANVAS_CONTROL_CATALOG,
     COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG, HEALTH_CANARY_AUTHOR_ID,
 };
-use handshake_native::backend::loom::{CreateLoomEdgeRequest, LoomEdgeCreatedBy, LoomEdgeType};
-use handshake_native::backend_client::{
-    shared_http_client, BlockViewClient, CanvasBoardClient, HttpMethod, RequestSpec,
+use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::backend::knowledge_documents::{
+    CreateDocumentRequest, HskDocumentHeaders, KnowledgeDocumentsClient,
 };
+use handshake_native::backend::loom::{CreateLoomEdgeRequest, LoomEdgeCreatedBy, LoomEdgeType};
+use handshake_native::backend_client::HealthInfo;
+use handshake_native::backend_client::{BlockViewClient, CanvasBoardClient, HttpMethod};
+use handshake_native::backend_client::{LoomGraphCell, LoomGraphClient, LoomGraphData};
+use handshake_native::command_registry::{CMD_VIEW_CANVAS, CMD_VIEW_GRAPH};
 use handshake_native::graph::block_collection_view::{
-    BlockCollectionView, BlockViewDefinition, BlockViewEvent, BlockViewKind, BlockViewLane,
-    BlockViewResults, LoomBlockRow,
+    BlockCollectionView, BlockViewDefinition, BlockViewEvent, BlockViewGroupBy, BlockViewKind,
+    BlockViewLane, BlockViewResults, LoomBlockRow,
 };
 use handshake_native::graph::canvas_board::PAN_STEP;
 use handshake_native::graph::canvas_board::{CanvasEvent, CanvasPlacementCard, LoomCanvasBoard};
 use handshake_native::graph::graph_view::{GraphEdge, GraphEvent, GraphNode, LoomGraphView};
+use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
 use handshake_native::theme::HsTheme;
-
-use pg_proof_support::{require_live_backend, LiveBackend};
 
 // ── artifact-hygiene guard (CX-212E) ──────────────────────────────────────────────────────────────
 
@@ -196,7 +199,13 @@ fn collection_view(registry: &Arc<Mutex<KnowledgeActionRegistry>>) -> BlockColle
 struct FoundNode {
     node_id: egui::accesskit::NodeId,
     role: String,
+    label: Option<String>,
     value: Option<String>,
+    supports_click: bool,
+    supports_focus: bool,
+    focused: bool,
+    selected: bool,
+    flow_to: Vec<egui::accesskit::NodeId>,
     /// The node's custom-action capability descriptions (e.g. a canvas card's `delete` — AC-042-03).
     custom_actions: Vec<String>,
 }
@@ -215,7 +224,13 @@ fn find_node(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<FoundNode
             return Some(FoundNode {
                 node_id: ak.id(),
                 role: format!("{:?}", ak.role()),
+                label: ak.label().map(|v| v.to_owned()),
                 value: ak.value().map(|v| v.to_owned()),
+                supports_click: ak.data().supports_action(egui::accesskit::Action::Click),
+                supports_focus: ak.data().supports_action(egui::accesskit::Action::Focus),
+                focused: ak.is_focused(),
+                selected: ak.is_selected().unwrap_or(false),
+                flow_to: ak.data().flow_to().to_vec(),
                 custom_actions,
             });
         }
@@ -251,6 +266,14 @@ fn click_event(node_id: egui::accesskit::NodeId, payload: Option<&str>) -> egui:
         action: egui::accesskit::Action::Click,
         target: node_id,
         data: payload.map(|p| egui::accesskit::ActionData::Value(p.to_owned().into_boxed_str())),
+    })
+}
+
+fn focus_event(node_id: egui::accesskit::NodeId) -> egui::Event {
+    egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest {
+        action: egui::accesskit::Action::Focus,
+        target: node_id,
+        data: None,
     })
 }
 
@@ -447,6 +470,10 @@ fn ac01_02_03_08_all_knowledge_nodes_present_with_roles() {
         let found =
             find_node(&root, &author).unwrap_or_else(|| panic!("'{author}' (Group lane) present"));
         assert_eq!(found.role, "Group", "'{author}' lane role must be Group");
+        assert!(
+            !found.supports_click && found.supports_focus,
+            "non-openable lane containers must advertise Focus without a no-op Click"
+        );
     }
     drop(collection);
 
@@ -528,6 +555,106 @@ fn ac04_dispatch_graph_open_node_emits_open() {
     println!("AC-042-04: AccessKit dispatch of graph.open-node opened the block (cross-pane open + selection)");
 }
 
+#[test]
+fn ac04_mounted_host_opens_exact_document_within_200ms() {
+    let live = interconnect_support::require_reachable_backend();
+    let nonce = uuid::Uuid::new_v4().to_string();
+    let workspace = live.create_workspace(&format!("mt042-open-{nonce}"));
+    let workspace_id = workspace["id"].as_str().expect("workspace id").to_owned();
+    let mut cleanup = Mt042WorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        active: true,
+    };
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("MT-042 mounted host runtime");
+    let docs = KnowledgeDocumentsClient::with_client(reqwest::Client::new(), live.base.clone());
+    let headers = HskDocumentHeaders::for_operator(format!("mt042-session-{nonce}"), &nonce);
+    let created = rt
+        .block_on(docs.create_document(
+            &headers,
+            &CreateDocumentRequest {
+                workspace_id: workspace_id.clone(),
+                title: format!("MT-042 Open {nonce}"),
+                create_if_title_absent: false,
+                content_json: None,
+                schema_version: None,
+                project_ref: None,
+                folder_ref: None,
+            },
+        ))
+        .expect("fixture document create");
+    let document_id = created.document["rich_document_id"]
+        .as_str()
+        .expect("rich document id")
+        .to_owned();
+    let wrong_id = uuid::Uuid::new_v4().to_string();
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&live.base, rt.handle().clone());
+    app.bind_active_project_for_integration_test(workspace_id.clone());
+    app.set_active_pane_for_test(Some("pane-b".into()));
+    assert!(app.dispatch_palette_action_for_test(CMD_VIEW_GRAPH));
+    app.mounted_graph_view().lock().unwrap().set_graph(
+        vec![GraphNode::new(&document_id, "Exact document", "note")],
+        vec![],
+    );
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1200.0, 800.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mount_deadline = Instant::now() + Duration::from_secs(5);
+    let document_author = graph_node_author_id(&document_id);
+    let open_node = loop {
+        harness.run_steps(1);
+        if let Some(node) = find_node(&harness.root(), &document_author) {
+            break node.node_id;
+        }
+        assert!(
+            Instant::now() < mount_deadline,
+            "dynamic graph.node.<document_id> identity did not mount"
+        );
+    };
+    assert!(
+        find_node(&harness.root(), &format!("rich-editor.document.{wrong_id}")).is_none(),
+        "wrong document must not be exposed before dispatch"
+    );
+
+    let started = Instant::now();
+    harness.event(click_event(open_node, None));
+    loop {
+        harness.run_steps(1);
+        if find_node(
+            &harness.root(),
+            &format!("rich-editor.document.{document_id}"),
+        )
+        .is_some()
+        {
+            break;
+        }
+        assert!(
+            started.elapsed() <= Duration::from_millis(200),
+            "dynamic graph.node.<document_id> did not expose the exact opened document within 200ms"
+        );
+    }
+    assert!(started.elapsed() <= Duration::from_millis(200));
+    assert!(
+        find_node(&harness.root(), &format!("rich-editor.document.{wrong_id}")).is_none(),
+        "wrong document id must never satisfy the open proof"
+    );
+    assert!(matches!(
+        live.delete_workspace(&workspace_id),
+        200 | 202 | 204
+    ));
+    cleanup.active = false;
+}
+
 // ── AC-042-04 (identity path): dispatch a per-node graph.node.<id> click -> OpenNode ────────────────
 
 #[test]
@@ -546,7 +673,358 @@ fn ac04_dispatch_graph_node_identity_emits_open() {
         events.iter().any(|e| matches!(e, GraphEvent::OpenNode { block_id: b } if b == &block_id)),
         "AC-042-04: clicking the per-node graph.node.<id> emitted OpenNode for that block; got {events:?}"
     );
+    drop(events);
+    h.graph.lock().unwrap().selected = None;
+    h.graph_events.lock().unwrap().clear();
+    h.harness.run();
+    assert_eq!(
+        h.graph.lock().unwrap().selected,
+        None,
+        "the Focus proof must start from an independently unselected graph node"
+    );
+    let focus_target = find_node(&h.harness.root(), &author).expect("graph node remains mounted");
+    h.harness.event(focus_event(focus_target.node_id));
+    h.harness.run();
+    h.harness.run();
+    let focused =
+        find_node(&h.harness.root(), &author).expect("focused graph node remains mounted");
+    assert!(
+        focused.focused,
+        "Focus must be re-observed on the exact stable author_id"
+    );
+    assert_eq!(
+        h.graph.lock().unwrap().selected.as_deref(),
+        Some(block_id.as_str()),
+        "Focus synchronizes graph selection without opening a different block"
+    );
+    assert!(
+        h.graph_events.lock().unwrap().is_empty(),
+        "Focus must not activate or open the graph node"
+    );
+
+    h.canvas_events.lock().unwrap().clear();
+    let placement_id = h.canvas.lock().unwrap().placements[0].placement_id.clone();
+    let canvas_author = canvas_card_author_id(&placement_id);
+    let canvas_target =
+        find_node(&h.harness.root(), &canvas_author).expect("canvas card remains mounted");
+    h.harness.event(focus_event(canvas_target.node_id));
+    h.harness.run();
+    h.harness.run();
+    assert!(
+        find_node(&h.harness.root(), &canvas_author).is_some_and(|node| node.focused),
+        "Canvas Focus must be re-observed on the exact stable card identity"
+    );
+    assert!(
+        h.canvas_events.lock().unwrap().is_empty(),
+        "Canvas Focus must not activate, move, or delete the card"
+    );
+
+    h.collection_events.lock().unwrap().clear();
+    let row_id = h
+        .collection
+        .lock()
+        .unwrap()
+        .results
+        .as_ref()
+        .unwrap()
+        .blocks[0]
+        .block_id
+        .clone();
+    let row_author = collection_row_author_id(&row_id);
+    let row_target =
+        find_node(&h.harness.root(), &row_author).expect("collection row remains mounted");
+    h.harness.event(focus_event(row_target.node_id));
+    h.harness.run();
+    h.harness.run();
+    assert!(
+        find_node(&h.harness.root(), &row_author).is_some_and(|node| node.focused),
+        "Collection Focus must be re-observed on the exact stable row identity"
+    );
+    assert!(
+        h.collection_events.lock().unwrap().is_empty(),
+        "Collection Focus must not activate or mutate the row"
+    );
     println!("AC-042-04 (identity): clicking graph.node.<block_id> opened that block");
+}
+
+#[test]
+fn graph_node_identity_collision_cannot_open_the_wrong_block() {
+    let mut h = build_harness();
+    h.graph.lock().unwrap().set_graph(
+        vec![
+            GraphNode::new("a/b", "Slash", "note"),
+            GraphNode::new("a:b", "Colon", "note"),
+        ],
+        vec![],
+    );
+    h.harness.run();
+    h.harness.run();
+
+    let slash_author = graph_node_author_id("a/b");
+    let colon_author = graph_node_author_id("a:b");
+    assert_ne!(slash_author, colon_author);
+    assert!(find_node(&h.harness.root(), &slash_author).is_some());
+    let colon_node = find_node(&h.harness.root(), &colon_author)
+        .expect("the collision-safe colon identity is independently addressable");
+    h.harness.event(click_event(colon_node.node_id, None));
+    h.harness.run();
+    h.harness.run();
+
+    let events = h.graph_events.lock().unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, GraphEvent::OpenNode { block_id } if block_id == "a:b")),
+        "the clicked collision-safe identity must open its exact raw block id; got {events:?}"
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, GraphEvent::OpenNode { block_id } if block_id == "a/b")),
+        "clicking the colon identity must never fall through to the slash block"
+    );
+}
+
+#[test]
+fn persisted_edge_identity_survives_offscreen_endpoint_projection() {
+    let registry = Arc::new(Mutex::new(KnowledgeActionRegistry::new()));
+    let mut graph = LoomGraphView::global("ws-offscreen-edge");
+    let nodes: Vec<GraphNode> = (0..60)
+        .map(|index| GraphNode::new(format!("node-{index}"), format!("Node {index}"), "note"))
+        .collect();
+    graph.set_graph(
+        nodes,
+        vec![GraphEdge::with_id(
+            "persisted-edge-offscreen",
+            "node-58",
+            "node-59",
+            "mention",
+        )],
+    );
+    for (index, node) in graph.nodes.iter_mut().enumerate() {
+        node.x = 10_000.0 + index as f32 * 1_000.0;
+        node.y = 10_000.0;
+    }
+    graph.install_knowledge_action_registry(Arc::clone(&registry));
+    graph.sync_knowledge_registry(Some(egui::Rect::from_min_max(
+        egui::pos2(0.0, 0.0),
+        egui::pos2(100.0, 100.0),
+    )));
+
+    let registry = registry.lock().unwrap();
+    assert!(
+        registry
+            .node(&graph_edge_author_id("persisted-edge-offscreen"))
+            .is_some(),
+        "every persisted response edge must remain addressable outside the node viewport projection"
+    );
+    assert!(
+        registry.node(&graph_node_author_id("node-58")).is_none()
+            && registry.node(&graph_node_author_id("node-59")).is_none(),
+        "the probe must actually place both endpoints beyond the bounded 50-node lookahead"
+    );
+}
+
+#[test]
+fn collision_safe_canvas_and_collection_actions_route_to_exact_raw_identity() {
+    let mut h = build_harness();
+    let mut slash_card = CanvasPlacementCard::new("a/b", "block-slash", 20.0, 20.0, 120.0, 80.0);
+    slash_card.live_title = Some("Slash card".to_owned());
+    let mut colon_card = CanvasPlacementCard::new("a:b", "block-colon", 180.0, 20.0, 120.0, 80.0);
+    colon_card.live_title = Some("Colon card".to_owned());
+    h.canvas
+        .lock()
+        .unwrap()
+        .set_board(vec![slash_card, colon_card], vec![], egui::Vec2::ZERO, 1.0);
+
+    let row = |block_id: &str, title: &str| LoomBlockRow {
+        block_id: block_id.to_owned(),
+        title: Some(title.to_owned()),
+        original_filename: None,
+        content_type: "note".to_owned(),
+        journal_date: None,
+        created_at: "2026-07-18T00:00:00Z".to_owned(),
+        updated_at: "2026-07-18T00:00:00Z".to_owned(),
+        pinned: false,
+        favorite: false,
+        backlink_count: 0,
+        mention_count: 0,
+        tag_count: 0,
+    };
+    h.collection.lock().unwrap().set_loaded(
+        BlockViewDefinition::of_kind(BlockViewKind::Table),
+        BlockViewResults {
+            kind_str: "table".to_owned(),
+            blocks: vec![row("a/b", "Slash row"), row("a:b", "Colon row")],
+            groups: vec![],
+            total_returned: 2,
+        },
+    );
+
+    h.harness.run();
+    h.harness.run();
+    let colon_card_author = canvas_card_author_id("a:b");
+    let colon_card_node = find_node(&h.harness.root(), &colon_card_author)
+        .expect("collision-safe colon card is independently addressable");
+    h.harness.event(click_event(colon_card_node.node_id, None));
+    h.harness.run();
+    h.harness.run();
+    assert!(h.canvas.lock().unwrap().selected.contains("a:b"));
+    assert!(!h.canvas.lock().unwrap().selected.contains("a/b"));
+
+    h.canvas_events.lock().unwrap().clear();
+    let colon_card_node = find_node(&h.harness.root(), &colon_card_author)
+        .expect("collision-safe colon card remains mounted");
+    h.harness
+        .event(custom_action_event(colon_card_node.node_id, 0));
+    h.harness.run();
+    h.harness.run();
+    assert!(h.canvas_events.lock().unwrap().iter().any(
+        |event| matches!(event, CanvasEvent::RemovePlacement { placement_id } if placement_id == "a:b")
+    ));
+    assert!(!h.canvas_events.lock().unwrap().iter().any(
+        |event| matches!(event, CanvasEvent::RemovePlacement { placement_id } if placement_id == "a/b")
+    ));
+
+    h.collection_events.lock().unwrap().clear();
+    let colon_row_author = collection_row_author_id("a:b");
+    let colon_row_node = find_node(&h.harness.root(), &colon_row_author)
+        .expect("collision-safe colon row is independently addressable");
+    h.harness.event(click_event(colon_row_node.node_id, None));
+    h.harness.run();
+    h.harness.run();
+    assert!(h
+        .collection_events
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|event| matches!(event, BlockViewEvent::OpenBlock { block_id } if block_id == "a:b")));
+    assert!(!h
+        .collection_events
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|event| matches!(event, BlockViewEvent::OpenBlock { block_id } if block_id == "a/b")));
+}
+
+#[test]
+fn graph_registry_rejects_stale_hidden_and_unregistered_offscreen_actions() {
+    use handshake_native::graph::graph_view::MAX_LAYOUT_ITERS;
+
+    let registry = Arc::new(Mutex::new(KnowledgeActionRegistry::new()));
+    let mut initial = LoomGraphView::global("visibility-ws");
+    initial.set_graph(
+        vec![
+            GraphNode::new("hidden-node", "Hidden", "note"),
+            GraphNode::new("far-node", "Far", "note"),
+        ],
+        vec![GraphEdge::new("hidden-node", "far-node", "mention")],
+    );
+    initial.install_knowledge_action_registry(Arc::clone(&registry));
+    let graph = Arc::new(Mutex::new(initial));
+    let events = Arc::new(Mutex::new(Vec::<GraphEvent>::new()));
+    let graph_ui = Arc::clone(&graph);
+    let events_ui = Arc::clone(&events);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 600.0))
+        .build_ui(move |ui| {
+            let palette = HsTheme::Dark.palette();
+            let mut graph = graph_ui.lock().unwrap();
+            if let Some(event) = graph.show(ui, &palette) {
+                events_ui.lock().unwrap().push(event);
+            }
+            events_ui
+                .lock()
+                .unwrap()
+                .extend(graph.drain_knowledge_events());
+        });
+    harness.run();
+    harness.run();
+
+    let hidden_author = graph_node_author_id("hidden-node");
+    let far_author = graph_node_author_id("far-node");
+    let hidden_node = find_node(&harness.root(), &hidden_author)
+        .expect("precondition: hidden target starts visible");
+    let far_node =
+        find_node(&harness.root(), &far_author).expect("precondition: far target starts visible");
+
+    {
+        let mut graph = graph.lock().unwrap();
+        graph.controls.show_orphans = false;
+        let mut nodes = vec![
+            GraphNode::new("root-node", "Root", "note"),
+            GraphNode::new("hidden-node", "Hidden", "note"),
+            GraphNode::new("far-node", "Far", "note"),
+        ];
+        nodes.extend(
+            (0..52).map(|index| GraphNode::new(format!("near-offscreen-{index}"), "Near", "note")),
+        );
+        let mut edges = vec![GraphEdge::new("root-node", "far-node", "mention")];
+        edges.extend((0..52).map(|index| {
+            GraphEdge::new("root-node", format!("near-offscreen-{index}"), "mention")
+        }));
+        graph.set_graph(nodes, edges);
+        graph.step_layout();
+        for node in &mut graph.nodes {
+            match node.block_id.as_str() {
+                "root-node" | "hidden-node" => {
+                    node.x = 0.0;
+                    node.y = 0.0;
+                }
+                "far-node" => {
+                    node.x = 100_000.0;
+                    node.y = 0.0;
+                }
+                _ => {
+                    let index = node
+                        .block_id
+                        .trim_start_matches("near-offscreen-")
+                        .parse::<f32>()
+                        .expect("fixture suffix");
+                    node.x = 1_000.0 + index;
+                    node.y = 0.0;
+                }
+            }
+        }
+        graph.iters_done = MAX_LAYOUT_ITERS;
+    }
+    events.lock().unwrap().clear();
+    harness.run();
+    harness.run();
+
+    assert!(
+        find_node(&harness.root(), &hidden_author).is_none(),
+        "a filtered hidden node must disappear from the registry-backed AccessKit tree"
+    );
+    assert!(
+        find_node(&harness.root(), &far_author).is_none(),
+        "an offscreen node beyond the bounded lookahead must not be advertised"
+    );
+    let root = find_node(&harness.root(), &graph_node_author_id("root-node"))
+        .expect("the on-screen source remains addressable");
+    assert!(
+        !root.flow_to.contains(&far_node.node_id),
+        "a visible source must not expose a dangling flow_to relation to an unregistered offscreen target"
+    );
+    let emitted_node_ids: std::collections::HashSet<_> = harness
+        .root()
+        .children_recursive()
+        .map(|node| node.accesskit_node().id())
+        .collect();
+    assert!(
+        root.flow_to
+            .iter()
+            .all(|target| emitted_node_ids.contains(target)),
+        "every graph flow_to target must exist in the current AccessKit tree"
+    );
+    harness.event(click_event(hidden_node.node_id, None));
+    harness.event(click_event(far_node.node_id, None));
+    harness.run();
+    harness.run();
+    assert!(
+        events.lock().unwrap().is_empty(),
+        "stale actions for hidden/unregistered offscreen identities must not emit OpenNode"
+    );
 }
 
 // ── AC-042-05: dispatch canvas.place-block {block_id,x,y} -> PlaceBlock event (route SHAPE) + new card ─
@@ -776,6 +1254,54 @@ fn ac07_dispatch_graph_add_edge_emits_add_edge() {
          the host supplies created_by + edge_type when building the real CreateLoomEdgeRequest); got {events:?}"
     );
     println!("AC-042-07: graph.add-edge dispatch emitted the AddEdge intent event (source+target); the createLoomEdge WIRE shape is proven in ac07_add_edge_event_builds_real_create_loom_edge_request");
+}
+
+#[test]
+fn graph_parameterized_actions_reject_blank_identity_fields() {
+    let mut h = build_harness();
+    h.harness.run();
+    h.harness.run();
+
+    let open =
+        find_node(&h.harness.root(), "graph.open-node").expect("graph.open-node control present");
+    h.harness
+        .event(click_event(open.node_id, Some(r#"{"block_id":"   "}"#)));
+    h.harness.run();
+
+    let select = find_node(&h.harness.root(), "graph.select-node")
+        .expect("graph.select-node control present");
+    h.harness
+        .event(click_event(select.node_id, Some(r#"{"block_id":"\t"}"#)));
+    h.harness.run();
+
+    for payload in [
+        r#"{"source_id":"   ","target_id":"target"}"#,
+        r#"{"source_id":"source","target_id":"\t"}"#,
+    ] {
+        let add =
+            find_node(&h.harness.root(), "graph.add-edge").expect("graph.add-edge control present");
+        h.harness.event(click_event(add.node_id, Some(payload)));
+        h.harness.run();
+    }
+
+    let remove = find_node(&h.harness.root(), "graph.remove-edge")
+        .expect("graph.remove-edge control present");
+    h.harness
+        .event(click_event(remove.node_id, Some(r#"{"edge_id":"   "}"#)));
+    h.harness.run();
+
+    let events = h.graph_events.lock().unwrap();
+    assert!(
+        !events.iter().any(|event| matches!(
+            event,
+            GraphEvent::OpenNode { .. }
+                | GraphEvent::SelectNode { .. }
+                | GraphEvent::AddEdge { .. }
+                | GraphEvent::RemoveEdge { .. }
+        )),
+        "blank/whitespace identity fields must not produce graph actions; got {events:?}"
+    );
+    assert!(h.graph.lock().unwrap().selected.is_none());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1282,160 +1808,836 @@ fn ctrl03_malformed_payload_does_not_panic() {
     println!("CTRL-042-03: malformed / missing / absent payloads are logged + dropped — no panic on the UI thread");
 }
 
-// ── AC-042-10 (gated): real-PG round-trip for place-block / kanban-move / add-edge ──────────────────
-//
-// NEEDS_MANAGED_RESOURCE_PROOF (the MT REAL-PG REALITY gate): the AccessKit registration + dispatch +
-// the typed EVENT SHAPE are proven above with an in-memory fixture. THIS is the DB ROUND-TRIP half
-// (place-block -> loom_canvas_placements row; kanban-move -> tag_edges row; add-edge -> edges row;
-// AC-042-05/06/07/10 + PROOF-042-D). It BINDS a running Handshake-managed PostgreSQL with a seeded loom
-// canvas + view, so it is a harness-recognized `#[ignore = "requires_pg: ..."]` proof — the SAME honest
-// gate the E8 parity suite (tests/test_parity_knowledge.rs) uses (no cargo feature; NOT faked, NO silent
-// skip). It stays `ignored` in the default run and is exercised in the live-PG batch:
-//   cargo test -p handshake-native --test test_e7_knowledge_accesskit -- --ignored
+// ── AC-042 live closure: self-seeded managed PostgreSQL graph + AccessKit relations ────────────────
 
-/// Dispatch a prebuilt production [`RequestSpec`] (from the REAL `*_request` builders) against the live
-/// backend, honoring its HTTP method. [`LiveBackend`] covers POST/PUT/GET/DELETE but NOT PATCH, and the
-/// kanban-move round-trip is a PATCH (`updateLoomBlock` add_tags/remove_tags), so this method-aware
-/// sender dispatches the spec through the crate's production [`shared_http_client`] on `rt` — the same
-/// async surface `pg_proof_support` uses. It prepends `base`, panics `requires_pg` on transport failure,
-/// and asserts a 2xx (no mock, no silent skip). Returns the parsed JSON body (`Null` for an empty 2xx).
-fn send_spec(base: &str, rt: &tokio::runtime::Runtime, spec: &RequestSpec) -> serde_json::Value {
-    let url = format!("{base}{}", spec.url);
-    let client = shared_http_client();
-    let body = spec.body.clone();
-    let (status, text) = rt.block_on(async {
-        let mut rb = match spec.method {
-            HttpMethod::Post => client.post(&url),
-            HttpMethod::Patch => client.patch(&url),
-            HttpMethod::Put => client.put(&url),
-            HttpMethod::Get => client.get(&url),
-            HttpMethod::Delete => client.delete(&url),
-        };
-        if let Some(b) = &body {
-            rb = rb.json(b);
-        }
-        let resp = rb
-            .send()
-            .await
-            .unwrap_or_else(|e| panic!("requires_pg: {:?} {url} failed: {e}", spec.method));
-        let status = resp.status();
-        let text = resp.text().await.unwrap_or_default();
-        (status, text)
-    });
-    assert!(
-        status.is_success(),
-        "{:?} {url} -> {status}: {text}",
-        spec.method
+struct LiveGraphHarness<'a> {
+    harness: Harness<'a, ()>,
+    graph: Arc<Mutex<LoomGraphView>>,
+    events: Arc<Mutex<Vec<GraphEvent>>>,
+}
+
+fn mount_live_graph<'a>(workspace_id: &str, data: LoomGraphData) -> LiveGraphHarness<'a> {
+    let registry = Arc::new(Mutex::new(KnowledgeActionRegistry::new()));
+    let mut view = LoomGraphView::global(workspace_id);
+    view.set_graph_projection(
+        data.nodes,
+        data.edges,
+        data.truncated,
+        data.suppressed_hub_ids.len(),
     );
-    if text.is_empty() {
-        serde_json::Value::Null
-    } else {
-        serde_json::from_str(&text).unwrap_or(serde_json::Value::String(text))
+    view.install_knowledge_action_registry(registry);
+    let graph = Arc::new(Mutex::new(view));
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let graph_ui = Arc::clone(&graph);
+    let events_ui = Arc::clone(&events);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 680.0))
+        .build_ui(move |ui| {
+            let palette = HsTheme::Dark.palette();
+            let mut graph = graph_ui.lock().unwrap();
+            if let Some(event) = graph.show(ui, &palette) {
+                events_ui.lock().unwrap().push(event);
+            }
+            events_ui
+                .lock()
+                .unwrap()
+                .extend(graph.drain_knowledge_events());
+        });
+    harness.run();
+    harness.run();
+    LiveGraphHarness {
+        harness,
+        graph,
+        events,
     }
 }
 
+fn await_graph(
+    client: &LoomGraphClient,
+    workspace_id: &str,
+    generation: u64,
+) -> Result<LoomGraphData, String> {
+    let cell: LoomGraphCell = Arc::new(Mutex::new(VecDeque::new()));
+    client.fetch_global(workspace_id, generation, Arc::clone(&cell));
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        if let Some(delivery) = cell.lock().unwrap().pop_front() {
+            assert_eq!(delivery.request.generation, generation);
+            assert_eq!(delivery.request.workspace_id, workspace_id);
+            return delivery.result;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "managed graph fetch generation {generation} did not complete within 10 seconds"
+        );
+        std::thread::sleep(Duration::from_millis(25));
+    }
+}
+
+fn await_canvas(
+    client: &CanvasBoardClient,
+    workspace_id: &str,
+    canvas_block_id: &str,
+) -> Result<handshake_native::backend_client::CanvasBoardData, String> {
+    let cell = Arc::new(Mutex::new(VecDeque::new()));
+    client.fetch_board(workspace_id, canvas_block_id, Arc::clone(&cell));
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if let Some(delivery) = cell.lock().unwrap().pop_front() {
+            return delivery.result;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "managed Canvas readback did not complete within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn create_live_block_view(
+    client: &BlockViewClient,
+    workspace_id: &str,
+    title: &str,
+    definition: &BlockViewDefinition,
+) -> String {
+    let cell: handshake_native::backend_client::BlockViewOpCell = Arc::new(Mutex::new(None));
+    let generation = Arc::new(std::sync::atomic::AtomicU64::new(1));
+    client.create_view(
+        workspace_id,
+        title,
+        definition,
+        generation,
+        1,
+        Arc::clone(&cell),
+    );
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if let Some(delivery) = cell.lock().unwrap().clone() {
+            assert_eq!(delivery.workspace_id, workspace_id);
+            return delivery.result.expect("managed Kanban creation succeeds");
+        }
+        assert!(
+            Instant::now() < deadline,
+            "managed Kanban creation did not complete within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn await_block_view_results(
+    client: &BlockViewClient,
+    workspace_id: &str,
+    view_id: &str,
+) -> Result<BlockViewResults, String> {
+    let cell: handshake_native::backend_client::BlockViewResultsCell = Arc::new(Mutex::new(None));
+    client.query_results(workspace_id, view_id, 100, 0, Arc::clone(&cell));
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if let Some(result) = cell.lock().unwrap().clone() {
+            return result;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "managed Kanban readback did not complete within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn graph_block_id(value: &serde_json::Value) -> String {
+    value["block_id"]
+        .as_str()
+        .expect("created LoomBlock carries block_id")
+        .to_owned()
+}
+
+fn persisted_tag_edge_count(
+    workspace_id: &str,
+    source_block_id: &str,
+    target_block_id: &str,
+) -> u64 {
+    let psql =
+        std::env::var_os("HSK_PSQL_BIN").expect("MT-042 PostgreSQL proof requires HSK_PSQL_BIN");
+    let dsn = std::env::var("HANDSHAKE_TEST_PG_DSN")
+        .expect("MT-042 PostgreSQL proof requires HANDSHAKE_TEST_PG_DSN");
+    let pg_literal = |value: &str| format!("'{}'", value.replace('\'', "''"));
+    let sql = format!(
+        "SELECT count(*) FROM loom_edges WHERE workspace_id = {} AND source_block_id = {} AND target_block_id = {} AND edge_type = 'tag';",
+        pg_literal(workspace_id),
+        pg_literal(source_block_id),
+        pg_literal(target_block_id)
+    );
+    let mut child = std::process::Command::new(psql)
+        .arg(format!("--dbname={dsn}"))
+        .arg("--set=ON_ERROR_STOP=1")
+        .arg("--tuples-only")
+        .arg("--no-align")
+        .arg(format!("--command={sql}"))
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn bounded MT-042 psql authority query");
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Ok(None) => {
+                let _ = child.kill();
+                let output = child
+                    .wait_with_output()
+                    .expect("reap timed-out MT-042 psql authority query");
+                panic!(
+                    "MT-042 psql authority query exceeded five seconds: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+            Err(error) => panic!("poll MT-042 psql authority query: {error}"),
+        }
+    }
+    let output = child
+        .wait_with_output()
+        .expect("reap bounded MT-042 psql authority query");
+    assert!(
+        output.status.success(),
+        "MT-042 psql query failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout)
+        .expect("psql stdout is UTF-8")
+        .trim()
+        .parse()
+        .expect("psql tag-edge count is an integer")
+}
+
+struct Mt042WorkspaceCleanup<'a> {
+    backend: &'a interconnect_support::LiveBackend,
+    workspace_id: String,
+    active: bool,
+}
+
+impl Drop for Mt042WorkspaceCleanup<'_> {
+    fn drop(&mut self) {
+        if self.active {
+            let _ = self.backend.delete_workspace(&self.workspace_id);
+        }
+    }
+}
+
+/// The complete graph proof is integration-gated but deliberately NOT ignored. It owns an isolated
+/// workspace, starts from a real empty PostgreSQL projection, seeds three real LoomBlocks and edges,
+/// fetches through the production LoomGraphClient, mounts the real graph widget, drives it only by
+/// stable author_id, persists add/remove mutations, and re-fetches through fresh production clients.
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL; seed HSK_TEST_WORKSPACE_ID + HSK_TEST_BLOCK_ID + HSK_TEST_BOARD_ID + HSK_TEST_TARGET_BLOCK_ID (AC-042-05/06/07/10, PROOF-042-D: place-block->loom_canvas_placements, kanban-move->tag_edges, add-edge->edges)"]
-fn ac10_live_pg_round_trip() {
-    // (a) REQUIRE + CONNECT the live managed backend + PostgreSQL. `require_live_backend` enforces
-    //     HSK_TEST_WORKSPACE_ID + a reachable `/health`, panicking `requires_pg` otherwise (no fake-PG,
-    //     no silent skip) — the SAME gate tests/test_parity_knowledge.rs uses.
-    let be: LiveBackend = require_live_backend();
-    let ws = be.workspace_id.clone();
+fn ac10_live_pg_populated_graph_accesskit_round_trip() {
+    let live = interconnect_support::require_reachable_backend();
+    let nonce = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock after unix epoch")
+            .as_nanos()
+    );
+    let workspace = live.create_workspace(&format!("mt042-{nonce}"));
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace response carries id")
+        .to_owned();
+    let mut cleanup = Mt042WorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        active: true,
+    };
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build MT-042 live graph runtime");
+    let graph_client = LoomGraphClient::new(live.base.clone(), rt.handle().clone());
 
-    // Seed ids come from the managed-PG seed the live-PG batch stands up (the honest env split the sibling
-    // parity proofs use). require_block_id() is the shared helper; the canvas board + edge-target block
-    // are read the same descriptive-`requires_pg` way.
-    let source_block = be.require_block_id();
-    let board_id = std::env::var("HSK_TEST_BOARD_ID")
-        .ok()
-        .filter(|s| !s.is_empty())
-        .expect(
-            "requires_pg: set HSK_TEST_BOARD_ID to a real loom canvas board id in the seeded workspace",
-        );
-    let target_block = std::env::var("HSK_TEST_TARGET_BLOCK_ID")
-        .ok()
-        .filter(|s| !s.is_empty())
-        .expect(
-            "requires_pg: set HSK_TEST_TARGET_BLOCK_ID to a second real Loom block id (the add-edge target)",
-        );
+    // Empty is a real backend state, not a fabricated Vec: global fetch returns zero canonical rows,
+    // while the mounted AccessKit surface retains its stable global controls and health canary.
+    let empty = await_graph(&graph_client, &workspace_id, 1).expect("empty managed graph fetch");
+    assert!(empty.nodes.is_empty() && empty.edges.is_empty());
+    let empty_mount = mount_live_graph(&workspace_id, empty);
+    assert!(knowledge_author_ids(&empty_mount.harness.root())
+        .iter()
+        .all(|(author, _)| !author.starts_with("graph.node.")));
+    for control in GRAPH_CONTROL_CATALOG {
+        assert!(find_node(&empty_mount.harness.root(), control.author_id).is_some());
+    }
+    drop(empty_mount);
 
-    // (b) SEED the "+ view" half via the VERIFIED create-view route (POST /loom/views/definitions — the
-    //     E3-34 route), so the round-trip also touches a real saved view. The view id is the created
-    //     block's id.
-    let view = be.post_json(
-        &format!("/workspaces/{ws}/loom/views/definitions"),
+    let create_block = |title: &str| {
+        live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({"content_type":"note","title":format!("{title}-{nonce}")}),
+        )
+    };
+    let alpha = create_block("Alpha");
+    let beta = create_block("Beta");
+    let gamma = create_block("Gamma");
+    let alpha_id = graph_block_id(&alpha);
+    let beta_id = graph_block_id(&beta);
+    let gamma_id = graph_block_id(&gamma);
+    let seed_edge = |source: &str, target: &str| {
+        live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/edges"),
+            &serde_json::json!({
+                "source_block_id":source,
+                "target_block_id":target,
+                "edge_type":"mention",
+                "created_by":"user"
+            }),
+        )
+    };
+    seed_edge(&alpha_id, &beta_id);
+    seed_edge(&beta_id, &gamma_id);
+
+    let populated =
+        await_graph(&graph_client, &workspace_id, 2).expect("populated managed graph fetch");
+    assert_eq!(
+        populated.nodes.len(),
+        3,
+        "three seeded PostgreSQL blocks are visible"
+    );
+    assert_eq!(
+        populated.edges.len(),
+        2,
+        "two seeded PostgreSQL edges are visible"
+    );
+    let expected_nodes: Vec<(String, String)> = populated
+        .nodes
+        .iter()
+        .map(|node| (node.block_id.clone(), node.title.clone()))
+        .collect();
+    let expected_edges = populated.edges.clone();
+    let mut mounted = mount_live_graph(&workspace_id, populated);
+
+    let mut stable_node_ids = std::collections::BTreeMap::new();
+    for (block_id, title) in &expected_nodes {
+        let author = graph_node_author_id(block_id);
+        let node = find_node(&mounted.harness.root(), &author)
+            .unwrap_or_else(|| panic!("live PostgreSQL node {author} is mounted"));
+        assert_eq!(node.role, "TreeItem");
+        assert_eq!(node.label.as_deref(), Some(title.as_str()));
+        assert!(node.supports_click && node.supports_focus);
+        stable_node_ids.insert(author, node.node_id);
+    }
+    let mut stable_edge_ids = std::collections::BTreeMap::new();
+    for edge in &expected_edges {
+        let source = find_node(&mounted.harness.root(), &graph_node_author_id(&edge.source))
+            .expect("edge source is addressable");
+        let target = find_node(&mounted.harness.root(), &graph_node_author_id(&edge.target))
+            .expect("edge target is addressable");
+        assert!(
+            source.flow_to.contains(&target.node_id),
+            "canonical {} edge {} -> {} is exposed as AccessKit flow_to",
+            edge.edge_type,
+            edge.source,
+            edge.target
+        );
+        let edge_id = edge
+            .edge_id
+            .as_deref()
+            .expect("production graph projection preserves persisted edge_id");
+        let edge_author = graph_edge_author_id(edge_id);
+        let edge_node = find_node(&mounted.harness.root(), &edge_author)
+            .expect("persisted graph edge is independently addressable");
+        assert_eq!(edge_node.role, "Link");
+        assert!(edge_node.label.as_deref().is_some_and(|label| {
+            label.contains(&edge.edge_type)
+                && label.contains(&edge.source)
+                && label.contains(&edge.target)
+        }));
+        assert!(edge_node.value.as_deref().is_some_and(|value| {
+            value.contains(&format!("edge_id={edge_id}"))
+                && value.contains(&format!("source_id={}", edge.source))
+                && value.contains(&format!("target_id={}", edge.target))
+        }));
+        assert!(edge_node
+            .custom_actions
+            .iter()
+            .any(|action| action == "delete"));
+        stable_edge_ids.insert(edge_author, edge_node.node_id);
+    }
+
+    // Navigate solely by the target node's stable author_id. The product event and the next tree
+    // observation must agree on the exact raw block id and selected state.
+    let target_author = graph_node_author_id(&gamma_id);
+    let target = find_node(&mounted.harness.root(), &target_author).expect("target node mounted");
+    mounted.harness.event(click_event(target.node_id, None));
+    mounted.harness.run();
+    mounted.harness.run();
+    assert!(mounted
+        .events
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|event| matches!(event, GraphEvent::OpenNode { block_id } if block_id == &gamma_id)));
+    assert_eq!(
+        mounted.graph.lock().unwrap().selected.as_deref(),
+        Some(gamma_id.as_str())
+    );
+    assert!(
+        find_node(&mounted.harness.root(), &target_author)
+            .expect("selected target remains mounted")
+            .selected,
+        "the post-activation tree re-observes the exact target as selected"
+    );
+
+    // Move to the production HandshakeApp host before mutating. The mounted pane emits GraphEvent,
+    // HandshakeApp::route_graph_events owns the HTTP mutation, and its completion drain performs the
+    // authoritative refetch. The proof never applies the event or calls a write route itself.
+    drop(mounted);
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&live.base, rt.handle().clone());
+    app.bind_active_project_for_integration_test(workspace_id.clone());
+    assert!(app.dispatch_palette_action_for_test(CMD_VIEW_GRAPH));
+    let mounted_graph = app.mounted_graph_view();
+    let mut host = Harness::builder()
+        .with_size(egui::vec2(1100.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let host_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        host.run_steps(1);
+        if find_node(&host.root(), &graph_node_author_id(&gamma_id)).is_some() {
+            break;
+        }
+        assert!(
+            Instant::now() < host_deadline,
+            "production graph host did not load the managed PostgreSQL projection within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+
+    // Dispatch add-edge by stable control author_id on the production host. Persistence must happen
+    // only through the app router; a fresh product client observes the result independently.
+    let add = find_node(&host.root(), "graph.add-edge").expect("host add-edge control");
+    let add_payload =
+        serde_json::json!({"source_id":alpha_id.clone(),"target_id":gamma_id.clone()}).to_string();
+    host.event(click_event(add.node_id, Some(&add_payload)));
+    host.run_steps(1);
+    let fresh_client = LoomGraphClient::new(live.base.clone(), rt.handle().clone());
+    let add_deadline = Instant::now() + Duration::from_secs(5);
+    let after_add = loop {
+        host.run_steps(1);
+        if let Ok(graph) = await_graph(&fresh_client, &workspace_id, 3) {
+            if graph
+                .edges
+                .iter()
+                .any(|edge| edge.source == alpha_id && edge.target == gamma_id)
+            {
+                break graph;
+            }
+        }
+        assert!(
+            Instant::now() < add_deadline,
+            "host-routed graph.add-edge did not persist and refetch within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let created_edge = after_add
+        .edges
+        .iter()
+        .find(|edge| {
+            edge.source == alpha_id && edge.target == gamma_id && edge.edge_type == "mention"
+        })
+        .expect("fresh production graph projection contains the host-created edge");
+    let created_edge_id = created_edge
+        .edge_id
+        .clone()
+        .expect("production projection preserves the host-created persisted edge id");
+    let created_edge_author = graph_edge_author_id(&created_edge_id);
+    loop {
+        host.run_steps(1);
+        let source = find_node(&host.root(), &graph_node_author_id(&alpha_id)).unwrap();
+        let target = find_node(&host.root(), &graph_node_author_id(&gamma_id)).unwrap();
+        if source.flow_to.contains(&target.node_id)
+            && find_node(&host.root(), &created_edge_author).is_some()
+        {
+            break;
+        }
+        assert!(
+            Instant::now() < add_deadline,
+            "mounted graph did not publish the persisted edge identity and AccessKit flow_to"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let edge_node = find_node(&host.root(), &created_edge_author)
+        .expect("host-created edge is addressable by persisted edge id");
+    assert_eq!(edge_node.role, "Link");
+    assert!(
+        !edge_node.supports_click,
+        "persisted edge identities must not advertise a no-op Click action"
+    );
+    assert!(
+        edge_node.supports_focus,
+        "persisted edge identities remain focus-addressable"
+    );
+    assert!(edge_node
+        .custom_actions
+        .iter()
+        .any(|action| action == "delete"));
+
+    // Activate the persisted edge identity's real delete capability. Database readback and a fresh
+    // reload must both lose the relation; stale edge nodes and relations are forbidden.
+    host.event(custom_action_event(edge_node.node_id, 0));
+    host.run_steps(1);
+    let remove_deadline = Instant::now() + Duration::from_secs(5);
+    let after_remove = loop {
+        host.run_steps(1);
+        if let Ok(graph) = await_graph(&fresh_client, &workspace_id, 4) {
+            if !graph
+                .edges
+                .iter()
+                .any(|edge| edge.source == alpha_id && edge.target == gamma_id)
+            {
+                break graph;
+            }
+        }
+        assert!(
+            Instant::now() < remove_deadline,
+            "host-routed graph.remove-edge did not persist and refetch within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    assert!(!after_remove
+        .edges
+        .iter()
+        .any(|edge| edge.source == alpha_id && edge.target == gamma_id));
+    loop {
+        host.run_steps(1);
+        let source = find_node(&host.root(), &graph_node_author_id(&alpha_id)).unwrap();
+        let target = find_node(&host.root(), &graph_node_author_id(&gamma_id)).unwrap();
+        if !source.flow_to.contains(&target.node_id)
+            && find_node(&host.root(), &created_edge_author).is_none()
+        {
+            break;
+        }
+        assert!(
+            Instant::now() < remove_deadline,
+            "mounted graph retained a stale edge identity or flow_to after persisted edge removal"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        mounted_graph.lock().unwrap().workspace_id,
+        workspace_id,
+        "the production host remains bound to the managed workspace"
+    );
+
+    // Keep the same mounted HandshakeApp and switch its operator-facing pane to Canvas. The stable
+    // parameterized AccessKit action must cross the product router, persist a backend-minted placement,
+    // and reconcile the mounted board from the authoritative response.
+    let canvas = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+        &serde_json::json!({"title":format!("MT-042 Canvas {nonce}")}),
+    );
+    let canvas_id = graph_block_id(&canvas);
+    let mounted_canvas = host.state().mounted_canvas_board();
+    {
+        let mut board = mounted_canvas.lock().unwrap();
+        board.workspace_id = workspace_id.clone();
+        board.canvas_block_id = canvas_id.clone();
+    }
+    assert!(host
+        .state_mut()
+        .dispatch_palette_action_for_test(CMD_VIEW_CANVAS));
+    let canvas_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        host.run_steps(1);
+        let ready = mounted_canvas
+            .lock()
+            .map(|board| !board.loading && board.error.is_none())
+            .unwrap_or(false);
+        if ready && find_node(&host.root(), "canvas.place-block").is_some() {
+            break;
+        }
+        assert!(
+            Instant::now() < canvas_deadline,
+            "production Canvas host did not load within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let canvas_cards_before: Vec<String> = knowledge_author_ids(&host.root())
+        .into_iter()
+        .map(|(author, _)| author)
+        .filter(|author| author.starts_with("canvas.card."))
+        .collect();
+    let place = find_node(&host.root(), "canvas.place-block").expect("Canvas place control");
+    let place_payload =
+        serde_json::json!({"block_id":alpha_id.clone(),"x":123.0,"y":234.0}).to_string();
+    host.event(click_event(place.node_id, Some(&place_payload)));
+    host.run_steps(1);
+    let canvas_client = CanvasBoardClient::new(live.base.clone(), rt.handle().clone());
+    let placement_deadline = Instant::now() + Duration::from_secs(5);
+    let persisted_canvas = loop {
+        host.run_steps(1);
+        if let Ok(board) = await_canvas(&canvas_client, &workspace_id, &canvas_id) {
+            if board.placements.iter().any(|placement| {
+                placement.placed_block_id == alpha_id
+                    && (placement.x - 123.0).abs() < 0.1
+                    && (placement.y - 234.0).abs() < 0.1
+            }) {
+                break board;
+            }
+        }
+        assert!(
+            Instant::now() < placement_deadline,
+            "host-routed canvas.place-block did not persist and refetch within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let persisted_placement = persisted_canvas
+        .placements
+        .iter()
+        .find(|placement| placement.placed_block_id == alpha_id)
+        .expect("fresh Canvas readback contains the host-created placement");
+    let persisted_card_author = canvas_card_author_id(&persisted_placement.placement_id);
+    loop {
+        host.run_steps(1);
+        if find_node(&host.root(), &persisted_card_author).is_some() {
+            break;
+        }
+        assert!(
+            Instant::now() < placement_deadline,
+            "mounted Canvas did not publish the backend-minted placement after authoritative refetch"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let canvas_cards_after: Vec<String> = knowledge_author_ids(&host.root())
+        .into_iter()
+        .map(|(author, _)| author)
+        .filter(|author| author.starts_with("canvas.card."))
+        .collect();
+    assert!(!canvas_cards_before.contains(&persisted_card_author));
+    assert!(canvas_cards_after.contains(&persisted_card_author));
+    println!(
+        "PROOF-042-C Canvas AccessKit tree diff: before={canvas_cards_before:?} after={canvas_cards_after:?} added={persisted_card_author}"
+    );
+
+    // Create a canonical tag-grouped view as test setup, then move the card exclusively through the
+    // production collection pane's parameterized AccessKit control. Fresh query results and the raw
+    // graph projection prove that the host persisted the exact remove-tag/add-tag edge transition.
+    let create_tag = |title: &str| {
+        graph_block_id(&live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({"content_type":"tag_hub","title":title}),
+        ))
+    };
+    let todo_tag = create_tag(&format!("todo-{nonce}"));
+    let done_tag = create_tag(&format!("done-{nonce}"));
+    live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/edges"),
         &serde_json::json!({
-            "title": "mt042-ac10-kanban",
-            "definition": { "kind": "kanban", "columns": ["title"] }
+            "source_block_id":alpha_id,
+            "target_block_id":todo_tag,
+            "edge_type":"tag",
+            "created_by":"user"
         }),
     );
-    let view_id = view
-        .get("block")
-        .and_then(|b| b.get("block_id"))
-        .and_then(|v| v.as_str())
-        .or_else(|| view.get("block_id").and_then(|v| v.as_str()))
-        .expect("AC-042-10: create-view returns block.block_id")
-        .to_owned();
-    assert!(!view_id.is_empty(), "AC-042-10: seeded a real saved view ({view_id})");
-
-    // The REAL production request builders — the SAME ones the STANDALONE request-shape proofs
-    // (ac05_place_block_event_builds_real_placements_request /
-    // ac06_card_move_event_builds_real_update_loom_block_request /
-    // ac07_add_edge_event_builds_real_create_loom_edge_request) assert against. Built with an EMPTY base
-    // so `spec.url` is the exact PATH the live-backend helpers prepend `be.base` to.
-    let rt = request_runtime();
-    let canvas = CanvasBoardClient::new("", rt.handle().clone());
-    let blocks = BlockViewClient::new("", rt.handle().clone());
-
-    // (c1) place-block -> POST .../placements (AC-042-05 DB half). Body from the REAL place_block_request.
-    let place = canvas.place_block_request(&ws, &board_id, &source_block, 100.0, 100.0, 200.0, 120.0);
-    let placement = be.post_json(&place.url, &place.body.expect("place-block carries a body"));
-    let placement_id = placement["placement_id"]
-        .as_str()
-        .expect("AC-042-05: placeBlockOnCanvas returns a placement_id")
-        .to_owned();
-
-    // (d1) SELECT loom_canvas_placements: the row persisted iff it appears in the board GET.
-    let board = be.get_json(&format!("/workspaces/{ws}/loom/canvas-boards/{board_id}"));
-    assert!(
-        serde_json::to_string(&board).unwrap().contains(&placement_id),
-        "AC-042-05/PROOF-042-D: placement {placement_id} must appear in the board GET \
-         (loom_canvas_placements row persisted)"
+    let block_view_client = BlockViewClient::new(live.base.clone(), rt.handle().clone());
+    let mut kanban_definition = BlockViewDefinition::of_kind(BlockViewKind::Kanban);
+    kanban_definition.query.content_type = Some("note".to_owned());
+    kanban_definition.group_by = Some(BlockViewGroupBy::Tag);
+    let kanban_id = create_live_block_view(
+        &block_view_client,
+        &workspace_id,
+        &format!("MT-042 Kanban {nonce}"),
+        &kanban_definition,
     );
-
-    // (c2) kanban-move -> PATCH /loom/blocks/:id add_tags=[done], remove_tags=[todo] (AC-042-06 DB half).
-    //      Body from the REAL card_move_request (top-level add_tags/remove_tags). PATCH is dispatched via
-    //      send_spec because LiveBackend exposes no PATCH helper.
-    let to_lane = "mt042-ac10-done";
-    let from_lane = "mt042-ac10-todo";
-    let mv = blocks.card_move_request(&ws, &source_block, &[to_lane.to_owned()], &[from_lane.to_owned()]);
-    send_spec(&be.base, &rt, &mv);
-
-    // (d2) SELECT tag_edges: the add_tags edge persisted iff the block surfaces in the tag hub for the tag.
-    let hub = be.get_json(&format!("/workspaces/{ws}/loom/tags/{to_lane}"));
-    assert!(
-        serde_json::to_string(&hub).unwrap().contains(&source_block),
-        "AC-042-06/PROOF-042-D: block {source_block} must surface in the tag hub for '{to_lane}' \
-         (tag_edges row persisted)"
+    let mounted_collection = host.state().mounted_block_collection_view();
+    assert!(matches!(
+        host.state_mut().open_block_collection_view(&kanban_id),
+        NavDispatchOutcome::Opened { .. }
+    ));
+    let kanban_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        host.run_steps(1);
+        let ready = mounted_collection
+            .lock()
+            .map(|view| {
+                view.view_block_id == kanban_id
+                    && !view.loading
+                    && !view.in_flight
+                    && view.error.is_none()
+            })
+            .unwrap_or(false);
+        if ready && find_node(&host.root(), "collection.kanban-move").is_some() {
+            break;
+        }
+        assert!(
+            Instant::now() < kanban_deadline,
+            "production Kanban host did not load within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let move_node = find_node(&host.root(), "collection.kanban-move").expect("Kanban move control");
+    let move_payload = serde_json::json!({
+        "block_id":alpha_id,
+        "from_lane":todo_tag,
+        "to_lane":done_tag
+    })
+    .to_string();
+    host.event(click_event(move_node.node_id, Some(&move_payload)));
+    host.run_steps(1);
+    let move_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        host.run_steps(1);
+        if let Ok(results) = await_block_view_results(&block_view_client, &workspace_id, &kanban_id)
+        {
+            let in_done = results.groups.iter().any(|lane| {
+                lane.key == done_tag && lane.blocks.iter().any(|block| block.block_id == alpha_id)
+            });
+            let in_todo = results.groups.iter().any(|lane| {
+                lane.key == todo_tag && lane.blocks.iter().any(|block| block.block_id == alpha_id)
+            });
+            if in_done && !in_todo {
+                break;
+            }
+        }
+        assert!(
+            Instant::now() < move_deadline,
+            "host-routed collection.kanban-move did not persist and refetch within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let row_author = collection_row_author_id(&alpha_id);
+    let done_lane_author = collection_lane_author_id(&done_tag);
+    let todo_lane_author = collection_lane_author_id(&todo_tag);
+    loop {
+        host.run_steps(1);
+        let row_in_done = find_node(&host.root(), &row_author).is_some_and(|row| {
+            row.value
+                .as_deref()
+                .is_some_and(|value| value.contains(&format!("lane={done_tag}")))
+        });
+        let done_contains = find_node(&host.root(), &done_lane_author).is_some_and(|lane| {
+            lane.value
+                .as_deref()
+                .is_some_and(|value| value.contains(&alpha_id))
+        });
+        let todo_excludes = find_node(&host.root(), &todo_lane_author).is_none_or(|lane| {
+            lane.value
+                .as_deref()
+                .is_none_or(|value| !value.contains(&alpha_id))
+        });
+        if row_in_done && done_contains && todo_excludes {
+            break;
+        }
+        assert!(
+            Instant::now() < move_deadline,
+            "mounted collection AccessKit tree did not reconcile the moved row/lane"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let tag_graph = live.get_json(&format!("/workspaces/{workspace_id}/loom/graph/global"));
+    let tag_edges = tag_graph["edges"].as_array().expect("raw graph tag edges");
+    let has_tag_edge = |target: &str| {
+        tag_edges.iter().any(|row| {
+            row["edge"]["source_block_id"].as_str() == Some(alpha_id.as_str())
+                && row["edge"]["target_block_id"].as_str() == Some(target)
+                && row["edge"]["edge_type"].as_str() == Some("tag")
+        })
+    };
+    assert!(has_tag_edge(&done_tag));
+    assert!(!has_tag_edge(&todo_tag));
+    assert_eq!(
+        persisted_tag_edge_count(&workspace_id, &alpha_id, &done_tag),
+        1,
+        "direct PostgreSQL authority contains the destination tag edge"
     );
-
-    // (c3) add-edge -> POST /loom/edges (AC-042-07 DB half). Body from the REAL semantic_edge_request
-    //      (source/target/edge_type=mention/created_by=user).
-    let edge = canvas.semantic_edge_request(&ws, &source_block, &target_block);
-    be.post_json(&edge.url, &edge.body.expect("add-edge carries a body"));
-
-    // (d3) SELECT edges: the edge row persisted iff source appears in target's backlinks (the A->B edge).
-    let backlinks = be.get_json(&format!("/workspaces/{ws}/loom/blocks/{target_block}/backlinks"));
-    assert!(
-        serde_json::to_string(&backlinks).unwrap().contains(&source_block),
-        "AC-042-07/AC-042-10/PROOF-042-D: source {source_block} must appear in {target_block} backlinks \
-         (edges row persisted)"
+    assert_eq!(
+        persisted_tag_edge_count(&workspace_id, &alpha_id, &todo_tag),
+        0,
+        "direct PostgreSQL authority removed the source tag edge"
     );
-
     println!(
-        "AC-042-05/06/07/10 + PROOF-042-D: place-block -> placement {placement_id} in board GET; \
-         kanban-move -> tag_edges hub '{to_lane}'; add-edge -> edges backlink {source_block} -> \
-         {target_block} — all round-tripped through real PostgreSQL"
+        "PROOF-042-D PostgreSQL loom_edges: block={alpha_id} done_tag={done_tag} count=1 todo_tag={todo_tag} count=0"
+    );
+
+    // A completely fresh pane retains the same author_id -> NodeId mapping after durable reload.
+    let reloaded = await_graph(&fresh_client, &workspace_id, 5).expect("durable graph reload");
+    let fresh_mount = mount_live_graph(&workspace_id, reloaded);
+    for (author, expected_node_id) in stable_node_ids {
+        assert_eq!(
+            find_node(&fresh_mount.harness.root(), &author)
+                .expect("reloaded stable author_id")
+                .node_id,
+            expected_node_id
+        );
+    }
+    for (author, expected_node_id) in stable_edge_ids {
+        assert_eq!(
+            find_node(&fresh_mount.harness.root(), &author)
+                .expect("reloaded stable edge author_id")
+                .node_id,
+            expected_node_id
+        );
+    }
+    drop(fresh_mount);
+    drop(host);
+
+    // Unreachable backend is a real transport failure. It must deliver Err, mount no fabricated graph
+    // nodes, and expose a bounded Retry action that emits the typed retry event.
+    let down_client = LoomGraphClient::new("http://127.0.0.1:9", rt.handle().clone());
+    let down = await_graph(&down_client, &workspace_id, 6)
+        .expect_err("unreachable backend must never fabricate a graph");
+    let registry = Arc::new(Mutex::new(KnowledgeActionRegistry::new()));
+    let mut down_view = LoomGraphView::global(&workspace_id);
+    down_view.error = Some(down);
+    down_view.install_knowledge_action_registry(registry);
+    let down_graph = Arc::new(Mutex::new(down_view));
+    let down_events = Arc::new(Mutex::new(Vec::new()));
+    let down_graph_ui = Arc::clone(&down_graph);
+    let down_events_ui = Arc::clone(&down_events);
+    let mut down_harness = Harness::builder().build_ui(move |ui| {
+        let palette = HsTheme::Dark.palette();
+        if let Some(event) = down_graph_ui.lock().unwrap().show(ui, &palette) {
+            down_events_ui.lock().unwrap().push(event);
+        }
+    });
+    down_harness.run();
+    down_harness.run();
+    assert!(knowledge_author_ids(&down_harness.root())
+        .iter()
+        .all(|(author, _)| !author.starts_with("graph.node.")));
+    let retry = find_node(
+        &down_harness.root(),
+        handshake_native::graph::graph_view::RETRY_AUTHOR_ID,
+    )
+    .expect("backend-loss graph exposes Retry");
+    assert_eq!(retry.role, "Button");
+    down_harness.event(click_event(retry.node_id, None));
+    down_harness.run();
+    assert!(down_events
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|event| matches!(event, GraphEvent::Retry)));
+
+    let cleanup_status = live.delete_workspace(&workspace_id);
+    assert!(matches!(cleanup_status, 200 | 202 | 204));
+    cleanup.active = false;
+    let remaining = live.get_json("/workspaces");
+    assert!(remaining
+        .as_array()
+        .expect("workspace list")
+        .iter()
+        .all(|workspace| workspace["id"].as_str() != Some(workspace_id.as_str())));
+    assert_no_local_artifact_dir();
+    println!(
+        "MT-042 LIVE: workspace={workspace_id} blocks=[{alpha_id},{beta_id},{gamma_id}] \
+         stable_author_ids={} seed_edges=2 add_remove_edge={created_edge_id} empty/backend-loss negatives=PASS",
+        expected_nodes.len()
     );
 }

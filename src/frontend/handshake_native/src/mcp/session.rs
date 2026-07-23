@@ -3,9 +3,9 @@
 //! MT-027's [`crate::mcp::tools::dispatch_request`] turns one parsed request into one response with auth
 //! + the four tools. [`McpSession`] is the MT-028 wrapper that makes the SAME dispatch safe under N concurrent agents.
 //!
-//! 1. Every accepted connection gets one `McpSession` holding a deterministic `agent_id` derived from
-//!    its session token (see [`crate::mcp::attribution::agent_id_for_token`]) — so every action that
-//!    session dispatches is ATTRIBUTABLE.
+//! 1. Every accepted connection gets one `McpSession`. The token-derived id is the base identity;
+//!    production qualifies it by a stable request `client_session_id` when supplied, otherwise by the
+//!    connection sequence, so every action is attributable without logging the token.
 //! 2. A mutating tool (`click_widget` / `set_value`) acquires an EXCLUSIVE lease on its target widget
 //!    key before the action is enqueued, and a reading tool (`list_widgets`) acquires a SHARED lease on
 //!    the snapshot resource — so two agents cannot drive the same widget at once, but many can read
@@ -13,9 +13,10 @@
 //! 3. After a mutating tool successfully enqueues, the action is APPENDED to the shared
 //!    [`crate::mcp::attribution::ActionLog`] with this session's `agent_id` — the post-hoc audit trail.
 //!
-//! The lease is held ONLY for the dispatch span (acquire -> dispatch -> append -> drop), which is the
-//! synchronous, await-free window MT-027's `dispatch_locked` already runs in. Holding it longer would
-//! serialize the swarm; holding it shorter would not protect the resolve+enqueue against a racing agent.
+//! The registry lease protects the synchronous resolve+enqueue span. After it drops, the
+//! [`ActionChannel`] keeps a per-target transaction in flight through fresh-tree revalidation and
+//! post-render acknowledgement; a second write to that target receives the typed target-busy error.
+//! Different targets remain independently queueable.
 //!
 //! ## Why the lease key is the widget `author_id`
 //!
@@ -31,6 +32,7 @@ use std::time::Duration;
 
 use crate::accessibility::UiTreeSnapshot;
 use crate::mcp::action::ActionChannel;
+use crate::mcp::argus::ArgusMethod;
 use crate::mcp::attribution::{agent_id_for_token, ActionLog};
 use crate::mcp::leases::{LeaseKind, LeaseRegistry, DEFAULT_LEASE_TIMEOUT};
 use crate::mcp::screenshot::{ScreenshotError, ScreenshotResult};
@@ -97,6 +99,18 @@ impl McpSession {
     /// token's hex (deterministic per session). Shares the given registry + log with all other sessions.
     pub fn new(token: SessionToken, leases: LeaseRegistry, log: ActionLog) -> Self {
         let agent_id = agent_id_for_token(token.as_hex());
+        Self::new_with_agent_id(token, leases, log, agent_id)
+    }
+
+    /// Build a connection-attributed session while retaining the server token as the authentication
+    /// authority. Production uses this so parallel clients discovering one canonical app binding never
+    /// collapse into one audit identity merely because they authenticate with the same app token.
+    pub(crate) fn new_with_agent_id(
+        token: SessionToken,
+        leases: LeaseRegistry,
+        log: ActionLog,
+        agent_id: String,
+    ) -> Self {
         Self {
             agent_id,
             token,
@@ -135,8 +149,8 @@ impl McpSession {
         if !self.token.matches(&request.session_token) {
             return DispatchPlan::Direct;
         }
-        match request.method.as_str() {
-            "click_widget" | "set_value" => {
+        match ArgusMethod::from_wire_name(&request.method) {
+            Some(ArgusMethod::Click | ArgusMethod::SetValue) => {
                 match request.params.get("target").and_then(|v| v.as_str()) {
                     Some(t) if !t.is_empty() => DispatchPlan::ExclusiveWrite {
                         target: t.to_owned(),
@@ -145,8 +159,8 @@ impl McpSession {
                     _ => DispatchPlan::Direct,
                 }
             }
-            "list_widgets" => DispatchPlan::SharedRead,
-            // screenshot + unknown methods: no shared-widget mutation, so no lease.
+            Some(ArgusMethod::Inspect) => DispatchPlan::SharedRead,
+            // Argus screenshot + unknown methods: no shared-widget mutation, so no lease.
             _ => DispatchPlan::Direct,
         }
     }
@@ -167,7 +181,8 @@ impl McpSession {
     /// - `screenshot` + unknown methods + auth failure: no lease (no shared-widget mutation), dispatched
     ///   directly.
     ///
-    /// The lease guard is dropped at the end of this call, releasing the resource for the next agent.
+    /// The registry lease guard drops at the end of this call. A successful mutation remains protected
+    /// by the action channel's per-target in-flight transaction until post-render acknowledgement.
     pub fn dispatch(
         &self,
         request: &McpRequest,
@@ -313,8 +328,10 @@ impl McpSession {
             Err(_) => return response, // unreachable given `queued`, but keep the type total.
         };
         let node_id = result.get("node_id").and_then(|v| v.as_u64()).unwrap_or(0);
-        self.log
-            .record(&self.agent_id, &request.method, target, node_id);
+        let op_name = ArgusMethod::from_wire_name(&request.method)
+            .map(ArgusMethod::canonical_name)
+            .unwrap_or(&request.method);
+        self.log.record(&self.agent_id, op_name, target, node_id);
         // Rebuild the result Value with the acting agent_id added (AC#2).
         let mut stamped = result;
         if let Some(obj) = stamped.as_object_mut() {
@@ -411,6 +428,26 @@ impl SwarmSafetyState {
             .with_lease_timeout(self.lease_timeout)
     }
 
+    pub(crate) fn session_with_agent_id(&self, agent_id: String) -> McpSession {
+        McpSession::new_with_agent_id(
+            self.token.clone(),
+            self.leases.clone(),
+            self.log.clone(),
+            agent_id,
+        )
+        .with_lease_timeout(self.lease_timeout)
+    }
+
+    pub(crate) fn session_for_connection(&self, connection_id: u64) -> McpSession {
+        let token_agent_id = agent_id_for_token(self.token.as_hex());
+        self.session_with_agent_id(format!("{token_agent_id}:connection-{connection_id}"))
+    }
+
+    pub(crate) fn session_for_client(&self, client_session_id: &str) -> McpSession {
+        let token_agent_id = agent_id_for_token(self.token.as_hex());
+        self.session_with_agent_id(format!("{token_agent_id}:client:{client_session_id}"))
+    }
+
     /// The shared action log (for diagnostics / tests).
     pub fn log(&self) -> &ActionLog {
         &self.log
@@ -487,7 +524,7 @@ mod tests {
 
         let resp = session.dispatch(
             &req(
-                "click_widget",
+                "argus.click",
                 serde_json::json!({ "target": "btn" }),
                 "secret",
             ),
@@ -508,11 +545,70 @@ mod tests {
         let entries = state.log().drain_log();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].agent_id, session.agent_id());
-        assert_eq!(entries[0].op_name, "click_widget");
+        assert_eq!(entries[0].op_name, "argus.click");
         assert_eq!(entries[0].target_key, "btn");
         assert_eq!(entries[0].node_id, 10);
         // The lease is released after dispatch (no resource left held).
         assert_eq!(state.leases().active_resource_count(), 0);
+    }
+
+    #[test]
+    fn released_registry_lease_does_not_admit_same_target_before_render_ack() {
+        let token = SessionToken::from_hex("secret");
+        let state = SwarmSafetyState::new(
+            token.clone(),
+            Arc::new(Mutex::new(snap())),
+            Arc::new(Mutex::new(ActionChannel::new())),
+        );
+        let session = state.session();
+        let mut snapshot = snap();
+        let target = &mut snapshot.root.children[0];
+        target.id = "field".to_owned();
+        target.author_id = Some("field".to_owned());
+        target.role = "TextInput".to_owned();
+        target.value = Some("before".to_owned());
+        target.actions = vec!["SetValue".to_owned()];
+        let mut channel = ActionChannel::new();
+
+        let first = session.dispatch(
+            &req(
+                "argus.set_value",
+                serde_json::json!({"target": "field", "value": "one"}),
+                "secret",
+            ),
+            &snapshot,
+            &mut channel,
+            no_capture,
+        );
+        assert_eq!(first.to_json()["result"]["queued"], true);
+        assert_eq!(state.leases().active_resource_count(), 0);
+
+        let overlapping = session.dispatch(
+            &req(
+                "argus.set_value",
+                serde_json::json!({"target": "field", "value": "two"}),
+                "secret",
+            ),
+            &snapshot,
+            &mut channel,
+            no_capture,
+        );
+        assert_eq!(overlapping.to_json()["error"]["code"], ERR_LEASE_TIMEOUT);
+        assert_eq!(channel.drain_revalidated_into_events(&snapshot).len(), 1);
+        snapshot.root.children[0].value = Some("one".to_owned());
+        channel.acknowledge_after_render(&snapshot);
+
+        let after_ack = session.dispatch(
+            &req(
+                "argus.set_value",
+                serde_json::json!({"target": "field", "value": "two"}),
+                "secret",
+            ),
+            &snapshot,
+            &mut channel,
+            no_capture,
+        );
+        assert_eq!(after_ack.to_json()["result"]["queued"], true);
     }
 
     #[test]
@@ -603,7 +699,7 @@ mod tests {
         let snapshot = snap();
         let mut channel = ActionChannel::new();
         let resp = session.dispatch(
-            &req("list_widgets", serde_json::json!({}), "secret"),
+            &req("argus.inspect", serde_json::json!({}), "secret"),
             &snapshot,
             &mut channel,
             no_capture,

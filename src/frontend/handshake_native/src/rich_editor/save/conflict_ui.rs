@@ -11,7 +11,7 @@
 //!
 //! - conflict window root: `conflict-dialog`
 //! - Keep yours button:    `conflict-keep-yours`
-//! - Keep server button:   `conflict-keep-server`
+//! - Keep server button:   `editor.rich.conflict.keep-server`
 //! - Open merge button:    `conflict-open-merge`
 //! - Keep-yours confirm:   `conflict-keep-yours-confirm` (MC-003 secondary confirmation)
 //! - draft banner root:    `draft-recovery-banner`
@@ -46,7 +46,7 @@ pub const CONFLICT_DIALOG_AUTHOR_ID: &str = "conflict-dialog";
 /// Keep-yours button author_id.
 pub const CONFLICT_KEEP_YOURS_AUTHOR_ID: &str = "conflict-keep-yours";
 /// Keep-server button author_id.
-pub const CONFLICT_KEEP_SERVER_AUTHOR_ID: &str = "conflict-keep-server";
+pub const CONFLICT_KEEP_SERVER_AUTHOR_ID: &str = "editor.rich.conflict.keep-server";
 /// Open-merge button author_id.
 pub const CONFLICT_OPEN_MERGE_AUTHOR_ID: &str = "conflict-open-merge";
 /// Keep-yours secondary-confirmation button author_id (MC-003).
@@ -224,7 +224,9 @@ pub fn show_conflict_window(
         let node_id = inner.response.id;
         ctx.accesskit_node_builder(node_id, |node| {
             node.set_role(Role::Dialog);
-            node.set_author_id(CONFLICT_DIALOG_AUTHOR_ID.to_owned());
+            node.set_author_id(crate::rich_editor::scoped_author_id(
+                CONFLICT_DIALOG_AUTHOR_ID,
+            ));
             node.set_label("Save conflict".to_owned());
         });
     }
@@ -338,7 +340,7 @@ pub fn show_draft_banner(
     let node_id = resp.response.id;
     ui.ctx().accesskit_node_builder(node_id, |node| {
         node.set_role(Role::Group);
-        node.set_author_id(DRAFT_BANNER_AUTHOR_ID.to_owned());
+        node.set_author_id(crate::rich_editor::scoped_author_id(DRAFT_BANNER_AUTHOR_ID));
         node.set_label("Draft recovery".to_owned());
     });
     outcome
@@ -365,7 +367,9 @@ pub fn show_export_picker(ui: &mut egui::Ui) -> Option<super::export::ExportForm
     let node_id = resp.response.id;
     ui.ctx().accesskit_node_builder(node_id, |node| {
         node.set_role(Role::Group);
-        node.set_author_id(EXPORT_PICKER_AUTHOR_ID.to_owned());
+        node.set_author_id(crate::rich_editor::scoped_author_id(
+            EXPORT_PICKER_AUTHOR_ID,
+        ));
         node.set_label("Export format picker".to_owned());
     });
     chosen
@@ -377,7 +381,7 @@ pub fn show_export_picker(ui: &mut egui::Ui) -> Option<super::export::ExportForm
 fn emit_button_id(ui: &egui::Ui, resp: &egui::Response, author_id: &str) {
     let author = author_id.to_owned();
     ui.ctx().accesskit_node_builder(resp.id, move |node| {
-        node.set_author_id(author.clone());
+        node.set_author_id(crate::rich_editor::scoped_author_id(author.clone()));
     });
 }
 
@@ -523,7 +527,10 @@ mod tests {
         // these exact strings).
         assert_eq!(CONFLICT_DIALOG_AUTHOR_ID, "conflict-dialog");
         assert_eq!(CONFLICT_KEEP_YOURS_AUTHOR_ID, "conflict-keep-yours");
-        assert_eq!(CONFLICT_KEEP_SERVER_AUTHOR_ID, "conflict-keep-server");
+        assert_eq!(
+            CONFLICT_KEEP_SERVER_AUTHOR_ID,
+            "editor.rich.conflict.keep-server"
+        );
         assert_eq!(
             CONFLICT_KEEP_YOURS_CONFIRM_AUTHOR_ID,
             "conflict-keep-yours-confirm"

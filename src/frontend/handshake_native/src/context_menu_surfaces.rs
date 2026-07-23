@@ -18,10 +18,9 @@
 //! 4. **explorer row** — the MT-014 project-tree document / canvas / bookmark rows
 //!    ([`crate::project_tree`]). These ARE interactive rows that already carry a stable author_id and a
 //!    `block_id`/`content_id`, so the menu dispatches into real existing actions (open the row, copy its
-//!    id/path, and — for BOOKMARK rows only — rename its Loom block via the verified backend PATCH).
-//!    Document and canvas rows carry a document/canvas id, NOT a Loom-block id, so their rename item is
-//!    rendered DISABLED + disclosed (a document/canvas id PATCHed at `/loom/blocks/{id}` would 404 —
-//!    different id space; document rename needs a future document endpoint).
+//!    id/path, rename Bookmark rows through the verified Loom-block PATCH, and rename Document rows
+//!    through the verified knowledge-document endpoint, and rename Canvas rows through the canvas
+//!    title route with optimistic concurrency).
 //!
 //! Each surface gets (a) a pure `*_context_items(...)` builder that returns the typed item list for a
 //! given live state, and (b) a pure `*_action_for_id(...)` mapper that turns a confirmed stable id
@@ -64,10 +63,9 @@
 //!   document/canvas/bookmark rows that carry a stable author_id + a `content_id`/`block_id`. The menu
 //!   reuses that EXISTING row identity, so no scaffolding is involved. `open` reuses the existing
 //!   `OpenDocument`/`OpenCanvas`/`OpenBookmark` events; `copy_path` copies the row's stable id to the
-//!   clipboard; `rename` PATCHes the Loom block title via the verified backend endpoint
-//!   `PATCH /workspaces/:id/loom/blocks/:block_id` (body `{ "title": "…" }`) ONLY for BOOKMARK rows,
-//!   whose id IS a genuine `LoomBlock.block_id` — document/canvas rows carry a different id space and
-//!   render rename DISABLED + disclosed; `reveal_in_graph` is
+//!   clipboard; `rename` dispatches by row kind: Bookmarks use the Loom-block PATCH and Documents use
+//!   `POST /knowledge/documents/:document_id/rename`; Canvases use `PATCH /canvases/:canvas_id`.
+//!   `reveal_in_graph` is
 //!   rendered DISABLED + disclosed because WP-011 has NO graph/loom-view pane surface to reveal into
 //!   (no `PaneType::LoomGraph` / graph view exists — verified) — disclosed, not faked.
 //! - **editor body** — still genuinely deferred: WP-011 has NO native editor widget (the editor is
@@ -330,6 +328,11 @@ pub fn project_tab_action_for_id(id: &str) -> Option<ProjectTabMenuAction> {
 // Surface 4: explorer row (project-tree document / canvas / bookmark rows)
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
+/// Stable AccessKit identity for the live explorer rename text field. The shell now contains several
+/// simultaneous `TextInput` nodes (search rail, Runtime Chat, dialogs), so role-only discovery is not
+/// a valid operator/model interaction path.
+pub const EXPLORER_RENAME_INPUT_AUTHOR_ID: &str = "explorer.rename.input";
+
 /// Stable ids for the explorer-row context menu (MT-020 part 1, FIX-A). Item ids follow the contract's
 /// `ctx-menu.explorer.{id}` scheme (the MT-019 infra prefixes `ctx-menu.` automatically).
 pub mod explorer_ids {
@@ -345,20 +348,15 @@ pub mod explorer_ids {
     pub const ROUTE_TO_STAGE: &str = "explorer.route_to_stage";
 }
 
-/// The kind of project-tree row a context menu is being built for. Drives which items are ENABLED:
-/// only a `Bookmark` row carries a genuine Loom-block id (`LoomBlock.block_id` from the pins view),
-/// so it is the ONLY kind whose `rename` maps to the verified Loom-block PATCH target. A `Document`
-/// row carries a DOCUMENT id (from `GET /workspaces/:id/documents`) and a `Canvas` row carries a
-/// CANVAS id — neither is a Loom-block id, so both have rename disabled + disclosed (PATCHing
-/// `/loom/blocks/{document_or_canvas_id}` would 404 at runtime — different id space). `open` is always
-/// available (it dispatches the existing open events, which DO key on the document/canvas id).
+/// The kind of project-tree row a context menu is being built for. Drives target-typed rename
+/// dispatch: Bookmark ids use the Loom-block route, Document ids use the knowledge-document route,
+/// and Canvas ids use the canvas title route. `open` is always available.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExplorerRowKind {
-    /// A Documents-group row (`OpenDocument`). Its id is a DOCUMENT id, NOT a Loom-block id, so rename
-    /// is disabled + disclosed (renaming a document needs a document endpoint, a future MT).
+    /// A Documents-group row (`OpenDocument`). Its document id is routed to the dedicated knowledge-
+    /// document rename handler, never to the Loom-block rename handler.
     Document,
-    /// A Canvases-group row (`OpenCanvas`). Its id is a CANVAS id, not a Loom block, so rename is
-    /// disabled + disclosed.
+    /// A Canvases-group row (`OpenCanvas`). Its id is routed to the dedicated canvas title handler.
     Canvas,
     /// A Bookmarks-group row (`OpenBookmark`). Backed by a genuine `LoomBlock.block_id`, so rename
     /// PATCHes that block via the verified endpoint.
@@ -367,8 +365,8 @@ pub enum ExplorerRowKind {
 
 /// A typed action a confirmed explorer-row menu id maps to. Only the ENABLED ids have variants:
 /// `reveal_in_graph` is future-target (no graph view surface in WP-011), so it has NO variant and can
-/// never fire. `Rename` is only produced for a Loom-block-backed BOOKMARK row; document and canvas rows
-/// carry a non-Loom-block id, so their rename item is disabled and cannot be confirmed.
+/// never fire. Rename is target-typed so a document id cannot accidentally reach the Loom-block PATCH;
+/// canvas rename uses its dedicated title-update route.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExplorerMenuAction {
     /// Open the row's content on the active pane (reuses the existing open events).
@@ -377,28 +375,25 @@ pub enum ExplorerMenuAction {
     CopyPath,
     /// Rename the row's Loom block via `PATCH /workspaces/:id/loom/blocks/:block_id`.
     Rename,
+    /// Rename a knowledge document via `POST /knowledge/documents/:document_id/rename`.
+    RenameDocument,
+    /// Rename a canvas via `PATCH /canvases/:canvas_id`.
+    RenameCanvas,
     /// MT-033: route the row's DOCUMENT to the Stage pane via the MT-031 Route-to-Stage command. Only
     /// produced for a Document row (the Stage pane displays a routed document by id); a Canvas/Bookmark
     /// row's Route-to-Stage item is disabled, so this never fires for them.
     RouteToStage,
 }
 
-/// Build the explorer-row context-menu item list for a row of `kind`. ONLY a `Bookmark` row carries a
-/// genuine Loom-block id, so it is the only kind whose `rename` is ENABLED (it PATCHes that block via
-/// the verified endpoint). A `Document` row's id is a DOCUMENT id and a `Canvas` row's id is a CANVAS
-/// id — neither is a Loom-block id, so both have `rename` disabled + disclosed (PATCHing
-/// `/loom/blocks/{document_or_canvas_id}` would 404 — different id space). `reveal_in_graph` is always
+/// Build the explorer-row context-menu item list for a row of `kind`. Bookmark and document rename are
+/// enabled but dispatch to distinct typed handlers. `reveal_in_graph` is always
 /// disabled + disclosed: WP-011 has no graph/loom-view pane to reveal into (verified — no such
 /// `PaneType`).
 pub fn explorer_context_items(kind: ExplorerRowKind) -> Vec<ContextMenuItem> {
     let rename = match kind {
-        ExplorerRowKind::Bookmark => ContextMenuItem::action(explorer_ids::RENAME, "Rename"),
-        ExplorerRowKind::Document => ContextMenuItem::action(explorer_ids::RENAME, "Rename")
-            .disabled(
-            "Documents are not Loom blocks; document rename needs a document endpoint (future MT)",
-        ),
-        ExplorerRowKind::Canvas => ContextMenuItem::action(explorer_ids::RENAME, "Rename")
-            .disabled("Canvas rows are not Loom blocks (no rename endpoint)"),
+        ExplorerRowKind::Bookmark | ExplorerRowKind::Document | ExplorerRowKind::Canvas => {
+            ContextMenuItem::action(explorer_ids::RENAME, "Rename")
+        }
     };
     // MT-033: "Route to Stage" — ENABLED only for a Document row (the Stage pane's `Document` content
     // variant routes a rich document by id). A Canvas/Bookmark row's Route-to-Stage is disabled +
@@ -437,17 +432,15 @@ pub fn explorer_context_items(kind: ExplorerRowKind) -> Vec<ContextMenuItem> {
 }
 
 /// Map a confirmed explorer-row menu id to its typed action, honoring the row `kind`: `rename` fires
-/// ONLY for a `Bookmark` row (the only kind backed by a genuine Loom-block id). A `Document` or
-/// `Canvas` row's `rename` id maps to `None` (its item is disabled, so it cannot be confirmed — this is
-/// the belt-and-braces second line of defence that also guarantees a document/canvas id can never reach
-/// the Loom-block PATCH). `reveal_in_graph` and unknown ids map to `None`.
+/// only the handler for that row's id space. `reveal_in_graph` and unknown ids map to `None`.
 pub fn explorer_action_for_id(id: &str, kind: ExplorerRowKind) -> Option<ExplorerMenuAction> {
     match id {
         explorer_ids::OPEN => Some(ExplorerMenuAction::Open),
         explorer_ids::COPY_PATH => Some(ExplorerMenuAction::CopyPath),
         explorer_ids::RENAME => match kind {
             ExplorerRowKind::Bookmark => Some(ExplorerMenuAction::Rename),
-            ExplorerRowKind::Document | ExplorerRowKind::Canvas => None,
+            ExplorerRowKind::Document => Some(ExplorerMenuAction::RenameDocument),
+            ExplorerRowKind::Canvas => Some(ExplorerMenuAction::RenameCanvas),
         },
         // MT-033: Route-to-Stage fires ONLY for a Document row (the Stage pane displays a routed
         // document); a Canvas/Bookmark row's item is disabled, so even a confirmed id maps to None
@@ -1504,6 +1497,8 @@ pub const EDITOR_BODY_REQUIRED_IDS: &[&str] = &[
 /// subset of EDITOR navigation actions the contract names (Open note / Reveal node / Create note from
 /// link). Ids follow the contract's `ctxmenu-node-{action}` scheme (no parallel id scheme — RISK-070-5).
 pub mod node_menu_ids {
+    /// Route this exact canvas node to the Stage pane through the shared Stage interop bus.
+    pub const ROUTE_TO_STAGE: &str = "ctxmenu-node-route-to-stage";
     /// Open the node's backing note/document (a `NavigationTarget::OpenNote`).
     pub const OPEN_NOTE: &str = "ctxmenu-node-open-note";
     /// Reveal/focus the node in its pane (a `NavigationTarget::RevealNode`).
@@ -1519,6 +1514,8 @@ pub mod node_menu_ids {
 /// NavHandler target or the real create-note handler).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeMenuAction {
+    /// Route the clicked node through the established CanvasNodeRef -> Stage interop path.
+    RouteToStage,
     /// Open the node's backing note (`NavigationTarget::OpenNote`).
     OpenNote,
     /// Reveal/focus the node in its pane (`NavigationTarget::RevealNode`).
@@ -1529,41 +1526,74 @@ pub enum NodeMenuAction {
 
 /// What a canvas/loom node can navigate to, driving honest enable/disable: a node backed by a real
 /// document enables Open note; a node with a stable id enables Reveal node; a node carrying an unresolved
-/// link enables Create-note. Read fresh from the clicked node at right-click time.
+/// link enables Create-note. Route to Stage additionally requires a live Canvas board route; a stable node
+/// id alone is not sufficient. Read fresh from the clicked node and its live surface at right-click time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct NodeMenuAvailability {
+    /// `Some(false)` means a Canvas card is visible from a retained but pending/failed projection.
+    /// Every Canvas node action must then fail closed with the projection-specific reason. Graph nodes
+    /// use `None`; confirmed Canvas nodes use `Some(true)`.
+    pub canvas_projection_confirmed: Option<bool>,
     /// The node has a backing note/document to open (else Open note is disabled).
     pub has_note: bool,
     /// The node has a stable id to reveal/focus (else Reveal node is disabled).
     pub has_node_id: bool,
+    /// The current surface has a live Canvas board context that can build the Stage route. Graph nodes and
+    /// detached/identity-incomplete boards set this false even when the node itself has a stable id.
+    pub can_route_to_stage: bool,
     /// The node carries an unresolved link a note can be created from (else Create-note is disabled).
     pub unresolved_link: bool,
 }
 
 /// Build the canvas/loom-NODE editor context menu for the live `availability`. EVERY entry is RENDERED
 /// and bound to its REAL action; an action with no valid target for the node is DISABLED + disclosed
-/// (RISK-070-1). The node menu offers the node-appropriate SUBSET (Open note / Reveal node / Create note
-/// from link) the contract names.
+/// (RISK-070-1). The node menu offers the node-appropriate subset (Route to Stage / Open note / Reveal
+/// node / Create note from link) supported by its live source surface.
 pub fn node_context_items(availability: NodeMenuAvailability) -> Vec<ContextMenuItem> {
+    let source_available = availability.canvas_projection_confirmed != Some(false);
+    let unavailable_reason = "Canvas projection is pending, failed, or stale";
+    let route_to_stage = enabled_or(
+        ContextMenuItem::action(node_menu_ids::ROUTE_TO_STAGE, "Route to Stage"),
+        source_available && availability.has_node_id && availability.can_route_to_stage,
+        if source_available {
+            "Route to Stage requires a stable node id and a live Canvas board context"
+        } else {
+            unavailable_reason
+        },
+    );
     let open_note = enabled_or(
         ContextMenuItem::action(node_menu_ids::OPEN_NOTE, "Open Note"),
-        availability.has_note,
-        "This node has no backing note to open",
+        source_available && availability.has_note,
+        if source_available {
+            "This node has no backing note to open"
+        } else {
+            unavailable_reason
+        },
     );
     let reveal_node = enabled_or(
         ContextMenuItem::action(node_menu_ids::REVEAL_NODE, "Reveal Node"),
-        availability.has_node_id,
-        "This node has no stable id to reveal",
+        source_available && availability.has_node_id,
+        if source_available {
+            "This node has no stable id to reveal"
+        } else {
+            unavailable_reason
+        },
     );
     let create_note = enabled_or(
         ContextMenuItem::action(
             node_menu_ids::CREATE_NOTE_FROM_LINK,
             "Create note from link",
         ),
-        availability.unresolved_link,
-        "No unresolved link on this node",
+        source_available && availability.unresolved_link,
+        if source_available {
+            "No unresolved link on this node"
+        } else {
+            unavailable_reason
+        },
     );
     ContextMenu::new("editor-node")
+        .item(route_to_stage)
+        .separator()
         .item(open_note)
         .item(reveal_node)
         .separator()
@@ -1575,7 +1605,15 @@ pub fn node_context_items(availability: NodeMenuAvailability) -> Vec<ContextMenu
 /// disabled entry maps to `None`). Every entry, when available, maps to a real `NodeMenuAction` — no id
 /// on this surface resolves to a placeholder (AC-070-4 / MC-070-1).
 pub fn node_action_for_id(id: &str, availability: NodeMenuAvailability) -> Option<NodeMenuAction> {
+    if availability.canvas_projection_confirmed == Some(false) {
+        return None;
+    }
     match id {
+        node_menu_ids::ROUTE_TO_STAGE
+            if availability.has_node_id && availability.can_route_to_stage =>
+        {
+            Some(NodeMenuAction::RouteToStage)
+        }
         node_menu_ids::OPEN_NOTE if availability.has_note => Some(NodeMenuAction::OpenNote),
         node_menu_ids::REVEAL_NODE if availability.has_node_id => Some(NodeMenuAction::RevealNode),
         node_menu_ids::CREATE_NOTE_FROM_LINK if availability.unresolved_link => {
@@ -1585,9 +1623,10 @@ pub fn node_action_for_id(id: &str, availability: NodeMenuAvailability) -> Optio
     }
 }
 
-/// The three required canvas/loom-NODE editor-menu ids, in menu order, for the no-dead-handler audit
+/// The four required canvas/loom-NODE editor-menu ids, in menu order, for the no-dead-handler audit
 /// (AC-070-4 / MC-070-1).
 pub const NODE_MENU_REQUIRED_IDS: &[&str] = &[
+    node_menu_ids::ROUTE_TO_STAGE,
     node_menu_ids::OPEN_NOTE,
     node_menu_ids::REVEAL_NODE,
     node_menu_ids::CREATE_NOTE_FROM_LINK,
@@ -1607,6 +1646,7 @@ pub fn node_navigation_target(
 ) -> Option<crate::navigation_bus::NavigationTarget> {
     use crate::navigation_bus::NavigationTarget;
     match action {
+        NodeMenuAction::RouteToStage => None,
         NodeMenuAction::OpenNote => note_id.map(|id| NavigationTarget::OpenNote {
             note_id: id.to_owned(),
         }),
@@ -1931,7 +1971,7 @@ mod tests {
     }
 
     /// Explorer-row item ids match the stable `ctx-menu.explorer.{id}` reference list (no typos), for
-    /// each row kind. A document/bookmark renames; a canvas's rename is disabled but still present.
+    /// each row kind. Every row kind exposes rename and resolves it to its own typed handler.
     #[test]
     fn explorer_item_ids_match_reference() {
         for kind in [
@@ -1954,16 +1994,13 @@ mod tests {
         }
     }
 
-    /// Open + Copy Path are always enabled; rename is enabled ONLY for a BOOKMARK row (the only kind
-    /// whose id is a genuine Loom-block id). A Document or Canvas row's rename is disabled+disclosed (its
-    /// id is a document/canvas id, NOT a Loom-block id — PATCHing `/loom/blocks/{id}` would 404).
-    /// reveal_in_graph is always disabled.
+    /// Open + Copy Path are always enabled. Every row kind has a distinct typed rename handler.
     #[test]
     fn explorer_enable_state_matches_row_kind() {
         for (kind, rename_enabled) in [
             (ExplorerRowKind::Bookmark, true),
-            (ExplorerRowKind::Document, false),
-            (ExplorerRowKind::Canvas, false),
+            (ExplorerRowKind::Document, true),
+            (ExplorerRowKind::Canvas, true),
         ] {
             let items = explorer_context_items(kind);
             let find = |id: &str| items.iter().find(|i| i.id == id).unwrap();
@@ -1995,34 +2032,22 @@ mod tests {
         }
     }
 
-    /// FIX (BLOCKER): a Document row's id is a DOCUMENT id, NOT a Loom-block id, so its Rename item must
-    /// be present-but-DISABLED with a disclosed reason (mirrors the canvas-disabled assertion), and the
-    /// id-to-action mapper must refuse it — so a document id can never reach the `/loom/blocks/{id}`
-    /// PATCH (which would 404 at runtime). This is the regression guard for the adversarial finding.
+    /// A document id must resolve to the document-specific action, never the Loom-block action.
     #[test]
-    fn document_row_rename_is_present_but_disabled() {
+    fn document_row_rename_resolves_to_the_document_handler() {
         let items = explorer_context_items(ExplorerRowKind::Document);
         let rename = items
             .iter()
             .find(|i| i.id == explorer_ids::RENAME)
             .expect("Document row still RENDERS a Rename item (no fake-drop)");
         assert!(
-            !rename.enabled,
-            "Document Rename is disabled (document id is not a Loom-block id)"
+            rename.enabled,
+            "Document Rename is live because the knowledge-document endpoint exists"
         );
-        assert_eq!(
-            rename.disabled_reason,
-            Some(
-                "Documents are not Loom blocks; document rename needs a document endpoint (future MT)"
-            ),
-            "disabled Document Rename discloses the real reason",
-        );
-        // Belt-and-braces: even a (impossible) confirmed Document rename maps to NO fireable action,
-        // guaranteeing a document id is never routed to the Loom-block PATCH.
         assert_eq!(
             explorer_action_for_id(explorer_ids::RENAME, ExplorerRowKind::Document),
-            None,
-            "Document rename maps to no action (disabled, wrong id space)",
+            Some(ExplorerMenuAction::RenameDocument),
+            "Document rename maps to its dedicated handler",
         );
     }
 
@@ -2031,7 +2056,7 @@ mod tests {
     /// maps to the real `Rename` action that drives the verified PATCH. This pins the post-fix contract:
     /// rename is enabled iff the row carries a real block id.
     #[test]
-    fn bookmark_row_rename_is_the_only_enabled_rename() {
+    fn bookmark_row_rename_resolves_to_the_loom_handler() {
         let bookmark = explorer_context_items(ExplorerRowKind::Bookmark);
         let rename = bookmark
             .iter()
@@ -2046,22 +2071,14 @@ mod tests {
             Some(ExplorerMenuAction::Rename),
             "Bookmark rename fires the real PATCH-driving action",
         );
-        // Cross-check: the OTHER two kinds do NOT enable rename, so Bookmark is the sole enabled rename.
-        for other in [ExplorerRowKind::Document, ExplorerRowKind::Canvas] {
-            let r = explorer_context_items(other)
-                .into_iter()
-                .find(|i| i.id == explorer_ids::RENAME)
-                .unwrap();
-            assert!(
-                !r.enabled,
-                "{other:?} rename is disabled (not a Loom-block id)"
-            );
-        }
+        assert_eq!(
+            explorer_action_for_id(explorer_ids::RENAME, ExplorerRowKind::Canvas),
+            Some(ExplorerMenuAction::RenameCanvas),
+        );
     }
 
     /// Open + Copy Path map to their typed action for EVERY row kind (they involve no backend). Rename
-    /// fires ONLY for a Bookmark row; reveal_in_graph + a document/canvas rename + unknown ids map to
-    /// none (the future-target / disabled second line of defence).
+    /// uses a handler selected by row kind; reveal_in_graph and unknown ids map to none.
     #[test]
     fn explorer_ids_map_to_actions() {
         for kind in [
@@ -2083,21 +2100,22 @@ mod tests {
             );
             assert_eq!(explorer_action_for_id("bogus.id", kind), None);
         }
-        // Rename fires ONLY for a Bookmark row (the only Loom-block-backed id).
+        // Bookmark rename fires the Loom-block handler; Document rename is asserted separately below.
         assert_eq!(
             explorer_action_for_id(explorer_ids::RENAME, ExplorerRowKind::Bookmark),
             Some(ExplorerMenuAction::Rename),
             "bookmark rename fires the real PATCH action",
         );
-        // A document or canvas rename is disabled (wrong id space), so even a confirmed id maps to no
-        // fireable action — a document/canvas id can never reach the Loom-block PATCH.
-        for kind in [ExplorerRowKind::Document, ExplorerRowKind::Canvas] {
-            assert_eq!(
-                explorer_action_for_id(explorer_ids::RENAME, kind),
-                None,
-                "{kind:?} rename maps to no action (disabled, not a Loom-block id)",
-            );
-        }
+        assert_eq!(
+            explorer_action_for_id(explorer_ids::RENAME, ExplorerRowKind::Document),
+            Some(ExplorerMenuAction::RenameDocument),
+            "document rename fires only the knowledge-document action",
+        );
+        assert_eq!(
+            explorer_action_for_id(explorer_ids::RENAME, ExplorerRowKind::Canvas),
+            Some(ExplorerMenuAction::RenameCanvas),
+            "canvas rename fires only the canvas-title action",
+        );
         // MT-033: Route-to-Stage fires ONLY for a Document row (the Stage pane displays a routed
         // document); a Canvas/Bookmark row's item is disabled, so even a confirmed id maps to None.
         assert_eq!(

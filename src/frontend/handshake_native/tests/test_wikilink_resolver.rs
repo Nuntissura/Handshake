@@ -11,7 +11,7 @@
 //!   - AC-004 / PT-004: an unresolved wikilink renders a visible 'Create note' affordance + an
 //!     AccessKit `wikilink-create-{hash}` Button node (a kittest AccessKit-tree dump).
 //!   - AC-005: alias autocomplete surfaces an alias-matched document as a candidate with matched_alias
-//!     set + a stable `wikilink-candidate-{document_id}` author_id (candidates_for_query + a kittest
+//!     set + a stable `editor.rich.wikilink.candidate.{document_id}` author_id (candidates_for_query + a kittest
 //!     dropdown-row assertion).
 //!   - AC-006 / PT-005: the missing-aliases backend path raises the typed-gap blocker (the runtime
 //!     alias-backend-gap flag) AND renders the visible local-only banner AND the create half still
@@ -29,7 +29,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::rich_editor::document_model::node::{
     BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
@@ -43,13 +45,14 @@ use handshake_native::rich_editor::wikilinks::client::{
     WikilinkFuture, WikilinkResult,
 };
 use handshake_native::rich_editor::wikilinks::inline_view::{
-    candidate_author_id, create_affordance_author_id, EditorEvent, EditorIntent,
+    candidate_author_id, chip_occurrence_author_id, create_affordance_author_id, EditorEvent,
+    EditorIntent,
 };
 use handshake_native::rich_editor::wikilinks::resolver::{
     create_note_intent, resolve_wikilink, MatchKind, ResolverIndex, WikilinkResolution,
 };
 use handshake_native::rich_editor::wikilinks::runtime::{
-    CreateNoteBackend, CreateNoteOutcome, WikilinkRuntime,
+    CreateNoteBackend, CreateNoteOutcome, CreateNoteWrite, WikilinkRuntime,
 };
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. The crate sits at
@@ -142,15 +145,21 @@ impl CreateNoteBackend for SpyCreateBackend {
         &'a self,
         workspace_id: &'a str,
         title: &'a str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>>
-    {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<CreateNoteWrite, String>> + Send + 'a>,
+    > {
         self.calls.fetch_add(1, Ordering::SeqCst);
         self.requests
             .lock()
             .unwrap()
             .push((workspace_id.to_owned(), title.to_owned()));
         let id = self.new_doc_id.clone();
-        Box::pin(async move { Ok(id) })
+        Box::pin(async move {
+            Ok(CreateNoteWrite {
+                document_id: id,
+                created: true,
+            })
+        })
     }
 }
 
@@ -236,6 +245,111 @@ fn pt003_resolve_by_alias_returns_match_kind_alias() {
     );
 }
 
+#[test]
+fn duplicate_aliases_fail_closed_with_stable_sorted_ids() {
+    let mut idx = ResolverIndex::new();
+    idx.add_document("DOC-Z", "Zulu");
+    idx.add_document("DOC-A", "Alpha");
+    idx.add_alias("DOC-Z", "Shared Alias");
+    idx.add_alias("DOC-A", " shared   alias ");
+
+    assert_eq!(
+        resolve_wikilink(&idx, "SHARED ALIAS"),
+        WikilinkResolution::Ambiguous {
+            title: "SHARED ALIAS".into(),
+            document_ids: vec!["DOC-A".into(), "DOC-Z".into()],
+        }
+    );
+}
+
+#[test]
+fn duplicate_alias_chip_is_accesskit_alert_without_navigation_create_or_swarm_edit() {
+    let mut runtime = headless_runtime();
+    runtime.resolver_index.add_document("DOC-Z", "Zulu");
+    runtime.resolver_index.add_document("DOC-A", "Alpha");
+    runtime.resolver_index.add_alias("DOC-Z", "Shared Alias");
+    runtime.resolver_index.add_alias("DOC-A", "shared alias");
+    let state = Arc::new(std::sync::Mutex::new(
+        RichEditorState::new(doc_with_unresolved_link("Shared Alias"))
+            .with_wikilink_runtime(runtime),
+    ));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(620.0, 240.0))
+        .build_ui(move |ui| {
+            RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+    harness.run();
+
+    let author = chip_occurrence_author_id("Shared Alias", &[0, 1]);
+    let root = harness.root();
+    let node = root
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(author.as_str()))
+        .expect("ambiguous alias chip is exposed");
+    let access = node.accesskit_node();
+    assert_eq!(access.role(), egui::accesskit::Role::Alert);
+    assert!(access
+        .label()
+        .is_some_and(|label| label.contains("ambiguous link, 2 matching notes")));
+    assert!(!access
+        .data()
+        .supports_action(egui::accesskit::Action::Click));
+    assert!(!access
+        .data()
+        .supports_action(egui::accesskit::Action::SetValue));
+    let create_author = create_affordance_author_id("Shared Alias");
+    assert!(
+        root.children_recursive()
+            .all(|node| { node.accesskit_node().author_id() != Some(create_author.as_str()) }),
+        "ambiguous alias must not expose create"
+    );
+}
+
+#[test]
+fn duplicate_title_chip_is_accesskit_alert_without_navigation_create_or_swarm_edit() {
+    let mut runtime = headless_runtime();
+    runtime.resolver_index.add_document("DOC-Z", "Shared Title");
+    runtime
+        .resolver_index
+        .add_document("DOC-A", " shared   title ");
+    let state = Arc::new(std::sync::Mutex::new(
+        RichEditorState::new(doc_with_unresolved_link("Shared Title"))
+            .with_wikilink_runtime(runtime),
+    ));
+    let state_for_ui = Arc::clone(&state);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(620.0, 240.0))
+        .build_ui(move |ui| {
+            RichEditorWidget::new(Arc::clone(&state_for_ui)).show(ui);
+        });
+    harness.run();
+
+    let author = chip_occurrence_author_id("Shared Title", &[0, 1]);
+    let root = harness.root();
+    let node = root
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some(author.as_str()))
+        .expect("ambiguous title chip is exposed");
+    let access = node.accesskit_node();
+    assert_eq!(access.role(), egui::accesskit::Role::Alert);
+    assert!(access
+        .label()
+        .is_some_and(|label| label.contains("ambiguous link, 2 matching notes")));
+    assert!(!access
+        .data()
+        .supports_action(egui::accesskit::Action::Click));
+    assert!(!access
+        .data()
+        .supports_action(egui::accesskit::Action::SetValue));
+    let create_author = create_affordance_author_id("Shared Title");
+    assert!(
+        root.children_recursive()
+            .all(|node| { node.accesskit_node().author_id() != Some(create_author.as_str()) }),
+        "ambiguous title must not expose create"
+    );
+}
+
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-005: alias autocomplete candidate carries matched_alias + a stable author_id.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -260,7 +374,10 @@ fn ac005_alias_candidate_has_matched_alias_and_stable_author_id() {
         "the primary label is the canonical title"
     );
     // The candidate author_id is the stable contract form.
-    assert_eq!(candidate_author_id("DOC-9"), "wikilink-candidate-DOC-9");
+    assert_eq!(
+        candidate_author_id("DOC-9"),
+        "editor.rich.wikilink.candidate.DOC-9"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -365,12 +482,14 @@ fn ac002_pt002_post_create_mark_becomes_resolved_live() {
     }
     harness.run();
 
-    // Let the spawned create resolve, then pump frames so the editor drains the create outcome +
-    // rewrites the mark. Poll up to ~2s.
+    // Let the spawned create resolve, then drive the production host-owned completion fold. Async
+    // delivery authority deliberately lives outside widget visibility, so a bare widget harness must
+    // invoke the same `drain_create_note_outcome_for_host` method the shell calls each frame.
     let mut became_resolved = false;
     for _ in 0..200 {
         harness.run();
-        let st = state.lock().unwrap();
+        let mut st = state.lock().unwrap();
+        st.drain_create_note_outcome_for_host();
         let link = st.doc.children[0].as_block().unwrap().children[1]
             .as_hs_link()
             .unwrap();
@@ -428,12 +547,16 @@ fn mc001_double_click_does_not_create_twice() {
             &'a self,
             _ws: &'a str,
             _t: &'a str,
-        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>>
-        {
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<CreateNoteWrite, String>> + Send + 'a>,
+        > {
             self.calls.fetch_add(1, Ordering::SeqCst);
             Box::pin(async move {
                 tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-                Ok("DOC-SLOW".to_owned())
+                Ok(CreateNoteWrite {
+                    document_id: "DOC-SLOW".to_owned(),
+                    created: true,
+                })
             })
         }
     }
@@ -648,7 +771,7 @@ fn ac004_pt004_create_affordance_screenshot_and_accesskit_dump() {
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-005 (kittest dropdown row): an alias autocomplete row renders with a stable
-// `wikilink-candidate-{document_id}` author_id and an alias secondary label.
+// `editor.rich.wikilink.candidate.{document_id}` author_id and an alias secondary label.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -656,7 +779,7 @@ fn ac005_alias_candidate_dropdown_row_live_widget() {
     // AC-005 (REAL-WIDGET proof — replaces the prior tautology that built its own standalone egui list
     // and asserted what it set). This mounts the REAL `RichEditorWidget`, seeds an alias in the live
     // `resolver_index`, opens the `[[` autocomplete trigger, types a query matching the alias, runs
-    // frames, and asserts the LIVE `render_autocomplete_popup` produced a `wikilink-candidate-{id}` row
+    // frames, and asserts the LIVE `render_autocomplete_popup` produced an `editor.rich.wikilink.candidate.{id}` row
     // carrying the alias secondary label. This exercises the PRODUCT dropdown's consumption of
     // `candidates_for_query`, not a hand-built list.
     let doc = BlockNode::doc(vec![BlockNode::with_children(
@@ -693,8 +816,8 @@ fn ac005_alias_candidate_dropdown_row_live_widget() {
         let root = harness.root();
         let surface = root
             .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
-            .expect("the editor surface node carries author_id 'rich-editor-surface'");
+            .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
+            .expect("the editor surface node carries author_id 'editor.rich.text'");
         surface.focus();
     }
     harness.step();
@@ -719,14 +842,14 @@ fn ac005_alias_candidate_dropdown_row_live_widget() {
         );
     }
 
-    // AC-005: the LIVE `render_autocomplete_popup` produced a `wikilink-candidate-DOC-9` row carrying
+    // AC-005: the LIVE popup produced an `editor.rich.wikilink.candidate.DOC-9` row carrying
     // the alias secondary label — proving the product dropdown consumed `candidates_for_query`.
     {
         let root = harness.root();
         let row = root
             .children_recursive()
             .find(|n| n.accesskit_node().author_id() == Some(candidate_author_id("DOC-9").as_str()))
-            .expect("AC-005: the LIVE dropdown produced a 'wikilink-candidate-DOC-9' row");
+            .expect("AC-005: the LIVE dropdown produced the canonical DOC-9 candidate row");
         let label = row.accesskit_node().label().unwrap_or_default();
         assert!(
             label.contains("Quarterly Plan"),
@@ -771,7 +894,7 @@ fn ac005_alias_candidate_dropdown_row_screenshot() {
         let root = harness.root();
         let surface = root
             .children_recursive()
-            .find(|n| n.accesskit_node().author_id() == Some("rich-editor-surface"))
+            .find(|n| n.accesskit_node().author_id() == Some("editor.rich.text"))
             .expect("the editor surface node is present");
         surface.focus();
     }
@@ -962,6 +1085,7 @@ fn create_note_intent_is_the_command_bus_event() {
         normalized_title: "spaced title".into(),
         display_title: "Spaced Title".into(),
         document_id: "DOC-Z".into(),
+        created: true,
     };
     match outcome {
         CreateNoteOutcome::Created { document_id, .. } => assert_eq!(document_id, "DOC-Z"),

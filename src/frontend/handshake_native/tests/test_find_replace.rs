@@ -109,7 +109,10 @@ fn panel_replace_all_caps_large_set_and_reports_remaining() {
 
     // First click: capped at REPLACE_ALL_CAP, with the remainder reported.
     let applied = panel.replace_all();
-    assert_eq!(applied, REPLACE_ALL_CAP, "first click capped at the per-click limit");
+    assert_eq!(
+        applied, REPLACE_ALL_CAP,
+        "first click capped at the per-click limit"
+    );
     assert_eq!(
         panel.find_state().unwrap().replace_all_remaining,
         500,
@@ -141,6 +144,24 @@ fn panel_replace_all_under_cap_leaves_no_remainder() {
     assert_eq!(applied, 3);
     assert_eq!(panel.find_state().unwrap().replace_all_remaining, 0);
     assert_eq!(panel.buffer().to_string(), "bar bar bar");
+}
+
+#[test]
+fn changing_query_clears_stale_replace_all_recovery_hint() {
+    let text = "x ".repeat(REPLACE_ALL_CAP + 3);
+    let panel = CodeEditorPanel::new(&text, "txt");
+    panel.open_find(true);
+    panel.set_find_query("x");
+    panel.set_replace_text("y");
+    assert_eq!(panel.replace_all(), REPLACE_ALL_CAP);
+    assert_eq!(panel.find_state().unwrap().replace_all_remaining, 3);
+
+    panel.set_find_query("y");
+    assert_eq!(
+        panel.find_state().unwrap().replace_all_remaining,
+        0,
+        "changing the query is the explicit recovery path for a stale capped-batch hint"
+    );
 }
 
 #[test]

@@ -8,7 +8,9 @@ use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
-use handshake_native::mcp::{ActionChannel, SessionToken, ERR_ACTION_QUEUE_FULL};
+use handshake_native::mcp::{
+    ActionChannel, ActionReceiptStatus, SessionToken, ERR_ACTION_QUEUE_FULL,
+};
 use handshake_native::mcp_navigation::{NavigationError, NavigationSequence, NavigationStep};
 use handshake_native::theme::HsTheme;
 
@@ -75,7 +77,7 @@ fn dispatch_step_with_fresh_snapshot(
     let receipt = sequence
         .dispatch_step(index, token, "session-secret", &snapshot, channel)
         .unwrap_or_else(|err| panic!("step {index} dispatches against fresh snapshot: {err:?}"));
-    let events = channel.drain_into_events();
+    let events = channel.drain_revalidated_into_events(&snapshot);
     assert!(
         events.iter().all(|event| matches!(
             event,
@@ -88,6 +90,18 @@ fn dispatch_step_with_fresh_snapshot(
     }
     harness.run();
     harness.run();
+    let observed = harness.state_mut().capture_mcp_snapshot_for_navigation();
+    channel.acknowledge_after_render(&observed);
+    let action_receipt = channel
+        .receipts()
+        .into_iter()
+        .find(|candidate| candidate.receipt_id == receipt.receipt_id)
+        .expect("production navigation dispatch publishes a terminal action receipt");
+    assert_eq!(
+        action_receipt.status,
+        ActionReceiptStatus::Indeterminate,
+        "effects are asserted from live product state, while the generic tree snapshot honestly lacks a causal completion token"
+    );
     receipt
 }
 
@@ -134,8 +148,11 @@ fn foreground_safe_navigation_sequence_drives_live_tree_without_os_input() {
     let set_value =
         dispatch_step_with_fresh_snapshot(&sequence, 2, &token, &mut channel, &mut harness);
     assert_eq!(set_value.target, CHAT_INPUT_AUTHOR_ID);
-    assert_eq!(set_value.action, "Focus");
-    assert_eq!(set_value.text_payload.as_deref(), Some("hello from mt-103"));
+    assert_eq!(set_value.action, "SetValue");
+    assert!(
+        set_value.receipt_id > 0,
+        "targeted action exposes its receipt id"
+    );
     assert_eq!(
         fresh_author_value(&mut harness, CHAT_INPUT_AUTHOR_ID).unwrap_or_default(),
         "hello from mt-103",

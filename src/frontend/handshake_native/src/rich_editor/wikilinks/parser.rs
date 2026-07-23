@@ -95,6 +95,7 @@ impl ParsedWikilink {
             ref_value: self.ref_value.clone(),
             label: self.label.clone(),
             resolved: self.resolved,
+            provenance: None,
         }
     }
 }

@@ -5,7 +5,7 @@
 //! - an OUTER `Role::GenericContainer` node with `author_id = "code_editor_panel"` (the panel frame),
 //! - a `Role::ScrollView` node with `author_id = "code_editor_scroll_area"` (the virtualized scroll
 //!   region — MT-002), and
-//! - an INNER `Role::TextInput` node with `author_id = "code_editor_text"` (the editable text area),
+//! - an INNER `Role::TextInput` node with `author_id = "editor.code.text"` (the editable text area),
 //!   each emitted INSIDE its parent's egui scope so the live AccessKit tree links them
 //!   container -> scroll-area -> text (the same nesting linkage the WP-011 shell relies on).
 //!
@@ -58,40 +58,55 @@
 //! instance also gets a unique `egui::Id` so two panels never fight over one `ScrollArea` scroll
 //! state (RISK-004).
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::collections::VecDeque;
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use egui::accesskit;
+use tree_sitter::Tree;
 
 use crate::accessibility::editor_action_registry::{
     CodeDispatch, EditorActionRegistry, EditorActionState, PaneType as EditorPaneType,
     RegistrationHandle, CODE_ACTION_CATALOG,
 };
 use crate::interop::cross_ref::{
-    find_notes_with, FindNotesHttp, FindNotesSearch, SymbolDwellTracker,
+    find_code_ref_notes_with, FindNotesHttp, FindNotesSearch, SymbolDwellTracker,
 };
 use crate::interop::InteractionBus;
 use crate::pane_registry::{PaneFactory, PaneId, PaneRenderContext, PaneType};
 use crate::theme::HsSyntaxTokens;
 
-use super::note_refs_panel::{render_note_refs_panel, NoteRefsState};
+use super::note_refs_panel::{render_note_refs_panel, NoteRefsState, OPEN_PENDING_AUTHOR_ID};
 
 use super::buffer::TextBuffer;
 use super::code_nav::{
-    staleness_marker_for, symbol_file_path, CodeNavCache, CodeNavClient, CodeSymbolNavProjection,
-    CodeSymbolReferencesResponse, CompletionItem, COMPLETION_DEBOUNCE_MS, HOVER_DWELL_MS,
-    SYMBOL_LOOKUP_LIMIT,
+    preferred_symbol_for_identifier_in_file, staleness_marker_for, symbol_file_path, CodeNavCache,
+    CodeNavClient, CodeSymbolNavProjection, CodeSymbolReferencesResponse, CompletionItem,
+    COMPLETION_DEBOUNCE_MS, HOVER_DWELL_MS, SYMBOL_LOOKUP_LIMIT,
 };
 use super::cursor::{
     byte_to_line_col, find_next_occurrence, line_col_to_byte, word_at, Cursor, CursorSet,
     MAX_ACCESSKIT_CURSORS,
 };
 use super::editor_view::{
-    CompletionOutcome, CompletionPopup, CompletionState, HoverOutcome, HoverState, HoverTooltip,
+    CodeNavigationLocation, CompletionOutcome, CompletionPopup, CompletionState, HoverOutcome,
+    HoverState, HoverTooltip,
 };
 use super::formatting::{self, FormatOutcome};
+
+/// A host-routed editor command with the stable document identity that emitted it. Detached windows
+/// and docked panes share one channel, so the action alone is insufficient to select the correct
+/// buffer when the host drains commands after rendering multiple panes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodeEditorHostCommand {
+    pub action: CodeEditorAction,
+    pub document_id: String,
+    pub pane_id: Option<PaneId>,
+}
+
+static CODE_PANEL_INCARNATION_COUNTER: AtomicU64 = AtomicU64::new(1);
 // MT-051 line-edit buffer transforms: the dispatch arms for ToggleComment / DuplicateLine / MoveLine /
 // DeleteLine / Indent / Dedent / InsertTab call into this module (pure TextBuffer + CursorSet transforms).
 use super::breakpoints::{BreakpointAction, BreakpointEvent, BreakpointSet};
@@ -108,7 +123,9 @@ use super::jump_history::{JumpEntry, JumpHistory};
 use super::keymap::{CodeEditorAction, KeyChord, Keymap};
 use super::keymap_settings::{keymap_settings_path, KeymapSettings};
 use super::line_ops;
-use super::lsp_client::{LspClient, PublishedDiagnostics};
+use super::lsp_client::{
+    LspClient, LspCompletionItem, PublishedDiagnostics, MAX_LSP_CONTENT_BYTES,
+};
 use super::minimap::Minimap;
 use super::navigation::{next_diagnostic, prev_diagnostic, BufferPosition};
 use super::outline::{OutlineItem, OutlineProvider};
@@ -129,7 +146,7 @@ pub const CODE_EDITOR_PANEL_AUTHOR_ID: &str = "code_editor_panel";
 /// The MT-002 author_id for the virtualized scroll region (AC-004: Role::ScrollView).
 pub const CODE_EDITOR_SCROLL_AREA_AUTHOR_ID: &str = "code_editor_scroll_area";
 /// The MT-contract author_id for the inner editable text area (AC-005: Role::TextInput).
-pub const CODE_EDITOR_TEXT_AUTHOR_ID: &str = "code_editor_text";
+pub const CODE_EDITOR_TEXT_AUTHOR_ID: &str = "editor.code.text";
 /// The MT-003 author_id PREFIX for each multi-cursor node (AC-004: `code_editor_cursor_{n}`). Cursor
 /// `n` (sorted index) gets `code_editor_cursor_{n}` with accesskit `Role::Caret` (the field-correct
 /// caret role in accesskit 0.21 — the contract's `Role::TextCursor` does not exist there). Only the
@@ -218,6 +235,9 @@ pub const MAX_ACCESSKIT_SYMBOL_ROWS: usize = 128;
 /// diagnostic marker is `code_editor_diagnostic_{line}` (the MT names `Role::StaticText`, which does
 /// NOT exist in accesskit 0.21.1 — `Role::Label` is the field-correct static-text role).
 pub const CODE_EDITOR_GUTTER_AUTHOR_ID: &str = "code_editor_gutter";
+/// MT-046 IC-09: stable prefix for an interactive diagnostic related-note chip. The zero-based line is
+/// appended, and panel instances receive the normal `#instance` suffix.
+pub const CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX: &str = "code_editor_diagnostic_note_ref_";
 pub const CODE_EDITOR_BREAKPOINT_AUTHOR_PREFIX: &str = "code_editor_breakpoint_";
 pub const CODE_EDITOR_BREAKPOINT_TARGET_AUTHOR_PREFIX: &str = "code_editor_breakpoint_target_";
 pub const CODE_EDITOR_DIAGNOSTIC_AUTHOR_PREFIX: &str = "code_editor_diagnostic_";
@@ -415,6 +435,187 @@ impl HighlightSpanWindow {
     }
 }
 
+const INITIAL_HIGHLIGHT_PENDING: u8 = 0;
+const INITIAL_HIGHLIGHT_COMPLETE: u8 = 1;
+const INITIAL_HIGHLIGHT_FAILED: u8 = 2;
+const INITIAL_HIGHLIGHT_QUEUE_CAPACITY: usize = 8;
+const INITIAL_HIGHLIGHT_MAX_ATTEMPTS: u8 = 2;
+const INITIAL_HIGHLIGHT_MAX_SOURCE_BYTES: usize = MAX_LSP_CONTENT_BYTES;
+
+fn initial_highlight_source_is_worker_eligible(source_bytes: usize) -> bool {
+    source_bytes <= INITIAL_HIGHLIGHT_MAX_SOURCE_BYTES
+}
+
+/// Stable, race-proof state for the large-document initial highlight projection. `Complete` is stored
+/// with release ordering only after the completed span window has been installed in the cache.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InitialHighlightStatus {
+    Pending,
+    Complete,
+    Failed,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InitialHighlightFailure {
+    WorkerUnavailable,
+    WorkerPanicked,
+    QueueSaturated,
+    HighlighterUnavailable,
+    EmptyProjection,
+    Cancelled,
+    SourceTooLarge,
+    StaleDelivery,
+}
+
+enum InitialHighlightDelivery {
+    Success {
+        version: u64,
+        generation: u64,
+        window: HighlightSpanWindow,
+    },
+    Error {
+        version: u64,
+        generation: u64,
+        failure: InitialHighlightFailure,
+    },
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum InitialHighlightTestFault {
+    SpawnUnavailable,
+    QueueFull,
+    Disconnect,
+    WorkerPanicked,
+    EmptyProjection,
+    StaleGeneration,
+    CancelDuringCapture,
+}
+
+struct InitialHighlightJob {
+    source: Arc<[u8]>,
+    tree: Tree,
+    extension: String,
+    version: u64,
+    generation: u64,
+    had_initial_spans: bool,
+    cancel: Arc<std::sync::atomic::AtomicBool>,
+    result_tx: mpsc::Sender<InitialHighlightDelivery>,
+    #[cfg(test)]
+    test_fault: Option<InitialHighlightTestFault>,
+}
+
+fn initial_highlight_worker_sender() -> Option<&'static mpsc::SyncSender<InitialHighlightJob>> {
+    static SENDER: std::sync::OnceLock<Option<mpsc::SyncSender<InitialHighlightJob>>> =
+        std::sync::OnceLock::new();
+    SENDER
+        .get_or_init(|| {
+            let (tx, rx) =
+                mpsc::sync_channel::<InitialHighlightJob>(INITIAL_HIGHLIGHT_QUEUE_CAPACITY);
+            std::thread::Builder::new()
+                .name("code-highlight-worker".to_owned())
+                .spawn(move || {
+                    while let Ok(job) = rx.recv() {
+                        let delivery = if job.cancel.load(Ordering::Acquire) {
+                            InitialHighlightDelivery::Error {
+                                version: job.version,
+                                generation: job.generation,
+                                failure: InitialHighlightFailure::Cancelled,
+                            }
+                        } else {
+                            let projected =
+                                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                    #[cfg(test)]
+                                    if job.test_fault
+                                        == Some(InitialHighlightTestFault::WorkerPanicked)
+                                    {
+                                        panic!("injected initial-highlight worker panic");
+                                    }
+                                    let highlighter = LanguageRegistry::with_bundled_languages()
+                                        .highlighter_for_extension(&job.extension)
+                                        .ok_or(InitialHighlightFailure::HighlighterUnavailable)?;
+                                    let mut cancellation_checks = 0_usize;
+                                    let spans = highlighter.captures_for_tree_cancellable(
+                                        &job.tree,
+                                        &job.source,
+                                        0..job.source.len(),
+                                        || {
+                                            cancellation_checks += 1;
+                                            job.cancel.load(Ordering::Acquire)
+                                                || cfg!(test)
+                                                    && {
+                                                        #[cfg(test)]
+                                                        {
+                                                            job.test_fault
+                                                                == Some(InitialHighlightTestFault::CancelDuringCapture)
+                                                                && cancellation_checks > 4
+                                                        }
+                                                        #[cfg(not(test))]
+                                                        {
+                                                            false
+                                                        }
+                                                    }
+                                        },
+                                    )
+                                    .ok_or(InitialHighlightFailure::Cancelled)?;
+                                    #[cfg(test)]
+                                    if job.test_fault
+                                        == Some(InitialHighlightTestFault::EmptyProjection)
+                                    {
+                                        return Err(InitialHighlightFailure::EmptyProjection);
+                                    }
+                                    if spans.is_empty() && job.had_initial_spans {
+                                        return Err(InitialHighlightFailure::EmptyProjection);
+                                    }
+                                    Ok(HighlightSpanWindow::from_spans(spans))
+                                }));
+                            match projected {
+                                Ok(Ok(window)) if !job.cancel.load(Ordering::Acquire) => {
+                                    InitialHighlightDelivery::Success {
+                                        version: job.version,
+                                        generation: {
+                                            #[cfg(test)]
+                                            if job.test_fault
+                                                == Some(InitialHighlightTestFault::StaleGeneration)
+                                            {
+                                                job.generation.saturating_add(1)
+                                            } else {
+                                                job.generation
+                                            }
+                                            #[cfg(not(test))]
+                                            {
+                                                job.generation
+                                            }
+                                        },
+                                        window,
+                                    }
+                                }
+                                Ok(Ok(_)) => InitialHighlightDelivery::Error {
+                                    version: job.version,
+                                    generation: job.generation,
+                                    failure: InitialHighlightFailure::Cancelled,
+                                },
+                                Ok(Err(failure)) => InitialHighlightDelivery::Error {
+                                    version: job.version,
+                                    generation: job.generation,
+                                    failure,
+                                },
+                                Err(_) => InitialHighlightDelivery::Error {
+                                    version: job.version,
+                                    generation: job.generation,
+                                    failure: InitialHighlightFailure::WorkerPanicked,
+                                },
+                            }
+                        };
+                        let _ = job.result_tx.send(delivery);
+                    }
+                })
+                .ok()
+                .map(|_| tx)
+        })
+        .as_ref()
+}
+
 /// Map a [`HighlightScope`] to a color from the active theme's syntax tokens — NEVER a hardcoded hex
 /// literal. `Other` falls back to the editor foreground (`punctuation` token, which the theme derives
 /// from the palette's `text_subtle`). Backed by the theme layer per the MT implementation note.
@@ -594,6 +795,14 @@ struct PendingCodeTextUndo {
     replace_tail: bool,
 }
 
+#[derive(Debug)]
+struct PendingCodeEditMutationReceipt {
+    line_delta: i64,
+    pane_id: Option<PaneId>,
+    workspace_id: String,
+    file_path: String,
+}
+
 #[derive(Default)]
 struct CodeTextUndoBatcher {
     batch_before: Option<TextBuffer>,
@@ -646,11 +855,35 @@ pub struct CodeEditorPanel {
     /// hook that must also be bumped on undo/redo so a length-changing undo cannot leave stale spans
     /// (RISK-002). Atomic so a `&self` edit/refresh can bump it under the `Sync` panel.
     buffer_version: AtomicU64,
+    /// Buffer version last known to match durable storage. `load_file` establishes the baseline and
+    /// a successful host save advances it. Keeping this on the document model prevents the shell from
+    /// accidentally treating an edit made before the first rendered frame as the clean baseline.
+    saved_buffer_version: AtomicU64,
+    /// Process-monotonic host identity. Unlike an `Arc` address this cannot be reused after close,
+    /// so delayed save completions cannot ABA-match a reopened panel allocation.
+    host_incarnation: u64,
     /// Cached highlight spans + the `buffer_version` they were computed for (MT-002 step 3). Recomputed
     /// only when the version changes, so the render path never re-parses every frame.
     highlight_cache: Mutex<Option<(HighlightSpanWindow, u64)>>,
+    /// Large initial documents complete their full parse synchronously. Their immutable source and a
+    /// clone of that completed tree are queued only after construction, so no second parse or worker
+    /// contention can precede the first highlighted-range emission.
+    initial_highlight_job: Mutex<Option<InitialHighlightJob>>,
+    initial_highlight_rx: Mutex<Option<mpsc::Receiver<InitialHighlightDelivery>>>,
+    initial_highlight_source: Mutex<Option<(Arc<[u8]>, u64, u64)>>,
+    initial_highlight_cancel: Mutex<Option<Arc<std::sync::atomic::AtomicBool>>>,
+    initial_highlight_generation: AtomicU64,
+    initial_highlight_attempt: AtomicU8,
+    initial_highlight_status: AtomicU8,
+    initial_highlight_failure: Mutex<Option<InitialHighlightFailure>>,
+    initial_highlight_poll: Mutex<()>,
+    #[cfg(test)]
+    initial_highlight_test_fault: Mutex<Option<InitialHighlightTestFault>>,
+    /// Immutable count captured before a background delivery can replace the cache. Performance proof
+    /// code uses this instead of a polling cache read, eliminating the old first/full-span race.
+    initial_span_count: usize,
     /// Cached measured monospace line height (px), set on the first `show` from the row height of the
-    /// EXACT `FontId::monospace(MONO_FONT_SIZE)` galley the glyphs are painted with (MT-054 row-pitch
+    /// EXACT live [`Self::mono_font`] galley the glyphs are painted with (MT-054 row-pitch
     /// unit fix — one unit for painted rows, `show_rows` stride, gutter, overlays, and decorations).
     /// `None` until measured.
     line_height_px: Mutex<Option<f32>>,
@@ -670,6 +903,14 @@ pub struct CodeEditorPanel {
     /// a caller (a go-to-line action in a later MT, a swarm agent, or a deterministic test) can scroll
     /// the editor to a known position without reaching into egui's persisted scroll state.
     pending_scroll_offset: Mutex<Option<f32>>,
+    /// A line-target request made before the first render has measured the exact row height. The next
+    /// `show` converts it to pixels with the live measured metric, then consumes it through the same
+    /// one-shot `pending_scroll_offset` path. This is required for cross-file definition navigation:
+    /// newly mounted documents are navigated before their first frame.
+    pending_scroll_line: Mutex<Option<usize>>,
+    /// One-shot focus request used by cross-surface navigation. The next mounted render transfers
+    /// keyboard and AccessKit focus to the real code text node, then clears the request.
+    editor_focus_pending: std::sync::atomic::AtomicBool,
     /// Instance discriminator for AccessKit author_ids (RISK-004). Empty for the default single panel
     /// so it uses the bare MT-contract ids.
     instance: String,
@@ -682,7 +923,7 @@ pub struct CodeEditorPanel {
     /// progress (MT-003 step 5). Stored in line/column units so the column range is computed directly.
     box_drag_start: Mutex<Option<(usize, usize)>>,
     /// Cached monospace glyph width (px) for column<->x mapping in the caret/selection overlay, measured
-    /// once with the SAME `FontId::monospace(MONO_FONT_SIZE)` the glyphs are painted with so a caret at
+    /// once with the SAME live [`Self::mono_font`] the glyphs are painted with so a caret at
     /// column `c` lands exactly on column `c`'s glyph (MT-003 positioning requirement). `None` until
     /// measured on the first `show`.
     glyph_width_px: Mutex<Option<f32>>,
@@ -704,6 +945,11 @@ pub struct CodeEditorPanel {
     /// box on Ctrl+F), then swap-clears it so focus is not stolen every frame. This is also what lets a
     /// kittest type real characters into the find TextEdit.
     find_focus_pending: std::sync::atomic::AtomicBool,
+    /// True while either native find/replace `TextEdit` owns keyboard focus. The code editor is a
+    /// custom-painted surface, so its input loop sees the same global egui events as the focused
+    /// `TextEdit`; this fence prevents query typing, IME commits, Backspace/Delete, arrows, and other
+    /// text-field keys from also mutating the code buffer.
+    find_text_input_focused: std::sync::atomic::AtomicBool,
     /// MT-005 code-folding state: the fold regions derived from the tree-sitter parse tree plus their
     /// folded flags. Recomputed only when `buffer_version` changes (MT impl note 3 — tracked by
     /// `fold_version`), then carried across frames so a user's collapsed regions stay collapsed. Behind
@@ -732,6 +978,10 @@ pub struct CodeEditorPanel {
     /// access recomputes the outline from the highlighter's current tree (MC-002). `0` until first
     /// computed.
     outline_version: AtomicU64,
+    /// One-shot default-visibility decision deferred until the first outline derivation. Buffer load
+    /// returns as soon as tree-sitter has emitted syntax ranges; fold/outline tree walks are independent
+    /// consumers and must not delay that first usable editor state.
+    outline_default_pending: std::sync::atomic::AtomicBool,
     /// MT-006: whether the outline side panel is shown (RISK-001 / MC-001 — hideable so the center
     /// editor keeps a usable width). Default ON for a language with symbols; the toggle button + the
     /// `set_show_outline` API flip it. Atomic so the `&self` render path / agent can flip it.
@@ -778,6 +1028,10 @@ pub struct CodeEditorPanel {
     /// (KERNEL_BUILDER gate: a diagnostics push must NOT trigger the MT-002 highlight-cache / tree
     /// re-parse — see `push_diagnostics`). The gutter reads this to draw severity dots + left bars.
     diagnostic_markers: Mutex<Vec<GutterMarker>>,
+    /// MT-046 IC-09: related-note destinations attached to diagnostic lines. These are rendered as
+    /// actual clickable gutter chips and exposed through stable AccessKit ids; a click dispatches the
+    /// canonical `open-document` command on the shared InteractionBus.
+    diagnostic_note_references: Mutex<std::collections::BTreeMap<usize, String>>,
     /// MT-052 jump-history stack (Navigate Back / Forward — Alt+Left / Alt+Right). In-memory SESSION
     /// state only (no PostgreSQL/EventLedger persistence — the MT is pure frontend). It records the
     /// PRE-jump cursor location at the four navigation-jump dispatch sites (goto-def / references /
@@ -789,6 +1043,10 @@ pub struct CodeEditorPanel {
     /// MT's job, so MT-052 parks the intent here (instead of moving the caret in the wrong file —
     /// RISK-005) and the host drains it. `None` when the last restore was same-file or none happened.
     pending_cross_file_jump: Mutex<Option<JumpEntry>>,
+    /// Pane currently rendering this shared document. Host-routed events capture it at emission time
+    /// so duplicate tabs in docked/pop-out panes never infer origin from document identity alone.
+    host_render_pane_id: Mutex<Option<PaneId>>,
+    pending_cross_file_jump_origin: Mutex<Option<PaneId>>,
     /// MT-007 breakpoint publish channel to the FUTURE debug-adapter (DAP) client. The sender is held
     /// here (cloned for each publish); the receiver is held until a DAP client takes it via
     /// [`subscribe_breakpoints`]. An UNBOUNDED `std::sync::mpsc` channel + `send().ok()` is the
@@ -820,8 +1078,10 @@ pub struct CodeEditorPanel {
     /// (Arrow/Enter/Escape) and the result-delivery drain mutate it. Behind a `Mutex` for the same
     /// `Sync` reason as the buffer.
     completion_state: Mutex<Option<CompletionState>>,
+    completion_visible_identity: Mutex<Option<CodeIntelligenceRequestIdentity>>,
     /// MT-008 hover tooltip state. `None` when no hover is showing; `Some` while the tooltip is open.
     hover_state: Mutex<Option<HoverState>>,
+    hover_visible_identity: Mutex<Option<CodeIntelligenceRequestIdentity>>,
     /// MT-008 Handshake backend code-nav client (the fallback intelligence source). Reused for
     /// completion + hover + go-to-def + references when no LSP server is attached. Cheap to clone.
     code_nav_client: Mutex<CodeNavClient>,
@@ -832,6 +1092,17 @@ pub struct CodeEditorPanel {
     /// `Mutex` so the `&self` render/input path can drive it under the `Sync` panel; an `Arc` so the
     /// off-thread completion/hover task can hold it across an await.
     lsp_client: Mutex<Arc<LspClient>>,
+    /// Monotonic identity of the newest completion request. Every trigger attempt increments it,
+    /// including attempts that short-circuit, so a response for an older prefix can never become the
+    /// current popup after the caret/prefix has moved on.
+    completion_generation: AtomicU64,
+    /// Monotonic identity of the newest hover request. Kept separate from completion so the two
+    /// independent overlays do not invalidate one another.
+    hover_generation: AtomicU64,
+    /// Monotonic identities for F12 and Shift+F12. Navigation results are rejected when their request
+    /// generation, buffer, caret, document, or workspace no longer matches the live panel.
+    definition_generation: AtomicU64,
+    references_generation: Arc<AtomicU64>,
     /// MT-008 active workspace id used for the backend code-nav lookups (empty = no workspace bound,
     /// so code-nav requests are skipped — the React `activeWorkspaceId() == null` short-circuit).
     workspace_id: Mutex<String>,
@@ -844,33 +1115,39 @@ pub struct CodeEditorPanel {
     /// [`HOVER_DWELL_MS`], preventing repeated backend lookups every frame while the caret is parked.
     /// `None` when no dwell is in progress.
     hover_dwell: Mutex<Option<(usize, std::time::Instant, bool)>>,
-    /// MT-008 off-thread completion result delivery cell. A spawned `lookup_symbols` task writes the
-    /// `(anchor, items)` here; the next `show` drains it into `completion_state` (HBR-QUIET — the egui
-    /// thread never blocks on the backend). `Arc<Mutex<..>>` so the spawned task + the UI thread share it.
+    /// MT-008 off-thread completion result delivery cell. The LSP-first/fallback task writes a
+    /// generation-tagged delivery here; the next `show` validates it before updating `completion_state`
+    /// (HBR-QUIET — the egui thread never blocks on either intelligence source).
     completion_result: CompletionResultCell,
-    /// MT-008 off-thread hover result delivery cell. A spawned hover task writes the `(anchor, hover)`
-    /// here; the next `show` drains it into `hover_state`.
+    /// MT-008 off-thread hover result delivery cell. The LSP-first/fallback task writes a
+    /// generation-tagged delivery here; the next `show` validates it before updating `hover_state`.
     hover_result: HoverResultCell,
-    /// MT-008 off-thread code-nav symbol delivery queue. Completion + hover lookups push the raw backend
-    /// symbols here so the next UI-thread drain updates the staleness gutter and cache from every REAL
-    /// code-nav result batch, not only the synthetic `push_staleness_markers` test seam.
+    /// MT-008 off-thread code-nav symbol delivery queue used by the explicit raw-result injection seam.
+    /// Live completion/hover fallback batches travel with their generation-tagged deliveries so stale
+    /// requests cannot mutate the cache or staleness gutter.
     code_nav_symbols_result: CodeNavSymbolsResultCell,
     /// MT-010 off-thread go-to-definition result cell (F12). A spawned `lookup_symbols` task writes the
     /// resolved 0-based definition line here; the next `show` drains it and calls `navigate_to_line`.
     /// Reuses the MT-008 code-nav client + the MT-006 line-navigation path (no new backend surface).
     goto_def_result: GotoDefResultCell,
-    /// MT-010 off-thread references result cell (Shift+F12). A spawned `get_references` task writes the
-    /// callers/callees here; the next `show` drains it into `last_references` for the observable accessor.
+    /// MT-010 off-thread references result cell (Shift+F12). LSP and CodeNav deliveries are normalized
+    /// into the same actionable overlay on the next frame.
     references_result: ReferencesResultCell,
-    /// MT-010 the most recent ShowReferences result (callers + callees), exposed via
-    /// [`last_references`](Self::last_references) so tests/agents can observe the backend round-trip even
-    /// though the references-panel UI is a follow-on MT (no rendered panel in MT-010 scope).
+    /// MT-010 the most recent CodeNav ShowReferences result (callers + callees), exposed alongside the
+    /// normalized overlay for backend-specific inspection.
     last_references: Mutex<Option<CodeSymbolReferencesResponse>>,
-    /// MT-008 the LSP `publishDiagnostics` receiver, parked on the panel after it is taken (once) from
-    /// the LSP client, so [`drain_lsp_diagnostics`](Self::drain_lsp_diagnostics) can incrementally drain
-    /// it each frame and route notifications to the gutter (AC-008). `None` until the first drain takes
-    /// the receiver from a configured client.
-    lsp_diagnostics_rx: Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<PublishedDiagnostics>>>,
+    /// Most recent LSP definition/references, retaining URI + range instead of discarding cross-file
+    /// identity or flattening locations to a line number.
+    last_definition_target: Mutex<Option<CodeNavigationLocation>>,
+    last_lsp_references: Mutex<Vec<CodeNavigationLocation>>,
+    reference_items: Mutex<Vec<CodeReferenceItem>>,
+    references_visible_identity: Mutex<Option<CodeIntelligenceRequestIdentity>>,
+    /// Independent broadcast subscription for this panel. Shared LSP clients therefore fan diagnostics
+    /// out to every open pane instead of handing the stream to whichever pane drains first.
+    lsp_diagnostics_rx: Mutex<Option<tokio::sync::broadcast::Receiver<PublishedDiagnostics>>>,
+    /// Last accepted version per current document URI. This prevents a delayed same-document diagnostic
+    /// set from replacing markers for a newer local buffer generation.
+    lsp_diagnostics_version: Mutex<Option<(String, i64)>>,
     /// MT-008 the app's tokio runtime handle, injected by the host (the same per-component injection
     /// pattern `BackendClient`/`ProjectTree`/`QuickSwitcher` use — see [`set_runtime`](Self::set_runtime)).
     /// The LIVE render/input loop reads it to drive the off-thread completion/hover triggers from
@@ -884,7 +1161,8 @@ pub struct CodeEditorPanel {
     /// [`pump_code_intelligence`](Self::pump_code_intelligence) consumes it (take + reset) and fires the
     /// debounced backend completion lookup. An atomic so the `&self` input path can arm it under the
     /// `Sync` panel without holding a lock across the input loop.
-    completion_request: std::sync::atomic::AtomicBool,
+    completion_request: AtomicU8,
+    automatic_completion_cursor: Mutex<Option<usize>>,
 
     // ── MT-047 signature help (parameter hints) ───────────────────────────────────────────────────
     /// MT-047 the live signature-help popup state. `None` when no popup is open; `Some` while showing.
@@ -961,6 +1239,11 @@ pub struct CodeEditorPanel {
     /// by the per-frame pump which fires the code-action request AND opens the menu immediately (vs the
     /// passive cursor-rest path that only lights the bulb). Atomic so the `&self` dispatch can arm it.
     quick_fix_request: std::sync::atomic::AtomicBool,
+    /// Monotonic count of real quick-fix requests entering [`Self::trigger_quick_fix`]. Unlike the
+    /// one-shot arm, this cannot be consumed before canonical post-state inspection.
+    quick_fix_request_generation: std::sync::atomic::AtomicU64,
+    /// Last concrete request tuple `(line, buffer_version, open_menu)` captured at the handler boundary.
+    last_quick_fix_request: Mutex<Option<(usize, u64, bool)>>,
     /// MT-049 the LAST cross-file quick-fix apply outcome (RISK-005 / MC-005). When a chosen code action's
     /// `WorkspaceEdit` touches files OTHER than the active buffer, [`apply_quickfix`](Self::apply_quickfix)
     /// routes them through MT-048's [`rename::apply_preview`] (atomic to-disk write) and records the
@@ -1009,6 +1292,14 @@ pub struct CodeEditorPanel {
     /// via [`take_pending_create_note_link`](Self::take_pending_create_note_link) and routes it to the
     /// MT-057 create-note intent handler (the code panel itself has no wikilink runtime).
     pending_create_note_link: Mutex<Option<String>>,
+    /// A snapshot of the mounted rich editor's authoritative wikilink resolver. `None` means the
+    /// workspace enumeration has not completed successfully, so Create-note-from-link fails closed.
+    wikilink_resolver_index: Mutex<Option<crate::rich_editor::wikilinks::resolver::ResolverIndex>>,
+    /// Canonical snapshot capture runs on a fresh egui context. Retain whether the operator/agent opened
+    /// this panel's real editor-body menu so that fresh Argus inspection can reproduce that dynamic
+    /// popup without inventing an alternate action surface.
+    context_menu_open_for_snapshot: std::sync::atomic::AtomicBool,
+    snapshot_capture_mode: std::sync::atomic::AtomicBool,
 
     // ── MT-051 line-edit buffer transforms ────────────────────────────────────────────────────────
     /// MT-051 the queued single-undo snapshot `(description, before_text, after_text)` for a just-applied
@@ -1023,6 +1314,11 @@ pub struct CodeEditorPanel {
     /// newline / Backspace / Delete. The panel stages rope snapshots here and the factory render drains
     /// them into the shared `InteractionBus`, preserving the single unified undo authority.
     pending_text_edit_undo: Mutex<Option<PendingCodeTextUndo>>,
+    /// MT-036/MT-069 code-edit producer receipt. Every successful product mutation adds its exact line
+    /// delta here; the mounted factory drains the accumulated delta into the existing two-second
+    /// trailing-edge Flight Recorder batch. A zero delta is meaningful (an in-line edit still emits), while
+    /// failed, cancelled, and byte-for-byte no-op paths never stage a receipt.
+    pending_code_edit_receipts: Mutex<VecDeque<PendingCodeEditMutationReceipt>>,
     /// MT-035 code-side typing batcher. Edits inside the same 500ms burst replace the pane's local undo
     /// tail so one Ctrl+Z reverts to the first pre-burst snapshot instead of stepping per character.
     text_edit_undo_batcher: Mutex<CodeTextUndoBatcher>,
@@ -1174,7 +1470,7 @@ pub struct CodeEditorPanel {
     /// `command_registry.rs` — via an `mpsc::Sender` the host injects, NOT a second palette). `None` when
     /// no host wired a palette (the action is then a graceful no-op + a trace), so a headless test panel
     /// renders without a palette. Behind a `Mutex` for the `Sync` panel.
-    command_palette_tx: Mutex<Option<mpsc::Sender<CodeEditorAction>>>,
+    command_palette_tx: Mutex<Option<(mpsc::Sender<CodeEditorHostCommand>, String)>>,
     /// MT-010 cached AccessKit command-node descriptors + the `keymap_version` they were built for
     /// (RISK-002 / MC-004 — build the 56-node set ONCE per keymap change, NOT every frame). The render
     /// path reads this cache to emit the hidden `Role::Button` command nodes;
@@ -1216,6 +1512,13 @@ pub struct CodeEditorPanel {
     /// `note_refs_state` (HBR-QUIET — the egui thread never blocks on the backend; the MT-008 delivery-cell
     /// shape). `Arc<Mutex<..>>` so the spawned task + the UI thread share it.
     note_refs_result: NoteRefsResultCell,
+    /// Exact active request identity. A delivery must match all fields before it can update the panel.
+    note_refs_active_request: Mutex<Option<NoteRefsRequestStamp>>,
+    /// Monotonic ownership generation for NoteRefs requests.
+    note_refs_generation: AtomicU64,
+    /// Last workspace/file/cursor context observed by the dwell pump. Any change invalidates in-flight
+    /// work immediately, including a move within the same identifier.
+    note_refs_observed_context: Mutex<Option<(String, String, usize)>>,
     /// MT-034 the find-notes search backend (injectable so a kittest drives the live dwell->search->panel
     /// path with a counted in-memory mock and NO backend, the MT-014/MT-015 fetcher-trait pattern). The
     /// production default is [`FindNotesHttp`] (the verified `POST /workspaces/{ws}/loom/search-v2` route).
@@ -1228,6 +1531,8 @@ pub struct CodeEditorPanel {
     /// on the first settled frame, driving the REAL dwell->search->panel pipeline deterministically
     /// WITHOUT an 800ms wall-clock wait. Behind a `Mutex` for the `Sync` panel.
     note_refs_dwell_threshold: Mutex<std::time::Duration>,
+    /// A clicked NoteRefs document retained until it is successfully staged on the shared bus.
+    pending_note_ref_open: Mutex<Option<String>>,
     /// WP-KERNEL-012 MT-076 (E13 IME inline preedit): the IN-PROGRESS IME composition (preedit) text for
     /// the code editor, shown UNDERLINED at the primary caret. Empty when no composition is active. This
     /// is OVERLAY-ONLY — it is NEVER written into the buffer (RISK-1 / MC-1: only `Event::Ime::Commit`
@@ -1242,12 +1547,30 @@ pub struct CodeEditorPanel {
     /// the first render. Behind a `Mutex` for the `Sync` panel (the `&self` render path writes it; the
     /// `&self` `consume_swarm_text_actions` reads it).
     live_text_node_id: Mutex<Option<egui::Id>>,
+    /// MT-108: the stable find-bar AccessKit node id recorded each frame so a queued Argus SetValue
+    /// action can update the real find query through the existing panel setter (rather than a synthetic
+    /// test-only shortcut).
+    live_find_node_id: Mutex<Option<egui::Id>>,
 }
 
 /// MT-034 off-thread find-notes result delivery cell: the resolved [`NoteRefsState`] written by a spawned
 /// `find_notes_referencing_symbol` task and drained on the next frame into `note_refs_state`. Aliased so
 /// the panel field type stays legible (clippy `type_complexity`).
-type NoteRefsResultCell = Arc<Mutex<Option<NoteRefsState>>>;
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct NoteRefsRequestStamp {
+    workspace_id: String,
+    symbol: String,
+    generation: u64,
+}
+
+#[derive(Clone, Debug)]
+struct NoteRefsDelivery {
+    stamp: NoteRefsRequestStamp,
+    symbol_key: Option<String>,
+    state: NoteRefsState,
+}
+
+type NoteRefsResultCell = Arc<Mutex<Vec<NoteRefsDelivery>>>;
 
 /// MT-010 one cached AccessKit command-node descriptor: the fixed `node_id`, the `code_editor_cmd_*`
 /// author_id, the chord-annotated label, and the action it dispatches. Built once per keymap version
@@ -1290,28 +1613,224 @@ enum ContextOutcome {
     FallThrough,
 }
 
-/// MT-008 off-thread completion result delivery cell: `(cursor anchor pixel, popup items)` written by
-/// a spawned `lookup_symbols` task and drained on the next frame. Aliased so the panel field type stays
-/// legible (clippy `type_complexity`).
-type CompletionResultCell = Arc<Mutex<Option<(egui::Pos2, Vec<CompletionItem>)>>>;
+/// Identity captured when an asynchronous completion/hover request is issued. The UI drain validates
+/// this against the live panel before applying a response, which rejects results for an older request,
+/// buffer snapshot, caret, document, or workspace.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct CodeIntelligenceRequestIdentity {
+    generation: u64,
+    buffer_version: u64,
+    cursor_byte: usize,
+    document_uri: Option<String>,
+    workspace_id: String,
+    query: String,
+}
 
-/// MT-008 off-thread hover result delivery cell: `(cursor anchor pixel, hover state)` written by a
-/// spawned hover task and drained on the next frame. Aliased for the same legibility reason.
-type HoverResultCell = Arc<Mutex<Option<(egui::Pos2, HoverState)>>>;
+/// A code-nav fallback batch travels with the response that produced it. This keeps stale response
+/// batches from updating the cache or gutter after their request identity is no longer current.
+type CodeNavFallbackBatch = (String, Vec<CodeSymbolNavProjection>);
 
-/// MT-008 off-thread code-nav symbol delivery cell: `(lookup prefix, symbols)` written by real
-/// completion/hover backend tasks and drained on the next frame for staleness markers + cache.
-type CodeNavSymbolsResultCell = Arc<Mutex<Vec<(String, Vec<CodeSymbolNavProjection>)>>>;
+#[derive(Debug)]
+struct CompletionDelivery {
+    request: CodeIntelligenceRequestIdentity,
+    anchor: egui::Pos2,
+    items: Vec<CompletionItem>,
+    code_nav_batch: Option<CodeNavFallbackBatch>,
+}
+
+#[derive(Debug)]
+struct HoverDelivery {
+    request: CodeIntelligenceRequestIdentity,
+    hover: Option<HoverState>,
+    code_nav_batch: Option<CodeNavFallbackBatch>,
+}
+
+#[derive(Debug)]
+struct GotoDefinitionDelivery {
+    request: CodeIntelligenceRequestIdentity,
+    target: Option<CodeNavigationLocation>,
+    origin_pane: Option<PaneId>,
+}
+
+#[derive(Debug)]
+enum ReferencesPayload {
+    Lsp(Vec<CodeNavigationLocation>),
+    CodeNav {
+        raw: CodeSymbolReferencesResponse,
+        items: Vec<CodeReferenceItem>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct CodeReferenceItem {
+    label: String,
+    target: CodeNavigationLocation,
+}
+
+#[derive(Debug)]
+struct ReferencesDelivery {
+    request: CodeIntelligenceRequestIdentity,
+    payload: ReferencesPayload,
+}
+
+/// MT-008 off-thread completion result delivery cell. The generation-aware replacement rule prevents
+/// an older task that finishes last from overwriting a newer undrained response.
+type CompletionResultCell = Arc<Mutex<Option<CompletionDelivery>>>;
+
+/// MT-008 off-thread hover result delivery cell, with the same generation-aware replacement rule.
+type HoverResultCell = Arc<Mutex<Option<HoverDelivery>>>;
+
+/// MT-008 explicit raw code-nav symbol injection queue, drained on the next frame for staleness markers
+/// + cache. Workspace identity is captured at enqueue time so a later workspace switch cannot attribute
+/// the batch to the wrong cache key. Live fallback batches travel with their request identity.
+type CodeNavSymbolsResultCell = Arc<Mutex<Vec<(String, String, Vec<CodeSymbolNavProjection>)>>>;
 
 /// MT-010 off-thread go-to-definition result cell: the 0-based target buffer line written by a spawned
 /// `lookup_symbols` task (F12 / GoToDefinition) and drained on the next frame to `navigate_to_line`.
-type GotoDefResultCell = Arc<Mutex<Option<usize>>>;
+type GotoDefResultCell = Arc<Mutex<Option<GotoDefinitionDelivery>>>;
 
-/// MT-010 off-thread references result cell: the `(callers + callees)` response written by a spawned
-/// `get_references` task (Shift+F12 / ShowReferences) and drained on the next frame. There is no
-/// references-panel UI in MT-010 scope (that is a follow-on MT — see `lifecycle.blocker` BLOCKER below),
-/// so the result is surfaced as an observable accessor + trace line rather than a rendered panel.
-type ReferencesResultCell = Arc<Mutex<Option<CodeSymbolReferencesResponse>>>;
+/// MT-010 off-thread references result cell. LSP locations and CodeNav callers/callees are normalized
+/// into the same actionable reference items before the next UI-frame drain.
+type ReferencesResultCell = Arc<Mutex<Option<ReferencesDelivery>>>;
+
+const COMPLETION_REQUEST_NONE: u8 = 0;
+const COMPLETION_REQUEST_AUTOMATIC: u8 = 1;
+const COMPLETION_REQUEST_EXPLICIT: u8 = 2;
+
+fn decode_percent_encoded_path(path: &str) -> Option<std::path::PathBuf> {
+    let bytes = path.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let high = *bytes.get(index + 1)?;
+            let low = *bytes.get(index + 2)?;
+            let hex = |byte: u8| match byte {
+                b'0'..=b'9' => Some(byte - b'0'),
+                b'a'..=b'f' => Some(byte - b'a' + 10),
+                b'A'..=b'F' => Some(byte - b'A' + 10),
+                _ => None,
+            };
+            decoded.push((hex(high)? << 4) | hex(low)?);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    let decoded = String::from_utf8(decoded).ok()?;
+    Some(std::path::PathBuf::from(
+        decoded.replace('/', std::path::MAIN_SEPARATOR_STR),
+    ))
+}
+
+fn path_from_lsp_uri(uri: &lsp_types::Url) -> Option<std::path::PathBuf> {
+    uri.to_file_path().ok().or_else(|| {
+        // A platform-neutral server may emit `file:///sibling.rs`. Windows cannot convert that URI to
+        // an absolute path because it has no drive letter. Preserve the decoded relative path; the
+        // navigation application step anchors it against the current document directory.
+        (uri.scheme() == "file")
+            .then(|| uri.path().trim_start_matches('/'))
+            .filter(|path| !path.is_empty())
+            .and_then(decode_percent_encoded_path)
+    })
+}
+
+fn normalized_path_key(path: &std::path::Path) -> String {
+    let mut key = path.to_string_lossy().replace('\\', "/");
+    while key.contains("//") {
+        key = key.replace("//", "/");
+    }
+    #[cfg(windows)]
+    {
+        key.make_ascii_lowercase();
+    }
+    key
+}
+
+fn same_lsp_document_uri(expected: &str, actual: &str) -> bool {
+    if expected == actual {
+        return true;
+    }
+    let Some(expected) = lsp_types::Url::parse(expected).ok() else {
+        return false;
+    };
+    let Some(actual) = lsp_types::Url::parse(actual).ok() else {
+        return false;
+    };
+    match (path_from_lsp_uri(&expected), path_from_lsp_uri(&actual)) {
+        (Some(expected), Some(actual)) => {
+            normalized_path_key(&expected) == normalized_path_key(&actual)
+        }
+        _ => expected == actual,
+    }
+}
+
+fn navigation_location_from_lsp(location: lsp_types::Location) -> CodeNavigationLocation {
+    let path = path_from_lsp_uri(&location.uri).map(|path| path.to_string_lossy().to_string());
+    CodeNavigationLocation {
+        uri: location.uri.to_string(),
+        path,
+        range: location.range,
+    }
+}
+
+fn code_nav_location_from_symbol(
+    symbol: &CodeSymbolNavProjection,
+    current_file_path: &str,
+) -> Option<CodeNavigationLocation> {
+    let definition = symbol.definition.as_ref()?;
+    let start_line = definition.line_start?.checked_sub(1)? as u32;
+    let end_line = definition
+        .line_end
+        .and_then(|line| line.checked_sub(1))
+        .unwrap_or(start_line as i64) as u32;
+    // The symbol key owns the target file. `source_id` is only a fallback for older projections whose
+    // key did not embed a path; never substitute the currently open document URI.
+    let target_path = symbol_file_path(&symbol.symbol_key).or_else(|| {
+        definition
+            .source_id
+            .as_ref()
+            .filter(|source| !source.trim().is_empty())
+            .cloned()
+    })?;
+    let target = std::path::PathBuf::from(&target_path);
+    let current = std::path::PathBuf::from(current_file_path);
+    let resolved = if target.is_absolute() {
+        target
+    } else if !current_file_path.trim().is_empty() && current.ends_with(&target) {
+        current
+    } else {
+        current
+            .parent()
+            .into_iter()
+            .flat_map(|parent| parent.ancestors())
+            .map(|ancestor| ancestor.join(&target))
+            .find(|candidate| candidate.exists())
+            .unwrap_or(target)
+    };
+    let uri = if resolved.is_absolute() {
+        lsp_types::Url::from_file_path(&resolved)
+            .ok()
+            .map(|uri| uri.to_string())
+    } else {
+        Some(format!(
+            "file:///{}",
+            resolved
+                .to_string_lossy()
+                .replace('\\', "/")
+                .trim_start_matches('/')
+        ))
+    }?;
+    Some(CodeNavigationLocation {
+        uri,
+        path: Some(resolved.to_string_lossy().to_string()),
+        range: lsp_types::Range::new(
+            lsp_types::Position::new(start_line, 0),
+            lsp_types::Position::new(end_line, 0),
+        ),
+    })
+}
 
 /// MT-047 off-thread signature-help result delivery cell: the resolved [`SignatureHelpState`] written by
 /// a spawned LSP-then-code-nav task and drained on the next frame into `signature_help_state`. Aliased so
@@ -1401,6 +1920,16 @@ impl GotoLineState {
 /// [`FindQuery`] + the match list + the current-match index + the replace text + whether the replace
 /// row is shown), with the regex compile error surfaced so an invalid pattern shows a message instead
 /// of silently finding nothing (AC-003).
+#[derive(Clone, Debug)]
+struct ReplaceAllPlan {
+    query: FindQuery,
+    replacement: String,
+    matches: Vec<Match>,
+    next_match: usize,
+    cumulative_byte_delta: i64,
+    expected_buffer_version: u64,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct FindState {
     /// The active query (pattern + case/whole-word/regex toggles).
@@ -1408,6 +1937,10 @@ pub struct FindState {
     /// Every match of `query` in the buffer, ascending by byte offset. Recomputed when `query` changes
     /// or after a replace (RISK-003).
     pub matches: Vec<Match>,
+    /// Buffer version from which `matches` was computed. Ordinary editor mutations do not eagerly
+    /// re-run the find engine, so Replace All checks this value at click time and refreshes before it
+    /// builds a new bounded continuation plan.
+    matches_buffer_version: u64,
     /// The index into `matches` of the CURRENT match (the one highlighted orange + scrolled to). Always
     /// `< matches.len()` when `matches` is non-empty; clamped on every recompute.
     pub current_match: usize,
@@ -1423,6 +1956,11 @@ pub struct FindState {
     /// none ran. The find bar shows a "N more — click Replace All again" progress hint when > 0. Reset
     /// when the query changes.
     pub replace_all_remaining: usize,
+    /// Private continuation state for a capped Replace All. The plan is built from the ORIGINAL match
+    /// set and survives the re-search used to refresh highlights after each batch. This is what makes
+    /// `x -> x` and `x -> xx` advance to the next original match instead of repeatedly consuming the
+    /// first 1000 replacement-generated matches. A buffer-version mismatch invalidates the plan.
+    replace_all_plan: Option<ReplaceAllPlan>,
     /// The `query.pattern` value the `matches` were last computed for, so the render loop can detect a
     /// query change (typing in the input) without re-searching every frame.
     last_searched: String,
@@ -1467,6 +2005,22 @@ struct RowGeometry {
     line_height: f32,
 }
 
+impl Drop for CodeEditorPanel {
+    fn drop(&mut self) {
+        if let Ok(cancel_slot) = self.initial_highlight_cancel.get_mut() {
+            if let Some(cancel) = cancel_slot.take() {
+                cancel.store(true, Ordering::Release);
+            }
+        }
+        if let Ok(job_slot) = self.initial_highlight_job.get_mut() {
+            *job_slot = None;
+        }
+        if let Ok(source_slot) = self.initial_highlight_source.get_mut() {
+            *source_slot = None;
+        }
+    }
+}
+
 impl CodeEditorPanel {
     /// Build a panel for `text` with `extension` deciding the grammar (e.g. `"rs"`, `"js"`). An
     /// unknown extension yields a plain (unhighlighted) panel rather than failing.
@@ -1482,39 +2036,81 @@ impl CodeEditorPanel {
     }
 
     fn build(text: &str, extension: &str, instance: String) -> Self {
+        let buffer = TextBuffer::new(text);
+        let len_lines = buffer.len_lines();
         let registry = LanguageRegistry::with_bundled_languages();
-        let mut highlighter = registry.highlighter_for_extension(extension);
+        const LARGE_INITIAL_HIGHLIGHT_LINES: usize = 5_000;
+        const FIRST_HIGHLIGHT_WINDOW_LINES: usize = 256;
+        let mut highlighter = if len_lines >= LARGE_INITIAL_HIGHLIGHT_LINES {
+            registry.initial_highlighter_for_extension(extension)
+        } else {
+            registry.highlighter_for_extension(extension)
+        };
         // Capture the language id from the highlighter (it carries the stable family id), so the fold
         // provider selects the right foldable-node set without re-deriving it every frame (MT-005).
         let language_id = highlighter
             .as_ref()
             .map(|hl| hl.language_id())
             .unwrap_or("");
-        let buffer = TextBuffer::new(text);
-        // Compute the initial fold regions from the first parse tree (when the language is known), so a
-        // freshly opened document is foldable on frame 1 (regions start UNfolded — the user/agent folds
-        // them). The spans come from the same highlight pass.
-        let (spans, fold_set, outline_items) = match highlighter.as_mut() {
-            Some(hl) => {
-                let spans = hl.highlight(text.as_bytes());
-                let (fold_set, outline_items) = match hl.tree() {
-                    Some(tree) => {
-                        // MC-002: BOTH fold regions and outline symbols derive from the SAME parse tree
-                        // via the same TreeCursor pattern — no second parse.
-                        let regions = FoldProvider::new().compute(tree, &buffer, language_id);
-                        let outline = OutlineProvider::compute(tree, &buffer, language_id);
-                        (FoldSet::from_regions(regions), outline)
-                    }
-                    None => (FoldSet::new(), Vec::new()),
-                };
-                (spans, fold_set, outline_items)
+        // Complete the required full tree-sitter parse and emit syntax ranges before returning from the
+        // buffer-load call. Fold regions and outline symbols are independent projections over that SAME
+        // cached tree; derive them lazily on first use/show so they cannot delay first highlighted-range
+        // availability. Their version 0 sentinels below force exactly one derivation for buffer version 1.
+        let mut initial_highlight_job = None;
+        let mut initial_highlight_rx = None;
+        let mut initial_highlight_source = None;
+        let mut initial_highlight_cancel = None;
+        let mut initial_highlight_failure = None;
+        let spans = if len_lines >= LARGE_INITIAL_HIGHLIGHT_LINES && highlighter.is_some() {
+            let window_end = buffer
+                .line_to_byte(FIRST_HIGHLIGHT_WINDOW_LINES.min(len_lines))
+                .unwrap_or_else(|| buffer.len_bytes());
+            let initial = highlighter
+                .as_mut()
+                .map(|hl| hl.highlight_range(text.as_bytes(), 0..window_end))
+                .unwrap_or_default();
+            if !initial_highlight_source_is_worker_eligible(text.len()) {
+                initial_highlight_failure = Some(InitialHighlightFailure::SourceTooLarge);
+            } else if let Some(tree) = highlighter.as_ref().and_then(|hl| hl.tree().cloned()) {
+                let source: Arc<[u8]> = Arc::from(text.as_bytes());
+                let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+                let (result_tx, result_rx) = mpsc::channel();
+                initial_highlight_job = Some(InitialHighlightJob {
+                    source: Arc::clone(&source),
+                    tree,
+                    extension: extension.to_owned(),
+                    version: 1,
+                    generation: 1,
+                    had_initial_spans: !initial.is_empty(),
+                    cancel: Arc::clone(&cancel),
+                    result_tx,
+                    #[cfg(test)]
+                    test_fault: None,
+                });
+                initial_highlight_rx = Some(result_rx);
+                initial_highlight_source = Some((source, 1, 1));
+                initial_highlight_cancel = Some(cancel);
+            } else {
+                initial_highlight_failure = Some(InitialHighlightFailure::HighlighterUnavailable);
             }
-            None => (Vec::new(), FoldSet::new(), Vec::new()),
+            initial
+        } else {
+            highlighter
+                .as_mut()
+                .map(|hl| hl.highlight(text.as_bytes()))
+                .unwrap_or_default()
         };
-        // The outline panel defaults ON only when the document actually has symbols (an empty outline
-        // panel adds nothing but takes width — RISK-001). The minimap defaults ON for any document.
-        let outline_default_on = !outline_items.is_empty();
-        let len_lines = buffer.len_lines();
+        let initial_span_count = spans.len();
+        let initial_highlight_status = if initial_highlight_job.is_some() {
+            INITIAL_HIGHLIGHT_PENDING
+        } else if initial_highlight_failure.is_some() {
+            INITIAL_HIGHLIGHT_FAILED
+        } else {
+            INITIAL_HIGHLIGHT_COMPLETE
+        };
+        let fold_set = FoldSet::new();
+        let outline_items = Vec::new();
+        let outline_default_pending = highlighter.is_some();
         // MT-007 breakpoint publish channel: unbounded so `send` never blocks; the receiver is parked
         // until a future DAP client subscribes (RISK-003 non-blocking discard-on-disconnect publish).
         let (breakpoint_sender, breakpoint_receiver) = mpsc::channel::<BreakpointEvent>();
@@ -1533,7 +2129,27 @@ impl CodeEditorPanel {
             // Version starts at 1 and the initial spans are cached AT version 1, so the first render
             // is a cache hit (no re-parse) and any later edit bumps to 2+ to invalidate.
             buffer_version: AtomicU64::new(1),
+            saved_buffer_version: AtomicU64::new(1),
+            host_incarnation: CODE_PANEL_INCARNATION_COUNTER
+                .fetch_update(
+                    std::sync::atomic::Ordering::Relaxed,
+                    std::sync::atomic::Ordering::Relaxed,
+                    |current| current.checked_add(1),
+                )
+                .expect("code editor panel incarnation space exhausted"),
             highlight_cache: Mutex::new(Some((HighlightSpanWindow::from_spans(spans), 1))),
+            initial_highlight_job: Mutex::new(initial_highlight_job),
+            initial_highlight_rx: Mutex::new(initial_highlight_rx),
+            initial_highlight_source: Mutex::new(initial_highlight_source),
+            initial_highlight_cancel: Mutex::new(initial_highlight_cancel),
+            initial_highlight_generation: AtomicU64::new(1),
+            initial_highlight_attempt: AtomicU8::new(1),
+            initial_highlight_status: AtomicU8::new(initial_highlight_status),
+            initial_highlight_failure: Mutex::new(initial_highlight_failure),
+            initial_highlight_poll: Mutex::new(()),
+            #[cfg(test)]
+            initial_highlight_test_fault: Mutex::new(None),
+            initial_span_count,
             line_height_px: Mutex::new(None),
             perf: Mutex::new(PerfStats {
                 frame_lines_rendered: 0,
@@ -1543,7 +2159,10 @@ impl CodeEditorPanel {
             last_visible_range: Mutex::new(0..0),
             last_scroll_offset_px: Mutex::new(0.0),
             pending_scroll_offset: Mutex::new(None),
+            pending_scroll_line: Mutex::new(None),
+            editor_focus_pending: std::sync::atomic::AtomicBool::new(false),
             find_focus_pending: std::sync::atomic::AtomicBool::new(false),
+            find_text_input_focused: std::sync::atomic::AtomicBool::new(false),
             instance,
             cursor_set: Mutex::new(CursorSet::new()),
             box_drag_start: Mutex::new(None),
@@ -1552,16 +2171,15 @@ impl CodeEditorPanel {
             last_gutter_paint_rows: Mutex::new(Vec::new()),
             find_state: Mutex::new(None),
             fold_set: Mutex::new(fold_set),
-            // Fold regions were computed at buffer version 1 (the same version the highlight cache is
-            // filled at), so the first render is a fold cache hit; an edit bumps to 2+ and recomputes.
-            fold_version: AtomicU64::new(1),
+            // Fold/outline projections are intentionally deferred until first use; version 0 forces a
+            // tree walk against the already-parsed version-1 tree without a second parse.
+            fold_version: AtomicU64::new(0),
             language_id,
             extension: extension.to_ascii_lowercase(),
-            // The outline was computed at buffer version 1 (same as folds/highlights), so the first
-            // access is a cache hit; an edit bumps the version and recomputes from the new tree.
             outline_items: Mutex::new(outline_items),
-            outline_version: AtomicU64::new(1),
-            show_outline: std::sync::atomic::AtomicBool::new(outline_default_on),
+            outline_version: AtomicU64::new(0),
+            outline_default_pending: std::sync::atomic::AtomicBool::new(outline_default_pending),
+            show_outline: std::sync::atomic::AtomicBool::new(false),
             show_minimap: std::sync::atomic::AtomicBool::new(true),
             goto_line_state: Mutex::new(None),
             // MT-053: the in-file symbol palette starts closed; sticky scroll uses the VS Code default
@@ -1578,8 +2196,11 @@ impl CodeEditorPanel {
             gutter_config: Mutex::new(GutterConfig::default()),
             breakpoint_set: Mutex::new(BreakpointSet::new()),
             diagnostic_markers: Mutex::new(Vec::new()),
+            diagnostic_note_references: Mutex::new(std::collections::BTreeMap::new()),
             jump_history: Mutex::new(JumpHistory::new()),
             pending_cross_file_jump: Mutex::new(None),
+            host_render_pane_id: Mutex::new(None),
+            pending_cross_file_jump_origin: Mutex::new(None),
             breakpoint_sender,
             breakpoint_receiver: Mutex::new(Some(breakpoint_receiver)),
             file_path: Mutex::new(String::new()),
@@ -1590,10 +2211,16 @@ impl CodeEditorPanel {
             // empty results until a server is configured — AC-004). No workspace bound yet (code-nav
             // requests are skipped until `set_workspace_id`).
             completion_state: Mutex::new(None),
+            completion_visible_identity: Mutex::new(None),
             hover_state: Mutex::new(None),
+            hover_visible_identity: Mutex::new(None),
             code_nav_client: Mutex::new(CodeNavClient::production()),
             code_nav_cache: Mutex::new(CodeNavCache::new()),
             lsp_client: Mutex::new(Arc::new(LspClient::disabled())),
+            completion_generation: AtomicU64::new(0),
+            hover_generation: AtomicU64::new(0),
+            definition_generation: AtomicU64::new(0),
+            references_generation: Arc::new(AtomicU64::new(0)),
             workspace_id: Mutex::new(String::new()),
             last_edit_instant: Mutex::new(None),
             hover_dwell: Mutex::new(None),
@@ -1603,9 +2230,15 @@ impl CodeEditorPanel {
             goto_def_result: Arc::new(Mutex::new(None)),
             references_result: Arc::new(Mutex::new(None)),
             last_references: Mutex::new(None),
+            last_definition_target: Mutex::new(None),
+            last_lsp_references: Mutex::new(Vec::new()),
+            reference_items: Mutex::new(Vec::new()),
+            references_visible_identity: Mutex::new(None),
             lsp_diagnostics_rx: Mutex::new(None),
+            lsp_diagnostics_version: Mutex::new(None),
             runtime: Mutex::new(None),
-            completion_request: std::sync::atomic::AtomicBool::new(false),
+            completion_request: AtomicU8::new(COMPLETION_REQUEST_NONE),
+            automatic_completion_cursor: Mutex::new(None),
             // MT-047 signature help: closed until a trigger fires; the delivery cell + request flag start
             // empty; the fallback cache is empty until the first code-nav fallback resolves.
             signature_help_state: Mutex::new(None),
@@ -1630,6 +2263,8 @@ impl CodeEditorPanel {
                 CODE_ACTION_REST_MS,
             )),
             quick_fix_request: std::sync::atomic::AtomicBool::new(false),
+            quick_fix_request_generation: std::sync::atomic::AtomicU64::new(0),
+            last_quick_fix_request: Mutex::new(None),
             // MT-049 cross-file quick-fix outcome surface (RISK-005 / MC-005): empty until the first
             // cross-file apply records its Ok(report)/Err(message) here (never silently dropped).
             last_quickfix_cross_file: Mutex::new(None),
@@ -1647,6 +2282,9 @@ impl CodeEditorPanel {
             // context-menu entry / command dispatch fires.
             pending_copy_note_reference: Mutex::new(None),
             pending_create_note_link: Mutex::new(None),
+            wikilink_resolver_index: Mutex::new(None),
+            context_menu_open_for_snapshot: std::sync::atomic::AtomicBool::new(false),
+            snapshot_capture_mode: std::sync::atomic::AtomicBool::new(false),
             // MT-071: seed indent from the document so the Indent segment + Tab key reflect the file's
             // actual style on open (tab-indented file -> Tabs; 4-space file -> Spaces 4), defaulting to
             // VS Code's Spaces 4 when ambiguous (MC-007). The host may still override via
@@ -1658,6 +2296,7 @@ impl CodeEditorPanel {
             )),
             // MT-035 live text-edit undo: empty until a real typing/deletion/IME/newline path mutates.
             pending_text_edit_undo: Mutex::new(None),
+            pending_code_edit_receipts: Mutex::new(VecDeque::new()),
             text_edit_undo_batcher: Mutex::new(CodeTextUndoBatcher::default()),
             // MT-071 file-metadata: seed EOL from the buffer (LF default — MC-007); language override
             // none (auto-detect); encoding UTF-8; render-whitespace off. These hang off the doc model so
@@ -1711,13 +2350,18 @@ impl CodeEditorPanel {
             note_refs_state: Mutex::new(NoteRefsState::Idle),
             note_refs_dwell: Mutex::new(SymbolDwellTracker::new()),
             note_refs_focused_symbol: Mutex::new(None),
-            note_refs_result: Arc::new(Mutex::new(None)),
+            note_refs_result: Arc::new(Mutex::new(Vec::new())),
+            note_refs_active_request: Mutex::new(None),
+            note_refs_generation: AtomicU64::new(0),
+            note_refs_observed_context: Mutex::new(None),
             find_notes_backend: Mutex::new(Arc::new(FindNotesHttp::production())),
             note_refs_dwell_threshold: Mutex::new(std::time::Duration::from_millis(
                 crate::interop::NOTE_REFS_DWELL_MS,
             )),
+            pending_note_ref_open: Mutex::new(None),
             // MT-076 IME: no composition in progress on a fresh panel (overlay-only; never in the buffer).
             preedit: Mutex::new(String::new()),
+            live_find_node_id: Mutex::new(None),
         }
     }
 
@@ -1783,11 +2427,19 @@ impl CodeEditorPanel {
     /// Replace the whole cursor set with one caret at `byte_offset` (a plain, non-Alt click). Clamped
     /// + char-snapped to the buffer.
     pub fn set_single_cursor(&self, byte_offset: usize) {
+        let before = self.primary_cursor_offset();
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         self.cursor_set
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .set_primary(byte_offset, &buffer);
+        drop(buffer);
+        if self.primary_cursor_offset() != before {
+            self.cancel_automatic_completion();
+            self.close_completion();
+            self.close_hover();
+            self.reset_note_refs_context();
+        }
     }
 
     /// Add a bare caret at `byte_offset` (Alt+Click / programmatic). De-duped + merged on insert.
@@ -1894,6 +2546,21 @@ impl CodeEditorPanel {
     /// Insert `text` at every cursor (replacing selections), then re-highlight. Returns the number of
     /// insertions applied. The MT step-7 text-input entry point.
     pub fn insert_text(&self, text: &str) -> usize {
+        // A trigger-character request remains anchored while the operator continues ordinary typing
+        // at that exact caret during the debounce window (`.a`, `::na`, `_id`). Cursor movement,
+        // selection replacement, deletion, file/workspace changes, and every non-insertion refresh
+        // still cancel it through the existing invalidation paths.
+        let automatic_continuation = self.completion_request.load(Ordering::Relaxed)
+            == COMPLETION_REQUEST_AUTOMATIC
+            && *self
+                .automatic_completion_cursor
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                == Some(self.primary_cursor_offset())
+            && {
+                let (start, end) = self.primary_selection_bytes();
+                start == end
+            };
         let applied = {
             let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
             self.cursor_set
@@ -1903,6 +2570,14 @@ impl CodeEditorPanel {
         };
         if applied > 0 {
             self.refresh(); // bump version + recompute highlights (RISK-002 invalidation).
+            if automatic_continuation {
+                self.completion_request
+                    .store(COMPLETION_REQUEST_AUTOMATIC, Ordering::Relaxed);
+                *self
+                    .automatic_completion_cursor
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(self.primary_cursor_offset());
+            }
         }
         applied
     }
@@ -1991,6 +2666,7 @@ impl CodeEditorPanel {
             len
         };
         self.refresh();
+        self.reset_note_refs_context();
         new_len
     }
 
@@ -2047,6 +2723,17 @@ impl CodeEditorPanel {
     /// `show_replace` (so Ctrl+H from an open find bar reveals the replace row). Runs an initial search
     /// so matches + the counter are populated immediately.
     pub fn open_find(&self, show_replace: bool) {
+        self.open_find_with_focus(show_replace, true);
+    }
+
+    /// Open the find bar as the inactive half of the app-wide shared Find surface. It runs the same native
+    /// engine but deliberately does not request keyboard focus, so the active pane remains the one actual
+    /// query author and two mounted panes never fight for focus.
+    pub fn open_find_passive(&self, show_replace: bool) {
+        self.open_find_with_focus(show_replace, false);
+    }
+
+    fn open_find_with_focus(&self, show_replace: bool, request_focus: bool) {
         let selected = {
             let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
             let set = self.cursor_set.lock().unwrap_or_else(|e| e.into_inner());
@@ -2070,13 +2757,24 @@ impl CodeEditorPanel {
         }
         // MT-108 (MT-004 residual): auto-focus the find input on the next frame (VS Code parity), so the
         // operator can type immediately after Ctrl+F and a kittest can drive the real TextEdit.
-        self.find_focus_pending.store(true, Ordering::Release);
+        self.find_focus_pending
+            .store(request_focus, Ordering::Release);
         self.refresh_find_matches();
     }
 
     /// Close the find bar: clears `find_state` so no match highlights paint on the next frame (AC-006).
     pub fn close_find(&self) {
         *self.find_state.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        self.find_focus_pending.store(false, Ordering::Release);
+        self.find_text_input_focused.store(false, Ordering::Release);
+    }
+
+    /// The find TextEdit owns keyboard input as soon as opening schedules focus, including the opening
+    /// frame before egui can report `has_focus()`. This closes the command+text same-frame race where a
+    /// character intended for the newly opened query field could otherwise also enter the code buffer.
+    fn find_text_surface_owns_keyboard(&self) -> bool {
+        self.find_focus_pending.load(Ordering::Acquire)
+            || self.find_text_input_focused.load(Ordering::Acquire)
     }
 
     /// True when the find bar is open (a frame would paint match highlights). The render loop and tests
@@ -2160,9 +2858,13 @@ impl CodeEditorPanel {
         {
             let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
             let Some(state) = guard.as_mut() else { return };
-            state.query.pattern = pattern.into();
-            // A new query clears any leftover capped-replace progress hint (MT-108 / MT-004 residual).
-            state.replace_all_remaining = 0;
+            let pattern = pattern.into();
+            if state.query.pattern != pattern {
+                state.query.pattern = pattern;
+                // A new query clears the original-match continuation plan.
+                state.replace_all_remaining = 0;
+                state.replace_all_plan = None;
+            }
         }
         self.refresh_find_matches();
     }
@@ -2172,9 +2874,16 @@ impl CodeEditorPanel {
         {
             let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
             let Some(state) = guard.as_mut() else { return };
+            let toggles_changed = state.query.case_sensitive != case_sensitive
+                || state.query.whole_word != whole_word
+                || state.query.is_regex != is_regex;
             state.query.case_sensitive = case_sensitive;
             state.query.whole_word = whole_word;
             state.query.is_regex = is_regex;
+            if toggles_changed {
+                state.replace_all_remaining = 0;
+                state.replace_all_plan = None;
+            }
         }
         self.refresh_find_matches();
     }
@@ -2183,7 +2892,12 @@ impl CodeEditorPanel {
     pub fn set_replace_text(&self, text: impl Into<String>) {
         let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(state) = guard.as_mut() {
-            state.replace_text = text.into();
+            let text = text.into();
+            if state.replace_text != text {
+                state.replace_text = text;
+                state.replace_all_remaining = 0;
+                state.replace_all_plan = None;
+            }
         }
     }
 
@@ -2202,6 +2916,7 @@ impl CodeEditorPanel {
                 None => return false,
             }
         };
+        let before = self.buffer();
         let applied = {
             let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
             FindEngine::replace_one(&mut buffer, &target, &replacement)
@@ -2209,43 +2924,129 @@ impl CodeEditorPanel {
         if applied {
             self.refresh(); // re-highlight (RISK-002 invalidation, edit changed the buffer)
             self.refresh_find_matches(); // RISK-003: recompute the now-stale match list
+            if let Some(state) = self
+                .find_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .as_mut()
+            {
+                state.replace_all_remaining = 0;
+                state.replace_all_plan = None;
+            }
+            self.record_code_edit_mutation(&before, &self.buffer());
         }
         applied
     }
 
-    /// Replace ALL matches with the replace text, then re-search. Returns the number of replacements
-    /// applied. `FindEngine::replace_all` processes in reverse byte order so offsets stay valid within
-    /// the batch (RISK-003 / MC-002); we still re-search afterward so the (now-empty-or-changed) match
-    /// list is correct.
+    /// Replace the next bounded batch from one ORIGINAL match set, then re-search for current
+    /// highlights. The private continuation plan is independent of that refreshed list, so replacement
+    /// text that equals or contains the query cannot make the next click restart at the top.
     pub fn replace_all(&self) -> usize {
-        let (matches, replacement) = {
-            let guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
-            let Some(state) = guard.as_ref() else {
+        let mut live_version = self.buffer_version.load(Ordering::Acquire);
+        let matches_are_stale = self
+            .find_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .is_some_and(|state| state.matches_buffer_version != live_version);
+        if matches_are_stale {
+            // An ordinary edit invalidates every cached byte range. Refresh outside the find-state
+            // lock (refresh_find_matches takes buffer -> find_state) before constructing a fresh plan.
+            self.refresh_find_matches();
+            live_version = self.buffer_version.load(Ordering::Acquire);
+            if let Some(state) = self
+                .find_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .as_mut()
+            {
+                state.replace_all_plan = None;
+                state.replace_all_remaining = 0;
+            }
+        }
+        let (batch, replacement, batch_delta, total_matches, next_match) = {
+            let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
+            let Some(state) = guard.as_mut() else {
                 return 0;
             };
-            (state.matches.clone(), state.replace_text.clone())
+            let plan_is_current = state.replace_all_plan.as_ref().is_some_and(|plan| {
+                plan.query == state.query
+                    && plan.replacement == state.replace_text
+                    && plan.expected_buffer_version == live_version
+            });
+            if !plan_is_current {
+                state.replace_all_plan = if state.matches.is_empty() {
+                    None
+                } else {
+                    Some(ReplaceAllPlan {
+                        query: state.query.clone(),
+                        replacement: state.replace_text.clone(),
+                        matches: state.matches.clone(),
+                        next_match: 0,
+                        cumulative_byte_delta: 0,
+                        expected_buffer_version: live_version,
+                    })
+                };
+            }
+            let Some(plan) = state.replace_all_plan.as_ref() else {
+                state.replace_all_remaining = 0;
+                return 0;
+            };
+            let end = (plan.next_match + REPLACE_ALL_CAP).min(plan.matches.len());
+            let mut shifted = Vec::with_capacity(end - plan.next_match);
+            let mut delta = 0i64;
+            for original in &plan.matches[plan.next_match..end] {
+                let start = original.byte_range.start as i128 + plan.cumulative_byte_delta as i128;
+                let finish = original.byte_range.end as i128 + plan.cumulative_byte_delta as i128;
+                if start < 0 || finish < start || finish > usize::MAX as i128 {
+                    state.replace_all_plan = None;
+                    state.replace_all_remaining = 0;
+                    return 0;
+                }
+                let mut adjusted = original.clone();
+                adjusted.byte_range = start as usize..finish as usize;
+                shifted.push(adjusted);
+                delta += state.replace_text.len() as i64
+                    - (original.byte_range.end - original.byte_range.start) as i64;
+            }
+            (
+                shifted,
+                plan.replacement.clone(),
+                delta,
+                plan.matches.len(),
+                end,
+            )
         };
-        let original = matches.len();
-        if original == 0 {
-            return 0;
-        }
-        // MT-108 (MT-004 residual): cap the per-click work so a Replace All over a huge match set cannot
-        // block the UI thread for an unbounded time. The remainder is surfaced as a progress hint and
-        // finished by clicking Replace All again (each click walks the document top-to-bottom).
+
+        let before = self.buffer();
         let applied = {
             let mut buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-            FindEngine::replace_all_capped(&mut buffer, &matches, &replacement, REPLACE_ALL_CAP)
+            FindEngine::replace_all(&mut buffer, &batch, &replacement)
         };
-        if applied > 0 {
+        if applied == batch.len() && applied > 0 {
             self.refresh();
             self.refresh_find_matches();
+            // Replace All is a discrete operator command. Reset only coalescer timing so this batch
+            // receives one fresh unified-undo entry without dropping an undrained earlier snapshot.
+            self.reset_text_edit_undo_batch_timing();
+            self.record_text_edit_undo(before, self.buffer(), "Replace All");
         }
-        // Record how many matches remain un-replaced this click (0 for the common under-cap case), after
-        // the re-search above so it is not clobbered.
         {
             let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(state) = guard.as_mut() {
-                state.replace_all_remaining = original.saturating_sub(applied);
+                if applied != batch.len() {
+                    // A stale/invalid range is a deterministic invalidation, never an infinite retry.
+                    state.replace_all_plan = None;
+                    state.replace_all_remaining = 0;
+                } else if next_match >= total_matches {
+                    state.replace_all_plan = None;
+                    state.replace_all_remaining = 0;
+                } else if let Some(plan) = state.replace_all_plan.as_mut() {
+                    plan.next_match = next_match;
+                    plan.cumulative_byte_delta += batch_delta;
+                    plan.expected_buffer_version = self.buffer_version.load(Ordering::Acquire);
+                    state.replace_all_remaining = total_matches - next_match;
+                }
             }
         }
         applied
@@ -2257,9 +3058,11 @@ impl CodeEditorPanel {
     /// after any replace (RISK-003). A no-op when the bar is closed.
     fn refresh_find_matches(&self) {
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
+        let buffer_version = self.buffer_version.load(Ordering::Acquire);
         let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
         let Some(state) = guard.as_mut() else { return };
         state.matches = FindEngine::search(&state.query, &buffer);
+        state.matches_buffer_version = buffer_version;
         state.error = FindEngine::compile_error(&state.query).unwrap_or_default();
         state.last_searched = state.query.pattern.clone();
         state.last_toggles = (
@@ -2285,13 +3088,375 @@ impl CodeEditorPanel {
             .unwrap_or_default()
     }
 
+    /// Number of currently cached highlight ranges without cloning the span vector. This polls the
+    /// document-wide delivery; callers proving the immutable foreground emission use
+    /// [`initial_span_count`](Self::initial_span_count) instead.
+    pub fn span_count(&self) -> usize {
+        self.ensure_highlight_cache();
+        self.highlight_cache
+            .lock()
+            .ok()
+            .and_then(|cache| cache.as_ref().map(|(spans, _)| spans.spans.len()))
+            .unwrap_or_default()
+    }
+
+    /// Number of ranges emitted by the foreground parse, before any document-wide worker delivery.
+    /// This value is immutable, so a fast worker cannot race a performance proof into observing the
+    /// completed count as if it were the first-emission count.
+    pub fn initial_span_count(&self) -> usize {
+        self.initial_span_count
+    }
+
+    fn initial_highlight_status_value(&self) -> InitialHighlightStatus {
+        match self.initial_highlight_status.load(Ordering::Acquire) {
+            INITIAL_HIGHLIGHT_COMPLETE => InitialHighlightStatus::Complete,
+            INITIAL_HIGHLIGHT_FAILED => InitialHighlightStatus::Failed,
+            _ => InitialHighlightStatus::Pending,
+        }
+    }
+
+    /// Poll and return the initial projection state. Polling preserves the previous headless behavior:
+    /// callers that await completion without mounting the panel still submit and ingest the job, while
+    /// construction itself remains free of background contention until first emission has returned.
+    pub fn initial_highlight_status(&self) -> InitialHighlightStatus {
+        let _pending = self.poll_initial_highlight();
+        self.initial_highlight_status_value()
+    }
+
+    pub fn initial_highlight_failure(&self) -> Option<InitialHighlightFailure> {
+        *self
+            .initial_highlight_failure
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Whether the initial large-file document-wide capture projection has replaced the first-window
+    /// cache. Small documents are complete immediately.
+    pub fn initial_highlight_complete(&self) -> bool {
+        self.initial_highlight_status() == InitialHighlightStatus::Complete
+    }
+
     /// Re-run highlighting over the current buffer (called after an edit). Bumps `buffer_version` so
     /// the highlight cache is invalidated, then recomputes — this is the path an edit/undo/redo in
     /// MT-003 will call. No-op highlighter -> empty spans. `&self` (interior-mutable) so it composes
     /// with the `Arc`-held render panel.
     pub fn refresh(&self) {
-        self.buffer_version.fetch_add(1, Ordering::Relaxed);
+        self.cancel_automatic_completion();
+        {
+            // Serialize invalidation with result ingestion: an old generation can neither overwrite a
+            // newly edited cache nor change its terminal status after this critical section.
+            let _poll_guard = self
+                .initial_highlight_poll
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if let Some(cancel) = self
+                .initial_highlight_cancel
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .take()
+            {
+                cancel.store(true, Ordering::Release);
+            }
+            self.initial_highlight_generation
+                .fetch_add(1, Ordering::AcqRel);
+            self.buffer_version.fetch_add(1, Ordering::Relaxed);
+            self.initial_highlight_status
+                .store(INITIAL_HIGHLIGHT_COMPLETE, Ordering::Release);
+            *self
+                .initial_highlight_job
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+            *self
+                .initial_highlight_rx
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+            *self
+                .initial_highlight_source
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+        }
+        self.invalidate_stale_code_intelligence_overlays();
         self.ensure_highlight_cache();
+    }
+
+    /// Reconstruct a bounded worker job from the retained immutable source and completed tree. This
+    /// method performs no query work; retry scheduling therefore remains O(1) on the UI thread.
+    fn schedule_initial_highlight_retry(&self, version: u64, generation: u64) -> bool {
+        let next_attempt = self
+            .initial_highlight_attempt
+            .load(Ordering::Acquire)
+            .saturating_add(1);
+        if next_attempt > INITIAL_HIGHLIGHT_MAX_ATTEMPTS {
+            return false;
+        }
+        let source = self
+            .initial_highlight_source
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .filter(|(_, source_version, source_generation)| {
+                *source_version == version && *source_generation == generation
+            })
+            .map(|(source, _, _)| Arc::clone(source));
+        let Some(source) = source else {
+            return false;
+        };
+        if !initial_highlight_source_is_worker_eligible(source.len()) {
+            return false;
+        }
+        let tree = self
+            .highlighter
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .and_then(|highlighter| highlighter.tree().cloned());
+        let Some(tree) = tree else {
+            return false;
+        };
+        if let Some(cancel) = self
+            .initial_highlight_cancel
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
+            cancel.store(true, Ordering::Release);
+        }
+        let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let (result_tx, result_rx) = mpsc::channel();
+        *self
+            .initial_highlight_job
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(InitialHighlightJob {
+            source,
+            tree,
+            extension: self.extension.clone(),
+            version,
+            generation,
+            had_initial_spans: self.initial_span_count > 0,
+            cancel: Arc::clone(&cancel),
+            result_tx,
+            #[cfg(test)]
+            test_fault: None,
+        });
+        *self
+            .initial_highlight_rx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(result_rx);
+        *self
+            .initial_highlight_cancel
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(cancel);
+        self.initial_highlight_attempt
+            .store(next_attempt, Ordering::Release);
+        true
+    }
+
+    #[cfg(test)]
+    fn inject_initial_highlight_fault(&self, fault: InitialHighlightTestFault) {
+        *self
+            .initial_highlight_test_fault
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(fault);
+    }
+
+    fn release_initial_highlight_resources(&self) {
+        *self
+            .initial_highlight_job
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .initial_highlight_source
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .initial_highlight_rx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        if let Some(cancel) = self
+            .initial_highlight_cancel
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
+            cancel.store(true, Ordering::Release);
+        }
+    }
+
+    /// Fold a completed large-file background capture projection into the version-1 cache. Returns
+    /// `true` while the worker is still pending so the host can request another quiet repaint.
+    fn poll_initial_highlight(&self) -> bool {
+        if self.initial_highlight_status_value() != InitialHighlightStatus::Pending {
+            return false;
+        }
+        let _poll_guard = self
+            .initial_highlight_poll
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if self.initial_highlight_status_value() != InitialHighlightStatus::Pending {
+            return false;
+        }
+
+        let enqueue_failure = {
+            let mut pending_job = self
+                .initial_highlight_job
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            #[cfg(test)]
+            let injected_fault = self
+                .initial_highlight_test_fault
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .take();
+            #[cfg(test)]
+            if injected_fault == Some(InitialHighlightTestFault::QueueFull) {
+                *self
+                    .initial_highlight_failure
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) =
+                    Some(InitialHighlightFailure::QueueSaturated);
+                return true;
+            }
+            match pending_job.take() {
+                Some(job) => {
+                    #[cfg(test)]
+                    let mut job = job;
+                    #[cfg(test)]
+                    let injected_unavailable = matches!(
+                        injected_fault,
+                        Some(InitialHighlightTestFault::SpawnUnavailable)
+                            | Some(InitialHighlightTestFault::Disconnect)
+                    );
+                    #[cfg(not(test))]
+                    let injected_unavailable = false;
+                    if injected_unavailable {
+                        Some(InitialHighlightDelivery::Error {
+                            version: job.version,
+                            generation: job.generation,
+                            failure: InitialHighlightFailure::WorkerUnavailable,
+                        })
+                    } else if let Some(sender) = initial_highlight_worker_sender() {
+                        #[cfg(test)]
+                        {
+                            job.test_fault = injected_fault;
+                        }
+                        match sender.try_send(job) {
+                            Ok(()) => None,
+                            Err(mpsc::TrySendError::Full(job)) => {
+                                *pending_job = Some(job);
+                                *self
+                                    .initial_highlight_failure
+                                    .lock()
+                                    .unwrap_or_else(|e| e.into_inner()) =
+                                    Some(InitialHighlightFailure::QueueSaturated);
+                                return true;
+                            }
+                            Err(mpsc::TrySendError::Disconnected(job)) => {
+                                Some(InitialHighlightDelivery::Error {
+                                    version: job.version,
+                                    generation: job.generation,
+                                    failure: InitialHighlightFailure::WorkerUnavailable,
+                                })
+                            }
+                        }
+                    } else {
+                        Some(InitialHighlightDelivery::Error {
+                            version: job.version,
+                            generation: job.generation,
+                            failure: InitialHighlightFailure::WorkerUnavailable,
+                        })
+                    }
+                }
+                None => None,
+            }
+        };
+
+        let delivery = enqueue_failure.or_else(|| {
+            let mut receiver = self
+                .initial_highlight_rx
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let Some(rx) = receiver.as_ref() else {
+                return Some(InitialHighlightDelivery::Error {
+                    version: self.buffer_version.load(Ordering::Acquire),
+                    generation: self.initial_highlight_generation.load(Ordering::Acquire),
+                    failure: InitialHighlightFailure::WorkerUnavailable,
+                });
+            };
+            match rx.try_recv() {
+                Ok(delivery) => {
+                    *receiver = None;
+                    Some(delivery)
+                }
+                Err(mpsc::TryRecvError::Empty) => None,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    *receiver = None;
+                    Some(InitialHighlightDelivery::Error {
+                        version: self.buffer_version.load(Ordering::Acquire),
+                        generation: self.initial_highlight_generation.load(Ordering::Acquire),
+                        failure: InitialHighlightFailure::WorkerUnavailable,
+                    })
+                }
+            }
+        });
+        let Some(delivery) = delivery else {
+            return true;
+        };
+
+        let version = self.buffer_version.load(Ordering::Acquire);
+        let generation = self.initial_highlight_generation.load(Ordering::Acquire);
+        let window = match delivery {
+            InitialHighlightDelivery::Success {
+                version: delivered_version,
+                generation: delivered_generation,
+                window,
+            } if delivered_version == version && delivered_generation == generation => Some(window),
+            InitialHighlightDelivery::Error {
+                version: delivered_version,
+                generation: delivered_generation,
+                failure,
+            } if delivered_version == version && delivered_generation == generation => {
+                *self
+                    .initial_highlight_failure
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(failure);
+                if failure != InitialHighlightFailure::Cancelled
+                    && self.schedule_initial_highlight_retry(version, generation)
+                {
+                    return true;
+                }
+                None
+            }
+            _ => {
+                *self
+                    .initial_highlight_failure
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) =
+                    Some(InitialHighlightFailure::StaleDelivery);
+                if self.schedule_initial_highlight_retry(version, generation) {
+                    return true;
+                }
+                None
+            }
+        };
+
+        if let Some(window) = window {
+            *self
+                .highlight_cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some((window, version));
+            *self
+                .minimap_row_cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+            self.initial_highlight_status
+                .store(INITIAL_HIGHLIGHT_COMPLETE, Ordering::Release);
+        } else {
+            // The foreground window remains useful. A failed full projection must never erase it.
+            self.initial_highlight_status
+                .store(INITIAL_HIGHLIGHT_FAILED, Ordering::Release);
+        }
+        self.release_initial_highlight_resources();
+        false
     }
 
     /// Recompute the highlight cache iff it is missing or stale (its stored version != the current
@@ -2299,6 +3464,7 @@ impl CodeEditorPanel {
     /// single place spans are parsed, so the render path is guaranteed not to re-parse on a hit
     /// (MT-002 step 3).
     fn ensure_highlight_cache(&self) {
+        let _pending = self.poll_initial_highlight();
         let version = self.buffer_version.load(Ordering::Relaxed);
         {
             let cache = self
@@ -2496,6 +3662,9 @@ impl CodeEditorPanel {
                 None => Vec::new(),
             }
         };
+        if self.outline_default_pending.swap(false, Ordering::AcqRel) && !items.is_empty() {
+            self.show_outline.store(true, Ordering::Release);
+        }
         *self.outline_items.lock().unwrap_or_else(|e| e.into_inner()) = items;
         self.outline_version.store(version, Ordering::Relaxed);
     }
@@ -2566,6 +3735,19 @@ impl CodeEditorPanel {
         // first (MT-005 fold-aware mapping) — a folded region above the target shifts its visible row up.
         let visible_line = self.buffer_line_to_visible_line(clamped);
         self.scroll_to_line(visible_line);
+    }
+
+    /// Navigate to an exact byte offset, preserving the requested column while reusing the same
+    /// fold-aware vertical scroll path as line navigation. Offsets beyond EOF are clamped and snapped
+    /// by the canonical cursor setter.
+    pub fn navigate_to_byte_offset(&self, byte_offset: usize) {
+        let line = self.with_buffer(|buffer| {
+            buffer
+                .byte_to_line(byte_offset.min(buffer.len_bytes()))
+                .unwrap_or_else(|| buffer.len_lines().saturating_sub(1))
+        });
+        self.navigate_to_line(line);
+        self.set_single_cursor(byte_offset);
     }
 
     /// Map a BUFFER line to its VISIBLE (post-fold) line index using the current fold set (MT-005). A
@@ -2920,6 +4102,10 @@ impl CodeEditorPanel {
                 .pending_cross_file_jump
                 .lock()
                 .unwrap_or_else(|e| e.into_inner()) = None;
+            *self
+                .pending_cross_file_jump_origin
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
         } else {
             // Different file: the host opens it (follow-on host-mount MT). Park the intent; do NOT move
             // the caret in the current (wrong) file. RISK-005: graceful, no panic, history cursor already
@@ -2934,6 +4120,14 @@ impl CodeEditorPanel {
                 .pending_cross_file_jump
                 .lock()
                 .unwrap_or_else(|e| e.into_inner()) = Some(entry);
+            *self
+                .pending_cross_file_jump_origin
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = self
+                .host_render_pane_id
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone();
         }
     }
 
@@ -2963,6 +4157,45 @@ impl CodeEditorPanel {
             .clone()
     }
 
+    /// Drain the pending cross-file target exactly once for the mounted host document opener.
+    pub fn take_pending_cross_file_jump(&self) -> Option<JumpEntry> {
+        let jump = self
+            .pending_cross_file_jump
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
+        *self
+            .pending_cross_file_jump_origin
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        jump
+    }
+
+    pub fn take_pending_cross_file_jump_with_origin(&self) -> Option<(JumpEntry, Option<PaneId>)> {
+        let jump = self
+            .pending_cross_file_jump
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()?;
+        let origin = self
+            .pending_cross_file_jump_origin
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
+        Some((jump, origin))
+    }
+
+    pub fn set_host_render_pane_id(&self, pane_id: Option<PaneId>) {
+        *self
+            .host_render_pane_id
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = pane_id;
+    }
+
+    pub fn host_incarnation(&self) -> u64 {
+        self.host_incarnation
+    }
+
     /// Test/diagnostic hook: a snapshot clone of the jump-history stack (for the jump_history proof to
     /// observe the live panel-side wiring, not just the pure-module unit tests).
     pub fn jump_history_snapshot(&self) -> JumpHistory {
@@ -2989,6 +4222,36 @@ impl CodeEditorPanel {
             .diagnostic_markers
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = markers;
+    }
+
+    /// Add a diagnostic carrying a related Handshake note. The gutter marker remains the canonical
+    /// diagnostic source; the related-note map adds the rendered/steerable navigation chip required by
+    /// IC-09 without encoding navigation data into the human message string.
+    pub fn push_diagnostic_note_reference(
+        &self,
+        line: usize,
+        severity: DiagnosticSeverity,
+        message: impl Into<String>,
+        document_id: impl Into<String>,
+    ) {
+        self.diagnostic_markers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(GutterMarker::diagnostic(line, severity, message));
+        self.diagnostic_note_references
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(line, document_id.into());
+    }
+
+    /// Stable AccessKit author id for a diagnostic's related-note chip.
+    pub fn diagnostic_note_reference_author_id(&self, line: usize) -> String {
+        let base = format!("{CODE_EDITOR_DIAGNOSTIC_NOTE_REF_AUTHOR_PREFIX}{line}");
+        if self.instance.is_empty() {
+            base
+        } else {
+            format!("{base}#{}", self.instance)
+        }
     }
 
     /// A snapshot of the current diagnostic markers (for tests / the gutter / MT-008).
@@ -3056,7 +4319,32 @@ impl CodeEditorPanel {
 
     /// Set the path of the file this panel edits (carried on every published `BreakpointEvent`).
     pub fn set_file_path(&self, path: impl Into<String>) {
-        *self.file_path.lock().unwrap_or_else(|e| e.into_inner()) = path.into();
+        let path = path.into();
+        let changed = {
+            let mut current = self.file_path.lock().unwrap_or_else(|e| e.into_inner());
+            let changed = *current != path;
+            *current = path;
+            changed
+        };
+        if changed {
+            // The detected language's extension layer reads `file_path`, so a same-panel file swap is
+            // a cache-key change even when the buffer version and explicit override are unchanged.
+            // Without this invalidation, `foo.rs` -> `foo.py` can keep reporting Rust until the first
+            // text edit, which also prevents the host from rebinding/retiring the correct LSP client.
+            *self
+                .resolved_language_cache
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+            *self
+                .lsp_diagnostics_version
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+            self.cancel_automatic_completion();
+            self.close_completion();
+            self.close_hover();
+            self.close_references();
+            self.reset_note_refs_context();
+        }
     }
 
     /// The path of the file this panel edits (empty for an in-memory buffer).
@@ -3087,16 +4375,23 @@ impl CodeEditorPanel {
         }
     }
 
-    /// MT-047: the LSP `Position` (0-based line + character) for `byte_offset` in the buffer. The
-    /// character is the 0-based COLUMN in the line (the simple byte/char column the editor tracks); a
-    /// pedantically-correct UTF-16 code-unit column is a server-tolerated approximation here since the
-    /// signature-help request only needs to land inside the call. Never panics (clamps to the line).
+    /// MT-047: the LSP `Position` (0-based line + UTF-16 code-unit character) for `byte_offset` in the
+    /// buffer. LSP positions count UTF-16 units rather than UTF-8 bytes or Unicode scalar values, so an
+    /// astral character before the caret contributes two. Never panics (clamps/snaps to the buffer).
     fn lsp_position_at(&self, byte_offset: usize) -> lsp_types::Position {
-        let (line, col) = self.with_buffer(|b| byte_to_line_col(byte_offset.min(b.len_bytes()), b));
-        lsp_types::Position {
-            line: line as u32,
-            character: col as u32,
-        }
+        self.with_buffer(|buffer| {
+            let offset = byte_offset.min(buffer.len_bytes());
+            let line = buffer.byte_to_line(offset).unwrap_or(0);
+            let line_start = buffer.line_to_byte(line).unwrap_or(0);
+            let utf16_units = buffer
+                .byte_slice_to_string(line_start..offset)
+                .encode_utf16()
+                .count();
+            lsp_types::Position {
+                line: line as u32,
+                character: utf16_units as u32,
+            }
+        })
     }
 
     /// Reset the gutter's per-file state when a new file is loaded into this panel (RISK-004): clears
@@ -3107,9 +4402,27 @@ impl CodeEditorPanel {
     /// can call `clear_breakpoints`.) MT-008's open-file path calls this.
     pub fn load_file(&self, path: impl Into<String>) {
         self.set_file_path(path);
+        self.saved_buffer_version.store(
+            self.buffer_version.load(Ordering::Relaxed),
+            Ordering::Relaxed,
+        );
         // RISK-004: clear stale diagnostics from the previous file (no version bump — diagnostics are
         // independent state).
         self.push_diagnostics(Vec::new());
+        self.diagnostic_note_references
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+    }
+
+    /// Version of the buffer that last matched the loaded/saved file on disk.
+    pub fn saved_buffer_version(&self) -> u64 {
+        self.saved_buffer_version.load(Ordering::Relaxed)
+    }
+
+    /// Advance the durable baseline after the host atomically saves this exact buffer version.
+    pub fn mark_buffer_version_saved(&self, version: u64) {
+        self.saved_buffer_version.store(version, Ordering::Relaxed);
     }
 
     /// Clear every breakpoint (a full-file reset surface for a same-panel document swap).
@@ -3190,7 +4503,18 @@ impl CodeEditorPanel {
     /// by the per-frame pump. The MT-008 live-path test reads it to prove the pump CONSUMED the arm in
     /// the same frame (it does not linger to fire on a later, unrelated frame).
     pub fn completion_request_armed_for_test(&self) -> bool {
-        self.completion_request.load(Ordering::Relaxed)
+        self.completion_request.load(Ordering::Relaxed) != COMPLETION_REQUEST_NONE
+    }
+
+    /// Monotonic hover request generation observed by live dwell-path tests. It advances only when
+    /// [`trigger_hover`](Self::trigger_hover) is actually reached.
+    pub fn hover_request_generation_for_test(&self) -> u64 {
+        self.hover_generation.load(Ordering::Relaxed)
+    }
+
+    /// Monotonic proof that the real Peek/Go-to-Definition request path was reached.
+    pub fn definition_request_generation_for_test(&self) -> u64 {
+        self.definition_generation.load(Ordering::Relaxed)
     }
 
     /// Queue raw code-nav symbols exactly like the off-thread completion/hover tasks do. Tests use this
@@ -3201,10 +4525,11 @@ impl CodeEditorPanel {
         prefix: impl Into<String>,
         symbols: Vec<CodeSymbolNavProjection>,
     ) {
+        let workspace_id = self.workspace_id();
         self.code_nav_symbols_result
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .push((prefix.into(), symbols));
+            .push((workspace_id, prefix.into(), symbols));
     }
 
     // ── MT-008 code intelligence API (completion / hover / code-nav / LSP) ─────────────────────────
@@ -3212,7 +4537,20 @@ impl CodeEditorPanel {
     /// Bind the active workspace id used for backend code-nav lookups. Empty = no workspace (code-nav
     /// requests short-circuit to empty, the React `activeWorkspaceId() == null` behavior).
     pub fn set_workspace_id(&self, workspace_id: impl Into<String>) {
-        *self.workspace_id.lock().unwrap_or_else(|e| e.into_inner()) = workspace_id.into();
+        let workspace_id = workspace_id.into();
+        let changed = {
+            let mut current = self.workspace_id.lock().unwrap_or_else(|e| e.into_inner());
+            let changed = *current != workspace_id;
+            *current = workspace_id;
+            changed
+        };
+        if changed {
+            self.cancel_automatic_completion();
+            self.close_completion();
+            self.close_hover();
+            self.close_references();
+            self.reset_note_refs_context();
+        }
     }
 
     /// The active workspace id (empty when unbound).
@@ -3231,12 +4569,54 @@ impl CodeEditorPanel {
             .code_nav_client
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = client;
+        // Reject any response already in flight from the previous client before it can repopulate the
+        // freshly cleared cache. The next trigger obtains a newer generation from these same counters.
+        self.completion_generation.fetch_add(1, Ordering::Relaxed);
+        self.hover_generation.fetch_add(1, Ordering::Relaxed);
+        self.definition_generation.fetch_add(1, Ordering::Relaxed);
+        self.references_generation.fetch_add(1, Ordering::Relaxed);
+        self.code_nav_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        self.close_completion();
+        self.close_hover();
+        self.close_references();
+        // NoteRefs first resolves the dwelled symbol through this client. Fence the previous client's
+        // in-flight lookup/search chain so a late delivery cannot commit after backend replacement.
+        self.reset_note_refs_context();
     }
 
     /// Replace the LSP client (e.g. install a configured language server, or a mock LSP in a test). The
     /// default is [`LspClient::disabled`] (graceful empty results — AC-004).
     pub fn set_lsp_client(&self, client: Arc<LspClient>) {
+        if let Some(uri) = self.lsp_uri() {
+            client.seed_injected_document_sync(&uri);
+        }
+        *self
+            .lsp_diagnostics_rx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(client.subscribe_diagnostics());
+        *self
+            .lsp_diagnostics_version
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
         *self.lsp_client.lock().unwrap_or_else(|e| e.into_inner()) = client;
+        self.completion_generation.fetch_add(1, Ordering::Relaxed);
+        self.hover_generation.fetch_add(1, Ordering::Relaxed);
+        self.definition_generation.fetch_add(1, Ordering::Relaxed);
+        self.references_generation.fetch_add(1, Ordering::Relaxed);
+        self.close_completion();
+        self.close_hover();
+        self.close_references();
+        *self
+            .last_definition_target
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        self.last_lsp_references
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 
     /// A clone of the current LSP client handle (for the diagnostics-drain wiring + tests).
@@ -3269,6 +4649,11 @@ impl CodeEditorPanel {
             .unwrap_or_else(|e| e.into_inner())
             .primary()
             .head
+    }
+
+    /// Current primary caret byte offset for navigation diagnostics and host-level proof.
+    pub fn primary_cursor_byte_offset(&self) -> usize {
+        self.primary_cursor_offset()
     }
 
     /// The identifier word the primary caret currently sits in/just-after (the hover target + the
@@ -3305,13 +4690,29 @@ impl CodeEditorPanel {
         // AC-008: route any LSP diagnostics notification to the gutter. Cheap when the channel is empty,
         // and independent of the runtime handle (the receiver is already on the panel).
         self.drain_lsp_diagnostics();
+        self.invalidate_stale_code_intelligence_overlays();
+
+        if self.completion_request.load(Ordering::Relaxed) == COMPLETION_REQUEST_AUTOMATIC {
+            let anchored_cursor = *self
+                .automatic_completion_cursor
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if anchored_cursor != Some(self.primary_cursor_offset()) {
+                self.cancel_automatic_completion();
+            }
+        }
 
         let Some(runtime) = self.runtime_handle() else {
             // No runtime injected: clear any armed completion / signature-help request so it does not
             // fire later, and skip the off-thread triggers (the synthetic open_completion/open_hover/
             // open_signature_help test paths and the diagnostics drain above still work without a
             // runtime).
-            self.completion_request.store(false, Ordering::Relaxed);
+            self.completion_request
+                .store(COMPLETION_REQUEST_NONE, Ordering::Relaxed);
+            *self
+                .automatic_completion_cursor
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
             self.signature_help_request.store(false, Ordering::Relaxed);
             return;
         };
@@ -3319,21 +4720,27 @@ impl CodeEditorPanel {
         // HOVER: advance the dwell clock for the live caret offset; on a dwell hit, fetch the hover for
         // the word under the caret (a no-op when the caret is not in a word / no workspace is bound).
         let offset = self.primary_cursor_offset();
-        if self.update_hover_dwell(offset) && !self.is_hover_open() {
+        if self.update_hover_dwell(offset) {
             let word = self.word_at_primary_cursor();
             if !word.is_empty() {
                 self.trigger_hover(&runtime, &word);
             }
         }
 
-        // COMPLETION: fire only when armed this frame (Ctrl+Space / trigger char) — the debounce +
-        // 2-char + workspace guards live inside `trigger_completion`.
-        let armed = self.completion_request.swap(false, Ordering::Relaxed);
-        if armed {
+        // COMPLETION: an explicit Ctrl+Space bypasses debounce; an automatic trigger character remains
+        // armed until the debounce expires instead of being consumed and lost on the first frame.
+        let request_mode = self.completion_request.load(Ordering::Relaxed);
+        let ready = request_mode == COMPLETION_REQUEST_EXPLICIT
+            || (request_mode == COMPLETION_REQUEST_AUTOMATIC && self.completion_debounce_elapsed());
+        if ready {
+            self.completion_request
+                .store(COMPLETION_REQUEST_NONE, Ordering::Relaxed);
+            *self
+                .automatic_completion_cursor
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
             let word = self.word_at_primary_cursor();
-            if !word.is_empty() {
-                self.trigger_completion(&runtime, &word);
-            }
+            self.trigger_completion(&runtime, &word);
         }
 
         // MT-047 SIGNATURE HELP: fire only when armed this frame (a `(`/`,`/`)` trigger char or
@@ -3399,12 +4806,24 @@ impl CodeEditorPanel {
             .completion_state
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = Some(CompletionState::new(items, anchor));
+        *self
+            .completion_visible_identity
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(self.current_code_intelligence_identity(
+            self.completion_generation.load(Ordering::Relaxed),
+            String::new(),
+        ));
     }
 
     /// Close the completion popup (Escape / after accept / no items).
     pub fn close_completion(&self) {
+        self.completion_generation.fetch_add(1, Ordering::Relaxed);
         *self
             .completion_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .completion_visible_identity
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = None;
     }
@@ -3500,11 +4919,23 @@ impl CodeEditorPanel {
     /// Open the hover tooltip with `state` (the deterministic path the dwell trigger + tests use).
     pub fn open_hover(&self, state: HoverState) {
         *self.hover_state.lock().unwrap_or_else(|e| e.into_inner()) = Some(state);
+        *self
+            .hover_visible_identity
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(self.current_code_intelligence_identity(
+            self.hover_generation.load(Ordering::Relaxed),
+            String::new(),
+        ));
     }
 
     /// Close the hover tooltip (cursor moved / Escape / after go-to-def).
     pub fn close_hover(&self) {
+        self.hover_generation.fetch_add(1, Ordering::Relaxed);
         *self.hover_state.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .hover_visible_identity
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
     }
 
     // ── MT-047 signature help (parameter hints) — public API + triggers ───────────────────────────
@@ -3553,8 +4984,7 @@ impl CodeEditorPanel {
     /// id) BEFORE `show()`, so the per-frame signature-help dismissal guard can close the popup when the
     /// editor loses focus. Interaction tests drive it directly to prove the focus-loss dismissal path.
     pub fn set_code_surface_focus(&self, focused: bool) {
-        self.code_surface_focused
-            .store(focused, Ordering::Relaxed);
+        self.code_surface_focused.store(focused, Ordering::Relaxed);
     }
 
     /// The number of overloads in the open signature-help popup (0 when closed). The input handler uses it
@@ -3972,6 +5402,7 @@ impl CodeEditorPanel {
                 // Install the renamed text back into THIS document's buffer + re-highlight (AC-002).
                 if let Some(text) = new_self_text {
                     self.set_text(&text);
+                    self.record_code_edit_mutation_text(&buffer_text, &text);
                 }
                 *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()) = RenameState::Idle;
                 Some(report)
@@ -4104,6 +5535,19 @@ impl CodeEditorPanel {
         self.quick_fix_request.load(Ordering::Relaxed)
     }
 
+    /// Monotonic proof that a request reached the real quick-fix handler, not merely its transient arm.
+    pub fn quick_fix_request_generation_for_test(&self) -> u64 {
+        self.quick_fix_request_generation.load(Ordering::Relaxed)
+    }
+
+    /// Concrete last request state captured at the same handler boundary as the generation increment.
+    pub fn last_quick_fix_request_for_test(&self) -> Option<(usize, u64, bool)> {
+        *self
+            .last_quick_fix_request
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+    }
+
     /// Whether `line` carries at least one diagnostic in the MT-007 gutter diagnostic store (the gate for
     /// the cursor-rest code-action request — RISK-001 / MC-001: only query the server on a diagnostic line).
     fn line_has_diagnostic(&self, line: usize) -> bool {
@@ -4185,6 +5629,12 @@ impl CodeEditorPanel {
         open_menu: bool,
     ) {
         let version = self.buffer_version.load(Ordering::Relaxed);
+        self.quick_fix_request_generation
+            .fetch_add(1, Ordering::Relaxed);
+        *self
+            .last_quick_fix_request
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = Some((line, version, open_menu));
         // Mark the request in flight so the debounce guard does not fire a second one (RISK-001 / MC-001).
         self.code_action_controller
             .lock()
@@ -4380,7 +5830,9 @@ impl CodeEditorPanel {
         match &applied {
             AppliedAction::Edit { cross_file, .. } => {
                 // Install the in-file result back into the panel buffer + re-highlight (AC-002).
+                let before = self.buffer().to_string();
                 self.set_text(&new_text);
+                self.record_code_edit_mutation_text(&before, &new_text);
                 // Route any cross-file edits through MT-048's multi-file/atomic apply (RISK-005 / MC-005).
                 // The result MUST be surfaced, NEVER discarded: the in-file edit already committed via
                 // `set_text` above, so a cross-file to-disk write that fails (missing/locked file, a stale
@@ -4683,6 +6135,9 @@ impl CodeEditorPanel {
     /// LATEST format's snapshot is kept (a second format before the drain supersedes the first — the
     /// host applies them in order, so the newest before/after pair is the correct single entry to push).
     fn record_format_undo(&self, before: &str, after: &str) {
+        if !self.record_code_edit_mutation_text(before, after) {
+            return;
+        }
         *self
             .pending_format_undo
             .lock()
@@ -4705,6 +6160,9 @@ impl CodeEditorPanel {
         after: TextBuffer,
         description: &'static str,
     ) {
+        if !self.record_code_edit_mutation(&before, &after) {
+            return;
+        }
         let (batch_before, replace_tail) = self
             .text_edit_undo_batcher
             .lock()
@@ -4719,6 +6177,73 @@ impl CodeEditorPanel {
             description,
             replace_tail,
         });
+    }
+
+    /// Record one successful code-buffer mutation for the MT-036 Flight Recorder producer. The return
+    /// value is `false` for a byte-for-byte no-op, allowing callers that share this gate with undo staging
+    /// to reject no-op receipts and no-op undo entries together.
+    fn record_code_edit_mutation(&self, before: &TextBuffer, after: &TextBuffer) -> bool {
+        // Ordinary typing/deletion changes byte length, so the hot path never stringifies the rope. Only
+        // a same-size replacement needs the exact fallback comparison to reject a byte-for-byte no-op.
+        if before.len_bytes() == after.len_bytes() && before.to_string() == after.to_string() {
+            return false;
+        }
+        self.record_code_edit_line_delta(before.len_lines(), after.len_lines());
+        true
+    }
+
+    fn record_code_edit_mutation_text(&self, before: &str, after: &str) -> bool {
+        if before == after {
+            return false;
+        }
+        let line_count = |text: &str| {
+            text.as_bytes()
+                .iter()
+                .filter(|byte| **byte == b'\n')
+                .count()
+                .saturating_add(1)
+        };
+        self.record_code_edit_line_delta(line_count(before), line_count(after));
+        true
+    }
+
+    fn record_code_edit_line_delta(&self, before_lines: usize, after_lines: usize) {
+        let line_delta = i64::try_from(after_lines)
+            .unwrap_or(i64::MAX)
+            .saturating_sub(i64::try_from(before_lines).unwrap_or(i64::MAX));
+        let pane_id = self
+            .host_render_pane_id
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone();
+        let workspace_id = self.workspace_id();
+        let file_path = self.file_path();
+        let mut receipts = self
+            .pending_code_edit_receipts
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if let Some(last) = receipts.back_mut().filter(|last| {
+            last.pane_id == pane_id
+                && last.workspace_id == workspace_id
+                && last.file_path == file_path
+        }) {
+            last.line_delta = last.line_delta.saturating_add(line_delta);
+        } else {
+            receipts.push_back(PendingCodeEditMutationReceipt {
+                line_delta,
+                pane_id,
+                workspace_id,
+                file_path,
+            });
+        }
+    }
+
+    fn take_pending_code_edit_receipts(&self) -> Vec<PendingCodeEditMutationReceipt> {
+        self.pending_code_edit_receipts
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .drain(..)
+            .collect()
     }
 
     fn apply_text_edit_undoable(
@@ -4838,12 +6363,12 @@ impl CodeEditorPanel {
         }
         // ONE whole-buffer replace = one undo step. Queue the before/after snapshot so the factory render
         // records it as a SINGLE unified-undo entry (the MT-035/051 single-undo bus boundary).
+        self.set_text(&after);
+        self.record_code_edit_mutation_text(&before, &after);
         *self
             .pending_line_op_undo
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) =
-            Some(("Convert Line Endings", before, after.clone()));
-        self.set_text(&after);
+            .unwrap_or_else(|e| e.into_inner()) = Some(("Convert Line Endings", before, after));
         true
     }
 
@@ -5288,8 +6813,7 @@ impl CodeEditorPanel {
         // editor-wrap-toggle node) so the host writes it back into the persisted editor prefs (Alt+Z
         // persistence). A prefs->panel push via `set_wrap_enabled` does NOT set this flag, so the write-back
         // never ping-pongs.
-        self.wrap_toggled_by_user
-            .store(true, Ordering::Relaxed);
+        self.wrap_toggled_by_user.store(true, Ordering::Relaxed);
         cfg.enabled
     }
 
@@ -5391,7 +6915,9 @@ impl CodeEditorPanel {
         *self
             .pending_line_op_undo
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = Some((description, before, after));
+            .unwrap_or_else(|e| e.into_inner()) =
+            Some((description, before.clone(), after.clone()));
+        self.record_code_edit_mutation_text(&before, &after);
         // A line transform replaces whole rows (move/delete/duplicate/comment) WITHOUT feeding tree-sitter
         // an `InputEdit`, so the highlighter's cached incremental tree would describe byte offsets past the
         // new buffer and panic on re-highlight. Reset the highlighter to a clean FULL parse before
@@ -5463,18 +6989,30 @@ impl CodeEditorPanel {
     /// notification was drained, else `None` (no notification this frame — leave the markers as-is).
     pub fn drain_lsp_diagnostics(&self) -> Option<usize> {
         let expected_uri = self.format_uri()?;
-        let receiver = {
-            // Take the receiver from the client the first time; it is parked on the panel afterward.
-            let client = self.lsp_client.lock().unwrap_or_else(|e| e.into_inner());
-            client.take_diagnostics_receiver()
-        };
-        // The receiver lives on the panel between frames so we drain it incrementally. Store it here.
-        if let Some(rx) = receiver {
+        let needs_subscription = self
+            .lsp_diagnostics_rx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_none();
+        if needs_subscription {
+            let receiver = {
+                // Every panel gets its own broadcast cursor, including panels that share one client.
+                let client = self.lsp_client.lock().unwrap_or_else(|e| e.into_inner());
+                client.subscribe_diagnostics()
+            };
             *self
                 .lsp_diagnostics_rx
                 .lock()
-                .unwrap_or_else(|e| e.into_inner()) = Some(rx);
+                .unwrap_or_else(|e| e.into_inner()) = Some(receiver);
         }
+        let live_buffer_version = self.buffer_version.load(Ordering::Acquire) as i64;
+        let prior_version = self
+            .lsp_diagnostics_version
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .filter(|(uri, _)| same_lsp_document_uri(&expected_uri, uri))
+            .map(|(_, version)| *version);
         let mut latest: Option<PublishedDiagnostics> = None;
         if let Some(rx) = self
             .lsp_diagnostics_rx
@@ -5482,14 +7020,39 @@ impl CodeEditorPanel {
             .unwrap_or_else(|e| e.into_inner())
             .as_mut()
         {
-            // Drain to the most recent notification for this document (LSP replaces the whole set).
-            while let Ok(published) = rx.try_recv() {
-                if published.uri == expected_uri {
-                    latest = Some(published);
+            loop {
+                let published = match rx.try_recv() {
+                    Ok(published) => published,
+                    Err(tokio::sync::broadcast::error::TryRecvError::Lagged(_)) => continue,
+                    Err(tokio::sync::broadcast::error::TryRecvError::Empty)
+                    | Err(tokio::sync::broadcast::error::TryRecvError::Closed) => break,
+                };
+                if !same_lsp_document_uri(&expected_uri, &published.uri) {
+                    continue;
                 }
+                if let Some(version) = published.version {
+                    let newest_known = latest
+                        .as_ref()
+                        .and_then(|candidate| candidate.version)
+                        .into_iter()
+                        .chain(prior_version)
+                        .chain(std::iter::once(live_buffer_version))
+                        .max()
+                        .unwrap_or(live_buffer_version);
+                    if version < newest_known {
+                        continue;
+                    }
+                }
+                latest = Some(published);
             }
         }
         let published = latest?;
+        if let Some(version) = published.version {
+            *self
+                .lsp_diagnostics_version
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some((expected_uri, version));
+        }
         let markers = lsp_diagnostics_to_markers(&published);
         let count = markers.len();
         self.push_diagnostics(markers);
@@ -5517,58 +7080,120 @@ impl CodeEditorPanel {
         }
     }
 
-    /// Spawn an off-thread backend code-nav completion request for `prefix` and deliver the popup items
-    /// into the panel's completion-result cell (drained next frame). Caches the lookup (RISK-002 / MC-004).
-    /// A no-op when no workspace is bound / the prefix is too short (the React 2-char guard) / the
-    /// debounce window has not elapsed. `runtime` is the app's tokio handle (the editor passes it in;
-    /// the egui thread never blocks — HBR-QUIET).
+    /// Spawn an off-thread completion request for `prefix`, asking the configured/running LSP first and
+    /// using the Handshake code-nav lookup only when LSP is absent, unavailable, or returns no items.
+    /// Every delivery carries its request generation + buffer/caret/document/workspace identity; the UI
+    /// drain rejects stale responses before they can replace a newer popup. `runtime` is the app's tokio
+    /// handle (the egui thread never blocks — HBR-QUIET).
     pub fn trigger_completion(&self, runtime: &tokio::runtime::Handle, prefix: &str) {
+        self.close_completion();
+        let generation = self.completion_generation.fetch_add(1, Ordering::Relaxed) + 1;
         let workspace_id = self.workspace_id();
-        if workspace_id.is_empty() || prefix.len() < 2 || !self.completion_debounce_elapsed() {
+        let lsp = self.lsp_client();
+        let document_uri = self.lsp_uri();
+        let lsp_available = (lsp.is_configured() || lsp.is_running()) && document_uri.is_some();
+        // Empty/one-character prefixes are valid LSP completion requests. The two-character floor is
+        // solely a CodeNav fallback load guard.
+        let code_nav_eligible = !workspace_id.is_empty() && prefix.chars().count() >= 2;
+        if !lsp_available && !code_nav_eligible {
             return;
         }
+        let cursor_byte = self.primary_cursor_offset();
+        let request = CodeIntelligenceRequestIdentity {
+            generation,
+            buffer_version: self.buffer_version.load(Ordering::Relaxed),
+            cursor_byte,
+            document_uri,
+            workspace_id: workspace_id.clone(),
+            query: prefix.to_owned(),
+        };
         let anchor = self
             .cursor_screen_pos()
             .unwrap_or_else(|| egui::pos2(40.0, 40.0));
-        // Cache hit: deliver immediately (no spawn).
-        if let Some(cached) = self
-            .code_nav_cache
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .get(prefix)
-        {
-            let items = Self::completions_from_symbols(&cached);
-            *self
-                .completion_result
-                .lock()
-                .unwrap_or_else(|e| e.into_inner()) = Some((anchor, items));
-            self.code_nav_symbols_result
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .push((prefix.to_owned(), cached));
-            return;
-        }
-        let client = self
+        // Capture a possible fallback cache hit now. It is deliberately NOT delivered before the LSP
+        // request: configured LSP is the primary authority even when CodeNav has cached data.
+        let cached_fallback = code_nav_eligible
+            .then(|| {
+                self.code_nav_cache
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .get(&workspace_id, prefix)
+            })
+            .flatten();
+        let code_nav = self
             .code_nav_client
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         let cell = Arc::clone(&self.completion_result);
-        let symbols_cell = Arc::clone(&self.code_nav_symbols_result);
-        let prefix_owned = prefix.to_owned();
+        let position = self.lsp_position_at(cursor_byte);
         runtime.spawn(async move {
-            let symbols = client
-                .lookup_symbols(&workspace_id, &prefix_owned, SYMBOL_LOOKUP_LIMIT)
+            let lsp_items = if lsp_available {
+                lsp.completion_after_sync(
+                    request.document_uri.as_deref().unwrap_or_default(),
+                    position,
+                )
                 .await
-                .unwrap_or_default(); // graceful empty on backend error (AC-004 analog).
-            let items = symbols.iter().map(CompletionItem::from_symbol).collect();
-            if let Ok(mut slot) = symbols_cell.lock() {
-                slot.push((prefix_owned, symbols));
-            }
+            } else {
+                Vec::new()
+            };
+            let (items, code_nav_batch) = if lsp_items.is_empty() {
+                let symbols = if let Some(cached) = cached_fallback {
+                    cached
+                } else if !code_nav_eligible {
+                    Vec::new()
+                } else {
+                    code_nav
+                        .lookup_symbols(&request.workspace_id, &request.query, SYMBOL_LOOKUP_LIMIT)
+                        .await
+                        .unwrap_or_default()
+                };
+                let items = symbols.iter().map(CompletionItem::from_symbol).collect();
+                let batch = code_nav_eligible.then(|| (request.query.clone(), symbols));
+                (items, batch)
+            } else {
+                (
+                    lsp_items.iter().map(Self::completion_from_lsp).collect(),
+                    None,
+                )
+            };
+            let delivery = CompletionDelivery {
+                request,
+                anchor,
+                items,
+                code_nav_batch,
+            };
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some((anchor, items));
+                let replace = slot
+                    .as_ref()
+                    .map(|current| current.request.generation <= delivery.request.generation)
+                    .unwrap_or(true);
+                if replace {
+                    *slot = Some(delivery);
+                }
             }
         });
+    }
+
+    /// Map the LSP completion vocabulary into the popup's shared item vocabulary.
+    fn completion_from_lsp(item: &LspCompletionItem) -> CompletionItem {
+        let kind = match item.kind {
+            Some(7 | 8 | 22) => super::code_nav::CompletionKind::Class,
+            Some(13 | 20) => super::code_nav::CompletionKind::Enum,
+            Some(5 | 10) => super::code_nav::CompletionKind::Field,
+            Some(9 | 17 | 19) => super::code_nav::CompletionKind::Module,
+            Some(6 | 11 | 12 | 21) => super::code_nav::CompletionKind::Variable,
+            _ => super::code_nav::CompletionKind::Function,
+        };
+        let detail = item.detail.clone().unwrap_or_else(|| "LSP".to_owned());
+        CompletionItem {
+            label: item.label.clone(),
+            insert_text: item.insert_text.clone(),
+            kind,
+            detail: detail.clone(),
+            documentation: detail,
+            symbol_entity_id: String::new(),
+        }
     }
 
     /// Update the hover-dwell tracker for the current cursor byte offset and return `true` once per
@@ -5597,43 +7222,154 @@ impl CodeEditorPanel {
         }
     }
 
-    /// Spawn an off-thread backend code-nav hover request for the identifier `word` and deliver the
-    /// rendered hover into the panel's hover-result cell (drained next frame). A no-op when no workspace
-    /// is bound / `word` is empty. The hover content is the same data the React `CodeSymbolPanel` shows:
-    /// the symbol heading + kind + key + staleness + (when available) the file-lens doc. `runtime` is the
-    /// app's tokio handle (the egui thread never blocks — HBR-QUIET).
+    /// Spawn an off-thread hover request for `word`, asking LSP first and falling back to Handshake
+    /// code-nav only when LSP is absent, unavailable, or empty. The generation + live-state identity is
+    /// validated on delivery so an older hover cannot replace a newer caret/document result.
     pub fn trigger_hover(&self, runtime: &tokio::runtime::Handle, word: &str) {
+        self.close_hover();
+        let generation = self.hover_generation.fetch_add(1, Ordering::Relaxed) + 1;
         let workspace_id = self.workspace_id();
-        if workspace_id.is_empty() || word.trim().is_empty() {
+        if word.trim().is_empty() {
             return;
         }
+        let lsp = self.lsp_client();
+        let document_uri = self.lsp_uri();
+        let lsp_available = (lsp.is_configured() || lsp.is_running()) && document_uri.is_some();
+        if !lsp_available && workspace_id.is_empty() {
+            return;
+        }
+        let cursor_byte = self.primary_cursor_offset();
+        let request = CodeIntelligenceRequestIdentity {
+            generation,
+            buffer_version: self.buffer_version.load(Ordering::Relaxed),
+            cursor_byte,
+            document_uri,
+            workspace_id: workspace_id.clone(),
+            query: word.to_owned(),
+        };
         let anchor = self
             .cursor_screen_pos()
             .unwrap_or_else(|| egui::pos2(40.0, 40.0));
-        let client = self
+        let code_nav = self
             .code_nav_client
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         let cell = Arc::clone(&self.hover_result);
-        let symbols_cell = Arc::clone(&self.code_nav_symbols_result);
-        let word_owned = word.to_owned();
+        let position = self.lsp_position_at(cursor_byte);
+        let current_file_path = self.file_path();
         runtime.spawn(async move {
-            // Look up the first symbol matching the word (the React `lookupFirstSymbol`).
-            let symbols = client
-                .lookup_symbols(&workspace_id, &word_owned, 5)
+            if lsp_available {
+                if let Some(lsp_hover) = lsp
+                    .hover_after_sync(
+                        request.document_uri.as_deref().unwrap_or_default(),
+                        position,
+                    )
+                    .await
+                {
+                    let base_hover = HoverState {
+                        markdown: lsp_hover.value,
+                        display_name: request.query.clone(),
+                        anchor,
+                        definition_target: None,
+                    };
+                    let delivery = HoverDelivery {
+                        hover: Some(base_hover.clone()),
+                        request: request.clone(),
+                        code_nav_batch: None,
+                    };
+                    if let Ok(mut slot) = cell.lock() {
+                        let replace = slot
+                            .as_ref()
+                            .map(|current| {
+                                current.request.generation <= delivery.request.generation
+                            })
+                            .unwrap_or(true);
+                        if replace {
+                            *slot = Some(delivery);
+                        }
+                    }
+                    // Preserve the hover immediately, then enrich it with the lossless definition target
+                    // when the server resolves one. A slow definition request never withholds hover text.
+                    if let Some(location) = lsp
+                        .goto_definition_after_sync(
+                            request.document_uri.as_deref().unwrap_or_default(),
+                            position,
+                        )
+                        .await
+                    {
+                        let mut linked_hover = base_hover;
+                        linked_hover.definition_target =
+                            Some(navigation_location_from_lsp(location));
+                        let linked = HoverDelivery {
+                            hover: Some(linked_hover),
+                            request,
+                            code_nav_batch: None,
+                        };
+                        if let Ok(mut slot) = cell.lock() {
+                            let replace = slot
+                                .as_ref()
+                                .map(|current| {
+                                    current.request.generation <= linked.request.generation
+                                })
+                                .unwrap_or(true);
+                            if replace {
+                                *slot = Some(linked);
+                            }
+                        }
+                    }
+                    return;
+                }
+            }
+            if request.workspace_id.is_empty() {
+                let delivery = HoverDelivery {
+                    request,
+                    hover: None,
+                    code_nav_batch: None,
+                };
+                if let Ok(mut slot) = cell.lock() {
+                    let replace = slot
+                        .as_ref()
+                        .map(|current| current.request.generation <= delivery.request.generation)
+                        .unwrap_or(true);
+                    if replace {
+                        *slot = Some(delivery);
+                    }
+                }
+                return;
+            }
+            // Prefix results are backend-key ordered; bind the exact identifier before a sibling such
+            // as `address` so hover content and its definition link describe the word under the caret.
+            let symbols = code_nav
+                .lookup_symbols(&request.workspace_id, &request.query, 5)
                 .await
                 .unwrap_or_default();
-            if let Ok(mut slot) = symbols_cell.lock() {
-                slot.push((word_owned.clone(), symbols.clone()));
-            }
-            let Some(lookup_symbol) = symbols.into_iter().next() else {
-                return; // no symbol -> no hover (graceful).
+            let code_nav_batch = Some((request.query.clone(), symbols.clone()));
+            let Some(lookup_symbol) = preferred_symbol_for_identifier_in_file(
+                symbols,
+                &request.query,
+                &current_file_path,
+            ) else {
+                let delivery = HoverDelivery {
+                    request,
+                    hover: None,
+                    code_nav_batch,
+                };
+                if let Ok(mut slot) = cell.lock() {
+                    let replace = slot
+                        .as_ref()
+                        .map(|current| current.request.generation <= delivery.request.generation)
+                        .unwrap_or(true);
+                    if replace {
+                        *slot = Some(delivery);
+                    }
+                }
+                return;
             };
             let symbol = if lookup_symbol.symbol_entity_id.is_empty() {
                 lookup_symbol
             } else {
-                match client.get_symbol(&lookup_symbol.symbol_entity_id).await {
+                match code_nav.get_symbol(&lookup_symbol.symbol_entity_id).await {
                     Ok(resp)
                         if !resp.symbol.symbol_entity_id.is_empty()
                             || !resp.symbol.display_name.is_empty() =>
@@ -5651,7 +7387,7 @@ impl CodeEditorPanel {
                     staleness.indexed_content_hash.as_deref(),
                     staleness.indexed_parser_version.as_deref(),
                 ) {
-                    (Some(hash), Some(parser_version)) => client
+                    (Some(hash), Some(parser_version)) => code_nav
                         .get_file_lens(&workspace_id, &path, hash, parser_version)
                         .await
                         .ok()
@@ -5660,28 +7396,32 @@ impl CodeEditorPanel {
                                 .iter()
                                 .find(|entry| entry.symbol_entity_id == symbol.symbol_entity_id)
                                 .and_then(|entry| entry.doc.clone())
-                                .or_else(|| lens.entries.into_iter().find_map(|entry| entry.doc))
                         }),
                     _ => None,
                 }
             } else {
                 None
             };
-            let definition_line = symbol
-                .definition
-                .as_ref()
-                .and_then(|d| d.line_start)
-                .filter(|l| *l >= 1)
-                .map(|l| (l - 1) as usize);
+            let definition_target = code_nav_location_from_symbol(&symbol, &current_file_path);
             let markdown = super::code_nav::markdown_for_symbol(&symbol, lens_doc.as_deref());
-            let hover = HoverState {
-                markdown,
-                display_name: symbol.display_name.clone(),
-                anchor,
-                definition_line,
+            let delivery = HoverDelivery {
+                request,
+                hover: Some(HoverState {
+                    markdown,
+                    display_name: symbol.display_name.clone(),
+                    anchor,
+                    definition_target,
+                }),
+                code_nav_batch,
             };
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some((anchor, hover));
+                let replace = slot
+                    .as_ref()
+                    .map(|current| current.request.generation <= delivery.request.generation)
+                    .unwrap_or(true);
+                if replace {
+                    *slot = Some(delivery);
+                }
             }
         });
     }
@@ -5738,7 +7478,8 @@ impl CodeEditorPanel {
             geometry.origin.y + row_idx as f32 * geometry.line_height + geometry.line_height * 0.5;
         // The fold column sits after the breakpoint column. Mirror `gutter::Gutter::render`'s anchors.
         let breakpoint_w = if config.show_breakpoints { 16.0 } else { 0.0 };
-        let x = rect.left() + 4.0 + breakpoint_w + 7.0; // center of the 14px fold column
+        let fold_w = crate::code_editor::gutter::fold_column_width(geometry.char_width);
+        let x = rect.left() + 4.0 + breakpoint_w + fold_w * 0.5;
         Some(egui::pos2(x, y))
     }
 
@@ -5852,6 +7593,16 @@ impl CodeEditorPanel {
         *self.perf.lock().unwrap_or_else(|e| e.into_inner())
     }
 
+    /// The measured row height used by the live virtualized painter. Exposed as a diagnostic seam so
+    /// performance proofs can derive a viewport-relative paint cap instead of relying on a magic row
+    /// count. `None` until the first frame has measured the configured monospace font.
+    pub fn measured_line_height_px(&self) -> Option<f32> {
+        *self
+            .line_height_px
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+    }
+
     /// The line index range painted on the most recent `show` — the exact `row_range`
     /// `egui::ScrollArea::show_rows` selected (AC-007; egui applies no overscan). `0..0` before the
     /// first render. Lets a test/agent assert exactly which lines are on screen — the deterministic
@@ -5878,6 +7629,10 @@ impl CodeEditorPanel {
     /// afterward. The seam later MTs' go-to-line / scroll-to-symbol actions build on.
     pub fn scroll_to_offset_px(&self, offset_px: f32) {
         *self
+            .pending_scroll_line
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        *self
             .pending_scroll_offset
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = Some(offset_px.max(0.0));
@@ -5888,13 +7643,22 @@ impl CodeEditorPanel {
     /// line height has not been measured yet (no frame rendered), the request still stores a best-effort
     /// offset that is corrected on the following frame once the height is known.
     pub fn scroll_to_line(&self, line: usize) {
-        let lh = self
+        let measured = *self
             .line_height_px
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .unwrap_or(0.0);
-        // 0.0 before the first measure -> offset 0; the test/render measures first, then scrolls.
-        self.scroll_to_offset_px(line as f32 * lh);
+            .unwrap_or_else(|e| e.into_inner());
+        if let Some(line_height) = measured {
+            self.scroll_to_offset_px(line as f32 * line_height);
+        } else {
+            *self
+                .pending_scroll_line
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some(line);
+            *self
+                .pending_scroll_offset
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+        }
     }
 
     /// The stable AccessKit author_id for this panel's outer container, with the instance suffix when
@@ -5913,6 +7677,30 @@ impl CodeEditorPanel {
     /// present (RISK-004).
     pub fn text_author_id(&self) -> String {
         self.suffixed(CODE_EDITOR_TEXT_AUTHOR_ID)
+    }
+
+    /// Request focus on the real mounted code text node on its next frame.
+    pub fn request_text_focus(&self) {
+        self.editor_focus_pending
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+
+    /// Read-only focus-lifecycle diagnostic for mounted integration proofs.
+    #[doc(hidden)]
+    pub fn text_focus_request_pending_for_test(&self) -> bool {
+        self.editor_focus_pending
+            .load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    /// Whether the live editable TextInput node, rather than only its outer pane scope, currently
+    /// owns egui focus. AccessKit targets the inner node directly, so menu/bus enablement must treat
+    /// that focus as code-editor focus as well.
+    pub fn live_text_has_focus(&self, ctx: &egui::Context) -> bool {
+        let live_text_id = *self
+            .live_text_node_id
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        live_text_id.is_some_and(|id| ctx.memory(|memory| memory.focused() == Some(id)))
     }
 
     /// Append the instance suffix to a base author_id (`base#instance`), or return the bare base for
@@ -5965,6 +7753,10 @@ impl CodeEditorPanel {
     /// the viewport (plus overscan) are painted, so a 100k-line file stays within the frame budget
     /// (MT-002). Safe to call every frame; recomputes highlights only on a buffer-version change.
     pub fn show(&self, ui: &mut egui::Ui) {
+        if self.poll_initial_highlight() {
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_millis(16));
+        }
         let syntax = syntax_tokens_for(ui.visuals());
         let container_id = self.container_id();
         let container_author = self.container_author_id();
@@ -5972,6 +7764,16 @@ impl CodeEditorPanel {
         let scroll_id = self.scroll_id();
         let text_author = self.text_author_id();
         let text_id = self.text_id();
+        // Keep an explicit navigation focus request pending until the actual live text node reports
+        // focus. Clearing it before the node exists can lose the one-shot across a mount/snapshot pass,
+        // leaving the destination tab active but keyboard-inert.
+        let focus_requested = self
+            .editor_focus_pending
+            .load(std::sync::atomic::Ordering::Acquire);
+        if focus_requested && self.live_text_has_focus(ui.ctx()) {
+            self.editor_focus_pending
+                .store(false, std::sync::atomic::Ordering::Release);
+        }
 
         // MT-054: consume the Alt+Z word-wrap shortcut BEFORE the keymap dispatch / live-typing loop read
         // input (RISK-005 / MC-005). `consume_shortcut` removes the matching key event from the queue, so
@@ -5995,6 +7797,17 @@ impl CodeEditorPanel {
         // spacing itself), and we zero item-spacing inside the rows, so the measured glyph height is
         // the row height.
         let line_height = self.line_height(ui);
+        if let Some(line) = self
+            .pending_scroll_line
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take()
+        {
+            *self
+                .pending_scroll_offset
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some(line as f32 * line_height);
+        }
         // Measure + cache the monospace glyph width once, with the SAME FontId render_line paints with,
         // so the caret/selection overlay (MT-003) aligns column->x exactly (implementation note 4).
         let glyph_width = self.glyph_width(ui);
@@ -6203,6 +8016,10 @@ impl CodeEditorPanel {
         // scope's id stable across frames.
         ui.scope_builder(egui::UiBuilder::new().id_salt(container_id), |ui| {
             let container_node_id = ui.unique_id();
+            // Preserve the ancestor-bounded clip before the gutter SidePanel reserves its strip. The
+            // delayed gutter pass needs this exact bound to restore pointer interaction without ever
+            // expanding beyond the editor container/window.
+            let editor_container_clip = ui.clip_rect();
 
             // Paint the editor background from the theme (no hardcoded hex).
             let bg = syntax.background;
@@ -6210,13 +8027,6 @@ impl CodeEditorPanel {
             if ui.is_rect_visible(full_rect) {
                 ui.painter().rect_filled(full_rect, 0.0, bg);
             }
-
-            // MT-048: the Editor Body Context Menu code-pane 'Rename Symbol' entry. A secondary-click
-            // anywhere over the editor body opens the menu; choosing 'Rename Symbol' runs the SAME
-            // `begin_rename` path as F2. Built through egui's `response.context_menu` (the same surface the
-            // WP-011 context_menu_surfaces uses for simple panes) with the exact contract author_id +
-            // Role::MenuItem AccessKit node so a swarm agent can trigger it by id (AC-005 / HBR-SWARM).
-            self.render_editor_context_menu(ui, full_rect);
 
             // MT-007: RESERVE the gutter strip on the LEFT of the center editor area BEFORE the scroll
             // area, so the editor rows start to the right of the gutter (no overlap). The strip width is
@@ -6435,7 +8245,26 @@ impl CodeEditorPanel {
             // taken from the SAME fold-mapped visible window). Applies any fold/breakpoint click to the
             // panel state and publishes a BreakpointEvent on a breakpoint toggle. Nested in the container
             // scope so the gutter's per-line breakpoint/diagnostic nodes are container descendants.
-            self.render_gutter(ui, gutter_rect, gutter_glyph_width, &gutter_cfg);
+            self.render_gutter(
+                ui,
+                gutter_rect,
+                gutter_glyph_width,
+                &gutter_cfg,
+                editor_container_clip,
+            );
+
+            // MT-048/MT-070: install the editor-body secondary-click surface AFTER the body and gutter
+            // responses have been registered. egui resolves an overlapping interaction to the latest
+            // response in the layer; registering this before the virtualized rows left the advertised
+            // AccessKit surface addressable while its real secondary click was shadowed by the later row
+            // widgets. The editor's primary caret/gutter handlers have already consumed this frame's
+            // input above, while the find bar is rendered after this and therefore remains topmost over
+            // its own controls.
+            let editor_body_context_rect = egui::Rect::from_min_max(
+                egui::pos2(gutter_rect.right(), full_rect.top()),
+                full_rect.max,
+            );
+            self.render_editor_context_menu(ui, editor_body_context_rect);
 
             // MT-004: render the floating find bar (Ctrl+F / Ctrl+H) pinned to the top-right of the
             // editor area, INSIDE the container scope so its AccessKit nodes are descendants of the
@@ -6509,6 +8338,104 @@ impl CodeEditorPanel {
         // completion popup + hover tooltip as non-focus-stealing overlays ABOVE the editor (RISK-005).
         // A no-op (and no AccessKit nodes) when neither is open (AC-005/AC-006).
         self.render_code_intelligence(ui);
+
+        // The stable `text_id` above identifies the enclosing scope, while the actual AccessKit
+        // TextInput node is the nested live id recorded by `render_rows`/`render_wrapped_rows`.
+        // Focusing the scope id leaves AccessKit's focused id absent from the emitted node list as
+        // soon as another surface renders. Apply the one-shot focus request only after the live node
+        // exists so tab/menu navigation never publishes a dangling focused node.
+        if let Some(live_text_id) = *self
+            .live_text_node_id
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
+            if focus_requested {
+                ui.ctx()
+                    .memory_mut(|memory| memory.request_focus(live_text_id));
+                ui.ctx().request_repaint();
+            }
+        }
+    }
+
+    fn completion_request_is_current(&self, request: &CodeIntelligenceRequestIdentity) -> bool {
+        request.generation == self.completion_generation.load(Ordering::Relaxed)
+            && self.code_intelligence_state_is_current(request)
+    }
+
+    fn current_code_intelligence_identity(
+        &self,
+        generation: u64,
+        query: String,
+    ) -> CodeIntelligenceRequestIdentity {
+        CodeIntelligenceRequestIdentity {
+            generation,
+            buffer_version: self.buffer_version.load(Ordering::Relaxed),
+            cursor_byte: self.primary_cursor_offset(),
+            document_uri: self.lsp_uri(),
+            workspace_id: self.workspace_id(),
+            query,
+        }
+    }
+
+    fn cancel_automatic_completion(&self) {
+        let _ = self.completion_request.compare_exchange(
+            COMPLETION_REQUEST_AUTOMATIC,
+            COMPLETION_REQUEST_NONE,
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+        );
+        *self
+            .automatic_completion_cursor
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    fn invalidate_stale_code_intelligence_overlays(&self) {
+        let completion_stale = self
+            .completion_visible_identity
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|identity| !self.completion_request_is_current(identity))
+            .unwrap_or(false);
+        if completion_stale {
+            self.close_completion();
+        }
+        let hover_stale = self
+            .hover_visible_identity
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|identity| !self.hover_request_is_current(identity))
+            .unwrap_or(false);
+        if hover_stale {
+            self.close_hover();
+        }
+    }
+
+    fn hover_request_is_current(&self, request: &CodeIntelligenceRequestIdentity) -> bool {
+        request.generation == self.hover_generation.load(Ordering::Relaxed)
+            && self.code_intelligence_state_is_current(request)
+    }
+
+    fn definition_request_is_current(&self, request: &CodeIntelligenceRequestIdentity) -> bool {
+        request.generation == self.definition_generation.load(Ordering::Relaxed)
+            && self.code_intelligence_state_is_current(request)
+    }
+
+    fn references_request_is_current(&self, request: &CodeIntelligenceRequestIdentity) -> bool {
+        request.generation == self.references_generation.load(Ordering::Relaxed)
+            && self.code_intelligence_state_is_current(request)
+    }
+
+    fn code_intelligence_state_is_current(
+        &self,
+        request: &CodeIntelligenceRequestIdentity,
+    ) -> bool {
+        request.buffer_version == self.buffer_version.load(Ordering::Relaxed)
+            && request.cursor_byte == self.primary_cursor_offset()
+            && request.document_uri == self.lsp_uri()
+            && request.workspace_id == self.workspace_id()
     }
 
     /// MT-008: drain the off-thread completion/hover result cells into the popup state and render the
@@ -6529,70 +8456,160 @@ impl CodeEditorPanel {
         };
         let had_symbol_batches = !delivered_symbol_batches.is_empty();
         let mut delivered_symbols = Vec::new();
-        for (prefix, symbols) in delivered_symbol_batches {
+        for (workspace_id, prefix, symbols) in delivered_symbol_batches {
             delivered_symbols.extend(symbols.iter().cloned());
             self.code_nav_cache
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
-                .put(prefix, symbols);
+                .put(workspace_id, prefix, symbols);
         }
         if had_symbol_batches {
             self.push_staleness_markers(&delivered_symbols);
         }
-        if let Some((anchor, items)) = self
+        if let Some(delivery) = self
             .completion_result
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .take()
         {
-            if items.is_empty() {
-                self.close_completion();
-            } else {
-                *self
-                    .completion_state
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner()) = Some(CompletionState::new(items, anchor));
+            if self.completion_request_is_current(&delivery.request) {
+                if let Some((prefix, symbols)) = delivery.code_nav_batch {
+                    self.code_nav_cache
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .put(&delivery.request.workspace_id, prefix, symbols.clone());
+                    self.push_staleness_markers(&symbols);
+                }
+                if delivery.items.is_empty() {
+                    self.close_completion();
+                } else {
+                    let visible_identity = delivery.request.clone();
+                    *self
+                        .completion_state
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner()) =
+                        Some(CompletionState::new(delivery.items, delivery.anchor));
+                    *self
+                        .completion_visible_identity
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner()) = Some(visible_identity);
+                }
             }
         }
         // Drain a delivered hover result.
-        if let Some((_anchor, hover)) = self
+        if let Some(delivery) = self
             .hover_result
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .take()
         {
-            self.open_hover(hover);
+            if self.hover_request_is_current(&delivery.request) {
+                if let Some((prefix, symbols)) = delivery.code_nav_batch {
+                    self.code_nav_cache
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .put(&delivery.request.workspace_id, prefix, symbols.clone());
+                    self.push_staleness_markers(&symbols);
+                }
+                if let Some(hover) = delivery.hover {
+                    *self.hover_state.lock().unwrap_or_else(|e| e.into_inner()) = Some(hover);
+                    *self
+                        .hover_visible_identity
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner()) = Some(delivery.request);
+                } else {
+                    self.close_hover();
+                }
+            }
         }
         // Drain a delivered go-to-definition target (F12): jump the caret + scroll to the def line.
-        if let Some(line) = self
+        if let Some(delivery) = self
             .goto_def_result
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .take()
         {
-            // MT-052 jump-history record site #2 (goto-definition): record the PRE-jump caret location so
-            // Navigate Back returns to the call site, BEFORE the caret jumps to the definition line.
-            self.record_jump_origin();
-            self.navigate_to_line(line);
+            if self.definition_request_is_current(&delivery.request) {
+                *self
+                    .last_definition_target
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = delivery.target.clone();
+                if let Some(target) = delivery.target {
+                    self.apply_code_navigation_target_from_origin(target, delivery.origin_pane);
+                }
+            }
         }
-        // Drain a delivered references result (Shift+F12): park it for the observable accessor. No
-        // rendered references panel in MT-010 scope (follow-on MT — see handoff BLOCKER).
-        if let Some(refs) = self
+        // Drain a delivered references result (Shift+F12) into one actionable overlay regardless of
+        // whether LSP or CodeNav produced the locations.
+        if let Some(delivery) = self
             .references_result
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .take()
         {
-            tracing::debug!(
-                total = refs.total(),
-                callers = refs.callers.len(),
-                callees = refs.callees.len(),
-                "code editor: ShowReferences result delivered"
-            );
-            *self
-                .last_references
-                .lock()
-                .unwrap_or_else(|e| e.into_inner()) = Some(refs);
+            if self.references_request_is_current(&delivery.request) {
+                match delivery.payload {
+                    ReferencesPayload::Lsp(locations) => {
+                        if locations.is_empty() {
+                            self.close_references();
+                        } else {
+                            let items = locations
+                                .iter()
+                                .cloned()
+                                .map(|target| CodeReferenceItem {
+                                    label: target
+                                        .path
+                                        .clone()
+                                        .unwrap_or_else(|| target.uri.clone()),
+                                    target,
+                                })
+                                .collect();
+                            *self
+                                .last_lsp_references
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner()) = locations;
+                            *self
+                                .last_references
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner()) = None;
+                            *self
+                                .reference_items
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner()) = items;
+                            *self
+                                .references_visible_identity
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner()) = Some(delivery.request);
+                        }
+                    }
+                    ReferencesPayload::CodeNav { raw, items } => {
+                        if items.is_empty() {
+                            self.close_references();
+                        } else {
+                            tracing::debug!(
+                                total = raw.total(),
+                                "code editor: CodeNav references delivered"
+                            );
+                            *self
+                                .last_references
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner()) = Some(raw);
+                            self.last_lsp_references
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner())
+                                .clear();
+                            *self
+                                .reference_items
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner()) = items;
+                            *self
+                                .references_visible_identity
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner()) = Some(delivery.request);
+                        }
+                    }
+                }
+            }
         }
 
         // Render the completion popup (a no-op when closed). The panel owns the state; the popup is a
@@ -6610,14 +8627,69 @@ impl CodeEditorPanel {
         // Render the hover tooltip (a no-op when closed).
         if let Some(state) = self.hover_state() {
             match HoverTooltip::show(ui.ctx(), &state, &self.instance) {
-                HoverOutcome::GotoDefinition(line) => {
-                    // MT-052 jump-history record site #2b (hover "Go to definition" link — same
-                    // goto-definition jump class): record the pre-jump location before the caret moves.
-                    self.record_jump_origin();
-                    self.navigate_to_line(line);
+                HoverOutcome::GotoDefinition(target) => {
+                    self.apply_code_navigation_target(target);
                     self.close_hover();
                 }
                 HoverOutcome::None => {}
+            }
+        }
+
+        let references = self
+            .reference_items
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        if !references.is_empty() {
+            let mut clicked_reference = None;
+            let mut dismiss = false;
+            egui::Area::new(egui::Id::new(self.suffixed("code_editor_references")))
+                .order(egui::Order::Foreground)
+                .fixed_pos(egui::pos2(24.0, 72.0))
+                .show(ui.ctx(), |ui| {
+                    egui::Frame::popup(ui.style()).show(ui, |ui| {
+                        let header = ui.strong(format!("References ({})", references.len()));
+                        let overlay_author = self.suffixed("code_editor_references");
+                        let reference_count = references.len();
+                        ui.ctx().accesskit_node_builder(header.id, move |node| {
+                            node.set_role(accesskit::Role::List);
+                            node.set_author_id(overlay_author.clone());
+                            node.set_label("Code references".to_owned());
+                            node.set_value(format!("{reference_count} references"));
+                        });
+                        for (index, item) in references.iter().take(20).enumerate() {
+                            let link = ui.link(format!(
+                                "{} — {}:{}",
+                                item.label,
+                                item.target.range.start.line + 1,
+                                item.target.range.start.character + 1
+                            ));
+                            let author = self.reference_author_id(index);
+                            ui.ctx().accesskit_node_builder(link.id, move |node| {
+                                node.set_role(accesskit::Role::Link);
+                                node.set_author_id(author.clone());
+                                node.set_label("Open reference".to_owned());
+                                node.add_action(accesskit::Action::Click);
+                            });
+                            if link.clicked() {
+                                clicked_reference = Some(index);
+                            }
+                        }
+                        let close = ui.button("Close");
+                        let close_author = self.suffixed("code_editor_references_close");
+                        ui.ctx().accesskit_node_builder(close.id, move |node| {
+                            node.set_role(accesskit::Role::Button);
+                            node.set_author_id(close_author.clone());
+                            node.set_label("Close references".to_owned());
+                            node.add_action(accesskit::Action::Click);
+                        });
+                        dismiss = close.clicked();
+                    });
+                });
+            if let Some(index) = clicked_reference {
+                self.activate_reference(index);
+            } else if dismiss {
+                self.close_references();
             }
         }
 
@@ -6874,6 +8946,15 @@ impl CodeEditorPanel {
             node.set_author_id(context_author.clone());
             node.set_label("Code editor context surface".to_owned());
         });
+        if resp.secondary_clicked() {
+            self.context_menu_open_for_snapshot
+                .store(true, Ordering::Relaxed);
+        }
+        if self.snapshot_capture_mode.load(Ordering::Relaxed)
+            && self.context_menu_open_for_snapshot.load(Ordering::Relaxed)
+        {
+            crate::context_menu::request_open(ui.ctx(), resp.id, rect.center());
+        }
 
         // Live availability + the typed MT-070 item list (the ids ARE the stable author_ids the owning
         // MTs emit — no parallel id scheme), extended by the MT-046 copy-as-note-reference entry.
@@ -6897,6 +8978,8 @@ impl CodeEditorPanel {
             .separator()
             .item(copy_ref_item);
         if let Some(confirmed) = menu.show_on(&resp) {
+            self.context_menu_open_for_snapshot
+                .store(false, Ordering::Relaxed);
             if confirmed == CODE_EDITOR_CTX_COPY_NOTE_REF_AUTHOR_ID {
                 // MT-046: build the `[[code:…]]` ref from the live selection/identifier and stage it
                 // for the factory render's bus clipboard write (the REAL command, not a fabricated
@@ -6945,9 +9028,24 @@ impl CodeEditorPanel {
             node.set_role(accesskit::Role::MenuItem);
             node.set_author_id(author.clone());
             node.set_label("Rename Symbol".to_owned());
-            node.set_value("Rename the symbol under the cursor (F2)".to_owned());
+            node.set_value("Open the code-editor context menu at Rename Symbol".to_owned());
             node.add_action(accesskit::Action::Click);
         });
+        let open_context_menu = ui.input(|input| {
+            input
+                .accesskit_action_requests(node_id, accesskit::Action::Click)
+                .next()
+                .is_some()
+        });
+        if open_context_menu {
+            // Canonical Argus path: clicking the stable always-mounted node opens the REAL typed context
+            // popup. The caller then re-inspects and clicks the actual
+            // `ctx-menu.code_editor_ctx_rename_symbol` leaf; no synthetic direct rename bypass exists.
+            crate::context_menu::request_open(ui.ctx(), resp.id, rect.center());
+            self.context_menu_open_for_snapshot
+                .store(true, Ordering::Relaxed);
+            ui.ctx().request_repaint();
+        }
 
         // MT-049 (AC-007 / HBR-SWARM): the always-addressable 'Quick Fix...' context-menu node. A swarm
         // agent reads/activates it by `code_editor_ctx_quick_fix` to arm the SAME request+open_menu flow as
@@ -6978,6 +9076,12 @@ impl CodeEditorPanel {
         });
     }
 
+    /// Reproduce a previously opened dynamic editor-body menu during a canonical fresh-tree capture.
+    /// The app brackets only its side-effect-free MCP snapshot frame with this flag.
+    pub fn set_snapshot_capture_mode(&self, enabled: bool) {
+        self.snapshot_capture_mode.store(enabled, Ordering::Relaxed);
+    }
+
     /// MT-070: the LIVE availability of each editor-body context-menu action for the CURRENT
     /// caret/selection, read fresh at right-click time (RISK-070-1). Drives honest enable/disable:
     /// - `symbol_under_cursor`: a tree-sitter identifier at the primary caret (the same
@@ -6988,8 +9092,8 @@ impl CodeEditorPanel {
     /// - `definition_available`: the F12 request's own gates (runtime + bound workspace + a word under
     ///   the caret — without all three `request_go_to_definition` is a silent no-op, so the entry is
     ///   honestly disabled instead of dead-but-enabled),
-    /// - `unresolved_link_under_cursor`: a syntactic `[[title]]` wikilink under the caret (resolution
-    ///   state needs a backend; the syntactic check is the honest local gate).
+    /// - `unresolved_link_under_cursor`: a `[[title]]` under the caret that the successfully seeded
+    ///   workspace resolver confirms is unresolved. Unknown resolver state fails closed.
     fn editor_body_availability(&self) -> crate::context_menu_surfaces::EditorBodyAvailability {
         // Ensure the highlight tree reflects the current buffer before resolving (cache hit when
         // unchanged) — the same freshness rule `begin_rename_at_cursor` applies.
@@ -7010,7 +9114,7 @@ impl CodeEditorPanel {
         let definition_available = self.runtime_handle().is_some()
             && !self.workspace_id().is_empty()
             && !self.word_at_primary_cursor().is_empty();
-        let unresolved_link_under_cursor = self.wikilink_under_cursor().is_some();
+        let unresolved_link_under_cursor = self.unresolved_wikilink_under_cursor().is_some();
         crate::context_menu_surfaces::EditorBodyAvailability {
             symbol_under_cursor,
             quick_fix_available,
@@ -7020,10 +9124,10 @@ impl CodeEditorPanel {
         }
     }
 
-    /// MT-070/MT-057: the `[[title]]` wikilink under the primary caret, or `None`. A SYNTACTIC scan of
-    /// the caret's line for a `[[…]]` span covering the caret byte (resolution state — does the note
-    /// exist — needs a backend lookup; this is the honest local availability gate for the 'Create note
-    /// from link' entry). The inner title is returned trimmed; an empty `[[]]` yields `None`.
+    /// MT-070/MT-057: the syntactic `[[title]]` wikilink under the primary caret, or `None`. This helper
+    /// only scans the caret's line for a `[[…]]` span covering the caret byte; create-note availability
+    /// must use [`Self::unresolved_wikilink_under_cursor`], which also requires an authoritative resolver
+    /// snapshot. The inner title is returned trimmed; an empty `[[]]` yields `None`.
     pub fn wikilink_under_cursor(&self) -> Option<String> {
         let offset = self.primary_cursor_offset();
         self.with_buffer(|b| {
@@ -7054,28 +9158,68 @@ impl CodeEditorPanel {
         })
     }
 
+    /// Replace the code pane's resolver snapshot. The shell passes `None` until the mounted rich
+    /// runtime has a successful workspace seed, preventing duplicate note creation during load/error.
+    pub fn set_wikilink_resolver_index(
+        &self,
+        index: Option<crate::rich_editor::wikilinks::resolver::ResolverIndex>,
+    ) {
+        *self
+            .wikilink_resolver_index
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = index;
+    }
+
+    /// The link under the cursor only when the authoritative resolver confirms it has no target.
+    pub fn unresolved_wikilink_under_cursor(&self) -> Option<String> {
+        let title = self.wikilink_under_cursor()?;
+        let index = self
+            .wikilink_resolver_index
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let index = index.as_ref()?;
+        match crate::rich_editor::wikilinks::resolver::resolve_wikilink(index, &title) {
+            crate::rich_editor::wikilinks::resolver::WikilinkResolution::Unresolved { .. } => {
+                Some(title)
+            }
+            crate::rich_editor::wikilinks::resolver::WikilinkResolution::Resolved { .. }
+            | crate::rich_editor::wikilinks::resolver::WikilinkResolution::Ambiguous { .. } => None,
+        }
+    }
+
     /// MT-046: build the `[[code:…]]` note-reference string for the current selection / identifier —
     /// the code -> note interconnection payload. The ref value follows the MT-034 `path#Symbol` shape
-    /// the wikilink parser + cross-ref resolver consume: `[[code:{file_path}#{anchor}]]`, where the
-    /// anchor is the selected text's first line (trimmed) when a selection exists, else the identifier
-    /// under the caret. An in-memory buffer with no file path degrades to `[[code:{anchor}]]` (the
-    /// resolver also accepts bare symbol keys). Returns `None` when there is nothing to anchor
-    /// (no selection AND no word under the caret) — the menu entry renders disabled then.
+    /// the wikilink parser + cross-ref resolver consume: `[[code:{file_path}#{anchor}]]`. A selection
+    /// must equal one tree-sitter identifier range; a bare caret resolves the identifier node under it.
+    /// Returns `None` when the buffer has no parser-encodable file path or no exact identifier, so the
+    /// menu entry disables rather than emitting a noncanonical or lossy reference.
     pub fn note_reference_for_cursor(&self) -> Option<String> {
-        let anchor = match self.selected_primary_text() {
-            Some((_, _, text)) => text.lines().next().unwrap_or("").trim().to_owned(),
-            None => self.word_at_primary_cursor(),
-        };
-        if anchor.is_empty() {
+        self.ensure_highlight_cache();
+        let selection = self.selected_primary_text();
+        let probe_byte = selection
+            .as_ref()
+            .map(|(start, _, _)| *start)
+            .unwrap_or_else(|| self.primary_cursor_offset());
+        let identifier_range = {
+            let highlighter = self.highlighter.lock().unwrap_or_else(|e| e.into_inner());
+            highlighter
+                .as_ref()
+                .and_then(|hl| hl.tree())
+                .and_then(|tree| rename::identifier_range_at(tree, probe_byte))
+        }?;
+        if selection
+            .as_ref()
+            .is_some_and(|(start, end, _)| identifier_range != (*start..*end))
+        {
             return None;
         }
+        let anchor = self.with_buffer(|buffer| {
+            (identifier_range.end <= buffer.len_bytes())
+                .then(|| buffer.byte_slice_to_string(identifier_range.clone()))
+        })?;
         let path = self.file_path();
-        let path = path.trim();
-        if path.is_empty() {
-            Some(format!("[[code:{anchor}]]"))
-        } else {
-            Some(format!("[[code:{path}#{anchor}]]"))
-        }
+        let path = path.as_str();
+        crate::interop::cross_ref::format_code_note_reference(path, &anchor)
     }
 
     /// MT-046: the REAL 'Copy as note reference' command — build the `[[code:…]]` ref from the live
@@ -7109,7 +9253,7 @@ impl CodeEditorPanel {
     /// the typed create-note intent the host drains ([`take_pending_create_note_link`]). A no-op when
     /// no wikilink is under the caret (the entry is disabled then, so this is belt-and-braces).
     fn stage_create_note_from_link(&self) {
-        if let Some(title) = self.wikilink_under_cursor() {
+        if let Some(title) = self.unresolved_wikilink_under_cursor() {
             *self
                 .pending_create_note_link
                 .lock()
@@ -7142,53 +9286,69 @@ impl CodeEditorPanel {
 
                 let items = self.outline_items();
                 let mut navigate_to: Option<usize> = None;
+                // A source file can expose thousands of top-level symbols (generated bindings and large
+                // flat modules are common). Building every outline row on the first editor frame defeats
+                // the editor body's virtualization even though the text viewport itself is bounded. Use
+                // egui's row virtualization so layout, labels, and AccessKit nodes are created only for
+                // the visible outline window.
+                let outline_row_height = ui
+                    .text_style_height(&egui::TextStyle::Monospace)
+                    .max(ui.spacing().interact_size.y);
                 egui::ScrollArea::vertical()
                     .id_salt(("code-editor-outline-scroll", self.outline_panel_scope_id()))
                     .auto_shrink([false, false])
-                    .show(ui, |ui| {
-                        if items.is_empty() {
-                            ui.label(
-                                egui::RichText::new("No symbols")
-                                    .italics()
-                                    .color(syntax.comment),
-                            );
-                        }
-                        for (idx, item) in items.iter().enumerate() {
-                            // Indent the row by the outline depth (MT step 2). A leading kind tag + the name.
-                            let label = format!(
-                                "{}{} {}",
-                                "  ".repeat(item.indent),
-                                item.kind.label(),
-                                item.name
-                            );
-                            let resp = ui.add(
-                                egui::Label::new(egui::RichText::new(label).monospace())
-                                    .sense(egui::Sense::click()),
-                            );
-                            let row_author = self
-                                .suffixed(&format!("{CODE_EDITOR_OUTLINE_ROW_AUTHOR_PREFIX}{idx}"));
-                            let row_label = format!("{} {}", item.kind.label(), item.name);
-                            ui.ctx().accesskit_node_builder(resp.id, move |node| {
-                                node.set_role(accesskit::Role::TreeItem);
-                                node.set_author_id(row_author.clone());
-                                node.set_label(row_label.clone());
-                                node.add_action(accesskit::Action::Click);
-                            });
-                            if resp.clicked() {
-                                navigate_to = Some(item.line);
+                    .show_rows(
+                        ui,
+                        outline_row_height,
+                        items.len().max(1),
+                        |ui, row_range| {
+                            if items.is_empty() {
+                                ui.label(
+                                    egui::RichText::new("No symbols")
+                                        .italics()
+                                        .color(syntax.comment),
+                                );
+                                return;
                             }
-                            resp.on_hover_text(format!(
-                                "Go to line {} ({})",
-                                item.line + 1,
-                                item.kind.label()
-                            ));
-                            // Stable per-row egui id so the row is individually addressable; the row index is
-                            // unique per frame (outline order is deterministic). (The container Tree node is
-                            // the AC-004 addressable surface; individual rows live in egui's hashed id space,
-                            // the same dynamic-row pattern the shell tree/list containers use.)
-                            let _ = idx;
-                        }
-                    });
+                            for idx in row_range {
+                                let item = &items[idx];
+                                // Indent the row by the outline depth (MT step 2). A leading kind tag + the name.
+                                let label = format!(
+                                    "{}{} {}",
+                                    "  ".repeat(item.indent),
+                                    item.kind.label(),
+                                    item.name
+                                );
+                                let resp = ui.add(
+                                    egui::Label::new(egui::RichText::new(label).monospace())
+                                        .sense(egui::Sense::click()),
+                                );
+                                let row_author = self.suffixed(&format!(
+                                    "{CODE_EDITOR_OUTLINE_ROW_AUTHOR_PREFIX}{idx}"
+                                ));
+                                let row_label = format!("{} {}", item.kind.label(), item.name);
+                                ui.ctx().accesskit_node_builder(resp.id, move |node| {
+                                    node.set_role(accesskit::Role::TreeItem);
+                                    node.set_author_id(row_author.clone());
+                                    node.set_label(row_label.clone());
+                                    node.add_action(accesskit::Action::Click);
+                                });
+                                if resp.clicked() {
+                                    navigate_to = Some(item.line);
+                                }
+                                resp.on_hover_text(format!(
+                                    "Go to line {} ({})",
+                                    item.line + 1,
+                                    item.kind.label()
+                                ));
+                                // Stable per-row egui id so the row is individually addressable; the row index is
+                                // unique per frame (outline order is deterministic). (The container Tree node is
+                                // the AC-004 addressable surface; individual rows live in egui's hashed id space,
+                                // the same dynamic-row pattern the shell tree/list containers use.)
+                                let _ = idx;
+                            }
+                        },
+                    );
 
                 // Emit the outline Tree node onto this scope's Ui id (AC-004 / HBR-SWARM).
                 let author = self.outline_author_id();
@@ -7726,6 +9886,11 @@ impl CodeEditorPanel {
     fn render_find_bar(&self, ui: &mut egui::Ui, panel_rect: egui::Rect, syntax: &HsSyntaxTokens) {
         // Snapshot the current state; bail (and emit no nodes) when closed.
         let Some(mut state) = self.find_state() else {
+            self.find_text_input_focused.store(false, Ordering::Release);
+            *self
+                .live_find_node_id
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
             return;
         };
 
@@ -7745,6 +9910,7 @@ impl CodeEditorPanel {
 
         let mut query_changed = false;
         let mut close_requested = false;
+        let mut text_input_focused = false;
 
         let frame = egui::Frame::popup(ui.style()).fill(syntax.background);
         // `ui.put` would force a fixed size onto a single widget; for a multi-widget bar use a child UI
@@ -7768,6 +9934,7 @@ impl CodeEditorPanel {
                 if self.find_focus_pending.swap(false, Ordering::AcqRel) {
                     find_resp.request_focus();
                 }
+                text_input_focused |= find_resp.has_focus();
                 if find_resp.changed() {
                     query_changed = true;
                 }
@@ -7824,12 +9991,13 @@ impl CodeEditorPanel {
             // REPLACE row (Ctrl+H only).
             if state.show_replace {
                 ui.horizontal(|ui| {
-                    let _ = ui.add(
+                    let replace_resp = ui.add(
                         egui::TextEdit::singleline(&mut state.replace_text)
                             .id_salt(("code-editor-replace-input", self.text_id()))
                             .desired_width(150.0)
                             .hint_text("Replace"),
                     );
+                    text_input_focused |= replace_resp.has_focus();
                     if ui.button("Replace").clicked() {
                         self.set_replace_text(state.replace_text.clone());
                         self.replace_current();
@@ -7841,8 +10009,10 @@ impl CodeEditorPanel {
                 });
                 // MT-108 (MT-004 residual): capped Replace All progress hint. Read fresh so it reflects
                 // the click that just ran this frame.
-                if let Some(remaining) =
-                    self.find_state().map(|s| s.replace_all_remaining).filter(|r| *r > 0)
+                if let Some(remaining) = self
+                    .find_state()
+                    .map(|s| s.replace_all_remaining)
+                    .filter(|r| *r > 0)
                 {
                     ui.colored_label(
                         syntax.string,
@@ -7851,6 +10021,8 @@ impl CodeEditorPanel {
                 }
             }
         });
+        self.find_text_input_focused
+            .store(text_input_focused, Ordering::Release);
 
         // Push the edited query / replace text back into the owned state and re-search if needed. We do
         // this AFTER the frame closes so the borrow on `state` is released. The replace text is pushed
@@ -7891,18 +10063,30 @@ impl CodeEditorPanel {
             .as_ref()
             .map(|s| s.show_replace)
             .unwrap_or(false);
+        let find_value = self
+            .find_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|s| s.query.pattern.clone())
+            .unwrap_or_default();
 
         let find_author = self.suffixed(CODE_EDITOR_FIND_BAR_AUTHOR_ID);
-        ui.ctx().accesskit_node_builder(
-            self.find_node_id(PANEL_FIND_BAR_NODE_ID, CODE_EDITOR_FIND_BAR_AUTHOR_ID),
-            move |node| {
-                // DEVIATION (API-correct): the contract names `Role::SearchBox`, which does not exist
-                // in accesskit 0.21; `Role::SearchInput` is the field-correct search-input role.
-                node.set_role(accesskit::Role::SearchInput);
-                node.set_author_id(find_author.clone());
-                node.set_label("Code editor find".to_owned());
-            },
-        );
+        let find_node_id =
+            self.find_node_id(PANEL_FIND_BAR_NODE_ID, CODE_EDITOR_FIND_BAR_AUTHOR_ID);
+        *self
+            .live_find_node_id
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(find_node_id);
+        ui.ctx().accesskit_node_builder(find_node_id, move |node| {
+            // DEVIATION (API-correct): the contract names `Role::SearchBox`, which does not exist
+            // in accesskit 0.21; `Role::SearchInput` is the field-correct search-input role.
+            node.set_role(accesskit::Role::SearchInput);
+            node.set_author_id(find_author.clone());
+            node.set_label("Code editor find".to_owned());
+            node.set_value(find_value.clone());
+            node.add_action(accesskit::Action::SetValue);
+        });
 
         let next_author = self.suffixed(CODE_EDITOR_FIND_NEXT_AUTHOR_ID);
         ui.ctx().accesskit_node_builder(
@@ -7960,8 +10144,8 @@ impl CodeEditorPanel {
         if let Some(h) = *cached {
             return h;
         }
-        // MT-054 ROW-PITCH UNIT FIX: measure the row height of the EXACT `FontId::monospace(
-        // MONO_FONT_SIZE)` galley `render_line` paints glyphs with — NOT `text_style_height(Monospace)`,
+        // MT-054 ROW-PITCH UNIT FIX: measure the row height of the EXACT live `mono_font()` galley
+        // `render_line` paints glyphs with — NOT `text_style_height(Monospace)`,
         // which reads the style's (potentially differently sized) Monospace TextStyle. This is the ONE
         // row unit everywhere: the painted row pitch (each row's label galley is this tall and the rows
         // scope pins `interact_size.y` to it, so egui advances exactly this much per row), the
@@ -7980,7 +10164,7 @@ impl CodeEditorPanel {
     }
 
     /// Measure + cache the monospace glyph advance width (px), measured with the EXACT
-    /// `FontId::monospace(MONO_FONT_SIZE)` that `render_line` paints glyphs with — so a caret at column
+    /// live [`Self::mono_font`] that `render_line` paints glyphs with — so a caret at column
     /// `c` lands on column `c`'s glyph with no x-unit drift (MT-003 positioning requirement /
     /// implementation note 4). All monospace glyphs share one advance, so the space ' ' is
     /// representative. Falls back to half the line height if a font measurement is unavailable.
@@ -8017,210 +10201,217 @@ impl CodeEditorPanel {
         line_height: f32,
         glyph_width: f32,
     ) {
-        ui.scope_builder(egui::UiBuilder::new().id_salt(text_id), |ui| {
-            let text_node_id = ui.unique_id();
-            // WP-KERNEL-012 MT-080: record the LIVE text-node egui id so `consume_swarm_text_actions` reads
-            // swarm SetValue/ReplaceSelectedText requests at the EXACT node the tree emitted (AC-080-6).
-            *self
-                .live_text_node_id
-                .lock()
-                .unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
-            ui.style_mut().spacing.item_spacing.y = 0.0;
-            // MT-054 ROW-PITCH UNIT FIX: `ui.horizontal` floors each row's frame at
-            // `spacing.interact_size.y` (egui 0.33.3 ui.rs:2700 — 18.0 by default), while `show_rows`,
-            // the gutter, the cursor overlay, and every decoration stride by `line_height` (~15.1 for
-            // monospace 13). Pin the floor to EXACTLY `line_height` so each painted row advances egui's
-            // cursor by exactly one `line_height` (the label galley is measured from the same
-            // `FontId::monospace(MONO_FONT_SIZE)` and is exactly this tall, so the centered content has
-            // zero vertical offset). One unit everywhere — the Wave-B audit's ghost-bracket/gutter-drift
-            // root cause.
-            ui.style_mut().spacing.interact_size.y = line_height;
+        ui.scope_builder(
+            egui::UiBuilder::new()
+                .id_salt(text_id)
+                .sense(egui::Sense::focusable_noninteractive()),
+            |ui| {
+                let text_node_id = ui.unique_id();
+                // WP-KERNEL-012 MT-080: record the LIVE text-node egui id so `consume_swarm_text_actions` reads
+                // swarm SetValue/ReplaceSelectedText requests at the EXACT node the tree emitted (AC-080-6).
+                *self
+                    .live_text_node_id
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
+                ui.style_mut().spacing.item_spacing.y = 0.0;
+                // MT-054 ROW-PITCH UNIT FIX: `ui.horizontal` floors each row's frame at
+                // `spacing.interact_size.y` (egui 0.33.3 ui.rs:2700 — 18.0 by default), while `show_rows`,
+                // the gutter, the cursor overlay, and every decoration stride by `line_height` (~15.1 for
+                // monospace 13). Pin the floor to EXACTLY `line_height` so each painted row advances egui's
+                // cursor by exactly one `line_height` (the label galley is measured from the same
+                // live `mono_font()` and is exactly this tall, so the centered content has
+                // zero vertical offset). One unit everywhere — the Wave-B audit's ghost-bracket/gutter-drift
+                // root cause.
+                ui.style_mut().spacing.interact_size.y = line_height;
 
-            // Capture the screen-space TOP-LEFT of the painted text rows BEFORE painting (the cursor
-            // overlay + pointer hit-testing map (line,col) against this origin — MT-003). `cursor()` is
-            // egui's next-widget position, i.e. the top-left of the first row about to be painted.
-            let origin = ui.cursor().min;
+                // Capture the screen-space TOP-LEFT of the painted text rows BEFORE painting (the cursor
+                // overlay + pointer hit-testing map (line,col) against this origin — MT-003). `cursor()` is
+                // egui's next-widget position, i.e. the top-left of the first row about to be painted.
+                let origin = ui.cursor().min;
 
-            // `row_range` is in VISIBLE (post-fold) line space (MT-005). Clamp the upper bound to the
-            // visible line count defensively (show_rows already clamps, but a stale range must never
-            // index past the visible document).
-            let visible_end = row_range.end.min(visible_lines);
+                // `row_range` is in VISIBLE (post-fold) line space (MT-005). Clamp the upper bound to the
+                // visible line count defensively (show_rows already clamps, but a stale range must never
+                // index past the visible document).
+                let visible_end = row_range.end.min(visible_lines);
 
-            // Map the visible window to a BUFFER line window so the highlight-span clip + rendering use
-            // real buffer coordinates. The first visible row maps to its buffer line; the last visible
-            // row maps to its buffer line (its end is that buffer line + 1, but a folded region between
-            // visible rows means the buffer window can be WIDER than the visible window — that is fine,
-            // the per-row loop skips the hidden lines).
-            let (first_buffer_line, last_buffer_line) = {
-                let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
-                let first = set.visible_line_to_buffer_line(row_range.start);
-                // The buffer line of the last painted visible row (inclusive), for the span byte window.
-                let last = if visible_end > row_range.start {
-                    set.visible_line_to_buffer_line(visible_end - 1)
-                } else {
-                    first
-                };
-                (first, last)
-            };
-            // Buffer-line exclusive end for the span byte window: one past the last folded region's end
-            // if the last visible row is a folded region start, else last+1.
-            let buffer_end = {
-                let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
-                match set.region_starting_at(last_buffer_line) {
-                    Some(r) if r.folded => r.end_line + 1,
-                    _ => last_buffer_line + 1,
-                }
-            }
-            .min(total_lines);
-
-            // CLIP the highlight span list to the BUFFER byte window ONCE per frame (MT-002 step 3),
-            // rather than scanning the whole span list per line. The cache is sorted by start byte, so a
-            // binary search bounds the window to just the spans that can touch the painted rows.
-            let (win_start, win_end) = self.with_buffer(|b| {
-                let ws = b.line_to_byte(first_buffer_line).unwrap_or(0);
-                let we = b.line_to_byte(buffer_end).unwrap_or_else(|| b.len_bytes());
-                (ws, we)
-            });
-            let visible_spans = self.spans_in_byte_window(win_start, win_end);
-
-            // Paint one row per VISIBLE line index, mapping each to its buffer line (MT step 4). When the
-            // buffer line is the start of a FOLDED region, render the collapsed summary label instead of
-            // the line text; the hidden lines are simply never visited (they are not in the visible map).
-            // MT-054/MT-005 FOLD-AWARE DECORATIONS: record the buffer line of EACH painted row, in row
-            // order, so every decoration/overlay painter below maps a buffer line to its PAINTED row
-            // offset through this list (a fold makes the buffer lines non-contiguous — `line -
-            // first_line` is NOT the row offset). The list is strictly ascending (the fold map is
-            // monotonic), so a binary search resolves a line to its row or `None` when hidden/off-window.
-            let mut painted_lines: Vec<usize> = Vec::with_capacity(visible_end - row_range.start);
-            for visible_idx in row_range.start..visible_end {
-                let buffer_line = {
+                // Map the visible window to a BUFFER line window so the highlight-span clip + rendering use
+                // real buffer coordinates. The first visible row maps to its buffer line; the last visible
+                // row maps to its buffer line (its end is that buffer line + 1, but a folded region between
+                // visible rows means the buffer window can be WIDER than the visible window — that is fine,
+                // the per-row loop skips the hidden lines).
+                let (first_buffer_line, last_buffer_line) = {
                     let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
-                    set.visible_line_to_buffer_line(visible_idx)
+                    let first = set.visible_line_to_buffer_line(row_range.start);
+                    // The buffer line of the last painted visible row (inclusive), for the span byte window.
+                    let last = if visible_end > row_range.start {
+                        set.visible_line_to_buffer_line(visible_end - 1)
+                    } else {
+                        first
+                    };
+                    (first, last)
                 };
-                painted_lines.push(buffer_line);
-                let folded_label = {
+                // Buffer-line exclusive end for the span byte window: one past the last folded region's end
+                // if the last visible row is a folded region start, else last+1.
+                let buffer_end = {
                     let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
-                    match set.region_starting_at(buffer_line) {
-                        Some(r) if r.folded => Some(r.label.clone()),
-                        _ => None,
+                    match set.region_starting_at(last_buffer_line) {
+                        Some(r) if r.folded => r.end_line + 1,
+                        _ => last_buffer_line + 1,
                     }
-                };
-                match folded_label {
-                    Some(label) => self.render_fold_label_line(ui, &label, syntax),
-                    None => self.render_line(ui, buffer_line, &visible_spans, syntax),
                 }
-            }
-            *self
-                .last_gutter_paint_rows
-                .lock()
-                .unwrap_or_else(|e| e.into_inner()) = painted_lines
-                .iter()
-                .copied()
-                .map(GutterPaintRow::first_fragment)
-                .collect();
+                .min(total_lines);
 
-            // Store the painted-row geometry so `process_cursor_input` (pointer hit-testing) and the
-            // overlay share egui's ACTUAL layout — no separate recompute (the MT-002 unit discipline:
-            // sans-spacing line_height, the SAME glyph FontId). `first_line` is the BUFFER line of the
-            // first painted row; the overlay maps a cursor's buffer (line,col) against it. NOTE: with a
-            // folded region inside the window the buffer lines are non-contiguous, so the cursor overlay
-            // (MT-003) positions correctly only for cursors on visible lines — a cursor on a hidden line
-            // is simply not drawn (it is off the visible window), which is the correct behavior.
-            let geometry = RowGeometry {
-                left: origin.x,
-                top: origin.y,
-                first_line: first_buffer_line,
-                line_height,
-            };
-            *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
+                // CLIP the highlight span list to the BUFFER byte window ONCE per frame (MT-002 step 3),
+                // rather than scanning the whole span list per line. The cache is sorted by start byte, so a
+                // binary search bounds the window to just the spans that can touch the painted rows.
+                let (win_start, win_end) = self.with_buffer(|b| {
+                    let ws = b.line_to_byte(first_buffer_line).unwrap_or(0);
+                    let we = b.line_to_byte(buffer_end).unwrap_or_else(|| b.len_bytes());
+                    (ws, we)
+                });
+                let visible_spans = self.spans_in_byte_window(win_start, win_end);
 
-            // MT-054: paint the editor-chrome decorations (indent guides, bracket-pair colorization,
-            // matching-bracket highlight) over the painted rows in the contract z-order: indent guides
-            // first (faint lines that sit in the whitespace columns, below the glyphs), then re-draw each
-            // bracket glyph in its depth color, then the matching-bracket highlight box. All theme-sourced
-            // (CONTROL-4 — colors come from the palette tokens, never a hex literal here). Each visible
-            // row in this non-wrap path is one logical line, so every row is a `wrap_index == 0` first
-            // fragment and carries its indent guides (RISK-007 trivially holds when wrap is off).
-            // FOLD-AWARE: `painted_lines` (the buffer line per painted row) is the ONLY line->row map —
-            // hidden folded lines are not in it, so their decorations are never painted, and rows after
-            // a fold land at their real painted offset (the Wave-B fold-mapping fix).
-            self.paint_chrome_decorations(ui, &geometry, glyph_width, &painted_lines, None);
+                // Paint one row per VISIBLE line index, mapping each to its buffer line (MT step 4). When the
+                // buffer line is the start of a FOLDED region, render the collapsed summary label instead of
+                // the line text; the hidden lines are simply never visited (they are not in the visible map).
+                // MT-054/MT-005 FOLD-AWARE DECORATIONS: record the buffer line of EACH painted row, in row
+                // order, so every decoration/overlay painter below maps a buffer line to its PAINTED row
+                // offset through this list (a fold makes the buffer lines non-contiguous — `line -
+                // first_line` is NOT the row offset). The list is strictly ascending (the fold map is
+                // monotonic), so a binary search resolves a line to its row or `None` when hidden/off-window.
+                let mut painted_lines: Vec<usize> =
+                    Vec::with_capacity(visible_end - row_range.start);
+                for visible_idx in row_range.start..visible_end {
+                    let buffer_line = {
+                        let mut set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+                        set.visible_line_to_buffer_line(visible_idx)
+                    };
+                    painted_lines.push(buffer_line);
+                    let folded_label = {
+                        let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+                        match set.region_starting_at(buffer_line) {
+                            Some(r) if r.folded => Some(r.label.clone()),
+                            _ => None,
+                        }
+                    };
+                    match folded_label {
+                        Some(label) => self.render_fold_label_line(ui, &label, syntax),
+                        None => self.render_line(ui, buffer_line, &visible_spans, syntax),
+                    }
+                }
+                *self
+                    .last_gutter_paint_rows
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = painted_lines
+                    .iter()
+                    .copied()
+                    .map(GutterPaintRow::first_fragment)
+                    .collect();
 
-            // MT-071: when the render-whitespace toggle is ON, overlay middots for spaces + arrows for
-            // tabs in the painted row window (VS Code's "render whitespace" — read from the doc-model
-            // flag the status-bar segment flips). Theme-sourced color (no hex literal); restricted to the
-            // visible window so it stays cheap on a large file. A no-op when the toggle is off (the
-            // baseline render is unchanged).
-            if self.render_whitespace() {
-                self.paint_whitespace_glyphs(
-                    ui,
-                    &geometry,
-                    glyph_width,
-                    &painted_lines,
-                    syntax,
-                    None,
-                );
-            }
+                // Store the painted-row geometry so `process_cursor_input` (pointer hit-testing) and the
+                // overlay share egui's ACTUAL layout — no separate recompute (the MT-002 unit discipline:
+                // sans-spacing line_height, the SAME glyph FontId). `first_line` is the BUFFER line of the
+                // first painted row; the overlay maps a cursor's buffer (line,col) against it. NOTE: with a
+                // folded region inside the window the buffer lines are non-contiguous, so the cursor overlay
+                // (MT-003) positions correctly only for cursors on visible lines — a cursor on a hidden line
+                // is simply not drawn (it is off the visible window), which is the correct behavior.
+                let geometry = RowGeometry {
+                    left: origin.x,
+                    top: origin.y,
+                    first_line: first_buffer_line,
+                    line_height,
+                };
+                *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
 
-            // MT-004: paint the find-match highlights (below the carets) so a caret/selection stays
-            // visible on top of a match rect. Restricted to the painted row window (the same sans-spacing
-            // line_height + monospace glyph_width units as the cursor overlay), fold-aware via
-            // `painted_lines`.
-            self.paint_match_highlights(ui, &geometry, glyph_width, &painted_lines, None);
+                // MT-054: paint the editor-chrome decorations (indent guides, bracket-pair colorization,
+                // matching-bracket highlight) over the painted rows in the contract z-order: indent guides
+                // first (faint lines that sit in the whitespace columns, below the glyphs), then re-draw each
+                // bracket glyph in its depth color, then the matching-bracket highlight box. All theme-sourced
+                // (CONTROL-4 — colors come from the palette tokens, never a hex literal here). Each visible
+                // row in this non-wrap path is one logical line, so every row is a `wrap_index == 0` first
+                // fragment and carries its indent guides (RISK-007 trivially holds when wrap is off).
+                // FOLD-AWARE: `painted_lines` (the buffer line per painted row) is the ONLY line->row map —
+                // hidden folded lines are not in it, so their decorations are never painted, and rows after
+                // a fold land at their real painted offset (the Wave-B fold-mapping fix).
+                self.paint_chrome_decorations(ui, &geometry, glyph_width, &painted_lines, None);
 
-            // MT-003: paint every caret + selection as a painter overlay OVER the rows, restricted to
-            // the painted row window so carets align exactly with rendered glyphs (no draw for cursors
-            // scrolled off-screen, none for cursors on fold-hidden lines). Row y comes from the painted
-            // row offset in `painted_lines` (fold-aware — the MT-003-era `y_for` contiguity fix) + the
-            // same monospace glyph width.
-            self.paint_cursor_overlay(ui, &geometry, glyph_width, &painted_lines, syntax, None);
+                // MT-071: when the render-whitespace toggle is ON, overlay middots for spaces + arrows for
+                // tabs in the painted row window (VS Code's "render whitespace" — read from the doc-model
+                // flag the status-bar segment flips). Theme-sourced color (no hex literal); restricted to the
+                // visible window so it stays cheap on a large file. A no-op when the toggle is off (the
+                // baseline render is unchanged).
+                if self.render_whitespace() {
+                    self.paint_whitespace_glyphs(
+                        ui,
+                        &geometry,
+                        glyph_width,
+                        &painted_lines,
+                        syntax,
+                        None,
+                    );
+                }
 
-            // Emit the TextInput node onto this nested scope's Ui id (AC-005). Because this scope is a
-            // child of the scroll-area scope (itself a child of the container), the node is a
-            // descendant of the container node.
-            //
-            // WP-KERNEL-012 MT-076 (AC7): while an IME composition is in progress, expose the in-progress
-            // preedit text in the TextInput node's value so a screen reader / swarm agent can OBSERVE the
-            // composition state (reuses the existing editable text node — no new tree). When idle the value
-            // is the unchanged line count.
-            let author = text_author.to_owned();
-            let preedit = self
-                .preedit
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .clone();
-            let value = if preedit.is_empty() {
-                format!("{total_lines} lines")
-            } else {
-                format!("{total_lines} lines (composing: {preedit})")
-            };
-            ui.ctx().accesskit_node_builder(text_node_id, move |node| {
-                node.set_role(accesskit::Role::TextInput);
-                node.set_author_id(author.clone());
-                node.set_label("Code editor text".to_owned());
-                node.set_value(value.clone());
-                // WP-KERNEL-012 MT-080 (AC-080-6 / MT-043 swarm-authoring): advertise the two text-edit
-                // actions a swarm agent uses to AUTHOR code by id. `SetValue` replaces the WHOLE buffer
-                // (set_text); `ReplaceSelectedText` inserts at the selection/carets (insert_text, which
-                // replaces the active selection). Declaring them here makes the node's editable contract
-                // discoverable out-of-process; `consume_swarm_text_actions` drains the matching requests.
-                node.add_action(accesskit::Action::SetValue);
-                node.add_action(accesskit::Action::ReplaceSelectedText);
-            });
+                // MT-004: paint the find-match highlights (below the carets) so a caret/selection stays
+                // visible on top of a match rect. Restricted to the painted row window (the same sans-spacing
+                // line_height + monospace glyph_width units as the cursor overlay), fold-aware via
+                // `painted_lines`.
+                self.paint_match_highlights(ui, &geometry, glyph_width, &painted_lines, None);
 
-            // MT-003 AC-004: emit one `Role::Caret` AccessKit node per cursor (capped at
-            // MAX_ACCESSKIT_CURSORS — RISK-004 / MC-004), nested under the text node so a swarm agent
-            // can address each caret by `code_editor_cursor_{n}`. (The contract named `Role::TextCursor`,
-            // which does not exist in accesskit 0.21; `Role::Caret` is the field-correct caret role —
-            // see `emit_cursor_nodes` for the documented deviation.)
-            self.emit_cursor_nodes(ui);
+                // MT-003: paint every caret + selection as a painter overlay OVER the rows, restricted to
+                // the painted row window so carets align exactly with rendered glyphs (no draw for cursors
+                // scrolled off-screen, none for cursors on fold-hidden lines). Row y comes from the painted
+                // row offset in `painted_lines` (fold-aware — the MT-003-era `y_for` contiguity fix) + the
+                // same monospace glyph width.
+                self.paint_cursor_overlay(ui, &geometry, glyph_width, &painted_lines, syntax, None);
 
-            // MT-005 AC-005: emit one `Role::TreeItem` AccessKit node per foldable region whose start
-            // line is ACTUALLY PAINTED (capped at MAX_ACCESSKIT_FOLDS — RISK-001), with an
-            // Expand/Collapse action reflecting the fold state, so a swarm agent can fold/unfold each
-            // region by `code_editor_fold_{start_line}`. Nested under the text node like the cursors.
-            self.emit_fold_nodes(ui, &painted_lines);
-        });
+                // Emit the TextInput node onto this nested scope's Ui id (AC-005). Because this scope is a
+                // child of the scroll-area scope (itself a child of the container), the node is a
+                // descendant of the container node.
+                //
+                // WP-KERNEL-012 MT-076 (AC7): while an IME composition is in progress, expose the in-progress
+                // preedit text in the TextInput node's value so a screen reader / swarm agent can OBSERVE the
+                // composition state (reuses the existing editable text node — no new tree). When idle the value
+                // is the unchanged line count.
+                let author = text_author.to_owned();
+                let preedit = self
+                    .preedit
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone();
+                let value = if preedit.is_empty() {
+                    format!("{total_lines} lines")
+                } else {
+                    format!("{total_lines} lines (composing: {preedit})")
+                };
+                ui.ctx().accesskit_node_builder(text_node_id, move |node| {
+                    node.set_role(accesskit::Role::TextInput);
+                    node.set_author_id(author.clone());
+                    node.set_label("Code editor text".to_owned());
+                    node.set_value(value.clone());
+                    // WP-KERNEL-012 MT-080 (AC-080-6 / MT-043 swarm-authoring): advertise the two text-edit
+                    // actions a swarm agent uses to AUTHOR code by id. `SetValue` replaces the WHOLE buffer
+                    // (set_text); `ReplaceSelectedText` inserts at the selection/carets (insert_text, which
+                    // replaces the active selection). Declaring them here makes the node's editable contract
+                    // discoverable out-of-process; `consume_swarm_text_actions` drains the matching requests.
+                    node.add_action(accesskit::Action::SetValue);
+                    node.add_action(accesskit::Action::ReplaceSelectedText);
+                    node.add_action(accesskit::Action::Focus);
+                });
+
+                // MT-003 AC-004: emit one `Role::Caret` AccessKit node per cursor (capped at
+                // MAX_ACCESSKIT_CURSORS — RISK-004 / MC-004), nested under the text node so a swarm agent
+                // can address each caret by `code_editor_cursor_{n}`. (The contract named `Role::TextCursor`,
+                // which does not exist in accesskit 0.21; `Role::Caret` is the field-correct caret role —
+                // see `emit_cursor_nodes` for the documented deviation.)
+                self.emit_cursor_nodes(ui);
+
+                // MT-005 AC-005: emit one `Role::TreeItem` AccessKit node per foldable region whose start
+                // line is ACTUALLY PAINTED (capped at MAX_ACCESSKIT_FOLDS — RISK-001), with an
+                // Expand/Collapse action reflecting the fold state, so a swarm agent can fold/unfold each
+                // region by `code_editor_fold_{start_line}`. Nested under the text node like the cursors.
+                self.emit_fold_nodes(ui, &painted_lines);
+            },
+        );
     }
 
     // ── MT-054 word-wrap rendering ────────────────────────────────────────────────────────────────
@@ -8393,88 +10584,102 @@ impl CodeEditorPanel {
         line_height: f32,
         glyph_width: f32,
     ) {
-        ui.scope_builder(egui::UiBuilder::new().id_salt(text_id), |ui| {
-            let text_node_id = ui.unique_id();
-            // WP-KERNEL-012 MT-080: record the LIVE text-node egui id so `consume_swarm_text_actions` reads
-            // swarm SetValue/ReplaceSelectedText requests at the EXACT node the tree emitted (AC-080-6).
-            *self
-                .live_text_node_id
-                .lock()
-                .unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
-            ui.style_mut().spacing.item_spacing.y = 0.0;
-            // MT-054 ROW-PITCH UNIT FIX (same as `render_rows`): pin the `ui.horizontal` frame floor to
-            // exactly `line_height` so each painted visual row advances exactly one `line_height` — the
-            // same unit the wrap-row index, `show_rows`, and the decoration y mapping stride by.
-            ui.style_mut().spacing.interact_size.y = line_height;
-            let origin = ui.cursor().min;
+        ui.scope_builder(
+            egui::UiBuilder::new()
+                .id_salt(text_id)
+                .sense(egui::Sense::focusable_noninteractive()),
+            |ui| {
+                let text_node_id = ui.unique_id();
+                // WP-KERNEL-012 MT-080: record the LIVE text-node egui id so `consume_swarm_text_actions` reads
+                // swarm SetValue/ReplaceSelectedText requests at the EXACT node the tree emitted (AC-080-6).
+                *self
+                    .live_text_node_id
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(text_node_id);
+                ui.style_mut().spacing.item_spacing.y = 0.0;
+                // MT-054 ROW-PITCH UNIT FIX (same as `render_rows`): pin the `ui.horizontal` frame floor to
+                // exactly `line_height` so each painted visual row advances exactly one `line_height` — the
+                // same unit the wrap-row index, `show_rows`, and the decoration y mapping stride by.
+                ui.style_mut().spacing.interact_size.y = line_height;
+                let origin = ui.cursor().min;
 
-            // The buffer-line span the painted visual rows cover, for the highlight-span byte window.
-            let (first_buffer_line, last_buffer_line) = if !window_rows.is_empty() {
-                (
-                    window_rows[0].logical_line,
-                    window_rows[window_rows.len() - 1].logical_line,
-                )
-            } else {
-                (0, 0)
-            };
-            let buffer_end = (last_buffer_line + 1).min(total_lines);
-            let (win_start, win_end) = self.with_buffer(|b| {
-                let ws = b.line_to_byte(first_buffer_line).unwrap_or(0);
-                let we = b.line_to_byte(buffer_end).unwrap_or_else(|| b.len_bytes());
-                (ws, we)
-            });
-            let visible_spans = self.spans_in_byte_window(win_start, win_end);
-
-            // Paint each visual-row fragment as its own row (the fragment's byte slice, syntax-colored).
-            for row in window_rows {
-                let folded_label = {
-                    let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
-                    match set.region_starting_at(row.logical_line) {
-                        Some(r) if r.folded && row.wrap_index == 0 => Some(r.label.clone()),
-                        _ => None,
-                    }
+                // The buffer-line span the painted visual rows cover, for the highlight-span byte window.
+                let (first_buffer_line, last_buffer_line) = if !window_rows.is_empty() {
+                    (
+                        window_rows[0].logical_line,
+                        window_rows[window_rows.len() - 1].logical_line,
+                    )
+                } else {
+                    (0, 0)
                 };
-                match folded_label {
-                    Some(label) => self.render_fold_label_line(ui, &label, syntax),
-                    None => self.render_visual_row_fragment(ui, row, &visible_spans, syntax),
+                let buffer_end = (last_buffer_line + 1).min(total_lines);
+                let (win_start, win_end) = self.with_buffer(|b| {
+                    let ws = b.line_to_byte(first_buffer_line).unwrap_or(0);
+                    let we = b.line_to_byte(buffer_end).unwrap_or_else(|| b.len_bytes());
+                    (ws, we)
+                });
+                let visible_spans = self.spans_in_byte_window(win_start, win_end);
+
+                // Paint each visual-row fragment as its own row (the fragment's byte slice, syntax-colored).
+                for row in window_rows {
+                    let folded_label = {
+                        let set = self.fold_set.lock().unwrap_or_else(|e| e.into_inner());
+                        match set.region_starting_at(row.logical_line) {
+                            Some(r) if r.folded && row.wrap_index == 0 => Some(r.label.clone()),
+                            _ => None,
+                        }
+                    };
+                    match folded_label {
+                        Some(label) => self.render_fold_label_line(ui, &label, syntax),
+                        None => self.render_visual_row_fragment(ui, row, &visible_spans, syntax),
+                    }
                 }
-            }
-            *self
-                .last_gutter_paint_rows
-                .lock()
-                .unwrap_or_else(|e| e.into_inner()) = window_rows
-                .iter()
-                .map(|row| GutterPaintRow {
-                    line: row.logical_line,
-                    is_first_fragment: row.is_first_fragment(),
-                })
-                .collect();
+                *self
+                    .last_gutter_paint_rows
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = window_rows
+                    .iter()
+                    .map(|row| GutterPaintRow {
+                        line: row.logical_line,
+                        is_first_fragment: row.is_first_fragment(),
+                    })
+                    .collect();
 
-            // The painted window's RowGeometry: `first_line` is the GLOBAL visual-row index of the first
-            // painted row (NOT a buffer line) because under wrap the rows are in visual space. The
-            // decoration painters map a byte offset to a row by its position WITHIN `window_rows`, whose
-            // index 0 is at `geometry.top`, so the y mapping stays correct for the windowed slice.
-            let geometry = RowGeometry {
-                left: origin.x,
-                top: origin.y,
-                first_line: window_start,
-                line_height,
-            };
-            *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
+                // The painted window's RowGeometry: `first_line` is the GLOBAL visual-row index of the first
+                // painted row (NOT a buffer line) because under wrap the rows are in visual space. The
+                // decoration painters map a byte offset to a row by its position WITHIN `window_rows`, whose
+                // index 0 is at `geometry.top`, so the y mapping stays correct for the windowed slice.
+                let geometry = RowGeometry {
+                    left: origin.x,
+                    top: origin.y,
+                    first_line: window_start,
+                    line_height,
+                };
+                *self.row_geometry.lock().unwrap_or_else(|e| e.into_inner()) = Some(geometry);
 
-            // MT-054 decorations under wrap: indent guides only on first-fragment rows, bracket colors +
-            // match highlight mapped through the painted visual-row window (RISK-007 / MC-007). The
-            // `painted_lines` slice is empty because the wrap arm maps bytes through `window_rows`
-            // directly (each visual row carries its own byte range — already fold-filtered + bounded).
-            self.paint_chrome_decorations(ui, &geometry, glyph_width, &[], Some(window_rows));
+                // MT-054 decorations under wrap: indent guides only on first-fragment rows, bracket colors +
+                // match highlight mapped through the painted visual-row window (RISK-007 / MC-007). The
+                // `painted_lines` slice is empty because the wrap arm maps bytes through `window_rows`
+                // directly (each visual row carries its own byte range — already fold-filtered + bounded).
+                self.paint_chrome_decorations(ui, &geometry, glyph_width, &[], Some(window_rows));
 
-            // MT-054 Task-B: paint the SAME overlays the non-wrap `render_rows` paints, made wrap-aware
-            // (byte -> visual row via `window_rows`). Before this the wrap path painted none of them, so
-            // Alt+Z wrap ON showed NO caret, selection, find-match highlight, or render-whitespace glyphs.
-            // `painted_lines` is empty (`&[]`) — the overlays map through `Some(window_rows)`; the paint
-            // stays bounded to the on-screen visual-row window.
-            if self.render_whitespace() {
-                self.paint_whitespace_glyphs(
+                // MT-054 Task-B: paint the SAME overlays the non-wrap `render_rows` paints, made wrap-aware
+                // (byte -> visual row via `window_rows`). Before this the wrap path painted none of them, so
+                // Alt+Z wrap ON showed NO caret, selection, find-match highlight, or render-whitespace glyphs.
+                // `painted_lines` is empty (`&[]`) — the overlays map through `Some(window_rows)`; the paint
+                // stays bounded to the on-screen visual-row window.
+                if self.render_whitespace() {
+                    self.paint_whitespace_glyphs(
+                        ui,
+                        &geometry,
+                        glyph_width,
+                        &[],
+                        syntax,
+                        Some(window_rows),
+                    );
+                }
+                self.paint_match_highlights(ui, &geometry, glyph_width, &[], Some(window_rows));
+                self.paint_cursor_overlay(
                     ui,
                     &geometry,
                     glyph_width,
@@ -8482,30 +10687,33 @@ impl CodeEditorPanel {
                     syntax,
                     Some(window_rows),
                 );
-            }
-            self.paint_match_highlights(ui, &geometry, glyph_width, &[], Some(window_rows));
-            self.paint_cursor_overlay(ui, &geometry, glyph_width, &[], syntax, Some(window_rows));
 
-            let author = text_author.to_owned();
-            let painted_fold_lines: Vec<usize> = window_rows
-                .iter()
-                .filter(|row| row.is_first_fragment())
-                .map(|row| row.logical_line)
-                .collect();
-            self.emit_fold_nodes(ui, &painted_fold_lines);
+                let author = text_author.to_owned();
+                let painted_fold_lines: Vec<usize> = window_rows
+                    .iter()
+                    .filter(|row| row.is_first_fragment())
+                    .map(|row| row.logical_line)
+                    .collect();
+                self.emit_fold_nodes(ui, &painted_fold_lines);
 
-            ui.ctx().accesskit_node_builder(text_node_id, move |node| {
-                node.set_role(accesskit::Role::TextInput);
-                node.set_author_id(author.clone());
-                node.set_label("Code editor text".to_owned());
-                node.set_value(format!("{total_lines} lines (word wrap on)"));
-            });
+                ui.ctx().accesskit_node_builder(text_node_id, move |node| {
+                    node.set_role(accesskit::Role::TextInput);
+                    node.set_author_id(author.clone());
+                    node.set_label("Code editor text".to_owned());
+                    node.set_value(format!("{total_lines} lines (word wrap on)"));
+                    // Word wrap changes layout only; it must not remove the same model-facing authoring
+                    // contract exposed by the unwrapped TextInput.
+                    node.add_action(accesskit::Action::SetValue);
+                    node.add_action(accesskit::Action::ReplaceSelectedText);
+                    node.add_action(accesskit::Action::Focus);
+                });
 
-            // MT-054 Task-B: emit one `Role::Caret` AccessKit node per cursor under wrap too (position-
-            // independent — a swarm agent can still address each caret by `code_editor_cursor_{n}`), the
-            // same node `render_rows` emits in the non-wrap path.
-            self.emit_cursor_nodes(ui);
-        });
+                // MT-054 Task-B: emit one `Role::Caret` AccessKit node per cursor under wrap too (position-
+                // independent — a swarm agent can still address each caret by `code_editor_cursor_{n}`), the
+                // same node `render_rows` emits in the non-wrap path.
+                self.emit_cursor_nodes(ui);
+            },
+        );
     }
 
     /// MT-054: paint ONE wrapped visual-row fragment (`row.byte_start..row.byte_end`) as a single row,
@@ -9053,6 +11261,7 @@ impl CodeEditorPanel {
         gutter_rect: egui::Rect,
         glyph_width: f32,
         config: &GutterConfig,
+        editor_container_clip: egui::Rect,
     ) {
         // The painted-row geometry captured by `render_rows` this frame (origin = top-left of the first
         // painted code row; line_height = sans-spacing row stride). Without it (no frame yet) there is
@@ -9093,6 +11302,7 @@ impl CodeEditorPanel {
             origin: egui::pos2(gutter_rect.left(), row_geom.top),
             line_height: row_geom.line_height,
             char_width: glyph_width,
+            font_size: self.font_size(),
         };
 
         // Snapshot the markers + breakpoints (clones so no lock is held across egui calls).
@@ -9120,6 +11330,14 @@ impl CodeEditorPanel {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone();
+        // `SidePanel::show_inside` has already reserved the gutter from this parent UI's available
+        // rect. `render_gutter` runs after the scroll body so it can consume the exact painted-row
+        // geometry, but `Ui::interact` clips every hit rect to the CURRENT UI clip. Expand the clip
+        // back over the reserved strip only while registering gutter widgets; otherwise their painted
+        // rects remain visible while their interact rects become negative/empty and real pointer clicks
+        // never reach breakpoint/fold controls. Restore the original clip immediately afterward.
+        let original_clip = ui.clip_rect();
+        ui.set_clip_rect(editor_container_clip.intersect(gutter_rect));
         let response: GutterResponse = Gutter::render(
             ui,
             gutter_rect,
@@ -9131,7 +11349,6 @@ impl CodeEditorPanel {
             geometry,
             &fold_open_for,
         );
-
         if config.show_breakpoints {
             for &line in &first_fragment_lines {
                 let target_id = ui.id().with(("gutter_row", line)).with("bp");
@@ -9199,6 +11416,7 @@ impl CodeEditorPanel {
         // budget.
         self.emit_breakpoint_nodes(ui, &first_fragment_lines, &breakpoints, config);
         self.emit_diagnostic_nodes(ui, &first_fragment_lines, &markers, config);
+        self.draw_diagnostic_note_reference_chips(ui, &paint_rows, &geometry, config);
 
         // MT-049: draw the quick-fix lightbulb on any PAINTED line that currently has available code
         // actions (AC-003 — only on the diagnostic line with actions, never on a line without). The glyph is
@@ -9206,6 +11424,67 @@ impl CodeEditorPanel {
         // (CONTROL-4 — `lightbulb_color`/`warn_fg_color`, no Color32 literal). Only drawn when the menu is
         // closed so the bulb does not overdraw the open menu (the bulb stays "lit" via the controller state).
         self.draw_quickfix_lightbulbs(ui, &paint_rows, &geometry);
+        ui.set_clip_rect(original_clip);
+    }
+
+    /// MT-046 IC-09: render one real related-note chip on each visible diagnostic line that carries a
+    /// note destination. The click goes through the canonical shared-bus `open-document` command, so
+    /// the mounted shell selects/focuses the real rich editor rather than a test-only navigation seam.
+    fn draw_diagnostic_note_reference_chips(
+        &self,
+        ui: &mut egui::Ui,
+        paint_rows: &[GutterPaintRow],
+        geometry: &GutterGeometry,
+        config: &GutterConfig,
+    ) {
+        if !config.show_diagnostics {
+            return;
+        }
+        let references = self
+            .diagnostic_note_references
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        for (painted_idx, row) in paint_rows.iter().enumerate() {
+            if !row.is_first_fragment {
+                continue;
+            }
+            let Some(document_id) = references.get(&row.line).cloned() else {
+                continue;
+            };
+            let author = self.diagnostic_note_reference_author_id(row.line);
+            let row_top = geometry.origin.y + painted_idx as f32 * geometry.line_height;
+            let size = geometry.line_height.min(16.0);
+            let rect = egui::Rect::from_min_size(
+                egui::pos2(geometry.origin.x + 1.0, row_top),
+                egui::vec2(size, size),
+            );
+            let response = ui
+                .push_id(&author, |ui| {
+                    ui.put(rect, egui::Button::new("↗").frame(false))
+                })
+                .inner
+                .on_hover_text(format!("Open related note {document_id}"));
+            let node_author = author.clone();
+            let node_document = document_id.clone();
+            ui.ctx().accesskit_node_builder(response.id, move |node| {
+                node.set_role(accesskit::Role::Button);
+                node.set_author_id(node_author.clone());
+                node.set_label("Open diagnostic related note".to_owned());
+                node.set_value(node_document.clone());
+                node.add_action(accesskit::Action::Click);
+            });
+            if response.clicked() {
+                let bus = crate::interop::InteractionBus::get_or_init(ui.ctx());
+                let dispatched = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                    bus.register_open_document_command();
+                    bus.open_document(ui.ctx(), document_id.clone())
+                });
+                if dispatched != Some(true) {
+                    ui.ctx().request_repaint();
+                }
+            }
+        }
     }
 
     /// MT-049: draw the quick-fix lightbulb on each painted line that carries available code actions
@@ -9425,6 +11704,41 @@ impl CodeEditorPanel {
     fn spans_in_byte_window(&self, win_start: usize, win_end: usize) -> HighlightSpanWindow {
         if win_end <= win_start {
             return HighlightSpanWindow::default();
+        }
+        let _pending = self.poll_initial_highlight();
+        if self.initial_highlight_status_value() == InitialHighlightStatus::Pending {
+            let _poll_guard = self
+                .initial_highlight_poll
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            if self.initial_highlight_status_value() == InitialHighlightStatus::Pending {
+                let version = self.buffer_version.load(Ordering::Acquire);
+                let generation = self.initial_highlight_generation.load(Ordering::Acquire);
+                let source = self
+                    .initial_highlight_source
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .as_ref()
+                    .filter(|(_, source_version, source_generation)| {
+                        *source_version == version && *source_generation == generation
+                    })
+                    .map(|(source, _, _)| Arc::clone(source));
+                if let Some(source) = source {
+                    let spans = self
+                        .highlighter
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .as_ref()
+                        .map(|highlighter| {
+                            highlighter.captures_for_current_range(
+                                &source,
+                                win_start.min(source.len())..win_end.min(source.len()),
+                            )
+                        })
+                        .unwrap_or_default();
+                    return HighlightSpanWindow::from_spans(spans);
+                }
+            }
         }
         let cache = self
             .highlight_cache
@@ -9767,9 +12081,13 @@ impl CodeEditorPanel {
             // the painted visual rows (one rect per visual row it covers) instead of the non-wrap
             // per-logical-line mapping below.
             if let Some(rows) = wrap_rows {
-                for rect in
-                    Self::wrap_overlay_rects(rows, &buffer, m.byte_range.clone(), geometry, glyph_width)
-                {
+                for rect in Self::wrap_overlay_rects(
+                    rows,
+                    &buffer,
+                    m.byte_range.clone(),
+                    geometry,
+                    glyph_width,
+                ) {
                     painter.rect_filled(rect, 0.0, color);
                 }
                 continue;
@@ -9842,8 +12160,7 @@ impl CodeEditorPanel {
         // marked). Shared by the non-wrap (whole logical line) and wrap (per-fragment) paths.
         let mark_row = |row_y: f32, text: &str| {
             let chars: Vec<char> = text.chars().collect();
-            let is_visible =
-                |c: char| c != ' ' && c != '\t' && c != '\n' && c != '\r';
+            let is_visible = |c: char| c != ' ' && c != '\t' && c != '\n' && c != '\r';
             let mut col = 0usize;
             for (i, &ch) in chars.iter().enumerate() {
                 match ch {
@@ -10236,11 +12553,15 @@ impl CodeEditorPanel {
     /// Inject the command-palette dispatch channel (implementation note: `OpenCommandPalette` routes to
     /// the SAME WP-011 command palette, not a second one). The host clones a `Sender<CodeEditorAction>`
     /// it drains into the shell command bus. The same per-component injection pattern `set_runtime` uses.
-    pub fn set_command_palette_sender(&self, tx: mpsc::Sender<CodeEditorAction>) {
+    pub fn set_command_palette_sender(
+        &self,
+        tx: mpsc::Sender<CodeEditorHostCommand>,
+        document_id: impl Into<String>,
+    ) {
         *self
             .command_palette_tx
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = Some(tx);
+            .unwrap_or_else(|e| e.into_inner()) = Some((tx, document_id.into()));
     }
 
     /// The current keymap version (bumped on every keymap swap). For tests + the AccessKit command-node
@@ -10347,6 +12668,48 @@ impl CodeEditorPanel {
             .unwrap_or_else(|e| e.into_inner()) = Some(EditorActionWiring { registry, handle });
     }
 
+    /// Install the shared registry under a complete stable document identity. File-backed MT008
+    /// panels use this path so canonical action ids cannot collide through a truncated numeric hash.
+    pub fn install_editor_action_registry_named(
+        &self,
+        registry: Arc<Mutex<EditorActionRegistry>>,
+        instance_key: impl Into<String>,
+    ) {
+        let handle = {
+            let mut reg = registry.lock().unwrap_or_else(|e| e.into_inner());
+            reg.register_named(EditorPaneType::Code, instance_key)
+        };
+        *self
+            .editor_action_wiring
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(EditorActionWiring { registry, handle });
+    }
+
+    /// Detach this pane from the shared editor-action registry and remove its complete namespace.
+    /// Called only after the owning document has truly closed.
+    pub fn uninstall_editor_action_registry(&self) {
+        let wiring = self
+            .editor_action_wiring
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
+        if let Some(wiring) = wiring {
+            wiring
+                .registry
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .remove_registration(&wiring.handle);
+        }
+    }
+
+    /// Whether this panel currently owns a live editor-action registry namespace.
+    pub fn has_editor_action_registry(&self) -> bool {
+        self.editor_action_wiring
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
+    }
+
     /// Sync this pane's canonical `editor.code.<action>` nodes into the installed registry, emit them
     /// into the live AccessKit tree, and CONSUME any swarm `Action::Click` dispatched at them this frame
     /// (routing each to the real editor action it aliases). Called from [`show`](Self::show) when a
@@ -10365,7 +12728,7 @@ impl CodeEditorPanel {
         let Some(wiring) = wiring.as_ref() else {
             return Vec::new();
         };
-        let handle = wiring.handle;
+        let handle = wiring.handle.clone();
         let find_state = self.find_state();
         let find_open = find_state.is_some();
         let multi_cursor = self.cursor_count() > 1;
@@ -10409,7 +12772,7 @@ impl CodeEditorPanel {
             let to_run: Vec<CodeDispatch> = dispatched
                 .iter()
                 .filter_map(|aid| {
-                    let action_id = Self::strip_code_author_prefix(aid, handle);
+                    let action_id = Self::strip_code_author_prefix(aid, &handle);
                     CODE_ACTION_CATALOG
                         .iter()
                         .find(|e| e.action_id == action_id)
@@ -10487,8 +12850,12 @@ impl CodeEditorPanel {
 
     /// Strip the `editor.code.` prefix (and the optional `.<idx>` instance suffix) from a canonical
     /// author_id, returning the bare `<action>` id the catalog keys on.
-    fn strip_code_author_prefix(author_id: &str, handle: RegistrationHandle) -> String {
+    fn strip_code_author_prefix(author_id: &str, handle: &RegistrationHandle) -> String {
         let rest = author_id.strip_prefix("editor.code.").unwrap_or(author_id);
+        if let Some(instance_key) = handle.instance_key() {
+            let suffix = format!(".{instance_key}");
+            return rest.strip_suffix(&suffix).unwrap_or(rest).to_owned();
+        }
         // For a non-zero instance the id ends with `.<idx>`; drop it so the catalog lookup matches.
         if handle.instance_index() > 0 {
             let suffix = format!(".{}", handle.instance_index());
@@ -10720,6 +13087,32 @@ impl CodeEditorPanel {
             *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()),
             RenameState::Idle
         ) {
+            return;
+        }
+
+        // The find/replace controls are real egui TextEdits rendered after the custom editor body.
+        // They therefore own every keyboard event while focused. Preserve only the find lifecycle keys
+        // that the product handles itself; all other events must reach the TextEdit without also moving
+        // a code caret or editing the code buffer.
+        if self.find_text_surface_owns_keyboard() {
+            for event in ui.input(|i| i.events.clone()) {
+                let egui::Event::Key {
+                    key,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } = event
+                else {
+                    continue;
+                };
+                if matches!(key, egui::Key::Escape | egui::Key::Enter) {
+                    if let ContextOutcome::Dispatch(action) =
+                        self.resolve_contextual(key, &modifiers)
+                    {
+                        self.dispatch_action(action);
+                    }
+                }
+            }
             return;
         }
 
@@ -11040,12 +13433,21 @@ impl CodeEditorPanel {
             A::FormatSelection => self.request_format_selection(),
             // ── Code intelligence (existing MT-008 handlers) ──
             A::TriggerCompletion => {
-                self.completion_request.store(true, Ordering::Relaxed);
+                self.completion_request
+                    .store(COMPLETION_REQUEST_EXPLICIT, Ordering::Relaxed);
+                *self
+                    .automatic_completion_cursor
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = None;
             }
             A::AcceptCompletion => {
                 self.accept_completion();
             }
-            A::DismissCompletion => self.close_completion(),
+            A::DismissCompletion => {
+                self.close_completion();
+                self.close_hover();
+                self.close_references();
+            }
             // ── History / save / palette ──
             A::Undo => self.undo(),
             A::Redo => self.redo(),
@@ -11175,79 +13577,246 @@ impl CodeEditorPanel {
     fn request_go_to_definition(&self) {
         tracing::debug!("code editor: GoToDefinition (F12) dispatched");
         let Some(runtime) = self.runtime_handle() else {
-            return; // runtime-less harness: nothing to spawn (graceful).
+            return;
         };
+        let generation = self.definition_generation.fetch_add(1, Ordering::Relaxed) + 1;
+        *self
+            .last_definition_target
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .pending_cross_file_jump
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .pending_cross_file_jump_origin
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
         let workspace_id = self.workspace_id();
         let word = self.word_at_primary_cursor();
-        if workspace_id.is_empty() || word.is_empty() {
+        let lsp = self.lsp_client();
+        let document_uri = self.lsp_uri();
+        let lsp_available = (lsp.is_configured() || lsp.is_running()) && document_uri.is_some();
+        if !lsp_available && (workspace_id.is_empty() || word.is_empty()) {
             return;
         }
+        let cursor_byte = self.primary_cursor_offset();
+        let request = CodeIntelligenceRequestIdentity {
+            generation,
+            buffer_version: self.buffer_version.load(Ordering::Relaxed),
+            cursor_byte,
+            document_uri,
+            workspace_id: workspace_id.clone(),
+            query: word.clone(),
+        };
+        let position = self.lsp_position_at(cursor_byte);
         let client = self
             .code_nav_client
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         let cell = Arc::clone(&self.goto_def_result);
+        let current_file_path = self.file_path();
+        let origin_pane = self
+            .host_render_pane_id
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         runtime.spawn(async move {
-            let symbols = client
-                .lookup_symbols(&workspace_id, &word, 5)
+            let mut target = if lsp_available {
+                lsp.goto_definition_after_sync(
+                    request.document_uri.as_deref().unwrap_or_default(),
+                    position,
+                )
                 .await
-                .unwrap_or_default();
-            // First matched symbol with a definition span -> 0-based target line (backend is 1-based).
-            let target = symbols.into_iter().find_map(|s| {
-                s.definition
+                .map(navigation_location_from_lsp)
+            } else {
+                None
+            };
+            if target.is_none() && !request.workspace_id.is_empty() && !request.query.is_empty() {
+                let symbols = client
+                    .lookup_symbols(&request.workspace_id, &request.query, 5)
+                    .await
+                    .unwrap_or_default();
+                target = preferred_symbol_for_identifier_in_file(
+                    symbols,
+                    &request.query,
+                    &current_file_path,
+                )
+                .and_then(|symbol| code_nav_location_from_symbol(&symbol, &current_file_path));
+            }
+            if let Ok(mut slot) = cell.lock() {
+                let delivery = GotoDefinitionDelivery {
+                    request,
+                    target,
+                    origin_pane,
+                };
+                let replace = slot
                     .as_ref()
-                    .and_then(|d| d.line_start)
-                    .filter(|l| *l >= 1)
-                    .map(|l| (l - 1) as usize)
-            });
-            if let Some(line) = target {
-                if let Ok(mut slot) = cell.lock() {
-                    *slot = Some(line);
+                    .map(|current| current.request.generation <= delivery.request.generation)
+                    .unwrap_or(true);
+                if replace {
+                    *slot = Some(delivery);
                 }
             }
         });
     }
 
-    /// Request show-references at the primary caret (Shift+F12). Resolves the symbol under the caret and
-    /// calls the MT-008 [`CodeNavClient::get_references`] off-thread, delivering the callers/callees into
-    /// [`references_result`](Self::references_result); the next frame moves it into `last_references`
-    /// (observable via [`last_references`](Self::last_references)). There is no references-panel UI in
-    /// MT-010 scope — rendering it is a follow-on MT (recorded as a typed BLOCKER in the handoff), so this
-    /// performs the real backend round-trip without a rendered panel. Graceful no-op without a bound
-    /// workspace/runtime or word under the caret.
+    /// Request show-references at the primary caret (Shift+F12). LSP is primary; CodeNav resolves the
+    /// symbol and its callers/callees as fallback. Both sources deliver normalized, clickable targets
+    /// into the same AccessKit overlay. Graceful no-op without either an LSP document or a bound CodeNav
+    /// workspace/runtime and word under the caret.
     fn request_show_references(&self) {
         tracing::debug!("code editor: ShowReferences (Shift+F12) dispatched");
+        self.close_references();
         let Some(runtime) = self.runtime_handle() else {
             return;
         };
+        let generation = self.references_generation.fetch_add(1, Ordering::Relaxed) + 1;
+        *self
+            .last_references
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
         let workspace_id = self.workspace_id();
         let word = self.word_at_primary_cursor();
-        if workspace_id.is_empty() || word.is_empty() {
+        let lsp = self.lsp_client();
+        let document_uri = self.lsp_uri();
+        let lsp_available = (lsp.is_configured() || lsp.is_running()) && document_uri.is_some();
+        if !lsp_available && (workspace_id.is_empty() || word.is_empty()) {
             return;
         }
+        let cursor_byte = self.primary_cursor_offset();
+        let request = CodeIntelligenceRequestIdentity {
+            generation,
+            buffer_version: self.buffer_version.load(Ordering::Relaxed),
+            cursor_byte,
+            document_uri,
+            workspace_id: workspace_id.clone(),
+            query: word.clone(),
+        };
+        let position = self.lsp_position_at(cursor_byte);
         let client = self
             .code_nav_client
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone();
         let cell = Arc::clone(&self.references_result);
+        let current_file_path = self.file_path();
+        let references_generation = Arc::clone(&self.references_generation);
+        self.last_lsp_references
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
         runtime.spawn(async move {
-            // Resolve the word to a symbol entity id, then fetch its references.
-            let symbols = client
-                .lookup_symbols(&workspace_id, &word, 5)
+            let lsp_locations = if lsp_available {
+                lsp.references_after_sync(
+                    request.document_uri.as_deref().unwrap_or_default(),
+                    position,
+                )
                 .await
-                .unwrap_or_default();
-            let Some(entity_id) = symbols
-                .into_iter()
-                .map(|s| s.symbol_entity_id)
-                .find(|id| !id.is_empty())
-            else {
-                return; // no resolvable symbol -> no references (graceful).
+            } else {
+                Vec::new()
             };
-            if let Ok(refs) = client.get_references(&entity_id).await {
-                if let Ok(mut slot) = cell.lock() {
-                    *slot = Some(refs);
+            let payload = if !lsp_locations.is_empty() {
+                ReferencesPayload::Lsp(
+                    lsp_locations
+                        .into_iter()
+                        .map(navigation_location_from_lsp)
+                        .collect(),
+                )
+            } else if !request.workspace_id.is_empty() && !request.query.is_empty() {
+                let symbols = client
+                    .lookup_symbols(&request.workspace_id, &request.query, 5)
+                    .await
+                    .unwrap_or_default();
+                let refs = if let Some(entity_id) = preferred_symbol_for_identifier_in_file(
+                    symbols,
+                    &request.query,
+                    &current_file_path,
+                )
+                .map(|symbol| symbol.symbol_entity_id)
+                .filter(|id| !id.is_empty())
+                {
+                    client.get_references(&entity_id).await.unwrap_or_default()
+                } else {
+                    CodeSymbolReferencesResponse::default()
+                };
+                // The overlay renders at most twenty rows. Never issue hidden N+1 traffic for entries
+                // the operator cannot see, and cap concurrent backend resolves at four so a large graph
+                // cannot monopolize the runtime. Every task rechecks the shared generation before and
+                // after its request; the outer poll aborts the set within 25 ms after dismissal/state
+                // invalidation rather than waiting for the HTTP timeout of a stale request.
+                let expected_generation = request.generation;
+                let limiter = Arc::new(tokio::sync::Semaphore::new(4));
+                let mut pending = tokio::task::JoinSet::new();
+                for (index, reference) in refs
+                    .callers
+                    .iter()
+                    .chain(refs.callees.iter())
+                    .filter(|reference| !reference.symbol_entity_id.is_empty())
+                    .take(20)
+                    .enumerate()
+                {
+                    let client = client.clone();
+                    let limiter = Arc::clone(&limiter);
+                    let generation = Arc::clone(&references_generation);
+                    let entity_id = reference.symbol_entity_id.clone();
+                    let reference_label = reference.display_name.clone();
+                    let current_file_path = current_file_path.clone();
+                    pending.spawn(async move {
+                        let _permit = limiter.acquire_owned().await.ok()?;
+                        if generation.load(Ordering::Relaxed) != expected_generation {
+                            return None;
+                        }
+                        let response = client.get_symbol(&entity_id).await.ok()?;
+                        if generation.load(Ordering::Relaxed) != expected_generation {
+                            return None;
+                        }
+                        let target =
+                            code_nav_location_from_symbol(&response.symbol, &current_file_path)?;
+                        Some((
+                            index,
+                            CodeReferenceItem {
+                                label: if reference_label.is_empty() {
+                                    response.symbol.display_name.clone()
+                                } else {
+                                    reference_label
+                                },
+                                target,
+                            },
+                        ))
+                    });
+                }
+                let mut indexed_items = Vec::new();
+                while !pending.is_empty() {
+                    tokio::select! {
+                        joined = pending.join_next() => {
+                            if let Some(Ok(Some(item))) = joined {
+                                indexed_items.push(item);
+                            }
+                        }
+                        _ = tokio::time::sleep(Duration::from_millis(25)) => {}
+                    }
+                    if references_generation.load(Ordering::Relaxed) != expected_generation {
+                        pending.abort_all();
+                        while pending.join_next().await.is_some() {}
+                        return;
+                    }
+                }
+                indexed_items.sort_by_key(|(index, _)| *index);
+                let items = indexed_items.into_iter().map(|(_, item)| item).collect();
+                ReferencesPayload::CodeNav { raw: refs, items }
+            } else {
+                ReferencesPayload::Lsp(Vec::new())
+            };
+            if let Ok(mut slot) = cell.lock() {
+                let delivery = ReferencesDelivery { request, payload };
+                let replace = slot
+                    .as_ref()
+                    .map(|current| current.request.generation <= delivery.request.generation)
+                    .unwrap_or(true);
+                if replace {
+                    *slot = Some(delivery);
                 }
             }
         });
@@ -11269,9 +13838,8 @@ impl CodeEditorPanel {
         self.trigger_hover(&runtime, &word);
     }
 
-    /// The most recent ShowReferences result (callers + callees), or `None` if no references request has
-    /// completed. Observable accessor so tests/agents can confirm the Shift+F12 backend round-trip
-    /// (there is no rendered references panel in MT-010 scope).
+    /// The most recent CodeNav ShowReferences result (callers + callees), or `None` if the current
+    /// overlay came from LSP or no CodeNav references request has completed.
     pub fn last_references(&self) -> Option<CodeSymbolReferencesResponse> {
         self.last_references
             .lock()
@@ -11279,12 +13847,139 @@ impl CodeEditorPanel {
             .clone()
     }
 
+    pub fn last_definition_target(&self) -> Option<CodeNavigationLocation> {
+        self.last_definition_target
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    pub fn last_lsp_references(&self) -> Vec<CodeNavigationLocation> {
+        self.last_lsp_references
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    pub fn reference_author_id(&self, index: usize) -> String {
+        self.suffixed(&format!("code_editor_reference_{index}"))
+    }
+
+    pub fn references_overlay_len(&self) -> usize {
+        self.reference_items
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .len()
+    }
+
+    pub fn close_references(&self) {
+        self.references_generation.fetch_add(1, Ordering::Relaxed);
+        self.reference_items
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        self.last_lsp_references
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        *self
+            .last_references
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .references_visible_identity
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    pub fn activate_reference(&self, index: usize) -> bool {
+        let target = self
+            .reference_items
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(index)
+            .map(|item| item.target.clone());
+        let Some(target) = target else {
+            return false;
+        };
+        self.apply_code_navigation_target(target);
+        self.close_references();
+        true
+    }
+
+    fn apply_code_navigation_target(&self, target: CodeNavigationLocation) {
+        let current_path = self.file_path();
+        let target_path = target
+            .path
+            .as_ref()
+            .map(std::path::PathBuf::from)
+            .or_else(|| {
+                lsp_types::Url::parse(&target.uri)
+                    .ok()
+                    .and_then(|uri| path_from_lsp_uri(&uri))
+            })
+            .map(|path| {
+                if path.is_absolute() {
+                    path
+                } else {
+                    std::path::Path::new(&current_path)
+                        .parent()
+                        .filter(|parent| !parent.as_os_str().is_empty())
+                        .map(|parent| parent.join(&path))
+                        .unwrap_or(path)
+                }
+            });
+        let same_file = self.lsp_uri().as_deref() == Some(target.uri.as_str())
+            || target_path.as_ref().is_some_and(|path| {
+                let current = std::path::Path::new(&current_path);
+                normalized_path_key(current) == normalized_path_key(path)
+            });
+        if same_file {
+            self.record_jump_origin();
+            self.navigate_to_line(target.range.start.line as usize);
+            *self
+                .pending_cross_file_jump
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+            *self
+                .pending_cross_file_jump_origin
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = None;
+        } else if let Some(path) = target_path {
+            self.record_jump_origin();
+            self.apply_jump_target(JumpEntry::new(
+                path,
+                BufferPosition::new(
+                    target.range.start.line as usize,
+                    target.range.start.character as usize,
+                ),
+            ));
+        }
+    }
+
+    fn apply_code_navigation_target_from_origin(
+        &self,
+        target: CodeNavigationLocation,
+        origin_pane: Option<PaneId>,
+    ) {
+        self.apply_code_navigation_target(target);
+        if self.pending_cross_file_jump().is_some() && origin_pane.is_some() {
+            *self
+                .pending_cross_file_jump_origin
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = origin_pane;
+        }
+    }
+
     // ── MT-034 code->notes cross-references (the NoteRefsPanel live wiring) ─────────────────────────────
 
     /// Show/hide the "Notes referencing this symbol" panel (RISK-001 / MC-001 — hideable like the
     /// outline/minimap). The toggle button in the editor's panel-toggle row flips it; an agent can too.
     pub fn set_show_note_refs(&self, show: bool) {
-        self.show_note_refs.store(show, Ordering::Relaxed);
+        let changed = self.show_note_refs.swap(show, Ordering::Relaxed) != show;
+        if changed {
+            self.reset_note_refs_context();
+        }
     }
 
     /// Whether the NoteRefsPanel is shown.
@@ -11322,6 +14017,9 @@ impl CodeEditorPanel {
             .find_notes_backend
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = backend;
+        // Replacement changes request ownership even when workspace/caret are unchanged. Clear the
+        // active stamp and advance its generation before an old backend can publish late results.
+        self.reset_note_refs_context();
     }
 
     /// Set the cursor-dwell threshold the live `pump_note_refs` uses (default
@@ -11333,6 +14031,41 @@ impl CodeEditorPanel {
             .note_refs_dwell_threshold
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = threshold;
+    }
+
+    /// Invalidate every NoteRefs result tied to the previous workspace/file/caret context. The
+    /// generation bump is the async delivery fence: a late A result cannot overwrite a newer B
+    /// request, including after a workspace switch.
+    fn invalidate_note_refs_request(&self) {
+        self.note_refs_generation.fetch_add(1, Ordering::Relaxed);
+        *self
+            .note_refs_active_request
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        self.note_refs_result
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+        *self
+            .note_refs_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = NoteRefsState::Idle;
+        *self
+            .note_refs_focused_symbol
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
+        *self
+            .note_refs_dwell
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = SymbolDwellTracker::new();
+    }
+
+    fn reset_note_refs_context(&self) {
+        self.invalidate_note_refs_request();
+        *self
+            .note_refs_observed_context
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
     }
 
     /// MT-034 LIVE code->notes pump: drive the cursor-dwell debounce from the running frame and, on a
@@ -11362,6 +14095,25 @@ impl CodeEditorPanel {
         if workspace_id.is_empty() {
             return;
         }
+        let file_path = self.file_path();
+        let context = (
+            workspace_id.clone(),
+            file_path.clone(),
+            self.primary_cursor_offset(),
+        );
+        let context_changed = {
+            let mut observed = self
+                .note_refs_observed_context
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let changed = observed.as_ref() != Some(&context);
+            *observed = Some(context);
+            changed
+        };
+        if context_changed {
+            self.invalidate_note_refs_request();
+            return;
+        }
         // Observe the word under the caret this frame; the dwell tracker fires ONCE per dwell crossing.
         let word = self.word_at_primary_cursor();
         let current = if word.is_empty() {
@@ -11384,29 +14136,19 @@ impl CodeEditorPanel {
             return; // no dwell crossing this frame -> no search (the debounce suppressed it).
         };
 
-        // IN-FLIGHT GUARD (RISK-3 / MC-3, belt-and-suspenders over the dwell debounce): if a search for
-        // the SAME word is already Loading, do NOT stack a second one. The dwell tracker already fires
-        // once per crossing, but a same-word re-dwell after the cursor briefly left the word would
-        // otherwise stack a redundant search while the first is still in flight — this collapses that to
-        // one outstanding search per focused symbol.
-        {
-            let state = self
-                .note_refs_state
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
-            let focused = self
-                .note_refs_focused_symbol
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
-            if matches!(*state, NoteRefsState::Loading)
-                && focused.as_deref() == Some(dwelled_word.as_str())
-            {
-                return;
-            }
-        }
-
-        // A dwell crossed: mark the panel Loading + record the focused word, then resolve the word to a
-        // precise symbol_key and fire the find-notes search off-thread.
+        // A dwell crossed: bind the request to the exact workspace/file/caret generation before the
+        // async work starts. Only this stamp may commit its delivery.
+        let generation = self.note_refs_generation.fetch_add(1, Ordering::Relaxed) + 1;
+        let requested_symbol = format!("{}#{}", file_path.replace('\\', "/"), dwelled_word);
+        let stamp = NoteRefsRequestStamp {
+            workspace_id: workspace_id.clone(),
+            symbol: requested_symbol,
+            generation,
+        };
+        *self
+            .note_refs_active_request
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(stamp.clone());
         *self
             .note_refs_state
             .lock()
@@ -11429,32 +14171,107 @@ impl CodeEditorPanel {
         );
         let cell = Arc::clone(&self.note_refs_result);
         let ws = workspace_id.clone();
+        let request_stamp = stamp.clone();
+        let request_file_path = file_path.clone();
         runtime.spawn(async move {
-            // Resolve the dwelled word to a precise symbol_key (RISK-1: a qualified `path#Symbol` query
-            // cuts the false positives a bare word would produce). The lookup is BEST-EFFORT and bounded
-            // by a short timeout: if the code-nav backend is slow/unreachable (a headless harness, a flaky
-            // server), fall back to the raw word rather than pinning the panel in Loading on a stuck
-            // connect (the MT-015 no-perpetual-spinner lesson — the task always completes promptly).
             let lookup = tokio::time::timeout(
                 std::time::Duration::from_millis(SYMBOL_KEY_LOOKUP_TIMEOUT_MS),
-                client.lookup_symbols(&ws, &dwelled_word, 5),
+                client.lookup_symbols(&ws, &dwelled_word, SYMBOL_LOOKUP_LIMIT),
             )
             .await;
-            let symbol_key = match lookup {
-                Ok(Ok(syms)) => syms
-                    .into_iter()
-                    .map(|s| s.symbol_key)
-                    .find(|k| !k.trim().is_empty())
-                    .unwrap_or_else(|| dwelled_word.clone()),
-                // Lookup failed or timed out -> the raw word (the content-type filter still narrows).
-                _ => dwelled_word.clone(),
+            let (projection, candidate_summary) = match lookup {
+                Ok(Ok(syms)) => {
+                    let candidate_summary = syms
+                        .iter()
+                        .map(|symbol| format!("{} [{}]", symbol.display_name, symbol.symbol_key))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let projection = preferred_symbol_for_identifier_in_file(
+                        syms,
+                        &dwelled_word,
+                        &request_file_path,
+                    )
+                    .filter(|symbol| !symbol.symbol_entity_id.trim().is_empty())
+                    .filter(|symbol| !symbol.symbol_key.trim().is_empty())
+                    .filter(|symbol| {
+                        let Some(candidate) = symbol_file_path(&symbol.symbol_key) else {
+                            return false;
+                        };
+                        let mut current = request_file_path.replace('\\', "/");
+                        let mut candidate = candidate.replace('\\', "/");
+                        #[cfg(windows)]
+                        {
+                            current.make_ascii_lowercase();
+                            candidate.make_ascii_lowercase();
+                        }
+                        !current.is_empty()
+                            && (current == candidate || current.ends_with(&format!("/{candidate}")))
+                    });
+                    (projection, candidate_summary)
+                }
+                Ok(Err(error)) => {
+                    let delivery = NoteRefsDelivery {
+                        stamp: request_stamp,
+                        symbol_key: None,
+                        state: NoteRefsState::Failed(
+                            crate::interop::cross_ref::CrossRefError::Backend(error.to_string()),
+                        ),
+                    };
+                    if let Ok(mut slot) = cell.lock() {
+                        slot.push(delivery);
+                    }
+                    return;
+                }
+                Err(_) => {
+                    let delivery = NoteRefsDelivery {
+                        stamp: request_stamp,
+                        symbol_key: None,
+                        state: NoteRefsState::Failed(
+                            crate::interop::cross_ref::CrossRefError::Backend(
+                                "symbol lookup timed out".to_owned(),
+                            ),
+                        ),
+                    };
+                    if let Ok(mut slot) = cell.lock() {
+                        slot.push(delivery);
+                    }
+                    return;
+                }
             };
-            let state = match find_notes_with(backend.as_ref(), &symbol_key, &ws).await {
+            let Some(projection) = projection else {
+                let delivery = NoteRefsDelivery {
+                    stamp: request_stamp,
+                    symbol_key: None,
+                    state: NoteRefsState::Failed(
+                        crate::interop::cross_ref::CrossRefError::NotFound(format!(
+                            "no exact symbol projection for '{}' in '{}'; candidates=[{}]",
+                            dwelled_word, request_file_path, candidate_summary
+                        )),
+                    ),
+                };
+                if let Ok(mut slot) = cell.lock() {
+                    slot.push(delivery);
+                }
+                return;
+            };
+            let symbol_key = projection.symbol_key.clone();
+            let state = match find_code_ref_notes_with(
+                backend.as_ref(),
+                &projection.symbol_entity_id,
+                &symbol_key,
+                &ws,
+            )
+            .await
+            {
                 Ok(notes) => NoteRefsState::Loaded(notes),
                 Err(e) => NoteRefsState::Failed(e),
             };
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(state);
+                slot.push(NoteRefsDelivery {
+                    stamp: request_stamp,
+                    symbol_key: Some(symbol_key),
+                    state,
+                });
             }
         });
     }
@@ -11462,16 +14279,31 @@ impl CodeEditorPanel {
     /// MT-034: drain a delivered find-notes result into `note_refs_state` (HBR-QUIET — the spawn delivered
     /// it off-thread; here we just swap it in on the UI thread). A no-op when nothing was delivered.
     fn drain_note_refs(&self) {
-        if let Some(state) = self
+        let deliveries: Vec<_> = self
             .note_refs_result
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .take()
-        {
+            .drain(..)
+            .collect();
+        let active = self
+            .note_refs_active_request
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let workspace = self.workspace_id();
+        if let Some(delivery) = deliveries.into_iter().rev().find(|delivery| {
+            active.as_ref() == Some(&delivery.stamp) && workspace == delivery.stamp.workspace_id
+        }) {
+            if let Some(symbol_key) = delivery.symbol_key {
+                *self
+                    .note_refs_focused_symbol
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(symbol_key);
+            }
             *self
                 .note_refs_state
                 .lock()
-                .unwrap_or_else(|e| e.into_inner()) = state;
+                .unwrap_or_else(|e| e.into_inner()) = delivery.state;
         }
     }
 
@@ -11489,12 +14321,38 @@ impl CodeEditorPanel {
         let state = self.note_refs_state();
         let focused = self.note_refs_focused_symbol();
         if let Some(doc_id) = render_note_refs_panel(ui, &state, focused.as_deref(), &palette) {
-            // Route the clicked row through the EXISTING Open-Document cross-pane command (MT-032).
+            *self
+                .pending_note_ref_open
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = Some(doc_id);
+        }
+        let pending = self
+            .pending_note_ref_open
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        if let Some(doc_id) = pending {
             let bus = InteractionBus::get_or_init(ui.ctx());
-            InteractionBus::with_try_lock(&bus, |b| {
+            let delivered = InteractionBus::with_try_lock(&bus, |b| {
                 b.register_open_document_command();
-                b.open_document(ui.ctx(), doc_id);
-            });
+                b.open_document(ui.ctx(), doc_id.clone());
+            })
+            .is_some();
+            if delivered {
+                *self
+                    .pending_note_ref_open
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = None;
+            } else {
+                let response = ui.label(format!("Waiting to open {doc_id}…"));
+                ui.ctx().accesskit_node_builder(response.id, |node| {
+                    node.set_role(accesskit::Role::Status);
+                    node.set_author_id(OPEN_PENDING_AUTHOR_ID.to_owned());
+                    node.set_label("Note open pending".to_owned());
+                    node.set_value(doc_id.clone());
+                });
+                ui.ctx().request_repaint();
+            }
         }
     }
 
@@ -11553,8 +14411,16 @@ impl CodeEditorPanel {
             .command_palette_tx
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        if let Some(tx) = tx.as_ref() {
-            let _ = tx.send(action);
+        if let Some((tx, document_id)) = tx.as_ref() {
+            let _ = tx.send(CodeEditorHostCommand {
+                action,
+                document_id: document_id.clone(),
+                pane_id: self
+                    .host_render_pane_id
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone(),
+            });
         } else {
             tracing::debug!(
                 action = action.name(),
@@ -11672,7 +14538,8 @@ impl CodeEditorPanel {
                     if !matches!(
                         *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()),
                         RenameState::Idle
-                    ) {
+                    ) || self.find_text_surface_owns_keyboard()
+                    {
                         continue;
                     }
                     // Skip while a completion popup is open AND the text would be consumed by an accept —
@@ -11686,7 +14553,17 @@ impl CodeEditorPanel {
                         self.mark_edit_now();
                     }
                     if text.chars().any(|c| matches!(c, '.' | ':' | '_')) {
-                        self.completion_request.store(true, Ordering::Relaxed);
+                        self.completion_request
+                            .fetch_max(COMPLETION_REQUEST_AUTOMATIC, Ordering::Relaxed);
+                        if self.completion_request.load(Ordering::Relaxed)
+                            == COMPLETION_REQUEST_AUTOMATIC
+                        {
+                            *self
+                                .automatic_completion_cursor
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner()) =
+                                Some(self.primary_cursor_offset());
+                        }
                     }
                     // MT-047 signature help: an open-paren OPENS the popup at a new call site; a comma
                     // UPDATES the active parameter of the open popup (the pump keys it by the call's
@@ -11713,7 +14590,8 @@ impl CodeEditorPanel {
                     if !matches!(
                         *self.rename_state.lock().unwrap_or_else(|e| e.into_inner()),
                         RenameState::Idle
-                    ) {
+                    ) || self.find_text_surface_owns_keyboard()
+                    {
                         continue;
                     }
                     let before = self.buffer();
@@ -11785,7 +14663,13 @@ impl CodeEditorPanel {
         // resolved `CodeEditorAction` (including the live-typing Backspace/Delete via DeleteLeft/
         // DeleteRight). Run AFTER the pointer + text handling above so a click-then-key in the same
         // frame sees the updated caret.
-        self.process_keymap(ui);
+        // An open egui popup owns navigation/confirmation keys. In particular, the editor-body context
+        // menu consumes ArrowUp/ArrowDown/Enter after the body has already processed input in this render
+        // order; dispatching the editor keymap here as well would collapse/move the live code selection
+        // before a menu command (such as Copy as note reference) reads it.
+        if !egui::Popup::is_any_open(ui.ctx()) {
+            self.process_keymap(ui);
+        }
 
         // WP-KERNEL-012 MT-041 (E7): sync + emit the consolidated `editor.code.<action>` AccessKit nodes
         // and consume any swarm `Action::Click` dispatched at them THIS frame, so a swarm agent's
@@ -11798,10 +14682,13 @@ impl CodeEditorPanel {
         // the buffer, so a swarm agent can AUTHOR code by id within the frame (the same in-frame consume
         // discipline `sync_editor_actions` uses for `Click`). A no-op when no such request was dispatched.
         self.consume_swarm_text_actions(ui);
+        // MT-108: consume a SetValue dispatched at the stable find-bar node and route it through the same
+        // setter as the live TextEdit, preserving incremental re-search and normal UI state transitions.
+        self.consume_swarm_find_actions(ui);
     }
 
     /// WP-KERNEL-012 MT-080 (AC-080-6 / MT-043 swarm-authoring): drain this frame's swarm text-edit
-    /// requests targeted at the `code_editor_text` node and apply each to the buffer. Two actions:
+    /// requests targeted at the `editor.code.text` node and apply each to the buffer. Two actions:
     /// - [`accesskit::Action::SetValue`] with an [`accesskit::ActionData::Value`] payload replaces the
     ///   WHOLE buffer ([`set_text`](Self::set_text)) — the swarm "author the whole file" path.
     /// - [`accesskit::Action::ReplaceSelectedText`] with a `Value` payload inserts the text at the
@@ -11827,9 +14714,14 @@ impl CodeEditorPanel {
         // Collect the (action, value) pairs first so the input lock is released before mutating the buffer
         // (set_text/insert_text take their own locks). SetValue is applied before ReplaceSelectedText so a
         // whole-buffer set followed by a selection-insert in the same frame composes deterministically.
+        let mut focus = false;
         let mut set_value: Option<String> = None;
         let mut replace_values: Vec<String> = Vec::new();
         ui.input(|input| {
+            focus = input
+                .accesskit_action_requests(text_id, accesskit::Action::Focus)
+                .next()
+                .is_some();
             for request in input.accesskit_action_requests(text_id, accesskit::Action::SetValue) {
                 if let Some(accesskit::ActionData::Value(v)) = &request.data {
                     set_value = Some(v.to_string());
@@ -11843,6 +14735,10 @@ impl CodeEditorPanel {
                 }
             }
         });
+        if focus {
+            ui.ctx().memory_mut(|memory| memory.request_focus(text_id));
+            ui.ctx().request_repaint();
+        }
         if let Some(value) = set_value {
             let before = self.buffer();
             self.set_text(&value);
@@ -11858,27 +14754,73 @@ impl CodeEditorPanel {
             }
         }
     }
+
+    /// MT-108: drain Argus `SetValue` requests targeted at the stable find-bar node and update the real
+    /// query state. The stable node is intentionally separate from egui's generated TextEdit node, so
+    /// this bridge consumes the request at the exact discoverable author id and delegates to
+    /// [`Self::set_find_query`] for the canonical re-search path. A missing/closed bar is a no-op.
+    fn consume_swarm_find_actions(&self, ui: &egui::Ui) {
+        let Some(find_node_id) = *self
+            .live_find_node_id
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        else {
+            return;
+        };
+        let mut value = None;
+        ui.input(|input| {
+            for request in
+                input.accesskit_action_requests(find_node_id, accesskit::Action::SetValue)
+            {
+                if let Some(accesskit::ActionData::Value(next)) = &request.data {
+                    value = Some(next.to_string());
+                }
+            }
+        });
+        if let Some(value) = value {
+            self.set_find_query(value);
+            ui.ctx().request_repaint();
+        }
+    }
 }
 
 /// A [`PaneFactory`] that mounts a [`CodeEditorPanel`] as a named work-surface pane (MT-001 step 5).
 /// Registered for [`PaneType::CodeSymbol`] (the closest existing WP-011 pane variant for a code
 /// surface) so the editor appears in the WP-011 docking split layout through the EXISTING pane
 /// registry + split layout — no new shell infrastructure is forked.
+struct PendingCodeEditFlightEvent {
+    last_change: Instant,
+    line_delta: i64,
+    pane_id: String,
+    workspace_id: String,
+    file_path: String,
+}
+
 pub struct CodeEditorPaneFactory {
     panel: Arc<CodeEditorPanel>,
     /// MT-031: set once after the code surface registers its melt-together command set into the shared
     /// bus, so re-registration is idempotent across frames (interior-mutable: the registry borrows
     /// `&dyn PaneFactory` at render time, so `render` has no `&mut self`).
     bus_registered: std::sync::atomic::AtomicBool,
+    /// MT-036: one 2-second trailing-edge Flight Recorder batch per mounted code pane. Render only
+    /// updates/polls this tiny state; transport dispatch stays on the existing non-blocking emitter.
+    pending_code_edit_event: Mutex<Option<PendingCodeEditFlightEvent>>,
+    /// Identity changes (workspace/pane/file) close the prior batch without relabelling it. Closed
+    /// batches retain their own trailing-edge deadline and drain in causal order before the active batch.
+    queued_code_edit_events: Mutex<VecDeque<PendingCodeEditFlightEvent>>,
 }
 
 impl CodeEditorPaneFactory {
+    const CODE_EDIT_DEBOUNCE: Duration = Duration::from_secs(2);
+
     /// Build a factory wrapping `panel`. `Arc` so the same panel renders across frames without the
     /// factory owning a `&mut` (the registry borrows `&dyn PaneFactory` at render time).
     pub fn new(panel: CodeEditorPanel) -> Self {
         Self {
             panel: Arc::new(panel),
             bus_registered: std::sync::atomic::AtomicBool::new(false),
+            pending_code_edit_event: Mutex::new(None),
+            queued_code_edit_events: Mutex::new(VecDeque::new()),
         }
     }
 
@@ -11890,6 +14832,8 @@ impl CodeEditorPaneFactory {
         Self {
             panel,
             bus_registered: std::sync::atomic::AtomicBool::new(false),
+            pending_code_edit_event: Mutex::new(None),
+            queued_code_edit_events: Mutex::new(VecDeque::new()),
         }
     }
 
@@ -11897,6 +14841,137 @@ impl CodeEditorPaneFactory {
     /// mounted pane shows — MT-031 cross-pane proof needs the real panel behind the factory).
     pub fn panel(&self) -> Arc<CodeEditorPanel> {
         Arc::clone(&self.panel)
+    }
+
+    fn stage_code_edit_event_at(
+        &self,
+        pane_id: &str,
+        workspace_id: &str,
+        file_path: &str,
+        line_delta: i64,
+        now: Instant,
+    ) {
+        let new_batch = || PendingCodeEditFlightEvent {
+            last_change: now,
+            line_delta,
+            pane_id: pane_id.to_owned(),
+            workspace_id: workspace_id.to_owned(),
+            file_path: file_path.to_owned(),
+        };
+        let displaced = {
+            let mut pending = self
+                .pending_code_edit_event
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            match pending.as_mut() {
+                Some(batch)
+                    if batch.pane_id == pane_id
+                        && batch.workspace_id == workspace_id
+                        && batch.file_path == file_path =>
+                {
+                    batch.last_change = now;
+                    batch.line_delta = batch.line_delta.saturating_add(line_delta);
+                    None
+                }
+                Some(_) => pending.replace(new_batch()),
+                None => {
+                    *pending = Some(new_batch());
+                    None
+                }
+            }
+        };
+        if let Some(displaced) = displaced {
+            self.queued_code_edit_events
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .push_back(displaced);
+        }
+    }
+
+    /// Take one due event at an injected monotonic time. Keeping the clock at this boundary makes the
+    /// trailing-edge contract deterministic in tests without sleeps or scheduler timing.
+    fn take_due_code_edit_event_at(
+        &self,
+        now: Instant,
+    ) -> Option<crate::event_emitter::NativeEditorEvent> {
+        let queued_batch = {
+            let mut queued = self
+                .queued_code_edit_events
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            match queued.front() {
+                Some(batch)
+                    if now
+                        .checked_duration_since(batch.last_change)
+                        .unwrap_or_default()
+                        >= Self::CODE_EDIT_DEBOUNCE =>
+                {
+                    queued.pop_front()
+                }
+                Some(_) => return None,
+                None => None,
+            }
+        };
+        let batch = queued_batch.or_else(|| {
+            let mut pending = self
+                .pending_code_edit_event
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            match pending.as_ref() {
+                Some(batch)
+                    if now
+                        .checked_duration_since(batch.last_change)
+                        .unwrap_or_default()
+                        >= Self::CODE_EDIT_DEBOUNCE =>
+                {
+                    pending.take()
+                }
+                Some(_) => None,
+                None => None,
+            }
+        });
+        batch.map(|batch| {
+            let file_path = if batch.file_path.trim().is_empty() {
+                batch.pane_id.clone()
+            } else {
+                batch.file_path
+            };
+            crate::event_emitter::NativeEditorEvent::code_edit(
+                file_path,
+                batch.line_delta,
+                batch.pane_id.clone(),
+                crate::event_emitter::native_editor_actor_id(&batch.pane_id),
+                batch.workspace_id,
+            )
+        })
+    }
+
+    fn flush_code_edit_event_at(&self, ctx: &egui::Context, now: Instant) {
+        if let Some(event) = self.take_due_code_edit_event_at(now) {
+            crate::event_emitter::dispatch_event_from_frame(ctx, event);
+            ctx.request_repaint();
+            return;
+        }
+        let repaint_after = self
+            .queued_code_edit_events
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .front()
+            .map(|batch| batch.last_change)
+            .or_else(|| {
+                self.pending_code_edit_event
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .as_ref()
+                    .map(|batch| batch.last_change)
+            })
+            .map(|batch| {
+                Self::CODE_EDIT_DEBOUNCE
+                    .saturating_sub(now.checked_duration_since(batch).unwrap_or_default())
+            });
+        if let Some(delay) = repaint_after {
+            ctx.request_repaint_after(delay);
+        }
     }
 }
 
@@ -11915,7 +14990,8 @@ impl PaneFactory for CodeEditorPaneFactory {
         // The code pane owns shared focus only while the pane's egui scope is actually focused. A stale
         // code selection must not claim focus or consume clipboard shortcuts while another editor/input is
         // active; explicit menu/palette commands materialize selections through the host dispatch path.
-        let has_focus = ui.memory(|m| m.focused().map(|f| f == ctx.egui_id).unwrap_or(false));
+        let has_focus = ui.memory(|m| m.focused().map(|f| f == ctx.egui_id).unwrap_or(false))
+            || self.panel.live_text_has_focus(ui.ctx());
         // MT-047 (AC-002): mirror the real pane focus into the panel BEFORE `show()` so the per-frame
         // signature-help dismissal guard closes the popup when the code editor loses focus (scope step 8).
         self.panel.set_code_surface_focus(has_focus);
@@ -12005,6 +15081,26 @@ impl PaneFactory for CodeEditorPaneFactory {
             });
         }
 
+        // MT-036/MT-069: every successful buffer mutation records exactly one lightweight receipt on
+        // the panel. Drain all receipts accumulated since the prior frame into this pane's existing
+        // two-second trailing-edge batch, then poll the due event. Failed/no-op/cancel paths never create
+        // a receipt, so they cannot emit. One monotonic sample drives both stage and flush deterministically.
+        let code_edit_now = Instant::now();
+        for receipt in self.panel.take_pending_code_edit_receipts() {
+            let pane_id = receipt
+                .pane_id
+                .as_deref()
+                .unwrap_or(ctx.record.pane_id.as_ref());
+            self.stage_code_edit_event_at(
+                pane_id,
+                &receipt.workspace_id,
+                &receipt.file_path,
+                receipt.line_delta,
+                code_edit_now,
+            );
+        }
+        self.flush_code_edit_event_at(ui.ctx(), code_edit_now);
+
         // MT-046: a 'Copy as note reference' dispatch staged its `[[code:…]]` ref this frame — write it
         // to the SHARED bus clipboard through the SAME mockable-sink path Ctrl+C uses (the production
         // sink is the egui `copy_text` surface; headless kittest runs never touch the OS clipboard).
@@ -12025,6 +15121,328 @@ impl PaneFactory for CodeEditorPaneFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn large_initial_highlight_source() -> String {
+        (0..5_100)
+            .map(|line| format!("fn item_{line}() -> usize {{ {line} }}\n"))
+            .collect()
+    }
+
+    fn await_initial_highlight_terminal(panel: &CodeEditorPanel) -> InitialHighlightStatus {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let status = panel.initial_highlight_status();
+            if status != InitialHighlightStatus::Pending || Instant::now() >= deadline {
+                return status;
+            }
+            std::thread::yield_now();
+        }
+    }
+
+    #[test]
+    fn initial_highlight_worker_faults_retry_off_ui_and_preserve_initial_window() {
+        for (fault, expected_failure) in [
+            (
+                InitialHighlightTestFault::SpawnUnavailable,
+                InitialHighlightFailure::WorkerUnavailable,
+            ),
+            (
+                InitialHighlightTestFault::Disconnect,
+                InitialHighlightFailure::WorkerUnavailable,
+            ),
+            (
+                InitialHighlightTestFault::WorkerPanicked,
+                InitialHighlightFailure::WorkerPanicked,
+            ),
+            (
+                InitialHighlightTestFault::EmptyProjection,
+                InitialHighlightFailure::EmptyProjection,
+            ),
+            (
+                InitialHighlightTestFault::StaleGeneration,
+                InitialHighlightFailure::StaleDelivery,
+            ),
+        ] {
+            let panel = CodeEditorPanel::new(&large_initial_highlight_source(), "rs");
+            let initial_spans = panel.initial_span_count();
+            assert!(initial_spans > 0, "fixture must emit a foreground window");
+            panel.inject_initial_highlight_fault(fault);
+            assert_eq!(
+                await_initial_highlight_terminal(&panel),
+                InitialHighlightStatus::Complete,
+                "recoverable {fault:?} must complete through the bounded worker retry"
+            );
+            assert_eq!(
+                panel.initial_highlight_failure(),
+                Some(expected_failure),
+                "the recovered worker failure remains observable as a typed diagnostic"
+            );
+            assert!(panel.span_count() >= initial_spans);
+            assert!(
+                panel
+                    .initial_highlight_source
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .is_none(),
+                "terminal delivery must release the retained source"
+            );
+        }
+    }
+
+    #[test]
+    fn initial_highlight_queue_full_is_non_blocking_and_retries_submission() {
+        let panel = CodeEditorPanel::new(&large_initial_highlight_source(), "rs");
+        panel.inject_initial_highlight_fault(InitialHighlightTestFault::QueueFull);
+        assert_eq!(
+            panel.initial_highlight_status(),
+            InitialHighlightStatus::Pending
+        );
+        assert_eq!(
+            panel.initial_highlight_failure(),
+            Some(InitialHighlightFailure::QueueSaturated)
+        );
+        assert_eq!(
+            await_initial_highlight_terminal(&panel),
+            InitialHighlightStatus::Complete
+        );
+    }
+
+    #[test]
+    fn initial_highlight_cancellation_is_cooperative_and_keeps_foreground_spans() {
+        let panel = CodeEditorPanel::new(&large_initial_highlight_source(), "rs");
+        let initial_spans = panel.initial_span_count();
+        panel.inject_initial_highlight_fault(InitialHighlightTestFault::CancelDuringCapture);
+        assert_eq!(
+            await_initial_highlight_terminal(&panel),
+            InitialHighlightStatus::Failed
+        );
+        assert_eq!(
+            panel.initial_highlight_failure(),
+            Some(InitialHighlightFailure::Cancelled)
+        );
+        assert_eq!(panel.span_count(), initial_spans);
+    }
+
+    #[test]
+    fn initial_highlight_source_bound_accepts_required_fixture_and_rejects_oversize_job() {
+        assert!(initial_highlight_source_is_worker_eligible(517_231));
+        assert!(initial_highlight_source_is_worker_eligible(
+            INITIAL_HIGHLIGHT_MAX_SOURCE_BYTES
+        ));
+        assert!(!initial_highlight_source_is_worker_eligible(
+            INITIAL_HIGHLIGHT_MAX_SOURCE_BYTES + 1
+        ));
+    }
+
+    #[test]
+    fn refresh_cancels_and_releases_pending_initial_highlight_job() {
+        let panel = CodeEditorPanel::new(&large_initial_highlight_source(), "rs");
+        let cancel = panel
+            .initial_highlight_cancel
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .as_ref()
+            .cloned()
+            .expect("large source owns a cancellation token");
+        panel.refresh();
+        assert!(cancel.load(Ordering::Acquire));
+        assert!(panel
+            .initial_highlight_source
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_none());
+        assert!(panel
+            .initial_highlight_job
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .is_none());
+    }
+
+    fn take_one_code_edit_receipt(panel: &CodeEditorPanel) -> PendingCodeEditMutationReceipt {
+        let mut receipts = panel.take_pending_code_edit_receipts();
+        assert_eq!(receipts.len(), 1, "expected exactly one mutation receipt");
+        receipts.pop().expect("one receipt was asserted")
+    }
+
+    #[test]
+    fn code_edit_producer_batches_real_text_edits_with_exact_identity_and_line_delta() {
+        let panel = Arc::new(CodeEditorPanel::new("alpha", "txt"));
+        panel.set_workspace_id("workspace-exact");
+        panel.set_file_path("src/exact.rs");
+        panel.set_host_render_pane_id(Some(Arc::from("pane-exact")));
+        let factory = CodeEditorPaneFactory::from_arc(Arc::clone(&panel));
+        let start = Instant::now();
+
+        assert_eq!(
+            panel.apply_text_edit_undoable("test typing", |panel| panel.insert_text("\n")),
+            1
+        );
+        let first_receipt = take_one_code_edit_receipt(&panel);
+        assert_eq!(first_receipt.pane_id.as_deref(), Some("pane-exact"));
+        assert_eq!(first_receipt.workspace_id, "workspace-exact");
+        assert_eq!(first_receipt.file_path, "src/exact.rs");
+        factory.stage_code_edit_event_at(
+            first_receipt.pane_id.as_deref().expect("captured pane"),
+            &first_receipt.workspace_id,
+            &first_receipt.file_path,
+            first_receipt.line_delta,
+            start,
+        );
+
+        assert_eq!(
+            panel.apply_text_edit_undoable("test typing", |panel| panel.insert_text("\n")),
+            1
+        );
+        let second_receipt = take_one_code_edit_receipt(&panel);
+        factory.stage_code_edit_event_at(
+            second_receipt.pane_id.as_deref().expect("captured pane"),
+            &second_receipt.workspace_id,
+            &second_receipt.file_path,
+            second_receipt.line_delta,
+            start + Duration::from_secs(1),
+        );
+
+        assert!(
+            factory
+                .take_due_code_edit_event_at(start + Duration::from_millis(2_999))
+                .is_none(),
+            "the second edit resets the two-second trailing edge without sleeping"
+        );
+        let event = factory
+            .take_due_code_edit_event_at(start + Duration::from_secs(3))
+            .expect("one batch becomes due exactly two seconds after the final edit");
+        assert_eq!(
+            event.action,
+            crate::event_emitter::NativeEditorAction::CodeEdit
+        );
+        assert_eq!(event.workspace_id, "workspace-exact");
+        assert_eq!(event.pane_id, "pane-exact");
+        assert_eq!(event.actor_id, "hsk:native_editor:pane-exact");
+        assert_eq!(event.payload["file_path"], "src/exact.rs");
+        assert_eq!(event.payload["line_delta"], 2);
+        assert!(
+            factory
+                .take_due_code_edit_event_at(start + Duration::from_secs(30))
+                .is_none(),
+            "taking the due batch consumes it exactly once"
+        );
+    }
+
+    #[test]
+    fn code_edit_producer_never_relabels_a_batch_after_identity_changes() {
+        let panel = Arc::new(CodeEditorPanel::new("alpha", "txt"));
+        panel.set_file_path("src/first.rs");
+        let factory = CodeEditorPaneFactory::from_arc(Arc::clone(&panel));
+        let start = Instant::now();
+        factory.stage_code_edit_event_at("pane-first", "workspace-first", "src/first.rs", 1, start);
+
+        panel.set_file_path("src/second.rs");
+        factory.stage_code_edit_event_at(
+            "pane-second",
+            "workspace-second",
+            "src/second.rs",
+            -2,
+            start + Duration::from_secs(1),
+        );
+
+        let first = factory
+            .take_due_code_edit_event_at(start + Duration::from_secs(2))
+            .expect("the closed first-identity batch becomes due first");
+        assert_eq!(first.workspace_id, "workspace-first");
+        assert_eq!(first.pane_id, "pane-first");
+        assert_eq!(first.payload["file_path"], "src/first.rs");
+        assert_eq!(first.payload["line_delta"], 1);
+        assert!(
+            factory
+                .take_due_code_edit_event_at(start + Duration::from_millis(2_999))
+                .is_none(),
+            "the second identity retains its own trailing-edge deadline"
+        );
+        let second = factory
+            .take_due_code_edit_event_at(start + Duration::from_secs(3))
+            .expect("the second-identity batch becomes due on its own deadline");
+        assert_eq!(second.workspace_id, "workspace-second");
+        assert_eq!(second.pane_id, "pane-second");
+        assert_eq!(second.payload["file_path"], "src/second.rs");
+        assert_eq!(second.payload["line_delta"], -2);
+    }
+
+    #[test]
+    fn code_edit_producer_covers_format_and_line_operation_product_paths() {
+        let panel = CodeEditorPanel::new("alpha", "txt");
+        let before_format = panel.buffer().to_string();
+        let after_format = format!("{before_format}\nformatted");
+        *panel
+            .format_result
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = Some((
+            before_format,
+            Some(after_format),
+            FormatOutcome::Applied { edit_count: 1 },
+        ));
+        panel.drain_format_result();
+        assert_eq!(
+            take_one_code_edit_receipt(&panel).line_delta,
+            1,
+            "a successfully applied formatter result stages its exact line delta"
+        );
+
+        panel.dispatch_action(CodeEditorAction::DuplicateLine);
+        assert_eq!(
+            take_one_code_edit_receipt(&panel).line_delta,
+            1,
+            "a successful real line operation stages its exact line delta"
+        );
+    }
+
+    #[test]
+    fn code_edit_producer_emits_zero_receipts_for_noop_failure_and_cancel_paths() {
+        let panel = CodeEditorPanel::new("alpha", "txt");
+
+        panel.dispatch_action(CodeEditorAction::MoveLineUp);
+        assert!(panel.take_pending_code_edit_receipts().is_empty());
+
+        let unchanged = panel.buffer().to_string();
+        *panel
+            .format_result
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = Some((
+            unchanged,
+            None,
+            FormatOutcome::LspError("formatter failed".to_owned()),
+        ));
+        panel.drain_format_result();
+        assert!(panel.take_pending_code_edit_receipts().is_empty());
+
+        assert!(!panel.handle_ime_event(&egui::ImeEvent::Commit(String::new())));
+        assert!(panel.take_pending_code_edit_receipts().is_empty());
+
+        let same = panel.buffer();
+        panel.record_text_edit_undo(same.clone(), same, "test no-op");
+        assert!(panel.take_pending_code_edit_receipts().is_empty());
+    }
+
+    #[test]
+    fn code_nav_target_uses_symbol_key_file_instead_of_current_document() {
+        let symbol = CodeSymbolNavProjection {
+            symbol_key: "rust:src/other.rs#target".to_owned(),
+            definition: Some(super::super::code_nav::CodeSymbolDefinition {
+                line_start: Some(7),
+                line_end: Some(8),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let target = code_nav_location_from_symbol(&symbol, r"C:\workspace\src\current.rs")
+            .expect("symbol definition produces a navigation target");
+
+        assert_eq!(target.path.as_deref(), Some("src/other.rs"));
+        assert_eq!(target.uri, "file:///src/other.rs");
+        assert_eq!(target.range.start.line, 6);
+        assert_eq!(target.range.end.line, 7);
+        assert!(!target.uri.contains("current.rs"));
+    }
 
     #[test]
     fn scope_colors_come_from_theme_tokens() {
@@ -12334,6 +15752,12 @@ fn main() {
             .lock()
             .unwrap()
             .expect("glyph advance measured at the default font size");
+        let gutter_default = panel
+            .last_gutter_geometry
+            .lock()
+            .unwrap()
+            .expect("gutter geometry captured at the default font size");
+        assert_eq!(gutter_default.font_size, MONO_FONT_SIZE);
         assert!(
             h_default > 0.0 && w_default > 0.0,
             "sane default metrics: row_height={h_default}, glyph_width={w_default}"
@@ -12351,6 +15775,15 @@ fn main() {
             .lock()
             .unwrap()
             .expect("glyph advance re-measured at 28pt");
+        let gutter_big = panel
+            .last_gutter_geometry
+            .lock()
+            .unwrap()
+            .expect("gutter geometry refreshed at 28pt");
+        assert_eq!(
+            gutter_big.font_size, 28.0,
+            "the gutter line-number/fold glyph font follows the live editor font size"
+        );
         assert!(
             h_big > h_default + 1.0,
             "S6 item 3: a larger font size GREW the measured row height ({h_default} -> {h_big})"
@@ -12360,6 +15793,37 @@ fn main() {
             "S6 item 3: a larger font size grew the measured glyph advance ({w_default} -> {w_big})"
         );
 
+        // Exercise the supported maximum through the same mounted render path. The foldable Rust
+        // snippet must receive a strip whose measured width includes the live, expanded fold column;
+        // otherwise a 48pt triangle can paint into the line-number column even though both glyphs use
+        // the correct font size.
+        panel.set_font_size(48.0);
+        harness.run();
+        let gutter_max = panel
+            .last_gutter_geometry
+            .lock()
+            .unwrap()
+            .expect("gutter geometry refreshed at the supported 48pt maximum");
+        let gutter_max_rect = panel
+            .last_gutter_rect
+            .lock()
+            .unwrap()
+            .expect("gutter strip captured at the supported 48pt maximum");
+        let total_lines = panel.buffer.lock().unwrap().len_lines();
+        let expected_width =
+            Gutter::width_for(total_lines, gutter_max.char_width, &panel.gutter_config());
+        assert_eq!(gutter_max.font_size, 48.0);
+        assert!(
+            crate::code_editor::gutter::fold_column_width(gutter_max.char_width) > 14.0,
+            "48pt render expands the fold column beyond its 14px minimum"
+        );
+        assert!(
+            (gutter_max_rect.width() - expected_width).abs() < 0.5,
+            "mounted 48pt gutter reserves the same live width used by fold glyph and hit geometry: \
+             rect={} expected={expected_width}",
+            gutter_max_rect.width()
+        );
+
         panel.set_font_size(8.0);
         harness.run();
         let h_tiny = panel
@@ -12367,6 +15831,12 @@ fn main() {
             .lock()
             .unwrap()
             .expect("row height re-measured at 8pt");
+        let gutter_tiny = panel
+            .last_gutter_geometry
+            .lock()
+            .unwrap()
+            .expect("gutter geometry refreshed at 8pt");
+        assert_eq!(gutter_tiny.font_size, 8.0);
         assert!(
             h_tiny < h_default,
             "S6 item 3: a smaller font size SHRANK the measured row height ({h_default} -> {h_tiny})"
@@ -12543,6 +16013,7 @@ fn main() {
         assert_eq!(d.container_author_id(), CODE_EDITOR_PANEL_AUTHOR_ID);
         assert_eq!(d.scroll_author_id(), CODE_EDITOR_SCROLL_AREA_AUTHOR_ID);
         assert_eq!(d.text_author_id(), CODE_EDITOR_TEXT_AUTHOR_ID);
+        assert_eq!(d.text_author_id(), "editor.code.text");
     }
 
     #[test]
@@ -12602,6 +16073,209 @@ fn main() {
             cached_version,
             Some(v0 + 1),
             "cache re-filled at the bumped version"
+        );
+    }
+
+    #[test]
+    fn host_incarnation_is_monotonic_and_never_reuses_panel_identity() {
+        let mut previous = 0;
+        let mut seen = std::collections::HashSet::new();
+        // A bounded sample is sufficient to prove the constructor uses the monotonic allocator;
+        // panel construction performs full syntax/highlight setup, so keep this regression cheap.
+        for _ in 0..64 {
+            let panel = CodeEditorPanel::new("fn identity_probe() {}", "rs");
+            let incarnation = panel.host_incarnation();
+            assert!(
+                incarnation > previous,
+                "panel incarnation must increase monotonically: previous={previous}, current={incarnation}"
+            );
+            assert!(
+                seen.insert(incarnation),
+                "panel incarnation {incarnation} was reused"
+            );
+            previous = incarnation;
+        }
+    }
+
+    #[test]
+    fn note_refs_late_delivery_cannot_overwrite_newer_request() {
+        let panel = CodeEditorPanel::new("fn a() {}", "rs");
+        panel.set_workspace_id("ws-b");
+        let request_a = NoteRefsRequestStamp {
+            workspace_id: "ws-a".to_owned(),
+            symbol: "src/a.rs#A".to_owned(),
+            generation: 1,
+        };
+        let request_b = NoteRefsRequestStamp {
+            workspace_id: "ws-b".to_owned(),
+            symbol: "src/b.rs#B".to_owned(),
+            generation: 2,
+        };
+        *panel
+            .note_refs_active_request
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = Some(request_b.clone());
+        *panel
+            .note_refs_state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = NoteRefsState::Loading;
+        panel
+            .note_refs_result
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .extend([
+                NoteRefsDelivery {
+                    stamp: request_b,
+                    symbol_key: Some("rust:src/b.rs#B".to_owned()),
+                    state: NoteRefsState::Loaded(vec![crate::interop::cross_ref::NoteRef {
+                        block_id: "B".to_owned(),
+                        document_id: "B".to_owned(),
+                        document_title: "current B".to_owned(),
+                        excerpt: String::new(),
+                    }]),
+                },
+                NoteRefsDelivery {
+                    stamp: request_a,
+                    symbol_key: Some("rust:src/a.rs#A".to_owned()),
+                    state: NoteRefsState::Loaded(vec![crate::interop::cross_ref::NoteRef {
+                        block_id: "A".to_owned(),
+                        document_id: "A".to_owned(),
+                        document_title: "late A".to_owned(),
+                        excerpt: String::new(),
+                    }]),
+                },
+            ]);
+        panel.drain_note_refs();
+        assert!(
+            matches!(panel.note_refs_state(), NoteRefsState::Loaded(notes) if notes[0].document_id == "B"),
+            "a late A queued after B must not overwrite or discard the exact active B delivery"
+        );
+    }
+
+    fn stage_note_refs_delivery_before_backend_replacement(
+        panel: &CodeEditorPanel,
+    ) -> NoteRefsRequestStamp {
+        let stamp = NoteRefsRequestStamp {
+            workspace_id: panel.workspace_id(),
+            symbol: "src/stale.rs#Stale".to_owned(),
+            generation: panel.note_refs_generation.load(Ordering::Relaxed),
+        };
+        *panel
+            .note_refs_active_request
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = Some(stamp.clone());
+        *panel
+            .note_refs_state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = NoteRefsState::Loading;
+        stamp
+    }
+
+    fn deliver_stale_note_refs_after_backend_replacement(
+        panel: &CodeEditorPanel,
+        stamp: NoteRefsRequestStamp,
+    ) {
+        panel
+            .note_refs_result
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .push(NoteRefsDelivery {
+                stamp,
+                symbol_key: Some("rust:src/stale.rs#Stale".to_owned()),
+                state: NoteRefsState::Loaded(vec![crate::interop::cross_ref::NoteRef {
+                    block_id: "BLK-STALE".to_owned(),
+                    document_id: "DOC-STALE".to_owned(),
+                    document_title: "stale backend result".to_owned(),
+                    excerpt: String::new(),
+                }]),
+            });
+        panel.drain_note_refs();
+        assert_eq!(panel.note_refs_state(), NoteRefsState::Idle);
+        assert!(
+            panel
+                .note_refs_active_request
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .is_none(),
+            "backend replacement must revoke ownership of the old NoteRefs request"
+        );
+        assert!(panel.note_refs_focused_symbol().is_none());
+    }
+
+    #[test]
+    fn replacing_code_nav_client_fences_old_note_refs_delivery() {
+        let panel = CodeEditorPanel::new("fn stale() {}", "rs");
+        panel.set_workspace_id("ws-note-refs-client-swap");
+        let stamp = stage_note_refs_delivery_before_backend_replacement(&panel);
+        let generation_before = panel.note_refs_generation.load(Ordering::Relaxed);
+
+        panel.set_code_nav_client(CodeNavClient::new("http://replacement.invalid"));
+
+        assert!(
+            panel.note_refs_generation.load(Ordering::Relaxed) > generation_before,
+            "CodeNavClient replacement must advance the NoteRefs ownership generation"
+        );
+        deliver_stale_note_refs_after_backend_replacement(&panel, stamp);
+    }
+
+    #[test]
+    fn replacing_find_notes_backend_fences_old_note_refs_delivery() {
+        let panel = CodeEditorPanel::new("fn stale() {}", "rs");
+        panel.set_workspace_id("ws-note-refs-backend-swap");
+        let stamp = stage_note_refs_delivery_before_backend_replacement(&panel);
+        let generation_before = panel.note_refs_generation.load(Ordering::Relaxed);
+        let replacement: Arc<dyn FindNotesSearch> =
+            Arc::new(FindNotesHttp::new("http://replacement.invalid"));
+
+        panel.set_find_notes_backend(replacement);
+
+        assert!(
+            panel.note_refs_generation.load(Ordering::Relaxed) > generation_before,
+            "FindNotes backend replacement must advance the NoteRefs ownership generation"
+        );
+        deliver_stale_note_refs_after_backend_replacement(&panel, stamp);
+    }
+
+    #[test]
+    fn note_ref_open_is_retained_until_bus_lock_is_available() {
+        let panel = CodeEditorPanel::new("", "rs");
+        *panel
+            .pending_note_ref_open
+            .lock()
+            .unwrap_or_else(|error| error.into_inner()) = Some("DOC-RETRY".to_owned());
+        let ctx = egui::Context::default();
+        let bus = InteractionBus::get_or_init(&ctx);
+        let guard = bus.lock().expect("hold bus to force one contended frame");
+        let _ = ctx.run(Default::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| panel.render_note_refs_panel_into(ui));
+        });
+        assert_eq!(
+            panel
+                .pending_note_ref_open
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .as_deref(),
+            Some("DOC-RETRY"),
+            "try_lock contention must retain, not drop, the operator action"
+        );
+        drop(guard);
+        let _ = ctx.run(Default::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| panel.render_note_refs_panel_into(ui));
+        });
+        assert!(
+            panel
+                .pending_note_ref_open
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .is_none(),
+            "the retained action clears only after successful bus delivery"
+        );
+        assert_eq!(
+            bus.lock()
+                .expect("read delivered bus action")
+                .take_pending_navigation()
+                .as_deref(),
+            Some("DOC-RETRY")
         );
     }
 }

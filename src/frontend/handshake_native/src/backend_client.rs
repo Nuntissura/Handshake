@@ -8,7 +8,10 @@ use crate::layout_persistence::{LayoutError, LayoutTransport};
 use serde_json::Value;
 use std::collections::VecDeque;
 use std::fmt;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc, Mutex, OnceLock,
+};
 use std::time::Duration;
 
 /// handshake_core listens here (hardcoded in handshake_core/src/main.rs).
@@ -19,8 +22,7 @@ pub const BACKEND_BASE_URL: &str = "http://127.0.0.1:37501";
 /// minting an independent pool/TLS stack per sub-client. New `/knowledge/documents/*` transport (the
 /// MT-037 consolidated client + the MT-029 find/replace `RichDocClient`, which now delegates to it)
 /// resolves its client from here so there is exactly ONE document-transport pool. Lazily initialized on
-/// first use; the build degrades gracefully ([`build_backend_client`] falls back to
-/// `reqwest::Client::new()` if the builder somehow fails) and carries the backend-down timeouts below.
+/// first use; construction is proof-gated so an unbounded fallback client can never enter the app.
 static SHARED_HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 /// WP-KERNEL-012 MT-088 (D2 internal_diagnostics — backend-down graceful degradation, Master Spec
@@ -46,10 +48,9 @@ pub const BACKEND_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 pub const MODEL_SESSION_JOBS_REQUEST_TIMEOUT: Duration = Duration::from_secs(130);
 
 /// WP-KERNEL-012 MT-088: build a backend [`reqwest::Client`] carrying the backend-down timeouts
-/// ([`BACKEND_CONNECT_TIMEOUT`] + [`BACKEND_REQUEST_TIMEOUT`]). Graceful: if the builder fails for any
-/// reason it falls back to the infallible `reqwest::Client::new()` (no timeouts) rather than panicking —
-/// a missing timeout degrades to the old behavior, it never crashes startup. Used by the shared pool,
-/// the `/health` probe, and the layout transport (the UI-thread-reachable backend paths this MT fixes).
+/// ([`BACKEND_CONNECT_TIMEOUT`] + [`BACKEND_REQUEST_TIMEOUT`]). Construction failure is fatal rather
+/// than silently installing an unbounded client: every backend transport must retain these hard bounds.
+/// Used by the shared pool, the `/health` probe, and the layout transport.
 pub fn build_backend_client() -> reqwest::Client {
     build_backend_client_with_request_timeout(BACKEND_REQUEST_TIMEOUT)
 }
@@ -59,14 +60,7 @@ fn build_backend_client_with_request_timeout(request_timeout: Duration) -> reqwe
         .connect_timeout(BACKEND_CONNECT_TIMEOUT)
         .timeout(request_timeout)
         .build()
-        .unwrap_or_else(|e| {
-            tracing::warn!(
-                error = %e,
-                "backend reqwest client builder failed; falling back to a default client without \
-                 timeouts (graceful degradation — startup never blocks on this)"
-            );
-            reqwest::Client::new()
-        })
+        .expect("bounded backend reqwest client construction must succeed")
 }
 
 fn build_model_session_backend_client() -> reqwest::Client {
@@ -710,18 +704,53 @@ pub async fn fetch_health(url: &str) -> Result<HealthInfo, AppError> {
         .json()
         .await
         .map_err(|e| AppError::Parse(e.to_string()))?;
+    let object = v
+        .as_object()
+        .ok_or_else(|| AppError::Parse("health response must be a JSON object".to_owned()))?;
+    let status = object
+        .get("status")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| {
+            AppError::Parse("health response requires non-empty string field `status`".to_owned())
+        })?;
+    if !matches!(status, "ok" | "error") {
+        return Err(AppError::Parse(format!(
+            "health response field `status` must be one of `ok` or `error`, got `{status}`"
+        )));
+    }
+    let db_status = object
+        .get("db_status")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| {
+            AppError::Parse(
+                "health response requires non-empty string field `db_status`".to_owned(),
+            )
+        })?;
+    if !matches!(db_status, "ok" | "error") {
+        return Err(AppError::Parse(format!(
+            "health response field `db_status` must be one of `ok` or `error`, got `{db_status}`"
+        )));
+    }
+    let expected_status = if db_status == "ok" { "ok" } else { "error" };
+    if status != expected_status {
+        return Err(AppError::Parse(format!(
+            "health response fields are inconsistent: `status` is `{status}` but producer semantics require `{expected_status}` when `db_status` is `{db_status}`"
+        )));
+    }
+    let migration_version = match object.get("migration_version") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(value) => Some(value.as_i64().ok_or_else(|| {
+            AppError::Parse(
+                "health response field `migration_version` must be an integer or null".to_owned(),
+            )
+        })?),
+    };
     Ok(HealthInfo {
-        status: v
-            .get("status")
-            .and_then(|x| x.as_str())
-            .unwrap_or("unknown")
-            .to_string(),
-        db_status: v
-            .get("db_status")
-            .and_then(|x| x.as_str())
-            .unwrap_or("unknown")
-            .to_string(),
-        migration_version: v.get("migration_version").and_then(|x| x.as_i64()),
+        status: status.to_owned(),
+        db_status: db_status.to_owned(),
+        migration_version,
     })
 }
 
@@ -824,11 +853,24 @@ pub struct GetRequestSpec {
     pub query: Vec<(String, String)>,
 }
 
-/// One-slot delivery cell for an off-thread Loom-block rename result (MT-020 explorer-row rename).
-/// The spawned tokio task writes the PATCH outcome here; the egui UI thread drains it next frame
-/// (the same `Arc<Mutex<Option<Result<..>>>>` pattern the settings save/load cells use). `Ok(title)`
-/// carries the renamed block's new title (the externally-meaningful result), `Err(msg)` the failure.
-pub type RenameDeliveryCell = Arc<Mutex<Option<Result<String, String>>>>;
+/// Stable identity for one explorer rename dispatch. Both the monotonic id and backend entity key
+/// must still match the open dialog before a completion is allowed to mutate UI state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RenameOperation {
+    pub operation_id: u64,
+    pub entity_key: String,
+}
+
+/// One correlated off-thread rename completion.
+#[derive(Debug)]
+pub struct RenameDelivery {
+    pub operation: RenameOperation,
+    pub result: Result<String, String>,
+}
+
+/// FIFO delivery queue for explorer rename results. A queue is required because cancel/reopen and
+/// reverse completion may leave more than one worker alive; a one-slot cell loses or overwrites one.
+pub type RenameDeliveryCell = Arc<Mutex<VecDeque<RenameDelivery>>>;
 
 /// REST client for the Loom-block surface this shell mutates today: the rename PATCH on the VERIFIED
 /// backend endpoint `PATCH /workspaces/:workspace_id/loom/blocks/:block_id` (handler
@@ -853,7 +895,7 @@ impl LoomBlockClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -923,11 +965,16 @@ impl LoomBlockClient {
         workspace_id: &str,
         block_id: &str,
         new_title: &str,
+        expected_updated_at: Option<&str>,
     ) -> RequestSpec {
+        let mut body = serde_json::json!({ "title": new_title });
+        if let Some(expected) = expected_updated_at {
+            body["expected_updated_at"] = serde_json::Value::String(expected.to_owned());
+        }
         RequestSpec {
             method: HttpMethod::Patch,
             url: self.block_url(workspace_id, block_id),
-            body: Some(serde_json::json!({ "title": new_title })),
+            body: Some(body),
         }
     }
 
@@ -940,19 +987,112 @@ impl LoomBlockClient {
         workspace_id: &str,
         block_id: &str,
         new_title: &str,
+        expected_updated_at: Option<&str>,
+        operation: RenameOperation,
         cell: RenameDeliveryCell,
     ) {
         let url = self.block_url(workspace_id, block_id);
         let client = self.client.clone();
         let new_title = new_title.to_owned();
+        let expected_updated_at = expected_updated_at.map(str::to_owned);
         self.runtime.spawn(async move {
-            let result = patch_block_title(&client, &url, &new_title).await;
+            let result =
+                patch_block_title(&client, &url, &new_title, expected_updated_at.as_deref()).await;
             let delivered = match result {
                 Ok(title) => Ok(title),
                 Err(e) => Err(e.to_string()),
             };
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some(delivered);
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back(RenameDelivery {
+                    operation,
+                    result: delivered,
+                });
+            }
+        });
+    }
+}
+
+/// Off-thread client for the canvas title mutation route. The optional `expected_updated_at` token
+/// provides optimistic concurrency: a stale explorer row receives HTTP 409 and stays open with the
+/// backend error instead of overwriting another editor's rename.
+#[derive(Clone)]
+pub struct CanvasTitleClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl CanvasTitleClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: shared_http_client(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    pub fn rename_request(
+        &self,
+        canvas_id: &str,
+        new_title: &str,
+        expected_updated_at: Option<&str>,
+    ) -> RequestSpec {
+        let mut body = serde_json::json!({ "title": new_title });
+        if let Some(expected) = expected_updated_at {
+            body["expected_updated_at"] = serde_json::Value::String(expected.to_owned());
+        }
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: format!("{}/canvases/{}", self.base_url, canvas_id),
+            body: Some(body),
+        }
+    }
+
+    pub fn rename_canvas(
+        &self,
+        canvas_id: &str,
+        new_title: &str,
+        expected_updated_at: Option<&str>,
+        operation: RenameOperation,
+        cell: RenameDeliveryCell,
+    ) {
+        let spec = self.rename_request(canvas_id, new_title, expected_updated_at);
+        let client = self.client.clone();
+        let fallback_title = new_title.to_owned();
+        self.runtime.spawn(async move {
+            let result = async {
+                let response = client
+                    .patch(&spec.url)
+                    .json(&spec.body.unwrap_or_default())
+                    .send()
+                    .await
+                    .map_err(|error| AppError::Http(error.to_string()))?;
+                let status = response.status();
+                let value: serde_json::Value = response
+                    .json()
+                    .await
+                    .map_err(|error| AppError::Parse(error.to_string()))?;
+                if !status.is_success() {
+                    let detail = value
+                        .get("error")
+                        .and_then(|value| value.as_str())
+                        .unwrap_or("canvas rename failed");
+                    return Err(AppError::Http(format!("HTTP {status}: {detail}")));
+                }
+                Ok(value
+                    .get("title")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or(&fallback_title)
+                    .to_owned())
+            }
+            .await
+            .map_err(|error| error.to_string());
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back(RenameDelivery { operation, result });
             }
         });
     }
@@ -965,8 +1105,12 @@ async fn patch_block_title(
     client: &reqwest::Client,
     url: &str,
     new_title: &str,
+    expected_updated_at: Option<&str>,
 ) -> Result<String, AppError> {
-    let body = serde_json::json!({ "title": new_title });
+    let mut body = serde_json::json!({ "title": new_title });
+    if let Some(expected) = expected_updated_at {
+        body["expected_updated_at"] = serde_json::Value::String(expected.to_owned());
+    }
     let resp = client
         .patch(url)
         .timeout(Duration::from_secs(5))
@@ -1045,7 +1189,7 @@ impl SourceControlClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -1208,7 +1352,7 @@ impl CanvasClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -1556,7 +1700,7 @@ impl DrawerDataClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -1710,8 +1854,9 @@ async fn fetch_daily_journal(
 }
 
 impl LayoutTransport for WorkbenchLayoutClient {
-    /// `GET /workspaces/:id/workbench/layout`. The backend's `WorkbenchLayoutResponse` carries
-    /// `layout_state: Option<Value>` — `null`/absent means no layout stored yet (first run -> `Ok(None)`).
+    /// `GET /workspaces/:id/workbench/layout`. The backend's `WorkbenchLayoutResponse` carries the
+    /// required `layout_state: Option<Value>` field — explicit `null` means first run (`Ok(None)`), while
+    /// a missing field is a malformed response and therefore a transport error.
     /// A non-success status or a transport error is a TRANSIENT [`LayoutError::Transport`].
     fn load(&self, workspace_id: &str) -> Result<Option<Value>, LayoutError> {
         let url = self.layout_url(workspace_id);
@@ -1733,10 +1878,14 @@ impl LayoutTransport for WorkbenchLayoutClient {
                 .json()
                 .await
                 .map_err(|e| LayoutError::Transport(e.to_string()))?;
-            // WorkbenchLayoutResponse.layout_state is Option<Value>; null/absent => first run.
+            // The response contract requires the field. Only an explicit null means first run; accepting
+            // an absent field would misclassify a malformed/backend-incompatible response as success.
             match body.get("layout_state") {
-                Some(Value::Null) | None => Ok(None),
+                Some(Value::Null) => Ok(None),
                 Some(v) => Ok(Some(v.clone())),
+                None => Err(LayoutError::Transport(
+                    "GET layout response missing required `layout_state` field".to_owned(),
+                )),
             }
         })
     }
@@ -1832,7 +1981,7 @@ impl DrawerActionClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -2042,20 +2191,18 @@ async fn put_expect_success(
 // Loom read APIs through THIS client (NOT Tauri — the contract's "Tauri command" reference is the
 // legacy React/webview stack; this is the native egui app, so it uses the same HTTP client every other
 // MT-008/014/015 surface uses). Two modes, both VERIFIED READ-ONLY against `src/backend/handshake_core`:
-//   - GLOBAL: `GET /workspaces/:ws/loom/views/all` -> `LoomViewResponse::All { blocks }` (the SAME
-//     endpoint DrawerDataClient counts). Each block becomes a graph node; the global view returns NO
-//     edges (the flat enumeration has no edge payload), so the global graph is node-only until a node
-//     is focused. content_type drives the node colour.
-//   - LOCAL: `GET /workspaces/:ws/loom/graph-search?q={title}&backlink_depth=2&limit=200` ->
-//     `Vec<LoomGraphSearchResult>` (handler `search_loom_graph`). VERIFIED: the backend REJECTS an empty
-//     `q` with HTTP 400 HSK-400-LOOM-QUERY-REQUIRED, so Local mode MUST pass the focused block's title
-//     as `q` (the contract's "empty q to enumerate" is stale for graph-search; global enumeration is
-//     `views/all`, not `graph-search?q=`). Each result with a `block` becomes a node; an edge is
-//     synthesized from the focused block to every neighbour (the neighbourhood star), since the
-//     graph-search result list is the focused block's neighbourhood, not an edge list.
+//   - GLOBAL: `GET /workspaces/:ws/loom/graph/global?node_limit=5000&hub_degree_threshold=0` ->
+//     `LoomGraph`. Disabling hub suppression is required for the MT-021 "all LoomBlocks" graph; a
+//     valid backend-capped response remains renderable with an explicit truncation affordance.
+//   - LOCAL: `GET /workspaces/:ws/loom/graph/local?start_block_id={id}&max_depth={depth}&node_limit=200`
+//     -> `LoomGraph`, the authoritative undirected PostgreSQL neighbourhood with real LoomEdges.
+//
+// `views/all` remains the independent count oracle used by the managed-PG proof. `graph-search` is a
+// heterogeneous retrieval/search surface, not a graph projection, and MUST NOT be used to fabricate
+// star edges for this view.
 //
 // Follows the MT-020/021/023 off-thread shape: spawn on the app's tokio runtime, deliver the parsed
-// graph into an `Arc<Mutex<Option<Result<..>>>>` the egui UI thread drains next frame (HBR-QUIET — the
+// graph into a queued `Arc<Mutex<VecDeque<LoomGraphDelivery>>>` the UI drains next frame (HBR-QUIET — the
 // render thread is NEVER blocked on the network). Speaks `serde_json::Value` so it never depends on the
 // `handshake_core` crate's types; the parsed node/edge shapes are the widget's own
 // `graph::graph_view::{GraphNode, GraphEdge}` (the field-correct reuse of the verified backend shapes).
@@ -2066,7 +2213,57 @@ use crate::graph::graph_view::{GraphEdge, GraphNode};
 /// The externally-meaningful result of a Loom-graph fetch: the node + edge lists the
 /// [`crate::graph::graph_view::LoomGraphView`] renders. `Ok` carries the live graph; `Err(msg)` a
 /// failure the view surfaces as an error label (AC8) instead of crashing.
-pub type LoomGraphCell = Arc<Mutex<Option<Result<LoomGraphData, String>>>>;
+pub type LoomGraphCell = Arc<Mutex<VecDeque<LoomGraphDelivery>>>;
+
+/// The exact graph projection a request targets. This is carried through the asynchronous transport so
+/// the host can reject deliveries for a previous mode, focus block, depth, or workspace.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LoomGraphRequestMode {
+    Global,
+    Local { focus_block_id: String, depth: u32 },
+}
+
+/// Monotonic host generation plus every input that makes one graph response meaningful.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoomGraphRequestIdentity {
+    pub generation: u64,
+    pub workspace_id: String,
+    pub mode: LoomGraphRequestMode,
+}
+
+impl LoomGraphRequestIdentity {
+    pub fn global(generation: u64, workspace_id: impl Into<String>) -> Self {
+        Self {
+            generation,
+            workspace_id: workspace_id.into(),
+            mode: LoomGraphRequestMode::Global,
+        }
+    }
+
+    pub fn local(
+        generation: u64,
+        workspace_id: impl Into<String>,
+        focus_block_id: impl Into<String>,
+        depth: u32,
+    ) -> Self {
+        Self {
+            generation,
+            workspace_id: workspace_id.into(),
+            mode: LoomGraphRequestMode::Local {
+                focus_block_id: focus_block_id.into(),
+                depth: depth.clamp(MIN_BACKLINK_DEPTH, MAX_BACKLINK_DEPTH),
+            },
+        }
+    }
+}
+
+/// One completed graph request. A queue is required here: an older completion must never overwrite a
+/// newer completion before the UI thread gets a chance to validate both identities.
+#[derive(Debug)]
+pub struct LoomGraphDelivery {
+    pub request: LoomGraphRequestIdentity,
+    pub result: Result<LoomGraphData, String>,
+}
 
 /// A parsed Loom graph (nodes + edges) plus the focus block id the fetch was for (so a stale delivery
 /// for a previous mode/block can be detected by the host).
@@ -2074,10 +2271,16 @@ pub type LoomGraphCell = Arc<Mutex<Option<Result<LoomGraphData, String>>>>;
 pub struct LoomGraphData {
     pub nodes: Vec<GraphNode>,
     pub edges: Vec<GraphEdge>,
+    /// The backend deliberately capped this projection. The graph remains valid and renderable, but the
+    /// view must disclose that the returned node count is not the complete canonical set.
+    pub truncated: bool,
+    /// Hub ids deliberately excluded by the backend projection policy. Kept as metadata rather than
+    /// converting a valid bounded graph into a fatal transport error.
+    pub suppressed_hub_ids: Vec<String>,
 }
 
-/// REST client for the VERIFIED Loom graph read surfaces the MT-021 graph view binds: `views/all`
-/// (global) and `graph-search` (local neighbourhood). Mirrors the `DrawerDataClient` shape exactly.
+/// REST client for the VERIFIED Loom graph read surfaces the MT-021 graph view binds: `graph/global`
+/// and `graph/local`. Mirrors the `DrawerDataClient` off-thread delivery shape.
 #[derive(Clone)]
 pub struct LoomGraphClient {
     client: reqwest::Client,
@@ -2089,7 +2292,7 @@ impl LoomGraphClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client().clone(),
             base_url: base_url.into(),
             runtime,
         }
@@ -2100,80 +2303,83 @@ impl LoomGraphClient {
         Self::new(BACKEND_BASE_URL, runtime)
     }
 
-    fn views_all_url(&self, workspace_id: &str) -> String {
+    fn global_graph_url(&self, workspace_id: &str) -> String {
         format!(
-            "{}/workspaces/{}/loom/views/all",
+            "{}/workspaces/{}/loom/graph/global",
             self.base_url, workspace_id
         )
     }
 
-    fn graph_search_url(&self, workspace_id: &str) -> String {
+    fn local_graph_url(&self, workspace_id: &str) -> String {
         format!(
-            "{}/workspaces/{}/loom/graph-search",
+            "{}/workspaces/{}/loom/graph/local",
             self.base_url, workspace_id
         )
     }
 
-    /// Pure request builder for the GLOBAL graph fetch: `GET /loom/views/all` (no query). Split out so a
-    /// unit test asserts the EXACT verified URL without a live backend (the spawn path routes through
-    /// this same builder).
+    /// Pure request builder for the GLOBAL graph fetch. Hub suppression is disabled so every block is
+    /// present up to the backend's explicit hard ceiling; a capped projection remains visibly partial.
     pub fn global_request(&self, workspace_id: &str) -> GetRequestSpec {
         GetRequestSpec {
             method: HttpMethod::Get,
-            url: self.views_all_url(workspace_id),
-            query: vec![],
+            url: self.global_graph_url(workspace_id),
+            query: vec![
+                ("node_limit".to_owned(), "5000".to_owned()),
+                ("hub_degree_threshold".to_owned(), "0".to_owned()),
+            ],
         }
     }
 
-    /// Pure request builder for the LOCAL neighbourhood fetch: `GET /loom/graph-search?q={title}&
-    /// backlink_depth=2&limit=200`. `q` is the focused block's TITLE (the backend rejects an empty `q`).
-    pub fn local_request(&self, workspace_id: &str, title: &str) -> GetRequestSpec {
-        self.local_request_with_depth(workspace_id, title, DEFAULT_BACKLINK_DEPTH)
+    /// Pure request builder for the LOCAL neighbourhood fetch. The canonical route keys traversal by
+    /// stable block id, never by a title search.
+    pub fn local_request(&self, workspace_id: &str, block_id: &str) -> GetRequestSpec {
+        self.local_request_with_depth(workspace_id, block_id, DEFAULT_BACKLINK_DEPTH)
     }
 
     /// WP-KERNEL-012 MT-080 (E11 host-mount, AC-080-3 / MT-060 deep wiring): the DEPTH-parameterized
     /// variant of [`local_request`](Self::local_request). The graph view's MT-060 link-depth slider fires
-    /// `GraphEvent::DepthChanged { depth }`; the host re-fires the EXISTING `graph-search` endpoint with the
-    /// new `backlink_depth` (NO new endpoint — only the verified query parameter changes). `depth` is
+    /// `GraphEvent::DepthChanged { depth }`; the host re-fires the EXISTING `graph/local` endpoint with a
+    /// new `max_depth` (NO new endpoint — only the verified query parameter changes). `depth` is
     /// clamped to `[MIN..=MAX]_BACKLINK_DEPTH` so a slider/agent value can never send an out-of-range or
     /// abusive depth to the backend. `local_request` delegates here with the default depth, so the two stay
     /// one builder (no second URL surface to drift).
     pub fn local_request_with_depth(
         &self,
         workspace_id: &str,
-        title: &str,
+        block_id: &str,
         depth: u32,
     ) -> GetRequestSpec {
         let depth = depth.clamp(MIN_BACKLINK_DEPTH, MAX_BACKLINK_DEPTH);
         GetRequestSpec {
             method: HttpMethod::Get,
-            url: self.graph_search_url(workspace_id),
+            url: self.local_graph_url(workspace_id),
             query: vec![
-                ("q".to_owned(), title.to_owned()),
-                ("backlink_depth".to_owned(), depth.to_string()),
-                ("limit".to_owned(), "200".to_owned()),
+                ("start_block_id".to_owned(), block_id.to_owned()),
+                ("max_depth".to_owned(), depth.to_string()),
+                ("node_limit".to_owned(), "200".to_owned()),
             ],
         }
     }
 
     /// Fetch the GLOBAL graph (all blocks) off the UI thread, delivering the parsed graph into `cell`.
-    pub fn fetch_global(&self, workspace_id: &str, cell: LoomGraphCell) {
+    pub fn fetch_global(&self, workspace_id: &str, generation: u64, cell: LoomGraphCell) {
         let spec = self.global_request(workspace_id);
+        let request = LoomGraphRequestIdentity::global(generation, workspace_id);
         let client = self.client.clone();
         self.runtime.spawn(async move {
-            let result = fetch_global_graph(&client, &spec.url).await;
-            deliver_graph(&cell, result.map_err(|e| e.to_string()));
+            let result = fetch_graph_projection(&client, &spec.url, &spec.query).await;
+            deliver_graph(&cell, request, result.map_err(|e| e.to_string()));
         });
     }
 
     /// Fetch the LOCAL neighbourhood of the focused block off the UI thread, delivering the parsed graph
-    /// into `cell`. `focus_block_id` is the block whose neighbourhood is shown (the star centre);
-    /// `focus_title` is the graph-search `q`.
+    /// into `cell`. `focus_block_id` is the stable id the canonical local traversal requires.
     pub fn fetch_local(
         &self,
         workspace_id: &str,
         focus_block_id: &str,
         focus_title: &str,
+        generation: u64,
         cell: LoomGraphCell,
     ) {
         self.fetch_local_with_depth(
@@ -2181,48 +2387,55 @@ impl LoomGraphClient {
             focus_block_id,
             focus_title,
             DEFAULT_BACKLINK_DEPTH,
+            generation,
             cell,
         );
     }
 
     /// WP-KERNEL-012 MT-080 (AC-080-3 / MT-060): fetch the LOCAL neighbourhood at a specific
-    /// `backlink_depth`, the re-query the host fires on `GraphEvent::DepthChanged`. Same off-thread spawn +
-    /// parse path as [`fetch_local`](Self::fetch_local); only the query `backlink_depth` differs (the
+    /// `max_depth`, the re-query the host fires on `GraphEvent::DepthChanged`. Same off-thread spawn +
+    /// parse path as [`fetch_local`](Self::fetch_local); only the query `max_depth` differs (the
     /// EXISTING endpoint, NO new route). `fetch_local` delegates here with the default depth.
     pub fn fetch_local_with_depth(
         &self,
         workspace_id: &str,
         focus_block_id: &str,
-        focus_title: &str,
+        _focus_title: &str,
         depth: u32,
+        generation: u64,
         cell: LoomGraphCell,
     ) {
-        let spec = self.local_request_with_depth(workspace_id, focus_title, depth);
+        let spec = self.local_request_with_depth(workspace_id, focus_block_id, depth);
+        let request =
+            LoomGraphRequestIdentity::local(generation, workspace_id, focus_block_id, depth);
         let client = self.client.clone();
-        let focus = focus_block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_local_graph(&client, &spec.url, &spec.query, &focus).await;
-            deliver_graph(&cell, result.map_err(|e| e.to_string()));
+            let result = fetch_graph_projection(&client, &spec.url, &spec.query).await;
+            deliver_graph(&cell, request, result.map_err(|e| e.to_string()));
         });
     }
 }
 
-/// WP-KERNEL-012 MT-080 (MT-060 link-depth): the default `backlink_depth` the local neighbourhood fetch
+/// WP-KERNEL-012 MT-080 (MT-060 link-depth): the default `max_depth` the local neighbourhood fetch
 /// uses (the value `local_request` carried before the depth parameter was threaded — unchanged behavior
 /// for the non-depth path).
 pub const DEFAULT_BACKLINK_DEPTH: u32 = 2;
-/// The minimum `backlink_depth` the depth-parameterized graph re-query will send. A depth of 1 is the
+/// The minimum `max_depth` the depth-parameterized graph re-query will send. A depth of 1 is the
 /// focused block plus its direct neighbours (the shallowest useful local view).
 pub const MIN_BACKLINK_DEPTH: u32 = 1;
-/// The maximum `backlink_depth` the depth-parameterized graph re-query will send. Clamps a slider/agent
+/// The maximum `max_depth` the depth-parameterized graph re-query will send. Clamps a slider/agent
 /// value so an out-of-range depth can never reach the backend as an abusive traversal (RISK-080-3 — the
 /// re-query stays inside the verified endpoint's safe envelope).
 pub const MAX_BACKLINK_DEPTH: u32 = 5;
 
 /// Write a graph fetch result into a [`LoomGraphCell`].
-fn deliver_graph(cell: &LoomGraphCell, result: Result<LoomGraphData, String>) {
-    if let Ok(mut slot) = cell.lock() {
-        *slot = Some(result);
+fn deliver_graph(
+    cell: &LoomGraphCell,
+    request: LoomGraphRequestIdentity,
+    result: Result<LoomGraphData, String>,
+) {
+    if let Ok(mut queue) = cell.lock() {
+        queue.push_back(LoomGraphDelivery { request, result });
     }
 }
 
@@ -2230,7 +2443,11 @@ fn deliver_graph(cell: &LoomGraphCell, result: Result<LoomGraphData, String>) {
 /// when null/empty so a node is never label-less. `content_type` defaults to "other" (slate) when
 /// absent. Returns `None` only when the block has no `block_id` (a malformed row is skipped, not faked).
 fn block_to_node(block: &serde_json::Value) -> Option<GraphNode> {
-    let block_id = block.get("block_id").and_then(|x| x.as_str())?.to_owned();
+    let block_id = block
+        .get("block_id")
+        .and_then(|x| x.as_str())
+        .filter(|id| !id.trim().is_empty())?
+        .to_owned();
     let title = block
         .get("title")
         .and_then(|x| x.as_str())
@@ -2245,80 +2462,120 @@ fn block_to_node(block: &serde_json::Value) -> Option<GraphNode> {
     Some(GraphNode::new(block_id, title, content_type))
 }
 
-/// `GET {url}` and parse the verified `LoomViewResponse::All { blocks }` into a node-only graph (the
-/// global enumeration carries no edge payload). A missing/empty `blocks` array yields an EMPTY graph
-/// (0 nodes), never an error (AC7). A non-success status or parse failure is an [`AppError`] (AC8).
-async fn fetch_global_graph(
-    client: &reqwest::Client,
-    url: &str,
-) -> Result<LoomGraphData, AppError> {
-    let v = get_json(client, url, &[]).await?;
-    let nodes = v
-        .get("blocks")
-        .and_then(|b| b.as_array())
-        .map(|arr| arr.iter().filter_map(block_to_node).collect())
-        .unwrap_or_default();
-    Ok(LoomGraphData {
-        nodes,
-        edges: vec![],
-    })
-}
-
-/// `GET {url}?{query}` and parse the verified `Vec<LoomGraphSearchResult>` into the focused block's
-/// neighbourhood graph: every result that carries a `block` becomes a node, and a star edge links the
-/// focused block to each neighbour. The focused block itself is added as a node if the backend did not
-/// return it among the results (so the centre is always present). A non-success status or parse failure
-/// is an [`AppError`] (AC8) — including the backend's HTTP 400 for an empty `q`.
-async fn fetch_local_graph(
+/// `GET {url}?{query}` and parse the canonical backend `LoomGraph` projection. Both local and global
+/// routes return `{nodes:[{block,...}], edges:[{edge,...}], truncated, suppressed_hub_ids?}`. The
+/// backend deliberately omits `suppressed_hub_ids` when it is empty, so absence decodes as an empty
+/// list; when present it remains strictly typed. Empty node/edge arrays are a valid workspace (AC7).
+async fn fetch_graph_projection(
     client: &reqwest::Client,
     url: &str,
     query: &[(String, String)],
-    focus_block_id: &str,
 ) -> Result<LoomGraphData, AppError> {
     let v = get_json(client, url, query).await?;
-    let mut nodes: Vec<GraphNode> = Vec::new();
-    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-    if let Some(arr) = v.as_array() {
-        for result in arr {
-            // A graph-search result references a block via the optional `block` object; the flat
-            // `ref_id`/`title` carry the addressing when `block` is absent.
-            if let Some(block) = result.get("block") {
-                if let Some(node) = block_to_node(block) {
-                    if seen.insert(node.block_id.clone()) {
-                        nodes.push(node);
-                    }
-                    continue;
-                }
-            }
-            // Fall back to ref_id + title when no embedded block object.
-            if let Some(ref_id) = result.get("ref_id").and_then(|x| x.as_str()) {
-                let title = result
-                    .get("title")
-                    .and_then(|x| x.as_str())
-                    .filter(|s| !s.trim().is_empty())
-                    .unwrap_or(ref_id)
-                    .to_owned();
-                if seen.insert(ref_id.to_owned()) {
-                    nodes.push(GraphNode::new(ref_id.to_owned(), title, "other"));
-                }
-            }
+    parse_graph_projection(v)
+}
+
+fn parse_graph_projection(v: Value) -> Result<LoomGraphData, AppError> {
+    let truncated = v
+        .get("truncated")
+        .and_then(Value::as_bool)
+        .ok_or_else(|| AppError::Parse("LoomGraph.truncated must be a bool".to_owned()))?;
+    let mut suppressed_hub_ids = Vec::new();
+    if let Some(suppressed_value) = v.get("suppressed_hub_ids") {
+        let suppressed_rows = suppressed_value.as_array().ok_or_else(|| {
+            AppError::Parse("LoomGraph.suppressed_hub_ids must be an array".to_owned())
+        })?;
+        suppressed_hub_ids.reserve(suppressed_rows.len());
+        for (index, id) in suppressed_rows.iter().enumerate() {
+            let id = id
+                .as_str()
+                .filter(|id| !id.trim().is_empty())
+                .ok_or_else(|| {
+                    AppError::Parse(format!(
+                        "LoomGraph.suppressed_hub_ids[{index}] must be a non-empty string"
+                    ))
+                })?;
+            suppressed_hub_ids.push(id.to_owned());
         }
     }
-    // Ensure the focus block is present as the star centre.
-    if !seen.contains(focus_block_id) {
-        nodes.insert(
-            0,
-            GraphNode::new(focus_block_id.to_owned(), focus_block_id.to_owned(), "note"),
-        );
-        seen.insert(focus_block_id.to_owned());
+
+    let node_rows = v
+        .get("nodes")
+        .and_then(Value::as_array)
+        .ok_or_else(|| AppError::Parse("LoomGraph.nodes must be an array".to_owned()))?;
+    let mut nodes = Vec::with_capacity(node_rows.len());
+    for (index, row) in node_rows.iter().enumerate() {
+        let node = row.get("block").and_then(block_to_node).ok_or_else(|| {
+            AppError::Parse(format!("LoomGraph.nodes[{index}].block is malformed"))
+        })?;
+        nodes.push(node);
     }
-    // Star edges from the focus to each neighbour (the neighbourhood is the focus's local graph).
-    let edges = nodes
-        .iter()
-        .filter(|n| n.block_id != focus_block_id)
-        .map(|n| GraphEdge::new(focus_block_id.to_owned(), n.block_id.clone(), "mention"))
-        .collect();
-    Ok(LoomGraphData { nodes, edges })
+
+    let edge_rows = v
+        .get("edges")
+        .and_then(Value::as_array)
+        .ok_or_else(|| AppError::Parse("LoomGraph.edges must be an array".to_owned()))?;
+    let mut edges = Vec::with_capacity(edge_rows.len());
+    for (index, row) in edge_rows.iter().enumerate() {
+        let edge = row
+            .get("edge")
+            .ok_or_else(|| AppError::Parse(format!("LoomGraph.edges[{index}].edge is missing")))?;
+        let edge_id = edge
+            .get("edge_id")
+            .and_then(Value::as_str)
+            .filter(|id| !id.trim().is_empty())
+            .ok_or_else(|| {
+                AppError::Parse(format!(
+                    "LoomGraph.edges[{index}].edge.edge_id is malformed"
+                ))
+            })?;
+        let source = edge
+            .get("source_block_id")
+            .and_then(Value::as_str)
+            .filter(|id| !id.trim().is_empty())
+            .ok_or_else(|| {
+                AppError::Parse(format!(
+                    "LoomGraph.edges[{index}].edge.source_block_id is malformed"
+                ))
+            })?;
+        let target = edge
+            .get("target_block_id")
+            .and_then(Value::as_str)
+            .filter(|id| !id.trim().is_empty())
+            .ok_or_else(|| {
+                AppError::Parse(format!(
+                    "LoomGraph.edges[{index}].edge.target_block_id is malformed"
+                ))
+            })?;
+        let edge_type = edge
+            .get("edge_type")
+            .and_then(Value::as_str)
+            .filter(|kind| !kind.trim().is_empty())
+            .ok_or_else(|| {
+                AppError::Parse(format!(
+                    "LoomGraph.edges[{index}].edge.edge_type is malformed"
+                ))
+            })?;
+        edges.push(GraphEdge::with_id(edge_id, source, target, edge_type));
+    }
+
+    let node_ids: std::collections::HashSet<&str> =
+        nodes.iter().map(|node| node.block_id.as_str()).collect();
+    if let Some(edge) = edges.iter().find(|edge| {
+        !node_ids.contains(edge.source.as_str()) || !node_ids.contains(edge.target.as_str())
+    }) {
+        return Err(AppError::Parse(format!(
+            "LoomGraph edge {} -> {} references a node outside the projection",
+            edge.source, edge.target
+        )));
+    }
+
+    Ok(LoomGraphData {
+        nodes,
+        edges,
+        truncated,
+        suppressed_hub_ids,
+    })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -2338,6 +2595,7 @@ async fn fetch_local_graph(
 //   - POST   /workspaces/:ws/loom/canvas-boards/:block_id/placements   place_block_on_canvas
 //                                                                       body { placed_block_id,x,y,w,h }
 //   - POST   /workspaces/:ws/loom/canvas-boards/:block_id/cards        create_canvas_card
+//   - POST   /workspaces/:ws/loom/canvas-boards/:block_id/stage-cards/:placement_id/compensate
 //                                                                       body { title,body,x,y,w,h }
 //   - PATCH  /workspaces/:ws/loom/canvas-placements/:placement_id      update_canvas_placement
 //                                                                       body { group_id } (NOT `.../canvas/{cb}/placements/{p}`)
@@ -2370,6 +2628,20 @@ pub struct CanvasBoardData {
     pub zoom: f32,
 }
 
+pub const CANVAS_STAGE_CAPTURE_REF_SCHEMA: &str = "handshake.canvas-stage-capture-ref.v1";
+
+/// Structured Stage reference persisted as the Canvas text-card document body. A reload validates this
+/// exact schema instead of scraping display text, while the artifact id remains dereferenceable through
+/// the authoritative Stage route for exact bytes and manifest verification.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CanvasStageCaptureReference {
+    pub schema_id: String,
+    pub artifact_id: String,
+    pub sha256: String,
+    pub manifest_ref: String,
+    pub causal_action_id: String,
+}
+
 /// The created placement payload returned by the verified canvas creation routes:
 /// `POST .../placements` returns a `LoomCanvasPlacement` directly, while `POST .../cards` wraps it under
 /// `placement`. This compact DTO carries only the fields the native host needs to register the MT-035
@@ -2382,6 +2654,10 @@ pub struct CreatedCanvasPlacement {
     pub y: f64,
     pub w: f64,
     pub h: f64,
+    /// True only when this request has an unambiguous successful create receipt. A placement recovered
+    /// from a preflight/fresh-board reconciliation is not owned by this request and must not register a
+    /// compensating undo that could delete another action's durable placement.
+    pub created_by_request: bool,
 }
 
 impl CreatedCanvasPlacement {
@@ -2390,12 +2666,71 @@ impl CreatedCanvasPlacement {
     }
 }
 
-/// One-slot delivery cell for an off-thread `getCanvasBoard` fetch result.
-pub type CanvasBoardCell = Arc<Mutex<Option<Result<CanvasBoardData, String>>>>;
+/// Every input that makes a canvas-board projection meaningful. `pane_generation` changes whenever
+/// the mounted `(workspace, canvas)` binding changes (including A -> B -> A), while
+/// `request_sequence` changes for every refresh of the same binding. Both are required: workspace and
+/// canvas ids alone cannot distinguish an old A response after returning to A, and generation alone
+/// cannot distinguish overlapping retries for the same board.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CanvasBoardRequestIdentity {
+    pub workspace_id: String,
+    pub canvas_block_id: String,
+    pub pane_generation: u64,
+    pub request_sequence: u64,
+}
+
+impl CanvasBoardRequestIdentity {
+    pub fn new(
+        workspace_id: impl Into<String>,
+        canvas_block_id: impl Into<String>,
+        pane_generation: u64,
+        request_sequence: u64,
+    ) -> Self {
+        Self {
+            workspace_id: workspace_id.into(),
+            canvas_block_id: canvas_block_id.into(),
+            pane_generation,
+            request_sequence,
+        }
+    }
+}
+
+/// One completed board request. This is deliberately FIFO: a single Option lets an older completion
+/// overwrite a newer one before the UI thread can validate either identity.
+#[derive(Debug)]
+pub struct CanvasBoardDelivery {
+    pub request: CanvasBoardRequestIdentity,
+    pub result: Result<CanvasBoardData, String>,
+}
+
+pub type CanvasBoardCell = Arc<Mutex<VecDeque<CanvasBoardDelivery>>>;
 
 /// One-slot delivery cell for a canvas creation result whose response body carries the created
 /// placement id. Non-create mutations still use [`CanvasBoardOpCell`] because their body is not needed.
 pub type CanvasBoardCreateCell = Arc<Mutex<Option<Result<CreatedCanvasPlacement, String>>>>;
+
+/// Typed outcome for a placement-creation receipt whose ownership matters to compensating redo.
+/// Only `MalformedSuccess` proves the server accepted this exact POST; transport ambiguity and a known
+/// non-success status are never safe grounds for claiming a placement discovered by reconciliation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CanvasCreateReceiptError {
+    Transport(String),
+    Rejected(String),
+    MalformedSuccess(String),
+}
+
+impl std::fmt::Display for CanvasCreateReceiptError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Transport(error) => write!(f, "transport receipt unavailable: {error}"),
+            Self::Rejected(error) => write!(f, "placement POST rejected: {error}"),
+            Self::MalformedSuccess(error) => write!(
+                f,
+                "placement POST succeeded with malformed receipt: {error}"
+            ),
+        }
+    }
+}
 
 /// One-slot delivery cell for an off-thread canvas MUTATION (place/card/viewport/group/remove/edge)
 /// result. `Ok(())` on a 2xx (the board re-fetches), `Err(msg)` the failure. Same shape as
@@ -2409,11 +2744,28 @@ pub type CanvasBoardOpCell = Arc<Mutex<Option<Result<(), String>>>>;
 /// absent, never fabricated).
 pub type LiveBlock = (Option<String>, String, Option<String>);
 
+/// A typed live-block lookup failure. Only [`Missing`](Self::Missing) is proof that the reference no
+/// longer exists and may unlock the retained-title "Create note from link" recovery. Transport,
+/// timeout, server, and decode failures remain unavailable and must not be presented as missing data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LiveBlockResolveError {
+    Missing,
+    Unavailable(String),
+}
+
+impl std::fmt::Display for LiveBlockResolveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Missing => write!(f, "block not found"),
+            Self::Unavailable(message) => write!(f, "block resolution unavailable: {message}"),
+        }
+    }
+}
+
 /// One-slot delivery cell for an off-thread `getLoomBlock` live-resolve. Delivers
-/// `(placed_block_id, Ok((title, content_type, content_hash)))` / `(placed_block_id, Err(msg))`. A
-/// missing block (HTTP 404) is delivered as `Err` so the host shows `(stale reference)` — never a
-/// fabricated title.
-pub type LiveBlockCell = Arc<Mutex<Option<(String, Result<LiveBlock, String>)>>>;
+/// `(placed_block_id, Ok(live_block))` / `(placed_block_id, Err(resolve_error))`. Only a confirmed
+/// HTTP 404 is `Missing`; transport, timeout, server, and decode failures remain `Unavailable`.
+pub type LiveBlockCell = Arc<Mutex<Option<(String, Result<LiveBlock, LiveBlockResolveError>)>>>;
 
 /// REST client for the VERIFIED Loom canvas-board surface (MT-261 backend). Drives the board read +
 /// all canvas mutations off the UI thread. Mirrors the `CanvasClient`/`LoomGraphClient` shape exactly.
@@ -2428,7 +2780,22 @@ impl CanvasBoardClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
+            base_url: base_url.into(),
+            runtime,
+        }
+    }
+
+    /// Build over an explicitly owned HTTP pool. Production uses [`Self::new`]
+    /// and its one shared pool; integration proofs use this constructor to
+    /// model independent native processes with no shared in-memory state.
+    pub fn with_http_client(
+        base_url: impl Into<String>,
+        runtime: tokio::runtime::Handle,
+        client: reqwest::Client,
+    ) -> Self {
+        Self {
+            client,
             base_url: base_url.into(),
             runtime,
         }
@@ -2546,6 +2913,76 @@ impl CanvasBoardClient {
         }
     }
 
+    /// Pure request builder for a Stage provenance card on a canvas. This reuses the canonical cards
+    /// route while retaining the evidence tuple in the persisted markdown body.
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_stage_capture_card_request(
+        &self,
+        workspace_id: &str,
+        canvas_block_id: &str,
+        artifact_id: &str,
+        sha256: &str,
+        manifest_ref: &str,
+        causal_action_id: &str,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+    ) -> RequestSpec {
+        let reference = CanvasStageCaptureReference {
+            schema_id: CANVAS_STAGE_CAPTURE_REF_SCHEMA.to_owned(),
+            artifact_id: artifact_id.to_owned(),
+            sha256: sha256.to_owned(),
+            manifest_ref: manifest_ref.to_owned(),
+            causal_action_id: causal_action_id.to_owned(),
+        };
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/cards", self.board_url(workspace_id, canvas_block_id)),
+            body: Some(serde_json::json!({
+                "title": format!("Stage capture {artifact_id}"),
+                "body": serde_json::to_string(&reference)
+                    .expect("Canvas Stage reference serialization is infallible"),
+                "stage_provenance": reference,
+                "x": x, "y": y, "w": w, "h": h,
+            })),
+        }
+    }
+
+    /// Exact owned-card compensation request. The backend re-verifies this
+    /// placement/block/provenance tuple under the create advisory lock before
+    /// removing any authority row.
+    #[allow(clippy::too_many_arguments)]
+    pub fn compensate_stage_capture_card_request(
+        &self,
+        workspace_id: &str,
+        canvas_block_id: &str,
+        placement_id: &str,
+        placed_block_id: &str,
+        artifact_id: &str,
+        sha256: &str,
+        manifest_ref: &str,
+        causal_action_id: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!(
+                "{}/stage-cards/{placement_id}/compensate",
+                self.board_url(workspace_id, canvas_block_id)
+            ),
+            body: Some(serde_json::json!({
+                "placed_block_id": placed_block_id,
+                "stage_provenance": CanvasStageCaptureReference {
+                    schema_id: CANVAS_STAGE_CAPTURE_REF_SCHEMA.to_owned(),
+                    artifact_id: artifact_id.to_owned(),
+                    sha256: sha256.to_owned(),
+                    manifest_ref: manifest_ref.to_owned(),
+                    causal_action_id: causal_action_id.to_owned(),
+                }
+            })),
+        }
+    }
+
     /// Pure request builder for `PATCH .../canvas-placements/:placement_id` (updateCanvasPlacement)
     /// with a `group_id` (grouping). The verified body uses `group_id`.
     pub fn group_request(
@@ -2558,6 +2995,37 @@ impl CanvasBoardClient {
             method: HttpMethod::Patch,
             url: self.placement_url(workspace_id, placement_id),
             body: Some(serde_json::json!({ "group_id": group_id })),
+        }
+    }
+
+    /// Persist a completed canvas card drag in one placement PATCH. The backend accepts geometry and
+    /// grouping in the same `UpdatePlacementRequest`; keeping them atomic prevents a refresh between
+    /// two requests from exposing a half-applied move. `None` uses the backend's explicit
+    /// `clear_group` flag because a JSON null group is intentionally a no-op there.
+    pub fn move_request(
+        &self,
+        workspace_id: &str,
+        placement_id: &str,
+        x: f64,
+        y: f64,
+        group_id: Option<&str>,
+    ) -> RequestSpec {
+        let body = match group_id {
+            Some(group_id) => serde_json::json!({
+                "x": x,
+                "y": y,
+                "group_id": group_id,
+            }),
+            None => serde_json::json!({
+                "x": x,
+                "y": y,
+                "clear_group": true,
+            }),
+        };
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.placement_url(workspace_id, placement_id),
+            body: Some(body),
         }
     }
 
@@ -2584,9 +3052,8 @@ impl CanvasBoardClient {
 
     /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061): pure request builder for
     /// `PATCH .../canvas-placements/:placement_id` clearing the `group_id` (a card dropped OUTSIDE all
-    /// section frames). The canvas `CanvasEvent::AssignSection { placement_id, group_id: None }` fires on a
-    /// move drag-stop outside any section; the host maps the `None` arm here, the `Some` arm to
-    /// [`group_request`](Self::group_request).
+    /// section frames). Explicit section-assignment actions use this builder; completed move gestures use
+    /// [`move_request`](Self::move_request) so their coordinates and cleared section persist atomically.
     ///
     /// Backend-shape note (verified against `update_canvas_placement` /
     /// `UpdatePlacementRequest` in `src/backend/handshake_core/src/api/loom.rs`): the handler clears the
@@ -2697,14 +3164,288 @@ impl CanvasBoardClient {
         }
     }
 
-    /// Fetch the board off the UI thread, delivering the parsed projection into `cell`.
+    /// Compatibility fetch for direct client consumers. Mounted hosts must use
+    /// [`Self::fetch_board_with_identity`] so stale deliveries cannot cross pane bindings.
     pub fn fetch_board(&self, workspace_id: &str, canvas_block_id: &str, cell: CanvasBoardCell) {
-        let spec = self.get_board_request(workspace_id, canvas_block_id);
+        self.fetch_board_with_identity(
+            CanvasBoardRequestIdentity::new(workspace_id, canvas_block_id, 0, 0),
+            cell,
+        );
+    }
+
+    /// Await one canonical board read inside an already-off-thread workflow. Canvas compensating
+    /// undo/redo uses this after an ambiguous transport receipt to determine whether the mutation
+    /// actually committed before it finalizes the provisional undo-ring transition.
+    pub async fn fetch_board_now(
+        &self,
+        workspace_id: &str,
+        canvas_block_id: &str,
+    ) -> Result<CanvasBoardData, String> {
+        fetch_canvas_board(&self.client, &self.board_url(workspace_id, canvas_block_id))
+            .await
+            .map_err(|error| error.to_string())
+    }
+
+    /// Find an already-persisted Stage capture card by its complete provenance tuple. This fresh-read
+    /// reconciliation makes a repeated embed converge on the original Canvas placement instead of
+    /// minting a second text-card block after a lost response or operator retry.
+    pub async fn find_stage_capture_card_now(
+        &self,
+        workspace_id: &str,
+        canvas_block_id: &str,
+        artifact_id: &str,
+        sha256: &str,
+        manifest_ref: &str,
+        causal_action_id: &str,
+    ) -> Result<Option<CreatedCanvasPlacement>, String> {
+        let board = self.fetch_board_now(workspace_id, canvas_block_id).await?;
+        let expected_title = format!("Stage capture {artifact_id}");
+        let expected_reference = CanvasStageCaptureReference {
+            schema_id: CANVAS_STAGE_CAPTURE_REF_SCHEMA.to_owned(),
+            artifact_id: artifact_id.to_owned(),
+            sha256: sha256.to_owned(),
+            manifest_ref: manifest_ref.to_owned(),
+            causal_action_id: causal_action_id.to_owned(),
+        };
+
+        for card in board.placements {
+            let block_url = self.block_url(workspace_id, &card.placed_block_id);
+            let block = get_json(&self.client, &block_url, &[])
+                .await
+                .map_err(|error| error.to_string())?;
+            if block.get("title").and_then(serde_json::Value::as_str)
+                != Some(expected_title.as_str())
+            {
+                continue;
+            }
+            let document_id = block
+                .get("document_id")
+                .and_then(serde_json::Value::as_str)
+                .filter(|id| !id.trim().is_empty())
+                .or_else(|| {
+                    // Imported Markdown notes use the RichDocument's id as the same-id Loom
+                    // projection block id; their Loom `document_id` field is intentionally null.
+                    // The canonical document route remains the authority for content readback.
+                    block
+                        .get("block_id")
+                        .and_then(serde_json::Value::as_str)
+                        .filter(|id| !id.trim().is_empty())
+                })
+                .ok_or_else(|| {
+                    "Stage capture Loom block has neither document_id nor same-id block_id"
+                        .to_owned()
+                })?;
+            let document_client =
+                crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
+                    self.client.clone(),
+                    self.base_url.clone(),
+                );
+            let headers = crate::backend::knowledge_documents::HskDocumentHeaders::for_read(
+                format!("stage-canvas-reconcile-{canvas_block_id}"),
+                document_id,
+            );
+            let document = document_client
+                .load_document(&headers, document_id)
+                .await
+                .map_err(|error| error.to_string())?;
+            if find_canvas_stage_capture_reference(&document.document).as_ref()
+                == Some(&expected_reference)
+            {
+                return Ok(Some(CreatedCanvasPlacement {
+                    placement_id: card.placement_id,
+                    placed_block_id: card.placed_block_id,
+                    x: card.x as f64,
+                    y: card.y as f64,
+                    w: card.w as f64,
+                    h: card.h as f64,
+                    created_by_request: false,
+                }));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Converge one Stage capture tuple onto exactly one canonical Canvas placement. The card POST
+    /// carries the structured provenance separately from its persisted body; handshake_core validates
+    /// both representations and holds a PostgreSQL transaction advisory lock through preflight and
+    /// creation. Independent native processes therefore cannot both pass a read-before-create window.
+    /// A transport-lost success is still reconciled from canonical board/document state before failure
+    /// is exposed.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn ensure_stage_capture_card_now(
+        &self,
+        workspace_id: &str,
+        canvas_block_id: &str,
+        artifact_id: &str,
+        sha256: &str,
+        manifest_ref: &str,
+        causal_action_id: &str,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+    ) -> Result<CreatedCanvasPlacement, String> {
+        if let Some(existing) = self
+            .find_stage_capture_card_now(
+                workspace_id,
+                canvas_block_id,
+                artifact_id,
+                sha256,
+                manifest_ref,
+                causal_action_id,
+            )
+            .await?
+        {
+            return Ok(existing);
+        }
+        let spec = self.create_stage_capture_card_request(
+            workspace_id,
+            canvas_block_id,
+            artifact_id,
+            sha256,
+            manifest_ref,
+            causal_action_id,
+            x,
+            y,
+            w,
+            h,
+        );
+        match self.create_placement_now(spec).await {
+            Ok(created) => Ok(created),
+            Err(create_error) => match self
+                .find_stage_capture_card_now(
+                    workspace_id,
+                    canvas_block_id,
+                    artifact_id,
+                    sha256,
+                    manifest_ref,
+                    causal_action_id,
+                )
+                .await
+            {
+                Ok(Some(existing)) => Ok(existing),
+                Ok(None) => Err(create_error.to_string()),
+                Err(reconcile_error) => Err(format!(
+                    "{create_error}; post-create reconciliation also failed: {reconcile_error}"
+                )),
+            },
+        }
+    }
+
+    /// Atomically remove a Stage-created Canvas card after the host discovers
+    /// the embed target is gone. One retry is intentional: a lost successful
+    /// response reaches the backend's idempotent all-absent reconciliation.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn compensate_stage_capture_card_now(
+        &self,
+        workspace_id: &str,
+        canvas_block_id: &str,
+        created: &CreatedCanvasPlacement,
+        artifact_id: &str,
+        sha256: &str,
+        manifest_ref: &str,
+        causal_action_id: &str,
+    ) -> Result<bool, String> {
+        if !created.created_by_request {
+            return Err(
+                "Stage Canvas compensation denied: this request did not create the placement"
+                    .to_owned(),
+            );
+        }
+        let spec = self.compensate_stage_capture_card_request(
+            workspace_id,
+            canvas_block_id,
+            &created.placement_id,
+            &created.placed_block_id,
+            artifact_id,
+            sha256,
+            manifest_ref,
+            causal_action_id,
+        );
+        let body = spec
+            .body
+            .as_ref()
+            .expect("compensation request always has a body");
+        let mut first_ambiguous_error = None;
+        for attempt in 0..2 {
+            match self.client.post(&spec.url).json(body).send().await {
+                Ok(response) => {
+                    let status = response.status();
+                    if !status.is_success() {
+                        return Err(format!(
+                            "Stage Canvas compensation rejected with status {status}"
+                        ));
+                    }
+                    let value = match response.json::<serde_json::Value>().await {
+                        Ok(value) => value,
+                        Err(error) if attempt == 0 => {
+                            first_ambiguous_error =
+                                Some(format!("successful response decode failed: {error}"));
+                            continue;
+                        }
+                        Err(error) => {
+                            return Err(format!(
+                                "Stage Canvas compensation response decode failed after retry: {error}"
+                            ));
+                        }
+                    };
+                    let removed = value
+                        .get("removed_by_request")
+                        .and_then(serde_json::Value::as_bool);
+                    if let Some(removed) = removed {
+                        return Ok(removed);
+                    }
+                    if attempt == 0 {
+                        first_ambiguous_error =
+                            Some("successful response missing removed_by_request".to_owned());
+                        continue;
+                    }
+                    return Err(
+                        "Stage Canvas compensation response missing removed_by_request after retry"
+                            .to_owned(),
+                    );
+                }
+                Err(error) if attempt == 0 => {
+                    first_ambiguous_error = Some(format!("transport failed: {error}"))
+                }
+                Err(error) => {
+                    return Err(format!(
+                        "Stage Canvas compensation failed twice (first: {}; retry transport: {error})",
+                        first_ambiguous_error.as_deref().unwrap_or("unknown")
+                    ));
+                }
+            }
+        }
+        unreachable!("bounded compensation retry loop always returns")
+    }
+
+    /// Remove a placement synchronously inside an already-off-thread recovery workflow.
+    pub async fn remove_placement_now(
+        &self,
+        workspace_id: &str,
+        placement_id: &str,
+    ) -> Result<(), String> {
+        let spec = self.remove_placement_request(workspace_id, placement_id);
+        send_canvas_mutation(&self.client, &spec)
+            .await
+            .map_err(|error| error.to_string())
+    }
+
+    /// Fetch the board off the UI thread, preserving the exact host identity in the FIFO delivery.
+    pub fn fetch_board_with_identity(
+        &self,
+        request: CanvasBoardRequestIdentity,
+        cell: CanvasBoardCell,
+    ) {
+        let spec = self.get_board_request(&request.workspace_id, &request.canvas_block_id);
         let client = self.client.clone();
         self.runtime.spawn(async move {
             let result = fetch_canvas_board(&client, &spec.url).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+                slot.push_back(CanvasBoardDelivery {
+                    request,
+                    result: result.map_err(|e| e.to_string()),
+                });
             }
         });
     }
@@ -2716,9 +3457,7 @@ impl CanvasBoardClient {
         let client = self.client.clone();
         let id = placed_block_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_live_block(&client, &spec.url)
-                .await
-                .map_err(|e| e.to_string());
+            let result = fetch_live_block(&client, &spec.url).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some((id, result));
             }
@@ -2749,6 +3488,336 @@ impl CanvasBoardClient {
             }
         });
     }
+
+    /// Await a placement creation while preserving whether failure happened before a response, at a
+    /// known non-2xx response, or while decoding a successful receipt. Compensating redo uses this
+    /// distinction to avoid claiming another actor's same-block placement after a conflict.
+    pub async fn create_placement_now(
+        &self,
+        spec: RequestSpec,
+    ) -> Result<CreatedCanvasPlacement, CanvasCreateReceiptError> {
+        if spec.method != HttpMethod::Post {
+            return Err(CanvasCreateReceiptError::Rejected(
+                "created-placement dispatch only supports POST".to_owned(),
+            ));
+        }
+        let empty = serde_json::json!({});
+        let body = spec.body.as_ref().unwrap_or(&empty);
+        let response = self
+            .client
+            .post(&spec.url)
+            .timeout(Duration::from_secs(5))
+            .json(body)
+            .send()
+            .await
+            .map_err(|error| CanvasCreateReceiptError::Transport(error.to_string()))?;
+        if !response.status().is_success() {
+            return Err(CanvasCreateReceiptError::Rejected(format!(
+                "POST non-success status {}",
+                response.status()
+            )));
+        }
+        let value = response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|error| CanvasCreateReceiptError::MalformedSuccess(error.to_string()))?;
+        let created = created_canvas_placement_from_response(&value)
+            .map_err(|error| CanvasCreateReceiptError::MalformedSuccess(error.to_string()))?;
+        validate_created_placement_receipt(&spec.url, body, &value, &created)
+            .map_err(CanvasCreateReceiptError::MalformedSuccess)?;
+        Ok(created)
+    }
+
+    /// Resolve an Atelier intake item through the canonical Loom relation returned by the Atelier API,
+    /// then place that real block reference on a canvas. Missing relation identity fails closed; this
+    /// client never guesses a block id or creates a synthetic projection. Placement retries reconcile
+    /// against the durable canvas uniqueness constraint, so no unsupported Atelier field is sent to the
+    /// Loom placement route.
+    #[allow(clippy::too_many_arguments)]
+    pub fn resolve_atelier_and_place(
+        &self,
+        workspace_id: &str,
+        canvas_block_id: &str,
+        atelier_ref: &crate::interop::AtelierRef,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        cell: CanvasBoardCreateCell,
+    ) {
+        let client = self.client.clone();
+        let base_url = self.base_url.clone();
+        let workspace_id = workspace_id.to_owned();
+        let canvas_block_id = canvas_block_id.to_owned();
+        let atelier_ref = atelier_ref.clone();
+        self.runtime.spawn(async move {
+            let result = resolve_atelier_projection_and_place(
+                &client,
+                &base_url,
+                &workspace_id,
+                &canvas_block_id,
+                &atelier_ref,
+                x,
+                y,
+                w,
+                h,
+            )
+            .await;
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result.map_err(|error| error.to_string()));
+            }
+        });
+    }
+}
+
+fn find_canvas_stage_capture_reference(
+    value: &serde_json::Value,
+) -> Option<CanvasStageCaptureReference> {
+    match value {
+        serde_json::Value::String(text) => {
+            serde_json::from_str::<CanvasStageCaptureReference>(text).ok()
+        }
+        serde_json::Value::Array(values) => {
+            values.iter().find_map(find_canvas_stage_capture_reference)
+        }
+        serde_json::Value::Object(values) => values
+            .values()
+            .find_map(find_canvas_stage_capture_reference),
+        _ => None,
+    }
+}
+
+pub(crate) fn validate_created_placement_receipt(
+    request_url: &str,
+    request_body: &serde_json::Value,
+    response: &serde_json::Value,
+    created: &CreatedCanvasPlacement,
+) -> Result<(), String> {
+    if created.placement_id.trim().is_empty() {
+        return Err("creation receipt has an empty placement_id".to_owned());
+    }
+    let expected_block = request_body
+        .get("placed_block_id")
+        .and_then(serde_json::Value::as_str)
+        .or_else(|| {
+            response
+                .get("block")
+                .and_then(|block| block.get("block_id"))
+                .and_then(serde_json::Value::as_str)
+        })
+        .ok_or_else(|| "creation receipt cannot prove the requested block identity".to_owned())?;
+    if created.placed_block_id != expected_block {
+        return Err(format!(
+            "creation receipt placed_block_id mismatch: expected {expected_block}, got {}",
+            created.placed_block_id
+        ));
+    }
+    let scope = request_url
+        .split("/workspaces/")
+        .nth(1)
+        .map(|tail| tail.split('/').collect::<Vec<_>>())
+        .filter(|parts| parts.len() >= 4 && parts[1] == "loom" && parts[2] == "canvas-boards")
+        .ok_or_else(|| {
+            "placement request URL has no canonical workspace/canvas scope".to_owned()
+        })?;
+    let placement = response.get("placement").unwrap_or(response);
+    for (field, expected) in [("workspace_id", scope[0]), ("canvas_block_id", scope[3])] {
+        let actual = placement
+            .get(field)
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| format!("creation receipt missing {field}"))?;
+        if actual != expected {
+            return Err(format!(
+                "creation receipt {field} mismatch: expected {expected}, got {actual}"
+            ));
+        }
+    }
+    if created.created_by_request {
+        for (name, actual) in [
+            ("x", created.x),
+            ("y", created.y),
+            ("w", created.w),
+            ("h", created.h),
+        ] {
+            let expected = request_body
+                .get(name)
+                .and_then(serde_json::Value::as_f64)
+                .ok_or_else(|| format!("placement request missing {name}"))?;
+            if (actual - expected).abs() > 0.000_001 {
+                return Err(format!(
+                    "creation receipt {name} mismatch: expected {expected}, got {actual}"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn canonical_atelier_projection_block_id(
+    atelier_ref: &crate::interop::AtelierRef,
+) -> Result<&str, AppError> {
+    atelier_ref
+        .loom_block_id
+        .as_deref()
+        .filter(|block_id| !block_id.trim().is_empty())
+        .ok_or_else(|| {
+            AppError::Parse(format!(
+                "Atelier item {} has no canonical Loom projection relation; Canvas placement is unavailable until Atelier publishes loom_block_id",
+                atelier_ref.item_id
+            ))
+        })
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn resolve_atelier_projection_and_place(
+    client: &reqwest::Client,
+    base_url: &str,
+    workspace_id: &str,
+    canvas_block_id: &str,
+    atelier_ref: &crate::interop::AtelierRef,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+) -> Result<CreatedCanvasPlacement, AppError> {
+    // The Atelier API owns this durable relation. Never derive an identity from workspace/item strings:
+    // doing so can make a frontend-only id look canonical and place the wrong or nonexistent block.
+    let block_id = canonical_atelier_projection_block_id(atelier_ref)?.to_owned();
+    let block_url = format!("{base_url}/workspaces/{workspace_id}/loom/blocks/{block_id}");
+    let get_response = client
+        .get(&block_url)
+        .send()
+        .await
+        .map_err(|error| AppError::Http(error.to_string()))?;
+    let get_status = get_response.status();
+
+    if get_status == reqwest::StatusCode::NOT_FOUND {
+        return Err(AppError::Parse(format!(
+            "Atelier item {} has no canonical Loom projection with a source document/asset; Canvas placement is unsupported until Atelier publishes that durable relation",
+            atelier_ref.item_id
+        )));
+    } else if !get_status.is_success() {
+        return Err(AppError::Http(format!(
+            "Atelier Loom projection GET non-success status {get_status}"
+        )));
+    } else {
+        verify_atelier_projection_response(get_response, &block_id, atelier_ref.item_kind).await?;
+    }
+
+    let board_url =
+        format!("{base_url}/workspaces/{workspace_id}/loom/canvas-boards/{canvas_block_id}");
+    if let Some(existing) = find_reconciled_canvas_placement(client, &board_url, &block_id).await? {
+        return Ok(existing);
+    }
+
+    let placement_url = format!("{board_url}/placements");
+    let run_id = uuid::Uuid::new_v4().to_string();
+    let response = client
+        .post(placement_url)
+        .header(HSK_HEADER_ACTOR_ID, "handshake-native-atelier-drop")
+        .header(HSK_HEADER_ACTOR_KIND, "operator")
+        .header(HSK_HEADER_KERNEL_TASK_RUN_ID, &run_id)
+        .header(HSK_HEADER_SESSION_RUN_ID, &run_id)
+        .json(&serde_json::json!({
+            "placed_block_id": block_id,
+            "x": x,
+            "y": y,
+            "w": w,
+            "h": h,
+        }))
+        .send()
+        .await;
+    let unambiguous_create = response
+        .as_ref()
+        .map(|response| response.status().is_success())
+        .unwrap_or(false);
+
+    // The backend has a durable UNIQUE(canvas_block_id, placed_block_id) constraint. Always reconcile
+    // from a fresh board after the POST, including conflict, transport loss, or a committed 2xx whose
+    // receipt body is malformed. This makes a retry converge on the one canonical placement.
+    if let Some(mut reconciled) =
+        find_reconciled_canvas_placement(client, &board_url, &block_id).await?
+    {
+        reconciled.created_by_request = unambiguous_create;
+        return Ok(reconciled);
+    }
+    match response {
+        Ok(response) => Err(AppError::Http(format!(
+            "Atelier canvas placement did not appear in fresh board after POST status {}",
+            response.status()
+        ))),
+        Err(error) => Err(AppError::Http(format!(
+            "Atelier canvas placement receipt was lost and fresh-board reconciliation found no placement: {error}"
+        ))),
+    }
+}
+
+async fn verify_atelier_projection_response(
+    response: reqwest::Response,
+    expected_block_id: &str,
+    item_kind: crate::interop::AtelierItemKind,
+) -> Result<(), AppError> {
+    let value = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| AppError::Parse(error.to_string()))?;
+    let actual_id = value
+        .get("block_id")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| AppError::Parse("Atelier Loom projection missing block_id".to_owned()))?;
+    let content_type = value
+        .get("content_type")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            AppError::Parse("Atelier Loom projection missing content_type".to_owned())
+        })?;
+    let has_source = value
+        .get("document_id")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|id| !id.trim().is_empty())
+        || value
+            .get("asset_id")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|id| !id.trim().is_empty());
+    let expected_content_type = match item_kind {
+        crate::interop::AtelierItemKind::Media => "file",
+        crate::interop::AtelierItemKind::Character => "ckc_character",
+        crate::interop::AtelierItemKind::Moodboard => "ckc_moodboard",
+    };
+    if actual_id != expected_block_id || content_type != expected_content_type || !has_source {
+        return Err(AppError::Parse(format!(
+            "Atelier Loom projection identity/source mismatch: expected {expected_block_id}/{expected_content_type} with document_id or asset_id, got {actual_id}/{content_type}"
+        )));
+    }
+    Ok(())
+}
+
+async fn find_reconciled_canvas_placement(
+    client: &reqwest::Client,
+    board_url: &str,
+    placed_block_id: &str,
+) -> Result<Option<CreatedCanvasPlacement>, AppError> {
+    let value = get_json(client, board_url, &[]).await?;
+    let Some(placements) = value
+        .get("placements")
+        .and_then(serde_json::Value::as_array)
+    else {
+        return Err(AppError::Parse(
+            "canvas board reconciliation response missing placements".to_owned(),
+        ));
+    };
+    for placement in placements {
+        if placement
+            .get("placed_block_id")
+            .and_then(serde_json::Value::as_str)
+            == Some(placed_block_id)
+        {
+            let mut created = created_canvas_placement_from_response(placement)?;
+            created.created_by_request = false;
+            return Ok(Some(created));
+        }
+    }
+    Ok(None)
 }
 
 /// The board-state schema id the backend stamps on the canvas viewport JSONB (mirrors
@@ -2784,46 +3853,130 @@ async fn send_canvas_created_placement(
     let empty = serde_json::json!({});
     let body = spec.body.as_ref().unwrap_or(&empty);
     let value = post_json_expect_value(client, &spec.url, body, Duration::from_secs(5)).await?;
-    created_canvas_placement_from_response(&value)
+    let created = created_canvas_placement_from_response(&value)?;
+    validate_created_placement_receipt(&spec.url, body, &value, &created)
+        .map_err(AppError::Parse)?;
+    Ok(created)
 }
 
 /// `GET {url}` and parse the verified `LoomCanvasBoardView` into a [`CanvasBoardData`]. Placements
 /// arrive WITHOUT live titles (the host resolves each via `getLoomBlock` after this returns — reference,
-/// not copy). A missing/empty board yields an EMPTY projection (0 placements), never an error (AC10).
+/// not copy). A valid empty board has empty required arrays; malformed successful responses fail closed.
 async fn fetch_canvas_board(
     client: &reqwest::Client,
     url: &str,
 ) -> Result<CanvasBoardData, AppError> {
     let v = get_json(client, url, &[]).await?;
-    let placements = v
+    let placements_value = v
         .get("placements")
-        .and_then(|p| p.as_array())
-        .map(|arr| arr.iter().filter_map(placement_from_json).collect())
-        .unwrap_or_default();
-    let visual_edges = v
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| AppError::Parse("canvas board placements must be an array".to_owned()))?;
+    let placements = placements_value
+        .iter()
+        .enumerate()
+        .map(|(index, row)| strict_canvas_placement(row, index))
+        .collect::<Result<Vec<_>, _>>()?;
+    let visual_edges_value = v
         .get("visual_edges")
-        .and_then(|e| e.as_array())
-        .map(|arr| arr.iter().filter_map(visual_edge_from_json).collect())
-        .unwrap_or_default();
-    let board_state = v.get("board").and_then(|b| b.get("board_state"));
-    let pan_x = board_state
-        .and_then(|s| s.get("pan_x"))
-        .and_then(|x| x.as_f64())
-        .unwrap_or(0.0) as f32;
-    let pan_y = board_state
-        .and_then(|s| s.get("pan_y"))
-        .and_then(|x| x.as_f64())
-        .unwrap_or(0.0) as f32;
-    let zoom = board_state
-        .and_then(|s| s.get("zoom"))
-        .and_then(|x| x.as_f64())
-        .unwrap_or(1.0) as f32;
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| AppError::Parse("canvas board visual_edges must be an array".to_owned()))?;
+    let visual_edges = visual_edges_value
+        .iter()
+        .enumerate()
+        .map(|(index, row)| {
+            visual_edge_from_json(row).ok_or_else(|| {
+                AppError::Parse(format!(
+                    "canvas board visual_edges[{index}] is missing a required id"
+                ))
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let board_state = v
+        .get("board")
+        .and_then(|board| board.get("board_state"))
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| AppError::Parse("canvas board.board_state must be an object".to_owned()))?;
+    let schema_id = board_state
+        .get("schema_id")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            AppError::Parse("canvas board_state.schema_id must be a string".to_owned())
+        })?;
+    if schema_id != LOOM_CANVAS_BOARD_SCHEMA_ID {
+        return Err(AppError::Parse(format!(
+            "canvas board_state.schema_id must be {LOOM_CANVAS_BOARD_SCHEMA_ID}, got {schema_id}"
+        )));
+    }
+    let required_finite = |field: &str| -> Result<f32, AppError> {
+        let value = board_state
+            .get(field)
+            .and_then(serde_json::Value::as_f64)
+            .ok_or_else(|| {
+                AppError::Parse(format!("canvas board_state.{field} must be a number"))
+            })?;
+        if !value.is_finite() {
+            return Err(AppError::Parse(format!(
+                "canvas board_state.{field} must be finite"
+            )));
+        }
+        Ok(value as f32)
+    };
+    let pan_x = required_finite("pan_x")?;
+    let pan_y = required_finite("pan_y")?;
+    let zoom = required_finite("zoom")?;
     Ok(CanvasBoardData {
         placements,
         visual_edges,
         pan_x,
         pan_y,
         zoom,
+    })
+}
+
+fn strict_canvas_placement(
+    row: &serde_json::Value,
+    index: usize,
+) -> Result<CanvasPlacementCard, AppError> {
+    for field in [
+        "placement_id",
+        "canvas_block_id",
+        "workspace_id",
+        "placed_block_id",
+    ] {
+        if row.get(field).and_then(serde_json::Value::as_str).is_none() {
+            return Err(AppError::Parse(format!(
+                "canvas board placements[{index}].{field} must be a string"
+            )));
+        }
+    }
+    for field in ["x", "y", "w", "h"] {
+        let value = row
+            .get(field)
+            .and_then(serde_json::Value::as_f64)
+            .ok_or_else(|| {
+                AppError::Parse(format!(
+                    "canvas board placements[{index}].{field} must be a number"
+                ))
+            })?;
+        if !value.is_finite() {
+            return Err(AppError::Parse(format!(
+                "canvas board placements[{index}].{field} must be finite"
+            )));
+        }
+    }
+    if row
+        .get("z_index")
+        .and_then(serde_json::Value::as_i64)
+        .is_none()
+    {
+        return Err(AppError::Parse(format!(
+            "canvas board placements[{index}].z_index must be an integer"
+        )));
+    }
+    placement_from_json(row).ok_or_else(|| {
+        AppError::Parse(format!(
+            "canvas board placements[{index}] is missing a required id"
+        ))
     })
 }
 
@@ -2853,7 +4006,10 @@ fn placement_from_json(p: &serde_json::Value) -> Option<CanvasPlacementCard> {
     // default: an absent/non-bool field reads as `false` (a plain block reference). Reference-not-copy safe:
     // `live_body` is only seeded to an empty buffer so a double-click opens an editable (initially empty)
     // card — the backend field never carries block content.
-    if p.get("is_text_card").and_then(|x| x.as_bool()).unwrap_or(false) {
+    if p.get("is_text_card")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false)
+    {
         card.card_kind = CanvasCardKind::TextCard;
         if card.live_body.is_none() {
             card.live_body = Some(String::new());
@@ -2890,6 +4046,10 @@ pub fn created_canvas_placement_from_response(
         y: number_field("y")?,
         w: number_field("w")?,
         h: number_field("h")?,
+        created_by_request: value
+            .get("created_by_request")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(true),
     })
 }
 
@@ -2914,8 +4074,29 @@ fn visual_edge_from_json(e: &serde_json::Value) -> Option<VisualEdge> {
 /// "note"; `content_hash` is the backend-computed canonical-JSON hash when present (MT-032, READ-only —
 /// `Option<String>`, honestly `None` when the backend omits it). A 404 (the block was deleted) is an
 /// [`AppError`] so the host shows "(stale reference)" — never a fabricated title.
-async fn fetch_live_block(client: &reqwest::Client, url: &str) -> Result<LiveBlock, AppError> {
-    let v = get_json(client, url, &[]).await?;
+async fn fetch_live_block(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<LiveBlock, LiveBlockResolveError> {
+    let response = client
+        .get(url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|error| LiveBlockResolveError::Unavailable(error.to_string()))?;
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Err(LiveBlockResolveError::Missing);
+    }
+    if !response.status().is_success() {
+        return Err(LiveBlockResolveError::Unavailable(format!(
+            "GET non-success status {}",
+            response.status()
+        )));
+    }
+    let v = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| LiveBlockResolveError::Unavailable(format!("decode: {error}")))?;
     let title = v
         .get("title")
         .and_then(|x| x.as_str())
@@ -2965,15 +4146,30 @@ use crate::graph::folder_tree::{FolderRow, LeafBlock};
 /// [`crate::graph::folder_tree::LoomFolderTree`] builds its forest from. `Ok` carries the rows (possibly
 /// empty -> the "No folders" empty state, AC7); `Err(msg)` a failure the view surfaces as an error
 /// banner + Retry (AC8) instead of crashing.
-pub type FolderListCell = Arc<Mutex<Option<(String, Result<Vec<FolderRow>, String>)>>>;
+pub type FolderListDelivery = (String, u64, u64, Result<Vec<FolderRow>, String>);
+pub type FolderListCell = Arc<Mutex<VecDeque<FolderListDelivery>>>;
 
 /// The externally-meaningful result of a folder-children fetch: the leaf [`LeafBlock`] list for one
 /// expanded folder. `Ok` carries the blocks (possibly empty); `Err(msg)` a failure the node surfaces.
 /// The host clears the node's `loading` flag when this delivers (the bounded-spinner rule).
-pub type FolderChildrenCell = Arc<Mutex<Option<Result<Vec<LeafBlock>, String>>>>;
+pub type FolderChildrenDelivery = (String, String, u64, u64, Result<Vec<LeafBlock>, String>);
+pub type FolderChildrenCell = Arc<Mutex<Option<FolderChildrenDelivery>>>;
+
+/// One folder create/update/delete delivery. Create/rename/move return the canonical row; delete
+/// returns `None`. Every failure remains typed and visible to the mounted host.
+pub type FolderWriteDelivery = (String, u64, u64, Result<Option<FolderRow>, String>);
+pub type FolderWriteCell = Arc<Mutex<Option<FolderWriteDelivery>>>;
+
+/// A recolor completion carries all context in-band. The host never couples a generic receipt to a
+/// mutable side slot, so an old workspace/operation cannot color the currently mounted tree.
+pub type FolderRecolorDelivery = (String, String, u64, u64, Result<(), String>);
+pub type FolderRecolorCell = Arc<Mutex<Option<FolderRecolorDelivery>>>;
+
+const FOLDER_CHILD_PAGE_SIZE: u32 = 500;
+const MAX_FOLDER_CHILDREN: usize = 100_000;
 
 /// REST client for the VERIFIED Loom folder-tree surface (MT-181 backend) the MT-022 folder tree binds:
-/// list folders, list a folder's child blocks, and recolor a folder. Mirrors the `LoomGraphClient` /
+/// list folders/children and create, rename, recolor, move, or delete a folder. Mirrors the `LoomGraphClient` /
 /// `DrawerDataClient` shape exactly (off-thread + delivery cell). Speaks `serde_json::Value` so it never
 /// depends on the `handshake_core` crate's types.
 #[derive(Clone)]
@@ -2987,7 +4183,9 @@ impl LoomFolderClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            // Reuse the process-wide pool and its hard connect/request deadlines. Timeout failures
+            // flow through the typed result cells and become the folder pane's visible error.
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -3027,16 +4225,29 @@ impl LoomFolderClient {
         }
     }
 
-    /// Pure request builder for the child-block fetch: `GET /loom/folders/{id}/blocks?limit=100`.
+    /// Pure request builder for the first child-block page. Production fetching continues with
+    /// offset pages until the backend returns fewer than [`FOLDER_CHILD_PAGE_SIZE`] rows.
     pub fn list_folder_blocks_request(
         &self,
         workspace_id: &str,
         folder_id: &str,
     ) -> GetRequestSpec {
+        self.list_folder_blocks_page_request(workspace_id, folder_id, 0)
+    }
+
+    pub fn list_folder_blocks_page_request(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        offset: u32,
+    ) -> GetRequestSpec {
         GetRequestSpec {
             method: HttpMethod::Get,
             url: self.folder_blocks_url(workspace_id, folder_id),
-            query: vec![("limit".to_owned(), "100".to_owned())],
+            query: vec![
+                ("limit".to_owned(), FOLDER_CHILD_PAGE_SIZE.to_string()),
+                ("offset".to_owned(), offset.to_string()),
+            ],
         }
     }
 
@@ -3052,16 +4263,83 @@ impl LoomFolderClient {
         }
     }
 
+    pub fn create_folder_request(
+        &self,
+        workspace_id: &str,
+        name: &str,
+        parent_folder_id: Option<&str>,
+        sort_order: Option<i32>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: self.folders_url(workspace_id),
+            body: Some(serde_json::json!({
+                "name": name,
+                "parent_folder_id": parent_folder_id,
+                "sort_order": sort_order,
+            })),
+        }
+    }
+
+    pub fn rename_folder_request(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        name: &str,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.folder_url(workspace_id, folder_id),
+            body: Some(serde_json::json!({ "name": name })),
+        }
+    }
+
+    pub fn move_folder_request(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        parent_folder_id: Option<&str>,
+        sort_order: Option<i32>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Patch,
+            url: self.folder_url(workspace_id, folder_id),
+            body: Some(serde_json::json!({
+                "parent_folder_id": parent_folder_id,
+                "sort_order": sort_order,
+            })),
+        }
+    }
+
+    pub fn delete_folder_request(&self, workspace_id: &str, folder_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Delete,
+            url: self.folder_url(workspace_id, folder_id),
+            body: None,
+        }
+    }
+
     /// Fetch the workspace's folder list off the UI thread, delivering the parsed rows into `cell` (the
     /// initial AC1 tree load). The host sets `loading=true` before calling and clears it on delivery.
-    pub fn fetch_folders(&self, workspace_id: &str, cell: FolderListCell) {
+    pub fn fetch_folders(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
+        request_sequence: u64,
+        cell: FolderListCell,
+    ) {
         let spec = self.list_folders_request(workspace_id);
         let client = self.client.clone();
         let workspace_id = workspace_id.to_owned();
         self.runtime.spawn(async move {
             let result = fetch_folder_rows(&client, &spec.url).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some((workspace_id, result.map_err(|e| e.to_string())));
+                slot.push_back((
+                    workspace_id,
+                    workspace_epoch,
+                    request_sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
@@ -3073,112 +4351,398 @@ impl LoomFolderClient {
         &self,
         workspace_id: &str,
         folder_id: &str,
+        workspace_epoch: u64,
+        request_sequence: u64,
         cell: FolderChildrenCell,
     ) {
-        let spec = self.list_folder_blocks_request(workspace_id, folder_id);
+        let url = self.folder_blocks_url(workspace_id, folder_id);
         let client = self.client.clone();
+        let workspace_id = workspace_id.to_owned();
+        let folder_id = folder_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_folder_leaves(&client, &spec.url, &spec.query).await;
+            let result = fetch_all_folder_leaves(&client, &url).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+                *slot = Some((
+                    workspace_id,
+                    folder_id,
+                    workspace_epoch,
+                    request_sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
 
     /// Recolor a folder off the UI thread (AC4), delivering the outcome into `cell`. The PATCH body is
     /// the single-`color`-key merge-patch from [`recolor_request`](Self::recolor_request). `Ok(())` on a
-    /// 2xx; `Err(msg)` on failure. The host updates the node swatch optimistically and reconciles on the
-    /// delivered result.
+    /// 2xx; `Err(msg)` on failure. The host applies the swatch only after this success delivery.
     pub fn recolor_folder(
         &self,
         workspace_id: &str,
         folder_id: &str,
         hex: &str,
-        cell: ScmReceiptCell,
+        workspace_epoch: u64,
+        request_sequence: u64,
+        cell: FolderRecolorCell,
     ) {
         let spec = self.recolor_request(workspace_id, folder_id, hex);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
+        let workspace_id = workspace_id.to_owned();
+        let folder_id = folder_id.to_owned();
         self.runtime.spawn(async move {
             let result = patch_expect_success(&client, &spec.url, &body).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+                *slot = Some((
+                    workspace_id,
+                    folder_id,
+                    workspace_epoch,
+                    request_sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
+
+    fn send_folder_write(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
+        request_sequence: u64,
+        spec: RequestSpec,
+        cell: FolderWriteCell,
+    ) {
+        let client = self.client.clone();
+        let workspace_id = workspace_id.to_owned();
+        self.runtime.spawn(async move {
+            let result = match spec.method {
+                HttpMethod::Post => {
+                    let body = spec.body.as_ref().expect("folder POST body");
+                    post_json_expect_value(&client, &spec.url, body, Duration::from_secs(5))
+                        .await
+                        .and_then(|value| folder_to_row(&value).map(Some))
+                }
+                HttpMethod::Patch => {
+                    let body = spec.body.as_ref().expect("folder PATCH body");
+                    patch_json_expect_value(&client, &spec.url, body)
+                        .await
+                        .and_then(|value| folder_to_row(&value).map(Some))
+                }
+                HttpMethod::Delete => delete_expect_success(&client, &spec.url)
+                    .await
+                    .map(|_| None),
+                _ => Err(AppError::Http(
+                    "folder write requires POST, PATCH, or DELETE".to_owned(),
+                )),
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some((
+                    workspace_id,
+                    workspace_epoch,
+                    request_sequence,
+                    result.map_err(|error| error.to_string()),
+                ));
+            }
+        });
+    }
+
+    pub fn create_folder(
+        &self,
+        workspace_id: &str,
+        name: &str,
+        parent_folder_id: Option<&str>,
+        sort_order: Option<i32>,
+        workspace_epoch: u64,
+        request_sequence: u64,
+        cell: FolderWriteCell,
+    ) {
+        self.send_folder_write(
+            workspace_id,
+            workspace_epoch,
+            request_sequence,
+            self.create_folder_request(workspace_id, name, parent_folder_id, sort_order),
+            cell,
+        );
+    }
+
+    pub fn rename_folder(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        name: &str,
+        workspace_epoch: u64,
+        request_sequence: u64,
+        cell: FolderWriteCell,
+    ) {
+        self.send_folder_write(
+            workspace_id,
+            workspace_epoch,
+            request_sequence,
+            self.rename_folder_request(workspace_id, folder_id, name),
+            cell,
+        );
+    }
+
+    pub fn move_folder(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        parent_folder_id: Option<&str>,
+        sort_order: Option<i32>,
+        workspace_epoch: u64,
+        request_sequence: u64,
+        cell: FolderWriteCell,
+    ) {
+        self.send_folder_write(
+            workspace_id,
+            workspace_epoch,
+            request_sequence,
+            self.move_folder_request(workspace_id, folder_id, parent_folder_id, sort_order),
+            cell,
+        );
+    }
+
+    pub fn delete_folder(
+        &self,
+        workspace_id: &str,
+        folder_id: &str,
+        workspace_epoch: u64,
+        request_sequence: u64,
+        cell: FolderWriteCell,
+    ) {
+        self.send_folder_write(
+            workspace_id,
+            workspace_epoch,
+            request_sequence,
+            self.delete_folder_request(workspace_id, folder_id),
+            cell,
+        );
+    }
 }
 
-/// Parse one verified `LoomFolder` JSON object into a [`FolderRow`]. `name` falls back to the folder id
-/// when null/empty. Returns `None` only when the row has no `folder_id` (a malformed row is skipped, not
-/// faked).
-fn folder_to_row(folder: &serde_json::Value) -> Option<FolderRow> {
-    let folder_id = folder.get("folder_id").and_then(|x| x.as_str())?.to_owned();
-    let parent_folder_id = folder
-        .get("parent_folder_id")
+async fn patch_json_expect_value(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<serde_json::Value, AppError> {
+    let response = client
+        .patch(url)
+        .timeout(Duration::from_secs(5))
+        .json(body)
+        .send()
+        .await
+        .map_err(|error| AppError::Http(error.to_string()))?;
+    if !response.status().is_success() {
+        return Err(AppError::Http(format!(
+            "PATCH non-success status {}",
+            response.status()
+        )));
+    }
+    response
+        .json()
+        .await
+        .map_err(|error| AppError::Parse(error.to_string()))
+}
+
+/// Parse one verified `LoomFolder` JSON object into a [`FolderRow`]. The complete canonical wire shape
+/// is type-checked; malformed successful responses fail closed instead of being partially accepted.
+fn folder_to_row(folder: &serde_json::Value) -> Result<FolderRow, AppError> {
+    let folder_id = folder
+        .get("folder_id")
         .and_then(|x| x.as_str())
-        .map(|s| s.to_owned());
+        .filter(|id| !id.trim().is_empty())
+        .ok_or_else(|| {
+            AppError::Parse("LoomFolder.folder_id must be a non-empty string".to_owned())
+        })?
+        .to_owned();
+    required_nonempty_string(folder, "workspace_id")?;
+    let parent_folder_id = optional_nonempty_string(folder, "parent_folder_id")?;
     let name = folder
         .get("name")
         .and_then(|x| x.as_str())
         .filter(|s| !s.trim().is_empty())
-        .unwrap_or(&folder_id)
+        .ok_or_else(|| AppError::Parse("LoomFolder.name must be a non-empty string".to_owned()))?
         .to_owned();
-    let color = folder
-        .get("color")
-        .and_then(|x| x.as_str())
-        .filter(|s| !s.trim().is_empty())
-        .map(|s| s.to_owned());
-    Some(FolderRow::new(folder_id, parent_folder_id, name, color))
+    // `loom_folders.color` intentionally accepts CSS-style tokens (including short hex and names).
+    // Preserve any non-empty backend value in the row; the widget resolves supported colors and uses
+    // the theme-neutral swatch for an unknown token without rejecting every otherwise-valid folder.
+    let color = optional_nonempty_string(folder, "color")?;
+    if let Some(value) = folder.get("sort_order") {
+        if !value.is_null() && value.as_i64().and_then(|n| i32::try_from(n).ok()).is_none() {
+            return Err(AppError::Parse(
+                "LoomFolder.sort_order must be a 32-bit integer or null".to_owned(),
+            ));
+        }
+    }
+    required_nonempty_string(folder, "sort_mode")?;
+    optional_nonempty_string(folder, "project_ref")?;
+    required_nonempty_string(folder, "created_at")?;
+    required_nonempty_string(folder, "updated_at")?;
+    Ok(FolderRow::new(folder_id, parent_folder_id, name, color))
+}
+
+fn required_nonempty_string<'a>(
+    value: &'a serde_json::Value,
+    field: &str,
+) -> Result<&'a str, AppError> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .filter(|text| !text.trim().is_empty())
+        .ok_or_else(|| AppError::Parse(format!("{field} must be a non-empty string")))
+}
+
+fn optional_nonempty_string(
+    value: &serde_json::Value,
+    field: &str,
+) -> Result<Option<String>, AppError> {
+    match value.get(field) {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::String(text)) if !text.trim().is_empty() => Ok(Some(text.clone())),
+        _ => Err(AppError::Parse(format!(
+            "{field} must be a non-empty string or null"
+        ))),
+    }
 }
 
 /// Parse one verified `LoomBlock` JSON object into a folder-tree [`LeafBlock`]. Mirrors the graph
 /// view's `block_to_node` field reads (`block_id`/`title`/`content_type`) so the two surfaces agree on
-/// the verified block shape. `title` falls back to the block id; `content_type` defaults to "other".
-fn block_to_leaf(block: &serde_json::Value) -> Option<LeafBlock> {
-    let block_id = block.get("block_id").and_then(|x| x.as_str())?.to_owned();
-    let title = block
-        .get("title")
+/// the verified block shape. The complete wire shape is validated; only the optional title may fall
+/// back to the block id.
+fn block_to_leaf(block: &serde_json::Value) -> Result<LeafBlock, AppError> {
+    let block_id = block
+        .get("block_id")
         .and_then(|x| x.as_str())
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or(&block_id)
+        .filter(|id| !id.trim().is_empty())
+        .ok_or_else(|| AppError::Parse("LoomBlock.block_id must be a non-empty string".to_owned()))?
         .to_owned();
-    let content_type = block
-        .get("content_type")
-        .and_then(|x| x.as_str())
-        .unwrap_or("other")
-        .to_owned();
-    Some(LeafBlock::new(block_id, title, content_type))
+    required_nonempty_string(block, "workspace_id")?;
+    for field in [
+        "document_id",
+        "asset_id",
+        "original_filename",
+        "content_hash",
+        "journal_date",
+        "imported_at",
+    ] {
+        optional_nonempty_string(block, field)?;
+    }
+    let title = match block.get("title") {
+        None | Some(serde_json::Value::Null) => block_id.clone(),
+        Some(serde_json::Value::String(text)) if text.trim().is_empty() => block_id.clone(),
+        Some(serde_json::Value::String(text)) => text.clone(),
+        _ => return Err(AppError::Parse("title must be a string or null".to_owned())),
+    };
+    let content_type = required_nonempty_string(block, "content_type")?.to_owned();
+    for field in ["pinned", "favorite"] {
+        if block
+            .get(field)
+            .and_then(serde_json::Value::as_bool)
+            .is_none()
+        {
+            return Err(AppError::Parse(format!("{field} must be a bool")));
+        }
+    }
+    if let Some(value) = block.get("pin_order") {
+        if !value.is_null() && value.as_i64().and_then(|n| i32::try_from(n).ok()).is_none() {
+            return Err(AppError::Parse(
+                "pin_order must be a 32-bit integer or null".to_owned(),
+            ));
+        }
+    }
+    required_nonempty_string(block, "created_at")?;
+    required_nonempty_string(block, "updated_at")?;
+    if !block
+        .get("derived")
+        .is_some_and(serde_json::Value::is_object)
+    {
+        return Err(AppError::Parse("derived must be an object".to_owned()));
+    }
+    Ok(LeafBlock::new(block_id, title, content_type))
 }
 
-/// `GET {url}` and parse the verified `Vec<LoomFolder>` into [`FolderRow`]s. A missing/empty array
-/// yields an EMPTY list (0 folders -> the "No folders" empty state, AC7), never an error. A non-success
-/// status or parse failure is an [`AppError`] (the AC8 error banner).
+/// `GET {url}` and parse the verified `Vec<LoomFolder>` into [`FolderRow`]s. A valid empty array yields
+/// the "No folders" state (AC7). A successful non-array body or malformed row is a typed parse error
+/// (AC8), never silently reinterpreted as an empty workspace.
 async fn fetch_folder_rows(
     client: &reqwest::Client,
     url: &str,
 ) -> Result<Vec<FolderRow>, AppError> {
     let v = get_json(client, url, &[]).await?;
-    let rows = v
+    let array = v
         .as_array()
-        .map(|arr| arr.iter().filter_map(folder_to_row).collect())
-        .unwrap_or_default();
+        .ok_or_else(|| AppError::Parse("Loom folder list response must be an array".to_owned()))?;
+    let mut rows = Vec::with_capacity(array.len());
+    for (index, value) in array.iter().enumerate() {
+        rows.push(
+            folder_to_row(value).map_err(|error| {
+                AppError::Parse(format!("Loom folder list row {index}: {error}"))
+            })?,
+        );
+    }
     Ok(rows)
 }
 
 /// `GET {url}?{query}` and parse the verified `Vec<LoomBlock>` into folder-tree [`LeafBlock`]s. An
-/// empty array yields an empty leaf list (the folder renders "(empty)"), never an error. A non-success
-/// status or parse failure is an [`AppError`].
+/// empty array yields an empty leaf list (the folder renders "(empty)"). A successful non-array body
+/// or malformed block row is a typed parse error, never silently dropped.
 async fn fetch_folder_leaves(
     client: &reqwest::Client,
     url: &str,
     query: &[(String, String)],
 ) -> Result<Vec<LeafBlock>, AppError> {
     let v = get_json(client, url, query).await?;
-    let leaves = v
-        .as_array()
-        .map(|arr| arr.iter().filter_map(block_to_leaf).collect())
-        .unwrap_or_default();
+    let array = v.as_array().ok_or_else(|| {
+        AppError::Parse("Loom folder children response must be an array".to_owned())
+    })?;
+    let mut leaves = Vec::with_capacity(array.len());
+    for (index, value) in array.iter().enumerate() {
+        leaves.push(
+            block_to_leaf(value).map_err(|error| {
+                AppError::Parse(format!("Loom folder child row {index}: {error}"))
+            })?,
+        );
+    }
     Ok(leaves)
+}
+
+/// Fetch every folder-member page without silently truncating large folders. Duplicate ids across
+/// pages or a folder beyond the explicit safety ceiling fail closed as a typed pane error.
+async fn fetch_all_folder_leaves(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<LeafBlock>, AppError> {
+    let mut all = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let mut offset = 0u32;
+    loop {
+        let query = vec![
+            ("limit".to_owned(), FOLDER_CHILD_PAGE_SIZE.to_string()),
+            ("offset".to_owned(), offset.to_string()),
+        ];
+        let page = fetch_folder_leaves(client, url, &query).await?;
+        let page_len = page.len();
+        for leaf in page {
+            if !seen.insert(leaf.block_id.clone()) {
+                return Err(AppError::Parse(format!(
+                    "Loom folder pagination repeated block_id {}",
+                    leaf.block_id
+                )));
+            }
+            all.push(leaf);
+        }
+        if page_len < FOLDER_CHILD_PAGE_SIZE as usize {
+            return Ok(all);
+        }
+        if all.len() >= MAX_FOLDER_CHILDREN {
+            return Err(AppError::Parse(format!(
+                "Loom folder contains at least {MAX_FOLDER_CHILDREN} blocks; refusing an unbounded UI load"
+            )));
+        }
+        offset = offset
+            .checked_add(FOLDER_CHILD_PAGE_SIZE)
+            .ok_or_else(|| AppError::Parse("Loom folder pagination offset overflow".to_owned()))?;
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -3221,7 +4785,7 @@ use crate::graph::tags_panel::{AddTagCandidate, HubMember, TagEntry};
 /// "No tags" empty state, AC8); `Err(msg)` a failure the panel surfaces as an error banner + Retry. The
 /// leading workspace id and request sequence let the host discard stale async deliveries after a project
 /// switch or retry.
-pub type TagListDelivery = (String, u64, Result<Vec<TagEntry>, String>);
+pub type TagListDelivery = (String, u64, u64, Result<Vec<TagEntry>, String>);
 pub type TagListCell = Arc<Mutex<VecDeque<TagListDelivery>>>;
 
 /// The externally-meaningful result of a hub-detail fetch: `(title, members)` for the hub page. `Ok`
@@ -3229,6 +4793,7 @@ pub type TagListCell = Arc<Mutex<VecDeque<TagListDelivery>>>;
 /// hub id + request sequence tuple lets the host reject stale responses from an older hub/page request.
 pub type TagHubDetailDelivery = (
     String,
+    u64,
     String,
     u64,
     Result<(String, Vec<HubMember>), String>,
@@ -3238,13 +4803,25 @@ pub type TagHubDetailCell = Arc<Mutex<VecDeque<TagHubDetailDelivery>>>;
 /// The externally-meaningful result of an add-tag candidate search: the candidate blocks to tag. `Ok`
 /// carries the candidates (possibly empty); `Err(msg)` a failure (the popup shows nothing rather than
 /// crashing). The workspace + query + request sequence tuple lets the host reject stale candidate lists.
-pub type AddTagCandidatesDelivery = (String, String, u64, Result<Vec<AddTagCandidate>, String>);
+pub type AddTagCandidatesDelivery = (
+    String,
+    u64,
+    String,
+    u64,
+    Result<Vec<AddTagCandidate>, String>,
+);
 pub type AddTagCandidatesCell = Arc<Mutex<VecDeque<AddTagCandidatesDelivery>>>;
 
 /// The externally-meaningful result of a tag-edge POST. The workspace + hub id + request sequence live in
 /// the same FIFO delivery as the receipt, so a stale POST can never consume a newer side-slot context.
-pub type TagEdgeReceiptDelivery = (String, String, u64, Result<(), String>);
+pub type TagEdgeReceiptDelivery = (String, u64, String, u64, Result<(), String>);
 pub type TagEdgeReceiptCell = Arc<Mutex<VecDeque<TagEdgeReceiptDelivery>>>;
+
+/// The backend caps tag-hub list pages at 500 rows. Fetching pages until the backend returns a short
+/// page prevents the Tags pane from silently omitting hubs beyond the route's default first 100 rows.
+const TAG_HUB_PAGE_SIZE: u32 = 500;
+/// Explicit UI safety ceiling. Reaching it is a typed error, never a successful truncated list.
+const MAX_TAG_HUBS: usize = 100_000;
 
 /// REST client for the VERIFIED Loom tag-hub surface (MT-182 backend) the MT-023 tags panel binds: list
 /// tag hubs, load a hub's detail + members, search for taggable blocks, and create a `tag` edge. Mirrors
@@ -3261,7 +4838,7 @@ impl LoomTagClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client().clone(),
             base_url: base_url.into(),
             runtime,
         }
@@ -3298,14 +4875,17 @@ impl LoomTagClient {
         format!("{}/workspaces/{}/loom/search", self.base_url, workspace_id)
     }
 
-    /// Pure request builder for the tag-list fetch: `GET /loom/tags` (no query — default limit 100).
+    /// Pure request builder for the first tag-list page: `GET /loom/tags?limit=500&offset=0`.
     /// Split out so a unit test asserts the EXACT verified URL without a live backend (the spawn path
     /// routes through this same builder, so the test proves the production request construction).
     pub fn list_tags_request(&self, workspace_id: &str) -> GetRequestSpec {
         GetRequestSpec {
             method: HttpMethod::Get,
             url: self.tags_url(workspace_id),
-            query: vec![],
+            query: vec![
+                ("limit".to_owned(), TAG_HUB_PAGE_SIZE.to_string()),
+                ("offset".to_owned(), "0".to_owned()),
+            ],
         }
     }
 
@@ -3364,20 +4944,33 @@ impl LoomTagClient {
     /// Fetch the workspace's tag-hub list off the UI thread, delivering the parsed entries into `cell`
     /// (the initial AC1 load). The host sets `loading=true` before calling and clears it on delivery.
     pub fn fetch_tags(&self, workspace_id: &str, cell: TagListCell) {
-        self.fetch_tags_with_sequence(workspace_id, 0, cell);
+        self.fetch_tags_with_identity(workspace_id, 0, 0, cell);
     }
 
     /// Sequence-attributed tag-list fetch for host-driven UI state. Older deliveries for the same
     /// workspace are dropped by the host when a retry or workspace rebound supersedes them.
     pub fn fetch_tags_with_sequence(&self, workspace_id: &str, sequence: u64, cell: TagListCell) {
+        self.fetch_tags_with_identity(workspace_id, 0, sequence, cell);
+    }
+
+    /// Epoch + sequence attributed tag-list fetch. The epoch distinguishes A -> B -> A workspace
+    /// generations even when an older A request resolves after the workspace returns to A.
+    pub fn fetch_tags_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
+        sequence: u64,
+        cell: TagListCell,
+    ) {
         let spec = self.list_tags_request(workspace_id);
         let client = self.client.clone();
         let delivered_workspace = workspace_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_tag_entries(&client, &spec.url).await;
+            let result = fetch_all_tag_entries(&client, &spec.url).await;
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((
                     delivered_workspace,
+                    workspace_epoch,
                     sequence,
                     result.map_err(|e| e.to_string()),
                 ));
@@ -3388,7 +4981,7 @@ impl LoomTagClient {
     /// Fetch one hub's detail (title + members) off the UI thread, delivering into `cell` (AC4). Parses
     /// the verified `LoomTagHub` shape: title from `block.title`, members from `tagged_blocks`.
     pub fn fetch_hub_detail(&self, workspace_id: &str, tag_block_id: &str, cell: TagHubDetailCell) {
-        self.fetch_hub_detail_with_sequence(workspace_id, tag_block_id, 0, cell);
+        self.fetch_hub_detail_with_identity(workspace_id, 0, tag_block_id, 0, cell);
     }
 
     /// Sequence-attributed hub-detail fetch for host-driven UI state. The host tracks the latest
@@ -3396,6 +4989,17 @@ impl LoomTagClient {
     pub fn fetch_hub_detail_with_sequence(
         &self,
         workspace_id: &str,
+        tag_block_id: &str,
+        sequence: u64,
+        cell: TagHubDetailCell,
+    ) {
+        self.fetch_hub_detail_with_identity(workspace_id, 0, tag_block_id, sequence, cell);
+    }
+
+    pub fn fetch_hub_detail_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
         tag_block_id: &str,
         sequence: u64,
         cell: TagHubDetailCell,
@@ -3410,6 +5014,7 @@ impl LoomTagClient {
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((
                     delivered_workspace,
+                    workspace_epoch,
                     delivered_hub,
                     sequence,
                     result.map_err(|e| e.to_string()),
@@ -3421,7 +5026,7 @@ impl LoomTagClient {
     /// Fetch a hub's members off the UI thread, delivering into `cell`. Used by live route proofs; the
     /// host uses `fetch_hub_detail_with_sequence` for list badge backfill because this route is capped.
     pub fn fetch_members(&self, workspace_id: &str, tag_block_id: &str, cell: TagHubDetailCell) {
-        self.fetch_members_with_sequence(workspace_id, tag_block_id, 0, cell);
+        self.fetch_members_with_identity(workspace_id, 0, tag_block_id, 0, cell);
     }
 
     /// Sequence-attributed member-list fetch. This route is intentionally not used for exact list badge
@@ -3429,6 +5034,17 @@ impl LoomTagClient {
     pub fn fetch_members_with_sequence(
         &self,
         workspace_id: &str,
+        tag_block_id: &str,
+        sequence: u64,
+        cell: TagHubDetailCell,
+    ) {
+        self.fetch_members_with_identity(workspace_id, 0, tag_block_id, sequence, cell);
+    }
+
+    pub fn fetch_members_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
         tag_block_id: &str,
         sequence: u64,
         cell: TagHubDetailCell,
@@ -3444,6 +5060,7 @@ impl LoomTagClient {
                 // its existing title and replaces only the members.
                 slot.push_back((
                     delivered_workspace,
+                    workspace_epoch,
                     delivered_hub,
                     sequence,
                     result
@@ -3456,13 +5073,24 @@ impl LoomTagClient {
 
     /// Search for candidate blocks to tag off the UI thread, delivering into `cell` (the add-tag popup).
     pub fn search_blocks(&self, workspace_id: &str, q: &str, cell: AddTagCandidatesCell) {
-        self.search_blocks_with_sequence(workspace_id, q, 0, cell);
+        self.search_blocks_with_identity(workspace_id, 0, q, 0, cell);
     }
 
     /// Sequence-attributed candidate search for host-driven UI state.
     pub fn search_blocks_with_sequence(
         &self,
         workspace_id: &str,
+        q: &str,
+        sequence: u64,
+        cell: AddTagCandidatesCell,
+    ) {
+        self.search_blocks_with_identity(workspace_id, 0, q, sequence, cell);
+    }
+
+    pub fn search_blocks_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
         q: &str,
         sequence: u64,
         cell: AddTagCandidatesCell,
@@ -3476,6 +5104,7 @@ impl LoomTagClient {
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((
                     delivered_workspace,
+                    workspace_epoch,
                     delivered_query,
                     sequence,
                     result.map_err(|e| e.to_string()),
@@ -3494,7 +5123,7 @@ impl LoomTagClient {
         hub_block_id: &str,
         cell: TagEdgeReceiptCell,
     ) {
-        self.tag_block_with_sequence(workspace_id, source_block_id, hub_block_id, 0, cell);
+        self.tag_block_with_identity(workspace_id, 0, source_block_id, hub_block_id, 0, cell);
     }
 
     /// Sequence-attributed tag-edge POST for host-driven UI state. The host suppresses stale error
@@ -3502,6 +5131,25 @@ impl LoomTagClient {
     pub fn tag_block_with_sequence(
         &self,
         workspace_id: &str,
+        source_block_id: &str,
+        hub_block_id: &str,
+        sequence: u64,
+        cell: TagEdgeReceiptCell,
+    ) {
+        self.tag_block_with_identity(
+            workspace_id,
+            0,
+            source_block_id,
+            hub_block_id,
+            sequence,
+            cell,
+        );
+    }
+
+    pub fn tag_block_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
         source_block_id: &str,
         hub_block_id: &str,
         sequence: u64,
@@ -3517,6 +5165,7 @@ impl LoomTagClient {
             if let Ok(mut slot) = cell.lock() {
                 slot.push_back((
                     delivered_workspace,
+                    workspace_epoch,
                     delivered_hub,
                     sequence,
                     result.map_err(|e| e.to_string()),
@@ -3526,19 +5175,19 @@ impl LoomTagClient {
     }
 }
 
-/// Parse one verified `tag_hub` `LoomBlock` JSON object into a [`TagEntry`]. `title` falls back to the
-/// block id when null/empty. `member_count` uses explicit backend-provided member evidence when present;
-/// exact tagged members still load on hub open. Returns `None` only when the block has no `block_id` (a
-/// malformed row is skipped, not faked).
-fn block_to_tag_entry(block: &serde_json::Value) -> Option<TagEntry> {
-    let block_id = block.get("block_id").and_then(|x| x.as_str())?.to_owned();
-    let title = block
-        .get("title")
-        .and_then(|x| x.as_str())
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or(&block_id)
-        .to_owned();
-    Some(TagEntry::new(block_id, title, tag_member_count_hint(block)))
+/// Parse one verified `tag_hub` `LoomBlock` JSON object into a [`TagEntry`]. The canonical LoomBlock
+/// shape is validated by the same parser the folder surface uses. A successful malformed row fails the
+/// complete list instead of being dropped or converted into a fabricated fallback row.
+fn block_to_tag_entry(block: &serde_json::Value) -> Result<TagEntry, AppError> {
+    let leaf = block_to_leaf(block)?;
+    if leaf.content_type != "tag_hub" {
+        return Err(AppError::Parse(format!(
+            "tag list row {} has content_type {}, expected tag_hub",
+            leaf.block_id, leaf.content_type
+        )));
+    }
+    let member_count = tag_member_count_hint(block)?;
+    Ok(TagEntry::new(leaf.block_id, leaf.title, member_count))
 }
 
 fn count_value_to_u32(value: &serde_json::Value) -> Option<u32> {
@@ -3548,51 +5197,106 @@ fn count_value_to_u32(value: &serde_json::Value) -> Option<u32> {
         .or_else(|| value.as_i64().and_then(|n| u32::try_from(n).ok()))
 }
 
-fn count_field(block: &serde_json::Value, key: &str) -> Option<u32> {
-    block
+fn optional_count_field(block: &serde_json::Value, key: &str) -> Result<Option<u32>, AppError> {
+    let value = block
         .get("derived")
-        .and_then(|d| d.get(key))
-        .and_then(count_value_to_u32)
-        .or_else(|| block.get(key).and_then(count_value_to_u32))
+        .and_then(|derived| derived.get(key))
+        .or_else(|| block.get(key));
+    match value {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(value) => count_value_to_u32(value).map(Some).ok_or_else(|| {
+            AppError::Parse(format!("{key} must be an unsigned 32-bit integer or null"))
+        }),
+    }
 }
 
-fn tag_member_count_hint(block: &serde_json::Value) -> Option<u32> {
-    count_field(block, "member_count").or_else(|| {
-        block
-            .get("tagged_blocks")
-            .and_then(|blocks| blocks.as_array())
-            .and_then(|blocks| u32::try_from(blocks.len()).ok())
-    })
+fn tag_member_count_hint(block: &serde_json::Value) -> Result<Option<u32>, AppError> {
+    if let Some(count) = optional_count_field(block, "member_count")? {
+        return Ok(Some(count));
+    }
+    match block.get("tagged_blocks") {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(value) => value
+            .as_array()
+            .ok_or_else(|| AppError::Parse("tagged_blocks must be an array or null".to_owned()))
+            .and_then(|blocks| {
+                u32::try_from(blocks.len())
+                    .map(Some)
+                    .map_err(|_| AppError::Parse("tagged_blocks length exceeds u32".to_owned()))
+            }),
+    }
 }
 
 /// Parse one verified `LoomBlock` JSON object into a hub-page [`HubMember`]. Mirrors the folder-tree
 /// `block_to_leaf` field reads so the surfaces agree on the verified block shape.
-fn block_to_hub_member(block: &serde_json::Value) -> Option<HubMember> {
-    let block_id = block.get("block_id").and_then(|x| x.as_str())?.to_owned();
-    let title = block
-        .get("title")
-        .and_then(|x| x.as_str())
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or(&block_id)
-        .to_owned();
-    let content_type = block
-        .get("content_type")
-        .and_then(|x| x.as_str())
-        .unwrap_or("other")
-        .to_owned();
-    Some(HubMember::new(block_id, title, content_type))
+fn block_to_hub_member(block: &serde_json::Value) -> Result<HubMember, AppError> {
+    let leaf = block_to_leaf(block)?;
+    Ok(HubMember::new(leaf.block_id, leaf.title, leaf.content_type))
 }
 
 /// `GET {url}` and parse the verified `Vec<LoomBlock>` (tag hubs) into [`TagEntry`]s. An empty array
 /// yields an empty list (the "No tags" empty state, AC8), never an error. A non-success status / parse
 /// failure is an [`AppError`] (the error banner).
-async fn fetch_tag_entries(client: &reqwest::Client, url: &str) -> Result<Vec<TagEntry>, AppError> {
-    let v = get_json(client, url, &[]).await?;
-    let entries = v
+async fn fetch_tag_entries_page(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+) -> Result<Vec<TagEntry>, AppError> {
+    let value = get_json(client, url, query).await?;
+    parse_tag_entries_page(&value)
+}
+
+fn parse_tag_entries_page(value: &serde_json::Value) -> Result<Vec<TagEntry>, AppError> {
+    let rows = value
         .as_array()
-        .map(|arr| arr.iter().filter_map(block_to_tag_entry).collect())
-        .unwrap_or_default();
+        .ok_or_else(|| AppError::Parse("Loom tag list response must be an array".to_owned()))?;
+    let mut entries = Vec::with_capacity(rows.len());
+    for (index, row) in rows.iter().enumerate() {
+        entries.push(
+            block_to_tag_entry(row)
+                .map_err(|error| AppError::Parse(format!("Loom tag list row {index}: {error}")))?,
+        );
+    }
     Ok(entries)
+}
+
+/// Fetch every `/loom/tags` page. Duplicate ids, malformed pages, offset overflow, or reaching the
+/// explicit safety ceiling fail closed rather than yielding a partial successful list.
+async fn fetch_all_tag_entries(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<TagEntry>, AppError> {
+    let mut all = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let mut offset = 0u32;
+    loop {
+        let query = vec![
+            ("limit".to_owned(), TAG_HUB_PAGE_SIZE.to_string()),
+            ("offset".to_owned(), offset.to_string()),
+        ];
+        let page = fetch_tag_entries_page(client, url, &query).await?;
+        let page_len = page.len();
+        for entry in page {
+            if !seen.insert(entry.block_id.clone()) {
+                return Err(AppError::Parse(format!(
+                    "Loom tag pagination repeated block_id {}",
+                    entry.block_id
+                )));
+            }
+            all.push(entry);
+        }
+        if page_len < TAG_HUB_PAGE_SIZE as usize {
+            return Ok(all);
+        }
+        if all.len() >= MAX_TAG_HUBS {
+            return Err(AppError::Parse(format!(
+                "workspace contains at least {MAX_TAG_HUBS} tag hubs; refusing an unbounded UI load"
+            )));
+        }
+        offset = offset
+            .checked_add(TAG_HUB_PAGE_SIZE)
+            .ok_or_else(|| AppError::Parse("Loom tag pagination offset overflow".to_owned()))?;
+    }
 }
 
 /// `GET {url}` and parse the verified `LoomTagHub` `{ block, tagged_blocks, .. }` into `(title,
@@ -3601,22 +5305,66 @@ async fn fetch_tag_entries(client: &reqwest::Client, url: &str) -> Result<Vec<Ta
 async fn fetch_tag_hub_detail(
     client: &reqwest::Client,
     url: &str,
-    fallback_id: &str,
+    expected_id: &str,
 ) -> Result<(String, Vec<HubMember>), AppError> {
     let v = get_json(client, url, &[]).await?;
-    let title = v
+    parse_tag_hub_detail(&v, expected_id)
+}
+
+fn parse_tag_hub_detail(
+    v: &serde_json::Value,
+    expected_id: &str,
+) -> Result<(String, Vec<HubMember>), AppError> {
+    let block = v
         .get("block")
-        .and_then(|b| b.get("title"))
-        .and_then(|x| x.as_str())
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or(fallback_id)
-        .to_owned();
-    let members = v
+        .ok_or_else(|| AppError::Parse("LoomTagHub.block is missing".to_owned()))?;
+    let hub = block_to_leaf(block)
+        .map_err(|error| AppError::Parse(format!("LoomTagHub.block: {error}")))?;
+    if hub.block_id != expected_id {
+        return Err(AppError::Parse(format!(
+            "LoomTagHub.block.block_id {} does not match requested hub {expected_id}",
+            hub.block_id
+        )));
+    }
+    if hub.content_type != "tag_hub" {
+        return Err(AppError::Parse(format!(
+            "LoomTagHub.block.content_type must be tag_hub, got {}",
+            hub.content_type
+        )));
+    }
+    let sub_tags = v
+        .get("sub_tags")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| AppError::Parse("LoomTagHub.sub_tags must be an array".to_owned()))?;
+    for (index, sub_tag) in sub_tags.iter().enumerate() {
+        let parsed = block_to_leaf(sub_tag)
+            .map_err(|error| AppError::Parse(format!("LoomTagHub.sub_tags[{index}]: {error}")))?;
+        if parsed.content_type != "tag_hub" {
+            return Err(AppError::Parse(format!(
+                "LoomTagHub.sub_tags[{index}].content_type must be tag_hub"
+            )));
+        }
+    }
+    if v.get("backlink_count")
+        .and_then(serde_json::Value::as_i64)
+        .filter(|count| *count >= 0)
+        .is_none()
+    {
+        return Err(AppError::Parse(
+            "LoomTagHub.backlink_count must be a non-negative integer".to_owned(),
+        ));
+    }
+    let member_rows = v
         .get("tagged_blocks")
-        .and_then(|b| b.as_array())
-        .map(|arr| arr.iter().filter_map(block_to_hub_member).collect())
-        .unwrap_or_default();
-    Ok((title, members))
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| AppError::Parse("LoomTagHub.tagged_blocks must be an array".to_owned()))?;
+    let mut members = Vec::with_capacity(member_rows.len());
+    for (index, member) in member_rows.iter().enumerate() {
+        members.push(block_to_hub_member(member).map_err(|error| {
+            AppError::Parse(format!("LoomTagHub.tagged_blocks[{index}]: {error}"))
+        })?);
+    }
+    Ok((hub.title, members))
 }
 
 /// `GET {url}?{query}` and parse the verified `Vec<LoomBlock>` (a hub's members) into [`HubMember`]s. An
@@ -3627,10 +5375,21 @@ async fn fetch_tag_members(
     query: &[(String, String)],
 ) -> Result<Vec<HubMember>, AppError> {
     let v = get_json(client, url, query).await?;
-    let members = v
+    parse_tag_members(&v)
+}
+
+fn parse_tag_members(v: &serde_json::Value) -> Result<Vec<HubMember>, AppError> {
+    let rows = v
         .as_array()
-        .map(|arr| arr.iter().filter_map(block_to_hub_member).collect())
-        .unwrap_or_default();
+        .ok_or_else(|| AppError::Parse("Loom tag member response must be an array".to_owned()))?;
+    let mut members = Vec::with_capacity(rows.len());
+    for (index, member) in rows.iter().enumerate() {
+        members.push(
+            block_to_hub_member(member).map_err(|error| {
+                AppError::Parse(format!("Loom tag member row {index}: {error}"))
+            })?,
+        );
+    }
     Ok(members)
 }
 
@@ -3642,35 +5401,46 @@ async fn fetch_tag_members(
 /// VERIFIED shape (`api::loom::search_loom_blocks` -> `Json<Vec<LoomBlockSearchResult>>`, and
 /// `storage::loom::LoomBlockSearchResult { block: LoomBlock, score: f64 }` — NO `#[serde(flatten)]`): each
 /// array entry is `{ "block": { "block_id", "title", .. }, "score": f64 }`, so `block_id`/`title` live
-/// UNDER the `block` key, NOT at the entry's top level. We read the nested `block` object first (the real
-/// route), then fall back to a top-level `block_id`/`ref_id`/`title` read for a bare-block array (defensive
-/// — other search-shaped routes). The outer collection tolerates a bare array OR an object wrapping a
-/// `results`/`blocks`/`hits` array. An empty result yields no candidates, never an error.
-fn parse_add_tag_candidates(v: &serde_json::Value) -> Vec<AddTagCandidate> {
-    let arr = v
-        .as_array()
-        .cloned()
-        .or_else(|| v.get("results").and_then(|x| x.as_array()).cloned())
-        .or_else(|| v.get("blocks").and_then(|x| x.as_array()).cloned())
-        .or_else(|| v.get("hits").and_then(|x| x.as_array()).cloned())
-        .unwrap_or_default();
-    arr.iter()
-        .filter_map(|entry| {
-            // The verified LoomBlockSearchResult nests the block under `block`; prefer that, then fall
-            // back to the entry itself for a bare-block array.
-            let block = entry.get("block").unwrap_or(entry);
-            let id = block
+/// UNDER the `block` key, NOT at the entry's top level. Parsing is deliberately fail-closed: only the
+/// verified bare array of `{block:{block_id,title},score}` rows is accepted, and one malformed row rejects
+/// the entire payload. An empty verified array is valid.
+fn parse_add_tag_candidates(v: &serde_json::Value) -> Result<Vec<AddTagCandidate>, AppError> {
+    let rows = v.as_array().ok_or_else(|| {
+        AppError::Parse("Loom add-tag search response must be a bare array".to_owned())
+    })?;
+    rows.iter()
+        .enumerate()
+        .map(|(index, entry)| {
+            let block = entry
+                .get("block")
+                .and_then(serde_json::Value::as_object)
+                .ok_or_else(|| {
+                    AppError::Parse(format!("Loom add-tag row {index}.block must be an object"))
+                })?;
+            let block_id = block
                 .get("block_id")
-                .and_then(|x| x.as_str())
-                .or_else(|| block.get("ref_id").and_then(|x| x.as_str()))?
-                .to_owned();
+                .and_then(serde_json::Value::as_str)
+                .filter(|id| !id.trim().is_empty())
+                .ok_or_else(|| {
+                    AppError::Parse(format!(
+                        "Loom add-tag row {index}.block.block_id must be a nonblank string"
+                    ))
+                })?;
             let title = block
                 .get("title")
-                .and_then(|x| x.as_str())
-                .filter(|s| !s.trim().is_empty())
-                .unwrap_or(&id)
-                .to_owned();
-            Some(AddTagCandidate::new(id, title))
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| {
+                    AppError::Parse(format!(
+                        "Loom add-tag row {index}.block.title must be a string"
+                    ))
+                })?;
+            entry
+                .get("score")
+                .and_then(serde_json::Value::as_f64)
+                .ok_or_else(|| {
+                    AppError::Parse(format!("Loom add-tag row {index}.score must be a number"))
+                })?;
+            Ok(AddTagCandidate::new(block_id, title))
         })
         .collect()
 }
@@ -3684,7 +5454,7 @@ async fn fetch_add_tag_candidates(
     query: &[(String, String)],
 ) -> Result<Vec<AddTagCandidate>, AppError> {
     let v = get_json(client, url, query).await?;
-    Ok(parse_add_tag_candidates(&v))
+    parse_add_tag_candidates(&v)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -3722,27 +5492,51 @@ async fn fetch_add_tag_candidates(
 //   - REMOVE FAVORITE: `PATCH /workspaces/:ws/loom/blocks/:id` body `{ "favorite": false }`.
 //
 // All follow the MT-020/021/023 off-thread shape: spawn on the app's tokio runtime, deliver the parsed
-// result into an `Arc<Mutex<Option<Result<..>>>>` the egui UI thread drains next frame (HBR-QUIET — the
-// render thread is NEVER blocked on the network). Speaks `serde_json::Value` so it never depends on the
+// result into an identity-stamped FIFO the egui UI thread drains next frame (HBR-QUIET — the render
+// thread is NEVER blocked on the network). A FIFO completion carries workspace epoch, operation target,
+// and sequence in the same value, so reordering cannot overwrite or misattribute another request. Speaks
+// `serde_json::Value` so it never depends on the
 // `handshake_core` crate's types; the parsed shapes are the widget's own
 // `graph::sidebar_panel::{SidebarBlock, BacklinkRow, UnlinkedRow}` (field-correct reuse of the verified
 // backend shapes).
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-use crate::graph::sidebar_panel::{BacklinkRow, SidebarBlock, UnlinkedRow};
+use crate::graph::sidebar_panel::{BacklinkRow, SectionKind, SidebarBlock, UnlinkedRow};
 
 /// The externally-meaningful result of a Pins/Favorites fetch: the [`SidebarBlock`] list the
 /// [`crate::graph::sidebar_panel::LoomSidebarPanel`] renders. `Ok` carries the blocks (possibly empty ->
 /// the section empty state); `Err(msg)` a failure the section surfaces as an inline banner + Retry (AC9).
-pub type SidebarBlockListCell = Arc<Mutex<Option<Result<Vec<SidebarBlock>, String>>>>;
+pub type SidebarBlockListDelivery = (String, u64, u64, Result<Vec<SidebarBlock>, String>);
+pub type SidebarBlockListCell = Arc<Mutex<VecDeque<SidebarBlockListDelivery>>>;
 
 /// The externally-meaningful result of a backlinks fetch: the [`BacklinkRow`] list (source block + edge
 /// type). Stamped with the generation the host bumped on dispatch so a stale delivery is dropped (RISK-2).
-pub type SidebarBacklinksCell = Arc<Mutex<Option<(u64, Result<Vec<BacklinkRow>, String>)>>>;
+pub type SidebarBacklinksDelivery = (
+    String,
+    u64,
+    String,
+    u64,
+    u64,
+    Result<Vec<BacklinkRow>, String>,
+);
+pub type SidebarBacklinksCell = Arc<Mutex<VecDeque<SidebarBacklinksDelivery>>>;
 
 /// The externally-meaningful result of an unlinked-mentions fetch: the [`UnlinkedRow`] list. Stamped with
 /// the dispatch generation so a stale delivery is dropped (RISK-2).
-pub type SidebarUnlinkedCell = Arc<Mutex<Option<(u64, Result<Vec<UnlinkedRow>, String>)>>>;
+pub type SidebarUnlinkedDelivery = (
+    String,
+    u64,
+    String,
+    u64,
+    u64,
+    Result<Vec<UnlinkedRow>, String>,
+);
+pub type SidebarUnlinkedCell = Arc<Mutex<VecDeque<SidebarUnlinkedDelivery>>>;
+
+/// FIFO mutation result. Identity travels with the completion so a slow older action can never consume
+/// a newer side-slot and emit/remove the wrong bookmark after workspace or operation reordering.
+pub type SidebarActionDelivery = (String, u64, SectionKind, String, u64, Result<(), String>);
+pub type SidebarActionCell = Arc<Mutex<VecDeque<SidebarActionDelivery>>>;
 
 /// REST client for the VERIFIED Loom sidebar surfaces the MT-024 sidebar panel binds: pins/favorites
 /// view lists, per-block backlinks + unlinked-mentions, and the two-call pin removal + favorite removal.
@@ -3758,7 +5552,7 @@ impl LoomSidebarClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -3877,24 +5671,56 @@ impl LoomSidebarClient {
     /// Fetch the Pins list off the UI thread, delivering the parsed blocks into `cell` (AC1). The host
     /// sets the section loading flag before calling and clears it on delivery.
     pub fn fetch_pins(&self, workspace_id: &str, cell: SidebarBlockListCell) {
+        self.fetch_pins_with_identity(workspace_id, 0, 0, cell);
+    }
+
+    pub fn fetch_pins_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
+        sequence: u64,
+        cell: SidebarBlockListCell,
+    ) {
         let spec = self.pins_request(workspace_id);
         let client = self.client.clone();
+        let delivered_workspace = workspace_id.to_owned();
         self.runtime.spawn(async move {
             let result = fetch_view_blocks(&client, &spec.url, &spec.query).await;
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back((
+                    delivered_workspace,
+                    workspace_epoch,
+                    sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
 
     /// Fetch the Favorites list off the UI thread, delivering into `cell` (AC3 load).
     pub fn fetch_favorites(&self, workspace_id: &str, cell: SidebarBlockListCell) {
+        self.fetch_favorites_with_identity(workspace_id, 0, 0, cell);
+    }
+
+    pub fn fetch_favorites_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
+        sequence: u64,
+        cell: SidebarBlockListCell,
+    ) {
         let spec = self.favorites_request(workspace_id);
         let client = self.client.clone();
+        let delivered_workspace = workspace_id.to_owned();
         self.runtime.spawn(async move {
             let result = fetch_view_blocks(&client, &spec.url, &spec.query).await;
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back((
+                    delivered_workspace,
+                    workspace_epoch,
+                    sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
@@ -3909,12 +5735,33 @@ impl LoomSidebarClient {
         generation: u64,
         cell: SidebarBacklinksCell,
     ) {
+        self.fetch_backlinks_with_identity(workspace_id, 0, block_id, generation, 0, cell);
+    }
+
+    pub fn fetch_backlinks_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
+        block_id: &str,
+        generation: u64,
+        sequence: u64,
+        cell: SidebarBacklinksCell,
+    ) {
         let spec = self.backlinks_request(workspace_id, block_id);
         let client = self.client.clone();
+        let delivered_workspace = workspace_id.to_owned();
+        let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
             let result = fetch_backlink_rows(&client, &spec.url).await;
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some((generation, result.map_err(|e| e.to_string())));
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back((
+                    delivered_workspace,
+                    workspace_epoch,
+                    delivered_block,
+                    generation,
+                    sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
@@ -3928,12 +5775,33 @@ impl LoomSidebarClient {
         generation: u64,
         cell: SidebarUnlinkedCell,
     ) {
+        self.fetch_unlinked_with_identity(workspace_id, 0, block_id, generation, 0, cell);
+    }
+
+    pub fn fetch_unlinked_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
+        block_id: &str,
+        generation: u64,
+        sequence: u64,
+        cell: SidebarUnlinkedCell,
+    ) {
         let spec = self.unlinked_request(workspace_id, block_id);
         let client = self.client.clone();
+        let delivered_workspace = workspace_id.to_owned();
+        let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
             let result = fetch_unlinked_rows(&client, &spec.url).await;
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some((generation, result.map_err(|e| e.to_string())));
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back((
+                    delivered_workspace,
+                    workspace_epoch,
+                    delivered_block,
+                    generation,
+                    sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
@@ -3943,12 +5811,25 @@ impl LoomSidebarClient {
     /// fails, `Err(msg)` (the host rolls the optimistic removal back and re-fetches to find true state).
     /// Both calls are always issued in sequence (the React WorkspaceSidebar.tsx lines 297-298 flow); the
     /// pin-order clear is never skipped.
-    pub fn remove_pin(&self, workspace_id: &str, block_id: &str, cell: DrawerActionCell) {
+    pub fn remove_pin(&self, workspace_id: &str, block_id: &str, cell: SidebarActionCell) {
+        self.remove_pin_with_identity(workspace_id, 0, block_id, 0, cell);
+    }
+
+    pub fn remove_pin_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
+        block_id: &str,
+        sequence: u64,
+        cell: SidebarActionCell,
+    ) {
         let clear = self.clear_pin_order_request(workspace_id, block_id);
         let unpin = self.unpin_request(workspace_id, block_id);
         let clear_body = clear.body.unwrap_or_default();
         let unpin_body = unpin.body.unwrap_or_default();
         let client = self.client.clone();
+        let delivered_workspace = workspace_id.to_owned();
+        let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
             // Call 1: clear the pin order. A failure here aborts the unpin (true partial state -> the host
             // re-fetches), exactly the RISK-1 recovery.
@@ -3956,126 +5837,263 @@ impl LoomSidebarClient {
                 Ok(()) => patch_expect_success(&client, &unpin.url, &unpin_body).await,
                 Err(e) => Err(e),
             };
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back((
+                    delivered_workspace,
+                    workspace_epoch,
+                    SectionKind::Pins,
+                    delivered_block,
+                    sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
 
     /// Remove a favorite off the UI thread: `PATCH {favorite:false}` (AC3). Single call.
-    pub fn remove_favorite(&self, workspace_id: &str, block_id: &str, cell: DrawerActionCell) {
+    pub fn remove_favorite(&self, workspace_id: &str, block_id: &str, cell: SidebarActionCell) {
+        self.remove_favorite_with_identity(workspace_id, 0, block_id, 0, cell);
+    }
+
+    pub fn remove_favorite_with_identity(
+        &self,
+        workspace_id: &str,
+        workspace_epoch: u64,
+        block_id: &str,
+        sequence: u64,
+        cell: SidebarActionCell,
+    ) {
         let unfav = self.unfavorite_request(workspace_id, block_id);
         let body = unfav.body.unwrap_or_default();
         let client = self.client.clone();
+        let delivered_workspace = workspace_id.to_owned();
+        let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
             let result = patch_expect_success(&client, &unfav.url, &body).await;
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back((
+                    delivered_workspace,
+                    workspace_epoch,
+                    SectionKind::Favorites,
+                    delivered_block,
+                    sequence,
+                    result.map_err(|e| e.to_string()),
+                ));
             }
         });
     }
 }
 
-/// Parse one verified `LoomBlock` JSON object into a [`SidebarBlock`]. `title` falls back to the block id
-/// when null/empty; `content_type` defaults to "other". Returns `None` only when the block has no
-/// `block_id` (a malformed row is skipped, not faked). Mirrors the `block_to_node`/`block_to_hub_member`
-/// field reads so every Loom surface agrees on the verified block shape.
-fn block_to_sidebar_block(block: &serde_json::Value) -> Option<SidebarBlock> {
-    let block_id = block.get("block_id").and_then(|x| x.as_str())?.to_owned();
-    let title = block
-        .get("title")
-        .and_then(|x| x.as_str())
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or(&block_id)
-        .to_owned();
-    let content_type = block
-        .get("content_type")
-        .and_then(|x| x.as_str())
-        .unwrap_or("other")
-        .to_owned();
-    Some(SidebarBlock::new(block_id, title, content_type))
+/// Parse one verified `LoomBlock` JSON object into a [`SidebarBlock`]. Identity, title, and content type
+/// are required and nonblank; malformed rows fail the whole delivery so corrupt backend state cannot be
+/// presented as a legitimate partial list.
+fn required_sidebar_string(
+    value: &serde_json::Value,
+    field: &str,
+    context: &str,
+) -> Result<String, AppError> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .filter(|candidate| !candidate.trim().is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| {
+            AppError::Parse(format!(
+                "{context} requires nonblank string field '{field}'"
+            ))
+        })
+}
+
+fn block_to_sidebar_block(
+    block: &serde_json::Value,
+    context: &str,
+) -> Result<SidebarBlock, AppError> {
+    let block_id = required_sidebar_string(block, "block_id", context)?;
+    let optional_nonblank = |field: &str| -> Result<Option<String>, AppError> {
+        match block.get(field) {
+            None | Some(serde_json::Value::Null) => Ok(None),
+            Some(value) => {
+                let candidate = value.as_str().ok_or_else(|| {
+                    AppError::Parse(format!(
+                        "{context} field '{field}' must be null or a string"
+                    ))
+                })?;
+                let candidate = candidate.trim();
+                Ok((!candidate.is_empty()).then(|| candidate.to_owned()))
+            }
+        }
+    };
+    let title = optional_nonblank("title")?
+        .or(optional_nonblank("original_filename")?)
+        .unwrap_or_else(|| block_id.clone());
+    let content_type = required_sidebar_string(block, "content_type", context)?;
+    Ok(SidebarBlock::new(block_id, title, content_type))
+}
+
+/// Strict parser for the canonical Loom Pins/Favorites view envelope. An empty `blocks` array is a
+/// valid empty state; a missing envelope, mismatched view type, malformed row, or duplicate block id is
+/// a typed error rather than a false empty list.
+pub fn parse_sidebar_view_blocks(
+    value: &serde_json::Value,
+    expected_view_type: &str,
+) -> Result<Vec<SidebarBlock>, AppError> {
+    let view_type = required_sidebar_string(value, "view_type", "sidebar view envelope")?;
+    if view_type != expected_view_type {
+        return Err(AppError::Parse(format!(
+            "sidebar view expected view_type '{expected_view_type}', got '{view_type}'"
+        )));
+    }
+    let rows = value
+        .get("blocks")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| AppError::Parse("sidebar view requires array field 'blocks'".to_owned()))?;
+    let mut seen = std::collections::HashSet::with_capacity(rows.len());
+    let mut parsed = Vec::with_capacity(rows.len());
+    for (index, row) in rows.iter().enumerate() {
+        let block = block_to_sidebar_block(row, &format!("sidebar view row[{index}]"))?;
+        if !seen.insert(block.block_id.clone()) {
+            return Err(AppError::Parse(format!(
+                "sidebar view contains duplicate block_id '{}'",
+                block.block_id
+            )));
+        }
+        parsed.push(block);
+    }
+    Ok(parsed)
 }
 
 /// `GET {url}?{query}` and parse the verified `LoomViewResponse::{Pins,Favorites} { blocks }` shape into
-/// [`SidebarBlock`]s. A missing/empty `blocks` array yields an EMPTY list (the section empty state),
-/// never an error. A non-success status or parse failure is an [`AppError`] (the AC9 error banner).
+/// [`SidebarBlock`]s. A present empty `blocks` array is the empty state; a missing/mismatched envelope is
+/// an [`AppError`] surfaced by the AC9 error banner.
 async fn fetch_view_blocks(
     client: &reqwest::Client,
     url: &str,
     query: &[(String, String)],
 ) -> Result<Vec<SidebarBlock>, AppError> {
     let v = get_json(client, url, query).await?;
-    let blocks = v
-        .get("blocks")
-        .and_then(|b| b.as_array())
-        .map(|arr| arr.iter().filter_map(block_to_sidebar_block).collect())
-        .unwrap_or_default();
-    Ok(blocks)
+    let expected_view_type = if url.ends_with("/pins") {
+        "pins"
+    } else if url.ends_with("/favorites") {
+        "favorites"
+    } else {
+        return Err(AppError::Parse(format!(
+            "unsupported sidebar view URL '{url}'"
+        )));
+    };
+    parse_sidebar_view_blocks(&v, expected_view_type)
 }
 
 /// `GET {url}` and parse the verified `Vec<LoomBacklink>` shape into [`BacklinkRow`]s. Each backlink is
 /// `{ edge:{ edge_type, source_block_id, .. }, source_block:{ block_id, title, .. }, context_snippet }`.
-/// The row's open key + title come from `source_block`; the label is `edge.edge_type` (AC4). A backlink
-/// missing its `source_block.block_id` is skipped. An empty array yields an empty list, never an error.
+/// The row's open key + title come from `source_block`; the label is `edge.edge_type` (AC4), and the
+/// optional context snippet is retained. A present empty array is valid; malformed rows fail closed.
 async fn fetch_backlink_rows(
     client: &reqwest::Client,
     url: &str,
 ) -> Result<Vec<BacklinkRow>, AppError> {
     let v = get_json(client, url, &[]).await?;
-    let rows = v
+    parse_sidebar_backlinks(&v)
+}
+
+/// Strict parser for the dedicated `Vec<LoomBacklink>` response. Missing rows are not silently
+/// skipped, and duplicate source ids are rejected because they would collide in the AccessKit row
+/// namespace and make a model action ambiguous.
+pub fn parse_sidebar_backlinks(value: &serde_json::Value) -> Result<Vec<BacklinkRow>, AppError> {
+    let rows = value
         .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|bl| {
-                    let source = bl.get("source_block")?;
-                    let block_id = source.get("block_id").and_then(|x| x.as_str())?.to_owned();
-                    let title = source
-                        .get("title")
-                        .and_then(|x| x.as_str())
-                        .filter(|s| !s.trim().is_empty())
-                        .unwrap_or(&block_id)
-                        .to_owned();
-                    let edge_type = bl
-                        .get("edge")
-                        .and_then(|e| e.get("edge_type"))
-                        .and_then(|x| x.as_str())
-                        .unwrap_or("mention")
-                        .to_owned();
-                    Some(BacklinkRow::new(block_id, title, edge_type))
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    Ok(rows)
+        .ok_or_else(|| AppError::Parse("sidebar backlinks response must be an array".to_owned()))?;
+    let mut seen = std::collections::HashSet::with_capacity(rows.len());
+    let mut parsed = Vec::with_capacity(rows.len());
+    for (index, row) in rows.iter().enumerate() {
+        let context = format!("sidebar backlink row[{index}]");
+        let source = row.get("source_block").ok_or_else(|| {
+            AppError::Parse(format!("{context} requires object field 'source_block'"))
+        })?;
+        let block_id = required_sidebar_string(source, "block_id", &context)?;
+        if !seen.insert(block_id.clone()) {
+            return Err(AppError::Parse(format!(
+                "sidebar backlinks contains duplicate source block_id '{block_id}'"
+            )));
+        }
+        let source_block = block_to_sidebar_block(source, &context)?;
+        let title = source_block.title;
+        let edge = row
+            .get("edge")
+            .ok_or_else(|| AppError::Parse(format!("{context} requires object field 'edge'")))?;
+        let edge_type = required_sidebar_string(edge, "edge_type", &context)?;
+        let edge_source_block_id = required_sidebar_string(edge, "source_block_id", &context)?;
+        let _target_block_id = required_sidebar_string(edge, "target_block_id", &context)?;
+        if edge_source_block_id != block_id {
+            return Err(AppError::Parse(format!(
+                "{context} edge.source_block_id '{edge_source_block_id}' does not match source_block.block_id '{block_id}'"
+            )));
+        }
+        let context_snippet = match row.get("context_snippet") {
+            None | Some(serde_json::Value::Null) => None,
+            Some(value) => Some(
+                value
+                    .as_str()
+                    .filter(|snippet| !snippet.trim().is_empty())
+                    .map(str::to_owned)
+                    .ok_or_else(|| {
+                        AppError::Parse(format!(
+                            "{context} field 'context_snippet' must be null or nonblank string"
+                        ))
+                    })?,
+            ),
+        };
+        parsed.push(BacklinkRow::new(block_id, title, edge_type).with_context(context_snippet));
+    }
+    Ok(parsed)
 }
 
 /// `GET {url}` and parse the verified `Vec<LoomUnlinkedMention>` shape into [`UnlinkedRow`]s. Each mention
 /// is `{ source_block:{ block_id, title, .. }, matched_term, snippet, match_offset }`; the row's open key
-/// + title come from `source_block` (AC5). An empty array yields an empty list, never an error.
+/// + title come from `source_block` (AC5); matched term and snippet are retained. A present empty array
+/// is valid; malformed rows fail closed.
 async fn fetch_unlinked_rows(
     client: &reqwest::Client,
     url: &str,
 ) -> Result<Vec<UnlinkedRow>, AppError> {
     let v = get_json(client, url, &[]).await?;
-    let rows = v
+    parse_sidebar_unlinked(&v)
+}
+
+/// Strict parser for `Vec<LoomUnlinkedMention>`, retaining the matched term and context snippet the
+/// operator needs to judge whether to promote the textual mention to a real edge.
+pub fn parse_sidebar_unlinked(value: &serde_json::Value) -> Result<Vec<UnlinkedRow>, AppError> {
+    let rows = value
         .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|m| {
-                    let source = m.get("source_block")?;
-                    let block_id = source.get("block_id").and_then(|x| x.as_str())?.to_owned();
-                    let title = source
-                        .get("title")
-                        .and_then(|x| x.as_str())
-                        .filter(|s| !s.trim().is_empty())
-                        .unwrap_or(&block_id)
-                        .to_owned();
-                    Some(UnlinkedRow::new(block_id, title))
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    Ok(rows)
+        .ok_or_else(|| AppError::Parse("sidebar unlinked response must be an array".to_owned()))?;
+    let mut seen = std::collections::HashSet::with_capacity(rows.len());
+    let mut parsed = Vec::with_capacity(rows.len());
+    for (index, row) in rows.iter().enumerate() {
+        let context = format!("sidebar unlinked row[{index}]");
+        let source = row.get("source_block").ok_or_else(|| {
+            AppError::Parse(format!("{context} requires object field 'source_block'"))
+        })?;
+        let block_id = required_sidebar_string(source, "block_id", &context)?;
+        if !seen.insert(block_id.clone()) {
+            return Err(AppError::Parse(format!(
+                "sidebar unlinked response contains duplicate source block_id '{block_id}'"
+            )));
+        }
+        let title = block_to_sidebar_block(source, &context)?.title;
+        let matched_term = required_sidebar_string(row, "matched_term", &context)?;
+        let snippet = required_sidebar_string(row, "snippet", &context)?;
+        let match_offset = row
+            .get("match_offset")
+            .and_then(serde_json::Value::as_i64)
+            .filter(|offset| *offset >= 0)
+            .ok_or_else(|| {
+                AppError::Parse(format!(
+                    "{context} requires nonnegative integer field 'match_offset'"
+                ))
+            })?;
+        let _ = match_offset;
+        parsed.push(UnlinkedRow::new(block_id, title).with_match(matched_term, snippet));
+    }
+    Ok(parsed)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -4120,6 +6138,13 @@ pub const CODE_NAV_ACTOR_KIND: &str = "system";
 pub const DOC_ACTOR_ID: &str = "handshake-native-editor";
 pub const DOC_ACTOR_KIND: &str = "operator";
 
+/// Stable attributable identity for saved block-collection reads and writes. The Loom routes accept
+/// the same canonical `x-hsk-*` identity vocabulary as the adjacent knowledge surfaces; using an
+/// operator actor kind keeps create/update/card-move actions write-capable without changing the pure
+/// request-builder test seam.
+pub const BLOCK_VIEW_ACTOR_ID: &str = "handshake-native-block-collection-view";
+pub const BLOCK_VIEW_ACTOR_KIND: &str = "operator";
+
 /// `GET {url}?{query}` against the code-nav API with the four required backend-nav identity headers
 /// attached, returning the parsed JSON body. `run_id` is folded into the per-request run ids so each
 /// editor nav action is individually traceable (it never reaches the wrong field — the headers are
@@ -4127,15 +6152,14 @@ pub const DOC_ACTOR_KIND: &str = "operator";
 /// CodeNavClient turns that into graceful empty results (no completion / no hover), so the editor keeps
 /// working when the backend is down (AC-004 graceful-degradation analog for the code-nav path).
 ///
-/// REUSE: a fresh short-lived `reqwest::Client` + the same 5s timeout the other clients use. The
-/// editor calls this from a spawned tokio task (HBR-QUIET — never the egui UI thread), so a slow
-/// request never stalls the operator.
+/// REUSE: the process-wide bounded backend pool. The editor calls this from a spawned tokio task
+/// (HBR-QUIET — never the egui UI thread), so a slow request never stalls the operator.
 pub async fn code_nav_get(
     url: &str,
     query: &[(String, String)],
     run_id: &str,
 ) -> Result<serde_json::Value, AppError> {
-    let client = reqwest::Client::new();
+    let client = shared_http_client();
     let resp = client
         .get(url)
         .query(query)
@@ -4199,9 +6223,9 @@ pub async fn code_nav_get(
 /// native panel reads. `staleness_verdict` is the raw flattened verdict object (`serde_json::Value`,
 /// typed `unknown` in the React API + `serde_json::Value` here per the MT note) so the "stale" display
 /// logic can treat any non-null/non-`{"state":"fresh"}` value as stale without coupling to the verdict
-/// schema. Parsing is total: a malformed/absent field falls back (never a panic, never a fabricated
-/// value); `projection_id`/`title` fall back to the requested id / a placeholder so the panel is never
-/// label-less.
+/// schema. Parsing is strict: the response must contain every required projection field and its
+/// workspace/projection identity must match the request. A malformed or cross-resource response is an
+/// error, never a fabricated page.
 #[derive(Debug, Clone, PartialEq)]
 pub struct WikiProjection {
     pub projection_id: String,
@@ -4212,6 +6236,10 @@ pub struct WikiProjection {
     pub staleness_hash: String,
     pub rebuild_status: String,
     pub page_type: Option<String>,
+    /// Persisted operator annotations loaded from the canonical overlay-list route after every
+    /// projection GET/regenerate. Keeping them on the delivered snapshot makes the mounted panel—not a
+    /// test-only HTTP client—the product surface that proves a saved overlay survived reload.
+    pub overlays: Vec<WikiOverlay>,
     /// The raw flattened `staleness_verdict` object (or `Null` when absent). The display treats any
     /// non-null value whose `state` is not `"fresh"` as STALE (the MT RISK-5/MC-5 "treat any non-null
     /// non-fresh verdict as stale" rule; the React type is `unknown`).
@@ -4219,58 +6247,167 @@ pub struct WikiProjection {
 }
 
 impl WikiProjection {
-    /// Parse one `ServedWikiPage` JSON object. `requested_id` is the projection id the GET was for, used
-    /// as the `projection_id` fallback so a row is never id-less. Total: every field defaults safely.
-    fn from_json(v: &serde_json::Value, requested_id: &str) -> Self {
-        let str_field = |key: &str, fallback: &str| -> String {
+    fn from_json(
+        v: &serde_json::Value,
+        requested_workspace_id: &str,
+        requested_projection_id: &str,
+    ) -> Result<Self, AppError> {
+        let required_string = |key: &str| -> Result<String, AppError> {
             v.get(key)
-                .and_then(|x| x.as_str())
-                .filter(|s| !s.is_empty())
-                .unwrap_or(fallback)
-                .to_owned()
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .ok_or_else(|| AppError::Parse(format!("WikiProjection.{key} must be a string")))
         };
-        let projection_id = str_field("projection_id", requested_id);
-        let source_block_ids = v
-            .get("source_block_ids")
-            .and_then(|x| x.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|e| e.as_str().map(|s| s.to_owned()))
-                    .collect()
-            })
-            .unwrap_or_default();
-        WikiProjection {
-            projection_id,
-            workspace_id: str_field("workspace_id", ""),
-            // An empty title is a legitimate (if unusual) page; fall back to the projection id so the
-            // heading is never blank, matching the graph/sidebar "never label-less" convention.
-            title: str_field("title", requested_id),
-            source_block_ids,
-            // `rendered_content` may legitimately be empty (a freshly-compiled page with no sources);
-            // keep it as-is (empty string), the panel shows a "No rendered wiki content." placeholder.
-            rendered_content: v
-                .get("rendered_content")
-                .and_then(|x| x.as_str())
-                .unwrap_or("")
-                .to_owned(),
-            staleness_hash: str_field("staleness_hash", ""),
-            rebuild_status: str_field("rebuild_status", "unknown"),
-            page_type: v
-                .get("page_type")
-                .and_then(|x| x.as_str())
-                .filter(|s| !s.is_empty())
-                .map(|s| s.to_owned()),
-            staleness_verdict: v
-                .get("staleness_verdict")
-                .cloned()
-                .unwrap_or(serde_json::Value::Null),
+        let projection_id = required_string("projection_id")?;
+        let workspace_id = required_string("workspace_id")?;
+        if projection_id != requested_projection_id || workspace_id != requested_workspace_id {
+            return Err(AppError::Parse(format!(
+                "wiki response identity mismatch: requested {requested_workspace_id}/{requested_projection_id}, received {workspace_id}/{projection_id}"
+            )));
         }
+        let source_rows = v
+            .get("source_block_ids")
+            .and_then(Value::as_array)
+            .ok_or_else(|| {
+                AppError::Parse("WikiProjection.source_block_ids must be an array".to_owned())
+            })?;
+        let mut source_block_ids = Vec::with_capacity(source_rows.len());
+        for (index, value) in source_rows.iter().enumerate() {
+            source_block_ids.push(
+                value
+                    .as_str()
+                    .filter(|id| !id.trim().is_empty())
+                    .ok_or_else(|| {
+                        AppError::Parse(format!(
+                            "WikiProjection.source_block_ids[{index}] must be a non-empty string"
+                        ))
+                    })?
+                    .to_owned(),
+            );
+        }
+        let page_type = match v.get("page_type") {
+            None | Some(Value::Null) => None,
+            Some(Value::String(value)) if !value.trim().is_empty() => Some(value.clone()),
+            _ => {
+                return Err(AppError::Parse(
+                    "WikiProjection.page_type must be null or a non-empty string".to_owned(),
+                ));
+            }
+        };
+        let staleness_verdict = v.get("staleness_verdict").cloned().ok_or_else(|| {
+            AppError::Parse("WikiProjection.staleness_verdict is required".to_owned())
+        })?;
+        Ok(WikiProjection {
+            projection_id,
+            workspace_id,
+            title: required_string("title")?,
+            source_block_ids,
+            rendered_content: required_string("rendered_content")?,
+            staleness_hash: required_string("staleness_hash")?,
+            rebuild_status: required_string("rebuild_status")?,
+            page_type,
+            overlays: Vec::new(),
+            staleness_verdict,
+        })
     }
+}
+
+/// One persisted annotation returned by `GET .../overlays`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WikiOverlay {
+    pub overlay_id: String,
+    pub projection_id: String,
+    pub workspace_id: String,
+    pub annotation: String,
+    pub anchor: Option<String>,
+}
+
+fn parse_wiki_overlays(
+    value: &Value,
+    requested_workspace_id: &str,
+    requested_projection_id: &str,
+) -> Result<Vec<WikiOverlay>, AppError> {
+    let rows = value
+        .as_array()
+        .ok_or_else(|| AppError::Parse("wiki overlays response must be an array".to_owned()))?;
+    rows.iter()
+        .enumerate()
+        .map(|(index, row)| {
+            let required = |key: &str| -> Result<String, AppError> {
+                row.get(key)
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+                    .ok_or_else(|| {
+                        AppError::Parse(format!("WikiOverlay[{index}].{key} must be a string"))
+                    })
+            };
+            let overlay_id = required("overlay_id")?;
+            let projection_id = required("projection_id")?;
+            let workspace_id = required("workspace_id")?;
+            if projection_id != requested_projection_id || workspace_id != requested_workspace_id {
+                return Err(AppError::Parse(format!(
+                    "wiki overlay identity mismatch at row {index}: requested {requested_workspace_id}/{requested_projection_id}, received {workspace_id}/{projection_id}"
+                )));
+            }
+            let anchor = match row.get("anchor") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(value)) => Some(value.clone()),
+                _ => {
+                    return Err(AppError::Parse(format!(
+                        "WikiOverlay[{index}].anchor must be null or a string"
+                    )))
+                }
+            };
+            Ok(WikiOverlay {
+                overlay_id,
+                projection_id,
+                workspace_id,
+                annotation: required("annotation")?,
+                anchor,
+            })
+        })
+        .collect()
 }
 
 /// One-slot delivery cell for an off-thread wiki-projection GET/regenerate result. `Ok(projection)`
 /// carries the parsed page the panel renders; `Err(msg)` the failure the panel surfaces (AC8).
 pub type WikiProjectionCell = Arc<Mutex<Option<Result<WikiProjection, String>>>>;
+
+/// Identity stamped by the mounted wiki pane onto every asynchronous load/save/regenerate request.
+/// The workspace and projection prevent cross-resource delivery; `pane_generation` also rejects an
+/// older A completion after the operator navigates A -> B -> A.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WikiPaneIdentity {
+    pub workspace_id: String,
+    pub projection_id: String,
+    pub pane_generation: u64,
+}
+
+/// Which projection operation produced a delivery. A post-save reload is distinct because the edit
+/// buffer must not be cleared until that reload succeeds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WikiProjectionOperation {
+    Load,
+    Regenerate,
+    ReloadAfterSave,
+}
+
+#[derive(Debug)]
+pub struct WikiProjectionDelivery {
+    pub identity: WikiPaneIdentity,
+    pub operation: WikiProjectionOperation,
+    pub result: Result<WikiProjection, String>,
+}
+
+pub type WikiProjectionDeliveryCell = Arc<Mutex<VecDeque<WikiProjectionDelivery>>>;
+
+#[derive(Debug)]
+pub struct WikiSaveDelivery {
+    pub identity: WikiPaneIdentity,
+    pub result: Result<(), String>,
+}
+
+pub type WikiSaveDeliveryCell = Arc<Mutex<VecDeque<WikiSaveDelivery>>>;
 
 /// REST client for the VERIFIED Loom wiki-projection surface the MT-025 wiki page panel binds:
 /// `GET /loom/wiki/{id}` (load), `POST /loom/wiki/{id}/regenerate` (rebuild), and
@@ -4287,7 +6424,7 @@ impl LoomWikiClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -4303,6 +6440,10 @@ impl LoomWikiClient {
             "{}/workspaces/{}/loom/wiki/{}",
             self.base_url, workspace_id, projection_id
         )
+    }
+
+    fn overlays_url(&self, workspace_id: &str, projection_id: &str) -> String {
+        format!("{}/overlays", self.wiki_url(workspace_id, projection_id))
     }
 
     /// Pure request builder for the wiki-page LOAD: `GET /loom/wiki/{id}` (no query). Split out so a unit
@@ -4365,12 +6506,48 @@ impl LoomWikiClient {
         cell: WikiProjectionCell,
     ) {
         let spec = self.load_request(workspace_id, projection_id);
+        let overlays_url = self.overlays_url(workspace_id, projection_id);
         let client = self.client.clone();
+        let workspace_id = workspace_id.to_owned();
         let pid = projection_id.to_owned();
         self.runtime.spawn(async move {
-            let result = fetch_wiki_projection(&client, &spec.url, &pid).await;
+            let result =
+                fetch_wiki_projection(&client, &spec.url, &overlays_url, &workspace_id, &pid).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Mounted-host load with complete response identity. Unlike the compatibility one-slot method,
+    /// this FIFO cannot let an older completion overwrite a newer one before host filtering runs.
+    pub fn fetch_projection_stamped(
+        &self,
+        identity: WikiPaneIdentity,
+        operation: WikiProjectionOperation,
+        cell: WikiProjectionDeliveryCell,
+    ) {
+        let spec = self.load_request(&identity.workspace_id, &identity.projection_id);
+        let overlays_url = self.overlays_url(&identity.workspace_id, &identity.projection_id);
+        let client = self.client.clone();
+        let requested_workspace_id = identity.workspace_id.clone();
+        let requested_id = identity.projection_id.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_wiki_projection(
+                &client,
+                &spec.url,
+                &overlays_url,
+                &requested_workspace_id,
+                &requested_id,
+            )
+            .await
+            .map_err(|e| e.to_string());
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back(WikiProjectionDelivery {
+                    identity,
+                    operation,
+                    result,
+                });
             }
         });
     }
@@ -4384,12 +6561,46 @@ impl LoomWikiClient {
         cell: WikiProjectionCell,
     ) {
         let spec = self.regenerate_request(workspace_id, projection_id);
+        let overlays_url = self.overlays_url(workspace_id, projection_id);
         let client = self.client.clone();
+        let workspace_id = workspace_id.to_owned();
         let pid = projection_id.to_owned();
         self.runtime.spawn(async move {
-            let result = post_wiki_regenerate(&client, &spec.url, &pid).await;
+            let result =
+                post_wiki_regenerate(&client, &spec.url, &overlays_url, &workspace_id, &pid).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Mounted-host regenerate with complete response identity and FIFO delivery.
+    pub fn regenerate_projection_stamped(
+        &self,
+        identity: WikiPaneIdentity,
+        cell: WikiProjectionDeliveryCell,
+    ) {
+        let spec = self.regenerate_request(&identity.workspace_id, &identity.projection_id);
+        let overlays_url = self.overlays_url(&identity.workspace_id, &identity.projection_id);
+        let client = self.client.clone();
+        let requested_workspace_id = identity.workspace_id.clone();
+        let requested_id = identity.projection_id.clone();
+        self.runtime.spawn(async move {
+            let result = post_wiki_regenerate(
+                &client,
+                &spec.url,
+                &overlays_url,
+                &requested_workspace_id,
+                &requested_id,
+            )
+            .await
+            .map_err(|e| e.to_string());
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back(WikiProjectionDelivery {
+                    identity,
+                    operation: WikiProjectionOperation::Regenerate,
+                    result,
+                });
             }
         });
     }
@@ -4415,6 +6626,32 @@ impl LoomWikiClient {
             }
         });
     }
+
+    /// Mounted-host overlay save with complete response identity and FIFO delivery.
+    pub fn add_overlay_stamped(
+        &self,
+        identity: WikiPaneIdentity,
+        annotation: &str,
+        anchor: Option<&str>,
+        cell: WikiSaveDeliveryCell,
+    ) {
+        let spec = self.add_overlay_request(
+            &identity.workspace_id,
+            &identity.projection_id,
+            annotation,
+            anchor,
+        );
+        let body = spec.body.unwrap_or_default();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = post_expect_success(&client, &spec.url, &body)
+                .await
+                .map_err(|e| e.to_string());
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back(WikiSaveDelivery { identity, result });
+            }
+        });
+    }
 }
 
 /// `GET {url}` and parse the verified `ServedWikiPage` into a [`WikiProjection`]. A non-success status or
@@ -4422,10 +6659,17 @@ impl LoomWikiClient {
 async fn fetch_wiki_projection(
     client: &reqwest::Client,
     url: &str,
-    requested_id: &str,
+    overlays_url: &str,
+    requested_workspace_id: &str,
+    requested_projection_id: &str,
 ) -> Result<WikiProjection, AppError> {
     let v = get_json(client, url, &[]).await?;
-    Ok(WikiProjection::from_json(&v, requested_id))
+    let mut projection =
+        WikiProjection::from_json(&v, requested_workspace_id, requested_projection_id)?;
+    let overlays = get_json(client, overlays_url, &[]).await?;
+    projection.overlays =
+        parse_wiki_overlays(&overlays, requested_workspace_id, requested_projection_id)?;
+    Ok(projection)
 }
 
 /// `POST {url}` (no body) for the regenerate route and parse the rebuilt `ServedWikiPage`. A non-success
@@ -4433,7 +6677,9 @@ async fn fetch_wiki_projection(
 async fn post_wiki_regenerate(
     client: &reqwest::Client,
     url: &str,
-    requested_id: &str,
+    overlays_url: &str,
+    requested_workspace_id: &str,
+    requested_projection_id: &str,
 ) -> Result<WikiProjection, AppError> {
     let resp = client
         .post(url)
@@ -4451,7 +6697,12 @@ async fn post_wiki_regenerate(
         .json()
         .await
         .map_err(|e| AppError::Parse(e.to_string()))?;
-    Ok(WikiProjection::from_json(&v, requested_id))
+    let mut projection =
+        WikiProjection::from_json(&v, requested_workspace_id, requested_projection_id)?;
+    let overlays = get_json(client, overlays_url, &[]).await?;
+    projection.overlays =
+        parse_wiki_overlays(&overlays, requested_workspace_id, requested_projection_id)?;
+    Ok(projection)
 }
 
 #[cfg(test)]
@@ -4523,9 +6774,8 @@ mod wiki_client_tests {
         );
     }
 
-    /// AC1 parse: the verified `ServedWikiPage` shape parses totally into [`WikiProjection`], including the
-    /// flattened `staleness_verdict`, with safe fallbacks (the MT-022/023/024 "verify the field shape"
-    /// rule — this asserts the shape the GET handler actually returns).
+    /// AC1 parse: the verified `ServedWikiPage` shape parses strictly into [`WikiProjection`], including
+    /// the flattened `staleness_verdict` and request identity.
     #[test]
     fn parses_served_wiki_page_shape() {
         let body = serde_json::json!({
@@ -4542,7 +6792,7 @@ mod wiki_client_tests {
             "updated_at": "2026-06-19T00:00:00Z",
             "staleness_verdict": { "state": "fresh", "stamp_ledger_version": 7 }
         });
-        let p = WikiProjection::from_json(&body, "proj-001");
+        let p = WikiProjection::from_json(&body, "ws1", "proj-001").unwrap();
         assert_eq!(p.projection_id, "proj-001");
         assert_eq!(p.title, "Ownership model");
         assert_eq!(p.source_block_ids.len(), 3);
@@ -4552,18 +6802,81 @@ mod wiki_client_tests {
         assert_eq!(p.staleness_verdict["state"], "fresh");
     }
 
-    /// Parse is total on a degenerate body: missing fields fall back, `projection_id`/`title` to the
-    /// requested id, and it NEVER panics (AC8 robustness).
+    /// Missing fields are rejected instead of fabricating an accepted projection.
     #[test]
-    fn parse_is_total_on_missing_fields() {
-        let p = WikiProjection::from_json(&serde_json::json!({}), "proj-xyz");
-        assert_eq!(p.projection_id, "proj-xyz");
-        assert_eq!(p.title, "proj-xyz");
-        assert!(p.source_block_ids.is_empty());
-        assert_eq!(p.rendered_content, "");
-        assert_eq!(p.rebuild_status, "unknown");
-        assert!(p.page_type.is_none());
-        assert_eq!(p.staleness_verdict, serde_json::Value::Null);
+    fn parse_rejects_missing_fields() {
+        let error = WikiProjection::from_json(&serde_json::json!({}), "ws1", "proj-xyz")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("projection_id"));
+    }
+
+    #[test]
+    fn parse_rejects_mismatched_projection_identity() {
+        let body = serde_json::json!({
+            "projection_id": "proj-other",
+            "workspace_id": "ws1",
+            "title": "Wrong page",
+            "source_block_ids": [],
+            "rendered_content": "wrong",
+            "staleness_hash": "hash",
+            "rebuild_status": "fresh",
+            "page_type": null,
+            "staleness_verdict": { "state": "fresh" }
+        });
+        let error = WikiProjection::from_json(&body, "ws1", "proj-xyz")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("identity mismatch"));
+    }
+
+    #[test]
+    fn parse_rejects_mismatched_workspace_identity() {
+        let body = serde_json::json!({
+            "projection_id": "proj-xyz",
+            "workspace_id": "ws-other",
+            "title": "Wrong workspace",
+            "source_block_ids": [],
+            "rendered_content": "wrong",
+            "staleness_hash": "hash",
+            "rebuild_status": "fresh",
+            "page_type": null,
+            "staleness_verdict": { "state": "fresh" }
+        });
+        let error = WikiProjection::from_json(&body, "ws1", "proj-xyz")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("identity mismatch"));
+    }
+
+    #[test]
+    fn overlay_parse_rejects_mismatched_projection_identity() {
+        let value = serde_json::json!([{
+            "overlay_id": "ov-1",
+            "projection_id": "proj-other",
+            "workspace_id": "ws1",
+            "annotation": "must not cross projections",
+            "anchor": null
+        }]);
+        let error = parse_wiki_overlays(&value, "ws1", "proj-001")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("overlay identity mismatch"));
+    }
+
+    #[test]
+    fn overlay_parse_rejects_mismatched_workspace_identity() {
+        let value = serde_json::json!([{
+            "overlay_id": "ov-1",
+            "projection_id": "proj-001",
+            "workspace_id": "ws-other",
+            "annotation": "must not cross workspaces",
+            "anchor": null
+        }]);
+        let error = parse_wiki_overlays(&value, "ws1", "proj-001")
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("overlay identity mismatch"));
     }
 }
 
@@ -4623,7 +6936,19 @@ pub type BlockViewResultsCell = Arc<Mutex<Option<Result<BlockViewResults, String
 /// createBlockView). `Ok(view_block_id)` carries the (possibly new) view block id the host should be
 /// on after the mutation; `Err(msg)` the failure. For a create, this is the NEW block id (so the host
 /// switches to it); for update/card-move it echoes the current id.
-pub type BlockViewOpCell = Arc<Mutex<Option<Result<String, String>>>>;
+/// Identity-stamped completion for a block-view mutation or create operation. A mutation names the
+/// view that was bound when it started; create uses `None` because success intentionally switches to a
+/// newly minted id. The mounted host accepts a delivery only while workspace + generation + intended
+/// binding are still current.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockViewOpDelivery {
+    pub workspace_id: String,
+    pub generation: u64,
+    pub expected_bound_view_id: Option<String>,
+    pub result: Result<String, String>,
+}
+
+pub type BlockViewOpCell = Arc<Mutex<Option<BlockViewOpDelivery>>>;
 
 /// REST client for the VERIFIED MT-262 block-collection-view surface. Drives the definition read, the
 /// query (POST!), the sort/kind/date persist, the Kanban card-move tag mutation, and view creation off
@@ -4639,7 +6964,7 @@ impl BlockViewClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -4753,6 +7078,35 @@ impl BlockViewClient {
     /// Fetch the view definition off the UI thread, delivering the parsed [`BlockViewRecordData`] into
     /// `cell`.
     pub fn fetch_view(&self, workspace_id: &str, view_block_id: &str, cell: BlockViewRecordCell) {
+        self.fetch_view_inner(workspace_id, view_block_id, cell, None);
+    }
+
+    /// Fetch only if `generation` is still current when the response resolves. The mounted host uses
+    /// this for initial loads, mutation re-queries, and Retry so an older slow request can never publish
+    /// over a newer binding.
+    pub fn fetch_view_for_generation(
+        &self,
+        workspace_id: &str,
+        view_block_id: &str,
+        generation: Arc<AtomicU64>,
+        expected_generation: u64,
+        cell: BlockViewRecordCell,
+    ) {
+        self.fetch_view_inner(
+            workspace_id,
+            view_block_id,
+            cell,
+            Some((generation, expected_generation)),
+        );
+    }
+
+    fn fetch_view_inner(
+        &self,
+        workspace_id: &str,
+        view_block_id: &str,
+        cell: BlockViewRecordCell,
+        generation_guard: Option<(Arc<AtomicU64>, u64)>,
+    ) {
         let spec = self.get_view_request(workspace_id, view_block_id);
         let client = self.client.clone();
         let id = view_block_id.to_owned();
@@ -4761,6 +7115,16 @@ impl BlockViewClient {
                 .await
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
+                // Check while holding the publication lock. A rebind either increments first and this
+                // stale delivery is discarded, or waits for this publication and then clears it.
+                if generation_guard
+                    .as_ref()
+                    .is_some_and(|(generation, expected)| {
+                        generation.load(Ordering::Acquire) != *expected
+                    })
+                {
+                    return;
+                }
                 *slot = Some(result);
             }
         });
@@ -4776,6 +7140,40 @@ impl BlockViewClient {
         offset: u32,
         cell: BlockViewResultsCell,
     ) {
+        self.query_results_inner(workspace_id, view_block_id, limit, offset, cell, None);
+    }
+
+    /// Query only if `generation` remains current at delivery time. See
+    /// [`Self::fetch_view_for_generation`] for the mounted-host race this closes.
+    pub fn query_results_for_generation(
+        &self,
+        workspace_id: &str,
+        view_block_id: &str,
+        limit: u32,
+        offset: u32,
+        generation: Arc<AtomicU64>,
+        expected_generation: u64,
+        cell: BlockViewResultsCell,
+    ) {
+        self.query_results_inner(
+            workspace_id,
+            view_block_id,
+            limit,
+            offset,
+            cell,
+            Some((generation, expected_generation)),
+        );
+    }
+
+    fn query_results_inner(
+        &self,
+        workspace_id: &str,
+        view_block_id: &str,
+        limit: u32,
+        offset: u32,
+        cell: BlockViewResultsCell,
+        generation_guard: Option<(Arc<AtomicU64>, u64)>,
+    ) {
         let spec = self.query_results_request(workspace_id, view_block_id, limit, offset);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
@@ -4784,6 +7182,14 @@ impl BlockViewClient {
                 .await
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
+                if generation_guard
+                    .as_ref()
+                    .is_some_and(|(generation, expected)| {
+                        generation.load(Ordering::Acquire) != *expected
+                    })
+                {
+                    return;
+                }
                 *slot = Some(result);
             }
         });
@@ -4792,14 +7198,32 @@ impl BlockViewClient {
     /// Send a prebuilt update/card-move [`RequestSpec`] off the UI thread, delivering `Ok(echo_id)` /
     /// `Err(msg)` into `cell`. `echo_id` is the view block id the host stays on (the host passes its
     /// current id). The host re-queries after a 2xx.
-    pub fn dispatch(&self, spec: RequestSpec, echo_id: String, cell: BlockViewOpCell) {
+    pub fn dispatch(
+        &self,
+        spec: RequestSpec,
+        workspace_id: &str,
+        echo_id: String,
+        generation: Arc<AtomicU64>,
+        expected_generation: u64,
+        cell: BlockViewOpCell,
+    ) {
         let client = self.client.clone();
+        let workspace_id = workspace_id.to_owned();
+        let expected_bound_view_id = echo_id.clone();
         self.runtime.spawn(async move {
             let result = send_block_view_mutation(&client, &spec)
                 .await
                 .map(|_| echo_id);
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+                if generation.load(Ordering::Acquire) != expected_generation {
+                    return;
+                }
+                *slot = Some(BlockViewOpDelivery {
+                    workspace_id,
+                    generation: expected_generation,
+                    expected_bound_view_id: Some(expected_bound_view_id),
+                    result: result.map_err(|e| e.to_string()),
+                });
             }
         });
     }
@@ -4811,18 +7235,29 @@ impl BlockViewClient {
         workspace_id: &str,
         title: &str,
         definition: &BlockViewDefinition,
+        generation: Arc<AtomicU64>,
+        expected_generation: u64,
         cell: BlockViewOpCell,
     ) {
         let spec = self.create_view_request(workspace_id, title, definition);
         let body = spec.body.unwrap_or_default();
         let client = self.client.clone();
         let url = spec.url.clone();
+        let workspace_id = workspace_id.to_owned();
         self.runtime.spawn(async move {
             let result = post_create_block_view(&client, &url, &body)
                 .await
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result);
+                if generation.load(Ordering::Acquire) != expected_generation {
+                    return;
+                }
+                *slot = Some(BlockViewOpDelivery {
+                    workspace_id,
+                    generation: expected_generation,
+                    expected_bound_view_id: None,
+                    result,
+                });
             }
         });
     }
@@ -4951,58 +7386,137 @@ fn group_by_to_json(group_by: &BlockViewGroupBy) -> serde_json::Value {
     }
 }
 
-/// Parse the verified `BlockViewGroupBy` tagged-enum JSON. An unknown/missing `kind` (or a `field`
-/// variant with an unparseable field) yields `None` — a malformed grouping is dropped, never faked.
-fn group_by_from_json(v: &serde_json::Value) -> Option<BlockViewGroupBy> {
-    match v.get("kind").and_then(|x| x.as_str())? {
-        "tag" => Some(BlockViewGroupBy::Tag),
-        "field" => {
-            let field = BlockViewField::parse_str(v.get("field").and_then(|x| x.as_str())?)?;
-            Some(BlockViewGroupBy::Field { field })
-        }
-        _ => None,
+fn block_view_required_string(
+    object: &serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    path: &str,
+) -> Result<String, String> {
+    object
+        .get(key)
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| format!("{path}.{key} must be a non-empty string"))
+}
+
+fn parse_block_view_kind(value: &str, path: &str) -> Result<BlockViewKind, String> {
+    match value {
+        "table" => Ok(BlockViewKind::Table),
+        "kanban" => Ok(BlockViewKind::Kanban),
+        "calendar" => Ok(BlockViewKind::Calendar),
+        other => Err(format!("{path} has unknown block-view kind `{other}`")),
     }
 }
 
-/// Parse the VERIFIED `BlockViewDefinition` JSON into the native projection. Unknown kinds default to
-/// table; unknown fields are dropped (never faked).
-pub fn definition_from_json(v: &serde_json::Value) -> BlockViewDefinition {
-    let kind = BlockViewKind::parse_str(v.get("kind").and_then(|x| x.as_str()).unwrap_or("table"));
-    let columns = v
-        .get("columns")
-        .and_then(|c| c.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|x| x.as_str())
-                .filter_map(BlockViewField::parse_str)
-                .collect()
-        })
-        .unwrap_or_default();
-    let sort = v.get("sort").and_then(|s| {
-        let field = BlockViewField::parse_str(s.get("field").and_then(|x| x.as_str())?)?;
-        let direction = match s.get("direction").and_then(|x| x.as_str()) {
-            Some("asc") => BlockViewSortDirection::Asc,
-            _ => BlockViewSortDirection::Desc,
-        };
-        Some(BlockViewSort { field, direction })
-    });
-    let group_by = v.get("group_by").and_then(group_by_from_json);
-    let calendar_date_field = v
-        .get("calendar_date_field")
-        .and_then(|x| x.as_str())
-        .and_then(BlockViewField::parse_str);
-    let query = v
-        .get("query")
-        .map(parse_block_view_query)
-        .unwrap_or_default();
-    BlockViewDefinition {
+fn parse_block_view_field(value: &serde_json::Value, path: &str) -> Result<BlockViewField, String> {
+    let raw = value
+        .as_str()
+        .ok_or_else(|| format!("{path} must be a string"))?;
+    BlockViewField::parse_str(raw)
+        .ok_or_else(|| format!("{path} has unknown block-view field `{raw}`"))
+}
+
+/// Parse the verified `BlockViewGroupBy` tagged-enum JSON and reject the entire definition on any
+/// malformed or unknown member.
+fn group_by_from_json(v: &serde_json::Value) -> Result<BlockViewGroupBy, String> {
+    let object = v
+        .as_object()
+        .ok_or_else(|| "definition.group_by must be an object".to_owned())?;
+    match block_view_required_string(object, "kind", "definition.group_by")?.as_str() {
+        "tag" => Ok(BlockViewGroupBy::Tag),
+        "field" => Ok(BlockViewGroupBy::Field {
+            field: parse_block_view_field(
+                object
+                    .get("field")
+                    .ok_or_else(|| "definition.group_by.field is required".to_owned())?,
+                "definition.group_by.field",
+            )?,
+        }),
+        other => Err(format!(
+            "definition.group_by.kind has unknown value `{other}`"
+        )),
+    }
+}
+
+/// Parse the VERIFIED `BlockViewDefinition` JSON into the native projection. Fields omitted by the
+/// backend's explicit `skip_serializing_if` rules remain optional; every present field is strict.
+pub fn definition_from_json(v: &serde_json::Value) -> Result<BlockViewDefinition, String> {
+    let object = v
+        .as_object()
+        .ok_or_else(|| "definition must be an object".to_owned())?;
+    let kind = parse_block_view_kind(
+        &block_view_required_string(object, "kind", "definition")?,
+        "definition.kind",
+    )?;
+    let mut seen_columns = std::collections::HashSet::new();
+    let columns = match object.get("columns") {
+        None => Vec::new(),
+        Some(value) => value
+            .as_array()
+            .ok_or_else(|| "definition.columns must be an array".to_owned())?
+            .iter()
+            .enumerate()
+            .map(|(index, value)| {
+                let field = parse_block_view_field(value, &format!("definition.columns[{index}]"))?;
+                if !seen_columns.insert(field.as_str()) {
+                    return Err(format!(
+                        "definition.columns contains duplicate `{}`",
+                        field.as_str()
+                    ));
+                }
+                Ok(field)
+            })
+            .collect::<Result<Vec<_>, String>>()?,
+    };
+    let sort = match object.get("sort") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(value) => {
+            let sort = value
+                .as_object()
+                .ok_or_else(|| "definition.sort must be an object or null".to_owned())?;
+            let field = parse_block_view_field(
+                sort.get("field")
+                    .ok_or_else(|| "definition.sort.field is required".to_owned())?,
+                "definition.sort.field",
+            )?;
+            let direction =
+                match block_view_required_string(sort, "direction", "definition.sort")?.as_str() {
+                    "asc" => BlockViewSortDirection::Asc,
+                    "desc" => BlockViewSortDirection::Desc,
+                    other => {
+                        return Err(format!(
+                            "definition.sort.direction has unknown value `{other}`"
+                        ));
+                    }
+                };
+            Some(BlockViewSort { field, direction })
+        }
+    };
+    let group_by = match object.get("group_by") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(value) => Some(group_by_from_json(value)?),
+    };
+    let calendar_date_field = match object.get("calendar_date_field") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(value) => Some(parse_block_view_field(
+            value,
+            "definition.calendar_date_field",
+        )?),
+    };
+    let query = parse_block_view_query(
+        object
+            .get("query")
+            .ok_or_else(|| "definition.query is required".to_owned())?,
+    )?;
+    Ok(BlockViewDefinition {
         kind,
         query,
         columns,
         group_by,
         sort,
         calendar_date_field,
-    }
+    })
 }
 
 /// Parse the FULL VERIFIED `BlockViewQuery` JSON into the native projection. The backend stores
@@ -5010,128 +7524,264 @@ pub fn definition_from_json(v: &serde_json::Value) -> BlockViewDefinition {
 /// the native projection slices it (the write path re-expands it to RFC3339). `content_type`/`mime`/
 /// `tag_ids`/`mention_ids` are carried verbatim so a later `updateBlockView` round-trip never drops the
 /// user's server-side filters (must-fix #2).
-fn parse_block_view_query(v: &serde_json::Value) -> BlockViewQuery {
-    let slice_date = |key: &str| {
-        v.get(key)
-            .and_then(|x| x.as_str())
-            .filter(|s| !s.is_empty())
-            .map(|s| s.chars().take(10).collect::<String>())
+fn parse_block_view_query(v: &serde_json::Value) -> Result<BlockViewQuery, String> {
+    let object = v
+        .as_object()
+        .ok_or_else(|| "definition.query must be an object".to_owned())?;
+    let date = |key: &str| -> Result<Option<String>, String> {
+        match object.get(key) {
+            None | Some(serde_json::Value::Null) => Ok(None),
+            Some(value) => {
+                let raw = value
+                    .as_str()
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| {
+                        format!("definition.query.{key} must be a non-empty RFC3339 string or null")
+                    })?;
+                chrono::DateTime::parse_from_rfc3339(raw)
+                    .map_err(|error| format!("definition.query.{key} is not RFC3339: {error}"))?;
+                Ok(Some(raw.chars().take(10).collect()))
+            }
+        }
     };
-    let string_array = |key: &str| {
-        v.get(key)
-            .and_then(|x| x.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|x| x.as_str().map(ToOwned::to_owned))
-                    .collect()
+    let string_array = |key: &str| -> Result<Vec<String>, String> {
+        let Some(value) = object.get(key) else {
+            return Ok(Vec::new());
+        };
+        let array = value
+            .as_array()
+            .ok_or_else(|| format!("definition.query.{key} must be an array"))?;
+        let mut seen = std::collections::HashSet::new();
+        array
+            .iter()
+            .enumerate()
+            .map(|(index, value)| {
+                let item = value
+                    .as_str()
+                    .map(str::trim)
+                    .filter(|item| !item.is_empty())
+                    .ok_or_else(|| {
+                        format!("definition.query.{key}[{index}] must be a non-empty string")
+                    })?
+                    .to_owned();
+                if !seen.insert(item.clone()) {
+                    return Err(format!(
+                        "definition.query.{key} contains duplicate `{item}`"
+                    ));
+                }
+                Ok(item)
             })
-            .unwrap_or_default()
+            .collect()
     };
-    BlockViewQuery {
-        date_from: slice_date("date_from"),
-        date_to: slice_date("date_to"),
-        content_type: v
-            .get("content_type")
-            .and_then(|x| x.as_str())
-            .map(ToOwned::to_owned),
-        mime: v
-            .get("mime")
-            .and_then(|x| x.as_str())
-            .map(ToOwned::to_owned),
-        tag_ids: string_array("tag_ids"),
-        mention_ids: string_array("mention_ids"),
+    let optional_string = |key: &str| -> Result<Option<String>, String> {
+        match object.get(key) {
+            None | Some(serde_json::Value::Null) => Ok(None),
+            Some(value) => value
+                .as_str()
+                .map(ToOwned::to_owned)
+                .map(Some)
+                .ok_or_else(|| format!("definition.query.{key} must be a string or null")),
+        }
+    };
+    let content_type = optional_string("content_type")?;
+    if let Some(value) = content_type.as_deref() {
+        if !matches!(
+            value,
+            "note"
+                | "file"
+                | "annotated_file"
+                | "tag_hub"
+                | "journal"
+                | "canvas"
+                | "view_def"
+                | "ckc_moodboard"
+                | "ckc_character"
+        ) {
+            return Err(format!(
+                "definition.query.content_type has unknown value `{value}`"
+            ));
+        }
     }
+    Ok(BlockViewQuery {
+        date_from: date("date_from")?,
+        date_to: date("date_to")?,
+        content_type,
+        mime: optional_string("mime")?,
+        tag_ids: string_array("tag_ids")?,
+        mention_ids: string_array("mention_ids")?,
+    })
 }
 
 /// Parse one VERIFIED `LoomBlock` JSON object into a [`LoomBlockRow`] (the cell-value + bucket-key +
-/// title fields the sub-views read). `derived.{backlink,mention,tag}_count` live under the nested
-/// `derived` object; `title`/`journal_date`/`original_filename` are optional. Returns `None` only when
-/// `block_id` is missing (a malformed row is skipped, not faked).
-pub fn loom_block_row_from_json(b: &serde_json::Value) -> Option<LoomBlockRow> {
-    let block_id = b.get("block_id").and_then(|x| x.as_str())?.to_owned();
-    let derived = b.get("derived");
-    let count = |key: &str| {
-        derived
-            .and_then(|d| d.get(key))
-            .and_then(|x| x.as_i64())
-            .or_else(|| b.get(key).and_then(|x| x.as_i64()))
-            .unwrap_or(0)
+/// title fields the sub-views read). Any malformed row rejects the complete delivery; rows are never
+/// skipped or completed with invented defaults.
+pub fn loom_block_row_from_json(b: &serde_json::Value) -> Result<LoomBlockRow, String> {
+    let object = b
+        .as_object()
+        .ok_or_else(|| "block row must be an object".to_owned())?;
+    let block_id = block_view_required_string(object, "block_id", "block")?;
+    let _workspace_id = block_view_required_string(object, "workspace_id", "block")?;
+    let content_type = block_view_required_string(object, "content_type", "block")?;
+    if !matches!(
+        content_type.as_str(),
+        "note"
+            | "file"
+            | "annotated_file"
+            | "tag_hub"
+            | "journal"
+            | "canvas"
+            | "view_def"
+            | "ckc_moodboard"
+            | "ckc_character"
+    ) {
+        return Err(format!(
+            "block.content_type has unknown value `{content_type}`"
+        ));
+    }
+    let nullable_string = |key: &str| -> Result<Option<String>, String> {
+        match object.get(key) {
+            Some(serde_json::Value::Null) => Ok(None),
+            Some(value) => value
+                .as_str()
+                .map(ToOwned::to_owned)
+                .map(Some)
+                .ok_or_else(|| format!("block.{key} must be a string or null")),
+            None => Err(format!("block.{key} is required (string or null)")),
+        }
     };
-    Some(LoomBlockRow {
-        title: b
-            .get("title")
-            .and_then(|x| x.as_str())
-            .map(ToOwned::to_owned),
-        original_filename: b
-            .get("original_filename")
-            .and_then(|x| x.as_str())
-            .map(ToOwned::to_owned),
-        content_type: b
-            .get("content_type")
-            .and_then(|x| x.as_str())
-            .unwrap_or("note")
-            .to_owned(),
-        journal_date: b
-            .get("journal_date")
-            .and_then(|x| x.as_str())
-            .map(ToOwned::to_owned),
-        created_at: b
-            .get("created_at")
-            .and_then(|x| x.as_str())
-            .unwrap_or("")
-            .to_owned(),
-        updated_at: b
-            .get("updated_at")
-            .and_then(|x| x.as_str())
-            .unwrap_or("")
-            .to_owned(),
-        pinned: b.get("pinned").and_then(|x| x.as_bool()).unwrap_or(false),
-        favorite: b.get("favorite").and_then(|x| x.as_bool()).unwrap_or(false),
-        backlink_count: count("backlink_count"),
-        mention_count: count("mention_count"),
-        tag_count: count("tag_count"),
+    let timestamp = |key: &str| -> Result<String, String> {
+        let raw = block_view_required_string(object, key, "block")?;
+        chrono::DateTime::parse_from_rfc3339(&raw)
+            .map_err(|error| format!("block.{key} is not RFC3339: {error}"))?;
+        Ok(raw)
+    };
+    let derived = object
+        .get("derived")
+        .and_then(serde_json::Value::as_object)
+        .ok_or_else(|| "block.derived must be an object".to_owned())?;
+    let count = |key: &str| -> Result<i64, String> {
+        let value = derived
+            .get(key)
+            .and_then(serde_json::Value::as_i64)
+            .ok_or_else(|| format!("block.derived.{key} must be an integer"))?;
+        if value < 0 {
+            return Err(format!("block.derived.{key} must be non-negative"));
+        }
+        Ok(value)
+    };
+    Ok(LoomBlockRow {
+        title: nullable_string("title")?,
+        original_filename: nullable_string("original_filename")?,
+        content_type,
+        journal_date: nullable_string("journal_date")?,
+        created_at: timestamp("created_at")?,
+        updated_at: timestamp("updated_at")?,
+        pinned: object
+            .get("pinned")
+            .and_then(serde_json::Value::as_bool)
+            .ok_or_else(|| "block.pinned must be a boolean".to_owned())?,
+        favorite: object
+            .get("favorite")
+            .and_then(serde_json::Value::as_bool)
+            .ok_or_else(|| "block.favorite must be a boolean".to_owned())?,
+        backlink_count: count("backlink_count")?,
+        mention_count: count("mention_count")?,
+        tag_count: count("tag_count")?,
         block_id,
     })
 }
 
 /// Parse the VERIFIED `BlockViewResults` JSON (`{kind, blocks, groups?, total_returned}`) into the
-/// native projection. A missing/empty `blocks`/`groups` is an EMPTY result, never an error (AC10).
-pub fn results_from_json(v: &serde_json::Value) -> BlockViewResults {
-    let blocks = v
+/// native projection. `blocks: []` is the canonical empty state; a missing/wrong-typed array is a
+/// malformed success and therefore an error. `groups` may be omitted only because the backend
+/// explicitly skips serialization for an empty vector.
+pub fn results_from_json(v: &serde_json::Value) -> Result<BlockViewResults, String> {
+    let object = v
+        .as_object()
+        .ok_or_else(|| "block-view results must be an object".to_owned())?;
+    let kind_str = block_view_required_string(object, "kind", "results")?;
+    parse_block_view_kind(&kind_str, "results.kind")?;
+    let block_values = object
         .get("blocks")
-        .and_then(|b| b.as_array())
-        .map(|arr| arr.iter().filter_map(loom_block_row_from_json).collect())
-        .unwrap_or_default();
-    let groups = v
-        .get("groups")
-        .and_then(|g| g.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|lane| {
-                    let key = lane.get("key").and_then(|x| x.as_str())?.to_owned();
-                    let blocks = lane
-                        .get("blocks")
-                        .and_then(|b| b.as_array())
-                        .map(|a| a.iter().filter_map(loom_block_row_from_json).collect())
-                        .unwrap_or_default();
-                    Some(BlockViewLane { key, blocks })
-                })
-                .collect()
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "results.blocks must be an array".to_owned())?;
+    let mut block_ids = std::collections::HashSet::new();
+    let blocks = block_values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| {
+            let block = loom_block_row_from_json(value)
+                .map_err(|error| format!("results.blocks[{index}]: {error}"))?;
+            if !block_ids.insert(block.block_id.clone()) {
+                return Err(format!(
+                    "results.blocks contains duplicate id `{}`",
+                    block.block_id
+                ));
+            }
+            Ok(block)
         })
-        .unwrap_or_default();
-    BlockViewResults {
-        kind_str: v
-            .get("kind")
-            .and_then(|x| x.as_str())
-            .unwrap_or("table")
-            .to_owned(),
+        .collect::<Result<Vec<_>, String>>()?;
+    let mut lane_keys = std::collections::HashSet::new();
+    let groups = match object.get("groups") {
+        None => Vec::new(),
+        Some(value) => value
+            .as_array()
+            .ok_or_else(|| "results.groups must be an array when present".to_owned())?
+            .iter()
+            .enumerate()
+            .map(|(lane_index, lane)| {
+                let lane = lane
+                    .as_object()
+                    .ok_or_else(|| format!("results.groups[{lane_index}] must be an object"))?;
+                let key = block_view_required_string(
+                    lane,
+                    "key",
+                    &format!("results.groups[{lane_index}]"),
+                )?;
+                if !lane_keys.insert(key.clone()) {
+                    return Err(format!(
+                        "results.groups contains duplicate lane key `{key}`"
+                    ));
+                }
+                let values = lane
+                    .get("blocks")
+                    .and_then(serde_json::Value::as_array)
+                    .ok_or_else(|| {
+                        format!("results.groups[{lane_index}].blocks must be an array")
+                    })?;
+                let mut ids = std::collections::HashSet::new();
+                let blocks = values
+                    .iter()
+                    .enumerate()
+                    .map(|(block_index, value)| {
+                        let block = loom_block_row_from_json(value).map_err(|error| {
+                            format!("results.groups[{lane_index}].blocks[{block_index}]: {error}")
+                        })?;
+                        if !ids.insert(block.block_id.clone()) {
+                            return Err(format!(
+                                "results.groups[{lane_index}].blocks contains duplicate id `{}`",
+                                block.block_id
+                            ));
+                        }
+                        Ok(block)
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+                Ok(BlockViewLane { key, blocks })
+            })
+            .collect::<Result<Vec<_>, String>>()?,
+    };
+    let total = object
+        .get("total_returned")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| "results.total_returned must be a non-negative integer".to_owned())?;
+    let total_returned =
+        u32::try_from(total).map_err(|_| "results.total_returned exceeds u32".to_owned())?;
+    Ok(BlockViewResults {
+        kind_str,
         blocks,
         groups,
-        total_returned: v
-            .get("total_returned")
-            .and_then(|x| x.as_u64())
-            .unwrap_or(0) as u32,
-    }
+        total_returned,
+    })
 }
 
 /// `GET {url}` and parse the verified `BlockViewRecord` (`{block, definition}`) into a
@@ -5141,17 +7791,36 @@ async fn fetch_block_view(
     url: &str,
     requested_id: &str,
 ) -> Result<BlockViewRecordData, AppError> {
-    let v = get_json(client, url, &[]).await?;
+    let v = block_view_get_json(client, url).await?;
     let definition = v
         .get("definition")
-        .map(definition_from_json)
-        .unwrap_or_else(|| BlockViewDefinition::of_kind(BlockViewKind::Table));
+        .ok_or_else(|| AppError::Parse("getBlockView response missing definition".to_owned()))
+        .and_then(|value| definition_from_json(value).map_err(AppError::Parse))?;
     let view_block_id = v
         .get("block")
         .and_then(|b| b.get("block_id"))
         .and_then(|x| x.as_str())
-        .unwrap_or(requested_id)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| AppError::Parse("getBlockView response missing block.block_id".to_owned()))?
         .to_owned();
+    if view_block_id != requested_id {
+        return Err(AppError::Parse(format!(
+            "getBlockView identity mismatch: requested `{requested_id}`, received `{view_block_id}`"
+        )));
+    }
+    let content_type = v
+        .get("block")
+        .and_then(|block| block.get("content_type"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            AppError::Parse("getBlockView response missing block.content_type".to_owned())
+        })?;
+    if content_type != "view_def" {
+        return Err(AppError::Parse(format!(
+            "getBlockView response block.content_type must be `view_def`, got `{content_type}`"
+        )));
+    }
     Ok(BlockViewRecordData {
         view_block_id,
         definition,
@@ -5164,8 +7833,8 @@ async fn post_block_view_results(
     url: &str,
     body: &serde_json::Value,
 ) -> Result<BlockViewResults, AppError> {
-    let v = post_json(client, url, body).await?;
-    Ok(results_from_json(&v))
+    let v = block_view_post_json(client, url, body).await?;
+    results_from_json(&v).map_err(AppError::Parse)
 }
 
 /// `POST {url}` (createBlockView body) and read the NEW view block id from the returned `BlockViewRecord`.
@@ -5174,15 +7843,36 @@ async fn post_create_block_view(
     url: &str,
     body: &serde_json::Value,
 ) -> Result<String, AppError> {
-    let v = post_json(client, url, body).await?;
+    let v = block_view_post_json(client, url, body).await?;
+    create_block_view_id_from_json(&v).map_err(AppError::Parse)
+}
+
+/// Parse the successful create response as the same canonical `BlockViewRecord` shape used by GET.
+/// A 2xx response is not success when it cannot identify a real saved-view definition.
+pub fn create_block_view_id_from_json(v: &serde_json::Value) -> Result<String, String> {
     let id = v
         .get("block")
         .and_then(|b| b.get("block_id"))
         .and_then(|x| x.as_str())
-        .ok_or_else(|| {
-            AppError::Parse("createBlockView response missing block.block_id".to_owned())
-        })?
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "createBlockView response missing non-empty block.block_id".to_owned())?
         .to_owned();
+    let content_type = v
+        .get("block")
+        .and_then(|block| block.get("content_type"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| "createBlockView response missing block.content_type".to_owned())?;
+    if content_type != "view_def" {
+        return Err(format!(
+            "createBlockView response block.content_type must be `view_def`, got `{content_type}`"
+        ));
+    }
+    let definition = v
+        .get("definition")
+        .ok_or_else(|| "createBlockView response missing definition".to_owned())?;
+    definition_from_json(definition)
+        .map_err(|error| format!("createBlockView response malformed definition: {error}"))?;
     Ok(id)
 }
 
@@ -5195,12 +7885,112 @@ async fn send_block_view_mutation(
     let empty = serde_json::json!({});
     let body = spec.body.as_ref().unwrap_or(&empty);
     match spec.method {
-        HttpMethod::Post => post_expect_success(client, &spec.url, body).await,
-        HttpMethod::Patch => patch_expect_success(client, &spec.url, body).await,
+        HttpMethod::Post => block_view_post_expect_success(client, &spec.url, body).await,
+        HttpMethod::Patch => block_view_patch_expect_success(client, &spec.url, body).await,
         _ => Err(AppError::Http(
             "block-view mutation must be POST or PATCH".to_owned(),
         )),
     }
+}
+
+/// Attach the canonical attributable identity to every saved-view request. Keeping this at the
+/// execution seam preserves the pure `RequestSpec` builders used by unit/kittest proofs while the real
+/// product transport is never anonymous.
+fn block_view_identity(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    request
+        .header(HSK_HEADER_ACTOR_ID, BLOCK_VIEW_ACTOR_ID)
+        .header(HSK_HEADER_ACTOR_KIND, BLOCK_VIEW_ACTOR_KIND)
+        .header(
+            HSK_HEADER_KERNEL_TASK_RUN_ID,
+            "block-collection-view-runtime",
+        )
+        .header(HSK_HEADER_SESSION_RUN_ID, "block-collection-view-session")
+}
+
+async fn block_view_get_json(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<serde_json::Value, AppError> {
+    let resp = block_view_identity(client.get(url))
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    let status = resp.status();
+    if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(AppError::Http(format!(
+            "GET block view non-success status {status}: {body}"
+        )));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
+}
+
+async fn block_view_post_json(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<serde_json::Value, AppError> {
+    let resp = block_view_identity(client.post(url))
+        .timeout(Duration::from_secs(5))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    let status = resp.status();
+    if !status.is_success() {
+        let response_body = resp.text().await.unwrap_or_default();
+        return Err(AppError::Http(format!(
+            "POST block view non-success status {status}: {response_body}"
+        )));
+    }
+    resp.json()
+        .await
+        .map_err(|e| AppError::Parse(e.to_string()))
+}
+
+async fn block_view_post_expect_success(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<(), AppError> {
+    let resp = block_view_identity(client.post(url))
+        .timeout(Duration::from_secs(5))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    let status = resp.status();
+    if !status.is_success() {
+        let response_body = resp.text().await.unwrap_or_default();
+        return Err(AppError::Http(format!(
+            "POST block-view mutation non-success status {status}: {response_body}"
+        )));
+    }
+    Ok(())
+}
+
+async fn block_view_patch_expect_success(
+    client: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<(), AppError> {
+    let resp = block_view_identity(client.patch(url))
+        .timeout(Duration::from_secs(5))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| AppError::Http(e.to_string()))?;
+    let status = resp.status();
+    if !status.is_success() {
+        let response_body = resp.text().await.unwrap_or_default();
+        return Err(AppError::Http(format!(
+            "PATCH block-view mutation non-success status {status}: {response_body}"
+        )));
+    }
+    Ok(())
 }
 
 /// `POST {url}` with a JSON body and return the parsed JSON response. A non-success status or a parse
@@ -5328,6 +8118,14 @@ pub struct LoomSearchV2Body {
     pub content_type: Option<String>,
     pub graph_boost: f64,
     pub limit: u32,
+    /// Backend-authoritative result offset. The baseline UI request omits zero, while callers that
+    /// must exhaust an exact candidate set advance this by `limit` for each subsequent page.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub offset: u32,
+}
+
+fn is_zero_u32(value: &u32) -> bool {
+    *value == 0
 }
 
 impl LoomSearchV2Body {
@@ -5339,6 +8137,7 @@ impl LoomSearchV2Body {
             content_type,
             graph_boost: 1.0,
             limit: 25,
+            offset: 0,
         }
     }
 }
@@ -5365,7 +8164,7 @@ impl LoomSearchV2Client {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -5521,9 +8320,7 @@ pub struct LoomGraphSearchHit {
     pub source_kind: String,
     pub result_kind: String,
     pub ref_id: String,
-    #[serde(default)]
     pub title: String,
-    #[serde(default)]
     pub excerpt: String,
     #[serde(default)]
     pub metadata: serde_json::Value,
@@ -5531,16 +8328,48 @@ pub struct LoomGraphSearchHit {
     pub block: Option<serde_json::Value>,
 }
 
+/// Identity attached to every MT-029 asynchronous completion. `epoch` changes on workspace rebind and
+/// `sequence` changes per operation, so an A→B→A workspace cycle cannot accept a completion from the
+/// earlier A binding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FindInFilesOperation {
+    Search,
+    Preview,
+    Apply,
+    BookmarkLoad,
+    BookmarkSave,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FindInFilesStamp {
+    pub workspace_id: String,
+    pub operation: FindInFilesOperation,
+    pub epoch: u64,
+    pub sequence: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FindInFilesDelivery<T> {
+    pub stamp: FindInFilesStamp,
+    pub outcome: T,
+}
+
+pub type FindInFilesDeliveryQueue<T> =
+    Arc<Mutex<std::collections::VecDeque<FindInFilesDelivery<T>>>>;
+
 /// One-slot delivery cell for an off-thread paginated search: `Ok((hits, result_set_key))` carries the
 /// fully-paginated hit set tagged with the search-plan key it was fetched under (the stale-result
 /// guard); `Err(msg)` the failure.
-pub type GraphSearchCell = Arc<Mutex<Option<Result<(Vec<LoomGraphSearchHit>, String), String>>>>;
+pub type GraphSearchCell =
+    FindInFilesDeliveryQueue<Result<(Vec<LoomGraphSearchHit>, String), String>>;
 
-/// One-slot delivery cell for an off-thread bookmark op: `Ok((bookmark_state_blob, status?))` carries
-/// the saved/loaded `bookmark_state` blob (re-parsed by the panel) and an optional status string;
-/// `Err(msg)` the failure.
+/// One-slot delivery cell for an off-thread bookmark op:
+/// `Ok((bookmark_state_blob, status?, event_ledger_event_id?))` carries the saved/loaded
+/// `bookmark_state` blob (re-parsed by the panel), an optional operator status string, and the
+/// producer-issued durable receipt. Empty-state GETs legitimately carry no receipt; successful saves
+/// always carry the nonblank event-ledger id validated by [`parse_bookmark_response`].
 pub type BookmarkStateCell =
-    Arc<Mutex<Option<Result<(serde_json::Value, Option<String>), String>>>>;
+    FindInFilesDeliveryQueue<Result<(serde_json::Value, Option<String>, Option<String>), String>>;
 
 /// The match options the search transport forwards as query params (a copy of the panel's toggles, kept
 /// here so backend_client does not depend on the find_in_files module).
@@ -5555,6 +8384,164 @@ pub struct SearchMatchOptions {
 /// single page at 500, so requesting 500 and looping until a short page is the find-all contract.
 pub const SEARCH_PAGE_SIZE: u32 = 500;
 
+fn parse_graph_search_page(v: &serde_json::Value) -> Result<Vec<LoomGraphSearchHit>, String> {
+    const SOURCE_KINDS: &[&str] = &[
+        "loom_block",
+        "file",
+        "tag_hub",
+        "document",
+        "symbol",
+        "work_packet",
+        "micro_task",
+        "user_manual_page",
+        "wiki_page",
+    ];
+    const RESULT_KINDS: &[&str] = &[
+        "loom_block",
+        "knowledge_entity",
+        "user_manual_page",
+        "wiki_page",
+    ];
+    let rows = v
+        .as_array()
+        .ok_or_else(|| "graph-search response must be an array".to_owned())?;
+    rows.iter()
+        .enumerate()
+        .map(|(index, hit)| {
+            let object = hit
+                .as_object()
+                .ok_or_else(|| format!("graph-search hit[{index}] must be an object"))?;
+            let source_kind = object
+                .get("source_kind")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| {
+                    format!("graph-search hit[{index}].source_kind missing or not a string")
+                })?;
+            if !SOURCE_KINDS.contains(&source_kind) {
+                return Err(format!(
+                    "graph-search hit[{index}].source_kind is not a producer enum value"
+                ));
+            }
+            let result_kind = object
+                .get("result_kind")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| {
+                    format!("graph-search hit[{index}].result_kind missing or not a string")
+                })?;
+            if !RESULT_KINDS.contains(&result_kind) {
+                return Err(format!(
+                    "graph-search hit[{index}].result_kind is not a producer enum value"
+                ));
+            }
+            if !object
+                .get("excerpt")
+                .is_some_and(serde_json::Value::is_string)
+            {
+                return Err(format!(
+                    "graph-search hit[{index}].excerpt missing or not a string"
+                ));
+            }
+            let score = object
+                .get("score")
+                .and_then(serde_json::Value::as_f64)
+                .ok_or_else(|| {
+                    format!("graph-search hit[{index}].score missing or not a finite number")
+                })?;
+            if !score.is_finite() {
+                return Err(format!("graph-search hit[{index}].score must be finite"));
+            }
+            if let Some(block) = object.get("block") {
+                if !block.is_null() {
+                    if !block.is_object() {
+                        return Err(format!(
+                            "graph-search hit[{index}].block must be absent, null, or a canonical LoomBlock object"
+                        ));
+                    }
+                    block_to_leaf(block).map_err(|error| {
+                        format!("graph-search hit[{index}].block is not canonical: {error}")
+                    })?;
+                }
+            }
+            serde_json::from_value::<LoomGraphSearchHit>(hit.clone())
+                .map_err(|error| format!("graph-search hit[{index}] malformed: {error}"))
+                .and_then(|parsed| {
+                    if parsed.source_kind.trim().is_empty()
+                        || parsed.result_kind.trim().is_empty()
+                        || parsed.ref_id.trim().is_empty()
+                    {
+                        Err(format!(
+                            "graph-search hit[{index}] has an empty identity field"
+                        ))
+                    } else {
+                        Ok(parsed)
+                    }
+                })
+        })
+        .collect()
+}
+
+fn parse_bookmark_response(
+    value: &serde_json::Value,
+    expected_workspace_id: &str,
+    allow_absent_state: bool,
+) -> Result<(serde_json::Value, Option<String>), String> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| "search-bookmarks response must be an object".to_owned())?;
+    let workspace_id = object
+        .get("workspace_id")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            "search-bookmarks response.workspace_id missing or not a string".to_owned()
+        })?;
+    if workspace_id != expected_workspace_id {
+        return Err(format!(
+            "search-bookmarks response workspace mismatch: expected {expected_workspace_id}, got {workspace_id}"
+        ));
+    }
+    let bookmark_state = object
+        .get("bookmark_state")
+        .ok_or_else(|| "search-bookmarks response.bookmark_state is missing".to_owned())?;
+    if bookmark_state.is_null() {
+        if !allow_absent_state {
+            return Err("search-bookmarks save response.bookmark_state is null".to_owned());
+        }
+        for field in ["updated_at", "event_ledger_event_id"] {
+            if !object.get(field).is_some_and(serde_json::Value::is_null) {
+                return Err(format!(
+                    "search-bookmarks empty response.{field} must be present and null"
+                ));
+            }
+        }
+        return Ok((serde_json::json!({}), None));
+    }
+    if !bookmark_state.is_object() {
+        return Err(
+            "search-bookmarks response.bookmark_state must be an object or null".to_owned(),
+        );
+    }
+    let updated_at = object
+        .get("updated_at")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| "search-bookmarks response.updated_at missing or not a string".to_owned())?;
+    if updated_at.trim().is_empty() {
+        return Err("search-bookmarks response.updated_at must not be blank".to_owned());
+    }
+    let event_ledger_event_id = object
+        .get("event_ledger_event_id")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| {
+            "search-bookmarks response.event_ledger_event_id missing or not a string".to_owned()
+        })?;
+    if event_ledger_event_id.trim().is_empty() {
+        return Err("search-bookmarks response.event_ledger_event_id must not be blank".to_owned());
+    }
+    Ok((
+        bookmark_state.clone(),
+        Some(event_ledger_event_id.trim().to_owned()),
+    ))
+}
+
 /// REST client for the VERIFIED workspace search + search-bookmark surfaces the MT-029 Find-in-Files
 /// panel binds: `GET /loom/graph-search` (paginated) and `GET/PUT /search-bookmarks`.
 #[derive(Clone)]
@@ -5567,7 +8554,7 @@ pub struct WorkspaceSearchClient {
 impl WorkspaceSearchClient {
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -5650,6 +8637,7 @@ impl WorkspaceSearchClient {
         path_filter: &str,
         opts: SearchMatchOptions,
         result_set_key: String,
+        stamp: FindInFilesStamp,
         cell: GraphSearchCell,
     ) {
         let url = self.graph_search_url(workspace_id);
@@ -5673,49 +8661,57 @@ impl WorkspaceSearchClient {
                 );
                 match get_json(&client, &url, &params).await {
                     Ok(v) => {
-                        let page: Vec<LoomGraphSearchHit> = match v.as_array() {
-                            Some(arr) => arr
-                                .iter()
-                                .filter_map(|h| serde_json::from_value(h.clone()).ok())
-                                .collect(),
-                            None => Vec::new(),
+                        let page = match parse_graph_search_page(&v) {
+                            Ok(page) => page,
+                            Err(error) => break Err(error),
                         };
                         let page_len = page.len();
                         all.extend(page);
                         if page_len < SEARCH_PAGE_SIZE as usize {
                             break Ok((all, result_set_key));
                         }
-                        offset += SEARCH_PAGE_SIZE;
+                        let Some(next_offset) = offset.checked_add(SEARCH_PAGE_SIZE) else {
+                            break Err("graph-search pagination offset overflow".to_owned());
+                        };
+                        offset = next_offset;
                     }
                     Err(e) => break Err(e.to_string()),
                 }
             };
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result);
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back(FindInFilesDelivery {
+                    stamp,
+                    outcome: result,
+                });
             }
         });
     }
 
-    /// Load the saved-search bookmark state off the UI thread, delivering `(bookmark_state_blob, None)`
-    /// into `cell`. An absent `bookmark_state` (no bookmarks saved yet) yields an empty blob, never an
-    /// error.
-    pub fn load_bookmarks(&self, workspace_id: &str, cell: BookmarkStateCell) {
+    /// Load the saved-search bookmark state off the UI thread, delivering
+    /// `(bookmark_state_blob, None, producer_receipt?)` into `cell`. An absent `bookmark_state` (no
+    /// bookmarks saved yet) yields an empty blob with no receipt, never an error.
+    pub fn load_bookmarks(
+        &self,
+        workspace_id: &str,
+        stamp: FindInFilesStamp,
+        cell: BookmarkStateCell,
+    ) {
         let url = self.bookmarks_url(workspace_id);
+        let expected_workspace_id = workspace_id.to_owned();
         let client = self.client.clone();
         self.runtime.spawn(async move {
             let result = get_json(&client, &url, &[])
                 .await
-                .map(|v| {
-                    let blob = v
-                        .get("bookmark_state")
-                        .filter(|b| !b.is_null())
-                        .cloned()
-                        .unwrap_or_else(|| serde_json::json!({}));
-                    (blob, None)
-                })
-                .map_err(|e| e.to_string());
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result);
+                .map_err(|e| e.to_string())
+                .and_then(|v| {
+                    parse_bookmark_response(&v, &expected_workspace_id, true)
+                        .map(|(blob, receipt)| (blob, None, receipt))
+                });
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back(FindInFilesDelivery {
+                    stamp,
+                    outcome: result,
+                });
             }
         });
     }
@@ -5734,33 +8730,35 @@ impl WorkspaceSearchClient {
         }
     }
 
-    /// Save the bookmark state off the UI thread, delivering `(saved_blob, Some(status))` into `cell`.
-    /// The saved blob is re-read from the PUT response's `bookmark_state` so the panel renders the
-    /// canonical persisted list (not the optimistic local copy).
+    /// Save the bookmark state off the UI thread, delivering
+    /// `(saved_blob, Some(status), Some(event_ledger_event_id))` into `cell`. The saved blob and durable
+    /// receipt are re-read from the PUT response so the panel renders canonical persisted state and can
+    /// attribute the terminal mutation after a workspace rebind.
     pub fn save_bookmarks(
         &self,
         workspace_id: &str,
         bookmark_state: serde_json::Value,
         status: String,
+        stamp: FindInFilesStamp,
         cell: BookmarkStateCell,
     ) {
         let spec = self.save_bookmarks_request(workspace_id, bookmark_state.clone());
         let body = spec.body.unwrap_or_default();
+        let expected_workspace_id = workspace_id.to_owned();
         let client = self.client.clone();
         self.runtime.spawn(async move {
             let result = put_json(&client, &spec.url, &body)
                 .await
-                .map(|v| {
-                    let blob = v
-                        .get("bookmark_state")
-                        .filter(|b| !b.is_null())
-                        .cloned()
-                        .unwrap_or(bookmark_state);
-                    (blob, Some(status))
-                })
-                .map_err(|e| e.to_string());
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result);
+                .map_err(|e| e.to_string())
+                .and_then(|v| {
+                    parse_bookmark_response(&v, &expected_workspace_id, false)
+                        .map(|(blob, receipt)| (blob, Some(status), receipt))
+                });
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back(FindInFilesDelivery {
+                    stamp,
+                    outcome: result,
+                });
             }
         });
     }
@@ -5851,6 +8849,8 @@ fn required_doc_value(doc: &serde_json::Value, field: &str) -> Result<serde_json
 pub enum DocSaveOutcome {
     /// 200: the save committed; carries the `save_receipt_event_id`.
     Saved(String),
+    /// 200: content committed, but EventLedger receipt append failed or returned no usable id.
+    CommittedWithoutReceipt { receipt_error: Option<String> },
     /// 409: the document changed since preview — NOT overwritten (RISK-2 data-loss control).
     Conflict,
     /// A non-409 failure (network / server / schema).
@@ -5864,32 +8864,110 @@ pub enum DocSaveOutcome {
 /// `plan_count` is the original number of plans (carried for the success status line).
 pub fn fold_apply_outcomes(
     outcomes: &[(String, DocSaveOutcome)],
-    plan_count: usize,
+    plans: &[crate::find_in_files::ReplacementPlan],
 ) -> crate::find_in_files::ReplaceDelivery {
     let mut receipts: Vec<String> = Vec::new();
+    let mut audit_receipts = Vec::new();
     let mut failure: Option<String> = None;
-    for (document_id, outcome) in outcomes {
+    for (index, (document_id, outcome)) in outcomes.iter().enumerate() {
+        let plan = plans
+            .get(index)
+            .filter(|plan| plan.document_id == *document_id);
+        let before_sha256 = plan
+            .map(|plan| plan.before_sha256.clone())
+            .unwrap_or_default();
+        let after_sha256 = plan
+            .map(|plan| plan.after_sha256.clone())
+            .unwrap_or_default();
         match outcome {
-            DocSaveOutcome::Saved(receipt) => receipts.push(receipt.clone()),
+            DocSaveOutcome::Saved(receipt) => {
+                receipts.push(receipt.clone());
+                audit_receipts.push(crate::find_in_files::ReplaceAuditReceipt {
+                    document_id: document_id.clone(),
+                    before_sha256,
+                    after_sha256,
+                    outcome: crate::find_in_files::ReplaceAuditOutcome::Saved,
+                    save_receipt_event_id: Some(receipt.clone()),
+                    error: None,
+                });
+            }
+            DocSaveOutcome::CommittedWithoutReceipt { receipt_error } => {
+                audit_receipts.push(crate::find_in_files::ReplaceAuditReceipt {
+                    document_id: document_id.clone(),
+                    before_sha256,
+                    after_sha256,
+                    outcome: crate::find_in_files::ReplaceAuditOutcome::CommittedWithoutReceipt,
+                    save_receipt_event_id: None,
+                    error: receipt_error.clone().or_else(|| {
+                        Some("document committed without a save receipt event id".to_owned())
+                    }),
+                });
+            }
             DocSaveOutcome::Conflict => {
-                failure = Some(format!(
+                let error = format!(
                     "Document {document_id} changed since preview (version conflict); not overwritten."
-                ));
+                );
+                audit_receipts.push(crate::find_in_files::ReplaceAuditReceipt {
+                    document_id: document_id.clone(),
+                    before_sha256,
+                    after_sha256,
+                    outcome: crate::find_in_files::ReplaceAuditOutcome::Conflict,
+                    save_receipt_event_id: None,
+                    error: Some(error.clone()),
+                });
+                failure = Some(error);
                 break;
             }
             DocSaveOutcome::Failed(msg) => {
-                failure = Some(format!("Save of {document_id} failed: {msg}"));
+                let error = format!("Save of {document_id} failed: {msg}");
+                audit_receipts.push(crate::find_in_files::ReplaceAuditReceipt {
+                    document_id: document_id.clone(),
+                    before_sha256,
+                    after_sha256,
+                    outcome: crate::find_in_files::ReplaceAuditOutcome::Failed,
+                    save_receipt_event_id: None,
+                    error: Some(error.clone()),
+                });
+                failure = Some(error);
                 break;
             }
         }
     }
     match failure {
         // RISK-1/MC-1: a partial failure preserves the receipts already collected.
-        Some(error) => crate::find_in_files::ReplaceDelivery::AppliedPartial { receipts, error },
+        Some(error) => crate::find_in_files::ReplaceDelivery::AppliedPartial {
+            receipts,
+            audit_receipts,
+            error,
+        },
         None => crate::find_in_files::ReplaceDelivery::Applied {
             receipts,
-            plan_count,
+            audit_receipts,
+            plan_count: plans.len(),
         },
+    }
+}
+
+/// Convert a cooperatively cancelled prefix into its truthful delivery. Every completed outcome is
+/// folded first, so committed saves and committed-without-receipt rows remain visible; a terminal
+/// conflict/failure still wins over a concurrent cancel request.
+fn fold_cancelled_apply_outcomes(
+    outcomes: &[(String, DocSaveOutcome)],
+    plans: &[crate::find_in_files::ReplacementPlan],
+) -> crate::find_in_files::ReplaceDelivery {
+    let processed_plan_count = outcomes.len().min(plans.len());
+    let folded = fold_apply_outcomes(outcomes, &plans[..processed_plan_count]);
+    match folded {
+        crate::find_in_files::ReplaceDelivery::Applied {
+            receipts,
+            audit_receipts,
+            ..
+        } => crate::find_in_files::ReplaceDelivery::Cancelled {
+            receipts,
+            audit_receipts,
+            skipped_plan_count: plans.len().saturating_sub(processed_plan_count),
+        },
+        terminal => terminal,
     }
 }
 
@@ -5897,7 +8975,7 @@ pub fn fold_apply_outcomes(
 /// enum so the module's `ReplaceDelivery` can be built from it without backend_client depending on the
 /// module. (The module defines its own `ReplaceDelivery`; this is the transport-level result feeding it
 /// via the closure the module passes — see `RichDocClient::preview_replace`/`apply_plans`.)
-pub type FindReplaceCell = Arc<Mutex<Option<crate::find_in_files::ReplaceDelivery>>>;
+pub type FindReplaceCell = FindInFilesDeliveryQueue<crate::find_in_files::ReplaceDelivery>;
 
 /// REST client for the VERIFIED rich-document load + save routes the MT-029 replace pipeline drives.
 #[derive(Clone)]
@@ -5948,9 +9026,10 @@ impl RichDocClient {
         replacement: String,
         opts: crate::find_in_files::MatchOptions,
         key: String,
+        stamp: FindInFilesStamp,
         cell: FindReplaceCell,
     ) {
-        let _ = workspace_id; // documents are addressed by global KRD- id, not workspace-scoped.
+        let workspace_id = workspace_id.to_owned();
         let this = self.clone();
         self.runtime.spawn(async move {
             let mut plans = Vec::new();
@@ -5958,6 +9037,20 @@ impl RichDocClient {
             for document_id in &document_ids {
                 match this.load_document(document_id).await {
                     Ok(doc) => {
+                        if doc.document_id != *document_id {
+                            error = Some(format!(
+                                "Replace preview rejected document identity mismatch: requested {document_id}, loaded {}",
+                                doc.document_id
+                            ));
+                            break;
+                        }
+                        if doc.workspace_id != workspace_id {
+                            error = Some(format!(
+                                "Replace preview rejected cross-workspace document {document_id}: expected workspace {workspace_id}, loaded {}",
+                                doc.workspace_id
+                            ));
+                            break;
+                        }
                         let replaced = crate::find_in_files::replace_in_content(
                             &doc.content_json,
                             &regex,
@@ -5967,11 +9060,18 @@ impl RichDocClient {
                         if replaced.count == 0 {
                             continue;
                         }
+                        let before_sha256 =
+                            crate::find_in_files::content_json_sha256(&doc.content_json);
+                        let after_sha256 =
+                            crate::find_in_files::content_json_sha256(&replaced.content);
                         plans.push(crate::find_in_files::ReplacementPlan {
+                            workspace_id: doc.workspace_id,
                             document_id: doc.document_id,
                             title: doc.title,
                             expected_version: doc.doc_version,
                             content_json_after: replaced.content,
+                            before_sha256,
+                            after_sha256,
                             crdt_document_id: doc.crdt_document_id,
                             match_count: replaced.count,
                             before_preview: replaced.before_preview,
@@ -5989,8 +9089,11 @@ impl RichDocClient {
                 Some(msg) => crate::find_in_files::ReplaceDelivery::PreviewError(msg),
                 None => crate::find_in_files::ReplaceDelivery::Preview { plans, key },
             };
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some(delivery);
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back(FindInFilesDelivery {
+                    stamp,
+                    outcome: delivery,
+                });
             }
         });
     }
@@ -6004,11 +9107,12 @@ impl RichDocClient {
         &self,
         workspace_id: &str,
         plans: Vec<crate::find_in_files::ReplacementPlan>,
+        stamp: FindInFilesStamp,
         cell: FindReplaceCell,
+        cancel: Arc<AtomicBool>,
     ) {
-        let _ = workspace_id;
+        let workspace_id = workspace_id.to_owned();
         let this = self.clone();
-        let plan_count = plans.len();
         self.runtime.spawn(async move {
             // Save sequentially, capturing each (document_id, outcome) and STOPPING at the first
             // non-success so a since-edited later doc is never overwritten on a stale plan. The break is
@@ -6016,6 +9120,46 @@ impl RichDocClient {
             // failure.
             let mut outcomes: Vec<(String, DocSaveOutcome)> = Vec::with_capacity(plans.len());
             for plan in &plans {
+                if cancel.load(Ordering::Acquire) {
+                    break;
+                }
+                if plan.workspace_id != workspace_id {
+                    outcomes.push((
+                        plan.document_id.clone(),
+                        DocSaveOutcome::Failed(format!(
+                            "replacement plan workspace mismatch: expected {workspace_id}, plan carries {}",
+                            plan.workspace_id
+                        )),
+                    ));
+                    break;
+                }
+                let loaded = match this.load_document(&plan.document_id).await {
+                    Ok(loaded) => loaded,
+                    Err(error) => {
+                        outcomes.push((
+                            plan.document_id.clone(),
+                            DocSaveOutcome::Failed(format!(
+                                "pre-save workspace revalidation failed: {error}"
+                            )),
+                        ));
+                        break;
+                    }
+                };
+                if loaded.document_id != plan.document_id || loaded.workspace_id != workspace_id {
+                    outcomes.push((
+                        plan.document_id.clone(),
+                        DocSaveOutcome::Failed(format!(
+                            "pre-save authority mismatch: expected {workspace_id}/{}, loaded {}/{}",
+                            plan.document_id,
+                            loaded.workspace_id,
+                            loaded.document_id
+                        )),
+                    ));
+                    break;
+                }
+                if cancel.load(Ordering::Acquire) {
+                    break;
+                }
                 let outcome = this
                     .save_document(
                         &plan.document_id,
@@ -6023,15 +9167,25 @@ impl RichDocClient {
                         plan.expected_version,
                     )
                     .await;
-                let is_terminal = !matches!(outcome, DocSaveOutcome::Saved(_));
+                let is_terminal = matches!(
+                    outcome,
+                    DocSaveOutcome::Conflict | DocSaveOutcome::Failed(_)
+                );
                 outcomes.push((plan.document_id.clone(), outcome));
                 if is_terminal {
                     break;
                 }
             }
-            let delivery = fold_apply_outcomes(&outcomes, plan_count);
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some(delivery);
+            let delivery = if cancel.load(Ordering::Acquire) && outcomes.len() < plans.len() {
+                fold_cancelled_apply_outcomes(&outcomes, &plans)
+            } else {
+                fold_apply_outcomes(&outcomes, &plans)
+            };
+            if let Ok(mut queue) = cell.lock() {
+                queue.push_back(FindInFilesDelivery {
+                    stamp,
+                    outcome: delivery,
+                });
             }
         });
     }
@@ -6101,7 +9255,15 @@ impl RichDocClient {
             .save_document(&headers, document_id, &body)
             .await
         {
-            Ok(saved) => DocSaveOutcome::Saved(saved.save_receipt_event_id.unwrap_or_default()),
+            Ok(saved) => match saved
+                .save_receipt_event_id
+                .filter(|receipt| !receipt.trim().is_empty())
+            {
+                Some(receipt) => DocSaveOutcome::Saved(receipt),
+                None => DocSaveOutcome::CommittedWithoutReceipt {
+                    receipt_error: saved.receipt_error,
+                },
+            },
             Err(crate::backend::knowledge_documents::KnowledgeDocumentsError::SaveConflict {
                 ..
             }) => DocSaveOutcome::Conflict,
@@ -6118,15 +9280,22 @@ impl RichDocClient {
 pub struct RichDocSaveBackend {
     client: crate::backend::knowledge_documents::KnowledgeDocumentsClient,
     session_run_id: String,
+    actor_id: String,
 }
 
 impl RichDocSaveBackend {
     pub fn new(base_url: impl Into<String>) -> Self {
         Self {
-            client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_base_url(
+            // This constructor is mounted by `HandshakeApp` with its configured backend URL, so it is a
+            // production transport even though the URL is injectable. Keep the injectable URL while
+            // retaining the process-wide bounded pool; `KnowledgeDocumentsClient::with_base_url` remains
+            // the isolated fresh-pool seam for its direct HTTP tests.
+            client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
+                shared_http_client(),
                 base_url,
             ),
             session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
+            actor_id: crate::backend_client::DOC_ACTOR_ID.to_owned(),
         }
     }
 
@@ -6134,17 +9303,32 @@ impl RichDocSaveBackend {
         Self {
             client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::production(),
             session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
+            actor_id: crate::backend_client::DOC_ACTOR_ID.to_owned(),
         }
+    }
+
+    /// Production transport with an explicit operator/agent identity. Parallel mounted hosts use this
+    /// so canonical save receipts remain attributable instead of collapsing onto one process constant.
+    pub fn new_with_actor(base_url: impl Into<String>, actor_id: impl Into<String>) -> Self {
+        let mut backend = Self::new(base_url);
+        backend.actor_id = actor_id.into();
+        backend
     }
 
     fn headers(
         &self,
         document_id: &str,
     ) -> crate::backend::knowledge_documents::HskDocumentHeaders {
-        crate::backend::knowledge_documents::HskDocumentHeaders::for_operator(
-            self.session_run_id.clone(),
-            document_id,
-        )
+        crate::backend::knowledge_documents::HskDocumentHeaders {
+            actor_id: self.actor_id.clone(),
+            kernel_task_run_id: format!("native-editor-doc-{document_id}"),
+            session_run_id: self.session_run_id.clone(),
+            actor_kind: Some(crate::backend_client::DOC_ACTOR_KIND.to_owned()),
+            correlation_id: Some(format!(
+                "native-editor-save-{document_id}-{}",
+                self.session_run_id
+            )),
+        }
     }
 }
 
@@ -6174,7 +9358,22 @@ impl crate::rich_editor::save::save_manager::SaveBackend for RichDocSaveBackend 
                         &document_id,
                         expected_version.saturating_add(1),
                     );
-                    Ok(crate::rich_editor::save::save_manager::RichDocSaveResult { document })
+                    Ok(crate::rich_editor::save::save_manager::RichDocSaveResult {
+                        document,
+                        backlinks_persisted: resp.backlinks_persisted,
+                        backlinks_error: resp.backlinks_error,
+                        backlinks_skipped_reason: resp.backlinks_skipped_reason,
+                        save_receipt_event_id: resp.save_receipt_event_id,
+                        attribution: Some(
+                            crate::rich_editor::save::save_manager::SaveAttribution {
+                                actor_id: headers.actor_id,
+                                actor_kind: headers.actor_kind.unwrap_or_default(),
+                                kernel_task_run_id: headers.kernel_task_run_id,
+                                session_run_id: headers.session_run_id,
+                                correlation_id: headers.correlation_id,
+                            },
+                        ),
+                    })
                 }
                 Err(
                     crate::backend::knowledge_documents::KnowledgeDocumentsError::SaveConflict {
@@ -6240,6 +9439,7 @@ fn doc_error_to_save_error(
             SaveError::SchemaRejected(format!("batch too large: {len} operations (max {max})"))
         }
         E::BatchEmpty => SaveError::SchemaRejected("batch is empty".to_owned()),
+        E::TitleAmbiguous { detail } => SaveError::Server(409, detail),
         E::SaveConflict { .. } => SaveError::Server(409, "unexpected save conflict".to_owned()),
     }
 }
@@ -6256,7 +9456,11 @@ pub struct RichDocDraftBackend {
 impl RichDocDraftBackend {
     pub fn new(base_url: impl Into<String>) -> Self {
         Self {
-            client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_base_url(
+            // Draft autosave is mounted beside `RichDocSaveBackend`; it must carry the same bounded
+            // connect/request policy instead of turning an injectable production URL into an unbounded
+            // private client.
+            client: crate::backend::knowledge_documents::KnowledgeDocumentsClient::with_client(
+                shared_http_client(),
                 base_url,
             ),
             session_run_id: crate::rich_editor::save::save_manager::new_session_run_id(),
@@ -6360,6 +9564,7 @@ fn doc_error_to_draft_error(
             format!("batch too large: {len} operations (max {max})"),
         ),
         E::BatchEmpty => DraftError::Server(400, "batch is empty".to_owned()),
+        E::TitleAmbiguous { detail } => DraftError::Server(409, detail),
     }
 }
 
@@ -6402,6 +9607,7 @@ pub struct AtelierItemRow {
     pub file_name: String,
     pub source_path: String,
     pub lane: String,
+    pub loom_block_id: Option<String>,
 }
 
 /// One command-corpus entry row (the verified subset of `CommandCorpusEntryResponse`). `action_id` is the
@@ -6422,13 +9628,16 @@ pub struct AtelierSidePanelData {
     pub corpus: Vec<AtelierCorpusRow>,
 }
 
-/// One-slot delivery cell for the off-thread side-panel load (`Ok(data)` / `Err(msg)`), drained by the
-/// egui UI thread next frame.
-pub type AtelierSidePanelCell = Arc<Mutex<Option<Result<AtelierSidePanelData, String>>>>;
+/// FIFO deliveries for off-thread side-panel loads. A queue is required because a slower stale request
+/// may finish after the newest request but before the UI polls; a one-slot cell would let it overwrite
+/// the newer completion before generation filtering can run.
+pub type AtelierSidePanelCell =
+    Arc<Mutex<std::collections::VecDeque<(u64, Result<AtelierSidePanelData, String>)>>>;
 
-/// One-slot delivery cell for an off-thread per-batch items load, keyed by the batch id so a stale
-/// response for a previously-expanded batch is discardable.
-pub type AtelierItemsCell = Arc<Mutex<Option<(String, Result<Vec<AtelierItemRow>, String>)>>>;
+/// FIFO deliveries for off-thread per-batch item loads, keyed by generation + batch id so reordered
+/// completions are all observed and stale ones discarded without overwriting a newer result.
+pub type AtelierItemsCell =
+    Arc<Mutex<std::collections::VecDeque<(u64, String, Result<Vec<AtelierItemRow>, String>)>>>;
 
 /// REST client for the VERIFIED atelier read surface the MT-033 AtelierSidePanel consumes.
 #[derive(Clone)]
@@ -6442,7 +9651,7 @@ impl AtelierClient {
     /// Build a client against `base_url` (e.g. [`BACKEND_BASE_URL`]) bridging onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -6486,14 +9695,14 @@ impl AtelierClient {
     /// Load the batches + command corpus off the UI thread, delivering the parsed projection into `cell`.
     /// A failure of EITHER read fails the whole load (the panel surfaces the error text, never a blank
     /// half-loaded panel). The two reads run concurrently on the runtime.
-    pub fn fetch_side_panel(&self, cell: AtelierSidePanelCell) {
+    pub fn fetch_side_panel(&self, generation: u64, cell: AtelierSidePanelCell) {
         let batches_url = self.batches_request().url;
         let corpus_url = self.corpus_request().url;
         let client = self.client.clone();
         self.runtime.spawn(async move {
             let result = load_atelier_side_panel(&client, &batches_url, &corpus_url).await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some(result.map_err(|e| e.to_string()));
+                slot.push_back((generation, result.map_err(|e| e.to_string())));
             }
         });
     }
@@ -6501,7 +9710,7 @@ impl AtelierClient {
     /// Load one batch's items off the UI thread, delivering `(batch_id, Ok(items))` / `(batch_id, Err)`
     /// into `cell`. The host matches the delivered `batch_id` against the currently-expanded batch so a
     /// stale response for a since-collapsed batch is discarded.
-    pub fn fetch_items(&self, batch_id: &str, cell: AtelierItemsCell) {
+    pub fn fetch_items(&self, generation: u64, batch_id: &str, cell: AtelierItemsCell) {
         let url = self.items_request(batch_id).url;
         let client = self.client.clone();
         let id = batch_id.to_owned();
@@ -6510,7 +9719,7 @@ impl AtelierClient {
                 .await
                 .map_err(|e| e.to_string());
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some((id, result));
+                slot.push_back((generation, id, result));
             }
         });
     }
@@ -6522,42 +9731,71 @@ async fn load_atelier_side_panel(
     batches_url: &str,
     corpus_url: &str,
 ) -> Result<AtelierSidePanelData, AppError> {
-    let batches = fetch_atelier_batches(client, batches_url).await?;
-    let corpus = fetch_atelier_corpus(client, corpus_url).await?;
+    let (batches, corpus) = tokio::try_join!(
+        fetch_atelier_batches(client, batches_url),
+        fetch_atelier_corpus(client, corpus_url)
+    )?;
     Ok(AtelierSidePanelData { batches, corpus })
 }
 
-/// `GET {url}` and parse the `Vec<IntakeBatchResponse>` into [`AtelierBatchRow`]s. A row missing a
-/// `batch_id` is skipped (defensive — never a panic, never a fabricated id).
+#[derive(serde::Deserialize)]
+struct AtelierBatchWire {
+    batch_id: String,
+    source_label: String,
+    status: String,
+}
+
+/// `GET {url}` and strictly parse the required `IntakeBatchResponse` identity/display fields. A malformed
+/// row fails the load visibly instead of silently disappearing or acquiring a fabricated default.
 async fn fetch_atelier_batches(
     client: &reqwest::Client,
     url: &str,
 ) -> Result<Vec<AtelierBatchRow>, AppError> {
-    let v = get_json(client, url, &[]).await?;
-    let arr = v.as_array().cloned().unwrap_or_default();
-    let rows = arr
-        .iter()
-        .filter_map(|row| {
-            let batch_id = row.get("batch_id").and_then(|x| x.as_str())?.to_owned();
-            if batch_id.is_empty() {
-                return None;
+    let wire: Vec<AtelierBatchWire> = serde_json::from_value(get_json(client, url, &[]).await?)
+        .map_err(|error| AppError::Parse(format!("atelier batches response malformed: {error}")))?;
+    let rows: Vec<AtelierBatchRow> = wire
+        .into_iter()
+        .enumerate()
+        .map(|(index, row)| {
+            if row.batch_id.trim().is_empty()
+                || row.source_label.trim().is_empty()
+                || row.status.trim().is_empty()
+            {
+                return Err(AppError::Parse(format!(
+                    "atelier batches row[{index}] has an empty required field"
+                )));
             }
-            Some(AtelierBatchRow {
-                batch_id,
-                source_label: row
-                    .get("source_label")
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("(unnamed batch)")
-                    .to_owned(),
-                status: row
-                    .get("status")
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("")
-                    .to_owned(),
+            uuid::Uuid::parse_str(&row.batch_id).map_err(|error| {
+                AppError::Parse(format!(
+                    "atelier batches row[{index}] has invalid batch_id: {error}"
+                ))
+            })?;
+            Ok(AtelierBatchRow {
+                batch_id: row.batch_id,
+                source_label: row.source_label,
+                status: row.status,
             })
         })
-        .collect();
+        .collect::<Result<_, _>>()?;
+    let mut seen = std::collections::HashSet::with_capacity(rows.len());
+    if let Some(duplicate) = rows
+        .iter()
+        .map(|row| row.batch_id.as_str())
+        .find(|id| !seen.insert((*id).to_owned()))
+    {
+        return Err(AppError::Parse(format!(
+            "atelier batches response contains duplicate batch_id {duplicate}"
+        )));
+    }
     Ok(rows)
+}
+
+#[derive(serde::Deserialize)]
+struct AtelierCorpusWire {
+    entry_id: String,
+    action_id: String,
+    owner: String,
+    execution_class: String,
 }
 
 /// `GET {url}` and parse the `Vec<CommandCorpusEntryResponse>` into [`AtelierCorpusRow`]s.
@@ -6565,37 +9803,64 @@ async fn fetch_atelier_corpus(
     client: &reqwest::Client,
     url: &str,
 ) -> Result<Vec<AtelierCorpusRow>, AppError> {
-    let v = get_json(client, url, &[]).await?;
-    let arr = v.as_array().cloned().unwrap_or_default();
-    let rows = arr
-        .iter()
-        .filter_map(|row| {
-            let entry_id = row.get("entry_id").and_then(|x| x.as_str())?.to_owned();
-            let action_id = row
-                .get("action_id")
-                .and_then(|x| x.as_str())
-                .unwrap_or("")
-                .to_owned();
-            if entry_id.is_empty() {
-                return None;
+    let wire: Vec<AtelierCorpusWire> = serde_json::from_value(get_json(client, url, &[]).await?)
+        .map_err(|error| {
+            AppError::Parse(format!(
+                "atelier command-corpus response malformed: {error}"
+            ))
+        })?;
+    let rows: Vec<AtelierCorpusRow> = wire
+        .into_iter()
+        .enumerate()
+        .map(|(index, row)| {
+            if row.entry_id.trim().is_empty()
+                || row.action_id.trim().is_empty()
+                || row.owner.trim().is_empty()
+                || row.execution_class.trim().is_empty()
+            {
+                return Err(AppError::Parse(format!(
+                    "atelier command-corpus row[{index}] has an empty required field"
+                )));
             }
-            Some(AtelierCorpusRow {
-                entry_id,
-                action_id,
-                owner: row
-                    .get("owner")
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("")
-                    .to_owned(),
-                execution_class: row
-                    .get("execution_class")
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("")
-                    .to_owned(),
+            uuid::Uuid::parse_str(&row.entry_id).map_err(|error| {
+                AppError::Parse(format!(
+                    "atelier command-corpus row[{index}] has invalid entry_id: {error}"
+                ))
+            })?;
+            Ok(AtelierCorpusRow {
+                entry_id: row.entry_id,
+                action_id: row.action_id,
+                owner: row.owner,
+                execution_class: row.execution_class,
             })
         })
-        .collect();
+        .collect::<Result<_, _>>()?;
+    let mut seen = std::collections::HashSet::with_capacity(rows.len());
+    if let Some(duplicate) = rows
+        .iter()
+        .map(|row| row.entry_id.as_str())
+        .find(|id| !seen.insert((*id).to_owned()))
+    {
+        return Err(AppError::Parse(format!(
+            "atelier command-corpus response contains duplicate entry_id {duplicate}"
+        )));
+    }
     Ok(rows)
+}
+
+#[derive(serde::Deserialize)]
+struct AtelierItemsEnvelopeWire {
+    items: Vec<AtelierItemWire>,
+}
+
+#[derive(serde::Deserialize)]
+struct AtelierItemWire {
+    item_id: String,
+    file_name: String,
+    source_path: String,
+    lane: String,
+    #[serde(default)]
+    loom_block_id: Option<String>,
 }
 
 /// `GET {url}` and parse the `IntakeBatchItemsResponse.items[]` into [`AtelierItemRow`]s.
@@ -6603,39 +9868,53 @@ async fn fetch_atelier_items(
     client: &reqwest::Client,
     url: &str,
 ) -> Result<Vec<AtelierItemRow>, AppError> {
-    let v = get_json(client, url, &[]).await?;
-    let items = v
-        .get("items")
-        .and_then(|x| x.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let rows = items
-        .iter()
-        .filter_map(|row| {
-            let item_id = row.get("item_id").and_then(|x| x.as_str())?.to_owned();
-            if item_id.is_empty() {
-                return None;
+    parse_atelier_items(get_json(client, url, &[]).await?)
+}
+
+fn parse_atelier_items(value: serde_json::Value) -> Result<Vec<AtelierItemRow>, AppError> {
+    let envelope: AtelierItemsEnvelopeWire = serde_json::from_value(value).map_err(|error| {
+        AppError::Parse(format!("atelier batch-items response malformed: {error}"))
+    })?;
+    let rows: Vec<AtelierItemRow> = envelope
+        .items
+        .into_iter()
+        .enumerate()
+        .map(|(index, row)| {
+            if row.item_id.trim().is_empty()
+                || row.file_name.trim().is_empty()
+                || row.source_path.trim().is_empty()
+                || row.lane.trim().is_empty()
+            {
+                return Err(AppError::Parse(format!(
+                    "atelier batch-items row[{index}] has an empty required field"
+                )));
             }
-            Some(AtelierItemRow {
-                item_id,
-                file_name: row
-                    .get("file_name")
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("(unnamed item)")
-                    .to_owned(),
-                source_path: row
-                    .get("source_path")
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("")
-                    .to_owned(),
-                lane: row
-                    .get("lane")
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("")
-                    .to_owned(),
+            uuid::Uuid::parse_str(&row.item_id).map_err(|error| {
+                AppError::Parse(format!(
+                    "atelier batch-items row[{index}] has invalid item_id: {error}"
+                ))
+            })?;
+            Ok(AtelierItemRow {
+                item_id: row.item_id,
+                file_name: row.file_name,
+                source_path: row.source_path,
+                lane: row.lane,
+                loom_block_id: row
+                    .loom_block_id
+                    .filter(|block_id| !block_id.trim().is_empty()),
             })
         })
-        .collect();
+        .collect::<Result<_, _>>()?;
+    let mut seen = std::collections::HashSet::with_capacity(rows.len());
+    if let Some(duplicate) = rows
+        .iter()
+        .map(|row| row.item_id.as_str())
+        .find(|id| !seen.insert((*id).to_owned()))
+    {
+        return Err(AppError::Parse(format!(
+            "atelier batch-items response contains duplicate item_id {duplicate}"
+        )));
+    }
     Ok(rows)
 }
 
@@ -6662,6 +9941,50 @@ mod tests {
     }
 
     const BASE: &str = "http://test.local:1234";
+
+    #[test]
+    fn atelier_items_malformed_response_fails_then_valid_response_recovers() {
+        let malformed = parse_atelier_items(serde_json::json!({
+            "items": [{"item_id": "not-a-uuid", "file_name": "x.png"}]
+        }));
+        assert!(
+            malformed.is_err(),
+            "missing required fields and an invalid id must fail loudly"
+        );
+
+        let rows = parse_atelier_items(serde_json::json!({
+            "items": [{
+                "item_id": "01900000-0000-7000-8000-000000000033",
+                "file_name": "recovered.png",
+                "source_path": "/atelier/recovered.png",
+                "lane": "accept"
+            }]
+        }))
+        .expect("a later valid response must recover independently");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].file_name, "recovered.png");
+    }
+
+    #[test]
+    fn atelier_projection_requires_canonical_backend_relation() {
+        let unresolved = crate::interop::AtelierRef::new(
+            "item-without-relation",
+            crate::interop::AtelierItemKind::Media,
+            "Unresolved",
+        );
+        let error = canonical_atelier_projection_block_id(&unresolved)
+            .expect_err("a frontend must not invent canonical Loom identity");
+        assert!(error
+            .to_string()
+            .contains("no canonical Loom projection relation"));
+
+        let mut resolved = unresolved;
+        resolved.loom_block_id = Some("loom-canonical-1".to_owned());
+        assert_eq!(
+            canonical_atelier_projection_block_id(&resolved).unwrap(),
+            "loom-canonical-1"
+        );
+    }
 
     // ── SourceControlClient: stage / unstage / discard / diff / blame ────────────────────────────────
 
@@ -6813,14 +10136,34 @@ mod tests {
     fn loom_rename_request_body_contains_title() {
         let rt = rt();
         let c = LoomBlockClient::new(BASE, rt.handle().clone());
-        let spec = c.rename_request("ws1", "b3", "New Title");
+        let spec = c.rename_request("ws1", "b3", "New Title", Some("2026-07-16T10:20:30Z"));
         assert_eq!(
             spec.url,
             "http://test.local:1234/workspaces/ws1/loom/blocks/b3"
         );
         assert_eq!(
             spec.body.unwrap(),
-            serde_json::json!({ "title": "New Title" })
+            serde_json::json!({
+                "title": "New Title",
+                "expected_updated_at": "2026-07-16T10:20:30Z"
+            })
+        );
+    }
+
+    #[test]
+    fn canvas_title_rename_request_carries_concurrency_token() {
+        let rt = rt();
+        let client = CanvasTitleClient::new(BASE, rt.handle().clone());
+        let spec =
+            client.rename_request("canvas-7", "Architecture map", Some("2026-07-16T10:20:30Z"));
+        assert_eq!(spec.method, HttpMethod::Patch);
+        assert_eq!(spec.url, "http://test.local:1234/canvases/canvas-7");
+        assert_eq!(
+            spec.body.unwrap(),
+            serde_json::json!({
+                "title": "Architecture map",
+                "expected_updated_at": "2026-07-16T10:20:30Z",
+            })
         );
     }
 
@@ -7278,6 +10621,298 @@ mod tests {
         );
     }
 
+    // ── MT-022 LoomFolderClient: malformed-success responses fail closed ───────────────────────────
+
+    #[test]
+    fn loom_folder_list_rejects_successful_non_array_body() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("bounded folder client runtime");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let base = format!(
+            "http://{}",
+            listener.local_addr().expect("listener address")
+        );
+        let client = LoomFolderClient::new(base, rt.handle().clone());
+        let cell: FolderListCell = Arc::new(Mutex::new(VecDeque::new()));
+        client.fetch_folders("ws-malformed", 7, 11, Arc::clone(&cell));
+        let _ = capture_one_request_reply(listener, r#"{"folders":[]}"#);
+        rt.block_on(async {
+            for _ in 0..100 {
+                if !cell.lock().unwrap().is_empty() {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            panic!("folder-list malformed response was not delivered within 1 second");
+        });
+        let (workspace, epoch, sequence, result) = cell
+            .lock()
+            .unwrap()
+            .pop_front()
+            .expect("folder list delivery");
+        assert_eq!(
+            (workspace.as_str(), epoch, sequence),
+            ("ws-malformed", 7, 11)
+        );
+        assert!(result
+            .expect_err("successful non-array folder body must fail closed")
+            .contains("must be an array"));
+    }
+
+    #[test]
+    fn loom_folder_list_rejects_malformed_array_row() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("bounded folder client runtime");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let base = format!(
+            "http://{}",
+            listener.local_addr().expect("listener address")
+        );
+        let client = LoomFolderClient::new(base, rt.handle().clone());
+        let cell: FolderListCell = Arc::new(Mutex::new(VecDeque::new()));
+        client.fetch_folders("ws-malformed", 8, 12, Arc::clone(&cell));
+        let _ = capture_one_request_reply(listener, r#"[{"folder_id":"", "name":"empty id"}]"#);
+        rt.block_on(async {
+            for _ in 0..100 {
+                if !cell.lock().unwrap().is_empty() {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            panic!("folder-list malformed row was not delivered within 1 second");
+        });
+        let (_, _, _, result) = cell
+            .lock()
+            .unwrap()
+            .pop_front()
+            .expect("folder list delivery");
+        assert!(result
+            .expect_err("malformed folder row must fail closed")
+            .contains("folder_id must be a non-empty string"));
+    }
+
+    #[test]
+    fn loom_folder_children_fetches_every_offset_page_without_truncation() {
+        fn wire_block(index: usize) -> serde_json::Value {
+            serde_json::json!({
+                "block_id": format!("block-{index:04}"),
+                "workspace_id": "ws-paged",
+                "content_type": "note",
+                "title": format!("Block {index}"),
+                "pinned": false,
+                "favorite": false,
+                "pin_order": null,
+                "created_at": "2026-01-01T00:00:00Z",
+                "updated_at": "2026-01-01T00:00:00Z",
+                "derived": {}
+            })
+        }
+
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("bounded folder client runtime");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let first_listener = listener.try_clone().expect("clone page listener");
+        let base = format!(
+            "http://{}",
+            listener.local_addr().expect("listener address")
+        );
+        let client = LoomFolderClient::new(base, rt.handle().clone());
+        let cell: FolderChildrenCell = Arc::new(Mutex::new(None));
+        client.fetch_folder_blocks("ws-paged", "folder-paged", 3, 7, Arc::clone(&cell));
+
+        let first_page = serde_json::to_string(&(0..500).map(wire_block).collect::<Vec<_>>())
+            .expect("encode full first page");
+        let first_request = capture_one_request_reply(first_listener, &first_page);
+        let second_page = serde_json::to_string(&vec![wire_block(500)]).expect("encode final page");
+        let second_request = capture_one_request_reply(listener, &second_page);
+
+        rt.block_on(async {
+            for _ in 0..100 {
+                if cell.lock().unwrap().is_some() {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            panic!("paged folder children were not delivered within 1 second");
+        });
+        assert!(
+            first_request.contains("limit=500&offset=0"),
+            "{first_request}"
+        );
+        assert!(
+            second_request.contains("limit=500&offset=500"),
+            "{second_request}"
+        );
+        let (_, _, epoch, sequence, result) = cell.lock().unwrap().take().expect("paged delivery");
+        assert_eq!((epoch, sequence), (3, 7));
+        let leaves = result.expect("all pages parse");
+        assert_eq!(leaves.len(), 501);
+        assert_eq!(
+            leaves.first().map(|leaf| leaf.block_id.as_str()),
+            Some("block-0000")
+        );
+        assert_eq!(
+            leaves.last().map(|leaf| leaf.block_id.as_str()),
+            Some("block-0500")
+        );
+    }
+
+    #[test]
+    fn loom_folder_children_rejects_malformed_array_row() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("bounded folder client runtime");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let base = format!(
+            "http://{}",
+            listener.local_addr().expect("listener address")
+        );
+        let client = LoomFolderClient::new(base, rt.handle().clone());
+        let cell: FolderChildrenCell = Arc::new(Mutex::new(None));
+        client.fetch_folder_blocks("ws-malformed", "folder-1", 9, 13, Arc::clone(&cell));
+        let _ = capture_one_request_reply(listener, r#"[{"title":"missing id"}]"#);
+        rt.block_on(async {
+            for _ in 0..100 {
+                if cell.lock().unwrap().is_some() {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            panic!("folder-children malformed response was not delivered within 1 second");
+        });
+        let (workspace, folder, epoch, sequence, result) = cell
+            .lock()
+            .unwrap()
+            .take()
+            .expect("folder children delivery");
+        assert_eq!(
+            (workspace.as_str(), folder.as_str(), epoch, sequence),
+            ("ws-malformed", "folder-1", 9, 13)
+        );
+        assert!(result
+            .expect_err("malformed folder child row must fail closed")
+            .contains("block_id must be a non-empty string"));
+    }
+
+    #[test]
+    fn loom_folder_parsers_reject_wrong_types_but_allow_absent_optional_fields() {
+        let row = folder_to_row(&serde_json::json!({
+            "folder_id": "folder-1",
+            "workspace_id": "ws-1",
+            "name": "Inbox",
+            "sort_mode": "manual",
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+        }))
+        .expect("absent optional folder fields are legitimate");
+        assert_eq!(row.parent_folder_id, None);
+        assert_eq!(row.color, None);
+
+        for (field, bad) in [
+            ("name", serde_json::json!(7)),
+            ("parent_folder_id", serde_json::json!(7)),
+            ("color", serde_json::json!(false)),
+            ("sort_order", serde_json::json!("first")),
+            ("project_ref", serde_json::json!([])),
+            ("created_at", serde_json::json!(false)),
+        ] {
+            let mut malformed = serde_json::json!({
+                "folder_id":"folder-1", "workspace_id":"ws-1", "name":"Inbox",
+                "sort_mode":"manual", "created_at":"2026-01-01T00:00:00Z",
+                "updated_at":"2026-01-01T00:00:00Z"
+            });
+            malformed[field] = bad;
+            assert!(
+                folder_to_row(&malformed).is_err(),
+                "must fail closed: {malformed}"
+            );
+        }
+
+        let named_color = folder_to_row(&serde_json::json!({
+            "folder_id":"folder-color", "workspace_id":"ws-1", "name":"Color",
+            "color":"red", "sort_mode":"manual", "created_at":"2026-01-01T00:00:00Z",
+            "updated_at":"2026-01-01T00:00:00Z"
+        }))
+        .expect("named colors are legal backend values");
+        assert_eq!(named_color.color.as_deref(), Some("red"));
+
+        let leaf = block_to_leaf(&serde_json::json!({
+            "block_id": "block-1",
+            "workspace_id": "ws-1",
+            "title": null,
+            "content_type": "note",
+            "pinned": false,
+            "favorite": false,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "derived": {}
+        }))
+        .expect("nullable optional title is legitimate");
+        assert_eq!(leaf.title, "block-1");
+        for (field, bad) in [
+            ("title", serde_json::json!(9)),
+            ("content_type", serde_json::json!(false)),
+            ("pinned", serde_json::json!("false")),
+            ("pin_order", serde_json::json!([])),
+            ("derived", serde_json::json!(null)),
+            ("document_id", serde_json::json!({})),
+        ] {
+            let mut malformed = serde_json::json!({
+                "block_id":"block-1", "workspace_id":"ws-1", "title":"Note",
+                "content_type":"note", "pinned":false, "favorite":false,
+                "created_at":"2026-01-01T00:00:00Z", "updated_at":"2026-01-01T00:00:00Z",
+                "derived":{}
+            });
+            malformed[field] = bad;
+            assert!(
+                block_to_leaf(&malformed).is_err(),
+                "must fail closed: {malformed}"
+            );
+        }
+    }
+
+    #[test]
+    fn loom_folder_crud_builders_match_verified_routes_and_partial_bodies() {
+        let rt = rt();
+        let client = LoomFolderClient::new(BASE, rt.handle().clone());
+        let create = client.create_folder_request("ws-7", "Child", Some("parent-1"), Some(4));
+        assert_eq!(create.method, HttpMethod::Post);
+        assert_eq!(
+            create.url,
+            "http://test.local:1234/workspaces/ws-7/loom/folders"
+        );
+        assert_eq!(
+            create.body,
+            Some(serde_json::json!({"name":"Child","parent_folder_id":"parent-1","sort_order":4}))
+        );
+
+        let rename = client.rename_folder_request("ws-7", "folder-1", "Renamed");
+        assert_eq!(rename.method, HttpMethod::Patch);
+        assert_eq!(rename.body, Some(serde_json::json!({"name":"Renamed"})));
+
+        let move_root = client.move_folder_request("ws-7", "folder-1", None, None);
+        assert_eq!(move_root.method, HttpMethod::Patch);
+        assert_eq!(
+            move_root.body,
+            Some(serde_json::json!({"parent_folder_id":null,"sort_order":null}))
+        );
+
+        let delete = client.delete_folder_request("ws-7", "folder-1");
+        assert_eq!(delete.method, HttpMethod::Delete);
+        assert_eq!(delete.body, None);
+    }
+
     // ── MT-021 LoomGraphClient: verified URL/query builders + a live round-trip parse ────────────────
 
     #[test]
@@ -7288,55 +10923,61 @@ mod tests {
         assert_eq!(spec.method, HttpMethod::Get);
         assert_eq!(
             spec.url,
-            "http://test.local:1234/workspaces/ws-7/loom/views/all"
+            "http://test.local:1234/workspaces/ws-7/loom/graph/global"
         );
-        assert!(spec.query.is_empty(), "global enumeration carries no query");
+        assert_eq!(
+            spec.query,
+            vec![
+                ("node_limit".to_owned(), "5000".to_owned()),
+                ("hub_degree_threshold".to_owned(), "0".to_owned()),
+            ],
+            "global graph disables hub suppression and requests the backend hard ceiling"
+        );
     }
 
     #[test]
     fn loom_graph_local_request_url_and_query() {
         let rt = rt();
         let c = LoomGraphClient::new(BASE, rt.handle().clone());
-        let spec = c.local_request("ws-7", "My Note");
+        let spec = c.local_request("ws-7", "block-42");
         assert_eq!(spec.method, HttpMethod::Get);
         assert_eq!(
             spec.url,
-            "http://test.local:1234/workspaces/ws-7/loom/graph-search"
+            "http://test.local:1234/workspaces/ws-7/loom/graph/local"
         );
-        // The focused block's TITLE is the graph-search `q` (the backend 400s on an empty q), plus the
-        // verified backlink_depth + limit caps.
+        // The focused block's stable id drives canonical traversal; title search is not involved.
         assert_eq!(
             spec.query,
             vec![
-                ("q".to_owned(), "My Note".to_owned()),
-                ("backlink_depth".to_owned(), "2".to_owned()),
-                ("limit".to_owned(), "200".to_owned()),
+                ("start_block_id".to_owned(), "block-42".to_owned()),
+                ("max_depth".to_owned(), "2".to_owned()),
+                ("node_limit".to_owned(), "200".to_owned()),
             ]
         );
     }
 
     /// WP-KERNEL-012 MT-080 (AC-080-3 / MT-060): the depth-parameterized builder carries the NEW
-    /// `backlink_depth` (the re-query the host fires on `GraphEvent::DepthChanged`) on the SAME verified
+    /// `max_depth` (the re-query the host fires on `GraphEvent::DepthChanged`) on the SAME verified
     /// endpoint, and clamps an out-of-range depth into `[MIN..=MAX]_BACKLINK_DEPTH` (RISK-080-3).
     #[test]
-    fn loom_graph_local_request_with_depth_carries_and_clamps_backlink_depth() {
+    fn loom_graph_local_request_with_depth_carries_and_clamps_max_depth() {
         let rt = rt();
         let c = LoomGraphClient::new(BASE, rt.handle().clone());
 
-        // A valid in-range depth is carried verbatim on the SAME graph-search URL (NO new endpoint).
-        let spec = c.local_request_with_depth("ws-7", "My Note", 4);
+        // A valid in-range depth is carried verbatim on the SAME graph/local URL (NO new endpoint).
+        let spec = c.local_request_with_depth("ws-7", "block-42", 4);
         assert_eq!(
             spec.url,
-            "http://test.local:1234/workspaces/ws-7/loom/graph-search"
+            "http://test.local:1234/workspaces/ws-7/loom/graph/local"
         );
         assert_eq!(
             spec.query,
             vec![
-                ("q".to_owned(), "My Note".to_owned()),
-                ("backlink_depth".to_owned(), "4".to_owned()),
-                ("limit".to_owned(), "200".to_owned()),
+                ("start_block_id".to_owned(), "block-42".to_owned()),
+                ("max_depth".to_owned(), "4".to_owned()),
+                ("node_limit".to_owned(), "200".to_owned()),
             ],
-            "the new depth replaces the default backlink_depth on the verified endpoint"
+            "the new depth replaces the default max_depth on the verified endpoint"
         );
 
         // An abusive over-range depth clamps DOWN to MAX (never reaches the backend as an abusive
@@ -7344,12 +10985,12 @@ mod tests {
         let too_deep = c.local_request_with_depth("ws-7", "T", 99);
         assert_eq!(
             too_deep.query[1],
-            ("backlink_depth".to_owned(), MAX_BACKLINK_DEPTH.to_string())
+            ("max_depth".to_owned(), MAX_BACKLINK_DEPTH.to_string())
         );
         let too_shallow = c.local_request_with_depth("ws-7", "T", 0);
         assert_eq!(
             too_shallow.query[1],
-            ("backlink_depth".to_owned(), MIN_BACKLINK_DEPTH.to_string())
+            ("max_depth".to_owned(), MIN_BACKLINK_DEPTH.to_string())
         );
 
         // The non-depth `local_request` still equals the default-depth path (one builder, no drift).
@@ -7360,6 +11001,109 @@ mod tests {
         );
     }
 
+    #[test]
+    fn loom_graph_projection_requires_truncation_and_accepts_omitted_empty_suppression() {
+        let projection = parse_graph_projection(serde_json::json!({
+            "nodes": [], "edges": [], "truncated": false
+        }))
+        .expect("the backend omits an empty suppressed_hub_ids list");
+        assert!(projection.suppressed_hub_ids.is_empty());
+
+        for (value, expected) in [
+            (
+                serde_json::json!({
+                    "nodes": [], "edges": [], "suppressed_hub_ids": []
+                }),
+                "LoomGraph.truncated must be a bool",
+            ),
+            (
+                serde_json::json!({
+                    "nodes": [], "edges": [], "truncated": "false", "suppressed_hub_ids": []
+                }),
+                "LoomGraph.truncated must be a bool",
+            ),
+            (
+                serde_json::json!({
+                    "nodes": [], "edges": [], "truncated": false,
+                    "suppressed_hub_ids": "hub-1"
+                }),
+                "LoomGraph.suppressed_hub_ids must be an array",
+            ),
+        ] {
+            let error = parse_graph_projection(value).expect_err("malformed metadata must fail");
+            assert!(
+                error.to_string().contains(expected),
+                "expected '{expected}', got '{error}'"
+            );
+        }
+    }
+
+    #[test]
+    fn loom_graph_projection_rejects_non_string_suppressed_hub_ids() {
+        for invalid in [
+            serde_json::Value::Null,
+            serde_json::json!(7),
+            serde_json::json!(""),
+            serde_json::json!("   "),
+        ] {
+            let error = parse_graph_projection(serde_json::json!({
+                "nodes": [],
+                "edges": [],
+                "truncated": false,
+                "suppressed_hub_ids": [invalid]
+            }))
+            .expect_err("every suppressed hub id must be a non-empty string");
+            assert!(error
+                .to_string()
+                .contains("suppressed_hub_ids[0] must be a non-empty string"));
+        }
+    }
+
+    #[test]
+    fn loom_graph_projection_rejects_whitespace_node_and_edge_identities() {
+        let nodes = serde_json::json!([
+            {"block":{"block_id":"b1","title":"One","content_type":"note"}},
+            {"block":{"block_id":"b2","title":"Two","content_type":"note"}}
+        ]);
+        let edge = |source: &str, target: &str, edge_type: &str| {
+            serde_json::json!({
+                "edge": {
+                    "source_block_id": source,
+                    "target_block_id": target,
+                    "edge_type": edge_type
+                }
+            })
+        };
+
+        let malformed = [
+            serde_json::json!({
+                "nodes": [{"block":{"block_id":"   ","title":"Blank","content_type":"note"}}],
+                "edges": [],
+                "truncated": false
+            }),
+            serde_json::json!({
+                "nodes": nodes,
+                "edges": [edge("   ", "b2", "mention")],
+                "truncated": false
+            }),
+            serde_json::json!({
+                "nodes": nodes,
+                "edges": [edge("b1", "\t", "mention")],
+                "truncated": false
+            }),
+            serde_json::json!({
+                "nodes": nodes,
+                "edges": [edge("b1", "b2", "   ")],
+                "truncated": false
+            }),
+        ];
+
+        for projection in malformed {
+            parse_graph_projection(projection)
+                .expect_err("blank/whitespace graph identities must fail closed");
+        }
+    }
+
     /// WP-KERNEL-012 MT-080 (AC-080-2 / MT-061): the canvas resize + clear-group request builders PATCH the
     /// SAME verified placement URL the `group_request` uses; only the body differs (`{w,h}` for a resize,
     /// `{clear_group: true}` for a clear). The clear body is asserted against the REAL backend's accepted
@@ -7368,7 +11112,7 @@ mod tests {
     /// deserializes to `group_id: None` and leaves the group unchanged), so only `{"clear_group": true}`
     /// actually clears the section assignment end-to-end.
     #[test]
-    fn canvas_board_resize_and_clear_group_requests() {
+    fn canvas_board_resize_move_and_clear_group_requests() {
         let rt = rt();
         let c = CanvasBoardClient::new(BASE, rt.handle().clone());
 
@@ -7401,6 +11145,124 @@ mod tests {
         assert_eq!(
             assign.body,
             Some(serde_json::json!({ "group_id": "section-2" }))
+        );
+
+        let moved_into = c.move_request("ws-7", "p-9", 85.0, 110.0, Some("section-2"));
+        assert_eq!(moved_into.method, HttpMethod::Patch);
+        assert_eq!(moved_into.url, resize.url);
+        assert_eq!(
+            moved_into.body,
+            Some(serde_json::json!({
+                "x": 85.0,
+                "y": 110.0,
+                "group_id": "section-2"
+            }))
+        );
+
+        let moved_out = c.move_request("ws-7", "p-9", 12.0, -4.0, None);
+        assert_eq!(moved_out.method, HttpMethod::Patch);
+        assert_eq!(moved_out.url, resize.url);
+        assert_eq!(
+            moved_out.body,
+            Some(serde_json::json!({
+                "x": 12.0,
+                "y": -4.0,
+                "clear_group": true
+            }))
+        );
+    }
+
+    #[test]
+    fn stage_capture_canvas_card_persists_complete_provenance() {
+        let rt = rt();
+        let client = CanvasBoardClient::new(BASE, rt.handle().clone());
+        let spec = client.create_stage_capture_card_request(
+            "ws-7",
+            "canvas-2",
+            "artifact-9",
+            "abc123",
+            "artifact://sha256/abc123",
+            "stage-route-node-canvas-2-node-9",
+            40.0,
+            50.0,
+            320.0,
+            180.0,
+        );
+
+        assert_eq!(spec.method, HttpMethod::Post);
+        assert_eq!(
+            spec.url,
+            "http://test.local:1234/workspaces/ws-7/loom/canvas-boards/canvas-2/cards"
+        );
+        let body = spec.body.as_ref().expect("stage card request has a body");
+        let encoded_reference = body["body"]
+            .as_str()
+            .expect("stage card body carries the encoded provenance reference");
+        let decoded_reference: CanvasStageCaptureReference =
+            serde_json::from_str(encoded_reference).expect("stage provenance decodes");
+        let expected_reference = CanvasStageCaptureReference {
+            schema_id: CANVAS_STAGE_CAPTURE_REF_SCHEMA.to_owned(),
+            artifact_id: "artifact-9".to_owned(),
+            sha256: "abc123".to_owned(),
+            manifest_ref: "artifact://sha256/abc123".to_owned(),
+            causal_action_id: "stage-route-node-canvas-2-node-9".to_owned(),
+        };
+        assert_eq!(decoded_reference, expected_reference);
+        let expected_wire = serde_json::json!({
+            "schema_id": CANVAS_STAGE_CAPTURE_REF_SCHEMA,
+            "artifact_id": "artifact-9",
+            "sha256": "abc123",
+            "manifest_ref": "artifact://sha256/abc123",
+            "causal_action_id": "stage-route-node-canvas-2-node-9",
+        });
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(encoded_reference)
+                .expect("encoded provenance is JSON"),
+            expected_wire,
+            "the nested persisted reference pins the external wire keys"
+        );
+        assert_eq!(
+            body["stage_provenance"], expected_wire,
+            "the structured mirror pins the same external wire keys"
+        );
+        assert_eq!(
+            (&body["title"], &body["x"], &body["y"], &body["w"], &body["h"]),
+            (
+                &serde_json::json!("Stage capture artifact-9"),
+                &serde_json::json!(40.0),
+                &serde_json::json!(50.0),
+                &serde_json::json!(320.0),
+                &serde_json::json!(180.0),
+            )
+        );
+
+        let compensate = client.compensate_stage_capture_card_request(
+            "ws-7",
+            "canvas-2",
+            "placement-3",
+            "block-4",
+            "artifact-9",
+            "abc123",
+            "artifact://sha256/abc123",
+            "stage-route-node-canvas-2-node-9",
+        );
+        assert_eq!(compensate.method, HttpMethod::Post);
+        assert_eq!(
+            compensate.url,
+            "http://test.local:1234/workspaces/ws-7/loom/canvas-boards/canvas-2/stage-cards/placement-3/compensate"
+        );
+        assert_eq!(
+            compensate.body,
+            Some(serde_json::json!({
+                "placed_block_id": "block-4",
+                "stage_provenance": {
+                    "schema_id": CANVAS_STAGE_CAPTURE_REF_SCHEMA,
+                    "artifact_id": "artifact-9",
+                    "sha256": "abc123",
+                    "manifest_ref": "artifact://sha256/abc123",
+                    "causal_action_id": "stage-route-node-canvas-2-node-9",
+                }
+            }))
         );
     }
 
@@ -7454,9 +11316,8 @@ mod tests {
     }
 
     /// End-to-end: the REAL `fetch_global` spawn path hits a live capture server and parses the verified
-    /// `LoomViewResponse::All { blocks }` payload into graph nodes (proves the client is genuinely
-    /// CONSUMED — dispatch -> reqwest -> wire -> parse — not just arithmetic). 3 seeded blocks => 3 nodes,
-    /// content_type preserved.
+    /// canonical `LoomGraph` payload into real nodes + edges (proves the client is genuinely CONSUMED —
+    /// dispatch -> reqwest -> wire -> parse — not just arithmetic).
     #[test]
     fn loom_graph_global_fetch_parses_blocks() {
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -7469,34 +11330,38 @@ mod tests {
         let base = format!("http://127.0.0.1:{port}");
 
         let client = LoomGraphClient::new(base, rt.handle().clone());
-        let cell: LoomGraphCell = Arc::new(Mutex::new(None));
-        client.fetch_global("ws1", cell.clone());
+        let cell: LoomGraphCell = Arc::new(Mutex::new(VecDeque::new()));
+        client.fetch_global("ws1", 41, cell.clone());
 
-        let body = r#"{"view_type":"all","blocks":[
-            {"block_id":"b1","title":"Alpha","content_type":"note"},
-            {"block_id":"b2","title":"Beta","content_type":"file"},
-            {"block_id":"b3","title":null,"content_type":"tag_hub"}
-        ]}"#;
+        let body = r#"{"nodes":[
+            {"block":{"block_id":"b1","title":"Alpha","content_type":"note"},"depth":0,"degree":1,"stale":false},
+            {"block":{"block_id":"b2","title":"Beta","content_type":"file"},"depth":0,"degree":2,"stale":false},
+            {"block":{"block_id":"b3","title":null,"content_type":"tag_hub"},"depth":0,"degree":1,"stale":false}
+        ],"edges":[
+            {"edge":{"edge_id":"e1","source_block_id":"b1","target_block_id":"b2","edge_type":"mention"},"stale":false},
+            {"edge":{"edge_id":"e2","source_block_id":"b2","target_block_id":"b3","edge_type":"tag"},"stale":false}
+        ],"truncated":true,"suppressed_hub_ids":["hub-capped"]}"#;
         let request_line = capture_one_request_reply(listener, body);
         assert!(
-            request_line.contains("GET /workspaces/ws1/loom/views/all"),
-            "global fetch hits views/all (got '{request_line}')"
+            request_line.contains("GET /workspaces/ws1/loom/graph/global?"),
+            "global fetch hits graph/global (got '{request_line}')"
         );
 
         rt.block_on(async {
             for _ in 0..50 {
-                if cell.lock().unwrap().is_some() {
+                if !cell.lock().unwrap().is_empty() {
                     break;
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             }
         });
-        let data = cell
-            .lock()
-            .unwrap()
-            .take()
-            .expect("graph delivered")
-            .expect("parse ok");
+        let delivery = cell.lock().unwrap().pop_front().expect("graph delivered");
+        assert_eq!(
+            delivery.request,
+            LoomGraphRequestIdentity::global(41, "ws1"),
+            "the completion preserves its host generation and workspace identity"
+        );
+        let data = delivery.result.expect("parse ok");
         assert_eq!(data.nodes.len(), 3, "3 seeded blocks -> 3 nodes");
         assert_eq!(data.nodes[0].block_id, "b1");
         assert_eq!(data.nodes[0].content_type, "note");
@@ -7505,7 +11370,19 @@ mod tests {
             data.nodes[2].title, "b3",
             "null title falls back to block_id"
         );
-        assert!(data.edges.is_empty(), "global enumeration has no edges");
+        assert_eq!(
+            data.edges.len(),
+            2,
+            "canonical projection carries real edges"
+        );
+        assert_eq!(data.edges[0].source, "b1");
+        assert_eq!(data.edges[0].target, "b2");
+        assert_eq!(data.edges[0].edge_type, "mention");
+        assert!(
+            data.truncated,
+            "a valid capped projection remains renderable and carries honest truncation metadata"
+        );
+        assert_eq!(data.suppressed_hub_ids, vec!["hub-capped"]);
     }
 
     /// AC8 binding: a backend 5xx (non-success status) delivers Err, NOT a panic and NOT a fake graph.
@@ -7521,8 +11398,8 @@ mod tests {
         let base = format!("http://127.0.0.1:{port}");
 
         let client = LoomGraphClient::new(base, rt.handle().clone());
-        let cell: LoomGraphCell = Arc::new(Mutex::new(None));
-        client.fetch_global("ws1", cell.clone());
+        let cell: LoomGraphCell = Arc::new(Mutex::new(VecDeque::new()));
+        client.fetch_global("ws1", 42, cell.clone());
 
         // Reply 503 (backend unreachable analog).
         std::thread::spawn(move || {
@@ -7537,13 +11414,18 @@ mod tests {
 
         rt.block_on(async {
             for _ in 0..50 {
-                if cell.lock().unwrap().is_some() {
+                if !cell.lock().unwrap().is_empty() {
                     break;
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             }
         });
-        let delivered = cell.lock().unwrap().take().expect("graph delivered");
+        let delivery = cell.lock().unwrap().pop_front().expect("graph delivered");
+        assert_eq!(
+            delivery.request,
+            LoomGraphRequestIdentity::global(42, "ws1")
+        );
+        let delivered = delivery.result;
         assert!(
             delivered.is_err(),
             "AC8: a 5xx must deliver Err (got {delivered:?}), never a fake graph"
@@ -7552,48 +11434,153 @@ mod tests {
 
     // ── LoomTagClient: tag-list and add-tag parsers (verified backend response shapes) ────────────────
 
+    fn valid_tag_test_block(id: &str, title: &str, content_type: &str) -> serde_json::Value {
+        serde_json::json!({
+            "block_id": id,
+            "workspace_id": "ws1",
+            "document_id": null,
+            "asset_id": null,
+            "original_filename": null,
+            "content_hash": null,
+            "journal_date": null,
+            "imported_at": null,
+            "title": title,
+            "content_type": content_type,
+            "pinned": false,
+            "favorite": false,
+            "pin_order": null,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "derived": {}
+        })
+    }
+
     #[test]
     fn tag_entries_do_not_label_backlink_count_as_member_count() {
-        let entry = block_to_tag_entry(&serde_json::json!({
-            "block_id": "tag-rust",
-            "title": "Rust",
-            "derived": {
-                "backlink_count": 4
-            }
-        }))
-        .expect("tag row parses");
+        let mut row = valid_tag_test_block("tag-rust", "Rust", "tag_hub");
+        row["derived"]["backlink_count"] = serde_json::json!(4);
+        let entry = block_to_tag_entry(&row).expect("tag row parses");
 
         assert_eq!(
-            entry.member_count,
-            None,
+            entry.member_count, None,
             "AC1: backlink_count includes non-member backlinks and must not be labeled as member_count"
         );
     }
 
     #[test]
     fn tag_entries_parse_member_count_from_explicit_member_evidence() {
-        let explicit = block_to_tag_entry(&serde_json::json!({
-            "block_id": "tag-rust",
-            "title": "Rust",
-            "member_count": 4
-        }))
-        .expect("tag row parses");
+        let mut explicit_json = valid_tag_test_block("tag-rust", "Rust", "tag_hub");
+        explicit_json["member_count"] = serde_json::json!(4);
+        let explicit = block_to_tag_entry(&explicit_json).expect("tag row parses");
         assert_eq!(explicit.member_count, Some(4));
 
-        let tagged_blocks = block_to_tag_entry(&serde_json::json!({
-            "block_id": "tag-design",
-            "title": "Design",
-            "tagged_blocks": [
-                { "block_id": "member-1" },
-                { "block_id": "member-2" }
-            ]
-        }))
-        .expect("tag row parses");
+        let mut tagged_json = valid_tag_test_block("tag-design", "Design", "tag_hub");
+        tagged_json["tagged_blocks"] = serde_json::json!([{}, {}]);
+        let tagged_blocks = block_to_tag_entry(&tagged_json).expect("tag row parses");
         assert_eq!(
             tagged_blocks.member_count,
             Some(2),
             "tagged_blocks.len() is exact member evidence"
         );
+    }
+
+    #[test]
+    fn tag_transport_parsers_fail_closed_on_malformed_success_payloads() {
+        assert!(parse_tag_entries_page(&serde_json::json!({})).is_err());
+
+        let mut valid = valid_tag_test_block("tag-valid", "Valid", "tag_hub");
+        let malformed = serde_json::json!([valid.clone(), { "block_id": "partial" }]);
+        assert!(
+            parse_tag_entries_page(&malformed).is_err(),
+            "one malformed successful row rejects the complete list"
+        );
+
+        valid["member_count"] = serde_json::json!("four");
+        assert!(
+            block_to_tag_entry(&valid).is_err(),
+            "wrong-typed explicit counts fail closed"
+        );
+
+        let hub_block = valid_tag_test_block("tag-valid", "Valid", "tag_hub");
+        let member = valid_tag_test_block("member-1", "Member", "note");
+        let valid_detail = serde_json::json!({
+            "block": hub_block,
+            "sub_tags": [],
+            "tagged_blocks": [member],
+            "backlink_count": 0
+        });
+        assert_eq!(
+            parse_tag_hub_detail(&valid_detail, "tag-valid")
+                .expect("canonical detail parses")
+                .1
+                .len(),
+            1
+        );
+        let mut malformed_detail = valid_detail;
+        malformed_detail["tagged_blocks"] = serde_json::json!([{"block_id":"partial"}]);
+        assert!(
+            parse_tag_hub_detail(&malformed_detail, "tag-valid").is_err(),
+            "malformed detail members are not silently dropped"
+        );
+        assert!(
+            parse_tag_members(&serde_json::json!({"blocks": []})).is_err(),
+            "wrong top-level member shape is not reinterpreted as empty"
+        );
+    }
+
+    #[test]
+    fn tag_list_fetches_complete_pagination_beyond_first_hundred() {
+        use std::io::{Read, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind tag paging server");
+        let base = format!("http://{}", listener.local_addr().expect("server address"));
+        let server = std::thread::spawn(move || {
+            let mut request_lines = Vec::new();
+            for (page_index, count) in [(0usize, 500usize), (1usize, 1usize)] {
+                let (mut stream, _) = listener.accept().expect("accept tag page request");
+                let mut bytes = [0u8; 4096];
+                let read = stream.read(&mut bytes).expect("read tag page request");
+                let request = String::from_utf8_lossy(&bytes[..read]);
+                request_lines.push(request.lines().next().unwrap_or_default().to_owned());
+                let rows: Vec<_> = (0..count)
+                    .map(|index| {
+                        let id = format!("tag-{:04}", page_index * 500 + index);
+                        valid_tag_test_block(&id, &id, "tag_hub")
+                    })
+                    .collect();
+                let body = serde_json::to_string(&rows).expect("serialize tag page");
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                stream
+                    .write_all(response.as_bytes())
+                    .expect("write tag page response");
+            }
+            request_lines
+        });
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("tag paging runtime");
+        let client = reqwest::Client::new();
+        let tags = rt
+            .block_on(fetch_all_tag_entries(
+                &client,
+                &format!("{base}/workspaces/ws1/loom/tags"),
+            ))
+            .expect("all tag pages parse");
+        assert_eq!(
+            tags.len(),
+            501,
+            "every tag beyond the first 100 is retained"
+        );
+        assert_eq!(tags[500].block_id, "tag-0500");
+        let request_lines = server.join().expect("tag paging server joins");
+        assert!(request_lines[0].contains("limit=500&offset=0"));
+        assert!(request_lines[1].contains("limit=500&offset=500"));
     }
 
     /// AC6 / Spec-Realism Gate: the add-tag candidate parser MUST read the VERIFIED `/loom/search` shape
@@ -7609,7 +11596,7 @@ mod tests {
             { "block": { "block_id": "blk-1", "title": "Rust notes" }, "score": 0.9 },
             { "block": { "block_id": "blk-2", "title": "" }, "score": 0.4 },
         ]);
-        let candidates = parse_add_tag_candidates(&response);
+        let candidates = parse_add_tag_candidates(&response).expect("verified shape parses");
         assert_eq!(
             candidates.len(),
             2,
@@ -7617,35 +11604,198 @@ mod tests {
         );
         assert_eq!(candidates[0].block_id, "blk-1");
         assert_eq!(candidates[0].title, "Rust notes");
-        // Empty title falls back to the block id (never a fabricated label).
+        // The backend-provided title is preserved exactly.
         assert_eq!(candidates[1].block_id, "blk-2");
-        assert_eq!(candidates[1].title, "blk-2");
+        assert_eq!(candidates[1].title, "");
     }
 
-    /// The bare-block fallback (defensive, for other search-shaped routes) still reads a top-level
-    /// `block_id`/`title` when there is no `block` wrapper, so the parser handles both shapes.
     #[test]
-    fn add_tag_candidates_parse_bare_block_fallback() {
-        let bare = serde_json::json!([{ "block_id": "b9", "title": "Bare" }]);
-        let candidates = parse_add_tag_candidates(&bare);
-        assert_eq!(candidates.len(), 1);
-        assert_eq!(candidates[0].block_id, "b9");
-        assert_eq!(candidates[0].title, "Bare");
+    fn graph_search_page_parser_rejects_partial_or_wrapped_payloads() {
+        let valid = serde_json::json!([{
+            "source_kind": "document", "result_kind": "knowledge_entity", "ref_id": "KRD-1",
+            "title": "A", "excerpt": "B", "score": 1.0, "metadata": {}
+        }]);
+        assert_eq!(parse_graph_search_page(&valid).unwrap().len(), 1);
+        assert!(parse_graph_search_page(&serde_json::json!({"results": valid})).is_err());
+        assert!(
+            parse_graph_search_page(&serde_json::json!([
+                {"source_kind":"document","result_kind":"knowledge_entity","ref_id":"KRD-1","title":"A","excerpt":"B","score":1.0},
+                {"source_kind":"document","result_kind":"knowledge_entity","title":"A","excerpt":"B","score":1.0}
+            ]))
+            .is_err(),
+            "one malformed row rejects the whole page"
+        );
+        assert!(parse_graph_search_page(&serde_json::json!([{
+            "source_kind":"unknown", "result_kind":"knowledge_entity", "ref_id":"KRD-1",
+            "title":"A", "excerpt":"B", "score":1.0
+        }]))
+        .is_err());
+        assert!(
+            parse_graph_search_page(&serde_json::json!([{
+                "result_kind":"knowledge_entity", "ref_id":"KRD-1",
+                "title":"A", "excerpt":"B", "score":1.0
+            }]))
+            .is_err(),
+            "producer-required source_kind must not be defaulted"
+        );
+        assert!(
+            parse_graph_search_page(&serde_json::json!([{
+                "source_kind":"document", "result_kind":"knowledge_entity", "ref_id":"KRD-1",
+                "excerpt":"B", "score":1.0
+            }]))
+            .is_err(),
+            "producer-required title must not be defaulted by the consumer"
+        );
+        assert!(
+            parse_graph_search_page(&serde_json::json!([{
+                "source_kind":"document", "result_kind":"knowledge_entity", "ref_id":"KRD-1",
+                "title":"A", "score":1.0
+            }]))
+            .is_err(),
+            "producer-required excerpt must not be defaulted by the consumer"
+        );
+        assert!(
+            parse_graph_search_page(&serde_json::json!([{
+                "source_kind":"document", "result_kind":"knowledge_entity", "ref_id":"KRD-1",
+                "title":"A", "excerpt":42, "score":1.0
+            }]))
+            .is_err(),
+            "non-string excerpt fails closed"
+        );
+        assert!(
+            parse_graph_search_page(&serde_json::json!([{
+                "source_kind":"document", "result_kind":"knowledge_entity", "ref_id":"KRD-1",
+                "title":"A", "excerpt":"B"
+            }]))
+            .is_err(),
+            "producer-required score must not be defaulted by the consumer"
+        );
+        assert!(
+            parse_graph_search_page(&serde_json::json!([{
+                "source_kind":"document", "result_kind":"knowledge_entity", "ref_id":"KRD-1",
+                "title":"A", "excerpt":"B", "score":"NaN"
+            }]))
+            .is_err(),
+            "non-numeric/non-finite score spellings fail closed"
+        );
+        for invalid_block in [serde_json::json!(7), serde_json::json!([{}])] {
+            assert!(
+                parse_graph_search_page(&serde_json::json!([{
+                    "source_kind":"loom_block", "result_kind":"loom_block", "ref_id":"blk-1",
+                    "title":"A", "excerpt":"B", "score":1.0, "block": invalid_block
+                }]))
+                .is_err(),
+                "primitive/array optional block must fail closed"
+            );
+        }
+        let canonical_block = serde_json::json!({
+            "block_id":"blk-1", "workspace_id":"WS-1", "content_type":"note",
+            "title":"A", "pinned":false, "favorite":false, "pin_order":null,
+            "created_at":"2026-07-15T00:00:00Z", "updated_at":"2026-07-15T00:00:00Z",
+            "derived":{}
+        });
+        assert!(parse_graph_search_page(&serde_json::json!([{
+            "source_kind":"loom_block", "result_kind":"loom_block", "ref_id":"blk-1",
+            "title":"A", "excerpt":"B", "score":1.0, "block": canonical_block
+        }]))
+        .is_ok());
+        assert!(parse_graph_search_page(&serde_json::json!([{
+            "source_kind":"document", "result_kind":"knowledge_entity", "ref_id":"KRD-1",
+            "title":"A", "excerpt":"B", "score":1.0, "block":null
+        }]))
+        .is_ok());
+    }
 
-        // An object wrapper exposing a `results` array is also unwrapped.
+    #[test]
+    fn bookmark_response_parser_rejects_wrong_or_partial_producer_shapes() {
+        let valid = serde_json::json!({
+            "workspace_id": "WS-1",
+            "bookmark_state": {"schema_id":"hsk.workspace_search_bookmark_state@1","bookmarks":[]},
+            "updated_at": "2026-07-15T00:00:00Z",
+            "event_ledger_event_id": "evt-1"
+        });
+        let (parsed_state, receipt) =
+            parse_bookmark_response(&valid, "WS-1", false).expect("valid producer response");
+        assert_eq!(parsed_state, valid["bookmark_state"]);
+        assert_eq!(receipt.as_deref(), Some("evt-1"));
+        assert!(
+            parse_bookmark_response(&serde_json::json!({"bookmark_state": {}}), "WS-1", true)
+                .is_err()
+        );
+        assert!(parse_bookmark_response(
+            &serde_json::json!({"workspace_id":"WS-2","bookmark_state":{}}),
+            "WS-1",
+            true
+        )
+        .is_err());
+        assert!(
+            parse_bookmark_response(&serde_json::json!({"workspace_id":"WS-1"}), "WS-1", true)
+                .is_err()
+        );
+        let (empty_state, empty_receipt) = parse_bookmark_response(
+            &serde_json::json!({
+                "workspace_id":"WS-1",
+                "bookmark_state":null,
+                "updated_at":null,
+                "event_ledger_event_id":null
+            }),
+            "WS-1",
+            true,
+        )
+        .expect("absent GET state");
+        assert_eq!(empty_state, serde_json::json!({}));
+        assert_eq!(empty_receipt, None);
+        assert!(parse_bookmark_response(
+            &serde_json::json!({"workspace_id":"WS-1","bookmark_state":null}),
+            "WS-1",
+            false
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn add_tag_candidates_reject_unverified_wrappers_and_malformed_rows() {
+        let bare = serde_json::json!([{ "block_id": "b9", "title": "Bare", "score": 1.0 }]);
+        assert!(parse_add_tag_candidates(&bare).is_err());
         let wrapped = serde_json::json!({
             "results": [{ "block": { "block_id": "b10", "title": "Wrapped" }, "score": 1.0 }]
         });
-        let wrapped_candidates = parse_add_tag_candidates(&wrapped);
-        assert_eq!(wrapped_candidates.len(), 1);
-        assert_eq!(wrapped_candidates[0].block_id, "b10");
-        assert_eq!(wrapped_candidates[0].title, "Wrapped");
-
-        // Empty array => no candidates, never an error.
-        assert!(parse_add_tag_candidates(&serde_json::json!([])).is_empty());
+        assert!(parse_add_tag_candidates(&wrapped).is_err());
+        assert!(parse_add_tag_candidates(&serde_json::json!([
+            { "block": { "block_id": "", "title": "Bad" }, "score": 1.0 }
+        ]))
+        .is_err());
+        assert!(parse_add_tag_candidates(&serde_json::json!([
+            { "block": { "block_id": "b1", "title": "Bad" }, "score": "high" }
+        ]))
+        .is_err());
+        assert_eq!(
+            parse_add_tag_candidates(&serde_json::json!([])).unwrap(),
+            Vec::new()
+        );
     }
 
     // ── Apply pipeline partial-failure fold (RISK-1/MC-1) ─────────────────────────────────────────────
+
+    fn audit_plans(ids: &[&str]) -> Vec<crate::find_in_files::ReplacementPlan> {
+        ids.iter()
+            .enumerate()
+            .map(|(index, id)| crate::find_in_files::ReplacementPlan {
+                workspace_id: "WS-1".to_owned(),
+                document_id: (*id).to_owned(),
+                title: (*id).to_owned(),
+                expected_version: 1,
+                content_json_after: serde_json::json!({"index": index, "state": "after"}),
+                before_sha256: format!("{:064x}", index + 1),
+                after_sha256: format!("{:064x}", index + 101),
+                crdt_document_id: None,
+                match_count: 1,
+                before_preview: String::new(),
+                after_preview: String::new(),
+                match_previews: Vec::new(),
+            })
+            .collect()
+    }
 
     /// MC-1: a SECOND document save returning 409 (Conflict) must PRESERVE the first document's receipt
     /// and STOP — `AppliedPartial{receipts:[r1], ..}`, never a silent loss of the first receipt. This is
@@ -7659,8 +11809,13 @@ mod tests {
             ),
             ("KRD-2".to_owned(), DocSaveOutcome::Conflict),
         ];
-        match fold_apply_outcomes(&outcomes, 2) {
-            crate::find_in_files::ReplaceDelivery::AppliedPartial { receipts, error } => {
+        let plans = audit_plans(&["KRD-1", "KRD-2"]);
+        match fold_apply_outcomes(&outcomes, &plans) {
+            crate::find_in_files::ReplaceDelivery::AppliedPartial {
+                receipts,
+                audit_receipts,
+                error,
+            } => {
                 assert_eq!(
                     receipts,
                     vec!["evt-1".to_owned()],
@@ -7673,6 +11828,13 @@ mod tests {
                 assert!(
                     error.contains("conflict"),
                     "error states the version conflict: {error}"
+                );
+                assert_eq!(audit_receipts.len(), 2);
+                assert_eq!(audit_receipts[0].before_sha256, plans[0].before_sha256);
+                assert_eq!(audit_receipts[1].after_sha256, plans[1].after_sha256);
+                assert_eq!(
+                    audit_receipts[1].outcome,
+                    crate::find_in_files::ReplaceAuditOutcome::Conflict
                 );
             }
             other => panic!("expected AppliedPartial preserving the first receipt, got {other:?}"),
@@ -7692,8 +11854,11 @@ mod tests {
                 DocSaveOutcome::Failed("status 500".to_owned()),
             ),
         ];
-        match fold_apply_outcomes(&outcomes, 2) {
-            crate::find_in_files::ReplaceDelivery::AppliedPartial { receipts, error } => {
+        let plans = audit_plans(&["KRD-1", "KRD-2"]);
+        match fold_apply_outcomes(&outcomes, &plans) {
+            crate::find_in_files::ReplaceDelivery::AppliedPartial {
+                receipts, error, ..
+            } => {
                 assert_eq!(receipts, vec!["evt-1".to_owned()]);
                 assert!(
                     error.contains("status 500"),
@@ -7717,15 +11882,142 @@ mod tests {
                 DocSaveOutcome::Saved("evt-2".to_owned()),
             ),
         ];
-        match fold_apply_outcomes(&outcomes, 2) {
+        let plans = audit_plans(&["KRD-1", "KRD-2"]);
+        match fold_apply_outcomes(&outcomes, &plans) {
             crate::find_in_files::ReplaceDelivery::Applied {
                 receipts,
                 plan_count,
+                audit_receipts,
             } => {
                 assert_eq!(receipts, vec!["evt-1".to_owned(), "evt-2".to_owned()]);
                 assert_eq!(plan_count, 2);
+                assert_eq!(audit_receipts.len(), 2);
             }
             other => panic!("expected Applied, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn apply_fold_keeps_committed_without_receipt_explicit_and_never_invents_blank_id() {
+        let outcomes = vec![
+            (
+                "KRD-1".to_owned(),
+                DocSaveOutcome::CommittedWithoutReceipt {
+                    receipt_error: Some("event ledger unavailable".to_owned()),
+                },
+            ),
+            (
+                "KRD-2".to_owned(),
+                DocSaveOutcome::Saved("evt-2".to_owned()),
+            ),
+        ];
+        let plans = audit_plans(&["KRD-1", "KRD-2"]);
+        match fold_apply_outcomes(&outcomes, &plans) {
+            crate::find_in_files::ReplaceDelivery::Applied {
+                receipts,
+                audit_receipts,
+                plan_count,
+            } => {
+                assert_eq!(receipts, vec!["evt-2".to_owned()]);
+                assert!(receipts.iter().all(|receipt| !receipt.trim().is_empty()));
+                assert_eq!(plan_count, 2);
+                assert_eq!(
+                    audit_receipts[0].outcome,
+                    crate::find_in_files::ReplaceAuditOutcome::CommittedWithoutReceipt
+                );
+                assert_eq!(audit_receipts[0].save_receipt_event_id, None);
+                assert_eq!(
+                    audit_receipts[0].error.as_deref(),
+                    Some("event ledger unavailable")
+                );
+            }
+            other => panic!("expected committed-without-receipt Applied outcome, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn cancelled_apply_fold_preserves_every_committed_outcome_and_counts_unsent_plans() {
+        let outcomes = vec![
+            (
+                "KRD-1".to_owned(),
+                DocSaveOutcome::Saved("evt-1".to_owned()),
+            ),
+            (
+                "KRD-2".to_owned(),
+                DocSaveOutcome::CommittedWithoutReceipt {
+                    receipt_error: Some("event ledger unavailable".to_owned()),
+                },
+            ),
+        ];
+        let plans = audit_plans(&["KRD-1", "KRD-2", "KRD-3"]);
+        match fold_cancelled_apply_outcomes(&outcomes, &plans) {
+            crate::find_in_files::ReplaceDelivery::Cancelled {
+                receipts,
+                audit_receipts,
+                skipped_plan_count,
+            } => {
+                assert_eq!(receipts, vec!["evt-1".to_owned()]);
+                assert!(receipts.iter().all(|receipt| !receipt.trim().is_empty()));
+                assert_eq!(audit_receipts.len(), 2);
+                assert_eq!(
+                    audit_receipts[1].outcome,
+                    crate::find_in_files::ReplaceAuditOutcome::CommittedWithoutReceipt
+                );
+                assert_eq!(
+                    audit_receipts[1].error.as_deref(),
+                    Some("event ledger unavailable")
+                );
+                assert_eq!(skipped_plan_count, 1);
+            }
+            other => panic!("expected truthful Cancelled delivery, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn apply_worker_rejects_plan_workspace_mismatch_before_any_http() {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let client = RichDocClient::new("http://127.0.0.1:9", runtime.handle().clone());
+        let cell: FindReplaceCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+        client.apply_plans(
+            "WS-2",
+            audit_plans(&["KRD-1"]),
+            FindInFilesStamp {
+                workspace_id: "WS-2".to_owned(),
+                operation: FindInFilesOperation::Apply,
+                epoch: 1,
+                sequence: 1,
+            },
+            Arc::clone(&cell),
+            Arc::new(AtomicBool::new(false)),
+        );
+        let delivery = runtime.block_on(async {
+            for _ in 0..100 {
+                if let Some(delivery) = cell.lock().unwrap().pop_front() {
+                    return delivery.outcome;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+            panic!("workspace mismatch Apply did not complete")
+        });
+        match delivery {
+            crate::find_in_files::ReplaceDelivery::AppliedPartial {
+                receipts,
+                audit_receipts,
+                error,
+            } => {
+                assert!(receipts.is_empty());
+                assert_eq!(audit_receipts.len(), 1);
+                assert_eq!(
+                    audit_receipts[0].outcome,
+                    crate::find_in_files::ReplaceAuditOutcome::Failed
+                );
+                assert!(error.contains("workspace mismatch"));
+            }
+            other => panic!("workspace mismatch must fail before HTTP, got {other:?}"),
         }
     }
 
@@ -7747,5 +12039,73 @@ mod tests {
             error.to_string().contains("authority_label"),
             "parse error names the missing field: {error}"
         );
+    }
+
+    #[test]
+    fn live_block_resolution_classifies_only_404_as_missing() {
+        fn serve(
+            status: &str,
+            body: &str,
+            delay: std::time::Duration,
+        ) -> (String, std::thread::JoinHandle<()>) {
+            use std::io::{Read, Write};
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let status = status.to_owned();
+            let body = body.to_owned();
+            let join = std::thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0_u8; 2048];
+                let _ = stream.read(&mut request);
+                std::thread::sleep(delay);
+                let response = format!(
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = stream.write_all(response.as_bytes());
+            });
+            (format!("http://{address}/block"), join)
+        }
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let client = shared_http_client();
+
+        let (url, join) = serve("404 Not Found", "{}", std::time::Duration::ZERO);
+        assert_eq!(
+            runtime.block_on(fetch_live_block(&client, &url)),
+            Err(LiveBlockResolveError::Missing)
+        );
+        join.join().unwrap();
+
+        let (url, join) = serve("500 Internal Server Error", "{}", std::time::Duration::ZERO);
+        assert!(matches!(runtime.block_on(fetch_live_block(&client, &url)),
+            Err(LiveBlockResolveError::Unavailable(message)) if message.contains("500")));
+        join.join().unwrap();
+
+        let (url, join) = serve("200 OK", "not-json", std::time::Duration::ZERO);
+        assert!(matches!(runtime.block_on(fetch_live_block(&client, &url)),
+            Err(LiveBlockResolveError::Unavailable(message)) if message.contains("decode")));
+        join.join().unwrap();
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let refused = listener.local_addr().unwrap();
+        drop(listener);
+        assert!(matches!(
+            runtime.block_on(fetch_live_block(
+                &client,
+                &format!("http://{refused}/block")
+            )),
+            Err(LiveBlockResolveError::Unavailable(_))
+        ));
+
+        let (url, join) = serve("200 OK", "{}", std::time::Duration::from_millis(5_100));
+        assert!(matches!(
+            runtime.block_on(fetch_live_block(&client, &url)),
+            Err(LiveBlockResolveError::Unavailable(_))
+        ));
+        join.join().unwrap();
     }
 }

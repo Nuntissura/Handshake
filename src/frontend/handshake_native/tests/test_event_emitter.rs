@@ -9,15 +9,11 @@
 //!     `on_selection_changed` AND `on_event_emitted` — `registry_dispatches_to_mock_surface`.
 //!   - AC-7 (kittest): the `FlightRecorderPane` renders a `fr-event-*` ListItem under the
 //!     `flight-recorder-pane` Region when an event exists — `flight_recorder_pane_lists_event`.
-//!   - RISK-1 / MC-1 (unit): `build_post_body` carries every required `RuntimeChatEventV0_1` field with
+//!   - RISK-1 / MC-1 (unit): `build_post_body` carries every required native-editor envelope field with
 //!     the exact snake_case key the backend's `deny_unknown_fields` handler demands —
-//!     `post_body_matches_verified_runtime_chat_schema`.
-//!   - AC-1/2/3 + PT-3/4/6 (REAL-PG round-trip): a TYPED BACKEND BLOCKER. The verified backend has NO
-//!     ingestion endpoint that records a native-editor event with a custom actor/action (the
-//!     `runtime_chat_event` endpoint is `deny_unknown_fields` + a closed 3-value `type` enum +
-//!     hardcoded `actor_id="runtime_chat"`, and there is no native-editor `editor_edit`/`system` POST
-//!     route — only the server-side Atelier-apply emit). The `--features integration` test documents the
-//!     blocker honestly and is `#[ignore]` so CI never reports a fake pass — `native_editor_round_trip`.
+//!     `post_body_matches_verified_native_editor_schema`.
+//!   - AC-1/2/3 + PT-3/4/6 (live round-trip): three native actions POST through the production transport
+//!     and are read back from the real Flight Recorder route with exact actor/action/workspace ordering.
 //!   - AC-8: `cargo test -p handshake-native event_emitter` passes (this file + the lib unit tests).
 //!
 //! ## Artifact hygiene (CX-212E, HARD)
@@ -30,18 +26,24 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::event_emitter::{
-    native_editor_actor_id, EmitError, ErrorRing, EventLedgerTransport, NativeEditorEvent,
-    NativeEditorEventEmitter, RuntimeChatLedgerTransport, UndoScope, EMIT_PERMITS,
-    FR_RUNTIME_CHAT_SCHEMA_VERSION,
+    native_editor_actor_id, EmitError, EmitErrorEntry, ErrorRing, EventLedgerTransport,
+    NativeEditorEvent, NativeEditorEventEmitter, RuntimeChatLedgerTransport, UndoScope,
+    EMIT_PERMITS, NATIVE_EDITOR_SCHEMA_VERSION, NATIVE_EDITOR_WORK_PACKET_ID,
 };
 use handshake_native::flight_recorder_pane::{
-    fr_event_row_author_id, FlightRecorderPane, FlightRecorderQuery, FlightRecorderRow,
-    FLIGHT_RECORDER_PANE_AUTHOR_ID,
+    fr_event_row_author_id, FlightRecorderPane, FlightRecorderQuery, FlightRecorderQueryRows,
+    FlightRecorderRow, FLIGHT_RECORDER_ERROR_RING_AUTHOR_ID,
+    FLIGHT_RECORDER_ERROR_ROW_AUTHOR_PREFIX, FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID,
+    FLIGHT_RECORDER_PANE_AUTHOR_ID, FLIGHT_RECORDER_QUARANTINE_STATUS_AUTHOR_ID,
+    FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
 };
 use handshake_native::interop::interaction_bus::SharedSelection;
+use handshake_native::quick_switcher::ShellNavigator;
 use handshake_native::surface_extension_seam::{
     EditorSurface, EditorSurfaceRegistry, UndoResult as SeamUndoResult,
 };
@@ -119,6 +121,59 @@ impl EventLedgerTransport for MockTransport {
     }
 }
 
+struct SlowTransport;
+
+impl EventLedgerTransport for SlowTransport {
+    fn build_post_body(&self, event: &NativeEditorEvent) -> serde_json::Value {
+        RuntimeChatLedgerTransport::with_session_id("http://test", uuid_session())
+            .build_post_body(event)
+    }
+
+    fn post(
+        &self,
+        _event: NativeEditorEvent,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EmitError>> + Send>> {
+        Box::pin(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            Ok(())
+        })
+    }
+}
+
+/// Records the exact transport/session generation selected by the InteractionBus.
+struct SessionMockTransport {
+    session_id: String,
+    posted: Arc<Mutex<Vec<serde_json::Value>>>,
+}
+
+impl SessionMockTransport {
+    fn new(session_id: &str) -> Self {
+        Self {
+            session_id: session_id.to_owned(),
+            posted: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+}
+
+impl EventLedgerTransport for SessionMockTransport {
+    fn build_post_body(&self, event: &NativeEditorEvent) -> serde_json::Value {
+        RuntimeChatLedgerTransport::with_session_id("http://test", self.session_id.clone())
+            .build_post_body(event)
+    }
+
+    fn post(
+        &self,
+        event: NativeEditorEvent,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EmitError>> + Send>> {
+        let posted = Arc::clone(&self.posted);
+        let body = self.build_post_body(&event);
+        Box::pin(async move {
+            posted.lock().unwrap().push(body);
+            Ok(())
+        })
+    }
+}
+
 /// A valid non-nil UUID string for the transport session id (the backend requires a UUID session_id).
 fn uuid_session() -> String {
     "11111111-1111-4111-8111-111111111111".to_owned()
@@ -153,15 +208,25 @@ impl EditorSurface for MockSurface {
 /// A query that returns injected rows (the headless FlightRecorderPane path — no live backend).
 struct InjectedRows(Vec<FlightRecorderRow>);
 impl FlightRecorderQuery for InjectedRows {
-    fn rows(&self) -> Result<Vec<FlightRecorderRow>, String> {
-        Ok(self.0.clone())
+    fn rows(&self) -> Result<FlightRecorderQueryRows, String> {
+        Ok(FlightRecorderQueryRows {
+            rows: self.0.clone(),
+            quarantined: Vec::new(),
+        })
     }
 }
 
-// ── RISK-1 / MC-1: the wire body matches the VERIFIED RuntimeChatEventV0_1 schema ────────────────────
+struct InjectedQuery(Result<FlightRecorderQueryRows, String>);
+impl FlightRecorderQuery for InjectedQuery {
+    fn rows(&self) -> Result<FlightRecorderQueryRows, String> {
+        self.0.clone()
+    }
+}
+
+// ── RISK-1 / MC-1: the wire body matches the verified native-editor schema ──────────────────────────
 
 #[test]
-fn post_body_matches_verified_runtime_chat_schema() {
+fn post_body_matches_verified_native_editor_schema() {
     let transport = RuntimeChatLedgerTransport::with_session_id("http://test", uuid_session());
     let ev = NativeEditorEvent::document_saved(
         "DOC-9",
@@ -173,7 +238,7 @@ fn post_body_matches_verified_runtime_chat_schema() {
     let body = transport.build_post_body(&ev);
     let obj = body.as_object().expect("body is a JSON object");
 
-    assert_eq!(obj["schema_version"], FR_RUNTIME_CHAT_SCHEMA_VERSION);
+    assert_eq!(obj["schema_version"], NATIVE_EDITOR_SCHEMA_VERSION);
     assert!(uuid::Uuid::parse_str(obj["event_id"].as_str().unwrap()).is_ok());
     assert!(chrono::DateTime::parse_from_rfc3339(obj["ts_utc"].as_str().unwrap()).is_ok());
     let sid = uuid::Uuid::parse_str(obj["session_id"].as_str().unwrap()).unwrap();
@@ -182,12 +247,14 @@ fn post_body_matches_verified_runtime_chat_schema() {
         uuid::Uuid::nil(),
         "session_id must be a NON-NIL UUID (backend 400s otherwise)"
     );
-    assert_eq!(
-        obj["type"], "runtime_chat_message_appended",
-        "type is a closed-enum value"
-    );
-    assert_eq!(obj["wsid"], "WS-7");
-    assert_eq!(obj["body_sha256"], "a".repeat(64));
+    assert_eq!(obj["kind"], "document_saved");
+    assert_eq!(obj["actor_id"], "hsk:native_editor:pane-rich");
+    assert_eq!(obj["actor_kind"], "human");
+    assert_eq!(obj["pane_id"], "pane-rich");
+    assert_eq!(obj["surface"], "pane-rich");
+    assert_eq!(obj["workspace_id"], "WS-7");
+    assert_eq!(obj["work_packet_id"], NATIVE_EDITOR_WORK_PACKET_ID);
+    assert_eq!(obj["payload"]["content_hash"], "a".repeat(64));
 
     // deny_unknown_fields: ONLY allowed snake_case keys may appear.
     let allowed: std::collections::HashSet<&str> = [
@@ -195,18 +262,14 @@ fn post_body_matches_verified_runtime_chat_schema() {
         "event_id",
         "ts_utc",
         "session_id",
-        "job_id",
+        "kind",
+        "actor_id",
+        "actor_kind",
+        "pane_id",
+        "surface",
+        "workspace_id",
         "work_packet_id",
-        "spec_id",
-        "wsid",
-        "type",
-        "message_id",
-        "role",
-        "model_role",
-        "body_sha256",
-        "ans001_sha256",
-        "ans001_compliant",
-        "violation_clauses",
+        "payload",
     ]
     .into_iter()
     .collect();
@@ -216,7 +279,7 @@ fn post_body_matches_verified_runtime_chat_schema() {
             "key '{k}' would trip the backend deny_unknown_fields"
         );
     }
-    println!("RISK-1/MC-1: build_post_body carries every required RuntimeChatEventV0_1 field, snake_case");
+    println!("RISK-1/MC-1: build_post_body carries every required native-editor field, snake_case");
 }
 
 // ── AC-4: a failed emit lands in the error ring, no panic ─────────────────────────────────────────────
@@ -324,6 +387,7 @@ fn flight_recorder_pane_lists_event() {
     let row = FlightRecorderRow {
         event_id: "FR-EVT-001".to_owned(),
         action: "document_saved".to_owned(),
+        event_code: None,
         actor_id: native_editor_actor_id("pane-rich"),
         ts_utc: "2026-06-23T00:00:00Z".to_owned(),
     };
@@ -376,6 +440,527 @@ fn flight_recorder_pane_lists_event() {
     println!("AC-7: FlightRecorderPane lists '{expected_row_id}' (ListItem) under '{FLIGHT_RECORDER_PANE_AUTHOR_ID}' (Region)");
 }
 
+#[test]
+fn flight_recorder_retry_and_failure_surfaces_have_stable_argus_ids() {
+    let ring = ErrorRing::new();
+    ring.push(EmitErrorEntry {
+        action: "document_saved".to_owned(),
+        error: EmitError::Transport("backend unavailable".to_owned()),
+    });
+    let query = Arc::new(InjectedQuery(Ok(FlightRecorderQueryRows {
+        rows: Vec::new(),
+        quarantined: vec!["bad-fems-row: event_code mismatch".to_owned()],
+    })));
+    let mut pane = FlightRecorderPane::new(query, ring);
+    pane.load_now();
+    let pane = Arc::new(pane);
+    let pane_ui = Arc::clone(&pane);
+    let mut harness = Harness::builder().build_ui(move |ui| {
+        pane_ui.show(ui, &HsTheme::Dark.palette());
+    });
+    harness.run();
+    let ids = author_ids(&harness);
+    for expected in [
+        FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
+        FLIGHT_RECORDER_QUARANTINE_STATUS_AUTHOR_ID,
+        FLIGHT_RECORDER_ERROR_RING_AUTHOR_ID,
+        &format!("{FLIGHT_RECORDER_ERROR_ROW_AUTHOR_PREFIX}0"),
+    ] {
+        assert!(
+            ids.contains(expected),
+            "missing stable Flight Recorder id {expected}"
+        );
+    }
+
+    let query = Arc::new(InjectedQuery(Err("backend unreachable".to_owned())));
+    let mut failed = FlightRecorderPane::new(query, ErrorRing::new());
+    failed.load_now();
+    let failed = Arc::new(failed);
+    let failed_ui = Arc::clone(&failed);
+    let mut failure_harness = Harness::builder().build_ui(move |ui| {
+        failed_ui.show(ui, &HsTheme::Dark.palette());
+    });
+    failure_harness.run();
+    let failed_ids = author_ids(&failure_harness);
+    assert!(failed_ids.contains(FLIGHT_RECORDER_REFRESH_AUTHOR_ID));
+    assert!(failed_ids.contains(FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID));
+}
+
+#[test]
+fn flight_recorder_parser_keeps_valid_rows_and_quarantines_malformed_neighbors() {
+    let event_id = uuid::Uuid::new_v4().to_string();
+    let body = serde_json::json!([
+        {
+            "event_id": event_id,
+            "timestamp": "2026-07-16T00:00:00.123456Z",
+            "event_type": "system",
+            "actor_id": "native_editor_human",
+            "wsids": ["ws-1"],
+            "payload": {
+                "event_family":"native_editor",
+                "schema":"hsk.native_editor@0.1",
+                "schema_version":"hsk.native_editor@0.1",
+                "action":"document_saved",
+                "kind":"document_saved",
+                "pane_id":"pane-rich",
+                "workspace_id":"ws-1",
+                "actor_id":"native_editor_human",
+                "ts_utc":"2026-07-16T00:00:00.123456789Z"
+            }
+        },
+        {
+            "event_id": "",
+            "timestamp": "not-a-time",
+            "event_type": "wrong",
+            "actor_id": "",
+            "payload": {"event_family":"native_editor"}
+        },
+        {
+            "event_id": uuid::Uuid::new_v4().to_string(),
+            "timestamp": "2026-07-16T00:00:00.123456Z",
+            "event_type": "system",
+            "actor_id": "native_editor_human",
+            "wsids": ["ws-1"],
+            "payload": {
+                "event_family":"native_editor",
+                "schema":"hsk.native_editor@0.1",
+                "schema_version":"hsk.native_editor@0.1",
+                "action":"document_saved",
+                "kind":"document_saved",
+                "pane_id":"pane-rich",
+                "workspace_id":"ws-1",
+                "actor_id":"native_editor_human",
+                "ts_utc":"2026-07-16T00:00:00.123457Z"
+            }
+        }
+    ]);
+    let rows = handshake_native::editor_pane_factories::flight_recorder_rows_from_json(&body)
+        .expect("one malformed row must not poison valid recorder history");
+    assert_eq!(rows.rows.len(), 1);
+    assert_eq!(rows.rows[0].action, "document_saved");
+    assert_eq!(
+        rows.quarantined.len(),
+        2,
+        "malformed rows and next-microsecond timestamp drift are quarantined"
+    );
+}
+
+#[test]
+fn flight_recorder_parser_projects_exact_fems_lifecycle_and_quarantines_schema_drift() {
+    let workspace_id = "550e8400-e29b-41d4-a716-446655440001";
+    let artifact = |suffix: &str| {
+        serde_json::json!({
+            "artifact_id": suffix,
+            "path": format!("/workspaces/{workspace_id}/memory/artifacts/{suffix}")
+        })
+    };
+    let envelope = |event_type: &str, payload: serde_json::Value| {
+        serde_json::json!({
+            "event_id": uuid::Uuid::new_v4().to_string(),
+            "timestamp": "2026-07-22T12:00:00Z",
+            "event_type": event_type,
+            "actor_id": "hsk:backend:memory",
+            "wsids": [workspace_id],
+            "payload": payload
+        })
+    };
+    let entity_refs = serde_json::json!([{
+        "artefact_type": "workspace",
+        "artefact_id": workspace_id,
+        "selector": "self"
+    }]);
+    let extra_field = serde_json::json!({
+        "type": "memory_write_reviewed",
+        "event_code": "FR-EVT-MEM-002",
+        "proposal_id": "proposal-extra",
+        "decision": "approved",
+        "reviewer_kind": "user",
+        "unexpected": true
+    });
+
+    let body = serde_json::Value::Array(vec![
+        envelope(
+            "memory_write_proposed",
+            serde_json::json!({
+                "type": "memory_write_proposed",
+                "event_code": "FR-EVT-MEM-001",
+                "proposal_id": "proposal-1",
+                "proposal_hash": "a".repeat(64),
+                "artifact_ref": artifact("550e8400-e29b-41d4-a716-44665544000a"),
+                "scope_refs": entity_refs.clone(),
+                "op_count": 2,
+                "requires_review_count": 1
+            }),
+        ),
+        envelope(
+            "memory_write_reviewed",
+            serde_json::json!({
+                "type": "memory_write_reviewed",
+                "event_code": "FR-EVT-MEM-002",
+                "proposal_id": "proposal-1",
+                "decision": "approved",
+                "reviewer_kind": "user",
+                "commit_report_ref": artifact("550e8400-e29b-41d4-a716-44665544000f")
+            }),
+        ),
+        envelope(
+            "memory_write_committed",
+            serde_json::json!({
+                "type": "memory_write_committed",
+                "event_code": "FR-EVT-MEM-003",
+                "commit_id": "commit-1",
+                "proposal_id": "proposal-1",
+                "commit_report_hash": "b".repeat(64),
+                "artifact_ref": artifact("550e8400-e29b-41d4-a716-44665544000b"),
+                "changed_memory_ids_hash": "c".repeat(64)
+            }),
+        ),
+        envelope(
+            "memory_pack_built",
+            serde_json::json!({
+                "type": "memory_pack_built",
+                "event_code": "FR-EVT-MEM-004",
+                "pack_id": "pack-1",
+                "memory_pack_hash": "d".repeat(64),
+                "artifact_ref": artifact("550e8400-e29b-41d4-a716-44665544000c"),
+                "memory_policy": "WORKSPACE_SCOPED",
+                "scope_refs": entity_refs,
+                "item_count": 1,
+                "token_estimate": 32,
+                "truncation_occurred": false
+            }),
+        ),
+        envelope(
+            "memory_item_status_changed",
+            serde_json::json!({
+                "type": "memory_item_status_changed",
+                "event_code": "FR-EVT-MEM-005",
+                "memory_id": "memory-1",
+                "previous_status": "active",
+                "new_status": "superseded",
+                "reason": "supersede",
+                "actor": "policy"
+            }),
+        ),
+        envelope("memory_write_reviewed", extra_field),
+        envelope(
+            "memory_write_committed",
+            serde_json::json!({
+                "type": "memory_write_committed",
+                "event_code": "FR-EVT-MEM-002",
+                "commit_id": "commit-wrong-code",
+                "proposal_id": "proposal-1",
+                "commit_report_hash": "e".repeat(64),
+                "artifact_ref": artifact("550e8400-e29b-41d4-a716-44665544000d"),
+                "changed_memory_ids_hash": "f".repeat(64)
+            }),
+        ),
+    ]);
+
+    let result = handshake_native::editor_pane_factories::flight_recorder_rows_from_json(&body)
+        .expect("FEMS parsing must isolate malformed neighbors");
+    assert_eq!(result.rows.len(), 5);
+    assert_eq!(
+        result
+            .rows
+            .iter()
+            .map(|row| row.event_code.as_deref().expect("FEMS event code"))
+            .collect::<Vec<_>>(),
+        vec![
+            "FR-EVT-MEM-001",
+            "FR-EVT-MEM-002",
+            "FR-EVT-MEM-003",
+            "FR-EVT-MEM-004",
+            "FR-EVT-MEM-005"
+        ]
+    );
+    assert_eq!(result.quarantined.len(), 2);
+    assert!(result
+        .quarantined
+        .iter()
+        .any(|reason| reason.contains("non-canonical fields")));
+    assert!(result
+        .quarantined
+        .iter()
+        .any(|reason| reason.contains("mismatched event_code")));
+}
+
+#[test]
+fn frame_retry_preserves_causal_prefix_and_rejects_incoming_at_capacity() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("frame retry runtime");
+    let transport = Arc::new(MockTransport::new(false));
+    let emitter = NativeEditorEventEmitter::new(
+        "ws-frame-order",
+        transport.clone(),
+        Some(runtime.handle().clone()),
+    );
+    let ring = emitter.error_ring().clone();
+    let ctx = egui::Context::default();
+    handshake_native::event_emitter::install_frame_error_ring(&ctx, ring.clone());
+    let bus = handshake_native::interop::InteractionBus::get_or_init(&ctx);
+    bus.lock().unwrap().set_event_emitter(emitter);
+
+    let events = (0..=EMIT_PERMITS)
+        .map(|index| {
+            NativeEditorEvent::document_saved(
+                format!("DOC-{index}"),
+                "a".repeat(64),
+                "pane-rich",
+                "caller-draft",
+                "ws-frame-order",
+            )
+        })
+        .collect::<Vec<_>>();
+    let accepted_ids = events[..EMIT_PERMITS]
+        .iter()
+        .map(|event| event.event_id.clone())
+        .collect::<Vec<_>>();
+    let rejected_id = events[EMIT_PERMITS].event_id.clone();
+
+    let held = bus.lock().unwrap();
+    for event in events {
+        assert!(!handshake_native::event_emitter::dispatch_event_from_frame(
+            &ctx, event
+        ));
+    }
+    drop(held);
+    assert!(handshake_native::event_emitter::flush_pending_frame_events(
+        &ctx
+    ));
+    runtime.block_on(async {
+        for _ in 0..100 {
+            if transport.posted.lock().unwrap().len() == EMIT_PERMITS {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    });
+
+    let posted_ids = transport
+        .posted
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|body| body["event_id"].as_str().unwrap().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(posted_ids, accepted_ids, "retained FIFO never reorders");
+    assert!(ring.entries().iter().any(|entry| matches!(
+        &entry.error,
+        EmitError::PendingOverflow { event_id, .. } if event_id == &rejected_id
+    )));
+}
+
+#[test]
+fn repeated_frame_backpressure_is_coalesced_per_event_id() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("backpressure coalescing runtime");
+    let emitter = NativeEditorEventEmitter::new(
+        "ws-backpressure",
+        Arc::new(MockTransport::new(false)),
+        Some(runtime.handle().clone()),
+    );
+
+    // The current-thread runtime is intentionally not entered yet, so its ordered worker cannot
+    // drain and all queue permits are deterministically occupied.
+    for index in 0..EMIT_PERMITS {
+        assert!(emitter
+            .emit(NativeEditorEvent::document_saved(
+                format!("DOC-{index}"),
+                "a".repeat(64),
+                "pane-rich",
+                "caller",
+                "ws-backpressure",
+            ))
+            .is_ok());
+    }
+    let retried = NativeEditorEvent::document_saved(
+        "DOC-RETRY",
+        "b".repeat(64),
+        "pane-rich",
+        "caller",
+        "ws-backpressure",
+    );
+    for _ in 0..8 {
+        assert!(matches!(
+            emitter.emit(retried.clone()),
+            Err(EmitError::Backpressure(_))
+        ));
+    }
+    let backpressure = emitter
+        .error_ring()
+        .entries()
+        .into_iter()
+        .filter(|entry| matches!(entry.error, EmitError::Backpressure(_)))
+        .count();
+    assert_eq!(
+        backpressure, 1,
+        "retries of one immutable event cannot evict distinct operator-visible errors"
+    );
+}
+
+#[test]
+fn persistence_receipt_distinguishes_persisted_transport_failure_and_timeout() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("persistence receipt runtime");
+    let event = |workspace: &str| {
+        NativeEditorEvent::document_saved(
+            "DOC-receipt",
+            "a".repeat(64),
+            "pane-rich",
+            "caller",
+            workspace,
+        )
+    };
+
+    let persisted = NativeEditorEventEmitter::new(
+        "ws-persisted",
+        Arc::new(MockTransport::new(false)),
+        Some(runtime.handle().clone()),
+    );
+    assert!(runtime
+        .block_on(
+            persisted.emit_persisted(event("ws-persisted"), std::time::Duration::from_secs(1),)
+        )
+        .is_ok());
+
+    let failed = NativeEditorEventEmitter::new(
+        "ws-failed",
+        Arc::new(MockTransport::new(true)),
+        Some(runtime.handle().clone()),
+    );
+    assert!(matches!(
+        runtime.block_on(
+            failed.emit_persisted(event("ws-failed"), std::time::Duration::from_secs(1),)
+        ),
+        Err(EmitError::Transport(_))
+    ));
+
+    let timed_out = NativeEditorEventEmitter::new(
+        "ws-timeout",
+        Arc::new(SlowTransport),
+        Some(runtime.handle().clone()),
+    );
+    assert!(matches!(
+        runtime.block_on(
+            timed_out.emit_persisted(event("ws-timeout"), std::time::Duration::from_millis(10),)
+        ),
+        Err(EmitError::PersistenceTimeout { timeout_ms: 10, .. })
+    ));
+}
+
+#[test]
+fn event_emitter_workspace_revisit_preserves_original_emitter_session_generation() {
+    use handshake_native::interop::interaction_bus::InteractionBus;
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("workspace generation runtime");
+    let a1_transport = Arc::new(SessionMockTransport::new(
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+    ));
+    let b_transport = Arc::new(SessionMockTransport::new(
+        "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1",
+    ));
+    let a2_transport = Arc::new(SessionMockTransport::new(
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",
+    ));
+    let mut bus = InteractionBus::new();
+    bus.set_event_emitter(NativeEditorEventEmitter::new(
+        "workspace-A",
+        a1_transport.clone(),
+        Some(runtime.handle().clone()),
+    ));
+
+    // The completion captured its immutable A identity before the shell moved A -> B -> A.
+    let delayed_a1_completion = NativeEditorEvent::document_saved(
+        "DOC-A1",
+        "a".repeat(64),
+        "pane-rich",
+        "caller",
+        "workspace-A",
+    );
+    bus.set_event_emitter(NativeEditorEventEmitter::new(
+        "workspace-B",
+        b_transport,
+        Some(runtime.handle().clone()),
+    ));
+    bus.set_event_emitter(NativeEditorEventEmitter::new(
+        "workspace-A",
+        a2_transport.clone(),
+        Some(runtime.handle().clone()),
+    ));
+    assert!(bus.emit_event(delayed_a1_completion));
+
+    runtime.block_on(async {
+        for _ in 0..100 {
+            if !a1_transport.posted.lock().unwrap().is_empty() {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    });
+    let a1 = a1_transport.posted.lock().unwrap();
+    assert_eq!(a1.len(), 1, "the delayed A1 completion reached A1");
+    assert_eq!(
+        a1[0]["session_id"], "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+        "the delayed completion retained A1's trace/session generation"
+    );
+    assert!(
+        a2_transport.posted.lock().unwrap().is_empty(),
+        "revisiting A must not relabel A1 work onto a replacement A2 emitter"
+    );
+}
+
+#[test]
+fn event_emitter_workspace_generations_are_bounded_and_reclaimed() {
+    use handshake_native::interop::interaction_bus::{
+        InteractionBus, MAX_RETAINED_EVENT_EMITTER_WORKSPACES,
+    };
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("workspace reclamation runtime");
+    let mut bus = InteractionBus::new();
+    let mut transports = Vec::new();
+    for index in 0..(MAX_RETAINED_EVENT_EMITTER_WORKSPACES + 3) {
+        let transport = Arc::new(SessionMockTransport::new(&uuid_session()));
+        transports.push(Arc::downgrade(&transport));
+        bus.set_event_emitter(NativeEditorEventEmitter::new(
+            format!("workspace-{index}"),
+            transport,
+            Some(runtime.handle().clone()),
+        ));
+    }
+    assert_eq!(
+        bus.retained_event_emitter_workspace_count(),
+        MAX_RETAINED_EVENT_EMITTER_WORKSPACES,
+        "the InteractionBus retains only the bounded recent workspace generations"
+    );
+
+    runtime.block_on(async {
+        for _ in 0..100 {
+            if transports[..3]
+                .iter()
+                .all(|transport| transport.upgrade().is_none())
+            {
+                return;
+            }
+            tokio::task::yield_now().await;
+        }
+        panic!("evicted emitter workers retained their transport after sender reclamation");
+    });
+}
+
 // ── HBR-VIS screenshot (best-effort GPU; structural proofs stand without a GPU) ───────────────────────
 
 #[cfg(feature = "wgpu_screenshots")]
@@ -384,6 +969,7 @@ fn flight_recorder_pane_screenshot() {
     let row = FlightRecorderRow {
         event_id: "FR-EVT-SHOT".to_owned(),
         action: "document_saved".to_owned(),
+        event_code: None,
         actor_id: native_editor_actor_id("pane-rich"),
         ts_utc: "2026-06-23T00:00:00Z".to_owned(),
     };
@@ -467,12 +1053,13 @@ async fn bus_emit_event_dispatches_to_installed_emitter() {
         1,
         "the installed emitter posted the undo_fired event"
     );
-    assert_eq!(posted[0]["message_id"], "native_editor:undo_fired");
+    assert_eq!(posted[0]["kind"], "undo_fired");
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn bus_route_to_stage_emits_route_event() {
-    // The LIVE MT-033 route-to-stage call site (a public bus method) emits a route_to_stage event.
+async fn bus_route_to_stage_defers_receipt_until_stage_acknowledges() {
+    // Bus admission alone is not success: the shell emits only after the mounted Stage pane applies and
+    // acknowledges this exact prebuilt event.
     use handshake_native::interop::interaction_bus::InteractionBus;
     use handshake_native::stage_pane::StageContent;
     let mock = Arc::new(MockTransport::new(false));
@@ -485,23 +1072,25 @@ async fn bus_route_to_stage_emits_route_event() {
     let mut bus = InteractionBus::new();
     bus.set_event_emitter(emitter);
     bus.register_route_to_stage_command();
-    let _ = bus.route_to_stage(
+    assert!(bus.route_to_stage(
         &ctx,
         StageContent::Selection("hi".to_owned(), "DOC-1".to_owned()),
+    ));
+    let pending = bus
+        .pending_stage_route()
+        .expect("route remains pending until mounted Stage applies it");
+    assert_eq!(pending.content_kind, "selection");
+    assert_eq!(
+        pending.receipt.to_native_payload()["action"],
+        "route_to_stage"
     );
-    for _ in 0..100 {
-        if !mock.posted.lock().unwrap().is_empty() {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-    }
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     let posted = mock.posted.lock().unwrap();
     assert_eq!(
         posted.len(),
-        1,
-        "route_to_stage emitted exactly one event at the live call site"
+        0,
+        "bus-only admission must not emit a false success receipt"
     );
-    assert_eq!(posted[0]["message_id"], "native_editor:route_to_stage");
 }
 
 // ── MT-036 unified-undo emit: EVERY undo path emits `undo_fired` exactly once with the right scope ────
@@ -521,7 +1110,11 @@ impl EditorSurface for ScopeRecordingSurface {
     fn surface_id(&self) -> &'static str {
         "mt036_scope_recorder"
     }
-    fn on_selection_changed(&self, _s: &handshake_native::interop::interaction_bus::SharedSelection) {}
+    fn on_selection_changed(
+        &self,
+        _s: &handshake_native::interop::interaction_bus::SharedSelection,
+    ) {
+    }
     fn on_event_emitted(&self, event: &NativeEditorEvent, _e: &NativeEditorEventEmitter) {
         let p = event.to_native_payload();
         let action = p["action"].as_str().unwrap_or_default().to_owned();
@@ -536,14 +1129,38 @@ impl EditorSurface for ScopeRecordingSurface {
     }
 }
 
-/// A headless emitter (no tokio runtime): the async ledger POST is a NoRuntime no-op, but the SYNCHRONOUS
-/// surface fan-out inside `emit_event` still records — the deterministic exactly-once capture MT-036 needs.
-fn headless_emitter(ws: &str) -> NativeEditorEventEmitter {
-    NativeEditorEventEmitter::new(
+struct ActorRecordingSurface {
+    seen: Arc<Mutex<Vec<String>>>,
+}
+impl EditorSurface for ActorRecordingSurface {
+    fn surface_id(&self) -> &'static str {
+        "mt036_actor_recorder"
+    }
+    fn on_selection_changed(&self, _selection: &SharedSelection) {}
+    fn on_event_emitted(&self, event: &NativeEditorEvent, _emitter: &NativeEditorEventEmitter) {
+        self.seen.lock().unwrap().push(event.actor_id.clone());
+    }
+    fn undo_local(&self) -> Option<SeamUndoResult> {
+        None
+    }
+    fn redo_local(&self) -> Option<SeamUndoResult> {
+        None
+    }
+}
+
+/// A runtime-backed accepting emitter. Extension callbacks are allowed only after the ordered worker
+/// queue accepts the event, so exactly-once tests must not use the explicit NoRuntime failure path.
+fn accepting_emitter(ws: &str) -> (tokio::runtime::Runtime, NativeEditorEventEmitter) {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("accepting callback-test runtime");
+    let emitter = NativeEditorEventEmitter::new(
         ws,
-        Arc::new(RuntimeChatLedgerTransport::new("http://test")),
-        None,
-    )
+        Arc::new(MockTransport::new(false)),
+        Some(runtime.handle().clone()),
+    );
+    (runtime, emitter)
 }
 
 /// A trivial synchronous undo action (ok/ok closures) for pushing onto the bus rings.
@@ -563,7 +1180,8 @@ fn undo_paths_emit_undo_fired_exactly_once_with_scope() {
 
     let seen = Arc::new(Mutex::new(Vec::new()));
     let mut bus = InteractionBus::new();
-    bus.set_event_emitter(headless_emitter("WS-UNDO"));
+    let (_runtime, emitter) = accepting_emitter("WS-UNDO");
+    bus.set_event_emitter(emitter);
     bus.register_surface(Box::new(ScopeRecordingSurface {
         seen: Arc::clone(&seen),
     }));
@@ -572,14 +1190,23 @@ fn undo_paths_emit_undo_fired_exactly_once_with_scope() {
 
     // LOCAL undo + redo (the command-palette Undo/Redo AND the Ctrl+Z/Ctrl+Y chord all route through here).
     bus.push_undo_local(pane.clone(), sync_undo_action());
-    assert!(bus.undo(&pane).is_some(), "undo popped the pushed local action");
-    assert!(bus.redo(&pane).is_some(), "redo re-applied the undone action");
+    assert!(
+        bus.undo(&pane).is_some(),
+        "undo popped the pushed local action"
+    );
+    assert!(
+        bus.redo(&pane).is_some(),
+        "redo re-applied the undone action"
+    );
 
     // CROSS-PANE undo + redo (POLICY-2 — entirely SILENT before MT-036; scope=cross_pane).
     bus.set_focus_owner(pane.clone());
     bus.push_undo_cross_pane(sync_undo_action());
     assert!(bus.undo_cross_pane().is_some(), "cross-pane undo popped");
-    assert!(bus.redo_cross_pane().is_some(), "cross-pane redo re-applied");
+    assert!(
+        bus.redo_cross_pane().is_some(),
+        "cross-pane redo re-applied"
+    );
 
     let seen = seen.lock().unwrap();
     assert_eq!(
@@ -606,7 +1233,8 @@ fn command_palette_undo_commands_emit_undo_fired() {
 
     let seen = Arc::new(Mutex::new(Vec::new()));
     let mut bus = InteractionBus::new();
-    bus.set_event_emitter(headless_emitter("WS-CMD"));
+    let (_runtime, emitter) = accepting_emitter("WS-CMD");
+    bus.set_event_emitter(emitter);
     bus.register_surface(Box::new(ScopeRecordingSurface {
         seen: Arc::clone(&seen),
     }));
@@ -641,6 +1269,28 @@ fn command_palette_undo_commands_emit_undo_fired() {
     );
 }
 
+#[test]
+fn extension_callback_observes_the_same_authoritative_actor_as_the_ledger() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let (_runtime, emitter) = accepting_emitter("WS-ACTOR");
+    let mut bus = handshake_native::interop::InteractionBus::new();
+    bus.set_event_emitter(emitter);
+    bus.register_surface(Box::new(ActorRecordingSurface {
+        seen: Arc::clone(&seen),
+    }));
+    assert!(bus.emit_event(NativeEditorEvent::document_saved(
+        "DOC-ACTOR",
+        "a".repeat(64),
+        "pane-rich",
+        "caller-supplied-wrong-actor",
+        "WS-ACTOR",
+    )));
+    assert_eq!(
+        seen.lock().unwrap().as_slice(),
+        &[handshake_native::event_emitter::DEFAULT_ACTOR_ID]
+    );
+}
+
 // ── AC-8 hygiene guard (always runs) ─────────────────────────────────────────────────────────────────
 
 #[test]
@@ -648,39 +1298,432 @@ fn no_repo_local_artifact_dir() {
     assert_no_local_artifact_dir();
 }
 
-// ── AC-1/2/3 + PT-3/4/6: REAL-PG native-editor round-trip (TYPED BACKEND BLOCKER) ─────────────────────
+// ── AC-1/2/3 + PT-3/4/6: live native-editor ledger round-trip ────────────────────────────────────────
 
-/// The native-editor → Flight Recorder round-trip (save a rich doc, query the ledger, assert a
-/// `document_saved` native event present, filtered by the native actor).
-///
-/// THIS IS A TYPED BACKEND BLOCKER, not a fake. Verification of the FROZEN backend
-/// (`src/backend/handshake_core/src/api/flight_recorder.rs` + `api/workspaces.rs`) shows there is NO
-/// HTTP ingestion endpoint that records a native-editor event with a custom `actor_id`/action:
-///   - `POST /flight_recorder/runtime_chat_event` is `deny_unknown_fields`, has a CLOSED 3-value `type`
-///     enum (no `system`), forces `session_id` to be a non-nil UUID, and HARDCODES `actor_id="runtime_chat"`;
-///   - the only `editor_edit` FlightEvents the ledger holds are emitted SERVER-SIDE from the Atelier-apply
-///     endpoint (hardwired `editor_surface="monaco"`, `actor=Human`);
-///   - `GET /flight_recorder` has NO `actor_id` filter.
-/// Therefore a native-editor `document_saved` (action + native actor + pane_id) CANNOT be POSTed and then
-/// queried back by `actor_id='native_editor_human'` without a NEW backend ingestion endpoint
-/// (`POST /flight_recorder/native_editor_event` recording a `FlightRecorderEventType::EditorEdit` with a
-/// native actor/surface, queryable by `actor`/`surface`). Backend edits are out of scope
-/// (`src/backend/** = reuse-via-API-only`).
-///
-/// `#[ignore]` + `--features integration` so CI NEVER reports a fake pass. When the backend ingestion
-/// endpoint lands, swap `RuntimeChatLedgerTransport` for the native-editor transport and replace the
-/// `panic!` below with the real assert (the emitter + body are already correct + live-wired).
-#[cfg(feature = "integration")]
 #[test]
-#[ignore = "TYPED BACKEND BLOCKER: no native-editor Flight Recorder ingestion endpoint (see fn doc + event_emitter.rs)"]
-fn native_editor_round_trip() {
-    panic!(
-        "MT-036 round-trip is BLOCKED on a missing backend ingestion endpoint. The verified backend has \
-         no HTTP route that records a native-editor FlightEvent with a custom actor_id/action \
-         (runtime_chat_event is deny_unknown_fields + closed type-enum + hardcoded actor_id; editor_edit \
-         is server-side-only from Atelier-apply; GET has no actor_id filter). This requires a NEW backend \
-         endpoint (POST /flight_recorder/native_editor_event) — out of scope (src/backend reuse-only), \
-         routed as a typed blocker. The emitter, body shape, bounded spawn, error ring, and the LIVE \
-         save/undo/route emit call sites are all REAL and proven by the non-ignored tests."
+fn event_emitter_native_editor_round_trip() {
+    let base =
+        std::env::var("HSK_TEST_BASE").unwrap_or_else(|_| "http://127.0.0.1:37501".to_owned());
+    let marker = uuid::Uuid::new_v4().to_string();
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let actor = format!("mt036-live-human-{marker}");
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("integration runtime");
+    let http = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(3))
+        .timeout(std::time::Duration::from_secs(8))
+        .build()
+        .expect("build bounded MT-036 HTTP client");
+    let (workspace, document_id, _doc_version, canvas_id, source_block_id) = runtime.block_on(async {
+        let response = http
+            .post(format!("{base}/workspaces"))
+            .header("x-hsk-actor-id", &actor)
+            .header("x-hsk-actor-kind", "human")
+            .json(&serde_json::json!({"name": format!("MT036 {marker}")}))
+            .send()
+            .await
+            .expect("create isolated workspace request");
+        let status = response.status();
+        let workspace_body: serde_json::Value =
+            response.json().await.expect("create workspace JSON");
+        assert!(status.is_success(), "create workspace -> {status}: {workspace_body}");
+        let workspace = workspace_body["id"]
+            .as_str()
+            .expect("created workspace id")
+            .to_owned();
+
+        let identified = |request: reqwest::RequestBuilder| {
+            request
+                .header("x-hsk-actor-id", &actor)
+                .header("x-hsk-kernel-task-run-id", "KTR-MT036-LIVE")
+                .header("x-hsk-session-run-id", &session_id)
+                .header("x-hsk-actor-kind", "operator")
+        };
+        let content = serde_json::json!({
+            "type": "doc",
+            "content": [{"type":"paragraph","content":[{"type":"text","text":format!("MT036 {marker}")}]}]
+        });
+        let response = identified(http.post(format!("{base}/knowledge/documents")))
+            .json(&serde_json::json!({
+                "workspace_id": &workspace,
+                "title": format!("MT036 live {marker}"),
+                "content_json": content,
+            }))
+            .send()
+            .await
+            .expect("create rich document request");
+        let status = response.status();
+        let document: serde_json::Value = response.json().await.expect("create rich document JSON");
+        assert!(status.is_success(), "create rich document -> {status}: {document}");
+
+        let response = identified(http.post(format!(
+            "{base}/workspaces/{workspace}/loom/blocks"
+        )))
+        .json(&serde_json::json!({
+            "content_type": "note",
+            "title": format!("MT036 canvas source {marker}")
+        }))
+        .send()
+        .await
+        .expect("create source Loom block request");
+        let status = response.status();
+        let source: serde_json::Value = response.json().await.expect("source block JSON");
+        assert!(status.is_success(), "create source block -> {status}: {source}");
+
+        let response = identified(http.post(format!(
+            "{base}/workspaces/{workspace}/loom/canvas-boards"
+        )))
+        .json(&serde_json::json!({"title": format!("MT036 canvas {marker}")}))
+        .send()
+        .await
+        .expect("create Canvas board request");
+        let status = response.status();
+        let canvas: serde_json::Value = response.json().await.expect("canvas JSON");
+        assert!(status.is_success(), "create Canvas -> {status}: {canvas}");
+
+        (
+            workspace,
+            document["document"]["rich_document_id"]
+                .as_str()
+                .expect("created rich_document_id")
+                .to_owned(),
+            document["document"]["doc_version"]
+                .as_u64()
+                .expect("created doc_version"),
+            canvas["block_id"]
+                .as_str()
+                .expect("created canvas block_id")
+                .to_owned(),
+            source["block_id"]
+                .as_str()
+                .expect("created source block_id")
+                .to_owned(),
+        )
+    });
+    use handshake_native::app::{HandshakeApp, HealthDisplayState};
+    use handshake_native::backend_client::HealthInfo;
+    use handshake_native::graph::canvas_board::PLACE_BLOCK_AUTHOR_ID;
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&base, runtime.handle().clone());
+    app.set_active_project_id_for_test(workspace.clone());
+    assert!(
+        app.open_document(&document_id).opened(),
+        "real shell opens the PostgreSQL-backed document in the mounted Notes pane"
     );
+    let canvas_board = app.mounted_canvas_board();
+    let canvas_events = app.mounted_canvas_events();
+    {
+        let mut board = canvas_board.lock().expect("canvas board lock");
+        board.workspace_id = workspace.clone();
+        board.canvas_block_id = canvas_id.clone();
+    }
+    assert!(
+        app.dispatch_palette_action_for_test(handshake_native::command_registry::CMD_VIEW_CANVAS),
+        "operator-facing View Canvas command mounts the production pane"
+    );
+    let captured_ctx = Arc::new(Mutex::new(None::<egui::Context>));
+    let captured_ctx_ui = Arc::clone(&captured_ctx);
+    let mut app_harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 800.0))
+        .build_state(
+            move |ctx, app: &mut HandshakeApp| {
+                *captured_ctx_ui.lock().expect("capture app context") = Some(ctx.clone());
+                app.ui(ctx);
+            },
+            app,
+        );
+    for _ in 0..400 {
+        app_harness.run_steps(1);
+        let ready = canvas_board
+            .lock()
+            .map(|board| !board.loading && board.error.is_none())
+            .unwrap_or(false);
+        let rich_ready = app_harness
+            .state()
+            .mounted_rich_state()
+            .lock()
+            .map(|state| {
+                state
+                    .block_plain_text(0)
+                    .is_some_and(|text| text.contains(&marker))
+            })
+            .unwrap_or(false);
+        if ready
+            && rich_ready
+            && canvas_events
+                .lock()
+                .map(|events| events.is_empty())
+                .unwrap_or(false)
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    assert!(
+        canvas_board
+            .lock()
+            .map(|board| !board.loading && board.error.is_none())
+            .unwrap_or(false),
+        "mounted Canvas completed its initial backend load"
+    );
+    let app_ctx = captured_ctx
+        .lock()
+        .expect("captured app context lock")
+        .clone()
+        .expect("mounted app context");
+    let app_bus = handshake_native::interop::InteractionBus::get_or_init(&app_ctx);
+    let emitter = handshake_native::interop::InteractionBus::with_try_lock(&app_bus, |bus| {
+        bus.event_emitter().cloned()
+    })
+    .flatten()
+    .expect("production shell installed the native-editor emitter");
+    assert_eq!(emitter.workspace_id(), workspace);
+
+    // Save the real PostgreSQL document through the mounted HandshakeApp Notes pane and the production
+    // File > Save dispatcher. The mounted widget drains the SaveManager completion and emits the receipt.
+    // Re-open the already-mounted document through the real ShellNavigator first: mounting Canvas above
+    // intentionally made Canvas active, and Save must never target an inactive editor by accident.
+    assert!(
+        app_harness.state_mut().open_document(&document_id).opened(),
+        "real shell re-focuses the mounted Notes document before File > Save"
+    );
+    app_harness.run_steps(2);
+    let live_ctx = app_harness.ctx.clone();
+    let save_lifecycle = app_harness.state().editor_save_state_for_test(&live_ctx);
+    assert!(
+        app_harness
+            .state_mut()
+            .dispatch_palette_action_for_test_with_ctx(
+                &live_ctx,
+                handshake_native::command_registry::CMD_EDITOR_FILE_SAVE,
+            ),
+        "mounted app File > Save dispatch reaches the real Notes SaveManager; {save_lifecycle}"
+    );
+    let save_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        app_harness.run_steps(1);
+        if !app_harness
+            .state()
+            .mounted_rich_state()
+            .lock()
+            .unwrap()
+            .save_is_in_flight()
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < save_deadline,
+            "timed out waiting for native rich save completion"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+
+    assert!(
+        app_harness
+            .state_mut()
+            .dispatch_palette_action_for_test_with_ctx(
+                &live_ctx,
+                handshake_native::command_registry::CMD_VIEW_CANVAS,
+            ),
+        "mounted app re-focuses the real Canvas pane before placement"
+    );
+    app_harness.run_steps(2);
+
+    // Mount the real Handshake Canvas pane and click its AccessKit Place-block control. The backend
+    // mints the placement; the production app drains that exact completion and emits
+    // canvas_node_placed. No direct event call and no fabricated placement result is used here.
+    canvas_board
+        .lock()
+        .expect("canvas place input lock")
+        .place_block_input = source_block_id.clone();
+    app_harness.run_steps(1);
+    let target = app_harness
+        .root()
+        .children_recursive()
+        .find_map(|node| {
+            let access = node.accesskit_node();
+            (access.author_id() == Some(PLACE_BLOCK_AUTHOR_ID)).then(|| access.id())
+        })
+        .expect("mounted Canvas exposes canvas.place-block");
+    app_harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target,
+            data: None,
+        },
+    ));
+    let canvas_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        app_harness.run_steps(1);
+        let placed = canvas_board
+            .lock()
+            .map(|board| {
+                board
+                    .placements
+                    .iter()
+                    .any(|placement| placement.placed_block_id == source_block_id)
+            })
+            .unwrap_or(false);
+        if placed
+            && canvas_events
+                .lock()
+                .map(|events| events.is_empty())
+                .unwrap_or(false)
+            && app_harness.state().canvas_op_cells_in_flight() == 0
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < canvas_deadline,
+            "timed out waiting for mounted Canvas placement"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+
+    // The real Canvas placement completion above registered its compensating action on the production
+    // cross-pane undo ring. Invoke the mounted app's Edit > Undo dispatcher against that real edit;
+    // never seed a synthetic action as a substitute for the product lifecycle.
+    let cross_pane_undo_count =
+        handshake_native::interop::InteractionBus::with_try_lock(&app_bus, |bus| {
+            bus.undo_scope().cross_pane_undo_count()
+        })
+        .expect("production InteractionBus available for undo inspection");
+    assert_eq!(
+        cross_pane_undo_count, 1,
+        "the backend-confirmed Canvas placement registered exactly one compensating undo"
+    );
+    assert!(
+        app_harness
+            .state_mut()
+            .dispatch_palette_action_for_test_with_ctx(
+                &live_ctx,
+                handshake_native::command_registry::CMD_EDITOR_EDIT_UNDO,
+            ),
+        "mounted app Edit > Undo dispatch fires the real unified undo path"
+    );
+
+    let event_ids = runtime.block_on(async {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        let matching = loop {
+            let response = reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(3))
+                .timeout(std::time::Duration::from_secs(8))
+                .build()
+                .expect("build bounded MT-036 poll client")
+                .get(format!("{base}/api/flight_recorder"))
+                .query(&[
+                    (
+                        "actor_id",
+                        handshake_native::event_emitter::DEFAULT_ACTOR_ID,
+                    ),
+                    ("wsid", workspace.as_str()),
+                    ("event_type", "system"),
+                ])
+                .send()
+                .await
+                .expect("GET flight recorder");
+            assert!(
+                response.status().is_success(),
+                "ledger GET: {}",
+                response.status()
+            );
+            let rows: Vec<serde_json::Value> = response.json().await.expect("ledger JSON array");
+            let matching = rows
+                .iter()
+                .filter(|row| {
+                    row["actor_id"] == handshake_native::event_emitter::DEFAULT_ACTOR_ID
+                        && row["wsids"]
+                            .as_array()
+                            .is_some_and(|ids| ids.iter().any(|id| id == &workspace))
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            if matching.len() == 3 {
+                break matching;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "timed out waiting for three ordered production-emitter events; got {matching:#?}"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        };
+        assert_eq!(
+            matching.len(),
+            3,
+            "exact three correlated native events: {matching:#?}"
+        );
+        let actions = matching
+            .iter()
+            .map(|row| row["payload"]["action"].as_str().unwrap_or_default())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actions,
+            vec!["undo_fired", "canvas_node_placed", "document_saved"],
+            "GET returns the three sequential writes newest-first"
+        );
+        let trace_id = matching[0]["trace_id"]
+            .as_str()
+            .expect("production emitter trace id");
+        assert!(uuid::Uuid::parse_str(trace_id).is_ok());
+        assert!(matching.iter().all(|row| {
+            row["event_type"] == "system"
+                && row["actor_id"] == handshake_native::event_emitter::DEFAULT_ACTOR_ID
+                && row["trace_id"] == trace_id
+                && row["session_span_id"] == trace_id
+                && row["payload"]["schema_version"] == NATIVE_EDITOR_SCHEMA_VERSION
+                && row["payload"]["schema"] == NATIVE_EDITOR_SCHEMA_VERSION
+                && row["payload"]["workspace_id"] == workspace
+        }));
+        matching
+            .iter()
+            .map(|row| row["event_id"].as_str().unwrap().to_owned())
+            .collect::<Vec<_>>()
+    });
+
+    // Open the real operator route. The mounted pane itself requests GET /flight_recorder through the
+    // app driver and renders the returned rows; no test cell, parser delivery, or standalone pane is
+    // substituted.
+    assert!(app_harness
+        .state_mut()
+        .dispatch_palette_action_for_test("flightrecorder.open"));
+    let pane_deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        app_harness.run_steps(1);
+        let ids = author_ids(&app_harness);
+        if event_ids
+            .iter()
+            .all(|event_id| ids.contains(&fr_event_row_author_id(event_id)))
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < pane_deadline,
+            "mounted production Flight Recorder pane did not expose {event_ids:?}; lifecycle={:?}",
+            app_harness.state().flight_recorder_state_for_test(),
+        );
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+
+    runtime.block_on(async {
+        let cleanup = reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(3))
+            .timeout(std::time::Duration::from_secs(8))
+            .build()
+            .expect("build bounded MT-036 cleanup client")
+            .delete(format!("{base}/workspaces/{workspace}"))
+            .header("x-hsk-actor-id", &actor)
+            .header("x-hsk-actor-kind", "human")
+            .send()
+            .await
+            .expect("cleanup isolated workspace");
+        assert!(cleanup.status().is_success(), "isolated workspace cleanup");
+    });
 }

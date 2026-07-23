@@ -1,7 +1,7 @@
 use crate::storage::{
-    CalendarEventUpsert, CalendarMutationAction, CalendarSourceSyncState, CalendarSourceUpsert,
-    CalendarSourceWritePolicy, CalendarSyncEventUpsert, CalendarSyncInput, CalendarSyncStateStage,
-    WriteContext,
+    normalize_calendar_sync_event, CalendarEventUpsert, CalendarMutationAction,
+    CalendarSourceSyncState, CalendarSourceUpsert, CalendarSourceWritePolicy,
+    CalendarSyncEventUpsert, CalendarSyncInput, CalendarSyncStateStage, WriteContext,
 };
 use crate::{
     ace::{
@@ -15015,7 +15015,10 @@ fn calendar_event_upsert_from_sync_event(
         end_local: event.end_local,
         tzid: event.tzid,
         all_day: event.all_day,
+        start_date: event.start_date,
+        end_date_exclusive: event.end_date_exclusive,
         was_floating: event.was_floating,
+        normalization_note: event.normalization_note,
         status: event.status,
         visibility: event.visibility,
         export_mode: event.export_mode,
@@ -15196,16 +15199,19 @@ async fn apply_calendar_sync(
     );
     let mut provider_events_upserted = 0usize;
     for provider_event in input.provider_events {
+        let provider_event = normalize_calendar_sync_event(provider_event, &source.default_tzid)
+            .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
         let upsert = calendar_event_upsert_from_sync_event(
             &input.workspace_id,
             &input.source_id,
             provider_event,
         );
-        state
+        let stored_event = state
             .storage
             .upsert_calendar_event(&ctx, upsert)
             .await
             .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+        record_calendar_mutation_span(state, op, workflow_id, &stored_event).await?;
         provider_events_upserted += 1;
     }
 
@@ -15216,16 +15222,19 @@ async fn apply_calendar_sync(
                 let event = mutation.event.ok_or_else(|| {
                     MexAdapterError::Engine("calendar mutation upsert_event requires event".into())
                 })?;
+                let event = normalize_calendar_sync_event(event, &source.default_tzid)
+                    .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
                 let upsert = calendar_event_upsert_from_sync_event(
                     &input.workspace_id,
                     &input.source_id,
                     event,
                 );
-                state
+                let stored_event = state
                     .storage
                     .upsert_calendar_event(&ctx, upsert)
                     .await
                     .map_err(|e| MexAdapterError::Engine(e.to_string()))?;
+                record_calendar_mutation_span(state, op, workflow_id, &stored_event).await?;
                 mutations_applied += 1;
             }
             CalendarMutationAction::DeleteSourceData => {
@@ -15337,6 +15346,43 @@ async fn apply_calendar_sync(
         output,
         errors: Vec::new(),
     })
+}
+
+async fn record_calendar_mutation_span(
+    state: &AppState,
+    op: &PlannedOperation,
+    workflow_id: Uuid,
+    event: &crate::storage::CalendarEvent,
+) -> Result<(), MexAdapterError> {
+    state
+        .flight_recorder
+        .record_event(
+            FlightRecorderEvent::new(
+                FlightRecorderEventType::System,
+                FlightRecorderActor::Agent,
+                op.op_id,
+                json!({
+                    "message": "calendar_mutation",
+                    "event_id": event.id,
+                    "workspace_id": event.workspace_id,
+                    "source_id": event.source_id,
+                    "job_id": event.last_job_id,
+                    "workflow_id": event.last_workflow_id,
+                    "edit_event_id": event.edit_event_id,
+                    "actor_kind": event.last_actor_kind,
+                    "actor_id": event.last_actor_id,
+                    "idempotency_key": format!("calendar-mutation-{}", event.edit_event_id),
+                }),
+            )
+            .with_job_id(op.op_id.to_string())
+            .with_workflow_id(workflow_id.to_string()),
+        )
+        .await
+        .map_err(|e| {
+            MexAdapterError::Engine(format!(
+                "calendar mutation flight recorder span failed: {e}"
+            ))
+        })
 }
 
 async fn run_calendar_sync_job(
@@ -22167,28 +22213,18 @@ async fn run_fems_memory_job(
     )?;
     if let Some(built) = built_memory_pack.as_ref() {
         let pack = &built.pack;
-        let selected_ids_hash = sha256_hex(
-            pack.items
-                .iter()
-                .map(|item| item.memory_id.as_str())
-                .collect::<Vec<_>>()
-                .join(",")
-                .as_bytes(),
-        );
         let pack_artifact_ref = fems_artifact_handle("packs", pack.pack_id.as_str());
         let pack_payload = json!({
             "type": "memory_pack_built",
-            "event_id": "FR-EVT-MEM-004",
+            "event_code": "FR-EVT-MEM-004",
             "pack_id": pack.pack_id.as_str(),
             "memory_pack_hash": pack.memory_pack_hash.as_str(),
             "artifact_ref": pack_artifact_ref,
             "memory_policy": policy.as_str(),
-            "scope_refs": fems_scope_ref_tokens(scope_refs.as_slice()),
+            "scope_refs": scope_refs,
             "item_count": pack.items.len(),
             "token_estimate": pack.token_estimate,
             "truncation_occurred": built.truncation_occurred,
-            "selected_memory_ids_hash": selected_ids_hash,
-            "redaction_applied": pack.warnings.iter().any(|w| w == "redaction_applied"),
         });
         record_event_required(
             state,
@@ -22373,11 +22409,11 @@ async fn run_fems_memory_job(
             trace_id,
             json!({
                 "type": "memory_write_proposed",
-                "event_id": "FR-EVT-MEM-001",
+                "event_code": "FR-EVT-MEM-001",
                 "proposal_id": proposal_id.as_str(),
                 "proposal_hash": proposal_hash.as_str(),
                 "artifact_ref": proposal_artifact_ref,
-                "scope_refs": fems_scope_ref_tokens(scope_refs.as_slice()),
+                "scope_refs": scope_refs,
                 "op_count": ops.len(),
                 "requires_review_count": requires_review_count,
             }),
@@ -22460,12 +22496,6 @@ async fn run_fems_memory_job(
     } else {
         review_decision.unwrap_or_else(|| "approved".to_string())
     };
-    let commit_review_ref = if decision == "approved" || decision == "partial" {
-        serde_json::to_value(fems_artifact_handle("commits", proposal_id.as_str()))
-            .unwrap_or(Value::Null)
-    } else {
-        Value::Null
-    };
     record_event_required(
         state,
         FlightRecorderEvent::new(
@@ -22474,11 +22504,10 @@ async fn run_fems_memory_job(
             trace_id,
             json!({
                 "type": "memory_write_reviewed",
-                "event_id": "FR-EVT-MEM-002",
+                "event_code": "FR-EVT-MEM-002",
                 "proposal_id": proposal_id,
                 "decision": decision,
                 "reviewer_kind": reviewer_kind,
-                "commit_report_ref": commit_review_ref,
             }),
         )
         .with_job_id(job.job_id.to_string())
@@ -22579,7 +22608,7 @@ async fn run_fems_memory_job(
             trace_id,
             json!({
                 "type": "memory_write_committed",
-                "event_id": "FR-EVT-MEM-003",
+                "event_code": "FR-EVT-MEM-003",
                 "commit_id": commit_id.as_str(),
                 "proposal_id": proposal_id.as_str(),
                 "commit_report_hash": commit_report_hash.as_str(),
@@ -22594,7 +22623,9 @@ async fn run_fems_memory_job(
 
     for applied in &applied_ops {
         let (new_status, reason) = match applied.op {
-            MemoryMutationOp::Add | MemoryMutationOp::Update => ("active", "merge"),
+            // Add and update leave the stored item active. FR-EVT-MEM-005 is emitted only for a
+            // real status transition, never for a fabricated active -> active edge.
+            MemoryMutationOp::Add | MemoryMutationOp::Update => continue,
             MemoryMutationOp::Supersede => ("superseded", "supersede"),
             MemoryMutationOp::Invalidate => ("invalidated", "invalidate"),
             MemoryMutationOp::Tombstone => ("tombstoned", "tombstone"),
@@ -22612,7 +22643,7 @@ async fn run_fems_memory_job(
                 trace_id,
                 json!({
                     "type": "memory_item_status_changed",
-                    "event_id": "FR-EVT-MEM-005",
+                    "event_code": "FR-EVT-MEM-005",
                     "memory_id": applied.memory_id.as_str(),
                     "previous_status": "active",
                     "new_status": new_status,

@@ -36,6 +36,8 @@ pub type PaneId = Arc<str>;
 pub enum PaneType {
     Workspace,
     LoomDailyJournal,
+    /// WP-KERNEL-012 MT-067: content-addressed CalendarEvent details destination.
+    CalendarEvent,
     LoomBlock,
     LoomWikiPage,
     AtelierEditor,
@@ -70,6 +72,7 @@ impl PaneType {
         match self {
             PaneType::Workspace => "Workspace".to_owned(),
             PaneType::LoomDailyJournal => "Loom Daily Journal".to_owned(),
+            PaneType::CalendarEvent => "Calendar Event".to_owned(),
             PaneType::LoomBlock => "Loom Block".to_owned(),
             PaneType::LoomWikiPage => "Loom Wiki Page".to_owned(),
             PaneType::AtelierEditor => "Atelier Editor".to_owned(),
@@ -117,6 +120,7 @@ impl PaneType {
             PaneType::CodeSymbol => "Code Symbol",
             PaneType::SourceControl => "Source Control",
             PaneType::LoomDailyJournal => "Journal",
+            PaneType::CalendarEvent => "Calendar Event",
             PaneType::LoomBlock => "Loom Block",
             PaneType::LoomWikiPage => "Wiki Page",
             PaneType::AtelierEditor => "Atelier",
@@ -411,7 +415,7 @@ pub const STAGE_PANE_ID: &str = "stage.pane";
 ///
 /// This is the E10 registration the MT requires NOW (the pane is dockable through the EXISTING registry
 /// API — no new docking system is invented, AC-006). The host wiring of the route-leg drain
-/// (`take_pending_stage_content` -> `receive_routed_content`) and the embed-back command to the live shell
+/// (peek/apply/exact-event acknowledge -> `receive_routed_content`) and the embed-back command to the live shell
 /// land at E11 (MT-069), like the other panes.
 pub fn register_stage_pane(
     registry: &mut PaneRegistry,

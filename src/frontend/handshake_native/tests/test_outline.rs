@@ -27,8 +27,14 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
+#[path = "native_gui_support/argus_surface_proof.rs"]
+mod argus_surface_proof;
+use argus_surface_proof::{prove_argus_surface, ArgusMutation};
 
+use handshake_native::manual_content_editors::MT108_ARGUS_OUTLINE_PROOF_AUTHOR_ID;
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child};
 use handshake_native::rich_editor::document_model::selection::Selection;
 use handshake_native::rich_editor::outline_panel::{
@@ -227,6 +233,34 @@ fn pt002_click_entry_scrolls_and_selects_via_caret_model() {
         other => panic!("AC-003: expected a Text selection over the heading via the MT-012 model, got {other:?}"),
     }
     println!("PT-002: Gamma entry click -> pending_scroll_block=[3] + Text selection [3,0] 0..5 via the MT-012 caret model");
+}
+
+#[test]
+fn mt108_argus_outline_real_server_loop() {
+    let state = Arc::new(Mutex::new(RichEditorState::new(seeded_doc())));
+    let panel = Arc::new(Mutex::new(OutlinePanel::new()));
+    let mut harness = outline_harness(Arc::clone(&state), panel);
+    harness.run();
+
+    let gamma = outline_entry_author_id(&block_author_id(&[3]));
+    assert_eq!(gamma, MT108_ARGUS_OUTLINE_PROOF_AUTHOR_ID);
+    prove_argus_surface(
+        &mut harness,
+        "outline pane",
+        OUTLINE_CONTAINER_AUTHOR_ID,
+        ArgusMutation::Click { target: &gamma },
+        OUTLINE_CONTAINER_AUTHOR_ID,
+        true,
+        |_| {
+            let target = state.lock().unwrap().pending_scroll_block.clone();
+            if target.as_deref() != Some(&[3usize][..]) {
+                return Err(format!(
+                    "expected pending scroll block [3], observed {target:?}"
+                ));
+            }
+            Ok(serde_json::json!({ "pending_scroll_block": target }))
+        },
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════

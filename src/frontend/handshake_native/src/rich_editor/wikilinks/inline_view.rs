@@ -26,7 +26,9 @@
 //! local rect maps to the right screen rect for a non-zero origin (the scroll-offset case).
 
 use egui::accesskit;
-use egui::{Color32, Rect, Vec2};
+#[cfg(test)]
+use egui::Vec2;
+use egui::{Color32, Rect};
 
 use crate::rich_editor::document_model::node::HsLinkNode;
 use crate::theme::HsPalette;
@@ -41,6 +43,24 @@ use crate::theme::HsPalette;
 /// so they survive being parked across frames.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EditorEvent {
+    /// WP-KERNEL-012 MT-043: the operator or an AccessKit agent selected one exact rich-note code
+    /// block for editing in the native code editor. `block_path` is the stable document-model path
+    /// captured from the rendered block; the shell binds that exact path and original text to the
+    /// code panel so `editor.code.save` can reject a stale/replaced block instead of overwriting the
+    /// first code block it happens to find.
+    CodeBlockOpenRequested {
+        /// The PostgreSQL-backed rich document that owns the code block.
+        document_id: String,
+        /// Exact owning-document structural snapshot captured with the block path. The save bridge
+        /// rejects any intervening document change, including identical-text positional drift.
+        document_snapshot: serde_json::Value,
+        /// Exact child-index path from the document root to the selected code block.
+        block_path: Vec<usize>,
+        /// Optional Tiptap `attrs.language` value used to seed native syntax highlighting.
+        language: String,
+        /// Exact code snapshot displayed when the native code panel was opened.
+        code: String,
+    },
     /// A wikilink chip was clicked. The shell routes `ref_kind`/`ref_value` to Loom or the document
     /// viewer (e.g. `ref_kind="wp"` -> open the WP record; `ref_kind="note"` -> open the document).
     WikilinkActivated {
@@ -103,29 +123,48 @@ pub fn create_affordance_author_id(title: &str) -> String {
 }
 
 /// WP-KERNEL-012 MT-057: the AccessKit author_id for one alias-autocomplete candidate row, of the
-/// contract form `wikilink-candidate-{document_id}` (the document the row inserts a link to). The
+/// canonical form `editor.rich.wikilink.candidate.{document_id}` (the document the row inserts a link to). The
 /// document id is used verbatim (it is already a stable opaque id), so a swarm agent / kittest targets
 /// a candidate by the document it resolves to.
 pub fn candidate_author_id(document_id: &str) -> String {
-    format!("wikilink-candidate-{document_id}")
+    format!("editor.rich.wikilink.candidate.{document_id}")
 }
 
-/// A short, stable 32-bit hex hash (FNV-1a) for an author_id suffix — the SAME deterministic
-/// no-random-seed hash [`chip_author_id`] uses, so create-affordance ids are stable across runs (NOT
-/// `RandomState`, which would re-seed per process and break kittest/swarm targeting — MC-005).
+/// A short, stable 32-bit hex hash for create-affordance ids. Generic wikilink chip identity does not
+/// use this lossy hash; [`chip_author_id`] encodes the complete target bytes injectively.
 fn short_hex_hash(bytes: &[u8]) -> String {
     format!("{:08x}", fnv1a_hash(bytes))
 }
 
-/// The AccessKit author_id for a wikilink chip (`wikilink-chip-{ref_value_hash}` per the MT contract).
-/// The hash is a deterministic FNV-1a of the ref value, so the same wikilink yields the same id
-/// across repaints (an out-of-process agent can target a chip by a value it computes independently).
+/// The canonical base AccessKit author_id for a generic wikilink chip. The complete UTF-8 target is
+/// hex encoded byte-for-byte, so distinct targets cannot collide through a truncated hash.
 pub fn chip_author_id(ref_value: &str) -> String {
-    format!("wikilink-chip-{}", fnv1a_hash(ref_value.as_bytes()))
+    use std::fmt::Write as _;
+    let mut encoded = String::with_capacity(ref_value.len() * 2);
+    for byte in ref_value.as_bytes() {
+        let _ = write!(encoded, "{byte:02x}");
+    }
+    format!("editor.rich.wikilink.chip.v{encoded}")
 }
 
-/// Deterministic 32-bit FNV-1a hash (the same stable, no-random-seed hash the renderer uses for block
-/// ids). Used for the chip author_id suffix so it is stable across runs (NOT `RandomState`).
+/// Collision-safe identity for one exact generic wikilink occurrence. `document_path` is encoded as
+/// an unambiguous sequence of hexadecimal indices and never includes screen position, so duplicate
+/// links remain distinct and stable across wrapping/repaint changes.
+pub fn chip_occurrence_author_id(ref_value: &str, document_path: &[usize]) -> String {
+    let path = if document_path.is_empty() {
+        "root".to_owned()
+    } else {
+        document_path
+            .iter()
+            .map(|index| format!("{index:x}"))
+            .collect::<Vec<_>>()
+            .join("-")
+    };
+    format!("{}.path.{path}", chip_author_id(ref_value))
+}
+
+/// Deterministic 32-bit FNV-1a hash retained for create-affordance and malformed specialized-link
+/// fallbacks. Generic chip identity uses the injective full-byte encoding above.
 fn fnv1a_hash(bytes: &[u8]) -> u32 {
     const FNV_OFFSET: u32 = 0x811c_9dc5;
     const FNV_PRIME: u32 = 0x0100_0193;
@@ -146,7 +185,7 @@ pub fn is_code_ref(link: &HsLinkNode) -> bool {
 
 /// The AccessKit author_id for a CODE-reference chip (`code-ref-chip-{symbol_entity_id}` per the MT-034
 /// contract). For a code ref the `ref_value` IS the symbol entity id / resolution key, so it is used
-/// verbatim (NOT the hashed wikilink-chip id) — the contract names the id by the symbol entity id so a
+/// verbatim (NOT the hashed generic wikilink-chip id) — the contract names the id by the symbol entity id so a
 /// swarm agent / kittest can target the chip by the symbol it references.
 pub fn code_ref_chip_author_id(symbol_ref: &str) -> String {
     format!("code-ref-chip-{symbol_ref}")
@@ -163,16 +202,58 @@ pub fn is_locus_ref(link: &HsLinkNode) -> bool {
 /// contract, e.g. `locus-ref-chip-wp-WP-KERNEL-012`). The `kind` (`wp`/`mt`) + the work-unit `id` are
 /// parsed from the chip's `ref_value` (the `locus://` ref); a `ref_value` that does not parse falls back to
 /// hashing the raw value so the chip is still addressable (never a panic). Ids are stable across frames so
-/// a swarm agent / kittest can target the chip by the work unit it references, and DE-DUPLICATED by
-/// construction (the same (kind,id) yields the same id).
+/// a swarm agent / kittest can target the chip by the work unit it references. Parsed ids escape the
+/// occurrence/view-suffix grammar injectively: ordinary ids keep the canonical raw contract form, while
+/// `%` and the reserved `--path-` / `--view-` tokens are encoded so an authored id can never alias a
+/// repeated occurrence or a secondary-pane view.
 pub fn locus_ref_chip_author_id(ref_value: &str) -> String {
     match crate::interop::locus_interop::parse_locus_ref(ref_value) {
-        Some(r) => format!("locus-ref-chip-{}-{}", r.kind.as_str(), r.id),
+        Some(r) => format!(
+            "locus-ref-chip-{}-{}",
+            r.kind.as_str(),
+            encode_locus_author_id_component(&r.id)
+        ),
         // A non-parsing locus ref (defensive) is still addressable via the deterministic hash.
         None => format!(
             "locus-ref-chip-unknown-{}",
             fnv1a_hash(ref_value.as_bytes())
         ),
+    }
+}
+
+const LOCUS_OCCURRENCE_PATH_MARKER: &str = "--path-";
+const LOCUS_PANE_VIEW_MARKER: &str = "--view-";
+
+/// Escape the reserved author-id suffix tokens without changing normal WP/MT ids. `%` is escaped first,
+/// making the mapping injective even when an authored id literally contains an escape spelling.
+fn encode_locus_author_id_component(id: &str) -> String {
+    id.replace('%', "%25")
+        .replace(LOCUS_OCCURRENCE_PATH_MARKER, "%2D%2Dpath%2D")
+        .replace(LOCUS_PANE_VIEW_MARKER, "%2D%2Dview%2D")
+}
+
+/// Return the stable AccessKit identity for one occurrence of a Locus chip. The first occurrence keeps
+/// the MT-068 contract id (`locus-ref-chip-{kind}-{id}`); repeated identical refs append their stable
+/// document-tree path so every live node remains uniquely addressable without depending on screen
+/// position or line wrapping. `occurrence_index` is counted in document order for this base identity.
+pub fn locus_ref_chip_occurrence_author_id(
+    ref_value: &str,
+    document_path: &[usize],
+    occurrence_index: usize,
+) -> String {
+    let base = locus_ref_chip_author_id(ref_value);
+    if occurrence_index == 0 {
+        return base;
+    }
+    let path = document_path
+        .iter()
+        .map(usize::to_string)
+        .collect::<Vec<_>>()
+        .join("-");
+    if path.is_empty() {
+        format!("{base}{LOCUS_OCCURRENCE_PATH_MARKER}root")
+    } else {
+        format!("{base}{LOCUS_OCCURRENCE_PATH_MARKER}{path}")
     }
 }
 
@@ -265,13 +346,17 @@ pub fn chip_colors(link: &HsLinkNode, palette: &HsPalette) -> (Color32, Color32)
 /// the single paint origin, so this is a pure offset). A small vertical padding makes the chip read
 /// as a pill around the glyphs.
 pub fn chip_rect_for_span(local_start: Rect, local_end: Rect, origin: egui::Pos2) -> Rect {
-    // The chip spans from the start glyph's left to the end glyph's right, the row's full height.
-    let x0 = origin.x + local_start.min.x;
-    let x1 = origin.x + local_end.max.x;
-    let y0 = origin.y + local_start.min.y;
-    let height = local_start.height().max(local_end.height());
-    // 1px pad each side horizontally so the pill does not clip the text; the height is the row height.
-    Rect::from_min_size(egui::pos2(x0 - 1.0, y0), Vec2::new((x1 - x0) + 2.0, height))
+    // A long atom can cross a wrapped-row boundary, where the end cursor's X is left of the start
+    // cursor's X. Never construct a negative-width Rect: egui normalizes it for accessibility output,
+    // but pointer/AccessKit activation still hit-tests the original invalid response rect and drops the
+    // click. Enclose both cursor rects, including both rows when wrapped, then add the pill's 1px
+    // horizontal padding.
+    let start = local_start.translate(origin.to_vec2());
+    let end = local_end.translate(origin.to_vec2());
+    Rect::from_min_max(
+        egui::pos2(start.min.x.min(end.min.x) - 1.0, start.min.y.min(end.min.y)),
+        egui::pos2(start.max.x.max(end.max.x) + 1.0, start.max.y.max(end.max.y)),
+    )
 }
 
 /// The AccessKit role for a wikilink chip — the field-correct nearest variant in accesskit 0.21.1
@@ -293,13 +378,23 @@ mod tests {
         let b = chip_author_id("WP-KERNEL-012");
         assert_eq!(a, b, "the chip id is deterministic for the same ref value");
         assert!(
-            a.starts_with("wikilink-chip-"),
+            a.starts_with("editor.rich.wikilink.chip."),
             "the contract author_id prefix"
         );
         assert_ne!(
             chip_author_id("a"),
             chip_author_id("b"),
             "distinct refs -> distinct ids"
+        );
+        assert_ne!(
+            chip_occurrence_author_id("same", &[1, 23]),
+            chip_occurrence_author_id("same", &[12, 3]),
+            "path component boundaries are injective"
+        );
+        assert_ne!(
+            chip_occurrence_author_id("same", &[0, 1]),
+            chip_occurrence_author_id("same", &[0, 3]),
+            "repeated identical targets receive unique occurrence ids"
         );
     }
 
@@ -310,6 +405,7 @@ mod tests {
             ref_value: "WP-7".into(),
             label: "Seven".into(),
             resolved: true,
+            provenance: None,
         };
         assert_eq!(chip_label(&with_label), "Seven");
         let no_label = HsLinkNode {
@@ -317,6 +413,7 @@ mod tests {
             ref_value: "WP-7".into(),
             label: String::new(),
             resolved: true,
+            provenance: None,
         };
         assert_eq!(
             chip_label(&no_label),
@@ -328,13 +425,14 @@ mod tests {
     #[test]
     fn code_ref_chip_id_uses_symbol_ref_verbatim() {
         // MT-034: the code-ref chip id is `code-ref-chip-{symbol_entity_id}` (the symbol the chip
-        // references), used verbatim — NOT the hashed wikilink-chip id.
+        // references), used verbatim — NOT the hashed generic wikilink-chip id.
         assert_eq!(code_ref_chip_author_id("ent-42"), "code-ref-chip-ent-42");
         let link = HsLinkNode {
             ref_kind: "code".into(),
             ref_value: "ent-42".into(),
             label: String::new(),
             resolved: true,
+            provenance: None,
         };
         assert!(is_code_ref(&link));
         let wp = HsLinkNode {
@@ -342,6 +440,7 @@ mod tests {
             ref_value: "WP-1".into(),
             label: String::new(),
             resolved: true,
+            provenance: None,
         };
         assert!(!is_code_ref(&wp));
     }
@@ -364,6 +463,7 @@ mod tests {
             ref_value: "ent-1".into(),
             label: "src/main.rs#MyStruct".into(),
             resolved: true,
+            provenance: None,
         };
         let lbl = chip_label(&resolved);
         assert!(
@@ -376,6 +476,7 @@ mod tests {
             ref_value: "ent-9".into(),
             label: "src/gone.rs#Gone".into(),
             resolved: false,
+            provenance: None,
         };
         let ul = chip_label(&unresolved);
         assert!(
@@ -396,6 +497,7 @@ mod tests {
             ref_value: "xyz".into(),
             label: String::new(),
             resolved: false,
+            provenance: None,
         };
         assert_eq!(
             chip_label(&unknown),
@@ -412,6 +514,7 @@ mod tests {
             ref_value: "x".into(),
             label: String::new(),
             resolved: true,
+            provenance: None,
         };
         let (bg, fg) = chip_colors(&resolved, &pal);
         assert_eq!(bg, pal.accent_soft);
@@ -421,6 +524,7 @@ mod tests {
             ref_value: "x".into(),
             label: String::new(),
             resolved: false,
+            provenance: None,
         };
         let (bg2, fg2) = chip_colors(&unresolved, &pal);
         assert_eq!(
@@ -451,6 +555,20 @@ mod tests {
             (rect.height() - 18.0).abs() < 0.01,
             "chip height is the glyph row height"
         );
+    }
+
+    #[test]
+    fn chip_rect_normalizes_a_wrapped_span_for_pointer_activation() {
+        let local_start = Rect::from_min_size(egui::pos2(120.0, 0.0), Vec2::new(0.0, 18.0));
+        let local_end = Rect::from_min_size(egui::pos2(30.0, 18.0), Vec2::new(0.0, 18.0));
+        let rect = chip_rect_for_span(local_start, local_end, egui::pos2(10.0, 200.0));
+
+        assert!(
+            rect.is_positive(),
+            "wrapped chips must have a valid hit-test rect"
+        );
+        assert_eq!(rect.min, egui::pos2(39.0, 200.0));
+        assert_eq!(rect.max, egui::pos2(131.0, 236.0));
     }
 
     #[test]

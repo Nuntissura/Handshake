@@ -24,14 +24,21 @@
 
 use egui::accesskit::{self, Action, ActionData, ActionRequest, NodeId};
 use egui_kittest::kittest::NodeT;
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+};
 use handshake_native::rails::{
     apply_rail_scrollbar_style, scrollbar_rail_id, RailColors, RailDimensions, RailOrientation,
     ScrollbarRail, SCROLLBAR_V_NODE_IDS,
 };
+use handshake_native::tab_bar::{TabBarState, TabState};
 use handshake_native::theme::HsPalette;
+use screenshot_harness::ScreenshotHarness as Harness;
+use std::sync::Arc;
 
 /// A minimal real egui host that renders ONE overflowing pane with a vertical `ScrollbarRail`. It
 /// owns the scroll offset as genuine frame state (the rail is stateless and returns the new offset),
@@ -97,6 +104,27 @@ fn ok_app() -> HandshakeApp {
         db_status: "ok".to_string(),
         migration_version: Some(1),
     }))
+}
+
+/// The horizontal-divider proof owns the old 2x2 topology explicitly. MT-098's product default is a
+/// three-column editor/editor/chat worksurface and therefore has no top/bottom divider.
+fn four_pane_divider_app() -> HandshakeApp {
+    let mut app = ok_app();
+    let pane_id: PaneId = Arc::from("pane-d");
+    app.pane_registry().lock().unwrap().insert(PaneRecord::new(
+        pane_id.clone(),
+        PaneType::FontManager,
+        "default-project",
+        None,
+        LockState::Unlocked,
+        DirtyState::Clean,
+        PaneAuthority::System,
+    ));
+    app.tab_bar_states_mut().insert(
+        pane_id.clone(),
+        TabBarState::new(pane_id, vec![TabState::new(PaneType::FontManager)]),
+    );
+    app
 }
 
 /// (author_id, role, numeric_value) for every ScrollBar node in the live consumer-side tree.
@@ -306,7 +334,10 @@ fn capture_divider_state(name: &str, drive: impl FnOnce(&mut Harness<'_, Handsha
     let mut harness = Harness::builder()
         .with_size(egui::vec2(800.0, 600.0))
         .wgpu()
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+        .build_state(
+            |ctx, app: &mut HandshakeApp| app.ui(ctx),
+            four_pane_divider_app(),
+        );
     harness.run();
     drive(&mut harness);
 

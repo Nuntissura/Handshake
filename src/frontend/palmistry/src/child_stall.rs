@@ -75,8 +75,12 @@ pub enum ChildStallState {
     /// child whose registration-time baseline never materialized is not silently un-watched forever —
     /// the mandatory-baseline observability rule. Distinct from `Suspected` (which requires a baseline to
     /// have existed and then gone stale).
-    NoBaseline { waited_ms: u64 },
-    Suspected { stale_ms: u64 },
+    NoBaseline {
+        waited_ms: u64,
+    },
+    Suspected {
+        stale_ms: u64,
+    },
     Stalled(ChildStallReport),
     Exited,
 }

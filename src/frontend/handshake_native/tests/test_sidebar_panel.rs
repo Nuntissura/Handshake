@@ -31,11 +31,10 @@
 //! corrected to the dedicated per-block MT-178 routes that carry the field-correct AC4/AC5 data — see the
 //! backend_client + widget module comments for the disclosed corrections.
 //!
-//! AC1/AC2/AC4/AC5/AC9 against a LIVE Handshake-managed PostgreSQL with seeded pins/favorites/backlinks/
-//! unlinked + an active block are the `#[ignore]`d `*_live_pg` tests gated behind the `integration`
-//! feature (NEEDS_MANAGED_RESOURCE_PROOF); absent a seeded backend they are skipped and NEVER faked. The
-//! breadcrumb/collapse/dedup/optimistic-remove logic + the verified request-shape builders are proven
-//! STANDALONE here and in the lib unit tests — exactly the split the MT `implementation_notes` describe.
+//! AC1-AC9 also run through one isolated, self-seeding, non-ignored managed-PostgreSQL proof behind the
+//! `integration` feature. It creates and tears down its own workspace, mounts real client results into
+//! the widget, inspects AccessKit, performs both mutations, reopens through a fresh client, and records
+//! the exact fixture ids under the external artifact root. An unreachable backend fails loudly.
 //!
 //! ## Artifact hygiene (CX-212E screenshot rule)
 //!
@@ -44,32 +43,38 @@
 //! `tests/screenshots/` or `test_output/` directory exists (the reviewer also greps
 //! `git ls-files "src/**/*.png"`).
 
-// `Path`/`PathBuf` are used only by the opt-in `.wgpu()` screenshot helpers (feature-gated below).
-#[cfg(feature = "wgpu_screenshots")]
+#[cfg(feature = "integration")]
+#[path = "interconnect_support/mod.rs"]
+mod interconnect_support;
+
+// `Path`/`PathBuf` are used by external screenshot and managed-PG receipt helpers.
+#[cfg(any(feature = "wgpu_screenshots", feature = "integration"))]
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::graph::sidebar_panel::{
     backlink_row_author_id, breadcrumb_author_id, favorite_row_author_id, pin_remove_author_id,
-    pin_row_author_id, section_retry_author_id, unlinked_row_author_id, BacklinkRow,
-    LoomSidebarPanel, SectionKind, SidebarBlock, SidebarEvent, UnlinkedRow,
+    pin_row_author_id, section_header_author_id, section_retry_author_id, unlinked_row_author_id,
+    BacklinkRow, LoomSidebarPanel, SectionKind, SidebarBlock, SidebarEvent, UnlinkedRow,
     BACKLINK_ROW_AUTHOR_ID_PREFIX, BREADCRUMB_AUTHOR_ID_PREFIX, PIN_ROW_AUTHOR_ID_PREFIX,
 };
 use handshake_native::theme::HsTheme;
 
 /// The crate-relative path to the EXTERNAL artifacts root (CX-212E), disk-agnostic. Only the
 /// opt-in `.wgpu()` screenshot proof writes artifacts, so this is gated with that feature.
-#[cfg(feature = "wgpu_screenshots")]
+#[cfg(any(feature = "wgpu_screenshots", feature = "integration"))]
 fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
 }
 
 /// Assert NO repo-local artifact directory exists under the crate (CX-212E hygiene). Checks BOTH
 /// `test_output/` and `tests/screenshots/` (the path a contract might literally name, overridden here).
-#[cfg(feature = "wgpu_screenshots")]
+#[cfg(any(feature = "wgpu_screenshots", feature = "integration"))]
 fn assert_no_local_artifact_dir() {
     for local in [Path::new("test_output"), Path::new("tests/screenshots")] {
         assert!(
@@ -103,7 +108,7 @@ fn shared<T>(value: T) -> Arc<Mutex<T>> {
 }
 
 /// Collect every author_id present in the live AccessKit tree.
-fn author_ids(harness: &Harness<'_, ()>) -> std::collections::HashSet<String> {
+fn author_ids<T>(harness: &Harness<'_, T>) -> std::collections::HashSet<String> {
     let mut ids = std::collections::HashSet::new();
     for node in harness.root().children_recursive() {
         if let Some(a) = node.accesskit_node().author_id() {
@@ -114,7 +119,7 @@ fn author_ids(harness: &Harness<'_, ()>) -> std::collections::HashSet<String> {
 }
 
 /// The role of the node whose author_id matches `author`, if present.
-fn role_of(harness: &Harness<'_, ()>, author: &str) -> Option<String> {
+fn role_of<T>(harness: &Harness<'_, T>, author: &str) -> Option<String> {
     for node in harness.root().children_recursive() {
         let ak = node.accesskit_node();
         if ak.author_id() == Some(author) {
@@ -467,7 +472,7 @@ fn proof5_three_breadcrumbs_in_order() {
     let ev = events.lock().unwrap().clone();
     assert!(
         ev.iter()
-            .any(|e| matches!(e, SidebarEvent::Open { block_id } if block_id == "blk-2")),
+            .any(|e| matches!(e, SidebarEvent::Open { block_id, title } if block_id == "blk-2" && title == "Second")),
         "AC6: clicking the 'Second' crumb must fire Open{{blk-2}} (got {ev:?})"
     );
     println!("PROOF5: 3 ordered sidebar.breadcrumb.* Link nodes; crumb click fired Open(blk-2)");
@@ -592,6 +597,95 @@ fn sidebar_read_requests_hit_verified_routes() {
     );
 }
 
+#[test]
+fn sidebar_wire_parsers_are_fail_closed_and_preserve_context() {
+    use handshake_native::backend_client::{
+        parse_sidebar_backlinks, parse_sidebar_unlinked, parse_sidebar_view_blocks,
+    };
+
+    let pins = parse_sidebar_view_blocks(
+        &serde_json::json!({
+            "view_type": "pins",
+            "blocks": [{"block_id":"p-1","title":"Pinned","content_type":"note"}]
+        }),
+        "pins",
+    )
+    .expect("canonical pins envelope");
+    assert_eq!(pins.len(), 1);
+    let fallback_titles = parse_sidebar_view_blocks(
+        &serde_json::json!({
+            "view_type": "pins",
+            "blocks": [
+                {"block_id":"p-file","title":null,"original_filename":"notes.rs","content_type":"file"},
+                {"block_id":"p-id","title":"   ","original_filename":null,"content_type":"note"}
+            ]
+        }),
+        "pins",
+    )
+    .expect("nullable titles use the canonical filename/id fallback");
+    assert_eq!(fallback_titles[0].title, "notes.rs");
+    assert_eq!(fallback_titles[1].title, "p-id");
+    for malformed in [
+        serde_json::json!({}),
+        serde_json::json!({"view_type":"pins"}),
+        serde_json::json!({"view_type":"favorites","blocks":[]}),
+        serde_json::json!({"view_type":"pins","blocks":[{"block_id":"p-1"}]}),
+        serde_json::json!({
+            "view_type":"pins",
+            "blocks":[
+                {"block_id":"p-1","title":"One","content_type":"note"},
+                {"block_id":"p-1","title":"Duplicate","content_type":"note"}
+            ]
+        }),
+    ] {
+        assert!(
+            parse_sidebar_view_blocks(&malformed, "pins").is_err(),
+            "malformed view must not become a false empty/success: {malformed}"
+        );
+    }
+
+    let backlinks = parse_sidebar_backlinks(&serde_json::json!([{
+        "edge":{"edge_type":"mention","source_block_id":"source-1","target_block_id":"target-1"},
+        "source_block":{"block_id":"source-1","title":"Source","content_type":"note"},
+        "context_snippet":"Source mentions Target here"
+    }]))
+    .expect("canonical backlink response");
+    assert_eq!(
+        backlinks[0].context_snippet.as_deref(),
+        Some("Source mentions Target here")
+    );
+    assert!(parse_sidebar_backlinks(&serde_json::json!({})).is_err());
+    assert!(parse_sidebar_backlinks(&serde_json::json!([{
+        "edge":{}, "source_block":{"block_id":"source-1","title":"Source","content_type":"note"}
+    }]))
+    .is_err());
+    assert!(parse_sidebar_backlinks(&serde_json::json!([{
+        "edge":{"edge_type":"mention","source_block_id":"different","target_block_id":"target-1"},
+        "source_block":{"block_id":"source-1","title":"Source","content_type":"note"}
+    }]))
+    .is_err());
+
+    let unlinked = parse_sidebar_unlinked(&serde_json::json!([{
+        "source_block":{"block_id":"source-2","title":"Plain source","content_type":"note"},
+        "matched_term":"Target",
+        "snippet":"Plain source names Target without an edge",
+        "match_offset":19
+    }]))
+    .expect("canonical unlinked response");
+    assert_eq!(unlinked[0].matched_term, "Target");
+    assert!(unlinked[0].snippet.contains("without an edge"));
+    assert!(parse_sidebar_unlinked(&serde_json::json!([{
+        "source_block":{"block_id":"source-2","title":"Plain source","content_type":"note"},
+        "matched_term":"Target", "snippet":"Target"
+    }]))
+    .is_err());
+    assert!(parse_sidebar_unlinked(&serde_json::json!([{
+        "source_block":{"block_id":"source-2","title":"Plain source","content_type":"note"},
+        "matched_term":"Target", "snippet":"Target", "match_offset":-1
+    }]))
+    .is_err());
+}
+
 // ── HBR-VIS screenshots: the sidebar renders pins + favorites + an active block's backlinks ───────────
 //
 // OPT-IN ONLY (adversarial-review hardening): this real-GPU `.wgpu()` proof is gated behind the
@@ -629,139 +723,585 @@ fn sidebar_panel_screenshot() {
     harness.run();
     harness.run();
 
-    match harness.render() {
-        Ok(image) => {
-            let (w, h) = (image.width(), image.height());
-            assert!(w > 0 && h > 0, "rendered image must be non-empty");
-            let ext_dir = external_artifact_dir("wp-kernel-012-mt-024");
-            let _ = std::fs::create_dir_all(&ext_dir);
-            let png = ext_dir.join("MT-024-sidebar-panel.png");
-            let saved = image.save(&png).is_ok();
-            println!(
-                "HBR-VIS: {w}x{h} sidebar-panel screenshot, saved={saved} ({})",
-                png.display()
-            );
-        }
-        Err(e) => {
-            println!(
-                "BLOCKER(non-fatal): sidebar-panel screenshot render unavailable (no wgpu adapter): {e}. \
-                 The AccessKit + breadcrumb + remove + collapse + error proofs passed; the PNG is a \
-                 GPU-host item."
-            );
-        }
-    }
+    let image = harness
+        .render()
+        .expect("HBR-VIS requires a real rendered sidebar frame");
+    let (w, h) = (image.width(), image.height());
+    assert!(w > 0 && h > 0, "rendered image must be non-empty");
+    let ext_dir = external_artifact_dir("wp-kernel-012-mt-024");
+    std::fs::create_dir_all(&ext_dir).expect("create external MT-024 screenshot directory");
+    let png = ext_dir.join("MT-024-sidebar-panel.png");
+    image
+        .save(&png)
+        .unwrap_or_else(|error| panic!("save {}: {error}", png.display()));
+    assert!(png.is_file(), "HBR-VIS screenshot must exist after save");
+    println!(
+        "HBR-VIS: {w}x{h} sidebar-panel screenshot saved ({})",
+        png.display()
+    );
     assert_no_local_artifact_dir();
 }
 
-// ── LIVE-PG (gated): NEEDS_MANAGED_RESOURCE_PROOF without a seeded backend ───────────────────────────
+// ── LIVE-PG: one isolated, self-seeded, non-ignored round trip ──────────────────────────────────────
 
-/// AC1 + PROOF2 against a REAL Handshake-managed PostgreSQL with >= 2 seeded pinned blocks. Gated behind
-/// the `integration` feature AND `#[ignore]` so the default `cargo test` does not require a backend.
-/// Run with: `cargo test --features integration --test test_sidebar_panel -- --ignored`. NEVER fakes PG.
-#[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with >= 2 seeded pinned blocks"]
 #[cfg(feature = "integration")]
-fn pins_list_live_pg() {
-    use handshake_native::backend_client::{LoomSidebarClient, SidebarBlockListCell};
-
-    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-    let client = LoomSidebarClient::production(rt.handle().clone());
-    let cell: SidebarBlockListCell = Arc::new(Mutex::new(None));
-    // The operator seeds >= 2 pinned blocks in `ws-live` before running this.
-    client.fetch_pins("ws-live", Arc::clone(&cell));
-    let mut data = None;
-    for _ in 0..50 {
-        if let Some(r) = cell.lock().unwrap().take() {
-            data = Some(r);
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    let pins = data
-        .expect("live PG fetch delivered within 5s")
-        .expect("live PG fetch ok");
-    assert!(
-        pins.len() >= 2,
-        "AC1 live: >= 2 seeded pinned blocks expected from GET /loom/views/pins, got {}",
-        pins.len()
-    );
-    println!("AC1 live PG: {} pinned blocks enumerated", pins.len());
+struct LiveWorkspaceCleanup<'a> {
+    backend: &'a interconnect_support::LiveBackend,
+    workspace_id: String,
+    cleaned: bool,
 }
 
-/// AC2 two-call pin removal against a REAL PG: remove a seeded pin, then re-fetch and assert it is gone.
-#[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a seeded pinned block"]
 #[cfg(feature = "integration")]
-fn remove_pin_live_pg() {
+impl LiveWorkspaceCleanup<'_> {
+    fn assert_cleaned(&mut self) {
+        let status = self.backend.delete_workspace(&self.workspace_id);
+        assert!(
+            matches!(status, 200 | 202 | 204),
+            "managed-PG workspace cleanup returned HTTP {status}"
+        );
+        assert_eq!(
+            self.backend.get_status(&format!(
+                "/workspaces/{}/loom/views/pins?limit=1",
+                self.workspace_id
+            )),
+            404,
+            "fresh workspace-scoped Loom read after teardown must prove the isolated workspace is absent"
+        );
+        self.cleaned = true;
+    }
+}
+
+#[cfg(feature = "integration")]
+impl Drop for LiveWorkspaceCleanup<'_> {
+    fn drop(&mut self) {
+        if !self.cleaned {
+            let _ = self.backend.delete_workspace(&self.workspace_id);
+        }
+    }
+}
+
+#[cfg(feature = "integration")]
+fn await_sidebar_blocks(
+    cell: &handshake_native::backend_client::SidebarBlockListCell,
+    expected_workspace: &str,
+) -> Result<Vec<SidebarBlock>, String> {
+    for _ in 0..200 {
+        if let Some((workspace, epoch, sequence, result)) = cell.lock().unwrap().pop_front() {
+            assert_eq!(workspace, expected_workspace);
+            assert_eq!((epoch, sequence), (0, 0));
+            return result;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("sidebar block-list request did not resolve within 10 seconds")
+}
+
+#[cfg(feature = "integration")]
+fn await_sidebar_backlinks(
+    cell: &handshake_native::backend_client::SidebarBacklinksCell,
+    expected_workspace: &str,
+    expected_block: &str,
+) -> Result<Vec<BacklinkRow>, String> {
+    for _ in 0..200 {
+        if let Some((workspace, epoch, block, generation, sequence, result)) =
+            cell.lock().unwrap().pop_front()
+        {
+            assert_eq!(workspace, expected_workspace);
+            assert_eq!(block, expected_block);
+            assert_eq!((epoch, generation, sequence), (0, 1, 0));
+            return result;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("sidebar backlinks request did not resolve within 10 seconds")
+}
+
+#[cfg(feature = "integration")]
+fn await_sidebar_unlinked(
+    cell: &handshake_native::backend_client::SidebarUnlinkedCell,
+    expected_workspace: &str,
+    expected_block: &str,
+) -> Result<Vec<UnlinkedRow>, String> {
+    for _ in 0..200 {
+        if let Some((workspace, epoch, block, generation, sequence, result)) =
+            cell.lock().unwrap().pop_front()
+        {
+            assert_eq!(workspace, expected_workspace);
+            assert_eq!(block, expected_block);
+            assert_eq!((epoch, generation, sequence), (0, 1, 0));
+            return result;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("sidebar unlinked request did not resolve within 10 seconds")
+}
+
+#[cfg(feature = "integration")]
+fn await_sidebar_action(
+    cell: &handshake_native::backend_client::SidebarActionCell,
+    expected_workspace: &str,
+    expected_section: SectionKind,
+    expected_block: &str,
+) -> Result<(), String> {
+    for _ in 0..200 {
+        if let Some((workspace, epoch, section, block, sequence, result)) =
+            cell.lock().unwrap().pop_front()
+        {
+            assert_eq!(workspace, expected_workspace);
+            assert_eq!(section, expected_section);
+            assert_eq!(block, expected_block);
+            assert_eq!((epoch, sequence), (0, 0));
+            return result;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("sidebar mutation did not resolve within 10 seconds")
+}
+
+#[cfg(feature = "integration")]
+fn dispatch_mounted_click(
+    harness: &mut Harness<'_, handshake_native::app::HandshakeApp>,
+    author_id: &str,
+) {
+    let target = harness
+        .root()
+        .children_recursive()
+        .find_map(|node| {
+            let accesskit = node.accesskit_node();
+            (accesskit.author_id() == Some(author_id)).then(|| accesskit.id())
+        })
+        .unwrap_or_else(|| panic!("mounted AccessKit node {author_id} is present"));
+    harness.event(egui::Event::AccessKitActionRequest(
+        egui::accesskit::ActionRequest {
+            action: egui::accesskit::Action::Click,
+            target,
+            data: None,
+        },
+    ));
+    harness.run_steps(2);
+}
+
+#[cfg(feature = "integration")]
+fn live_patch_json(
+    runtime: &tokio::runtime::Runtime,
+    base: &str,
+    path: &str,
+    body: &serde_json::Value,
+) -> serde_json::Value {
+    let client = handshake_native::backend_client::shared_http_client();
+    let url = format!("{base}{path}");
+    let (status, text) = runtime.block_on(async {
+        let response = client
+            .patch(&url)
+            .header("x-hsk-actor-id", "mt024-live-pg")
+            .header("x-hsk-kernel-task-run-id", "mt024-live-pg-run")
+            .header("x-hsk-session-run-id", "mt024-live-pg-session")
+            .header("x-hsk-actor-kind", "operator")
+            .json(body)
+            .timeout(std::time::Duration::from_secs(5))
+            .send()
+            .await
+            .unwrap_or_else(|error| panic!("PATCH {url} failed: {error}"));
+        (response.status(), response.text().await.unwrap_or_default())
+    });
+    assert!(status.is_success(), "PATCH {path} -> {status}: {text}");
+    serde_json::from_str(&text)
+        .unwrap_or_else(|error| panic!("PATCH {path} response is not JSON ({error}): {text}"))
+}
+
+/// AC1-AC9 / PROOF2-5 through real Handshake APIs, managed PostgreSQL, mounted egui/AccessKit, and a
+/// fresh product client. This test owns its fixtures and teardown and is deliberately NOT ignored.
+#[test]
+#[cfg(feature = "integration")]
+fn sidebar_live_pg_self_seeds_mounted_round_trip() {
     use handshake_native::backend_client::{
-        DrawerActionCell, LoomSidebarClient, SidebarBlockListCell,
+        LoomSidebarClient, SidebarBacklinksCell, SidebarBlockListCell, SidebarUnlinkedCell,
     };
 
-    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-    let client = LoomSidebarClient::production(rt.handle().clone());
-    // The operator seeds a pinned block "block-pinned" in `ws-live`.
-    let action: DrawerActionCell = Arc::new(Mutex::new(None));
-    client.remove_pin("ws-live", "block-pinned", Arc::clone(&action));
-    let mut done = None;
-    for _ in 0..50 {
-        if let Some(r) = action.lock().unwrap().take() {
-            done = Some(r);
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    done.expect("two-call removal delivered within 5s")
-        .expect("two-call removal ok");
-
-    // Re-fetch pins; the removed block must be gone.
-    let cell: SidebarBlockListCell = Arc::new(Mutex::new(None));
-    client.fetch_pins("ws-live", Arc::clone(&cell));
-    let mut data = None;
-    for _ in 0..50 {
-        if let Some(r) = cell.lock().unwrap().take() {
-            data = Some(r);
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    let pins = data.expect("re-fetch delivered").expect("re-fetch ok");
-    assert!(
-        !pins.iter().any(|b| b.block_id == "block-pinned"),
-        "AC2 live: the removed pin must be absent from the re-fetched list (got {pins:?})"
+    let live = interconnect_support::require_reachable_backend();
+    let unique = format!(
+        "mt024-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after unix epoch")
+            .as_nanos()
     );
-    println!("AC2 live PG: two-call pin removal cleared the block from the pins list");
-}
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("sidebar live runtime");
+    let client = LoomSidebarClient::new(live.base.clone(), runtime.handle().clone());
 
-/// AC4 backlinks against a REAL PG: an active block with >= 1 incoming edge yields >= 1 backlink row.
-#[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live Handshake-managed PostgreSQL with a block that has >= 1 incoming edge"]
-#[cfg(feature = "integration")]
-fn backlinks_live_pg() {
-    use handshake_native::backend_client::{LoomSidebarClient, SidebarBacklinksCell};
+    // The isolated workspace is a real, observable empty state before fixture creation.
+    let empty_pins: SidebarBlockListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    client.fetch_pins(&workspace_id, Arc::clone(&empty_pins));
+    assert!(await_sidebar_blocks(&empty_pins, &workspace_id)
+        .expect("empty pins view succeeds")
+        .is_empty());
 
-    let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
-    let client = LoomSidebarClient::production(rt.handle().clone());
-    let cell: SidebarBacklinksCell = Arc::new(Mutex::new(None));
-    // The operator seeds "block-A" with >= 1 incoming MENTION edge in `ws-live`.
-    client.fetch_backlinks("ws-live", "block-A", 1, Arc::clone(&cell));
-    let mut data = None;
-    for _ in 0..50 {
-        if let Some((_g, r)) = cell.lock().unwrap().take() {
-            data = Some(r);
+    let create_block = |content_type: &str, title: &str, pinned: bool| {
+        let block = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({
+                "content_type": content_type,
+                "title": title,
+                "pinned": pinned
+            }),
+        );
+        block["block_id"]
+            .as_str()
+            .expect("block create returns block_id")
+            .to_owned()
+    };
+    let target_title = format!("MT024 Target {unique}");
+    let pin_one = create_block("note", "MT-024 Pin One", true);
+    let pin_two = create_block("file", &target_title, true);
+    let target = pin_two.clone();
+    let favorite = create_block("note", "MT-024 Favorite", false);
+    live_patch_json(
+        &runtime,
+        &live.base,
+        &format!("/workspaces/{workspace_id}/loom/blocks/{favorite}"),
+        &serde_json::json!({"favorite": true}),
+    );
+    let backlink_source = create_block("note", "MT-024 Linked Source", false);
+    let unlinked_source = create_block(
+        "note",
+        &format!("Draft text mentions {target_title} without a link"),
+        false,
+    );
+    let edge = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/edges"),
+        &serde_json::json!({
+            "source_block_id": backlink_source,
+            "target_block_id": target,
+            "edge_type": "mention",
+            "created_by": "user"
+        }),
+    );
+    let edge_id = edge["edge_id"]
+        .as_str()
+        .expect("edge create returns edge_id")
+        .to_owned();
+
+    // Drive the actual mounted HandshakeApp host: command route -> initial fetch -> AccessKit click ->
+    // SidebarEvent drain -> active-block fetches. Direct client calls below are only fresh-client
+    // persistence verification and cannot substitute for this mounted runtime path.
+    use handshake_native::app::{HandshakeApp, HealthDisplayState};
+    use handshake_native::backend_client::HealthInfo;
+    use handshake_native::command_registry::CMD_VIEW_SIDEBAR;
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
+    app.set_sidebar_backend_base_url_for_test(live.base.clone());
+    assert!(app.switch_project(&workspace_id));
+    assert!(app.dispatch_palette_action_for_test(CMD_VIEW_SIDEBAR));
+    let panel = app.mounted_sidebar_panel_for_test();
+    let events = app.mounted_sidebar_events_for_test();
+    let mut harness =
+        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    for _ in 0..200 {
+        harness.run_steps(1);
+        let loaded = panel
+            .lock()
+            .map(|panel| panel.pins.len() == 2 && panel.favorites.len() == 1)
+            .unwrap_or(false);
+        if loaded {
             break;
         }
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(25));
     }
-    let backlinks = data
-        .expect("live PG fetch delivered within 5s")
-        .expect("live PG fetch ok");
-    assert!(
-        !backlinks.is_empty(),
-        "AC4 live: the seeded block must have >= 1 backlink, got {}",
-        backlinks.len()
+    {
+        let panel = panel.lock().unwrap();
+        assert_eq!(panel.pins.len(), 2, "AC1: mounted host loaded two pins");
+        assert_eq!(
+            panel.favorites.len(),
+            1,
+            "AC3: mounted host loaded favorite"
+        );
+        assert!(panel.pins.iter().any(|block| block.block_id == pin_one));
+        assert!(panel.pins.iter().any(|block| block.block_id == pin_two));
+        assert_eq!(panel.favorites[0].block_id, favorite);
+    }
+
+    let target_row = pin_row_author_id(&target);
+    dispatch_mounted_click(&mut harness, &target_row);
+    for _ in 0..200 {
+        harness.run_steps(1);
+        let loaded = panel
+            .lock()
+            .map(|panel| !panel.backlinks.is_empty() && !panel.unlinked.is_empty())
+            .unwrap_or(false);
+        if loaded {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    {
+        let panel = panel.lock().unwrap();
+        assert_eq!(panel.active_block_id.as_deref(), Some(target.as_str()));
+        assert!(panel.backlinks.iter().any(|row| {
+            row.block_id == backlink_source && row.edge_type.eq_ignore_ascii_case("mention")
+        }));
+        assert!(panel.unlinked.iter().any(|row| {
+            row.block_id == unlinked_source
+                && row.matched_term == target_title
+                && row.snippet.contains(&target_title)
+        }));
+        assert!(!panel
+            .visible_unlinked()
+            .iter()
+            .any(|row| row.block_id == backlink_source));
+    }
+    assert!(harness
+        .state_mut()
+        .dispatch_palette_action_for_test(CMD_VIEW_SIDEBAR));
+    harness.run_steps(2);
+
+    let ids = author_ids(&harness);
+    for required in [
+        pin_row_author_id(&pin_one),
+        pin_row_author_id(&pin_two),
+        favorite_row_author_id(&favorite),
+        backlink_row_author_id(&backlink_source),
+        unlinked_row_author_id(&unlinked_source),
+    ] {
+        assert!(
+            ids.contains(&required),
+            "AC7: mounted node {required} is present"
+        );
+    }
+
+    for index in 0..6 {
+        events.lock().unwrap().push(SidebarEvent::Open {
+            block_id: format!("crumb-{index}"),
+            title: format!("Crumb {index}"),
+        });
+        harness.run_steps(1);
+        assert!(harness
+            .state_mut()
+            .dispatch_palette_action_for_test(CMD_VIEW_SIDEBAR));
+    }
+    harness.run_steps(1);
+    assert_eq!(
+        panel.lock().unwrap().breadcrumbs.len(),
+        5,
+        "AC6 breadcrumb cap"
     );
+    let ids = author_ids(&harness);
+    assert_eq!(
+        ids.iter()
+            .filter(|id| id.starts_with(BREADCRUMB_AUTHOR_ID_PREFIX))
+            .count(),
+        5,
+        "AC6/AC7: mounted breadcrumb strip exposes the capped history"
+    );
+    dispatch_mounted_click(&mut harness, &breadcrumb_author_id(0));
+    assert_eq!(
+        panel
+            .lock()
+            .unwrap()
+            .breadcrumbs
+            .last()
+            .map(|crumb| crumb.block_id.as_str()),
+        Some("crumb-1"),
+        "AC6: raw mounted AccessKit breadcrumb click opens the exact retained first crumb"
+    );
+    assert!(
+        harness
+            .state_mut()
+            .dispatch_palette_action_for_test(CMD_VIEW_SIDEBAR),
+        "reopen the Sidebar surface after the breadcrumb navigates to its Loom block"
+    );
+    harness.run_steps(2);
+    dispatch_mounted_click(&mut harness, &section_header_author_id(SectionKind::Pins));
+    assert!(
+        !author_ids(&harness).contains(&pin_row_author_id(&pin_one)),
+        "AC8: collapsed Pins removes its rows from AccessKit"
+    );
+    dispatch_mounted_click(&mut harness, &section_header_author_id(SectionKind::Pins));
+
+    // Click the mounted Remove controls. The app performs optimistic removal, the production two-call
+    // mutation/PATCH, shared change notification, and authoritative refetch.
+    let pin_remove = pin_remove_author_id(&pin_one);
+    dispatch_mounted_click(&mut harness, &pin_remove);
+    let favorite_remove =
+        handshake_native::graph::sidebar_panel::favorite_remove_author_id(&favorite);
+    dispatch_mounted_click(&mut harness, &favorite_remove);
+    let mut removals_persisted = false;
+    for _ in 0..200 {
+        harness.run_steps(1);
+        let locally_removed = panel
+            .lock()
+            .map(|panel| {
+                !panel.pins.iter().any(|block| block.block_id == pin_one)
+                    && !panel
+                        .favorites
+                        .iter()
+                        .any(|block| block.block_id == favorite)
+            })
+            .unwrap_or(false);
+        let pins_view = live.get_json(&format!(
+            "/workspaces/{workspace_id}/loom/views/pins?limit=100"
+        ));
+        let favorites_view = live.get_json(&format!(
+            "/workspaces/{workspace_id}/loom/views/favorites?limit=100"
+        ));
+        let view_contains = |view: &serde_json::Value, block_id: &str| {
+            view.get("blocks")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|blocks| {
+                    blocks.iter().any(|block| {
+                        block.get("block_id").and_then(serde_json::Value::as_str) == Some(block_id)
+                    })
+                })
+        };
+        if locally_removed
+            && !view_contains(&pins_view, &pin_one)
+            && !view_contains(&favorites_view, &favorite)
+        {
+            removals_persisted = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    assert!(
+        removals_persisted,
+        "mounted remove-pin/remove-favorite mutations did not persist within 10 seconds"
+    );
+
+    // Force a real host fetch failure, assert the mounted section exposes Retry, then restore the live
+    // backend and click that exact Retry control through AccessKit.
+    harness
+        .state()
+        .set_sidebar_backend_base_url_for_test("http://127.0.0.1:0");
+    events.lock().unwrap().push(SidebarEvent::Retry {
+        section: SectionKind::Pins,
+    });
+    let retry_id = section_retry_author_id(SectionKind::Pins);
+    for _ in 0..200 {
+        harness.run_steps(1);
+        let error_applied = panel
+            .lock()
+            .map(|panel| panel.error_section.contains_key(&SectionKind::Pins))
+            .unwrap_or(false);
+        let retry_mounted = author_ids(&harness).contains(&retry_id);
+        if error_applied && retry_mounted {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    assert!(author_ids(&harness).contains(&retry_id));
+    harness
+        .state()
+        .set_sidebar_backend_base_url_for_test(live.base.clone());
+    dispatch_mounted_click(&mut harness, &retry_id);
+    for _ in 0..200 {
+        harness.run_steps(1);
+        if panel
+            .lock()
+            .map(|panel| !panel.error_section.contains_key(&SectionKind::Pins))
+            .unwrap_or(false)
+        {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    assert!(!panel
+        .lock()
+        .unwrap()
+        .error_section
+        .contains_key(&SectionKind::Pins));
+
+    let fresh = LoomSidebarClient::new(live.base.clone(), runtime.handle().clone());
+    let fresh_pins: SidebarBlockListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    let fresh_favorites: SidebarBlockListCell =
+        Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    let fresh_backlinks: SidebarBacklinksCell =
+        Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    let fresh_unlinked: SidebarUnlinkedCell =
+        Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    fresh.fetch_pins(&workspace_id, Arc::clone(&fresh_pins));
+    fresh.fetch_favorites(&workspace_id, Arc::clone(&fresh_favorites));
+    fresh.fetch_backlinks(&workspace_id, &target, 1, Arc::clone(&fresh_backlinks));
+    fresh.fetch_unlinked(&workspace_id, &target, 1, Arc::clone(&fresh_unlinked));
+    let persisted_pins = await_sidebar_blocks(&fresh_pins, &workspace_id).expect("fresh pins");
+    let persisted_favorites =
+        await_sidebar_blocks(&fresh_favorites, &workspace_id).expect("fresh favorites");
+    let persisted_backlinks =
+        await_sidebar_backlinks(&fresh_backlinks, &workspace_id, &target).expect("fresh backlinks");
+    let persisted_unlinked =
+        await_sidebar_unlinked(&fresh_unlinked, &workspace_id, &target).expect("fresh unlinked");
+    assert!(!persisted_pins.iter().any(|block| block.block_id == pin_one));
+    assert!(persisted_pins.iter().any(|block| block.block_id == pin_two));
+    assert!(!persisted_favorites
+        .iter()
+        .any(|block| block.block_id == favorite));
+    assert!(persisted_backlinks
+        .iter()
+        .any(|row| row.block_id == backlink_source));
+    assert!(persisted_unlinked
+        .iter()
+        .any(|row| row.block_id == unlinked_source));
+
+    // Missing target and backend loss must be typed errors, never false empty lists or hangs.
+    let missing: SidebarBacklinksCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    fresh.fetch_backlinks(&workspace_id, "missing-target", 1, Arc::clone(&missing));
+    assert!(await_sidebar_backlinks(&missing, &workspace_id, "missing-target").is_err());
+    let loss = LoomSidebarClient::new("http://127.0.0.1:0", runtime.handle().clone());
+    let loss_cell: SidebarBlockListCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    loss.fetch_pins("mt024-backend-loss", Arc::clone(&loss_cell));
+    assert!(await_sidebar_blocks(&loss_cell, "mt024-backend-loss").is_err());
+
+    cleanup.assert_cleaned();
+    assert_no_local_artifact_dir();
+    let receipt_dir = external_artifact_dir("wp-kernel-012-mt-024");
+    std::fs::create_dir_all(&receipt_dir).expect("create external MT-024 receipt directory");
+    let receipt_path = receipt_dir.join("MT-024-live-pg-seed.json");
+    let receipt = serde_json::json!({
+        "schema_id": "hsk.wp_kernel_012.mt_024.live_pg_receipt@1",
+        "workspace_id": workspace_id,
+        "pin_block_ids": [pin_one, pin_two],
+        "favorite_block_id": favorite,
+        "target_block_id": target,
+        "backlink_source_block_id": backlink_source,
+        "unlinked_source_block_id": unlinked_source,
+        "edge_id": edge_id,
+        "fresh_client_pin_removed": true,
+        "fresh_client_favorite_removed": true,
+        "fresh_client_backlink_count": persisted_backlinks.len(),
+        "fresh_client_unlinked_count": persisted_unlinked.len(),
+        "missing_target_typed_error": true,
+        "backend_loss_typed_error": true,
+        "cleanup_verified": true
+    });
+    std::fs::write(
+        &receipt_path,
+        serde_json::to_vec_pretty(&receipt).expect("serialize MT-024 live receipt"),
+    )
+    .expect("write external MT-024 live receipt");
     println!(
-        "AC4 live PG: {} backlinks for the active block",
-        backlinks.len()
+        "MT-024 LIVE PG PASS workspace={workspace_id} pins=2 favorites=1 backlinks={} unlinked={} \
+         edge={edge_id} receipt={} cleanup_verified=true",
+        persisted_backlinks.len(),
+        persisted_unlinked.len(),
+        receipt_path.display()
     );
 }

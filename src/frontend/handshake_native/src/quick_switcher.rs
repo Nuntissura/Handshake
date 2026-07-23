@@ -319,6 +319,33 @@ impl NavEditorKind {
 /// The trait is object-safe (`&dyn ShellNavigator` / `&mut dyn ShellNavigator`) so the quick switcher
 /// and tests can drive it without monomorphizing on the concrete shell.
 pub trait ShellNavigator {
+    /// Focus an already-open pane by its stable id without changing its active content. The default is
+    /// fail-closed for navigators that do not expose pane identity; pane-addressed callers must never
+    /// silently fall back to a different open pane.
+    fn focus_pane_by_id(&mut self, _pane_id: &str) -> NavDispatchOutcome {
+        NavDispatchOutcome::NoTargetPane
+    }
+    /// Open a code symbol in one exact pane. Implementors without exact-pane routing fail closed.
+    fn open_code_symbol_in_pane(
+        &mut self,
+        _pane_id: &str,
+        _symbol_entity_id: &str,
+    ) -> NavDispatchOutcome {
+        NavDispatchOutcome::NoTargetPane
+    }
+    /// Open a code symbol and place the caret/viewport at one exact byte offset in one exact pane.
+    fn open_code_location_in_pane(
+        &mut self,
+        _pane_id: &str,
+        _symbol_entity_id: &str,
+        _byte_offset: usize,
+    ) -> NavDispatchOutcome {
+        NavDispatchOutcome::NoTargetPane
+    }
+    /// Reveal a Loom node/block in one exact pane. Implementors without exact-pane routing fail closed.
+    fn open_loom_block_in_pane(&mut self, _pane_id: &str, _block_id: &str) -> NavDispatchOutcome {
+        NavDispatchOutcome::NoTargetPane
+    }
     /// Open a rich-text document by its `KRD-`-prefixed id (the MT-012 rich-text editor surface).
     fn open_document(&mut self, document_id: &str) -> NavDispatchOutcome;
     /// Open a Loom block / file / tag-hub by its block id (the Loom block viewer, mounted now).
@@ -691,7 +718,7 @@ impl LoomGraphSearchClient {
     /// onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -1278,6 +1305,22 @@ fn persist(ctx: &egui::Context, state_id: egui::Id, state: &UiState) {
     ctx.data_mut(|d| d.insert_temp(state_id, state.clone()));
 }
 
+/// Seed a newly opened switcher with a truthful, visible query. The wiki-projection menu route uses
+/// this only when there is no concrete mounted projection to reopen, so it lands on discovery instead
+/// of creating an unusable empty wiki pane.
+pub fn prime_query(ctx: &egui::Context, open_count: u64, query: impl Into<String>) {
+    persist(
+        ctx,
+        egui::Id::new("quick-switcher.state"),
+        &UiState {
+            open_count,
+            query: query.into(),
+            selected_index: 0,
+            focus_requested: false,
+        },
+    );
+}
+
 /// Render one result row as a full-width selectable button: a kind chip (the source label), the title
 /// (bold), the excerpt (muted, truncated), and the open-target hint. Disabled rows (Unsupported target)
 /// are non-interactive. The whole row is a single addressable ListBoxOption.
@@ -1351,6 +1394,12 @@ fn switcher_row(ui: &mut egui::Ui, hit: &LoomGraphSearchHit, is_selected: bool) 
         }
         if !enabled {
             node.set_disabled();
+            node.remove_action(accesskit::Action::Click);
+        } else {
+            // Fresh canonical snapshot contexts can inherit disabled state from the modal backdrop.
+            // The row's typed target is the authority: explicitly restore its steerable semantics.
+            node.clear_disabled();
+            node.add_action(accesskit::Action::Click);
         }
     });
 

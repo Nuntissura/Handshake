@@ -51,7 +51,8 @@
 //!
 //! Every interactive control emits a live AccessKit node by stable author_id: kind switcher
 //! (`bcv.kind.{table|kanban|calendar}`), status (`bcv.status`, Role::Status), new-view button
-//! (`bcv.new-view`), table header sort buttons (`bcv.table.sort.{field}`) and rows
+//! (`bcv.new-view`), failure recovery (`bcv.retry`), table header sort buttons
+//! (`bcv.table.sort.{field}`) and rows
 //! (`bcv.table.row.{block_id}`), Kanban lanes (`bcv.kanban.lane.{key}`) and cards
 //! (`bcv.kanban.card.{block_id}`), calendar day headers (`bcv.calendar.day.{date}`) and entries
 //! (`bcv.calendar.entry.{block_id}`), and the calendar date inputs (`bcv.calendar.date-from` /
@@ -84,6 +85,8 @@ pub const KIND_TABLE_AUTHOR_ID: &str = "bcv.kind.table";
 pub const KIND_KANBAN_AUTHOR_ID: &str = "bcv.kind.kanban";
 pub const KIND_CALENDAR_AUTHOR_ID: &str = "bcv.kind.calendar";
 pub const STATUS_AUTHOR_ID: &str = "bcv.status";
+/// Stable recovery control shown whenever the saved-view definition or result query fails.
+pub const RETRY_AUTHOR_ID: &str = "bcv.retry";
 pub const NEW_VIEW_AUTHOR_ID: &str = "bcv.new-view";
 pub const NEW_VIEW_TITLE_AUTHOR_ID: &str = "bcv.new-view.title";
 pub const NEW_VIEW_CONFIRM_AUTHOR_ID: &str = "bcv.new-view.confirm";
@@ -545,6 +548,9 @@ pub fn card_move_tags(from_key: &str, to_key: &str) -> (Vec<String>, Vec<String>
 /// route the host drives through [`crate::backend_client::BlockViewClient`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockViewEvent {
+    /// Retry loading the currently bound saved view after a visible backend failure. The host clears
+    /// stale delivery cells, rebinds the same view id, and issues one bounded definition + result fetch.
+    Retry,
     /// Persist a new sort (`updateBlockView` with `definition.sort = sort`), then re-query. The host
     /// sets `in_flight` while the PATCH + re-query is in flight (status "Re-sorting…").
     Sort { sort: BlockViewSort },
@@ -616,6 +622,9 @@ pub struct BlockCollectionView {
     date_error: Option<String>,
     /// The "+ New view" popup form (`None` => closed).
     new_view: Option<NewViewForm>,
+    /// Last create intent retained until its backend create + reload succeeds, so a visible Retry on an
+    /// unbound pane replays a real create instead of becoming a dead control.
+    create_retry: Option<NewViewForm>,
     /// WP-KERNEL-012 MT-042 (E7): the shared knowledge AccessKit action registry. `None` until the host
     /// installs it. An `Arc` handle so the view stays `Clone`.
     knowledge_registry: Option<Arc<Mutex<KnowledgeActionRegistry>>>,
@@ -654,6 +663,7 @@ impl BlockCollectionView {
             date_to_input: String::new(),
             date_error: None,
             new_view: None,
+            create_retry: None,
             knowledge_registry: None,
             pending_knowledge_events: Vec::new(),
         }
@@ -679,6 +689,7 @@ impl BlockCollectionView {
         self.date_to_input.clear();
         self.date_error = None;
         self.new_view = None;
+        self.create_retry = None;
         self.pending_knowledge_events.clear();
     }
 
@@ -695,6 +706,7 @@ impl BlockCollectionView {
         self.in_flight = false;
         self.status.clear();
         self.kanban_drag = None;
+        self.create_retry = None;
     }
 
     /// Set the error state (a `getBlockView` / query failure). Clears in-flight so the UI is reachable.
@@ -703,6 +715,26 @@ impl BlockCollectionView {
         self.loading = false;
         self.in_flight = false;
         self.status.clear();
+    }
+
+    /// Retain the exact create intent until authority returns the new saved-view id. A failed unbound
+    /// create can therefore be retried without inventing a view id or asking the operator to reconstruct
+    /// the action from memory.
+    pub fn remember_create_attempt(&mut self, title: impl Into<String>, kind: BlockViewKind) {
+        self.create_retry = Some(NewViewForm {
+            title: title.into(),
+            kind,
+        });
+    }
+
+    pub fn create_retry_intent(&self) -> Option<(String, BlockViewKind)> {
+        self.create_retry
+            .as_ref()
+            .map(|form| (form.title.clone(), form.kind))
+    }
+
+    pub fn clear_create_attempt(&mut self) {
+        self.create_retry = None;
     }
 
     // ── WP-KERNEL-012 MT-042 (E7): knowledge AccessKit action surface ─────────────────────────────
@@ -756,11 +788,12 @@ impl BlockCollectionView {
                 lane.key,
                 members.join(",")
             ));
-            reg.upsert_identity(
+            reg.upsert(
                 lane_author,
                 KAxRole::Group,
                 lane.label().to_owned(),
                 value,
+                vec!["Focus".to_owned()],
                 KnowledgeNodeState::present(),
             );
             for row in &lane.blocks {
@@ -781,10 +814,13 @@ impl BlockCollectionView {
     /// after [`Self::sync_knowledge_registry`]). No-op if no registry is installed.
     pub fn emit_knowledge_accesskit(&self, ui: &egui::Ui) {
         if let Some(registry) = &self.knowledge_registry {
-            registry
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .emit_into_tree(ui);
+            let mut registry = registry.lock().unwrap_or_else(|e| e.into_inner());
+            if registry.state_changed_since_last_surface_push(
+                knowledge_action_registry::KnowledgeSurface::Collection,
+            ) {
+                ui.ctx().request_repaint();
+            }
+            registry.emit_into_tree(ui);
         }
     }
 
@@ -883,10 +919,9 @@ impl BlockCollectionView {
                 other => {
                     // A per-identity `collection.row.<sanitized_block_id>` click -> open that block. Lanes
                     // (`collection.lane.<tag>`) are containers, not openable; a click is a no-op.
-                    if let Some(stripped) = other
-                        .strip_prefix(knowledge_action_registry::COLLECTION_ROW_AUTHOR_ID_PREFIX)
+                    if other.starts_with(knowledge_action_registry::COLLECTION_ROW_AUTHOR_ID_PREFIX)
                     {
-                        if let Some(block_id) = self.block_id_for_sanitized(stripped) {
+                        if let Some(block_id) = self.block_id_for_author_id(other) {
                             events.push(BlockViewEvent::OpenBlock { block_id });
                         }
                     }
@@ -896,9 +931,9 @@ impl BlockCollectionView {
         events
     }
 
-    /// Resolve a sanitized `collection.row.` author_id suffix back to a real block_id by scanning the
-    /// live result set (rows + lane cards). `None` if no live block sanitizes to that suffix.
-    fn block_id_for_sanitized(&self, sanitized: &str) -> Option<String> {
+    /// Resolve a complete collision-safe `collection.row.` author_id back to a real block_id by
+    /// scanning the live result set (rows + lane cards).
+    fn block_id_for_author_id(&self, author_id: &str) -> Option<String> {
         let results = self.results.as_ref()?;
         let in_blocks = results.blocks.iter().map(|b| &b.block_id);
         let in_lanes = results
@@ -907,7 +942,7 @@ impl BlockCollectionView {
             .flat_map(|l| l.blocks.iter().map(|b| &b.block_id));
         in_blocks
             .chain(in_lanes)
-            .find(|id| crate::project_tree::stable_part(id) == sanitized)
+            .find(|id| knowledge_action_registry::collection_row_author_id(id) == author_id)
             .cloned()
     }
 
@@ -944,11 +979,13 @@ impl BlockCollectionView {
     fn show_inner(&mut self, ui: &mut egui::Ui, palette: &HsPalette) -> Option<BlockViewEvent> {
         let mut event: Option<BlockViewEvent> = None;
 
-        // ── Error state: a single alert label, nothing else (parity with the React error branch). ───
+        // ── Error state: keep the failure visible and give operator/models a stable recovery path. ──
         if let Some(err) = self.error.clone() {
             let resp = ui.colored_label(palette.error_text, format!("View error: {err}"));
             emit_status_node(ui, resp.id, STATUS_AUTHOR_ID, &format!("View error: {err}"));
-            return None;
+            let retry = ui.button("Retry");
+            emit_button_node(ui, retry.id, RETRY_AUTHOR_ID, "Retry", false);
+            return retry.clicked().then_some(BlockViewEvent::Retry);
         }
 
         // ── Mode strip: kind switcher + status + new-view button ─────────────────────────────────────
@@ -981,9 +1018,14 @@ impl BlockCollectionView {
             status_text.as_str()
         });
         emit_status_node(ui, status_resp.id, STATUS_AUTHOR_ID, &status_text);
-        // Only request a repaint while a real mutation is in flight (no perpetual spinner — MT-015).
+        // A mutation requests the next frame immediately. A definition/results load polls at a bounded
+        // cadence so an async completion is drained without unrelated operator input; set_loaded/error
+        // clears `loading`, so backend failure cannot become a perpetual idle repaint.
         if self.in_flight {
             ui.ctx().request_repaint();
+        } else if self.loading {
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_millis(50));
         }
 
         ui.separator();

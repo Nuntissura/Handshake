@@ -83,6 +83,7 @@ pub fn tag_to_hs_link(tag: &Tag) -> HsLinkNode {
         ref_value: tag.canonical(),
         label: tag.display_label(),
         resolved: true,
+        provenance: None,
     }
 }
 

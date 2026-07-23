@@ -251,6 +251,9 @@ fn hs_link_to_json(link: &HsLinkNode) -> JsonNode {
     );
     attrs.insert("label".to_string(), JsonValue::from(link.label.clone()));
     attrs.insert("resolved".to_string(), JsonValue::from(link.resolved));
+    if let Some(provenance) = link.provenance.clone() {
+        attrs.insert("provenance".to_string(), provenance);
+    }
     JsonNode {
         ty: "hsLink".to_string(),
         attrs: Some(attrs),
@@ -411,11 +414,13 @@ fn json_to_hs_link(node: &JsonNode) -> Result<HsLinkNode, DocJsonError> {
         .and_then(|m| m.get("resolved"))
         .and_then(JsonValue::as_bool)
         .unwrap_or(true);
+    let provenance = attrs.and_then(|m| m.get("provenance")).cloned();
     Ok(HsLinkNode {
         ref_kind,
         ref_value,
         label,
         resolved,
+        provenance,
     })
 }
 

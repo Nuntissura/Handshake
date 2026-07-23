@@ -26,6 +26,7 @@
 
 use std::future::Future;
 use std::pin::Pin;
+use std::time::Duration;
 
 use serde::Deserialize;
 use thiserror::Error;
@@ -240,7 +241,7 @@ impl ReqwestWikilinkBackend {
     /// Build a backend client against `base_url` (e.g. `backend_client::BACKEND_BASE_URL`).
     pub fn new(base_url: impl Into<String>) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
         }
     }
@@ -352,11 +353,34 @@ impl WikilinkBackend for ReqwestWikilinkBackend {
         let client = self.client.clone();
         let document_id = document_id.to_owned();
         Box::pin(async move {
-            let response =
-                client.get(&url).send().await.map_err(|e| {
-                    WikilinkError::NetworkError(format!("backlinks fetch failed: {e}"))
-                })?;
+            let response = client
+                .get(&url)
+                .header(
+                    crate::backend_client::HSK_HEADER_ACTOR_ID,
+                    crate::backend_client::DOC_ACTOR_ID,
+                )
+                .header(
+                    crate::backend_client::HSK_HEADER_KERNEL_TASK_RUN_ID,
+                    format!("native-editor-backlinks-{document_id}"),
+                )
+                .header(
+                    crate::backend_client::HSK_HEADER_SESSION_RUN_ID,
+                    format!("native-editor-wikilinks-{}", std::process::id()),
+                )
+                .timeout(Duration::from_secs(5))
+                .send()
+                .await
+                .map_err(|e| WikilinkError::NetworkError(format!("backlinks fetch failed: {e}")))?;
             let status = response.status();
+            // A missing/new document has no inbound edges. Treat that read shape as the same empty
+            // projection as a 200 with `backlinks: []`; the panel must never turn an empty backlink
+            // set into an error banner. Other endpoints retain the typed 404 mapping above.
+            if status.as_u16() == 404 {
+                return Ok(BacklinksResponse {
+                    source_document_id: document_id,
+                    backlinks: Vec::new(),
+                });
+            }
             if !status.is_success() {
                 return Err(map_status(
                     status.as_u16(),

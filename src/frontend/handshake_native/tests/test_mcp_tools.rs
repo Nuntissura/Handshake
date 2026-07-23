@@ -4,13 +4,12 @@
 //! shell through the `egui_kittest` Harness (the same model-driver path MT-025/026 use) and proves the
 //! full steering loop a swarm needs:
 //!
-//!   READ  -> `list_widgets` returns the live MT-026 UI-tree JSON (root, widget_count, nested children).
-//!   ACT   -> `click_widget` on a real widget's stable `author_id` dispatches an AccessKit ActionRequest
+//!   READ  -> `argus.inspect` returns the live MT-026 UI-tree JSON (root, widget_count, nested children).
+//!   ACT   -> `argus.click` on a real widget's stable `author_id` dispatches an AccessKit ActionRequest
 //!            that reaches the egui frame loop and CHANGES OBSERVABLE UI STATE.
-//!   ACT   -> `set_value` on the bottom-rail text input focuses it + feeds characters (the egui-real
-//!            text path, MT-026-proven — egui has no SetValue for text inputs); the value is read back
-//!            from a fresh snapshot.
-//!   SEE   -> `screenshot` renders the live frame to a real PNG (focus-safe wgpu offscreen render),
+//!   ACT   -> `argus.set_value` sends one addressed AccessKit replacement to an ordinary populated
+//!            TextEdit; the value is read back from the live tree.
+//!   SEE   -> `argus.screenshot` renders the live frame to a real PNG (focus-safe wgpu offscreen render),
 //!            base64-encoded; the bytes decode as a valid image.
 //!   AUTH  -> a request with a wrong/missing `session_token` is rejected with JSON-RPC `-32001`.
 //!
@@ -18,18 +17,32 @@
 //! steering semantics proven here are exactly what a future socket/pipe MT exposes.
 
 use egui::accesskit;
-use egui_kittest::Harness;
-use handshake_native::accessibility::{collect_ui_tree_snapshot, UiTreeSnapshot};
+use egui_kittest::kittest::NodeT;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use handshake_native::accessibility::{
+    collect_ui_tree_snapshot, UiNodeBounds, UiTreeNode, UiTreeSnapshot,
+};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::mcp::{
-    dispatch_request, ActionChannel, McpRequest, ScreenshotError, ScreenshotResult, SessionToken,
-    ERR_UNAUTHORIZED,
+    dispatch_request, ActionChannel, ActionReceiptStatus, McpRequest, ScreenshotError,
+    ScreenshotResult, SessionToken, ERR_UNAUTHORIZED,
 };
 use handshake_native::theme::HsTheme;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 const THEME_TOGGLE_AUTHOR_ID: &str = "shell.chrome.theme-toggle";
 const RAIL_INPUT_AUTHOR_ID: &str = "bottom-rail.input";
+const POPULATED_KEYBIND_AUTHOR_ID: &str = "settings-keybind-row-code.open_find";
+
+const PROBE_ACTIONS: &[accesskit::Action] = &[
+    accesskit::Action::Click,
+    accesskit::Action::Focus,
+    accesskit::Action::SetValue,
+    accesskit::Action::ReplaceSelectedText,
+    accesskit::Action::ScrollIntoView,
+];
 
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
@@ -73,6 +86,52 @@ fn req(method: &str, params: serde_json::Value, token: &str) -> McpRequest {
     }
 }
 
+/// Snapshot the current consumer-side AccessKit tree so dispatch resolves the exact live TextEdit node.
+fn snapshot_harness<S>(harness: &mut Harness<'_, S>) -> UiTreeSnapshot {
+    let mut children = Vec::new();
+    for node in harness.root().children_recursive() {
+        let ak = node.accesskit_node();
+        let author_id = ak.author_id().map(str::to_owned);
+        let node_id = ak.id().0;
+        let actions = PROBE_ACTIONS
+            .iter()
+            .filter(|action| ak.data().supports_action(**action))
+            .map(|action| format!("{action:?}"))
+            .collect();
+        children.push(UiTreeNode {
+            id: author_id
+                .clone()
+                .unwrap_or_else(|| format!("node:{node_id}")),
+            author_id,
+            node_id,
+            role: format!("{:?}", ak.role()),
+            label: ak.label().map(|value| value.to_owned()),
+            value: ak.value().map(|value| value.to_owned()),
+            disabled: ak.is_disabled(),
+            actions,
+            bounds: None::<UiNodeBounds>,
+            children: Vec::new(),
+        });
+    }
+    let widget_count = children.len() + 1;
+    UiTreeSnapshot {
+        root: UiTreeNode {
+            id: "node:argus-test-root".to_owned(),
+            author_id: None,
+            node_id: 0,
+            role: "Window".to_owned(),
+            label: None,
+            value: None,
+            disabled: false,
+            actions: Vec::new(),
+            bounds: None,
+            children,
+        },
+        captured_at_utc: "0.000000000Z".to_owned(),
+        widget_count,
+    }
+}
+
 /// A screenshot capture closure backed by the harness's wgpu renderer. Renders the LAST frame the
 /// harness produced to an offscreen RGBA image (focus-safe: no OS window, no SetForegroundWindow),
 /// encodes it to PNG via the `image` crate that `egui_kittest[wgpu]` already provides, and wraps it in
@@ -107,7 +166,7 @@ fn test_mcp_list_widgets() {
     let mut channel = ActionChannel::new();
 
     let response = dispatch_request(
-        &req("list_widgets", serde_json::json!({}), "session-secret"),
+        &req("argus.inspect", serde_json::json!({}), "session-secret"),
         &token,
         &snapshot,
         &mut channel,
@@ -159,7 +218,7 @@ fn test_mcp_click_widget() {
     // ACT: dispatch a click on the theme toggle by its stable author_id through the MCP tool.
     let response = dispatch_request(
         &req(
-            "click_widget",
+            "argus.click",
             serde_json::json!({ "target": THEME_TOGGLE_AUTHOR_ID }),
             "session-secret",
         ),
@@ -170,12 +229,17 @@ fn test_mcp_click_widget() {
     );
     assert_eq!(response.to_json()["result"]["queued"], true, "click queued");
     assert_eq!(response.to_json()["result"]["action"], "Click");
+    let receipt_id = response.to_json()["result"]["receipt_id"]
+        .as_u64()
+        .expect("click response carries a receipt id");
 
     // Drain the queued AccessKit action into the harness and run a frame so egui processes it.
-    for event in channel.drain_into_events() {
+    for event in channel.drain_revalidated_into_events(&snapshot) {
         harness.event(event);
     }
     harness.run();
+    let observed = snapshot_harness(&mut harness);
+    channel.acknowledge_after_render(&observed);
 
     let after = harness.state().current_theme();
     assert_eq!(
@@ -184,13 +248,23 @@ fn test_mcp_click_widget() {
         "click flipped the theme (handler ran)"
     );
     assert_ne!(before, after, "click_widget changed observable UI state");
+    assert_eq!(
+        channel
+            .receipts()
+            .into_iter()
+            .find(|receipt| receipt.receipt_id == receipt_id)
+            .expect("production click receipt")
+            .status,
+        ActionReceiptStatus::Indeterminate,
+        "the live effect is proven independently; a generic click snapshot has no causal completion predicate"
+    );
 
     println!(
         "PASS test_mcp_click_widget: click handler flag set to true (theme {before:?} -> {after:?} via click_widget on '{THEME_TOGGLE_AUTHOR_ID}')"
     );
 }
 
-/// AC: `set_value` with the key of the bottom-rail TextInput focuses it and feeds the characters; the
+/// AC: `set_value` with the key of the bottom-rail TextInput dispatches an addressed whole-value replacement; the
 /// widget's value changes to the provided string, read back via a fresh `list_widgets` snapshot.
 #[test]
 fn test_mcp_set_value() {
@@ -215,10 +289,10 @@ fn test_mcp_set_value() {
         "rail input starts empty; got {before_value:?}"
     );
 
-    // ACT: set_value through the MCP tool (Focus + characters).
+    // ACT: set_value through one target-specific AccessKit request.
     let response = dispatch_request(
         &req(
-            "set_value",
+            "argus.set_value",
             serde_json::json!({ "target": RAIL_INPUT_AUTHOR_ID, "value": "hello swarm" }),
             "session-secret",
         ),
@@ -232,16 +306,19 @@ fn test_mcp_set_value() {
         true,
         "set_value queued"
     );
-    // Focus is the egui-real action for a text input (MT-026 DEVIATION: egui has no SetValue).
-    assert_eq!(response.to_json()["result"]["action"], "Focus");
+    assert_eq!(response.to_json()["result"]["action"], "SetValue");
+    let receipt_id = response.to_json()["result"]["receipt_id"]
+        .as_u64()
+        .expect("set-value response carries a receipt id");
 
-    // Drain the Focus action + Text payload into the harness; run a frame to focus the field, then a
-    // second frame so the typed text is committed into the widget's value.
-    for event in channel.drain_into_events() {
+    // Drain the addressed replacement into the harness.
+    for event in channel.drain_revalidated_into_events(&snapshot) {
         harness.event(event);
     }
     harness.run();
     harness.run();
+    let observed = snapshot_harness(&mut harness);
+    channel.acknowledge_after_render(&observed);
 
     let after_value = harness_node_value(&harness, rail_node_id).unwrap_or_default();
 
@@ -249,9 +326,241 @@ fn test_mcp_set_value() {
         after_value, "hello swarm",
         "set_value changed the TextInput value"
     );
+    assert_eq!(
+        channel
+            .receipts()
+            .into_iter()
+            .find(|receipt| receipt.receipt_id == receipt_id)
+            .expect("production set-value receipt")
+            .status,
+        ActionReceiptStatus::Indeterminate,
+        "the visible value is proven independently; the tree snapshot carries no causal mutation token"
+    );
 
     println!(
         "PASS test_mcp_set_value: rail input value before={before_value:?} after={after_value:?} (set via set_value on '{RAIL_INPUT_AUTHOR_ID}')"
+    );
+}
+
+/// Canonical Argus set-value must replace a populated ordinary egui TextEdit, not append to it.
+#[test]
+fn test_argus_set_value_replaces_populated_text_edit() {
+    let author_id = POPULATED_KEYBIND_AUTHOR_ID.to_owned();
+    let mut harness = Harness::builder().build_state(
+        move |ctx, value: &mut String| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let response = ui.add(egui::TextEdit::singleline(value));
+                let author_id = author_id.clone();
+                ctx.accesskit_node_builder(response.id, move |node| {
+                    node.set_author_id(author_id);
+                    node.set_label("Open Find keybinding".to_owned());
+                    node.add_action(accesskit::Action::SetValue);
+                });
+                if let Some(replacement) =
+                    handshake_native::mcp::accesskit_string_set_value(ui, response.id)
+                {
+                    *value = replacement;
+                }
+            });
+        },
+        "Ctrl+F".to_owned(),
+    );
+    harness.run();
+
+    let snapshot = snapshot_harness(&mut harness);
+    assert_eq!(
+        snapshot
+            .find_by_author_id(POPULATED_KEYBIND_AUTHOR_ID)
+            .and_then(|node| node.value.as_deref()),
+        Some("Ctrl+F"),
+        "precondition: the live settings-shaped TextEdit is populated"
+    );
+
+    let token = SessionToken::from_hex("session-secret");
+    let mut channel = ActionChannel::new();
+    let response = dispatch_request(
+        &req(
+            "argus.set_value",
+            serde_json::json!({
+                "target": POPULATED_KEYBIND_AUTHOR_ID,
+                "value": "Ctrl+Alt+F"
+            }),
+            "session-secret",
+        ),
+        &token,
+        &snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(response.to_json()["result"]["queued"], true);
+    let receipt_id = response.to_json()["result"]["receipt_id"]
+        .as_u64()
+        .expect("set-value response carries a receipt id");
+
+    for event in channel.drain_revalidated_into_events(&snapshot) {
+        harness.event(event);
+    }
+    harness.run();
+    harness.run();
+    let observed = snapshot_harness(&mut harness);
+    channel.acknowledge_after_render(&observed);
+
+    assert_eq!(
+        harness.state(),
+        "Ctrl+Alt+F",
+        "argus.set_value replaces the prior whole value instead of appending"
+    );
+    assert_eq!(
+        channel
+            .receipts()
+            .into_iter()
+            .find(|receipt| receipt.receipt_id == receipt_id)
+            .expect("production set-value receipt")
+            .status,
+        ActionReceiptStatus::Indeterminate
+    );
+}
+
+#[derive(Debug)]
+struct SetValueProbeState {
+    first: String,
+    second: String,
+    first_mounted: bool,
+}
+
+fn set_value_probe_harness() -> Harness<'static, SetValueProbeState> {
+    Harness::builder().build_state(
+        |ctx, state: &mut SetValueProbeState| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                if state.first_mounted {
+                    let first = ui.add(egui::TextEdit::singleline(&mut state.first));
+                    ctx.accesskit_node_builder(first.id, |node| {
+                        node.set_author_id("argus-probe.first".to_owned());
+                        node.add_action(accesskit::Action::SetValue);
+                    });
+                    if let Some(value) =
+                        handshake_native::mcp::accesskit_string_set_value(ui, first.id)
+                    {
+                        state.first = value;
+                    }
+                }
+
+                let second = ui.add(egui::TextEdit::singleline(&mut state.second));
+                ctx.accesskit_node_builder(second.id, |node| {
+                    node.set_author_id("argus-probe.second".to_owned());
+                    node.add_action(accesskit::Action::SetValue);
+                });
+                if let Some(value) =
+                    handshake_native::mcp::accesskit_string_set_value(ui, second.id)
+                {
+                    state.second = value;
+                }
+            });
+        },
+        SetValueProbeState {
+            first: "first-before".to_owned(),
+            second: "second-before".to_owned(),
+            first_mounted: true,
+        },
+    )
+}
+
+#[test]
+fn argus_set_value_keeps_concurrent_text_targets_isolated() {
+    let mut harness = set_value_probe_harness();
+    harness.run();
+    let snapshot = snapshot_harness(&mut harness);
+    let token = SessionToken::from_hex("session-secret");
+    let mut channel = ActionChannel::new();
+    let mut receipt_ids = Vec::new();
+
+    for (target, value) in [
+        ("argus-probe.first", "first-after"),
+        ("argus-probe.second", "second-after"),
+    ] {
+        let response = dispatch_request(
+            &req(
+                "argus.set_value",
+                serde_json::json!({"target": target, "value": value}),
+                "session-secret",
+            ),
+            &token,
+            &snapshot,
+            &mut channel,
+            || Err(ScreenshotError("not used".to_owned())),
+        );
+        assert_eq!(response.to_json()["result"]["action"], "SetValue");
+        receipt_ids.push(
+            response.to_json()["result"]["receipt_id"]
+                .as_u64()
+                .expect("concurrent set-value response carries a receipt id"),
+        );
+    }
+
+    for event in channel.drain_revalidated_into_events(&snapshot) {
+        harness.event(event);
+    }
+    harness.run();
+    let observed = snapshot_harness(&mut harness);
+    channel.acknowledge_after_render(&observed);
+
+    assert_eq!(harness.state().first, "first-after");
+    assert_eq!(harness.state().second, "second-after");
+    for receipt_id in receipt_ids {
+        assert_eq!(
+            channel
+                .receipts()
+                .into_iter()
+                .find(|receipt| receipt.receipt_id == receipt_id)
+                .expect("concurrent production receipt")
+                .status,
+            ActionReceiptStatus::Indeterminate
+        );
+    }
+}
+
+#[test]
+fn argus_set_value_for_unmounted_target_does_not_touch_surviving_field() {
+    let mut harness = set_value_probe_harness();
+    harness.run();
+    let snapshot = snapshot_harness(&mut harness);
+    let token = SessionToken::from_hex("session-secret");
+    let mut channel = ActionChannel::new();
+    let response = dispatch_request(
+        &req(
+            "argus.set_value",
+            serde_json::json!({"target": "argus-probe.first", "value": "must-be-ignored"}),
+            "session-secret",
+        ),
+        &token,
+        &snapshot,
+        &mut channel,
+        || Err(ScreenshotError("not used".to_owned())),
+    );
+    assert_eq!(response.to_json()["result"]["queued"], true);
+    let receipt_id = response.to_json()["result"]["receipt_id"]
+        .as_u64()
+        .expect("unmounted-target response carries a receipt id");
+
+    harness.state_mut().first_mounted = false;
+    harness.run();
+    let mut fresh = snapshot_harness(&mut harness);
+    fresh.captured_at_utc = snapshot.captured_at_utc.clone();
+    for event in channel.drain_revalidated_into_events(&fresh) {
+        harness.event(event);
+    }
+    harness.run();
+
+    assert_eq!(harness.state().first, "first-before");
+    assert_eq!(harness.state().second, "second-before");
+    assert_eq!(
+        channel
+            .receipts()
+            .into_iter()
+            .find(|receipt| receipt.receipt_id == receipt_id)
+            .expect("unmounted-target production receipt")
+            .status,
+        ActionReceiptStatus::Rejected
     );
 }
 
@@ -266,7 +575,7 @@ fn test_mcp_screenshot() {
     let mut harness = shell_harness();
 
     let response = dispatch_request(
-        &req("screenshot", serde_json::json!({}), "session-secret"),
+        &req("argus.screenshot", serde_json::json!({}), "session-secret"),
         &token,
         &snapshot,
         &mut channel,
@@ -324,7 +633,7 @@ fn test_mcp_auth_reject() {
     let mut channel = ActionChannel::new();
 
     let response = dispatch_request(
-        &req("list_widgets", serde_json::json!({}), "WRONG-TOKEN"),
+        &req("argus.inspect", serde_json::json!({}), "WRONG-TOKEN"),
         &token,
         &snapshot,
         &mut channel,
@@ -536,7 +845,7 @@ fn test_mcp_wire_list_widgets_and_binding_file() {
         let resp = rpc_roundtrip(
             &addr,
             serde_json::json!({
-                "jsonrpc": "2.0", "id": 1, "method": "list_widgets", "params": {},
+                "jsonrpc": "2.0", "id": 1, "method": "argus.inspect", "params": {},
                 "session_token": token_hex,
             }),
         )
@@ -579,7 +888,7 @@ fn test_mcp_wire_click_steers_running_shell() {
     assert_eq!(before, HsTheme::Dark, "shell starts Dark");
 
     let rt = wire_runtime();
-    rt.block_on(async {
+    let receipt_id = rt.block_on(async {
         let mut server =
             bind_server_with_shared_state(token, snapshot.clone(), channel.clone()).await;
         let addr = server.tcp_addr().to_owned();
@@ -587,21 +896,26 @@ fn test_mcp_wire_click_steers_running_shell() {
         let resp = rpc_roundtrip(
             &addr,
             serde_json::json!({
-                "jsonrpc": "2.0", "id": 2, "method": "click_widget",
+                "jsonrpc": "2.0", "id": 2, "method": "argus.click",
                 "params": { "target": THEME_TOGGLE_AUTHOR_ID }, "session_token": token_hex,
             }),
         )
         .await;
         assert_eq!(resp["result"]["queued"], true, "click queued over the wire");
         assert_eq!(resp["result"]["action"], "Click");
+        let receipt_id = resp["result"]["receipt_id"]
+            .as_u64()
+            .expect("wire click response carries receipt id");
         server.shutdown();
+        receipt_id
     });
 
     // The running shell drains the SAME shared channel (its `raw_input_hook` does this live; here we
     // drive it explicitly because the kittest harness calls `ui()` directly) and runs a frame.
     let events = {
         let mut chan = channel.lock().unwrap();
-        chan.drain_into_events()
+        let fresh = snapshot.lock().unwrap().clone();
+        chan.drain_revalidated_into_events(&fresh)
     };
     assert!(
         !events.is_empty(),
@@ -618,6 +932,20 @@ fn test_mcp_wire_click_steers_running_shell() {
         HsTheme::Light,
         "the OVER-THE-WIRE click steered the running shell (theme flipped)"
     );
+    let observed = snapshot_harness(&mut harness);
+    {
+        let mut chan = channel.lock().unwrap();
+        chan.acknowledge_after_render(&observed);
+        assert_eq!(
+            chan.receipts()
+                .into_iter()
+                .find(|receipt| receipt.receipt_id == receipt_id)
+                .expect("wire click terminal receipt")
+                .status,
+            ActionReceiptStatus::Indeterminate,
+            "wire click effect is independently visible but the generic target has no causal completion predicate"
+        );
+    }
     println!(
         "PASS test_mcp_wire_click_steers_running_shell: theme {before:?} -> {after:?} via TCP click_widget on '{THEME_TOGGLE_AUTHOR_ID}'"
     );
@@ -649,7 +977,7 @@ fn test_mcp_wire_unauthorized_rejected() {
         let resp = rpc_roundtrip(
             &addr,
             serde_json::json!({
-                "jsonrpc": "2.0", "id": 3, "method": "list_widgets", "params": {},
+                "jsonrpc": "2.0", "id": 3, "method": "argus.inspect", "params": {},
                 "session_token": "deadbeef-not-the-real-token",
             }),
         )
@@ -709,7 +1037,7 @@ fn test_mcp_wire_screenshot_returns_valid_png() {
         let resp = rpc_roundtrip(
             &addr,
             serde_json::json!({
-                "jsonrpc": "2.0", "id": 4, "method": "screenshot", "params": {},
+                "jsonrpc": "2.0", "id": 4, "method": "argus.screenshot", "params": {},
                 "session_token": token_hex,
             }),
         )

@@ -72,6 +72,28 @@ pub struct RichDocLoad {
 pub struct RichDocSaveResult {
     /// The updated document (carrying the new `doc_version` + `updated_at`).
     pub document: RichDocLoad,
+    /// Number of backlinks persisted by the server's post-commit index pass.
+    pub backlinks_persisted: usize,
+    /// A recorded post-commit index failure. The document save is still canonical.
+    pub backlinks_error: Option<String>,
+    /// Why indexing was intentionally skipped, when applicable.
+    pub backlinks_skipped_reason: Option<String>,
+    /// Canonical EventLedger receipt returned by the knowledge-document save endpoint.
+    #[serde(default)]
+    pub save_receipt_event_id: Option<String>,
+    /// Exact request identity that caused this receipt. Production transports populate it from the
+    /// immutable headers sent on the successful request; test backends may leave it absent.
+    #[serde(default)]
+    pub attribution: Option<SaveAttribution>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct SaveAttribution {
+    pub actor_id: String,
+    pub actor_kind: String,
+    pub kernel_task_run_id: String,
+    pub session_run_id: String,
+    pub correlation_id: Option<String>,
 }
 
 /// Why a save failed. A [`SaveError::VersionConflict`] carries the server document so the conflict
@@ -136,7 +158,7 @@ impl ReqwestSaveBackend {
     /// Build a backend against `base_url` (e.g. [`crate::backend_client::BACKEND_BASE_URL`]).
     pub fn new(base_url: impl Into<String>) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
             session_run_id: new_session_run_id(),
         }
@@ -176,10 +198,19 @@ impl SaveBackend for ReqwestSaveBackend {
             .map_err(|e| SaveError::Network(e.to_string()))?;
             let status = resp.status();
             if status.is_success() {
-                let result: RichDocSaveResult = resp
+                let mut result: RichDocSaveResult = resp
                     .json()
                     .await
                     .map_err(|e| SaveError::Server(status.as_u16(), e.to_string()))?;
+                result.attribution = Some(SaveAttribution {
+                    actor_id: crate::backend_client::DOC_ACTOR_ID.to_owned(),
+                    actor_kind: crate::backend_client::DOC_ACTOR_KIND.to_owned(),
+                    kernel_task_run_id: format!("native-editor-doc-{document_id_owned}"),
+                    session_run_id: session_run_id.clone(),
+                    correlation_id: Some(format!(
+                        "native-editor-save-{document_id_owned}-{session_run_id}"
+                    )),
+                });
                 return Ok(result);
             }
             // A 409 carries the server document so the conflict UI can show both versions.
@@ -236,6 +267,7 @@ pub(crate) fn attach_doc_headers(
     document_id: &str,
     session_run_id: &str,
 ) -> reqwest::RequestBuilder {
+    use crate::backend::knowledge_documents::HSK_HEADER_CORRELATION_ID;
     use crate::backend_client::{
         DOC_ACTOR_ID, DOC_ACTOR_KIND, HSK_HEADER_ACTOR_ID, HSK_HEADER_ACTOR_KIND,
         HSK_HEADER_KERNEL_TASK_RUN_ID, HSK_HEADER_SESSION_RUN_ID,
@@ -248,6 +280,10 @@ pub(crate) fn attach_doc_headers(
             format!("native-editor-doc-{document_id}"),
         )
         .header(HSK_HEADER_SESSION_RUN_ID, session_run_id)
+        .header(
+            HSK_HEADER_CORRELATION_ID,
+            format!("native-editor-save-{document_id}-{session_run_id}"),
+        )
 }
 
 /// One-slot delivery cell for an off-thread save result, drained by the egui UI thread next frame
@@ -296,6 +332,10 @@ pub struct SaveManager {
     pub dirty: bool,
     /// The server `updated_at` from the last successful save (surfaced in the UI).
     pub updated_at: Option<String>,
+    /// Last successful save receipt and its exact request identity, retained for diagnostics and
+    /// receipt-to-Flight-Recorder correlation without reconstructing either from mutable UI state.
+    pub last_save_receipt_event_id: Option<String>,
+    pub last_save_attribution: Option<SaveAttribution>,
     /// The save-flow state (drives the conflict UI).
     pub state: SaveState,
     /// The one-slot cell the spawned save delivers into; drained each frame by [`Self::drain`].
@@ -304,6 +344,10 @@ pub struct SaveManager {
     /// both-versions UI can show the operator's local version. Set by `set_pending_local_content`,
     /// taken in `drain` on a 409.
     pending_local_content: Option<JsonValue>,
+    /// Workspace currently owning this editor. Copied into the immutable in-flight save snapshot so a
+    /// later shell workspace switch cannot relabel the completion event.
+    workspace_id: String,
+    pending_workspace_id: Option<String>,
 }
 
 impl SaveManager {
@@ -322,9 +366,13 @@ impl SaveManager {
             doc_version,
             dirty: false,
             updated_at: None,
+            last_save_receipt_event_id: None,
+            last_save_attribution: None,
             state: SaveState::Idle,
             cell: Arc::new(Mutex::new(None)),
             pending_local_content: None,
+            workspace_id: String::new(),
+            pending_workspace_id: None,
         }
     }
 
@@ -359,6 +407,12 @@ impl SaveManager {
         self.dirty = true;
     }
 
+    /// Bind the owning workspace for subsequent save requests. An already in-flight save retains the
+    /// workspace captured when its request was dispatched.
+    pub fn set_workspace_id(&mut self, workspace_id: impl Into<String>) {
+        self.workspace_id = workspace_id.into();
+    }
+
     /// Request a canonical save of `content_json` at the current `doc_version`. No-op when a save is
     /// already in flight (the guard prevents a double-save race). Spawns the backend call off the
     /// frame thread (HBR-QUIET); the result lands in the delivery cell. In a headless test with no
@@ -367,6 +421,10 @@ impl SaveManager {
         if self.is_saving() {
             return; // MC-002: never start a second save while one is in flight.
         }
+        // This exact immutable request snapshot is carried into SaveOutcome::Saved/Conflict. Completion
+        // must never reconstruct it from the editor's newer mutable document state.
+        self.pending_local_content = Some(content_json.clone());
+        self.pending_workspace_id = Some(self.workspace_id.clone());
         let expected_version = self.doc_version;
         self.state = SaveState::Saving { expected_version };
         // Clear the cell before spawning so a stale prior result can't be drained as this save's.
@@ -402,16 +460,27 @@ impl SaveManager {
         let delivered = self.cell.lock().ok().and_then(|mut s| s.take())?;
         match delivered {
             Ok(result) => {
+                let saved_content = self.pending_local_content.take().unwrap_or(JsonValue::Null);
+                let workspace_id = self.pending_workspace_id.take().unwrap_or_default();
                 self.doc_version = result.document.doc_version;
                 self.dirty = false;
                 self.updated_at = result.document.updated_at.clone();
+                self.last_save_receipt_event_id = result.save_receipt_event_id.clone();
+                self.last_save_attribution = result.attribution.clone();
                 self.state = SaveState::Idle;
                 Some(SaveOutcome::Saved {
                     doc_version: result.document.doc_version,
+                    backlinks_persisted: result.backlinks_persisted,
+                    backlinks_warning: result.backlinks_error.or(result.backlinks_skipped_reason),
+                    saved_content,
+                    workspace_id,
+                    save_receipt_event_id: result.save_receipt_event_id,
+                    attribution: result.attribution,
                 })
             }
             Err(SaveError::VersionConflict(server)) => {
                 let local = self.pending_local_content.take().unwrap_or(JsonValue::Null);
+                self.pending_workspace_id.take();
                 self.state = SaveState::Conflict {
                     server: server.clone(),
                     local_content: local,
@@ -419,6 +488,8 @@ impl SaveManager {
                 Some(SaveOutcome::Conflict)
             }
             Err(e) => {
+                self.pending_local_content.take();
+                self.pending_workspace_id.take();
                 self.state = SaveState::Error(e.to_string());
                 Some(SaveOutcome::Failed(e))
             }
@@ -520,7 +591,19 @@ impl SaveManager {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SaveOutcome {
     /// The save succeeded; the new `doc_version` is adopted. The caller should clear the draft.
-    Saved { doc_version: u64 },
+    Saved {
+        doc_version: u64,
+        backlinks_persisted: usize,
+        backlinks_warning: Option<String>,
+        /// Exact JSON snapshot sent to the successful backend request.
+        saved_content: JsonValue,
+        /// Exact workspace owning that request at dispatch time.
+        workspace_id: String,
+        /// Immutable EventLedger receipt returned by this exact successful request.
+        save_receipt_event_id: Option<String>,
+        /// Immutable request identity captured by the production transport.
+        attribution: Option<SaveAttribution>,
+    },
     /// The save 409'd; a conflict is now open.
     Conflict,
     /// The save failed for a non-conflict reason.
@@ -566,6 +649,11 @@ mod tests {
                 content_json: Some(json!({"type":"doc","content":[]})),
                 updated_at: Some("2026-06-22T00:00:00Z".into()),
             },
+            backlinks_persisted: 0,
+            backlinks_error: None,
+            backlinks_skipped_reason: None,
+            save_receipt_event_id: None,
+            attribution: None,
         }
     }
 
@@ -597,10 +685,35 @@ mod tests {
         );
         m.deliver_for_test(Ok(ok_result(4)));
         let outcome = m.drain().unwrap();
-        assert_eq!(outcome, SaveOutcome::Saved { doc_version: 4 });
+        assert_eq!(
+            outcome,
+            SaveOutcome::Saved {
+                doc_version: 4,
+                backlinks_persisted: 0,
+                backlinks_warning: None,
+                saved_content: json!({"type":"doc","content":[]}),
+                workspace_id: String::new(),
+                save_receipt_event_id: None,
+                attribution: None,
+            }
+        );
         assert_eq!(m.doc_version, 4);
         assert!(!m.dirty, "dirty cleared after a successful save");
         assert_eq!(m.state, SaveState::Idle);
+    }
+
+    #[test]
+    fn save_completion_keeps_workspace_captured_at_dispatch() {
+        let mut m = mgr(Ok(ok_result(4)));
+        m.set_workspace_id("workspace-a");
+        m.request_save(json!({"type":"doc","content":[]}));
+        m.set_workspace_id("workspace-b");
+        m.deliver_for_test(Ok(ok_result(4)));
+
+        assert!(matches!(
+            m.drain(),
+            Some(SaveOutcome::Saved { workspace_id, .. }) if workspace_id == "workspace-a"
+        ));
     }
 
     #[test]

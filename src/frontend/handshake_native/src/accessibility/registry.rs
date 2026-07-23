@@ -33,6 +33,16 @@ use crate::command_palette::{
     PALETTE_SEARCH_AUTHOR_ID, PALETTE_SEARCH_NODE_ID,
 };
 use crate::fems::memory_proposal::{FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_DIALOG_NODE_ID};
+use crate::graph::daily_journal_panel::{
+    CALENDAR_EVENT_ACTIVITY_AUTHOR_ID, CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+    CALENDAR_EVENT_DETAILS_AUTHOR_ID, CALENDAR_EVENT_DETAILS_TAB_AUTHOR_ID,
+    CALENDAR_EVENT_LEGACY_BADGE_AUTHOR_ID, CALENDAR_EVENT_NORMALIZATION_BADGE_AUTHOR_ID,
+    CALENDAR_EVENT_NOTES_AUTHOR_ID, CALENDAR_EVENT_NOTES_TAB_AUTHOR_ID,
+    CALENDAR_EVENT_PANE_AUTHOR_ID, DAILY_JOURNAL_ACTIVITY_ITEM_AUTHOR_ID_PREFIX,
+    DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID, DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+    DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID, DAILY_JOURNAL_LEGACY_BADGE_AUTHOR_ID,
+    DAILY_JOURNAL_NORMALIZATION_BADGE_AUTHOR_ID, DAILY_JOURNAL_PANEL_AUTHOR_ID,
+};
 use crate::left_rail::LEFT_RAIL_BUTTONS;
 use crate::module_switcher::{MODULE_DEFINITIONS, MODULE_NODE_ID_BASE};
 use crate::pane_header::{PANE_LOCK_SLOTS, PANE_TITLE_SLOTS};
@@ -47,16 +57,24 @@ use crate::quick_switcher::{
     SWITCHER_LIST_NODE_ID, SWITCHER_SEARCH_AUTHOR_ID, SWITCHER_SEARCH_NODE_ID,
 };
 use crate::rails::SCROLLBAR_V_NODE_IDS;
+use crate::rich_editor::daily_notes::date_nav::{
+    DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS, JOURNAL_DATE_NAV_AUTHOR_IDS,
+};
 use crate::search_rail::{
     RAIL_CLEAR_AUTHOR_ID, RAIL_CLEAR_NODE_ID, RAIL_INPUT_AUTHOR_ID, RAIL_INPUT_NODE_ID,
     RAIL_LOOM_AUTHOR_ID, RAIL_LOOM_NODE_ID,
 };
 use crate::settings_dialog::{
-    SETTINGS_DIALOG_AUTHOR_ID, SETTINGS_DIALOG_NODE_ID, SETTINGS_LIST_AUTHOR_ID,
-    SETTINGS_LIST_NODE_ID, SETTINGS_SEARCH_AUTHOR_ID, SETTINGS_SEARCH_NODE_ID,
+    CALENDAR_TIMEZONE_APPLY_AUTHOR_ID, CALENDAR_TIMEZONE_AUTHOR_ID, SETTINGS_DIALOG_AUTHOR_ID,
+    SETTINGS_DIALOG_NODE_ID, SETTINGS_LIST_AUTHOR_ID, SETTINGS_LIST_NODE_ID,
+    SETTINGS_SEARCH_AUTHOR_ID, SETTINGS_SEARCH_NODE_ID,
 };
 use crate::split_layout::{
     DIVIDER_H_AUTHOR_ID, DIVIDER_H_NODE_ID, DIVIDER_V_AUTHOR_ID, DIVIDER_V_NODE_ID,
+};
+use crate::stage_pane::{
+    STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID, STAGE_EMBED_BACK_STATUS_AUTHOR_ID, STAGE_PANE_AUTHOR_ID,
+    STAGE_ROUTED_CONTENT_AUTHOR_ID, STAGE_ROUTE_RETRY_AUTHOR_ID, STAGE_ROUTE_STATUS_AUTHOR_ID,
 };
 use crate::stash_shelf::{
     DRAWER_AFFORDANCE_AUTHOR_ID, DRAWER_AFFORDANCE_NODE_ID, DRAWER_CARD_AUTHOR_IDS,
@@ -92,6 +110,56 @@ pub struct DeclaredIdentity {
     /// Fixed `NodeId` u64 backing the widget's `egui::Id` (and thus its AccessKit `NodeId`).
     pub node_id: u64,
 }
+
+/// Stable author ids backed by egui's hashed id space rather than a hand-assigned numeric NodeId.
+/// They still belong in the WP-011 registry so independently mounted surfaces cannot silently reuse
+/// one address and force agents to depend on tree order.
+pub const DECLARED_HASHED_AUTHOR_IDS: &[&str] = &[
+    STAGE_PANE_AUTHOR_ID,
+    STAGE_ROUTED_CONTENT_AUTHOR_ID,
+    STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
+    STAGE_EMBED_BACK_STATUS_AUTHOR_ID,
+    STAGE_ROUTE_STATUS_AUTHOR_ID,
+    STAGE_ROUTE_RETRY_AUTHOR_ID,
+    JOURNAL_DATE_NAV_AUTHOR_IDS.prev_day,
+    JOURNAL_DATE_NAV_AUTHOR_IDS.next_day,
+    JOURNAL_DATE_NAV_AUTHOR_IDS.today,
+    JOURNAL_DATE_NAV_AUTHOR_IDS.calendar_toggle,
+    JOURNAL_DATE_NAV_AUTHOR_IDS.date_display,
+    JOURNAL_DATE_NAV_AUTHOR_IDS.calendar_grid,
+    DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.prev_day,
+    DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.next_day,
+    DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.today,
+    DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.calendar_toggle,
+    DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.date_display,
+    DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.calendar_grid,
+    CALENDAR_TIMEZONE_AUTHOR_ID,
+    CALENDAR_TIMEZONE_APPLY_AUTHOR_ID,
+    DAILY_JOURNAL_PANEL_AUTHOR_ID,
+    DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID,
+    DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+    DAILY_JOURNAL_NORMALIZATION_BADGE_AUTHOR_ID,
+    DAILY_JOURNAL_LEGACY_BADGE_AUTHOR_ID,
+    DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID,
+    CALENDAR_EVENT_PANE_AUTHOR_ID,
+    CALENDAR_EVENT_DETAILS_TAB_AUTHOR_ID,
+    CALENDAR_EVENT_NOTES_TAB_AUTHOR_ID,
+    CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+    CALENDAR_EVENT_DETAILS_AUTHOR_ID,
+    CALENDAR_EVENT_NOTES_AUTHOR_ID,
+    CALENDAR_EVENT_ACTIVITY_AUTHOR_ID,
+    CALENDAR_EVENT_NORMALIZATION_BADGE_AUTHOR_ID,
+    CALENDAR_EVENT_LEGACY_BADGE_AUTHOR_ID,
+];
+
+/// Registered prefixes for date-dependent AccessKit rows in the two mounted date navigators.
+pub const DECLARED_HASHED_AUTHOR_ID_PREFIXES: &[&str] = &[
+    JOURNAL_DATE_NAV_AUTHOR_IDS.calendar_day_prefix,
+    DAILY_JOURNAL_DATE_NAV_AUTHOR_IDS.calendar_day_prefix,
+    DAILY_JOURNAL_ACTIVITY_ITEM_AUTHOR_ID_PREFIX,
+    "calendar-event-span-",
+    "calendar-event-primary-doc-",
+];
 
 /// Every hand-assigned stable identity in the shell chrome. The single source of truth: a new fixed
 /// identity added anywhere in the shell MUST be added here so the collision test covers it.
@@ -344,11 +412,11 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
         author_id: BOOKMARKS_AUTHOR_ID,
         node_id: BOOKMARKS_NODE_ID,
     },
-    // MT-015 top-level menu-bar buttons (Role::MenuItem), fresh band 92..=98: above the FIX-A bookmarks
-    // container (91), strictly below the pane id base (100). The menu count is FIXED at seven (MT-035 added
-    // the `Editors` menu at index 6 -> id 98; id 99 stays free), so each top-level menu button gets a
+    // Top-level menu-bar buttons (Role::MenuItem), fresh band 92..=99: above the FIX-A bookmarks
+    // container (91), strictly below the pane id base (100). Existing menus retain their ids; the
+    // operator menu consumes the final free slot at index 7 -> id 99.
     // fixed id (MENU_BAR_NODE_ID_BASE + index) and a fixed author_id (its `menu-{name}` key), both
-    // enumerated here so the collision test proves the seven ids are disjoint from every other declared
+    // enumerated here so the collision test proves the eight ids are disjoint from every other declared
     // identity. (Const-context: the indices are spelled out because a const slice
     // cannot iterate; the `menu_ids_sit_in_a_disjoint_fresh_band` unit test in `top_menu_bar` pins the
     // band shape.) Individual LEAF menu items are DYNAMIC (they exist only while a menu is open) and are
@@ -384,6 +452,10 @@ pub const DECLARED_IDENTITIES: &[DeclaredIdentity] = &[
     DeclaredIdentity {
         author_id: MENU_DEFINITIONS[6].author_id(),
         node_id: MENU_BAR_NODE_ID_BASE + 6,
+    },
+    DeclaredIdentity {
+        author_id: MENU_DEFINITIONS[7].author_id(),
+        node_id: MENU_BAR_NODE_ID_BASE + 7,
     },
     // MT-016 command-palette overlay container nodes, fresh band 11..=13: above the theme toggle (10),
     // below the chrome title bar (20) and the pane id base (100). The palette renders ONLY while
@@ -675,9 +747,51 @@ mod tests {
             );
         }
 
+        for &author_id in DECLARED_HASHED_AUTHOR_IDS {
+            assert!(
+                seen_authors.insert(author_id),
+                "duplicate registered hashed author_id '{author_id}'",
+            );
+        }
+
+        let mut seen_hashed_node_ids = seen_ids.clone();
+        for &author_id in DECLARED_HASHED_AUTHOR_IDS {
+            let node_id = egui::Id::new(author_id).value();
+            assert!(
+                seen_hashed_node_ids.insert(node_id),
+                "egui hash collision for registered author_id '{author_id}' at NodeId {node_id}"
+            );
+        }
+        let long_stage_ids = [
+            format!("{STAGE_ROUTED_CONTENT_AUTHOR_ID}.{}-a", "x".repeat(4096)),
+            format!("{STAGE_ROUTED_CONTENT_AUTHOR_ID}.{}-b", "x".repeat(4096)),
+        ];
+        assert_ne!(
+            egui::Id::new(&long_stage_ids[0]).value(),
+            egui::Id::new(&long_stage_ids[1]).value(),
+            "distinct long Stage author ids must remain distinct in egui's hashed id space"
+        );
+
+        let mut seen_prefixes = HashSet::new();
+        for &prefix in DECLARED_HASHED_AUTHOR_ID_PREFIXES {
+            assert!(
+                seen_prefixes.insert(prefix),
+                "duplicate registered hashed author_id prefix '{prefix}'",
+            );
+            assert!(
+                DECLARED_HASHED_AUTHOR_IDS
+                    .iter()
+                    .all(|author_id| !author_id.starts_with(prefix)),
+                "dynamic author_id prefix '{prefix}' overlaps a fixed registered author id"
+            );
+        }
+
         // Sanity: the set is non-empty and counts match (no silent dedup hid a collision).
         assert_eq!(seen_ids.len(), DECLARED_IDENTITIES.len());
-        assert_eq!(seen_authors.len(), DECLARED_IDENTITIES.len());
+        assert_eq!(
+            seen_authors.len(),
+            DECLARED_IDENTITIES.len() + DECLARED_HASHED_AUTHOR_IDS.len()
+        );
     }
 
     /// The gate flags a clickable node with no author_id, and accepts one once an author_id is set.

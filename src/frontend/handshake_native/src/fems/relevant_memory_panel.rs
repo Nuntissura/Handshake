@@ -61,6 +61,13 @@ pub const RELEVANT_MEMORY_PANEL_AUTHOR_ID: &str = "relevant-memory-panel";
 /// AccessKit author_id for the items container (`Role::List`).
 pub const RELEVANT_MEMORY_LIST_AUTHOR_ID: &str = "relevant-memory-list";
 
+/// Stable AccessKit author_id for the operator/agent-triggered live MemoryPack refresh.
+pub const RELEVANT_MEMORY_REFRESH_AUTHOR_ID: &str = "editor.fems.memorypack-refresh";
+
+/// Stable AccessKit status node for the latest MemoryPack request. The `Role::Status` value is a
+/// machine-readable terminal/loading projection, so agents never infer completion by scraping labels.
+pub const RELEVANT_MEMORY_STATUS_AUTHOR_ID: &str = "editor.fems.memorypack-status";
+
 /// AccessKit author_id PREFIX for one item row (`mem-item-{id}`, `Role::ListItem`).
 pub const MEM_ITEM_AUTHOR_PREFIX: &str = "mem-item-";
 
@@ -187,6 +194,14 @@ pub struct RelevantMemoryPanel {
     /// The typed blocker, if the last fetch failed. `EndpointMissing` drives the empty-state banner and
     /// is surfaced upward (RISK-005/MC-002, AC-005).
     blocker: Option<MemoryClientError>,
+    /// One-shot request raised by the stable Refresh control and consumed by the app host.
+    refresh_requested: bool,
+    /// Monotonic count of completed live refreshes (success or typed failure), used by diagnostics/tests.
+    completed_refreshes: u64,
+    /// Identity of the newest requested refresh. The host publishes a completion only when its captured
+    /// generation still matches, so a slow workspace-A response cannot overwrite a newer workspace-B
+    /// capsule after a context switch.
+    refresh_generation: u64,
 }
 
 impl RelevantMemoryPanel {
@@ -208,6 +223,21 @@ impl RelevantMemoryPanel {
     /// True while a fetch is in flight.
     pub fn in_flight(&self) -> bool {
         self.in_flight
+    }
+
+    /// Number of host fetches that reached a terminal result.
+    pub fn completed_refreshes(&self) -> u64 {
+        self.completed_refreshes
+    }
+
+    /// Identity the host captures when it starts the current refresh.
+    pub fn refresh_generation(&self) -> u64 {
+        self.refresh_generation
+    }
+
+    /// Consume a one-shot refresh request raised through the rendered AccessKit control.
+    pub fn take_refresh_request(&mut self) -> bool {
+        std::mem::take(&mut self.refresh_requested)
     }
 
     /// The current typed blocker, if any (read-only peek; the host uses [`Self::take_blocker`] to
@@ -244,7 +274,37 @@ impl RelevantMemoryPanel {
             return false;
         }
         self.last_context = Some(ctx);
+        self.current = None;
+        self.blocker = None;
         self.in_flight = true;
+        self.refresh_generation = self.refresh_generation.wrapping_add(1);
+        true
+    }
+
+    /// Force a refresh for the current context, bypassing only the context-equality debounce.
+    pub fn force_refresh_for_context(&mut self, ctx: MemoryContext) {
+        self.last_context = Some(ctx);
+        self.current = None;
+        self.blocker = None;
+        self.in_flight = true;
+        self.refresh_generation = self.refresh_generation.wrapping_add(1);
+    }
+
+    /// Publish a successful host fetch only when it belongs to the newest request generation.
+    pub fn set_pack_for_generation(&mut self, generation: u64, pack: MemoryPack) -> bool {
+        if generation != self.refresh_generation {
+            return false;
+        }
+        self.set_pack(pack);
+        true
+    }
+
+    /// Publish a failed host fetch only when it belongs to the newest request generation.
+    pub fn set_blocker_for_generation(&mut self, generation: u64, err: MemoryClientError) -> bool {
+        if generation != self.refresh_generation {
+            return false;
+        }
+        self.set_blocker(err);
         true
     }
 
@@ -253,6 +313,7 @@ impl RelevantMemoryPanel {
         self.current = Some(pack);
         self.blocker = None;
         self.in_flight = false;
+        self.completed_refreshes = self.completed_refreshes.wrapping_add(1);
     }
 
     /// Host hook: install a typed blocker from a failed fetch (clears in-flight; the pack is cleared so
@@ -261,6 +322,7 @@ impl RelevantMemoryPanel {
         self.blocker = Some(err);
         self.current = None;
         self.in_flight = false;
+        self.completed_refreshes = self.completed_refreshes.wrapping_add(1);
     }
 
     /// Render the panel into `ui`. `nav_bus` is the navigation seam the host wires to the MT-030 nav bus
@@ -276,11 +338,18 @@ impl RelevantMemoryPanel {
         let panel_id = egui::Id::new(RELEVANT_MEMORY_PANEL_AUTHOR_ID);
         let resp = ui
             .scope_builder(egui::UiBuilder::new().id_salt(panel_id), |ui| {
-                ui.label(
-                    egui::RichText::new("Relevant Memory")
-                        .strong()
-                        .color(palette.text),
-                );
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new("Relevant Memory")
+                            .strong()
+                            .color(palette.text),
+                    );
+                    let refresh = ui.add_enabled(!self.in_flight, egui::Button::new("Refresh"));
+                    emit_interactive_node(ui.ctx(), refresh.id, RELEVANT_MEMORY_REFRESH_AUTHOR_ID);
+                    if refresh.clicked() {
+                        self.refresh_requested = true;
+                    }
+                });
                 ui.separator();
                 self.show_body(ui, palette, nav_bus);
             })
@@ -301,6 +370,48 @@ impl RelevantMemoryPanel {
         palette: &HsPalette,
         nav_bus: &mut dyn NavigationBus,
     ) {
+        let context = self
+            .last_context
+            .as_ref()
+            .map(MemoryContext::context_key)
+            .unwrap_or_else(|| "none".to_owned());
+        let status = if let Some(error) = &self.blocker {
+            format!(
+                "state=error;generation={};completed={};context={context};error={error}",
+                self.refresh_generation, self.completed_refreshes
+            )
+        } else if self.in_flight {
+            format!(
+                "state=loading;generation={};completed={};context={context}",
+                self.refresh_generation, self.completed_refreshes
+            )
+        } else if let Some(pack) = &self.current {
+            let state = if pack.items.is_empty() {
+                "empty"
+            } else {
+                "ready"
+            };
+            format!(
+                "state={state};generation={};completed={};context={context};items={}",
+                self.refresh_generation,
+                self.completed_refreshes,
+                pack.items.len()
+            )
+        } else {
+            format!(
+                "state=idle;generation={};completed={};context={context}",
+                self.refresh_generation, self.completed_refreshes
+            )
+        };
+        let status_response = ui.allocate_response(egui::Vec2::ZERO, egui::Sense::hover());
+        ui.ctx()
+            .accesskit_node_builder(status_response.id, move |node| {
+                node.set_role(accesskit::Role::Status);
+                node.set_author_id(RELEVANT_MEMORY_STATUS_AUTHOR_ID.to_owned());
+                node.set_label("Relevant Memory status".to_owned());
+                node.set_value(status.clone());
+            });
+
         // 1) Typed blocker: the EndpointMissing empty-state banner (RISK-005/MC-002, AC-005). Other
         //    blocker variants render their typed message (still no panic, still no silent no-op).
         if let Some(err) = &self.blocker {
@@ -537,6 +648,35 @@ mod tests {
             panel.refresh_for_context(ctx2),
             "a changed context must fire again"
         );
+    }
+
+    #[test]
+    fn stale_refresh_completion_cannot_overwrite_newer_context() {
+        let mut panel = RelevantMemoryPanel::new();
+        assert!(panel.refresh_for_context(MemoryContext::for_workspace("workspace-a")));
+        let generation_a = panel.refresh_generation();
+        assert!(panel.set_pack_for_generation(generation_a, MemoryPack::empty("pack-a")));
+        assert!(
+            panel.current().is_some(),
+            "A is visible after its fetch completes"
+        );
+        assert!(panel.refresh_for_context(MemoryContext::for_workspace("workspace-b")));
+        let generation_b = panel.refresh_generation();
+        assert_ne!(generation_a, generation_b);
+        assert!(
+            panel.current().is_none(),
+            "switching to B clears A before B completes"
+        );
+
+        assert!(!panel.set_pack_for_generation(generation_a, MemoryPack::empty("pack-a")));
+        assert!(panel.current().is_none(), "stale A is discarded");
+        assert!(panel.in_flight(), "newer B remains in flight");
+        assert!(panel.set_pack_for_generation(generation_b, MemoryPack::empty("pack-b")));
+        assert_eq!(
+            panel.current().map(|pack| pack.context_key.as_str()),
+            Some("pack-b")
+        );
+        assert!(!panel.in_flight());
     }
 
     /// set_pack / set_blocker drive the state machine (mutually exclusive).

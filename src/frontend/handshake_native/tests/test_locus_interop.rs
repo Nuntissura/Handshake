@@ -1,41 +1,37 @@
 //! Editors <-> Locus (Pillar 6, structured work tracking) interop proofs — WP-KERNEL-012 MT-068 (cluster E10).
 //!
-//! Maps each MT-068 acceptance criterion + proof target to a real runtime proof, which is what is provable
-//! NOW (fixtures + a counted MT-034-search mock + an in-process mock HTTP server + egui_kittest).
+//! Maps each MT-068 acceptance criterion + proof target to real runtime proof through managed PostgreSQL,
+//! the bound backend, a counted MT-034-search mock, an in-process negative-path server, and egui_kittest.
 //!
-//! ## VERIFIED BACKEND REALITY (KERNEL_BUILDER gate 2026-06-25)
+//! ## VERIFIED BACKEND REALITY
 //!
-//! handshake_core has a Locus (Pillar 6) kernel/governance DATA MODEL (`kernel/locus_work_tracking_reset.rs`,
-//! `locus/mod.rs`, `locus/task_board.rs`) but NO HTTP routes exposing it (the `src/backend/handshake_core/src/api/`
-//! route surface has NO `locus.rs`; no `GET /workspaces/{ws}/locus/work-packets/{id}` / `/locus/microtasks/{id}`
-//! route is registered anywhere). Like FEMS (Pillar 12), Stage (Pillar 17), and Calendar (Pillar 2), the Locus
-//! READ API is absent, so `resolve_locus_ref` returns the typed blocker `LocusReadApiUnavailable` (the designed
-//! empty-state path). The parser + chip + node round-trip + reverse-lookup keying are FULLY provable here; the
-//! live resolution against real `/locus/` routes is the documented gated blocker until the route is exposed.
+//! handshake_core exposes read-only Locus routes backed by the canonical `work_packets` and `micro_tasks`
+//! PostgreSQL tables. `resolve_locus_ref` distinguishes a live missing record from an unavailable route. The
+//! live proof seeds canonical rows, resolves them through those routes, and independently proves persisted
+//! document attributes and reverse lookup.
 //!
 //! Proof map:
 //! - AC-001 / PT-001: `parse_locus_ref` recognizes `locus://wp/WP-KERNEL-012` + `locus://mt/MT-034`
 //!   (kind/id/normalized), an invalid scheme returns None.
-//! - AC-002 / PT-002: `resolve_locus_ref` against the bound READ route. With the route ABSENT (this build) a
-//!   404 maps to the typed blocker; the gated `--ignored` live test proves the real route once exposed +
-//!   asserts a non-empty title (the resolved-record CONTENT is the gated blocker). A mock-server 200 proves the
-//!   resolved-record projection (non-empty title) deterministically here.
-//! - AC-003 / PT-003: kittest — clicking a `locus-ref-chip-{kind}-{id}` dispatches `open-locus-ref` with the
-//!   matching ref routed through the MT-030/MT-031 nav seam (no new channel).
+//! - AC-002 / PT-002: `resolve_locus_ref` resolves canonical live WP/MT rows with non-empty titles. Mock 200 and
+//!   unavailable-route responses independently prove projection and typed failure behavior.
+//! - AC-003 / PT-003: the canonical localhost Argus loop inspects, clicks, and freshly re-inspects each
+//!   `locus-ref-chip-{kind}-{id}`, then proves the matching ref reached the MT-030/MT-031 nav seam.
 //! - AC-004 / PT-004: reverse lookup — seed a doc containing `locus://mt/MT-034`, `find_documents_referencing`
 //!   lists it (keyed on the normalized ref, de-duplicated on (document_id, block_id)).
-//! - AC-005 / PT-005: the missing Locus READ endpoint raises `LocusReadApiUnavailable` naming the endpoint, the
-//!   chip renders greyed (no panic), DISTINCT from a live-404 record-not-found.
+//! - AC-005 / PT-005: an unavailable Locus READ endpoint raises `LocusReadApiUnavailable` naming the endpoint,
+//!   while a canonical live-route 404 is `NotFound`; the chip renders greyed without panic.
 //! - AC-006 / PT-006: the `locus_ref` hsLink node survives save+reload with {kind,id,normalized-derivable}; a
 //!   live-404 renders a greyed `unresolved` chip without panic.
 //! - AC-007 / PT-007: grep proof — MT-032 normalizer reused, MT-034 CrossRef node/chip + search reused,
 //!   `open-locus-ref` via the existing command/nav seam, AccessKit ids via the WP-011 registry; no duplicates.
 //! - AC-008: kittest AccessKit dump — `locus-ref-chip-{kind}-{id}` (Link/Button) + `locus-refby-{document_id}`
 //!   (ListItem) present with correct roles + no duplicate author_id.
-//! - AC-009: diff/dependency gate — READ-only (GET-only), no `src/backend/**` edit, no new endpoint, no SQLite.
+//! - AC-009: diff/dependency gate — frontend resolution is GET-only, backend routes are read-only PostgreSQL,
+//!   and no SQLite authority is introduced.
 //! - AC-010: `cargo test -p handshake-native test_locus_interop` passes with no panics (this file).
 
-use std::io::{Read, Write};
+use std::io::{BufRead, Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -43,15 +39,24 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use egui_kittest::kittest::{NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
+use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::{
-    LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response,
+    HealthInfo, LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response,
 };
 use handshake_native::interop::{
     dispatch_locus_ref_open, normalize_locus_id, parse_locus_ref, CrossRefError, DocumentRef,
     FindNotesHttp, FindNotesSearch, InteractionBus, LocusInteropError, LocusInteropService,
     LocusRefKind, CMD_OPEN_LOCUS_REF, LOCUS_REF_KIND,
+};
+use handshake_native::mcp::{
+    ScreenshotError, SessionToken, SwarmMcpServer, ARGUS_CLICK_METHOD, ARGUS_INSPECT_METHOD,
+};
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
 use handshake_native::rich_editor::document_model::doc_json::{
     from_json_string, to_content_json_value, to_json_string,
@@ -63,15 +68,15 @@ use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };
 use handshake_native::rich_editor::wikilinks::inline_view::{
-    chip_colors, chip_label, is_locus_ref, locus_ref_chip_author_id, EditorEvent,
+    chip_colors, chip_label, is_locus_ref, locus_ref_chip_author_id,
+    locus_ref_chip_occurrence_author_id, EditorEvent,
 };
 use handshake_native::rich_editor::wikilinks::parser::parse_wikilink;
+use handshake_native::tab_bar::TabState;
 use handshake_native::theme::HsTheme;
 
-// The shared live-PostgreSQL backend gate (`require_live_backend` / `LiveBackend`) — the SAME honest
-// `requires_pg` precondition + HTTP surface the sibling PG-binding suites use
-// (tests/test_e7_knowledge_accesskit.rs, tests/test_parity_knowledge.rs). Used only by the gated
-// `#[ignore = "requires_pg"]` reverse-lookup case-robustness proof below; the default run never touches it.
+// Shared managed-PostgreSQL fixture. The default live proofs attach to a healthy root-managed backend or
+// start an already-built product executable, create an isolated workspace, and never invoke Cargo.
 mod pg_proof_support;
 use pg_proof_support::{require_live_backend, LiveBackend};
 
@@ -98,6 +103,222 @@ fn assert_no_local_artifact_dir() {
              Handshake_Artifacts/handshake-test root only (found {})",
             p.display()
         );
+    }
+}
+
+/// Isolate the production Argus discovery binding under the external proof root. This uses the same
+/// platform app-data indirection as the shipped server while preventing a test from overwriting a live
+/// Handshake process's binding.
+struct ScopedArgusAppData {
+    variable: &'static str,
+    previous: Option<std::ffi::OsString>,
+    root: PathBuf,
+}
+
+impl ScopedArgusAppData {
+    fn install(root: PathBuf) -> Self {
+        std::fs::create_dir_all(&root).expect("create isolated MT-068 Argus binding root");
+        #[cfg(target_os = "windows")]
+        let variable = "LOCALAPPDATA";
+        #[cfg(not(target_os = "windows"))]
+        let variable = "XDG_DATA_HOME";
+        let previous = std::env::var_os(variable);
+        std::env::set_var(variable, &root);
+        Self {
+            variable,
+            previous,
+            root,
+        }
+    }
+}
+
+impl Drop for ScopedArgusAppData {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => std::env::set_var(self.variable, value),
+            None => std::env::remove_var(self.variable),
+        }
+        if let Err(error) = std::fs::remove_dir_all(&self.root) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                panic!(
+                    "remove isolated MT-068 Argus binding root {}: {error}",
+                    self.root.display()
+                );
+            }
+        }
+    }
+}
+
+fn json_has_author_id(value: &serde_json::Value, expected: &str) -> bool {
+    match value {
+        serde_json::Value::Object(object) => {
+            object.get("author_id").and_then(|value| value.as_str()) == Some(expected)
+                || object
+                    .values()
+                    .any(|value| json_has_author_id(value, expected))
+        }
+        serde_json::Value::Array(values) => values
+            .iter()
+            .any(|value| json_has_author_id(value, expected)),
+        _ => false,
+    }
+}
+
+/// A real localhost JSON-RPC client/server loop over the exact snapshot and action channel owned by the
+/// mounted `HandshakeApp`. This is the canonical Argus boundary, not direct kittest activation.
+struct LocusArgusDriver {
+    runtime: tokio::runtime::Runtime,
+    server: SwarmMcpServer,
+    _app_data: ScopedArgusAppData,
+    token: String,
+    client_session_id: String,
+    next_id: u64,
+    clicked_targets: Vec<String>,
+}
+
+impl LocusArgusDriver {
+    fn bind(app: &HandshakeApp) -> Self {
+        let unique = uuid::Uuid::new_v4().simple().to_string();
+        let app_data = ScopedArgusAppData::install(
+            external_artifact_dir("mt068-argus-binding").join(format!("run-{unique}")),
+        );
+        let session_token = SessionToken::from_hex(&format!("mt068-locus-{unique}"));
+        let token = session_token.as_hex().to_owned();
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .expect("MT-068 Argus runtime");
+        let server = runtime
+            .block_on(SwarmMcpServer::bind(
+                session_token,
+                app.mcp_snapshot_slot(),
+                app.mcp_action_channel(),
+                Arc::new(|| {
+                    Err(ScreenshotError(
+                        "MT-068 inspect/click proof does not request a screenshot".to_owned(),
+                    ))
+                }),
+            ))
+            .expect("bind the production Argus localhost server");
+        Self {
+            runtime,
+            server,
+            _app_data: app_data,
+            token,
+            client_session_id: "mt068-locus-agent".to_owned(),
+            next_id: 1,
+            clicked_targets: Vec::new(),
+        }
+    }
+
+    fn rpc(&mut self, method: &str, params: serde_json::Value) -> serde_json::Value {
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": self.next_id,
+            "method": method,
+            "params": params,
+            "session_token": self.token,
+            "client_session_id": self.client_session_id,
+        });
+        self.next_id += 1;
+        let mut stream = std::net::TcpStream::connect(self.server.tcp_addr())
+            .expect("connect to production Argus TCP listener");
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+            .expect("bound Argus read timeout");
+        writeln!(stream, "{request}").expect("write Argus JSON-RPC request");
+        stream.flush().expect("flush Argus JSON-RPC request");
+        let mut response_line = String::new();
+        std::io::BufReader::new(stream)
+            .read_line(&mut response_line)
+            .expect("read Argus JSON-RPC response");
+        let response: serde_json::Value =
+            serde_json::from_str(response_line.trim()).expect("decode Argus JSON-RPC response");
+        assert!(
+            response.get("error").is_none(),
+            "canonical Argus request failed: {response}"
+        );
+        response
+    }
+
+    fn inspect(&mut self, harness: &mut Harness<'_, HandshakeApp>) -> serde_json::Value {
+        harness.state_mut().capture_mcp_snapshot_for_navigation();
+        self.rpc(ARGUS_INSPECT_METHOD, serde_json::json!({}))["result"].clone()
+    }
+
+    fn click_and_reinspect(
+        &mut self,
+        harness: &mut Harness<'_, HandshakeApp>,
+        author_id: &str,
+    ) -> serde_json::Value {
+        let before = self.inspect(harness);
+        assert!(
+            json_has_author_id(&before, author_id),
+            "canonical argus.inspect sees mounted Locus target {author_id}"
+        );
+        let click = self.rpc(
+            ARGUS_CLICK_METHOD,
+            serde_json::json!({ "target": author_id }),
+        );
+        assert_eq!(click["result"]["queued"], true);
+        assert!(
+            click["result"]["agent_id"]
+                .as_str()
+                .is_some_and(|agent| agent.ends_with(":client:mt068-locus-agent")),
+            "Argus click must retain caller attribution: {click}"
+        );
+        let receipt_id = click["result"]["receipt_id"]
+            .as_u64()
+            .expect("Argus click returns a receipt id");
+
+        let mut raw_input = egui::RawInput::default();
+        <HandshakeApp as eframe::App>::raw_input_hook(
+            harness.state_mut(),
+            &egui::Context::default(),
+            &mut raw_input,
+        );
+        assert_eq!(
+            raw_input.events.len(),
+            1,
+            "one canonical Argus click drains as one production egui event"
+        );
+        for event in raw_input.events {
+            harness.event(event);
+        }
+        harness.run_steps(3);
+
+        let after = self.inspect(harness);
+        let receipt = after["action_receipts"]
+            .as_array()
+            .and_then(|receipts| {
+                receipts
+                    .iter()
+                    .find(|receipt| receipt["receipt_id"].as_u64() == Some(receipt_id))
+            })
+            .expect("fresh argus.inspect returns the click receipt");
+        assert!(
+            receipt["status"]
+                .as_str()
+                .is_some_and(|status| matches!(status, "applied" | "indeterminate")),
+            "Argus receipt is terminal and non-rejected: {receipt}"
+        );
+        self.clicked_targets.push(author_id.to_owned());
+        after
+    }
+
+    fn finish(mut self) {
+        let entries = self.server.action_log().drain_log();
+        assert_eq!(entries.len(), self.clicked_targets.len());
+        for (entry, target) in entries.iter().zip(&self.clicked_targets) {
+            assert_eq!(entry.op_name, ARGUS_CLICK_METHOD);
+            assert_eq!(&entry.target_key, target);
+            assert!(entry.agent_id.ends_with(":client:mt068-locus-agent"));
+            assert_ne!(entry.node_id, 0);
+        }
+        assert_eq!(self.server.leases().active_resource_count(), 0);
+        self.server.shutdown();
+        drop(self.runtime);
     }
 }
 
@@ -150,6 +371,7 @@ fn doc_with_locus_ref(locus_uri: &str, label: &str, resolved: bool) -> BlockNode
 /// lookup drives the REAL `find_notes_with` pipeline without a live PG, and counts calls.
 struct CountingReverseLookup {
     hits: Vec<LoomSearchV2Hit>,
+    contents: std::collections::HashMap<String, serde_json::Value>,
     last_query: std::sync::Mutex<Option<String>>,
     calls: AtomicUsize,
 }
@@ -158,9 +380,38 @@ impl CountingReverseLookup {
     fn new(hits: Vec<LoomSearchV2Hit>) -> Self {
         Self {
             hits,
+            contents: std::collections::HashMap::new(),
             last_query: std::sync::Mutex::new(None),
             calls: AtomicUsize::new(0),
         }
+    }
+
+    fn with_locus_contents(mut self, document_ids: &[&str], locus_uri: &str) -> Self {
+        for document_id in document_ids {
+            self.contents.insert(
+                (*document_id).to_owned(),
+                serde_json::json!({
+                    "type": "doc",
+                    "content": [{
+                        "type": "paragraph",
+                        "content": [{
+                            "type": "hsLink",
+                            "attrs": {
+                                "refKind": "locus",
+                                "refValue": locus_uri,
+                                "label": "MT"
+                            }
+                        }]
+                    }]
+                }),
+            );
+        }
+        self
+    }
+
+    fn with_content(mut self, document_id: &str, content: serde_json::Value) -> Self {
+        self.contents.insert(document_id.to_owned(), content);
+        self
     }
 }
 
@@ -178,13 +429,39 @@ impl FindNotesSearch for CountingReverseLookup {
     > {
         self.calls.fetch_add(1, Ordering::SeqCst);
         *self.last_query.lock().unwrap() = Some(body.query.clone());
-        let hits = self.hits.clone();
+        let content_type = body.content_type.clone();
+        let offset = body.offset as usize;
+        let limit = body.limit as usize;
+        let matching = self
+            .hits
+            .iter()
+            .filter(|hit| {
+                content_type
+                    .as_deref()
+                    .is_none_or(|expected| hit.block.content_type == expected)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
         Box::pin(async move {
             Ok(LoomSearchV2Response {
-                hits,
+                hits: matching.iter().skip(offset).take(limit).cloned().collect(),
                 content_type_facets: Default::default(),
                 semantic_available: false,
-                total: 0,
+                total: matching.len() as i64,
+            })
+        })
+    }
+
+    fn load_document_content<'a>(
+        &'a self,
+        document_id: &'a str,
+    ) -> Pin<
+        Box<dyn std::future::Future<Output = Result<serde_json::Value, CrossRefError>> + Send + 'a>,
+    > {
+        let content = self.contents.get(document_id).cloned();
+        Box::pin(async move {
+            content.ok_or_else(|| {
+                CrossRefError::NotFound(format!("counted reverse-lookup document {document_id}"))
             })
         })
     }
@@ -257,6 +534,197 @@ fn read_request_line(stream: &mut std::net::TcpStream) -> String {
 /// An empty reverse-lookup backend (the resolution tests do not exercise reverse lookup).
 fn no_reverse_lookup() -> Arc<dyn FindNotesSearch> {
     Arc::new(CountingReverseLookup::new(vec![]))
+}
+
+fn sql_literal(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+fn managed_pg_url() -> String {
+    std::env::var("HSK_PROOF_DATABASE_URL")
+        .or_else(|_| std::env::var("POSTGRES_TEST_URL"))
+        .or_else(|_| std::env::var("DATABASE_URL"))
+        .unwrap_or_else(|_| "postgres://postgres@127.0.0.1:5544/handshake".to_owned())
+}
+
+fn psql_executable() -> PathBuf {
+    if let Ok(explicit) = std::env::var("HSK_PSQL_BIN") {
+        let path = PathBuf::from(explicit);
+        assert!(
+            path.is_file(),
+            "HSK_PSQL_BIN does not name psql: {}",
+            path.display()
+        );
+        return path;
+    }
+    if std::process::Command::new("psql")
+        .arg("--version")
+        .output()
+        .is_ok_and(|output| output.status.success())
+    {
+        return PathBuf::from("psql");
+    }
+    #[cfg(windows)]
+    if let Some(program_files) = std::env::var_os("ProgramFiles") {
+        let root = PathBuf::from(program_files).join("PostgreSQL");
+        if let Ok(versions) = std::fs::read_dir(root) {
+            let mut candidates = versions
+                .filter_map(Result::ok)
+                .map(|entry| entry.path().join("bin").join("psql.exe"))
+                .filter(|path| path.is_file())
+                .collect::<Vec<_>>();
+            candidates.sort();
+            if let Some(path) = candidates.pop() {
+                return path;
+            }
+        }
+    }
+    panic!("managed-PG fixture requires psql");
+}
+
+fn locus_sql_output(sql: &str) -> Result<std::process::Output, String> {
+    let mut command = std::process::Command::new(psql_executable());
+    command
+        .args(["-X", "-v", "ON_ERROR_STOP=1", "-q", "--dbname"])
+        .arg(managed_pg_url())
+        .arg("-c")
+        .arg(sql);
+    let output = bounded_command_output(command, std::time::Duration::from_secs(15))
+        .map_err(|error| format!("bounded psql execution failed: {error}"))?;
+    if output.status.success() {
+        Ok(output)
+    } else {
+        Err(format!(
+            "psql exited {}: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        ))
+    }
+}
+
+fn run_locus_sql(sql: &str) {
+    locus_sql_output(sql).expect("MT-068 canonical Locus fixture SQL");
+}
+
+fn bounded_command_output(
+    mut command: std::process::Command,
+    timeout: std::time::Duration,
+) -> std::io::Result<std::process::Output> {
+    command
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    let mut child = command.spawn()?;
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        match child.try_wait()? {
+            Some(_) => return child.wait_with_output(),
+            None if std::time::Instant::now() < deadline => {
+                std::thread::sleep(std::time::Duration::from_millis(25));
+            }
+            None => {
+                child.kill()?;
+                child.wait()?;
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    format!("child process exceeded {} seconds", timeout.as_secs()),
+                ));
+            }
+        }
+    }
+}
+
+fn seed_locus_records(wp_id: &str, mt_id: &str) {
+    run_locus_sql(&format!(
+        "BEGIN; \
+         INSERT INTO work_packets \
+           (wp_id, version, title, description, status, priority, phase, routing, task_packet_path, \
+            task_board_status, assignee, reporter, created_at, updated_at, vector_clock, metadata) \
+         VALUES ({wp}, 1, 'MT-068 live work packet', 'canonical persisted Locus resolution proof', \
+                 'in_progress', 1, 'implementation', 'native-editors', '', 'in_progress', NULL, \
+                 'mt068-proof', '2026-07-16T00:00:00Z', '2026-07-16T00:00:00Z', '{{}}', '{{}}'); \
+         INSERT INTO micro_tasks (mt_id, wp_id, name, status, current_iteration, escalation_level, metadata) \
+         VALUES ({mt}, {wp}, 'MT-068 live microtask', 'in_progress', 1, 0, '{{}}'); \
+         COMMIT;",
+        wp = sql_literal(wp_id),
+        mt = sql_literal(mt_id),
+    ));
+}
+
+fn cleanup_locus_records(wp_id: &str) {
+    let sql = format!(
+        "DELETE FROM work_packets WHERE wp_id = {};",
+        sql_literal(wp_id)
+    );
+    run_locus_sql(&sql);
+}
+
+struct LocusRecordCleanup {
+    wp_id: String,
+    active: bool,
+}
+
+impl LocusRecordCleanup {
+    fn assert_cleanup(&mut self) {
+        cleanup_locus_records(&self.wp_id);
+        self.active = false;
+    }
+}
+
+impl Drop for LocusRecordCleanup {
+    fn drop(&mut self) {
+        if self.active {
+            let sql = format!(
+                "DELETE FROM work_packets WHERE wp_id = {};",
+                sql_literal(&self.wp_id)
+            );
+            if let Err(error) = locus_sql_output(&sql) {
+                eprintln!(
+                    "MT-068 best-effort cleanup failed for {}: {error}",
+                    self.wp_id
+                );
+            }
+            self.active = false;
+        }
+    }
+}
+
+fn created_doc_id(created: &serde_json::Value) -> String {
+    created
+        .pointer("/document/rich_document_id")
+        .or_else(|| created.get("rich_document_id"))
+        .and_then(serde_json::Value::as_str)
+        .expect("created rich document carries rich_document_id")
+        .to_owned()
+}
+
+fn created_doc_version(created: &serde_json::Value) -> i64 {
+    created
+        .pointer("/document/doc_version")
+        .or_else(|| created.get("doc_version"))
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(1)
+}
+
+fn loaded_content_json(loaded: &serde_json::Value) -> serde_json::Value {
+    loaded
+        .pointer("/document/content_json")
+        .or_else(|| loaded.get("content_json"))
+        .cloned()
+        .expect("loaded rich document carries content_json")
+}
+
+fn doc_with_wp_and_mt_refs(wp_uri: &str, mt_uri: &str) -> BlockNode {
+    let mut para = BlockNode::new(NodeKind::Paragraph);
+    para.children
+        .push(Child::Text(TextLeaf::new("work packet ")));
+    para.children
+        .push(Child::HsLink(HsLinkNode::new(LOCUS_REF_KIND, wp_uri, "WP")));
+    para.children
+        .push(Child::Text(TextLeaf::new(" microtask ")));
+    para.children
+        .push(Child::HsLink(HsLinkNode::new(LOCUS_REF_KIND, mt_uri, "MT")));
+    para.children.push(Child::Text(TextLeaf::new("")));
+    BlockNode::doc(vec![para])
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -337,14 +805,14 @@ fn ac001_parse_locus_ref_wp_and_mt() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-002 / PT-002 — resolve_locus_ref against the bound READ route. The route is ABSENT in this build
-// (404 -> typed blocker); a mock 200 proves the resolved-record projection (non-empty title).
+// AC-002 / PT-002 — resolve_locus_ref against the bound READ route. A route-level unavailable response maps
+// to the typed blocker; a mock 200 independently proves the resolved-record projection (non-empty title).
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
 fn ac002_resolve_locus_ref_route_absent_is_typed_blocker() {
-    // The DESIGNED PRIMARY PATH in this build: the Locus READ route is absent, so a 404 maps to the typed
-    // blocker `LocusReadApiUnavailable` naming the endpoint (NOT a fabricated record).
+    // Negative path: a route-level 404 without the canonical record-not-found code maps to the typed blocker
+    // `LocusReadApiUnavailable` naming the endpoint (NOT a fabricated record).
     let (base_url, server) = spawn_mock(
         "HTTP/1.1 404 Not Found",
         serde_json::json!({"error": "absent"}),
@@ -409,43 +877,216 @@ fn ac002_resolve_locus_ref_resolved_record_projection() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-002 / PT-002 (LIVE) — GATED #[ignore] integration: the REAL /locus/ GET route against managed PG.
+// AC-002 / PT-002 (LIVE) — default managed-runtime integration against the real Locus routes.
 //
 // The contract's bound READ APIs (GET /workspaces/{ws}/locus/work-packets/{id} + /locus/microtasks/{id})
-// are ABSENT from the frontend-reachable surface in this build (VERIFIED), so the DESIGNED outcome is the
-// typed blocker. This gated test documents the live path: when the route IS exposed it must return a real
-// record (non-empty title) for a known WP/MT, or the typed blocker until then. It is `#[ignore]` so the
-// default run never depends on a live server; the WP validator runs it with `-- --ignored` against the
-// managed backend to transition the live resolution from NEEDS_MANAGED_RESOURCE_PROOF. It NEVER fabricates
-// a record and NEVER adds a backend route.
+// resolve canonical PostgreSQL records. This test proves non-empty WP/MT records, saved rich-document attrs,
+// and persisted reverse lookup against the live route. It never fabricates a record.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-#[ignore = "needs a live handshake_core + PostgreSQL on 127.0.0.1:37501 and the (currently absent) /locus/ GET routes; until exposed the DESIGNED outcome is the LocusReadApiUnavailable typed blocker"]
 fn resolve_locus_ref_against_real_pg_live() {
-    let workspace_id =
-        std::env::var("HSK_TEST_WORKSPACE_ID").unwrap_or_else(|_| "ws-mt068-probe".to_owned());
-    let svc = LocusInteropService::production(workspace_id);
-    let wp = parse_locus_ref("locus://wp/WP-KERNEL-012").unwrap();
-    let result = rt().block_on(async { svc.resolve_locus_ref(&wp).await });
-    match result {
-        Ok(record) => {
-            assert!(
-                !record.title.is_empty(),
-                "AC-002 LIVE: a resolved WP record must carry a non-empty title (got empty)"
-            );
-            println!(
-                "AC-002 LIVE OK: resolve_locus_ref returned a real record title='{}'",
-                record.title
-            );
-        }
-        Err(LocusInteropError::LocusReadApiUnavailable { endpoint }) => {
-            // The DESIGNED outcome while the /locus/ route is not yet exposed — the typed blocker, not a
-            // failure to fabricate. The validator records this as the documented gated blocker.
-            println!("AC-002 LIVE: /locus/ route still absent -> LocusReadApiUnavailable({endpoint}) (designed blocker)");
-        }
-        Err(other) => panic!("AC-002 LIVE: expected a record or the typed blocker, got {other:?}"),
+    let mut be: LiveBackend = require_live_backend();
+    let ws = be.workspace_id.clone();
+    let suffix = uuid::Uuid::new_v4().simple().to_string();
+    let wp_id = format!("WP-MT068-{suffix}");
+    let mt_id = format!("MT-MT068-{suffix}");
+    seed_locus_records(&wp_id, &mt_id);
+    let mut records_cleanup = LocusRecordCleanup {
+        wp_id: wp_id.clone(),
+        active: true,
+    };
+
+    let wp_uri = format!("locus://wp/{wp_id}");
+    let mt_uri = format!("locus://mt/{mt_id}");
+    let authored = doc_with_wp_and_mt_refs(&wp_uri, &mt_uri);
+    let content_json = to_content_json_value(&authored);
+    let created = be.post_json(
+        "/knowledge/documents",
+        &serde_json::json!({
+            "workspace_id": ws,
+            "title": "MT-068 persisted WP and MT reference proof",
+            "content_json": content_json,
+        }),
+    );
+    let document_id = created_doc_id(&created);
+    let version = created_doc_version(&created);
+    let saved = be.put_json(
+        &format!("/knowledge/documents/{document_id}/save"),
+        &serde_json::json!({
+            "expected_version": version,
+            "content_json": to_content_json_value(&authored),
+        }),
+    );
+    assert!(
+        saved["save_receipt_event_id"]
+            .as_str()
+            .is_some_and(|id| !id.is_empty()),
+        "AC-006 LIVE: the rich-document save returns an authentic receipt"
+    );
+    let loaded = be.get_json(&format!("/knowledge/documents/{document_id}"));
+    let loaded_content = loaded_content_json(&loaded);
+    let reparsed = from_json_string(&loaded_content.to_string())
+        .expect("AC-006 LIVE: persisted content_json reloads into the rich document model");
+    let reserialized = to_content_json_value(&reparsed).to_string();
+    assert!(
+        reserialized.contains(&wp_uri) && reserialized.contains(&mt_uri),
+        "AC-006 LIVE: both exact Locus attrs survive save and reload"
+    );
+
+    let svc = LocusInteropService::with_base_url(
+        be.base.clone(),
+        ws.clone(),
+        Arc::new(FindNotesHttp::new(be.base.clone())),
+    );
+    let wp = parse_locus_ref(&wp_uri).unwrap();
+    let mt = parse_locus_ref(&mt_uri).unwrap();
+    let (wp_record, mt_record, wp_docs, mt_docs) = rt().block_on(async {
+        (
+            svc.resolve_locus_ref(&wp).await,
+            svc.resolve_locus_ref(&mt).await,
+            svc.find_documents_referencing(&wp).await,
+            svc.find_documents_referencing(&mt).await,
+        )
+    });
+    let wp_record = wp_record.expect("AC-002 LIVE: persisted WP resolves through the live route");
+    let mt_record = mt_record.expect("AC-002 LIVE: persisted MT resolves through the live route");
+    assert!(!wp_record.title.is_empty() && !mt_record.title.is_empty());
+    for (label, docs) in [
+        ("WP", wp_docs.expect("AC-004 LIVE: WP reverse lookup")),
+        ("MT", mt_docs.expect("AC-004 LIVE: MT reverse lookup")),
+    ] {
+        let matching = docs
+            .iter()
+            .filter(|document| document.document_id == document_id)
+            .count();
+        assert_eq!(
+            matching, 1,
+            "AC-004 LIVE: {label} reverse lookup returns the persisted document exactly once: {docs:?}"
+        );
     }
+
+    // Mount a fresh production rich editor for each shared-navigation chip. The click must route the
+    // exact WP/MT identity through the existing shell navigator; no direct navigation function is called
+    // by the proof.
+    for (uri, expected_content_id) in [
+        (wp_uri.as_str(), format!("WP:{wp_id}")),
+        (mt_uri.as_str(), format!("MT::{mt_id}")),
+    ] {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .expect("MT-068 mounted navigation runtime");
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+            status: "ok".to_owned(),
+            db_status: "ok".to_owned(),
+            migration_version: Some(1),
+        }));
+        app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
+        app.bind_active_project_for_integration_test(ws.clone());
+        // Reuse the default Notes pane. Replacing `pane-a` (the default code pane) with another
+        // LoomWikiPage would mount the one shared rich-document state twice and intentionally expose
+        // two accessibility occurrences for every chip, which is not this single-pane navigation proof.
+        let pane_id = PaneId::from("pane-b");
+        app.pane_registry().lock().unwrap().insert(PaneRecord::new(
+            pane_id.clone(),
+            PaneType::LoomWikiPage,
+            ws.clone(),
+            Some(document_id.clone()),
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+        let mut tab = TabState::new(PaneType::LoomWikiPage);
+        tab.content_id = Some(document_id.clone());
+        let bar = app.tab_bar_states_mut().get_mut(&pane_id).unwrap();
+        bar.tabs = vec![tab];
+        bar.active_index = 0;
+        app.set_active_pane_for_test(Some(pane_id.clone()));
+        let mut harness = Harness::builder()
+            .with_size(egui::vec2(1000.0, 700.0))
+            .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+        let chip_id = locus_ref_chip_author_id(uri);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            // The mounted app legitimately keeps repainting while its Locus/Flight-Recorder async
+            // side work settles, so advance one deterministic frame instead of requiring global idle.
+            harness.run_steps(1);
+            if harness
+                .root()
+                .children_recursive()
+                .any(|node| node.accesskit_node().author_id() == Some(chip_id.as_str()))
+            {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "mounted Locus chip {chip_id}"
+            );
+        }
+        let matching_chip_count = harness
+            .root()
+            .children_recursive()
+            .filter(|node| node.accesskit_node().author_id() == Some(chip_id.as_str()))
+            .count();
+        assert_eq!(
+            matching_chip_count, 1,
+            "AC-008 LIVE: the canonical single Notes pane exposes exactly one {chip_id} node"
+        );
+        let chip = harness.get_by(|node| node.author_id() == Some(chip_id.as_str()));
+        let chip_rect = chip.rect();
+        let chip_node_id = chip.accesskit_node().id();
+        harness.run_steps(1);
+        let chip = harness.get_by(|node| node.author_id() == Some(chip_id.as_str()));
+        assert_eq!(
+            chip.accesskit_node().id(),
+            chip_node_id,
+            "the mounted chip NodeId remains stable between inspection and action"
+        );
+        assert!(
+            chip.accesskit_node()
+                .data()
+                .supports_action(egui::accesskit::Action::Click),
+            "the mounted Locus chip advertises the AccessKit Click action"
+        );
+        let mut argus = LocusArgusDriver::bind(harness.state());
+        let post_action_inspection = argus.click_and_reinspect(&mut harness, &chip_id);
+        assert!(
+            post_action_inspection["action_receipts"]
+                .as_array()
+                .is_some_and(|receipts| !receipts.is_empty()),
+            "fresh canonical argus.inspect exposes the navigation receipt"
+        );
+        let active = harness.state().active_pane().cloned().expect("active pane");
+        let active_tab = harness
+            .state()
+            .tab_bar_states()
+            .get(&active)
+            .and_then(|bar| bar.tabs.get(bar.active_index))
+            .expect("Locus click produced active navigator tab");
+        assert_eq!(
+            active_tab.content_id.as_deref(),
+            Some(expected_content_id.as_str()),
+            "the active-pane navigator inserts and focuses the exact Locus target after canonical Argus steering; source_chip_rect={chip_rect:?}"
+        );
+        argus.finish();
+    }
+
+    let missing = parse_locus_ref(&format!("locus://wp/{wp_id}-MISSING")).unwrap();
+    assert!(matches!(
+        rt().block_on(svc.resolve_locus_ref(&missing)),
+        Err(LocusInteropError::NotFound { .. })
+    ));
+
+    let document_cleanup = be.delete(&format!("/knowledge/documents/{document_id}"));
+    assert!(matches!(document_cleanup, 200 | 202 | 204 | 404));
+    records_cleanup.assert_cleanup();
+    drop(records_cleanup);
+    be.assert_cleanup();
+    println!(
+        "AC-002/004/006 LIVE OK: canonical WP {wp_id} + MT {mt_id} resolved, saved/reloaded attrs, and persisted reverse lookup returned {document_id} once per ref"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -504,7 +1145,8 @@ fn ac003_click_locus_ref_chip_dispatches_open_locus_ref() {
         "AC-003: the event carries the locus ref"
     );
 
-    // The bridge stages the NORMALIZED ref on the bus and dispatches `open-locus-ref` (no new channel).
+    // The bridge stages the canonical ORIGINAL-CASE ref on the bus and dispatches `open-locus-ref` (no
+    // new channel). The normalized value remains the lookup/search key only.
     let ctx = egui::Context::default();
     let mut bus = InteractionBus::new();
     bus.register_open_locus_ref_command();
@@ -516,15 +1158,62 @@ fn ac003_click_locus_ref_chip_dispatches_open_locus_ref() {
     let staged = dispatch_locus_ref_open(&ctx, &mut bus, &evt);
     assert_eq!(
         staged.as_deref(),
-        Some("locus://wp/wp-kernel-012"),
-        "AC-003: the bridge dispatches open-locus-ref staging the NORMALIZED ref (the single key)"
+        Some("locus://wp/WP-KERNEL-012"),
+        "AC-003: the bridge stages the original-case canonical navigation identity"
     );
     assert_eq!(
         bus.take_pending_locus_ref().as_deref(),
-        Some("locus://wp/wp-kernel-012"),
-        "AC-003: `open-locus-ref` staged the normalized ref on the bus (the MT-030/MT-031 nav seam)"
+        Some("locus://wp/WP-KERNEL-012"),
+        "AC-003: `open-locus-ref` preserved the uppercase work-unit identity on the nav seam"
     );
-    println!("AC-003/PT-003 OK: clicked {chip_id} -> open-locus-ref staged locus://wp/wp-kernel-012 ({CMD_OPEN_LOCUS_REF})");
+    println!("AC-003/PT-003 OK: clicked {chip_id} -> open-locus-ref staged locus://wp/WP-KERNEL-012 ({CMD_OPEN_LOCUS_REF})");
+}
+
+#[test]
+fn ac003_generic_app_bus_drain_preserves_uppercase_locus_identity() {
+    let app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1000.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(2);
+
+    let event = EditorEvent::WikilinkActivated {
+        ref_kind: LOCUS_REF_KIND.to_owned(),
+        ref_value: "wp/WP-KERNEL-CaseID".to_owned(),
+        resolved: true,
+    };
+    let staged = {
+        let bus = InteractionBus::get_or_init(&harness.ctx);
+        InteractionBus::with_try_lock(&bus, |bus| {
+            bus.register_open_locus_ref_command();
+            dispatch_locus_ref_open(&harness.ctx, bus, &event)
+        })
+        .flatten()
+    };
+    assert_eq!(
+        staged.as_deref(),
+        Some("locus://wp/WP-KERNEL-CaseID"),
+        "the command bridge must not stage the lowercase lookup key"
+    );
+
+    // Drive the ordinary per-frame pending-bus drain, not the direct ShellNavigator test seam.
+    harness.run_steps(2);
+    let active = harness.state().active_pane().cloned().expect("active pane");
+    let tab = harness
+        .state()
+        .tab_bar_states()
+        .get(&active)
+        .and_then(|bar| bar.tabs.get(bar.active_index))
+        .expect("generic Locus drain opened an active tab");
+    assert_eq!(
+        tab.content_id.as_deref(),
+        Some("WP:WP-KERNEL-CaseID"),
+        "the generic app drain must navigate with the original-case record identity"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -553,8 +1242,30 @@ fn ac004_reverse_lookup_lists_referencing_documents() {
             "again locus://mt/MT-034",
         ),
         hit("DOC-9", Some("Plan"), "note", "also locus://mt/MT-034"),
+        hit(
+            "DOC-10",
+            Some("Plain-text false positive"),
+            "note",
+            "mentions locus://mt/MT-034 without a structured link",
+        ),
     ];
-    let backend = Arc::new(CountingReverseLookup::new(hits));
+    let backend = Arc::new(
+        CountingReverseLookup::new(hits)
+            .with_locus_contents(&["DOC-7", "DOC-9"], "locus://mt/MT-034")
+            .with_content(
+                "DOC-10",
+                serde_json::json!({
+                    "type": "doc",
+                    "content": [{
+                        "type": "paragraph",
+                        "content": [{
+                            "type": "text",
+                            "text": "plain locus://mt/MT-034 mention"
+                        }]
+                    }]
+                }),
+            ),
+    );
     let backend_dyn: Arc<dyn FindNotesSearch> = backend.clone();
     let svc = LocusInteropService::with_base_url("http://unused", "WS-1", backend_dyn);
 
@@ -587,6 +1298,25 @@ fn ac004_reverse_lookup_lists_referencing_documents() {
         "the key matches the parsed normalized form"
     );
     println!("AC-004/PT-004 OK: find_documents_referencing(MT-034) -> [DOC-7, DOC-9] keyed on locus://mt/mt-034, deduped");
+}
+
+#[test]
+fn ac004_reverse_lookup_unreadable_candidate_fails_closed() {
+    let backend: Arc<dyn FindNotesSearch> = Arc::new(CountingReverseLookup::new(vec![hit(
+        "DOC-UNREADABLE",
+        Some("Unreadable candidate"),
+        "note",
+        "locus://mt/MT-034",
+    )]));
+    let svc = LocusInteropService::with_base_url("http://unused", "WS-1", backend);
+    let mt = parse_locus_ref("locus://mt/MT-034").unwrap();
+    let error = rt()
+        .block_on(async { svc.find_documents_referencing(&mt).await })
+        .expect_err("an unreadable candidate makes the exact reverse lookup unknowable");
+    assert!(
+        matches!(error, LocusInteropError::ReverseLookup(_)),
+        "unreadable candidates fail closed through the typed reverse-lookup error: {error:?}"
+    );
 }
 
 #[test]
@@ -662,6 +1392,7 @@ fn ac005_typed_blocker_distinct_from_live_404_and_chip_greys() {
         ref_value: "locus://mt/MT-034".into(),
         label: "MT-034".into(),
         resolved: false,
+        provenance: None,
     };
     let label = chip_label(&unresolved);
     assert!(
@@ -761,11 +1492,11 @@ fn ac007_reuses_mt032_normalizer_and_mt034_machinery_no_duplicates() {
         "AC-007: locus_interop must NOT define its own normalize_target (no second normalizer)"
     );
 
-    // (2) REUSES the MT-034 CrossRef search machinery (find_notes_with) for reverse lookup — not a forked
-    // scan (RISK-002/MC-002).
+    // (2) REUSES the MT-034 exhaustive candidate search machinery for reverse lookup — not a forked scan.
     assert!(
-        interop_src.contains("find_notes_with") && interop_src.contains("FindNotesSearch"),
-        "AC-007: the reverse lookup must reuse the MT-034 find_notes_with / FindNotesSearch (no forked scan)"
+        interop_src.contains("find_all_note_candidates_with")
+            && interop_src.contains("FindNotesSearch"),
+        "AC-007: reverse lookup must reuse MT-034 bounded candidate pagination / FindNotesSearch"
     );
     assert!(
         interop_src.contains("percent_encode_symbol"),
@@ -797,9 +1528,10 @@ fn ac007_reuses_mt032_normalizer_and_mt034_machinery_no_duplicates() {
         "AC-007: the contract command id"
     );
 
-    // (4) AccessKit ids are derived via the chip helper (registered through the WP-011 accessibility
-    // surface like every other chip — the renderer's accesskit_node_builder path), de-duplicated by
-    // construction from (kind,id).
+    // (4) AccessKit base ids are derived via the chip helper (registered through the WP-011
+    // accessibility surface like every other chip — the renderer's accesskit_node_builder path).
+    // The first occurrence keeps this deterministic `(kind,id)` base; the occurrence helper appends
+    // stable document paths to repeats.
     assert_eq!(
         locus_ref_chip_author_id("locus://wp/WP-KERNEL-012"),
         "locus-ref-chip-wp-WP-KERNEL-012"
@@ -808,11 +1540,16 @@ fn ac007_reuses_mt032_normalizer_and_mt034_machinery_no_duplicates() {
         locus_ref_chip_author_id("locus://mt/MT-034"),
         "locus-ref-chip-mt-MT-034"
     );
-    // De-dup: the same (kind,id) yields the SAME id; distinct work units yield distinct ids.
+    // The same (kind,id) yields the SAME base; distinct work units yield distinct bases.
     assert_eq!(
         locus_ref_chip_author_id("locus://wp/WP-KERNEL-012"),
         locus_ref_chip_author_id("locus://wp/WP-KERNEL-012"),
-        "AC-008: the chip id is deterministic (de-duplicated by (kind,id))"
+        "AC-008: the first-occurrence base id is deterministic by (kind,id)"
+    );
+    assert_eq!(
+        locus_ref_chip_occurrence_author_id("locus://wp/WP-KERNEL-012", &[4, 2], 1),
+        "locus-ref-chip-wp-WP-KERNEL-012--path-4-2",
+        "AC-008: a repeated occurrence is uniquely addressable by stable document path"
     );
     assert_ne!(
         locus_ref_chip_author_id("locus://wp/WP-KERNEL-012"),
@@ -939,8 +1676,193 @@ fn ac008_accesskit_ids_present_with_roles_no_duplicates() {
     assert_no_local_artifact_dir();
 }
 
+#[test]
+fn ac008_repeated_locus_refs_have_unique_path_stable_author_ids_after_reflow() {
+    let locus_uri = "locus://mt/MT-RepeatCase";
+    let make_link = || {
+        let mut link = HsLinkNode::new(LOCUS_REF_KIND, locus_uri, "MT-RepeatCase");
+        link.resolved = true;
+        Child::HsLink(link)
+    };
+
+    let mut first = BlockNode::new(NodeKind::Paragraph);
+    first.children.push(Child::Text(TextLeaf::new(
+        "A long prefix that wraps at the constrained viewport before ",
+    )));
+    first.children.push(make_link()); // path [0, 1] — first occurrence keeps the base id.
+    first.children.push(Child::Text(TextLeaf::new(
+        " and another long segment before the repeated ref ",
+    )));
+    first.children.push(make_link()); // path [0, 3] — repeated occurrence gets a path suffix.
+    first.children.push(Child::Text(TextLeaf::new(".")));
+
+    let mut second = BlockNode::new(NodeKind::Paragraph);
+    second
+        .children
+        .push(Child::Text(TextLeaf::new("A later block repeats ")));
+    second.children.push(make_link()); // path [1, 1] — another stable path suffix.
+    second.children.push(Child::Text(TextLeaf::new(".")));
+
+    let state = Arc::new(std::sync::Mutex::new(RichEditorState::new(BlockNode::doc(
+        vec![first, second],
+    ))));
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(760.0, 440.0))
+        .build_ui(move |ui| {
+            RichEditorWidget::new(Arc::clone(&state)).show(ui);
+        });
+    harness.run_steps(2);
+
+    let expected = [
+        locus_ref_chip_occurrence_author_id(locus_uri, &[0, 1], 0),
+        locus_ref_chip_occurrence_author_id(locus_uri, &[0, 3], 1),
+        locus_ref_chip_occurrence_author_id(locus_uri, &[1, 1], 2),
+    ];
+    assert_eq!(
+        expected[0], "locus-ref-chip-mt-MT-RepeatCase",
+        "the first occurrence preserves the unsuffixed MT-068 contract id"
+    );
+    assert_eq!(
+        expected[1], "locus-ref-chip-mt-MT-RepeatCase--path-0-3",
+        "a repeat is disambiguated by its stable document path"
+    );
+    assert_eq!(expected[2], "locus-ref-chip-mt-MT-RepeatCase--path-1-1");
+
+    let collect = |harness: &Harness<'_, ()>| {
+        let mut ids = harness
+            .root()
+            .children_recursive()
+            .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+            .filter(|id| id.starts_with("locus-ref-chip-mt-MT-RepeatCase"))
+            .collect::<Vec<_>>();
+        ids.sort();
+        ids
+    };
+    let mut expected_sorted = expected.to_vec();
+    expected_sorted.sort();
+    let wide_ids = collect(&harness);
+    assert_eq!(
+        wide_ids, expected_sorted,
+        "all repeated refs must expose unique deterministic author_ids"
+    );
+
+    // Force different wrapping without changing the document. Identity must follow the atom path, not
+    // the chip's painted coordinates or line number.
+    harness.set_size(egui::vec2(330.0, 440.0));
+    harness.run_steps(2);
+    let narrow_ids = collect(&harness);
+    assert_eq!(
+        narrow_ids, wide_ids,
+        "viewport reflow must not change repeated Locus AccessKit identities"
+    );
+}
+
+#[test]
+fn ac008_raw_path_suffix_id_cannot_collide_with_repeated_ref_after_reflow() {
+    let repeated_uri = "locus://mt/MT-X";
+    let adversarial_uri = "locus://mt/MT-X--path-0-3";
+    let adversarial_view_uri = "locus://mt/MT-X--view-document-70616e652d62";
+    let make_link = |uri: &str| {
+        let mut link = HsLinkNode::new(LOCUS_REF_KIND, uri, uri);
+        link.resolved = true;
+        Child::HsLink(link)
+    };
+
+    let mut paragraph = BlockNode::new(NodeKind::Paragraph);
+    paragraph.children.push(Child::Text(TextLeaf::new(
+        "A long prefix that changes wrapping before ",
+    )));
+    paragraph.children.push(make_link(repeated_uri)); // [0, 1], canonical unsuffixed first occurrence.
+    paragraph
+        .children
+        .push(Child::Text(TextLeaf::new(" and the same ref again ")));
+    paragraph.children.push(make_link(repeated_uri)); // [0, 3], author suffix is `--path-0-3`.
+    paragraph.children.push(Child::Text(TextLeaf::new(
+        " beside an authored id containing that exact suffix ",
+    )));
+    paragraph.children.push(make_link(adversarial_uri)); // [0, 5], reserved token must be escaped.
+    paragraph.children.push(Child::Text(TextLeaf::new(
+        " and an authored id containing the secondary-pane suffix ",
+    )));
+    paragraph.children.push(make_link(adversarial_view_uri)); // [0, 7], view token must be escaped.
+    paragraph.children.push(Child::Text(TextLeaf::new(".")));
+
+    let state = Arc::new(std::sync::Mutex::new(RichEditorState::new(BlockNode::doc(
+        vec![paragraph],
+    ))));
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(760.0, 420.0))
+        .build_ui(move |ui| {
+            RichEditorWidget::new(Arc::clone(&state)).show(ui);
+        });
+    harness.run_steps(2);
+
+    let expected = [
+        "locus-ref-chip-mt-MT-X".to_owned(),
+        "locus-ref-chip-mt-MT-X--path-0-3".to_owned(),
+        "locus-ref-chip-mt-MT-X%2D%2Dpath%2D0-3".to_owned(),
+        "locus-ref-chip-mt-MT-X%2D%2Dview%2Ddocument-70616e652d62".to_owned(),
+    ];
+    assert_eq!(
+        locus_ref_chip_author_id(repeated_uri),
+        expected[0],
+        "collision-safe canonical ids retain the existing unsuffixed contract form"
+    );
+    assert_eq!(
+        locus_ref_chip_occurrence_author_id(repeated_uri, &[0, 3], 1),
+        expected[1],
+        "the repeated MT-X occurrence keeps the stable path suffix"
+    );
+    assert_eq!(
+        locus_ref_chip_author_id(adversarial_uri),
+        expected[2],
+        "an authored id containing the reserved suffix token is injectively escaped"
+    );
+    assert_ne!(
+        locus_ref_chip_author_id("locus://mt/MT-X%2D%2Dpath%2D0-3"),
+        expected[2],
+        "a literal escape spelling cannot alias the reserved-token encoding"
+    );
+    assert_eq!(
+        locus_ref_chip_author_id(adversarial_view_uri),
+        expected[3],
+        "an authored id containing the secondary-pane suffix token is injectively escaped"
+    );
+    assert_ne!(
+        locus_ref_chip_author_id("locus://mt/MT-X%2D%2Dview%2Ddocument-70616e652d62"),
+        expected[3],
+        "a literal pane-view escape spelling cannot alias the reserved-token encoding"
+    );
+
+    let collect = |harness: &Harness<'_, ()>| {
+        let mut ids = harness
+            .root()
+            .children_recursive()
+            .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+            .filter(|id| id.starts_with("locus-ref-chip-mt-MT-X"))
+            .collect::<Vec<_>>();
+        ids.sort();
+        ids
+    };
+    let mut expected_sorted = expected.to_vec();
+    expected_sorted.sort();
+    let wide_ids = collect(&harness);
+    assert_eq!(
+        wide_ids, expected_sorted,
+        "the formerly colliding authored and occurrence identities must both be present exactly once"
+    );
+
+    harness.set_size(egui::vec2(320.0, 420.0));
+    harness.run_steps(2);
+    assert_eq!(
+        collect(&harness),
+        wide_ids,
+        "injective identities remain stable when viewport reflow changes chip coordinates"
+    );
+}
+
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-009 — READ-only: GET-only, no src/backend edit, no new endpoint, no SQLite, no Locus mutation.
+// AC-009 — editor interop remains READ-only: GET-only, no SQLite, no Locus mutation.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -981,7 +1903,7 @@ fn ac009_read_only_no_sqlite_no_mutation() {
         interop_src.contains(".get(&url)"),
         "AC-009: the Locus record read must issue a GET via the reqwest builder"
     );
-    println!("AC-009 OK: GET-only, no sqlite/rusqlite/diesel, shared client reused, no backend route, no mutation");
+    println!("AC-009 OK: GET-only editor interop, no sqlite/rusqlite/diesel, shared client reused, no Locus mutation");
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1017,8 +1939,8 @@ fn parses_locus_wikilink_to_locus_hs_link() {
 // the prefix-stripped `ref_value="wp/WP-KERNEL-012"`. This test drives that EXACT value (from the real
 // `parse_wikilink(...).to_hs_link()`) through `locus_ref_chip_author_id`, `chip_label`, and
 // `dispatch_locus_ref_open`, asserting the contract author_id (AC-008), the short label (the work-unit
-// id, not the raw `wp/...` form), and the normalized single-key stage (RISK-001) all hold for the form
-// a user actually types.
+// id, not the raw `wp/...` form), the normalized lookup key, and the original-case canonical navigation
+// payload all hold for the form a user actually types.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
@@ -1067,9 +1989,9 @@ fn authored_locus_wikilink_drives_chip_helpers_with_real_ref_value() {
         "the authored chip renders the short work-unit id, not the raw wp/... value"
     );
 
-    // (5) dispatch_locus_ref_open stages the NORMALIZED single key for the authored ref_value, so
-    // resolution + reverse-lookup key on the SAME value (RISK-001 — divergence eliminated for the
-    // authoring form).
+    // (5) dispatch_locus_ref_open stages the canonical ORIGINAL-CASE navigation URI. The parsed
+    // `normalized` field asserted above remains the single resolution/reverse-lookup key; it must not
+    // replace the case-significant work-unit identity on the navigation seam.
     let ctx = egui::Context::default();
     let mut bus = InteractionBus::new();
     bus.register_open_locus_ref_command();
@@ -1081,13 +2003,13 @@ fn authored_locus_wikilink_drives_chip_helpers_with_real_ref_value() {
     let staged = dispatch_locus_ref_open(&ctx, &mut bus, &evt);
     assert_eq!(
         staged.as_deref(),
-        Some("locus://wp/wp-kernel-012"),
-        "RISK-001: the authored ref stages the NORMALIZED single key (not the raw wp/WP-KERNEL-012)"
+        Some("locus://wp/WP-KERNEL-012"),
+        "the authored ref stages a canonical URI without losing its case-significant identity"
     );
     assert_eq!(
         bus.take_pending_locus_ref().as_deref(),
-        Some("locus://wp/wp-kernel-012"),
-        "the normalized key is staged on the nav seam for the authored form"
+        Some("locus://wp/WP-KERNEL-012"),
+        "the original-case canonical URI is staged on the nav seam for the authored form"
     );
 
     // (6) The MT authoring form `[[locus:mt/MT-034]]` proves the sibling kind through the same path.
@@ -1102,79 +2024,43 @@ fn authored_locus_wikilink_drives_chip_helpers_with_real_ref_value() {
     );
 
     println!(
-        "MUST-FIX OK: authored ref_value=wp/WP-KERNEL-012 -> author_id=locus-ref-chip-wp-WP-KERNEL-012, label=WP-KERNEL-012, staged=locus://wp/wp-kernel-012"
+        "MUST-FIX OK: authored ref_value=wp/WP-KERNEL-012 -> author_id=locus-ref-chip-wp-WP-KERNEL-012, label=WP-KERNEL-012, staged=locus://wp/WP-KERNEL-012"
     );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// AC-004 / PT-004 (LIVE) — GATED #[ignore = "requires_pg"] reverse-lookup CASE-ROBUSTNESS proof.
+// AC-004 / PT-004 (LIVE) — default managed-runtime reverse-lookup case-robustness proof.
 //
 // The unit `ac004_reverse_lookup_lists_referencing_documents` above proves the reverse lookup KEYS on the
 // NORMALIZED `locus://mt/mt-034` and de-dups — but its `CountingReverseLookup` returns the seeded hits
 // REGARDLESS of the query string, so it can NOT prove that a document STORING the authored-case
 // `locus://mt/MT-034` actually matches when the lookup keys on the lowercased `locus://mt/mt-034`. That
-// case-robustness is a LIVE-PG claim: the real reverse-lookup backend is the loom search-v2 route
-// (`POST /workspaces/{ws}/loom/search-v2`, driven by [`FindNotesHttp`]), whose FTS lexemes are lower-cased
-// and whose trigram similarity is case-insensitive. This gated proof seeds a real `note` block whose
-// searchable text (`block_search_text` flattens the block title into the FTS/trigram index —
-// `loom_search/mod.rs`) carries the MIXED-CASE authored ref, drives the REAL `FindNotesHttp` reverse lookup
-// through `find_documents_referencing` with the LOWERCASED normalized key, and asserts the seeded block IS
-// returned — proving authored `MT-034` is found via normalized `mt-034`.
-//
-// It is `#[ignore = "requires_pg"]` so the default run never depends on a live backend; the WP validator
-// runs it with `-- --ignored` against the managed backend. It seeds + best-effort cleans up its OWN note
-// block; it adds NO backend route and mutates NO Locus WP/MT state (it only creates a note block it then
-// deletes — the READ + REFERENCE-ONLY Locus edge is unchanged).
+// case-robustness is a LIVE-PG claim. This proof creates a real RichDocument whose compact chip label is
+// only `MT` while its structured refValue carries mixed-case `locus://mt/MT-034`. The synchronous Loom
+// projection must make that refValue searchable, and exact readback must verify the persisted hsLink before
+// returning the document. This prevents a label-only or plain-text false-positive proof.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-#[ignore = "requires_pg: live handshake_core + PostgreSQL on 127.0.0.1:37501 + HSK_TEST_WORKSPACE_ID; seeds a note block carrying authored-case locus://mt/MT-034, drives the REAL loom search-v2 reverse lookup with the lowercased normalized key, and asserts a case-robust match (authored MT-034 found via mt-034)"]
 fn ac004_reverse_lookup_case_robust_against_real_pg_live() {
-    // (a) REQUIRE + CONNECT the live managed backend + PostgreSQL (env + a reachable `/health`, else a
-    //     `requires_pg` panic — no fake-PG, no silent skip). The SAME gate the sibling PG suites use.
-    let be: LiveBackend = require_live_backend();
+    let mut be: LiveBackend = require_live_backend();
     let ws = be.workspace_id.clone();
-
-    // (b) SEED a real `note` block whose searchable text carries the AUTHORED-CASE `locus://mt/MT-034`.
-    //     `block_search_text` flattens the block title into the FTS/trigram index (loom_search/mod.rs), and
-    //     `create_loom_block` refreshes that projection synchronously, so the block is searchable the moment
-    //     the POST returns. A unique marker keeps the assertion specific to THIS block. `note` is one of the
-    //     rich-doc content types the reverse lookup restricts to (NOTE_REF_CONTENT_TYPES), so it is in scope.
-    let marker = format!("mt068-caserobust-{}", std::process::id());
-    let seeded = be.post_json(
-        &format!("/workspaces/{ws}/loom/blocks"),
+    let authored = doc_with_locus_ref("locus://mt/MT-034", "MT", false);
+    let created = be.post_json(
+        "/knowledge/documents",
         &serde_json::json!({
-            "content_type": "note",
-            // MIXED/authored case ON PURPOSE: the stored ref is `MT-034`, the lookup keys on `mt-034`.
-            "title": format!("{marker} references locus://mt/MT-034 for case-robustness"),
+            "workspace_id": ws,
+            "title": format!("MT-068 exact reverse lookup {}", uuid::Uuid::new_v4()),
+            "content_json": to_content_json_value(&authored),
         }),
     );
-    let seeded_block_id = seeded
-        .get("block_id")
-        .and_then(|v| v.as_str())
-        .or_else(|| {
-            seeded
-                .get("block")
-                .and_then(|b| b.get("block_id"))
-                .and_then(|v| v.as_str())
-        })
-        .expect("AC-004 LIVE: create-loom-block returns a block_id")
-        .to_owned();
-    assert!(
-        !seeded_block_id.is_empty(),
-        "AC-004 LIVE: seeded a real note block ({seeded_block_id})"
-    );
+    let document_id = created_doc_id(&created);
 
-    // (c) Drive the REAL reverse-lookup path: a LocusInteropService bound to the live base, backed by the
-    //     REAL loom search-v2 reverse lookup (`FindNotesHttp` against the live backend) — NOT the counted
-    //     in-memory mock. `find_documents_referencing` keys on the LOWERCASED normalized ref.
     let svc = LocusInteropService::with_base_url(
         be.base.clone(),
         ws.clone(),
         Arc::new(FindNotesHttp::new(be.base.clone())),
     );
-    // Parse the AUTHORED mixed-case ref; `.normalized` is the lowercased `locus://mt/mt-034` the lookup
-    // actually queries with — the case-robustness pivot (stored `MT-034` vs queried `mt-034`).
     let mt = parse_locus_ref("locus://mt/MT-034").expect("a valid mt ref");
     assert_eq!(
         mt.normalized, "locus://mt/mt-034",
@@ -1184,14 +2070,10 @@ fn ac004_reverse_lookup_case_robust_against_real_pg_live() {
         .block_on(async { svc.find_documents_referencing(&mt).await })
         .expect("AC-004 LIVE: the real loom search-v2 reverse lookup returns Ok");
 
-    // (d) Whether the seeded block (authored `MT-034`) was found via the lowercased key.
-    let found = docs.iter().any(|d| {
-        d.document_id == seeded_block_id || d.block_id.as_deref() == Some(seeded_block_id.as_str())
-    });
-
-    // (e) Best-effort cleanup BEFORE the assertion so a failed match still removes the seeded block (DELETE
-    //     never panics; a cleanup failure must not mask the verdict).
-    let _ = be.delete(&format!("/workspaces/{ws}/loom/blocks/{seeded_block_id}"));
+    let found = docs.iter().any(|d| d.document_id == document_id);
+    let cleanup = be.delete(&format!("/knowledge/documents/{document_id}"));
+    assert!(matches!(cleanup, 200 | 202 | 204 | 404));
+    be.assert_cleanup();
 
     assert!(
         found,
@@ -1199,7 +2081,7 @@ fn ac004_reverse_lookup_case_robust_against_real_pg_live() {
          lookup keyed on the lowercased locus://mt/mt-034 (case-robust match); got docs={docs:?}"
     );
     println!(
-        "AC-004 LIVE OK: seeded note {seeded_block_id} (authored MT-034) found via normalized mt-034 \
-         through the REAL loom search-v2 reverse lookup (case-robust)"
+        "AC-004 LIVE OK: RichDocument {document_id} with compact label MT and authored MT-034 was found via \
+         normalized mt-034 and exact structured hsLink readback"
     );
 }

@@ -5,8 +5,8 @@
 //! authority — no SQLite.
 //!
 //! Routes (workspace-scoped, P1):
-//!   * `GET  /workspaces/:workspace_id/calendar/events?from=&to=`
-//!       -> `Vec<CalendarEventWire{id,title,start_utc,end_utc,all_day,daily_note_doc_id}>`
+//!   * `GET  /workspaces/:workspace_id/calendar/events?from_date=&to_date_exclusive=&from_utc=&to_utc=&view_tzid=`
+//!       -> typed timed/all-day `CalendarEventWire` values with lossless temporal intent
 //!   * `GET  /workspaces/:workspace_id/calendar/activity-spans?event_id=`
 //!       -> `Vec<ActivitySpanWire{span_id,calendar_event_id,started_utc,ended_utc,edited_doc_ids}>`
 //!   * `POST /workspaces/:workspace_id/calendar/activity-spans`
@@ -14,10 +14,10 @@
 //!       -> the created span (how a native editor records edit activity during a
 //!       calendar event).
 //!
-//! `from`/`to` accept either an RFC3339 datetime or a plain `YYYY-MM-DD` date;
-//! a date lower bound is 00:00:00Z of that day and a date upper bound is
-//! 00:00:00Z of the following day (inclusive end-of-day). An empty `source_ids`
-//! window query returns every source in the workspace.
+//! The local-date window is half-open: `[from_date, to_date_exclusive)` in the
+//! selected IANA `view_tzid`. Callers also send the derived UTC half-open bounds;
+//! the route rejects invalid zones or contradictory local/UTC windows. An empty
+//! `source_ids` window query returns every source in the workspace.
 //!
 //! ACTIVITY SPANS (MT-067): a calendar activity span is the native editor's own
 //! edit-provenance for a calendar block — which documents were edited during
@@ -28,15 +28,16 @@
 //! span table.
 //!
 //! DAILY-NOTE LINKAGE (MT-067): `daily_note_doc_id` on the events response is
-//! WIRED. A calendar event is linked to the daily note of its START UTC date
+//! WIRED. A calendar event is linked to the daily note date selected in the
+//! requested Calendar view (clamped to the event's first overlapping local day)
 //! when a daily journal LoomBlock exists for that date (discoverable via
 //! `loom_blocks(content_type = 'journal', journal_date)` — the MT-019 / MT-257
 //! daily journal). Absent a journal for the date, it stays `null`.
 
 use crate::models::ErrorResponse;
 use crate::storage::{
-    CalendarActivitySpan, CalendarActivityStore, CalendarEventWindowQuery,
-    NewCalendarActivitySpan, StorageError,
+    calendar_date_start_utc, CalendarActivitySpan, CalendarActivityStore, CalendarEvent,
+    CalendarEventWindowQuery, CalendarNormalizationNote, NewCalendarActivitySpan, StorageError,
 };
 use crate::AppState;
 use axum::{
@@ -45,7 +46,8 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use chrono::{DateTime, NaiveDate, NaiveTime, TimeZone, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
+use chrono_tz::Tz;
 use serde::{Deserialize, Serialize};
 
 type ApiError = (StatusCode, Json<ErrorResponse>);
@@ -57,6 +59,10 @@ fn bad_request(code: &'static str) -> ApiError {
 
 fn not_found(code: &'static str) -> ApiError {
     (StatusCode::NOT_FOUND, Json(ErrorResponse { error: code }))
+}
+
+fn conflict(code: &'static str) -> ApiError {
+    (StatusCode::CONFLICT, Json(ErrorResponse { error: code }))
 }
 
 fn internal_error(err: impl std::fmt::Display) -> ApiError {
@@ -72,6 +78,7 @@ fn internal_error(err: impl std::fmt::Display) -> ApiError {
 fn map_storage_error(err: StorageError) -> ApiError {
     match err {
         StorageError::NotFound(code) => not_found(code),
+        StorageError::Conflict(code) => conflict(code),
         StorageError::Validation(_) => bad_request("HSK-400-CALENDAR"),
         other => internal_error(other),
     }
@@ -100,45 +107,88 @@ pub fn routes(state: AppState) -> Router {
 
 #[derive(Debug, Deserialize)]
 struct EventsQuery {
-    from: String,
-    to: String,
+    from_date: NaiveDate,
+    to_date_exclusive: NaiveDate,
+    from_utc: DateTime<Utc>,
+    to_utc: DateTime<Utc>,
+    view_tzid: String,
 }
 
 /// The wire shape the native calendar view decodes. `daily_note_doc_id` is
-/// WIRED (MT-067): it is the daily-note doc for the event's START UTC date when
+/// WIRED (MT-067): it is the daily-note doc for the selected view-local date when
 /// a daily journal LoomBlock exists for that date, else `null`.
 #[derive(Debug, Serialize)]
 struct CalendarEventWire {
     id: String,
     title: String,
-    start_utc: DateTime<Utc>,
-    end_utc: DateTime<Utc>,
-    all_day: bool,
+    temporal: CalendarEventTemporalWire,
     daily_note_doc_id: Option<String>,
 }
 
-/// Parse a single window bound. Accepts RFC3339 (`2026-07-01T09:00:00Z`) or a
-/// plain date (`2026-07-01`). For a plain date the `upper` bound rolls to the
-/// next day at 00:00:00Z so the whole `to` day is included.
-fn parse_bound(value: &str, upper: bool) -> ApiResult<DateTime<Utc>> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return Err(bad_request("HSK-400-CALENDAR-WINDOW"));
-    }
-    if let Ok(dt) = DateTime::parse_from_rfc3339(trimmed) {
-        return Ok(dt.with_timezone(&Utc));
-    }
-    if let Ok(date) = NaiveDate::parse_from_str(trimmed, "%Y-%m-%d") {
-        let date = if upper {
-            date.succ_opt()
-                .ok_or_else(|| bad_request("HSK-400-CALENDAR-WINDOW"))?
-        } else {
-            date
+#[derive(Debug, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum CalendarEventTemporalWire {
+    Timed {
+        start_utc: DateTime<Utc>,
+        end_utc: DateTime<Utc>,
+        start_local: String,
+        end_local: String,
+        tzid: String,
+        was_floating: bool,
+        normalization_note: Option<CalendarNormalizationNote>,
+    },
+    AllDay {
+        start_date: NaiveDate,
+        end_date_exclusive: NaiveDate,
+        tzid: String,
+    },
+    LegacyIncomplete {
+        start_utc: DateTime<Utc>,
+        end_utc: DateTime<Utc>,
+        tzid: String,
+        all_day: bool,
+        recovery: &'static str,
+    },
+}
+
+fn temporal_wire(event: &CalendarEvent) -> CalendarEventTemporalWire {
+    if event.all_day {
+        let (Some(start_date), Some(end_date_exclusive)) =
+            (event.start_date, event.end_date_exclusive)
+        else {
+            return CalendarEventTemporalWire::LegacyIncomplete {
+                start_utc: event.start_ts_utc,
+                end_utc: event.end_ts_utc,
+                tzid: event.tzid.clone(),
+                all_day: true,
+                recovery: "reimport_from_calendar_source",
+            };
         };
-        let naive = date.and_time(NaiveTime::MIN);
-        return Ok(Utc.from_utc_datetime(&naive));
+        return CalendarEventTemporalWire::AllDay {
+            start_date,
+            end_date_exclusive,
+            tzid: event.tzid.clone(),
+        };
     }
-    Err(bad_request("HSK-400-CALENDAR-WINDOW"))
+    let (Some(start_local), Some(end_local)) = (event.start_local.clone(), event.end_local.clone())
+    else {
+        return CalendarEventTemporalWire::LegacyIncomplete {
+            start_utc: event.start_ts_utc,
+            end_utc: event.end_ts_utc,
+            tzid: event.tzid.clone(),
+            all_day: false,
+            recovery: "reimport_from_calendar_source",
+        };
+    };
+    CalendarEventTemporalWire::Timed {
+        start_utc: event.start_ts_utc,
+        end_utc: event.end_ts_utc,
+        start_local,
+        end_local,
+        tzid: event.tzid.clone(),
+        was_floating: event.was_floating,
+        normalization_note: event.normalization_note.clone(),
+    }
 }
 
 async fn list_calendar_events(
@@ -147,8 +197,20 @@ async fn list_calendar_events(
     Query(query): Query<EventsQuery>,
 ) -> ApiResult<Json<Vec<CalendarEventWire>>> {
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let window_start_utc = parse_bound(&query.from, false)?;
-    let window_end_utc = parse_bound(&query.to, true)?;
+    let view_tz: Tz = query
+        .view_tzid
+        .parse()
+        .map_err(|_| bad_request("HSK-400-CALENDAR-TZID"))?;
+    if query.to_date_exclusive <= query.from_date {
+        return Err(bad_request("HSK-400-CALENDAR-WINDOW"));
+    }
+    let window_start_utc = calendar_date_start_utc(query.from_date, &query.view_tzid)
+        .map_err(|_| bad_request("HSK-400-CALENDAR-WINDOW"))?;
+    let window_end_utc = calendar_date_start_utc(query.to_date_exclusive, &query.view_tzid)
+        .map_err(|_| bad_request("HSK-400-CALENDAR-WINDOW"))?;
+    if query.from_utc != window_start_utc || query.to_utc != window_end_utc {
+        return Err(bad_request("HSK-400-CALENDAR-WINDOW-CONTRADICTION"));
+    }
     if window_end_utc <= window_start_utc {
         return Err(bad_request("HSK-400-CALENDAR-WINDOW"));
     }
@@ -156,6 +218,8 @@ async fn list_calendar_events(
         .storage
         .query_calendar_events(CalendarEventWindowQuery {
             workspace_id: workspace_id.clone(),
+            query_start_date: query.from_date,
+            query_end_date_exclusive: query.to_date_exclusive,
             window_start_utc,
             window_end_utc,
             // Empty = every calendar source in the workspace.
@@ -165,14 +229,25 @@ async fn list_calendar_events(
         .map_err(map_storage_error)?;
 
     // MT-067 daily-note linkage: for each event, look up the daily-note doc for
-    // its START UTC date (a daily journal LoomBlock keyed by that date). The
-    // lookups are cached by date so repeated events on the same day query once.
+    // the requested view-local date, clamped to the event's first overlapping
+    // local day. Lookups are cached by date so repeated events query once.
     let activity_store = CalendarActivityStore::new(state.postgres_pool.clone());
     let mut daily_note_by_date: std::collections::HashMap<String, Option<String>> =
         std::collections::HashMap::new();
     let mut wire = Vec::with_capacity(events.len());
     for event in events {
-        let journal_date = event.start_ts_utc.date_naive().format("%Y-%m-%d").to_string();
+        let event_start_date = if event.all_day {
+            event.start_date.unwrap_or(query.from_date)
+        } else if event.start_local.is_some() && event.end_local.is_some() {
+            event.start_ts_utc.with_timezone(&view_tz).date_naive()
+        } else {
+            // Legacy rows do not have sufficient temporal intent for a local
+            // reconstruction. Bind to the explicitly requested canonical day.
+            query.from_date
+        };
+        let journal_date = std::cmp::max(event_start_date, query.from_date)
+            .format("%Y-%m-%d")
+            .to_string();
         let daily_note_doc_id = match daily_note_by_date.get(&journal_date) {
             Some(cached) => cached.clone(),
             None => {
@@ -184,12 +259,11 @@ async fn list_calendar_events(
                 resolved
             }
         };
+        let temporal = temporal_wire(&event);
         wire.push(CalendarEventWire {
             id: event.id,
             title: event.title,
-            start_utc: event.start_ts_utc,
-            end_utc: event.end_ts_utc,
-            all_day: event.all_day,
+            temporal,
             daily_note_doc_id,
         });
     }
@@ -207,20 +281,16 @@ struct ActivitySpanWire {
     span_id: String,
     calendar_event_id: Option<String>,
     started_utc: DateTime<Utc>,
-    ended_utc: DateTime<Utc>,
+    ended_utc: Option<DateTime<Utc>>,
     edited_doc_ids: Vec<String>,
 }
 
-/// Project a stored span to the wire shape. The shipped native decoder
-/// (`calendar_interop::ActivitySpan`) requires a NON-NULL `ended_utc`, so an
-/// open/in-progress span (`ended_utc = NULL`) is projected as a zero-duration
-/// span at its start until it closes — the wire always decodes and the stored
-/// value is preserved once the span ends.
+/// Project a stored span without fabricating an end for in-progress work.
 fn span_to_wire(span: CalendarActivitySpan) -> ActivitySpanWire {
     ActivitySpanWire {
         span_id: span.span_id,
         calendar_event_id: Some(span.calendar_event_id),
-        ended_utc: span.ended_utc.unwrap_or(span.started_utc),
+        ended_utc: span.ended_utc,
         started_utc: span.started_utc,
         edited_doc_ids: span.edited_doc_ids,
     }

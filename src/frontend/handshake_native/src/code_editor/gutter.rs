@@ -208,12 +208,18 @@ pub struct GutterGeometry {
     /// Monospace glyph advance width in px (measured with the editor's `FontId::monospace`), used to
     /// size the line-number column from the digit count.
     pub char_width: f32,
+    /// Live editor font size in points. Line numbers and fold glyphs use the same size as the code
+    /// body so changing Editor font size cannot leave a mismatched fixed-size gutter.
+    pub font_size: f32,
 }
 
-/// The fixed sub-column widths inside the gutter strip (px), left to right. Each marker class occupies
-/// its own column so they never overlap (MT step 2 "each occupies a fixed sub-column").
+/// The sub-column widths inside the gutter strip (px), left to right. Each marker class occupies its
+/// own column so they never overlap (MT step 2 "each occupies a fixed sub-column"). The fold column
+/// has a fixed minimum but grows with the live monospace glyph advance so a 48pt triangle cannot
+/// overlap the line-number column.
 const BREAKPOINT_COL_W: f32 = 16.0;
-const FOLD_COL_W: f32 = 14.0;
+const FOLD_COL_MIN_W: f32 = 14.0;
+const FOLD_GLYPH_HORIZONTAL_PAD: f32 = 4.0;
 /// Right padding after the line number, before the diagnostic dot column on the far right.
 const NUMBER_RIGHT_PAD: f32 = 6.0;
 /// The diagnostic dot column on the strip's right edge.
@@ -223,6 +229,12 @@ const DIAGNOSTIC_COL_W: f32 = 10.0;
 /// geometry are all passed in per frame by the panel — so it is trivially `Send + Sync` and reused
 /// across the editor's `Arc`-held panel without interior mutability.
 pub struct Gutter;
+
+/// Width of the fold-glyph column for the live editor font metrics. This is the single geometry
+/// source used by strip sizing, glyph centering, number anchoring, and the fold hit target.
+pub(crate) fn fold_column_width(char_width: f32) -> f32 {
+    FOLD_COL_MIN_W.max(char_width + FOLD_GLYPH_HORIZONTAL_PAD)
+}
 
 impl Gutter {
     /// Compute the gutter strip width (px) for a buffer with `len_lines` lines and the measured
@@ -243,7 +255,7 @@ impl Gutter {
             0.0
         };
         let fold_w = if config.show_fold_triangles {
-            FOLD_COL_W
+            fold_column_width(char_width)
         } else {
             0.0
         };
@@ -304,9 +316,10 @@ impl Gutter {
             } else {
                 0.0
             };
+        let fold_width = fold_column_width(geometry.char_width);
         let number_left = fold_x
             + if config.show_fold_triangles {
-                FOLD_COL_W
+                fold_width
             } else {
                 0.0
             };
@@ -318,7 +331,7 @@ impl Gutter {
             };
         let diagnostic_x = strip_rect.right() - DIAGNOSTIC_COL_W * 0.5 - 2.0;
 
-        let mono = egui::FontId::monospace(super::panel::MONO_FONT_SIZE);
+        let mono = egui::FontId::monospace(geometry.font_size);
 
         for (row_idx, row) in painted_rows.iter().enumerate() {
             let buffer_line = row.line;
@@ -364,9 +377,9 @@ impl Gutter {
             let is_fold_start = config.show_fold_triangles && fold_open_for(buffer_line).is_some();
             if is_fold_start {
                 let is_open = fold_open_for(buffer_line).unwrap_or(true);
-                let glyph = fold_triangle_glyph(ui, is_open);
+                let glyph = fold_triangle_glyph(ui, is_open, &mono);
                 painter.text(
-                    egui::pos2(fold_x + FOLD_COL_W * 0.5, row_center_y),
+                    egui::pos2(fold_x + fold_width * 0.5, row_center_y),
                     egui::Align2::CENTER_CENTER,
                     glyph,
                     mono.clone(),
@@ -386,6 +399,28 @@ impl Gutter {
                 );
             }
 
+            // ── Diagnostic hover tooltip (all messages on this line, joined) ───────────────────────
+            // Register the row-wide hover target BEFORE the narrower click targets below. egui hit
+            // testing is topmost-first even for a hover-only widget, so registering this last would
+            // mask real pointer clicks on the breakpoint/fold controls. The diagnostic dot is on the
+            // right edge outside both click columns. The same tooltip is also attached to each click
+            // response below so the whole diagnostic row remains hoverable, including those columns.
+            let row_id = ui.id().with(("gutter_row", buffer_line));
+            let diagnostic_tooltip = if config.show_diagnostics {
+                let msgs = diagnostic_messages_on(markers, buffer_line);
+                if !msgs.is_empty() {
+                    Some(msgs.join("\n"))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            if let Some(tooltip) = &diagnostic_tooltip {
+                ui.interact(row_rect, row_id.with("diag_hover"), egui::Sense::hover())
+                    .on_hover_text(tooltip.clone());
+            }
+
             // ── Interaction: breakpoint toggle + fold toggle on DISJOINT sub-rects ─────────────────
             // The fold triangle and the breakpoint column must NOT overlap, or egui's click routing
             // becomes ambiguous between the two `interact` calls. So the breakpoint click area is the
@@ -393,7 +428,6 @@ impl Gutter {
             // its own strip), and widens to span up to the number column on a row with no fold triangle
             // (VS Code lets you click most of the gutter for a breakpoint). The fold interact is
             // registered LAST so it is topmost over any residual overlap.
-            let row_id = ui.id().with(("gutter_row", buffer_line));
             if config.show_breakpoints {
                 // Right edge of the breakpoint click area: the fold column's LEFT edge when a fold
                 // triangle is on this row (disjoint from the fold rect), else up to the number column.
@@ -409,7 +443,10 @@ impl Gutter {
                         row_top + geometry.line_height,
                     ),
                 );
-                let bp_resp = ui.interact(bp_rect, row_id.with("bp"), egui::Sense::click());
+                let mut bp_resp = ui.interact(bp_rect, row_id.with("bp"), egui::Sense::click());
+                if let Some(tooltip) = &diagnostic_tooltip {
+                    bp_resp = bp_resp.on_hover_text(tooltip.clone());
+                }
                 if bp_resp.clicked() {
                     response.breakpoint_toggled = Some(buffer_line);
                 }
@@ -417,26 +454,19 @@ impl Gutter {
             if is_fold_start {
                 let fold_rect = egui::Rect::from_min_size(
                     egui::pos2(fold_x, row_top),
-                    egui::vec2(FOLD_COL_W, geometry.line_height),
+                    egui::vec2(fold_width, geometry.line_height),
                 );
-                let fold_resp = ui.interact(fold_rect, row_id.with("fold"), egui::Sense::click());
+                let mut fold_resp =
+                    ui.interact(fold_rect, row_id.with("fold"), egui::Sense::click());
+                if let Some(tooltip) = &diagnostic_tooltip {
+                    fold_resp = fold_resp.on_hover_text(tooltip.clone());
+                }
                 if fold_resp.clicked() {
                     response.fold_toggled = Some(buffer_line);
                     // A fold click is never also a breakpoint click (disjoint rects, but guard anyway).
                     if response.breakpoint_toggled == Some(buffer_line) {
                         response.breakpoint_toggled = None;
                     }
-                }
-            }
-
-            // ── Diagnostic hover tooltip (all messages on this line, joined) ───────────────────────
-            // Hover-only sense (never consumes a click), so it does not interfere with the toggles.
-            if config.show_diagnostics {
-                let msgs = diagnostic_messages_on(markers, buffer_line);
-                if !msgs.is_empty() {
-                    let hover_resp =
-                        ui.interact(row_rect, row_id.with("diag_hover"), egui::Sense::hover());
-                    hover_resp.on_hover_text(msgs.join("\n"));
                 }
             }
         }
@@ -510,12 +540,11 @@ fn severity_rank(s: DiagnosticSeverity) -> u8 {
 /// The fold-triangle glyph for the open/closed state, falling back to ASCII when the active font lacks
 /// the Unicode triangle (RISK-002 / MC-002 — never a tofu box). `▼` (U+25BC) when open, `▶` (U+25B6)
 /// when collapsed; `v` / `>` ASCII fallback.
-pub fn fold_triangle_glyph(ui: &egui::Ui, is_open: bool) -> &'static str {
+pub fn fold_triangle_glyph(ui: &egui::Ui, is_open: bool, font: &egui::FontId) -> &'static str {
     let unicode = if is_open { "\u{25BC}" } else { "\u{25B6}" };
     let ch = if is_open { '\u{25BC}' } else { '\u{25B6}' };
     // `has_glyph` lazily lays out the glyph (so it takes `&mut FontsView`); use `fonts_mut`.
-    let has =
-        ui.fonts_mut(|f| f.has_glyph(&egui::FontId::monospace(super::panel::MONO_FONT_SIZE), ch));
+    let has = ui.fonts_mut(|f| f.has_glyph(font, ch));
     if has {
         unicode
     } else if is_open {
@@ -566,6 +595,27 @@ mod tests {
         assert!(
             (w10000 - w1 - 4.0 * cw).abs() < 0.001,
             "width delta == 4 digit columns"
+        );
+    }
+
+    #[test]
+    fn fold_column_grows_with_live_glyph_width_and_is_included_in_strip_width() {
+        let cfg = GutterConfig::default();
+        let default_char_width = 8.0;
+        let max_font_char_width = 29.0;
+        assert_eq!(fold_column_width(default_char_width), FOLD_COL_MIN_W);
+        assert!(
+            fold_column_width(max_font_char_width) > FOLD_COL_MIN_W,
+            "a 48pt-scale glyph receives a wider fold column"
+        );
+        let width_delta = Gutter::width_for(100, max_font_char_width, &cfg)
+            - Gutter::width_for(100, default_char_width, &cfg);
+        let number_delta = 3.0 * (max_font_char_width - default_char_width);
+        let fold_delta =
+            fold_column_width(max_font_char_width) - fold_column_width(default_char_width);
+        assert!(
+            (width_delta - number_delta - fold_delta).abs() < 0.001,
+            "strip width includes the same live fold-column delta used by rendering"
         );
     }
 

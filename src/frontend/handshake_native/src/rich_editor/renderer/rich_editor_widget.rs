@@ -45,6 +45,85 @@ use super::{
 use crate::rich_editor::embeds::asset_resolver::ReqwestAssetFetcher;
 use crate::rich_editor::embeds::embed_block_renderer::{self, EmbedRuntime};
 
+/// Canonical AccessKit author id for the live rich-text input surface.
+pub const RICH_EDITOR_TEXT_AUTHOR_ID: &str = "editor.rich.text";
+
+/// Closed payload vocabulary for `editor.rich.insert-slash-command` ClickWithPayload dispatch.
+/// These variants address durable model entities directly, so an agent never has to activate a
+/// frame-transient slash row or wikilink autocomplete candidate.
+#[derive(serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+enum SlashActionPayload {
+    Note {
+        title: String,
+    },
+    Wikilink {
+        ref_kind: String,
+        ref_value: String,
+        #[serde(default)]
+        label: String,
+    },
+    CodeBlock {
+        #[serde(default)]
+        language: String,
+        #[serde(default)]
+        code: String,
+    },
+}
+
+/// Stable AccessKit author id for the rich-editor context-menu Route-to-Stage action.
+pub const ROUTE_TO_STAGE_AUTHOR_ID: &str = "rich-editor.route-to-stage";
+
+/// Stable MT-041/MT-043 AccessKit action id for selecting one exact rich code block for native code
+/// editing. The suffix reuses the renderer's deterministic path-derived block id; callers that know
+/// the ProseMirror block path can compute the exact action without inspecting screen geometry.
+pub fn rich_code_block_open_author_id(block_path: &[usize]) -> String {
+    format!(
+        "editor.rich.code-block.open.{}",
+        block_author_id(block_path)
+    )
+}
+
+/// A locally inserted Stage embed awaiting canonical rich-document persistence. The exact hsLink and
+/// prebuilt receipt travel together so save verification and retry cannot drift provenance or identity.
+pub struct PendingStageEmbedSave {
+    pub link: crate::rich_editor::document_model::node::HsLinkNode,
+    pub artifact_id: String,
+    pub sha256: String,
+    pub target_pane: String,
+    pub workspace_id: String,
+    pub target_epoch: u64,
+    pub emitter: crate::event_emitter::NativeEditorEventEmitter,
+    pub receipt: crate::event_emitter::NativeEditorEvent,
+    pub(crate) in_flight_lease: Option<crate::stage_pane::StageEmbedInFlightLease>,
+    pub(crate) launch_runtime: Option<tokio::runtime::Handle>,
+}
+
+/// One-shot shell delivery produced only after the save state machine resolves the pending Stage embed.
+pub enum StageEmbedSaveCompletion {
+    Persisted(PendingStageEmbedSave),
+    Failed(String),
+}
+
+fn saved_content_contains_exact_hs_link(
+    saved_content: &serde_json::Value,
+    expected: &crate::rich_editor::document_model::node::HsLinkNode,
+) -> bool {
+    fn contains(
+        block: &BlockNode,
+        expected: &crate::rich_editor::document_model::node::HsLinkNode,
+    ) -> bool {
+        block.children.iter().any(|child| match child {
+            Child::HsLink(link) => link == expected,
+            Child::Block(child) => contains(child, expected),
+            Child::Text(_) | Child::Transclusion(_) => false,
+        })
+    }
+
+    crate::rich_editor::document_model::doc_json::from_json_value(saved_content)
+        .is_ok_and(|document| contains(&document, expected))
+}
+
 /// The persistent, mutable editor state. Held behind an `Arc<Mutex<>>` by the owner
 /// (`HandshakeApp` / a test) so the per-frame [`RichEditorWidget`] borrows it; the model
 /// types are single-threaded-friendly (no internal locks) per MT-011's design.
@@ -59,8 +138,14 @@ pub struct RichEditorState {
     pub preedit: PreeditState,
     /// Active theme (resolved to a palette each frame).
     pub theme: HsTheme,
+    /// One-shot focus request from shell navigation. The editable surface consumes this on its next
+    /// mounted frame so logical pane focus and AccessKit/keyboard focus advance together.
+    pub editor_focus_pending: bool,
     /// Live body font size for rich document content, synchronized from editor settings.
     pub editor_font_size: f32,
+    /// Workspace-scoped rich-editor command keymap. Settings `rich.*` overrides replace defaults in
+    /// this live map; the input decoder reads it every frame.
+    pub rich_keymap: crate::rich_editor::formatting::RichKeymap,
     /// WP-KERNEL-012 MT-035 wave-7: when `true`, a freshly-opened rich document with no remembered
     /// per-document view choice starts in Reading (read-only) view instead of Edit. Synchronized from
     /// `editor_prefs.reading_mode_default`; consumed by the host mount to seed the per-document
@@ -68,6 +153,9 @@ pub struct RichEditorState {
     pub reading_mode_default: bool,
     /// Actor id for transaction provenance.
     pub actor_id: String,
+    /// Stable suffix for a secondary split view of the same rich document. The deterministic primary
+    /// view remains unsuffixed for compatibility; every secondary view scopes model-facing author ids.
+    pub accessibility_namespace: Option<String>,
     /// MT-014 embed runtime: per-editor asset-resolution + texture caches, slideshow/album/video
     /// view states, and the async transport. Owned HERE (the shell frame) so resolved assets +
     /// uploaded textures + paging persist across frames (impl note 5: NOT inside a renderer fn).
@@ -87,6 +175,9 @@ pub struct RichEditorState {
     /// so the popup state (filter / selection / active prompt) persists across frames; closed on focus
     /// loss (MC-004) and on Escape / execute / the `/` being deleted.
     pub slash_menu: Option<crate::rich_editor::slash_commands::SlashMenuState>,
+    /// Whether the picker was explicitly opened by the toolbar/AccessKit action. Explicit popups remain
+    /// usable while focus sits on their launcher or a menu row; typed `/` popups retain focus-loss close.
+    pub slash_menu_opened_explicitly: bool,
     /// WP-KERNEL-012 MT-058 (E2 — inline `#tag` authoring): the active inline-tag autocomplete popup
     /// (`Some` while the operator is typing a `#` trigger at a word boundary). Owned HERE so the trigger
     /// span / query / selection persist across frames; closed on Escape / commit / the `#` being deleted
@@ -134,6 +225,10 @@ pub struct RichEditorState {
     /// MT-020 export format-picker popup open flag (the operator clicked "Export…"). Owned HERE so the
     /// popup persists across frames until a format is chosen or it is dismissed.
     pub export_picker_open: bool,
+    /// A pane-local Save/Ctrl+S action received by a split view that does not own the canonical
+    /// SaveManager. The host mount consumes this after rendering and forwards it to the document's
+    /// single shared save authority instead of silently dropping the action.
+    deferred_shared_save_request: bool,
     /// MT-020 in-flight native save-dialog handle (`Some` while the operator has an export's OS save
     /// dialog open). The dialog runs on a dedicated thread (HBR-QUIET / MC-004); this handle is POLLED
     /// non-blockingly each frame in [`RichEditorWidget::drive_save_and_draft`] so the egui frame thread
@@ -171,6 +266,9 @@ pub struct RichEditorState {
     /// between requests so steady-state frames do no scroll work. This is the editor's EXISTING scroll
     /// surface (the `rich-editor-scroll` ScrollArea), NOT a second scroll mechanism (RISK-002 / MC-002).
     pub pending_scroll_block: Option<Vec<usize>>,
+    /// Last scroll target consumed by the mounted renderer. Retained as structured diagnostic state so
+    /// tests/models can prove an Outline click reached the exact editor even after the one-shot clears.
+    pub last_consumed_scroll_block: Option<Vec<usize>>,
     /// WP-KERNEL-012 MT-020 (inline-atom undo rewire): `(before, after)` content_json snapshot pairs
     /// for doc mutations made by the popup/prompt/dialog INSERT paths this frame (wikilink confirm,
     /// tag commit, embed/transclusion/manual prompt confirm, code-ref select). These paths run either
@@ -202,7 +300,7 @@ pub struct RichEditorState {
     /// `Action::ReplaceSelectedText` requests dispatched at it out-of-process. `None` before the first
     /// editable render / in reading mode (the read-only root advertises no editable action).
     pub live_root_node_id: Option<egui::Id>,
-    /// WP-KERNEL-012 MT-110: the per-frame map of `(live wikilink-chip AccessKit node id -> the atom's
+    /// WP-KERNEL-012 MT-110: the per-frame map of `(live editor.rich.wikilink.chip.* AccessKit node id -> the atom's
     /// doc path [block_idx, leaf_idx])` for every PLAIN wikilink chip that advertised the swarm
     /// `Action::SetValue` this frame. A swarm agent picks a wikilink TARGET by id (headless, no live
     /// backend search) by dispatching `SetValue` at the chip node; the consume path locates the hsLink at
@@ -215,9 +313,57 @@ pub struct RichEditorState {
     /// dispatch that mutated the doc, so a test can assert the swarm edit was routed through the same
     /// undoable path a typed edit uses.
     pub swarm_undo_fired_count: u64,
+    /// Last document created by the mounted parameterized slash action. Projected into AccessKit so
+    /// automation observes the production outcome instead of reconstructing it from test variables.
+    pub last_slash_created_document: Option<(String, String, bool)>,
+    /// One-shot host navigation intent for a successful create-or-reuse response. The bool is backend
+    /// authority: true means inserted, false means opened/reused an existing document.
+    pub pending_created_document_navigation: Option<(String, String, bool)>,
+    /// One-shot host status for a failed create-note request. Kept separate from the persistent inline
+    /// error so the shell surfaces the failure exactly once even when the rich tab is hidden.
+    pub pending_create_note_failure: Option<String>,
+    /// Visible failure from the asynchronous create-note-from-unresolved-link request. The backend's
+    /// typed conflict/transport reason is retained until the operator starts another create or the
+    /// next create succeeds; a failed POST must never collapse into a silently re-enabled affordance.
+    pub wikilink_create_error: Option<String>,
+    /// Visible CKC/Stage interaction failure. A failed drop or invalid route is never a silent no-op.
+    pub interop_error: Option<String>,
+    /// Stage embed inserted locally but not yet proven in a successful canonical save.
+    pub pending_stage_embed_save: Option<PendingStageEmbedSave>,
+    /// One-shot completion drained by the shell even when this tab is hidden.
+    pub(crate) pending_stage_embed_completion: Option<StageEmbedSaveCompletion>,
+    /// Exact Route-to-Stage payload retained when the shared bus is contended, so the visible Retry
+    /// control can execute the same action without losing or recomputing the operator's selection.
+    pub pending_stage_route_retry: Option<crate::interop::PendingStageRoute>,
 }
 
 impl RichEditorState {
+    /// Update every mounted code-link atom for one canonical symbol identity. This is used by the
+    /// note->code resolver so a real backend 404 immediately greys the persisted chip instead of only
+    /// writing a shell status string. Returns the number of matching atoms changed.
+    pub fn set_code_ref_resolved(&mut self, symbol_entity_id: &str, resolved: bool) -> usize {
+        fn visit(node: &mut BlockNode, symbol_entity_id: &str, resolved: bool) -> usize {
+            let mut changed = 0;
+            for child in &mut node.children {
+                match child {
+                    Child::Block(block) => changed += visit(block, symbol_entity_id, resolved),
+                    Child::HsLink(link)
+                        if link.ref_kind == "code" && link.ref_value == symbol_entity_id =>
+                    {
+                        if link.resolved != resolved {
+                            link.resolved = resolved;
+                            changed += 1;
+                        }
+                    }
+                    Child::Text(_) | Child::HsLink(_) | Child::Transclusion(_) => {}
+                }
+            }
+            changed
+        }
+
+        visit(&mut self.doc, symbol_entity_id, resolved)
+    }
+
     /// A new editor over `doc`, caret at the document start.
     ///
     /// The MT-014 embed runtime defaults to the PRODUCTION reqwest fetcher
@@ -269,14 +415,18 @@ impl RichEditorState {
             undo: UndoManager::new(),
             preedit: PreeditState::default(),
             theme: HsTheme::Dark,
+            editor_focus_pending: false,
             editor_font_size: super::line_layout::BASE_FONT_SIZE,
+            rich_keymap: crate::rich_editor::formatting::RichKeymap::default(),
             reading_mode_default: false,
             actor_id: "operator".to_owned(),
+            accessibility_namespace: None,
             embeds,
             wikilinks,
             wikilink_autocomplete: None,
             pending_events: Vec::new(),
             slash_menu: None,
+            slash_menu_opened_explicitly: false,
             tag_autocomplete: None,
             tag_list: Vec::new(),
             code_symbol_search: None,
@@ -288,18 +438,28 @@ impl RichEditorState {
             save: None,
             draft: None,
             export_picker_open: false,
+            deferred_shared_save_request: false,
             pending_file_save: None,
             undo_pane_id: None,
             undo_batcher: crate::rich_editor::interop_adapter::RichUndoBatcher::new(),
             undo_batch_before: None,
             editor_actions: None,
             pending_scroll_block: None,
+            last_consumed_scroll_block: None,
             pending_bus_undo: Vec::new(),
             pending_tag_edge_intent: None,
             doc_snapshot_count: 0,
             live_root_node_id: None,
             live_wikilink_chip_nodes: Vec::new(),
             swarm_undo_fired_count: 0,
+            last_slash_created_document: None,
+            pending_created_document_navigation: None,
+            pending_create_note_failure: None,
+            wikilink_create_error: None,
+            interop_error: None,
+            pending_stage_embed_save: None,
+            pending_stage_embed_completion: None,
+            pending_stage_route_retry: None,
         }
     }
 
@@ -309,6 +469,11 @@ impl RichEditorState {
     /// prove a focused-idle large doc pays no per-frame serialization.
     pub fn doc_snapshot_count(&self) -> u64 {
         self.doc_snapshot_count
+    }
+
+    /// Request focus on the mounted editable rich surface on its next render.
+    pub fn request_editor_focus(&mut self) {
+        self.editor_focus_pending = true;
     }
 
     /// Apply the operator editor-font preference to rich document layout.
@@ -322,9 +487,30 @@ impl RichEditorState {
         }
     }
 
+    pub fn take_deferred_shared_save_request(&mut self) -> bool {
+        std::mem::take(&mut self.deferred_shared_save_request)
+    }
+
     /// Current live rich document base font size.
     pub fn editor_font_size(&self) -> f32 {
         super::line_layout::resolved_base_font_size(self.editor_font_size)
+    }
+
+    /// Replace the mounted rich editor's live keymap from workspace-scoped bare command-id/chord
+    /// overrides. Returns validation errors while retaining working defaults for invalid rows.
+    pub fn reload_rich_keymap_from_overrides<'a>(
+        &mut self,
+        overrides: impl IntoIterator<Item = (&'a str, &'a str)>,
+    ) -> Vec<String> {
+        let (keymap, errors) =
+            crate::rich_editor::formatting::RichKeymap::from_overrides(overrides);
+        self.rich_keymap = keymap;
+        errors
+    }
+
+    /// Current mounted rich-editor keymap (runtime proof/diagnostics surface).
+    pub fn rich_keymap(&self) -> &crate::rich_editor::formatting::RichKeymap {
+        &self.rich_keymap
     }
 
     /// WP-KERNEL-012 MT-035 wave-7: apply the operator's reading-mode-default preference. Returns whether
@@ -425,11 +611,12 @@ impl RichEditorState {
         let document_id = document_id.into();
         let base_content =
             crate::rich_editor::document_model::doc_json::to_content_json_value(&self.doc);
-        let save = crate::rich_editor::save::save_manager::SaveManager::production(
+        let mut save = crate::rich_editor::save::save_manager::SaveManager::production(
             runtime.clone(),
             document_id.clone(),
             doc_version,
         );
+        save.set_workspace_id(self.wikilinks.workspace_id.clone());
         let mut draft = crate::rich_editor::save::draft_manager::DraftManager::production(
             runtime,
             document_id,
@@ -448,6 +635,69 @@ impl RichEditorState {
         self.save.is_some()
     }
 
+    /// Drain the one-shot navigation produced by a successful mounted create-note action.
+    pub fn take_created_document_navigation(&mut self) -> Option<(String, String, bool)> {
+        self.pending_created_document_navigation.take()
+    }
+
+    /// Drain one backend create-note outcome at shell ownership, fold it into the resolver/document,
+    /// and stage exactly one navigation or typed failure for the host. This must be called independent
+    /// of rich-pane visibility; rendering is not async-delivery authority.
+    pub fn drain_create_note_outcome_for_host(&mut self) -> bool {
+        let Some(completion) = self.wikilinks.drain_create_for_host() else {
+            return false;
+        };
+        let rewrite_origin_mark = self
+            .wikilinks
+            .create_completion_matches_current(&completion);
+        self.apply_create_note_outcome(completion.outcome, rewrite_origin_mark);
+        true
+    }
+
+    /// Drain the one-shot shell status produced by a failed create-note action.
+    pub fn take_create_note_failure(&mut self) -> Option<String> {
+        self.pending_create_note_failure.take()
+    }
+
+    fn apply_create_note_outcome(
+        &mut self,
+        outcome: crate::rich_editor::wikilinks::runtime::CreateNoteOutcome,
+        rewrite_origin_mark: bool,
+    ) {
+        use crate::rich_editor::wikilinks::runtime::CreateNoteOutcome;
+        match outcome {
+            CreateNoteOutcome::Created {
+                normalized_title,
+                display_title,
+                document_id,
+                created,
+            } => {
+                self.wikilink_create_error = None;
+                self.pending_create_note_failure = None;
+                self.last_slash_created_document =
+                    Some((document_id.clone(), display_title.clone(), created));
+                self.pending_created_document_navigation =
+                    Some((document_id.clone(), display_title.clone(), created));
+                if rewrite_origin_mark {
+                    crate::rich_editor::wikilinks::confirm::rewrite_mark_to_resolved(
+                        &mut self.doc,
+                        &normalized_title,
+                        &document_id,
+                        &display_title,
+                    );
+                }
+            }
+            CreateNoteOutcome::Failed {
+                normalized_title,
+                reason,
+            } => {
+                let message = format!("Could not create note '{normalized_title}': {reason}");
+                self.wikilink_create_error = Some(message.clone());
+                self.pending_create_note_failure = Some(message);
+            }
+        }
+    }
+
     /// True while the MT-020 [`SaveManager`] has a canonical save in flight (`SaveState::Saving`). This
     /// is the SaveManager's OWN state machine (set inside `request_save`), not a host-set marker — the
     /// menu Save proof asserts THIS to show the dispatch reached the real MT-020 save entry.
@@ -459,17 +709,28 @@ impl RichEditorState {
     /// Ctrl+F/Ctrl+H behavior: preserve an existing query, focus the find field, and reveal the replace
     /// row only when requested.
     pub fn open_find_replace_for_host(&mut self, with_replace: bool) {
+        self.open_find_replace_with_focus(with_replace, true);
+    }
+
+    /// Open the rich-note half of app-wide shared Find without stealing focus from the active code pane.
+    /// The same native find state machine remains visible and receives the shared query/results.
+    pub fn open_find_replace_passive(&mut self, with_replace: bool) {
+        self.open_find_replace_with_focus(with_replace, false);
+    }
+
+    fn open_find_replace_with_focus(&mut self, with_replace: bool, request_focus: bool) {
         use crate::rich_editor::find_replace::FindReplaceState;
 
         match self.find_replace.as_mut() {
             Some(panel) => {
-                panel.focus_find_input = true;
+                panel.focus_find_input = request_focus;
                 if with_replace {
                     panel.with_replace = true;
                 }
             }
             None => {
                 let mut panel = FindReplaceState::open(with_replace);
+                panel.focus_find_input = request_focus;
                 panel.rescan(&self.doc);
                 self.find_replace = Some(panel);
             }
@@ -501,7 +762,6 @@ impl RichEditorState {
             let dispatched = !save.is_saving();
             let document_id = save.document_id().to_owned();
             let doc_version = save.doc_version;
-            save.set_pending_local_content(content.clone());
             save.request_save(content);
             if dispatched {
                 // MT-058: queue the tag-edge intent for THIS save (latest-wins). Dispatch of the
@@ -519,8 +779,15 @@ impl RichEditorState {
             }
             true
         } else {
+            self.deferred_shared_save_request = true;
             false
         }
+    }
+
+    /// Drain the one-shot Stage embed save completion. The shell calls this across every stored rich
+    /// state, including hidden tabs.
+    pub fn take_stage_embed_save_completion(&mut self) -> Option<StageEmbedSaveCompletion> {
+        self.pending_stage_embed_completion.take()
     }
 
     /// TEST SEAM: install pre-built save + draft managers (with mock backends + no runtime) so the
@@ -560,11 +827,13 @@ impl RichEditorState {
     ) {
         let workspace_id = workspace_id.into();
         let document_id = document_id.into();
-        self.wikilinks.workspace_id = workspace_id.clone();
-        self.wikilinks.autocomplete.workspace_id = workspace_id;
+        if let Some(save) = self.save.as_mut() {
+            save.set_workspace_id(workspace_id.clone());
+        }
         self.wikilinks.runtime = Some(runtime.clone());
         self.wikilinks.autocomplete.runtime = Some(runtime.clone());
-        self.wikilinks.set_document(document_id.clone());
+        self.wikilinks
+            .set_context(workspace_id, document_id.clone());
         // WP-KERNEL-012 MT-057 (1): install the production create backend so the create-from-unresolved
         // POST path is LIVE. The session run id folds the document id (matching the MT-037 attribution
         // convention `native-editor-doc-{id}`), so each create is attributable (HBR-SWARM).
@@ -739,12 +1008,115 @@ impl RichEditorState {
         }
     }
 
+    /// Materialize the current text selection for cross-surface routing. Unlike [`selected_text`], this
+    /// handles a range whose anchor and head are in different top-level blocks. Block boundaries are
+    /// represented by a newline in the routed payload; endpoints remain char-indexed within their
+    /// addressed leaves, so Unicode text is never byte-sliced.
+    pub fn selected_text_for_stage(&self) -> Option<String> {
+        let (anchor, head) = match &self.selection {
+            Selection::Text { anchor, head } if anchor != head => (anchor, head),
+            _ => return None,
+        };
+        let anchor_abs = crate::rich_editor::document_model::absolute_offset(&self.doc, anchor);
+        let head_abs = crate::rich_editor::document_model::absolute_offset(&self.doc, head);
+        let (start, end) = if anchor_abs <= head_abs {
+            (anchor, head)
+        } else {
+            (head, anchor)
+        };
+        let first = *start.path.first()?;
+        let last = *end.path.first()?;
+        let local_offset = |block_idx: usize, pos: &DocPosition| -> Option<usize> {
+            let block = self.doc.children.get(block_idx)?.as_block()?;
+            let local =
+                DocPosition::new(pos.path.iter().skip(1).copied().collect(), pos.char_offset);
+            Some(crate::rich_editor::document_model::absolute_offset(
+                block, &local,
+            ))
+        };
+        let first_offset = local_offset(first, start)?;
+        let last_offset = local_offset(last, end)?;
+        let mut parts = Vec::with_capacity(last.saturating_sub(first) + 1);
+        for block_idx in first..=last {
+            let text = self.block_plain_text(block_idx)?;
+            let len = text.chars().count();
+            let lo = if block_idx == first {
+                first_offset.min(len)
+            } else {
+                0
+            };
+            let hi = if block_idx == last {
+                last_offset.min(len)
+            } else {
+                len
+            };
+            parts.push(
+                text.chars()
+                    .skip(lo)
+                    .take(hi.saturating_sub(lo))
+                    .collect::<String>(),
+            );
+        }
+        let text = parts.join("\n");
+        (!text.is_empty()).then_some(text)
+    }
+
+    /// Build the exact Stage payload for the active rich editor: a real selection when present,
+    /// otherwise the whole loaded document. No active document means there is no valid route.
+    pub fn stage_route_content(&self) -> Option<crate::stage_pane::StageContent> {
+        let document_id = self.active_document_id()?.to_owned();
+        if let Some(text) = self.selected_text_for_stage() {
+            return Some(crate::stage_pane::StageContent::Selection(
+                text,
+                document_id,
+            ));
+        }
+        let title = self
+            .properties
+            .as_ref()
+            .map(|properties| properties.doc_metadata.title.clone())
+            .unwrap_or_default();
+        Some(crate::stage_pane::StageContent::Document(
+            crate::rich_editor::save::save_manager::RichDocLoad {
+                rich_document_id: document_id,
+                doc_version: 0,
+                title,
+                content_json: Some(self.current_content_json()),
+                updated_at: None,
+            },
+        ))
+    }
+
+    /// Canonical active document identity for cross-surface routing. Runtime wikilink context is the
+    /// first source because the shell installs it on document load; SaveManager is the durable fallback.
+    pub fn active_document_id(&self) -> Option<&str> {
+        let wikilink_id = self.wikilinks.document_id.trim();
+        if !wikilink_id.is_empty() {
+            return Some(wikilink_id);
+        }
+        self.save
+            .as_ref()
+            .map(|save| save.document_id())
+            .filter(|id| !id.trim().is_empty())
+    }
+
     /// Insert plain text through the same document-transform path the live typing loop uses. Host-level
     /// routes (menu / command-palette Paste) call this after reading the shared InteractionBus clipboard,
     /// so the paste mutates the real mounted document rather than only touching the bus cache.
     pub fn insert_plain_text_for_host(&mut self, text: &str) -> bool {
         if text.is_empty() {
             return false;
+        }
+        if matches!(
+            &self.selection,
+            Selection::Text { anchor, head } if anchor != head
+        ) {
+            return RichEditorWidget::insert_inline_child_at_selection(
+                self,
+                crate::rich_editor::document_model::node::Child::Text(
+                    crate::rich_editor::document_model::node::TextLeaf::new(text),
+                ),
+            );
         }
         self.apply_host_edit(input_handler::EditAction::Insert(text.to_owned()))
     }
@@ -1102,31 +1474,99 @@ impl RichEditorWidget {
                 // still an interactive node, so it MUST carry a stable author_id (the shell
                 // HBR-SWARM gate panics on an unnamed interactive node) — we give it the
                 // editor-surface id so a swarm agent can locate the surface by a stable key.
-                let surface_id = ui.id().with("rich-editor-surface");
+                let surface_id = ui.id().with(RICH_EDITOR_TEXT_AUTHOR_ID);
                 let surface = ui.interact(full_rect, surface_id, surface_sense);
+                let focus_requested = !read_only && state.editor_focus_pending;
+                if focus_requested {
+                    surface.request_focus();
+                    state.editor_focus_pending = false;
+                }
                 // RISK-005: in reading mode the surface is never treated as focused, so the input
-                // path is skipped and no caret/selection state is ever advanced or allocated.
-                let has_focus = !read_only && surface.has_focus();
+                // path is skipped and no caret/selection state is ever advanced or allocated. Treat a
+                // focus request as effective for this transition frame as well: egui may not report the
+                // new focus until the following frame, but popup surfaces opened by the same command
+                // must not dismiss themselves in that one-frame gap.
+                let has_focus = !read_only && (surface.has_focus() || focus_requested);
                 // Attach the stable author_id to the interactive surface node (it keeps
                 // egui's derived focusable role/actions; we only add the address).
+                let surface_author =
+                    crate::rich_editor::scoped_author_id(RICH_EDITOR_TEXT_AUTHOR_ID);
                 crate::accessibility::emit_interactive_node(
                     ui.ctx(),
                     surface_id,
-                    "rich-editor-surface",
+                    &surface_author,
                 );
 
-                // MT-016 (RISK-4 / MC-004): close the slash menu when the editor surface loses
-                // focus (e.g. the operator clicked outside the window), so an open popup never
-                // strands input to other surfaces. An ACTIVE PROMPT modal is left open — it is a
-                // top-order egui::Window that holds its own focus, so the editor-surface losing
-                // focus to the modal is expected and must NOT dismiss the modal.
-                if !has_focus
-                    && state
-                        .slash_menu
-                        .as_ref()
-                        .is_some_and(|m| !m.prompt_active())
-                {
-                    state.slash_menu = None;
+                if !read_only {
+                    surface.context_menu(|ui| {
+                        let route_to_stage = ui.button("Route to Stage");
+                        let route_author =
+                            crate::rich_editor::scoped_author_id(ROUTE_TO_STAGE_AUTHOR_ID);
+                        crate::accessibility::emit_interactive_node(
+                            ui.ctx(),
+                            route_to_stage.id,
+                            &route_author,
+                        );
+                        if route_to_stage.clicked() {
+                            let route = state.stage_route_content();
+                            let bus = crate::interop::InteractionBus::get_or_init(ui.ctx());
+                            let retry_route = route.clone();
+                            let causal_action_id = route.as_ref().map(|_| {
+                                format!("stage-route-{}", uuid::Uuid::new_v4().simple())
+                            });
+                            let retry_route = retry_route.map(|content| {
+                                let content_kind = content.content_kind().to_owned();
+                                crate::interop::PendingStageRoute::new(
+                                    content,
+                                    content_kind,
+                                    causal_action_id.clone(),
+                                    state
+                                        .undo_pane_id
+                                        .as_ref()
+                                        .map(ToString::to_string)
+                                        .unwrap_or_else(|| "stage-route-source".to_owned()),
+                                    state.wikilinks.workspace_id.clone(),
+                                )
+                            });
+                            let routed = crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                                bus.register_route_to_stage_command();
+                                match route {
+                                    Some(content) => bus.route_to_stage_correlated(
+                                        ui.ctx(),
+                                        content,
+                                        causal_action_id.as_deref(),
+                                    ),
+                                    None => bus.route_to_stage_error(
+                                        ui.ctx(),
+                                        "Route to Stage unavailable: open a rich document first.",
+                                    ),
+                                }
+                            });
+                            match routed {
+                                Some(true) => {
+                                    state.interop_error = None;
+                                    state.pending_stage_route_retry = None;
+                                    ui.close();
+                                }
+                                Some(false) | None => {
+                                    if let Some(retry_route) = retry_route {
+                                        state.interop_error = Some(
+                                            "Route to Stage is busy; the exact request was retained below this menu."
+                                                .to_owned(),
+                                        );
+                                        state.pending_stage_route_retry = Some(retry_route);
+                                    } else {
+                                        state.interop_error = Some(
+                                            "Route to Stage unavailable: open a rich document first."
+                                                .to_owned(),
+                                        );
+                                        state.pending_stage_route_retry = None;
+                                    }
+                                    ui.close();
+                                }
+                            }
+                        }
+                    });
                 }
 
                 // WP-KERNEL-012 MT-055: in reading mode SKIP the entire input/edit + drag-in path
@@ -1167,10 +1607,40 @@ impl RichEditorWidget {
                         ui.ctx(),
                     ) {
                         if let Some(payload) =
-                            surface.dnd_release_payload::<crate::interop::DragPayload>()
+                            crate::interop::drag_payload::take_released_payload_over::<
+                                crate::interop::DragPayload,
+                            >(&surface)
                         {
                             if let Some(link) = payload.to_hs_link() {
-                                Self::insert_atelier_embed_at_caret(&mut state, link);
+                                let embed_kind = link.ref_kind.clone();
+                                let item_id = link.ref_value.clone();
+                                if Self::insert_atelier_embed_at_caret(&mut state, link) {
+                                    state.interop_error = None;
+                                    let pane_id = state
+                                        .undo_pane_id
+                                        .as_ref()
+                                        .map(|pane| pane.as_ref().to_owned())
+                                        .unwrap_or_else(|| "pane-rich".to_owned());
+                                    let target_document_id = state
+                                        .save
+                                        .as_ref()
+                                        .map(|save| save.document_id().to_owned())
+                                        .unwrap_or_else(|| pane_id.clone());
+                                    let event = crate::event_emitter::NativeEditorEvent::embed_created(
+                                        embed_kind,
+                                        item_id,
+                                        target_document_id,
+                                        pane_id,
+                                        state.actor_id.clone(),
+                                        state.code_ref_workspace_id.clone(),
+                                    );
+                                    crate::event_emitter::dispatch_event_from_frame(ui.ctx(), event);
+                                } else {
+                                    state.interop_error = Some(
+                                        "CKC embed insertion failed: no editable caret or inline block."
+                                            .to_owned(),
+                                    );
+                                }
                                 ui.ctx().request_repaint();
                             }
                         }
@@ -1189,6 +1659,59 @@ impl RichEditorWidget {
                 // BLOCKS still render (the reading presentation), centered into the reading column.
                 let palette = state.palette(); // re-resolve (theme unchanged, cheap)
                 ui.vertical(|ui| {
+                    if let Some(message) = &state.interop_error {
+                        let value = message.clone();
+                        let response = ui.colored_label(palette.error_text, &value);
+                        ui.ctx().accesskit_node_builder(response.id, move |node| {
+                            node.set_role(egui::accesskit::Role::Status);
+                            node.set_author_id(crate::rich_editor::scoped_author_id(
+                                "rich-editor-interop-status",
+                            ));
+                            node.set_value(value.clone());
+                        });
+                    }
+                    if let Some(message) = &state.wikilink_create_error {
+                        let value = message.clone();
+                        let response = ui.colored_label(palette.error_text, &value);
+                        ui.ctx().accesskit_node_builder(response.id, move |node| {
+                            node.set_role(egui::accesskit::Role::Status);
+                            node.set_author_id(crate::rich_editor::scoped_author_id(
+                                "rich-editor-create-note-status",
+                            ));
+                            node.set_value(value.clone());
+                        });
+                    }
+                    if state.pending_stage_route_retry.is_some() {
+                        let retry = ui.button("Retry Route to Stage");
+                        ui.ctx().accesskit_node_builder(retry.id, |node| {
+                            node.set_role(egui::accesskit::Role::Button);
+                            node.set_author_id(crate::rich_editor::scoped_author_id(
+                                "rich-editor-stage-route-retry",
+                            ));
+                            node.set_label("Retry Route to Stage".to_owned());
+                            node.add_action(egui::accesskit::Action::Click);
+                        });
+                        if retry.clicked() {
+                            let route = state.pending_stage_route_retry.clone();
+                            let bus = crate::interop::InteractionBus::get_or_init(ui.ctx());
+                            if crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                                bus.register_route_to_stage_command();
+                                route.is_some_and(|route| {
+                                    bus.retry_pending_stage_route(ui.ctx(), route)
+                                })
+                            })
+                            .unwrap_or(false)
+                            {
+                                state.pending_stage_route_retry = None;
+                                state.interop_error = None;
+                            } else {
+                                state.interop_error = Some(
+                                    "Route to Stage is still busy; retry when the shared editor bus is available."
+                                        .to_owned(),
+                                );
+                            }
+                        }
+                    }
                     if !read_only {
                         // MT-017: the document properties panel ABOVE the content (default collapsed).
                         Self::render_properties(ui, &mut state, &palette);
@@ -1262,8 +1785,10 @@ impl RichEditorWidget {
                 } else {
                     format!("{} blocks", state.doc.children.len())
                 };
+                let root_author_id =
+                    crate::rich_editor::scoped_author_id(RICH_EDITOR_ROOT_AUTHOR_ID);
                 ui.ctx().accesskit_node_builder(root_node_id, move |node| {
-                    node.set_author_id(RICH_EDITOR_ROOT_AUTHOR_ID.to_owned());
+                    node.set_author_id(root_author_id.clone());
                     node.set_label("Rich text editor".to_owned());
                     if read_only {
                         node.set_role(accesskit::Role::Document);
@@ -1274,7 +1799,7 @@ impl RichEditorWidget {
                         node.add_action(accesskit::Action::Focus);
                         // WP-KERNEL-012 MT-110 (AC / MT-043 STEP 3, the MT-080 mirror for the rich pane):
                         // advertise the two text-edit actions a swarm agent uses to AUTHOR rich content by
-                        // id, exactly as `code_editor_text` advertises them. `SetValue` replaces the WHOLE
+                        // id, exactly as `editor.code.text` advertises them. `SetValue` replaces the WHOLE
                         // document body (the agent authors the doc); `ReplaceSelectedText` inserts at the
                         // caret/selection. Declaring them here makes the editable rich surface's contract
                         // discoverable out-of-process; `consume_swarm_text_actions` drains the matching
@@ -1489,7 +2014,16 @@ impl RichEditorWidget {
         // 3). Tab/Shift+Tab indent only when the caret is in a list (else Tab traverses
         // focus — RISK-4 / MC-004).
         let in_list = input_handler::caret_in_list(&state.doc, &state.selection);
-        let fmt_cmds = input_handler::decode_formatting_commands(&events, in_list);
+        let at_text_start = matches!(
+            &state.selection,
+            Selection::Text { head, .. } if head.char_offset == 0
+        );
+        let fmt_cmds = input_handler::decode_formatting_commands_with_keymap(
+            &events,
+            in_list,
+            at_text_start,
+            &state.rich_keymap,
+        );
         for cmd in &fmt_cmds {
             let RichEditorState {
                 doc,
@@ -1511,7 +2045,12 @@ impl RichEditorWidget {
         // formatting chord (e.g. Ctrl+Z -> Undo, which BOTH the formatting keymap and the
         // plain decode recognize) is filtered out here so it does not double-fire; Enter is
         // never a plain-decode action (it has no `EditAction`), so the split fires once.
-        let actions = input_handler::decode_events_excluding_formatting(&events, in_list);
+        let actions = input_handler::decode_events_excluding_formatting_with_keymap(
+            &events,
+            in_list,
+            at_text_start,
+            &state.rich_keymap,
+        );
         // Capture whether this frame produced any edit BEFORE the loop consumes `actions`, so the
         // MT-020 dirty-mark below can read it (the loop moves `actions` into `into_iter`).
         let any_edit = !actions.is_empty() || !fmt_cmds.is_empty();
@@ -1776,7 +2315,8 @@ impl RichEditorWidget {
         let mut wikilink_targets: Vec<(Vec<usize>, String)> = Vec::new();
         ui.input(|input| {
             if let Some(root_id) = root_id {
-                for request in input.accesskit_action_requests(root_id, accesskit::Action::SetValue) {
+                for request in input.accesskit_action_requests(root_id, accesskit::Action::SetValue)
+                {
                     if let Some(accesskit::ActionData::Value(v)) = &request.data {
                         set_value = Some(v.to_string());
                     }
@@ -1790,7 +2330,8 @@ impl RichEditorWidget {
                 }
             }
             for (chip_id, path) in &chip_nodes {
-                for request in input.accesskit_action_requests(*chip_id, accesskit::Action::SetValue)
+                for request in
+                    input.accesskit_action_requests(*chip_id, accesskit::Action::SetValue)
                 {
                     if let Some(accesskit::ActionData::Value(v)) = &request.data {
                         wikilink_targets.push((path.clone(), v.to_string()));
@@ -1980,17 +2521,98 @@ impl RichEditorWidget {
                 ui.ctx().request_repaint();
             }
         }
-        // 2) Emit + 3) consume this frame's dispatch.
-        let dispatched = {
+        // 2) Emit + 3) consume this frame's dispatch. The registry is shared by every mounted
+        // editor, but this pane must query ONLY the exact nodes owned by its registration handle.
+        // Querying every registry node here lets an earlier-rendered split view consume a later
+        // view's AccessKit request and then discard it because the namespaced action id is not in
+        // that earlier view's catalog.
+        let owned_dispatch_nodes: Vec<(String, bool)> = catalog
+            .iter()
+            .map(|entry| {
+                let state_for = Self::rich_action_state(
+                    entry, find_open, bold, italic, code, fc_case, fc_word, fc_regex,
+                );
+                (
+                    handle.author_id(entry.action_id),
+                    state_for.present && state_for.enabled,
+                )
+            })
+            .collect();
+        {
             let reg = registry.lock().unwrap_or_else(|e| e.into_inner());
             reg.emit_into_tree(ui);
-            reg.take_dispatched(ui)
-        };
-        for author_id in dispatched {
-            let action_id = Self::strip_rich_author_prefix(&author_id, handle);
-            if let Some(entry) = catalog.iter().find(|e| e.action_id == action_id) {
-                Self::run_rich_dispatch(state, &entry.dispatch, &action_id, ui.ctx());
+        }
+        let dispatched = ui.input(|input| {
+            let mut activated = Vec::new();
+            for (author_id, enabled) in &owned_dispatch_nodes {
+                if !enabled {
+                    continue;
+                }
+                let mut clicked = false;
+                let mut payload = None;
+                for request in input
+                    .accesskit_action_requests(egui::Id::new(author_id), accesskit::Action::Click)
+                {
+                    clicked = true;
+                    if let Some(accesskit::ActionData::Value(value)) = &request.data {
+                        payload = Some(value.to_string());
+                    }
+                }
+                if clicked {
+                    activated.push((author_id.clone(), payload));
+                }
             }
+            activated
+        });
+        for (author_id, payload) in dispatched {
+            let action_id = Self::strip_rich_author_prefix(&author_id, &handle);
+            if let Some(entry) = catalog.iter().find(|e| e.action_id == action_id) {
+                Self::run_rich_dispatch(
+                    state,
+                    &entry.dispatch,
+                    &action_id,
+                    payload.as_deref(),
+                    ui.ctx(),
+                );
+            }
+        }
+        if let Some((document_id, title, created)) = state.last_slash_created_document.as_ref() {
+            let document_id = document_id.clone();
+            let title = title.clone();
+            let created = *created;
+            ui.ctx().accesskit_node_builder(
+                egui::Id::new("editor.rich.created-document"),
+                move |node| {
+                    node.set_role(accesskit::Role::Label);
+                    node.set_author_id(crate::rich_editor::scoped_author_id(
+                        "editor.rich.created-document",
+                    ));
+                    node.set_label(if created {
+                        format!("Created note: {title}")
+                    } else {
+                        format!("Opened existing note: {title}")
+                    });
+                    node.set_value(document_id);
+                },
+            );
+        }
+        if let Some(document_id) = state
+            .save
+            .as_ref()
+            .map(|save| save.document_id().to_owned())
+            .filter(|document_id| !document_id.is_empty())
+        {
+            let author_id =
+                crate::rich_editor::scoped_author_id(format!("rich-editor.document.{document_id}"));
+            ui.ctx().accesskit_node_builder(
+                egui::Id::new(("rich-editor-opened-document", &document_id)),
+                move |node| {
+                    node.set_role(accesskit::Role::Document);
+                    node.set_author_id(author_id);
+                    node.set_label("Opened rich document");
+                    node.set_value(document_id);
+                },
+            );
         }
     }
 
@@ -2054,14 +2676,11 @@ impl RichEditorWidget {
     }
 
     /// Strip the `editor.rich.` prefix (+ optional `.<idx>`) from a canonical author_id.
-    fn strip_rich_author_prefix(author_id: &str, handle: RegistrationHandle) -> String {
-        let rest = author_id.strip_prefix("editor.rich.").unwrap_or(author_id);
-        if handle.instance_index() > 0 {
-            let suffix = format!(".{}", handle.instance_index());
-            rest.strip_suffix(&suffix).unwrap_or(rest).to_owned()
-        } else {
-            rest.to_owned()
-        }
+    fn strip_rich_author_prefix(author_id: &str, handle: &RegistrationHandle) -> String {
+        handle
+            .action_id_from_author_id(author_id)
+            .unwrap_or(author_id)
+            .to_owned()
     }
 
     /// Run one canonical rich-action dispatch target against the real editor state (alias-to-real).
@@ -2069,6 +2688,7 @@ impl RichEditorWidget {
         state: &mut RichEditorState,
         target: &RichDispatch,
         action_id: &str,
+        payload: Option<&str>,
         ctx: &egui::Context,
     ) {
         use crate::rich_editor::find_replace::{self, FindReplaceState};
@@ -2164,6 +2784,95 @@ impl RichEditorWidget {
                 Self::trigger_save(state);
             }
             RichDispatch::InsertSlashCommand => {
+                if let Some(payload) = payload {
+                    match serde_json::from_str::<SlashActionPayload>(payload) {
+                        Ok(SlashActionPayload::Note { title }) if !title.trim().is_empty() => {
+                            if state.wikilinks.dispatch_create_note(title.trim()) {
+                                state.interop_error = None;
+                            } else {
+                                state.interop_error = Some(format!(
+                                    "Create note '{}': already in flight or no workspace/runtime bound",
+                                    title.trim()
+                                ));
+                            }
+                            ctx.request_repaint();
+                            return;
+                        }
+                        Ok(SlashActionPayload::Wikilink {
+                            ref_kind,
+                            ref_value,
+                            label,
+                        }) if !ref_kind.trim().is_empty() && !ref_value.trim().is_empty() => {
+                            let before =
+                                crate::rich_editor::document_model::doc_json::to_content_json_value(
+                                    &state.doc,
+                                );
+                            let changed = {
+                                let RichEditorState {
+                                    doc,
+                                    selection,
+                                    undo,
+                                    actor_id,
+                                    ..
+                                } = state;
+                                let mut slash_ctx =
+                                    crate::rich_editor::slash_commands::executor::SlashExecContext {
+                                        doc,
+                                        history: undo,
+                                        selection,
+                                        actor_id: actor_id.as_str(),
+                                    };
+                                crate::rich_editor::slash_commands::executor::insert_exact_wikilink(
+                                    &mut slash_ctx,
+                                    &ref_kind,
+                                    &ref_value,
+                                    &label,
+                                )
+                            };
+                            Self::finish_direct_slash_payload(state, before, changed);
+                            ctx.request_repaint();
+                            return;
+                        }
+                        Ok(SlashActionPayload::CodeBlock { language, code }) => {
+                            let before =
+                                crate::rich_editor::document_model::doc_json::to_content_json_value(
+                                    &state.doc,
+                                );
+                            let changed = {
+                                let RichEditorState {
+                                    doc,
+                                    selection,
+                                    undo,
+                                    actor_id,
+                                    ..
+                                } = state;
+                                let mut slash_ctx =
+                                    crate::rich_editor::slash_commands::executor::SlashExecContext {
+                                        doc,
+                                        history: undo,
+                                        selection,
+                                        actor_id: actor_id.as_str(),
+                                    };
+                                crate::rich_editor::slash_commands::executor::insert_exact_code_block(
+                                    &mut slash_ctx,
+                                    &language,
+                                    &code,
+                                )
+                            };
+                            Self::finish_direct_slash_payload(state, before, changed);
+                            ctx.request_repaint();
+                            return;
+                        }
+                        _ => {
+                            state.interop_error = Some(
+                                "insert-slash-command payload must be one of {\"kind\":\"note\",\"title\":\"...\"}, {\"kind\":\"wikilink\",\"ref_kind\":\"note\",\"ref_value\":\"...\",\"label\":\"...\"}, or {\"kind\":\"code_block\",\"language\":\"rust\",\"code\":\"...\"}"
+                                    .to_owned(),
+                            );
+                            ctx.request_repaint();
+                            return;
+                        }
+                    }
+                }
                 // Open the slash-command block-insert picker at the caret (the same `SlashMenuState`
                 // surface the `/` trigger opens). The caret's leaf path + char offset anchor it.
                 if state.slash_menu.is_none() {
@@ -2177,6 +2886,12 @@ impl RichEditorWidget {
                                 head.path.clone(),
                                 head.char_offset,
                             ));
+                        state.slash_menu_opened_explicitly = true;
+                        // The toolbar/AccessKit command is dispatched after this frame's surface-focus
+                        // decision. Request focus for the next frame so the menu's normal focus-loss
+                        // dismissal does not immediately close the picker before an operator or agent
+                        // can activate a row.
+                        state.editor_focus_pending = true;
                         ctx.request_repaint();
                     }
                 }
@@ -2192,12 +2907,42 @@ impl RichEditorWidget {
         }
     }
 
+    /// Complete a direct slash payload mutation on the same save/draft/unified-undo surfaces as an
+    /// operator-selected slash command. A rejected model insertion is surfaced, never reported dirty.
+    fn finish_direct_slash_payload(
+        state: &mut RichEditorState,
+        before: serde_json::Value,
+        changed: bool,
+    ) {
+        let after = crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        if !changed || after == before {
+            state.interop_error = Some(
+                "insert-slash-command could not insert at the current rich-editor selection"
+                    .to_owned(),
+            );
+            return;
+        }
+        state.pending_bus_undo.push((before, after));
+        if let Some(save) = state.save.as_mut() {
+            save.mark_dirty();
+        }
+        if let Some(draft) = state.draft.as_mut() {
+            draft.mark_dirty(std::time::Instant::now());
+        }
+        if let Some(find_replace) = state.find_replace.as_mut() {
+            find_replace.rescan(&state.doc);
+        }
+        state.interop_error = None;
+    }
+
     /// MT-020: drive the save + draft coordinators each frame. Drains a completed off-thread save
     /// result (applying Saved/Conflict/Failed); on a successful save clears the draft + re-bases it.
     /// Drains a completed draft-load result (offering the recovery banner). Fires the debounced draft
     /// upsert IF due AND no save is in flight (MC-002). Requests a repaint when any async result
     /// landed so the new state paints without waiting for the next input event.
-    fn drive_save_and_draft(ctx: &egui::Context, state: &mut RichEditorState) {
+    pub(crate) fn drive_save_and_draft(ctx: &egui::Context, state: &mut RichEditorState) {
+        // Retry any one-shot save receipts that could not acquire/enter the bounded bus last frame.
+        crate::event_emitter::flush_pending_frame_events(ctx);
         let mut applied = false;
         // Drain a completed save result.
         let save_outcome = state.save.as_mut().and_then(|s| s.drain());
@@ -2205,13 +2950,33 @@ impl RichEditorWidget {
             use crate::rich_editor::save::save_manager::SaveOutcome;
             applied = true;
             match outcome {
-                SaveOutcome::Saved { doc_version } => {
+                SaveOutcome::Saved {
+                    doc_version,
+                    backlinks_persisted: _,
+                    backlinks_warning,
+                    saved_content,
+                    workspace_id,
+                    save_receipt_event_id,
+                    attribution,
+                } => {
+                    if let Some(pending) = state.pending_stage_embed_save.as_ref() {
+                        if saved_content_contains_exact_hs_link(&saved_content, &pending.link) {
+                            let pending = state
+                                .pending_stage_embed_save
+                                .take()
+                                .expect("pending Stage embed was just inspected");
+                            state.pending_stage_embed_completion =
+                                Some(StageEmbedSaveCompletion::Persisted(pending));
+                        } else {
+                            let message = "Document save completed without the exact pending Stage embed tuple; success was withheld"
+                                .to_owned();
+                            state.interop_error = Some(message.clone());
+                            state.pending_stage_embed_completion =
+                                Some(StageEmbedSaveCompletion::Failed(message));
+                        }
+                    }
                     // The canonical save landed: clear the server draft + re-base the draft manager on
                     // the just-saved content + version (so a later edit's draft bases correctly).
-                    let saved_content =
-                        crate::rich_editor::document_model::doc_json::to_content_json_value(
-                            &state.doc,
-                        );
                     // MT-036 (E5 — one event ledger): emit a REAL `document_saved` FlightEvent at this
                     // LIVE save-success call site (the MT-020 path that exists + is tested). The content
                     // hash is recomputed locally via the MT-032 canonical writer (matches the backend's
@@ -2230,34 +2995,61 @@ impl RichEditorWidget {
                                 crate::loom_address::ContentHash::of_content_json(&saved_content)
                                     .as_str()
                                     .to_owned();
-                            let bus =
-                                crate::interop::interaction_bus::InteractionBus::get_or_init(ctx);
-                            crate::interop::interaction_bus::InteractionBus::with_try_lock(
-                                &bus,
-                                |b| {
-                                    let ev =
-                                        crate::event_emitter::NativeEditorEvent::document_saved(
-                                            document_id,
-                                            content_hash,
-                                            pane_id.as_ref(),
-                                            crate::event_emitter::native_editor_actor_id(
-                                                pane_id.as_ref(),
-                                            ),
-                                            b.event_emitter()
-                                                .map(|e| e.workspace_id().to_owned())
-                                                .unwrap_or_default(),
-                                        );
-                                    b.emit_event(ev);
-                                },
-                            );
+                            if let Some((receipt, attribution)) = save_receipt_event_id
+                                .zip(attribution)
+                                .filter(|(_, attribution)| attribution.correlation_id.is_some())
+                            {
+                                let ev = crate::event_emitter::NativeEditorEvent::document_saved_with_receipt(
+                                    document_id,
+                                    content_hash,
+                                    receipt,
+                                    &attribution,
+                                    pane_id.as_ref(),
+                                    workspace_id,
+                                );
+                                crate::event_emitter::dispatch_event_from_frame(ctx, ev);
+                            } else {
+                                state.interop_error = Some(
+                                    "Document saved, but canonical EventLedger receipt attribution was unavailable; native Flight Recorder correlation was not emitted"
+                                        .to_owned(),
+                                );
+                            }
                         }
                     }
                     if let Some(draft) = state.draft.as_mut() {
                         draft.clear_after_save(doc_version, &saved_content);
                     }
+                    // Saving source A can change an already-mounted target B panel. Publish one
+                    // shared invalidation so every mounted rich editor refreshes next frame. A
+                    // committed-save/index-warning is broadcast as a visible projection failure.
+                    crate::rich_editor::wikilinks::runtime::publish_backlinks_invalidation(
+                        ctx,
+                        state.wikilinks.workspace_id.clone(),
+                        state
+                            .save
+                            .as_ref()
+                            .map(|save| save.document_id().to_owned())
+                            .unwrap_or_default(),
+                        backlinks_warning,
+                    );
                 }
-                SaveOutcome::Conflict | SaveOutcome::Failed(_) => {
-                    // The conflict window / error chip renders from the save state; nothing else here.
+                SaveOutcome::Conflict => {
+                    if state.pending_stage_embed_save.is_some() {
+                        state.pending_stage_embed_completion = Some(
+                            StageEmbedSaveCompletion::Failed(
+                                "Stage embed save conflicted; choose Keep Yours to retry or Keep Server to discard"
+                                    .to_owned(),
+                            ),
+                        );
+                    }
+                }
+                SaveOutcome::Failed(error) => {
+                    if state.pending_stage_embed_save.is_some() {
+                        state.pending_stage_embed_completion =
+                            Some(StageEmbedSaveCompletion::Failed(format!(
+                                "Stage embed save failed and remains pending for retry: {error}"
+                            )));
+                    }
                 }
             }
         }
@@ -2351,6 +3143,13 @@ impl RichEditorWidget {
                 // and clear the conflict.
                 let server_content = state.save.as_mut().and_then(|s| s.keep_server());
                 if let Some(content) = server_content {
+                    if state.pending_stage_embed_save.take().is_some() {
+                        state.pending_stage_embed_completion =
+                            Some(StageEmbedSaveCompletion::Failed(
+                                "Stage embed was discarded by Keep Server conflict resolution"
+                                    .to_owned(),
+                            ));
+                    }
                     if let Ok(doc) = from_json_value(&content) {
                         state.doc = doc;
                         state.selection = Selection::caret(DocPosition::new(vec![0, 0], 0));
@@ -2841,9 +3640,75 @@ impl RichEditorWidget {
     /// `(before, after)` content_json pair is queued on `pending_bus_undo` so the MT-035 unified undo bus
     /// records it — a real Ctrl+Z removes the dropped embed exactly (the drop ran inside the render
     /// closure, invisible to the frame-input diff). No direct children mutation bypasses the undo system.
+    /// Insert one Stage capture hsLink and immediately dispatch the canonical rich-document save. The
+    /// preflight rejects missing/busy save authority and any existing pending Stage embed before the
+    /// document mutates. Success here means "persisting", never "embedded".
+    pub fn insert_stage_embed_and_request_save(
+        state: &mut RichEditorState,
+        pending: PendingStageEmbedSave,
+    ) -> Result<(), String> {
+        Self::ensure_stage_embed_save_available(state)?;
+        if !Self::insert_atelier_embed_at_caret(state, pending.link.clone()) {
+            return Err(
+                "Stage capture fetched but the active note rejected the embed insertion".to_owned(),
+            );
+        }
+        Self::request_existing_stage_embed_save(state, pending)
+    }
+
+    pub(crate) fn ensure_stage_embed_save_available(state: &RichEditorState) -> Result<(), String> {
+        if state.pending_stage_embed_save.is_some() {
+            return Err("another Stage embed is still awaiting document persistence".to_owned());
+        }
+        let Some(save) = state.save.as_ref() else {
+            return Err("Stage embed target has no canonical save context".to_owned());
+        };
+        if save.is_saving() {
+            return Err("Stage embed target document already has a save in flight".to_owned());
+        }
+        Ok(())
+    }
+
+    /// Attach durability identity to an hsLink that was already inserted in a retained split view and
+    /// published into the stable canonical document authority. This never inserts a second atom.
+    pub(crate) fn request_existing_stage_embed_save(
+        state: &mut RichEditorState,
+        pending: PendingStageEmbedSave,
+    ) -> Result<(), String> {
+        Self::ensure_stage_embed_save_available(state)?;
+        let current =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        if !saved_content_contains_exact_hs_link(&current, &pending.link) {
+            return Err(
+                "canonical Stage embed save requested before the exact hsLink was published"
+                    .to_owned(),
+            );
+        }
+        state.pending_stage_embed_save = Some(pending);
+        let dispatched = state.request_save_for_host();
+        assert!(
+            dispatched,
+            "Stage embed save context was prevalidated under the same exclusive state borrow"
+        );
+        Ok(())
+    }
+
     pub fn insert_atelier_embed_at_caret(
         state: &mut RichEditorState,
         link: crate::rich_editor::document_model::node::HsLinkNode,
+    ) -> bool {
+        Self::insert_inline_child_at_selection(
+            state,
+            crate::rich_editor::document_model::node::Child::HsLink(link),
+        )
+    }
+
+    /// Insert one inline child at the live selection/caret. Selection replacement, including a range
+    /// spanning sibling rich blocks, is represented by exactly one document transaction and therefore
+    /// produces exactly one model receipt and one shared-undo snapshot pair.
+    fn insert_inline_child_at_selection(
+        state: &mut RichEditorState,
+        inserted_child: crate::rich_editor::document_model::node::Child,
     ) -> bool {
         use crate::rich_editor::document_model::node::{Child, TextLeaf};
         use crate::rich_editor::document_model::position::DocPosition;
@@ -2851,89 +3716,389 @@ impl RichEditorWidget {
             apply_transaction, ActorKind, Step, Transaction,
         };
 
-        // Resolve the caret leaf path + offset, or fall back to the first inline-content block.
-        let (leaf_path, caret_char) = match &state.selection {
-            Selection::Text { head, .. } => (head.path.clone(), head.char_offset),
-            Selection::Node { .. } => {
-                // No text caret: target the first paragraph/heading's last text leaf (append).
-                match Self::first_inline_leaf_path(&state.doc) {
-                    Some((path, end)) => (path, end),
-                    None => return false,
+        // A cross-block text selection is supported when both endpoint blocks are siblings under the
+        // same container. The replacement block keeps the start block's kind/attrs, the unselected start
+        // prefix, and the unselected end suffix; all covered sibling blocks are replaced atomically.
+        let selected_cross_block_range = (|| match &state.selection {
+            Selection::Text { anchor, head } if anchor != head => {
+                let (anchor_leaf_idx, anchor_block_path) = anchor.path.split_last()?;
+                let (head_leaf_idx, head_block_path) = head.path.split_last()?;
+                let (anchor_block_idx, anchor_container) = anchor_block_path.split_last()?;
+                let (head_block_idx, head_container) = head_block_path.split_last()?;
+                if anchor_container != head_container || anchor_block_idx == head_block_idx {
+                    None
+                } else {
+                    let anchor_leaf = Self::block_at_path(&state.doc, anchor_block_path)?
+                        .children
+                        .get(*anchor_leaf_idx)?
+                        .as_text()?;
+                    let head_leaf = Self::block_at_path(&state.doc, head_block_path)?
+                        .children
+                        .get(*head_leaf_idx)?
+                        .as_text()?;
+                    let anchor_offset = anchor.char_offset.min(anchor_leaf.text.len_chars());
+                    let head_offset = head.char_offset.min(head_leaf.text.len_chars());
+                    if anchor_block_idx < head_block_idx {
+                        Some((
+                            anchor_container.to_vec(),
+                            *anchor_block_idx,
+                            *anchor_leaf_idx,
+                            anchor_offset,
+                            *head_block_idx,
+                            *head_leaf_idx,
+                            head_offset,
+                        ))
+                    } else {
+                        Some((
+                            anchor_container.to_vec(),
+                            *head_block_idx,
+                            *head_leaf_idx,
+                            head_offset,
+                            *anchor_block_idx,
+                            *anchor_leaf_idx,
+                            anchor_offset,
+                        ))
+                    }
                 }
             }
+            Selection::Text { .. } | Selection::Node { .. } => None,
+        })();
+
+        // Normalize a live text selection to one inline-content parent. Cross-block ranges are handled
+        // separately above; this branch retains the existing exact same-block replacement behavior.
+        let selected_text_range = match &state.selection {
+            Selection::Text { anchor, head } if anchor != head => {
+                let Some((anchor_idx, anchor_parent)) = anchor.path.split_last() else {
+                    return false;
+                };
+                let Some((head_idx, head_parent)) = head.path.split_last() else {
+                    return false;
+                };
+                if anchor_parent != head_parent {
+                    None
+                } else {
+                    let Some(parent) = Self::block_at_path(&state.doc, anchor_parent) else {
+                        return false;
+                    };
+                    let Some(anchor_leaf) =
+                        parent.children.get(*anchor_idx).and_then(Child::as_text)
+                    else {
+                        return false;
+                    };
+                    let Some(head_leaf) = parent.children.get(*head_idx).and_then(Child::as_text)
+                    else {
+                        return false;
+                    };
+                    let anchor_offset = anchor.char_offset.min(anchor_leaf.text.len_chars());
+                    let head_offset = head.char_offset.min(head_leaf.text.len_chars());
+                    let (start_idx, start_offset, end_idx, end_offset) =
+                        if (*anchor_idx, anchor_offset) <= (*head_idx, head_offset) {
+                            (*anchor_idx, anchor_offset, *head_idx, head_offset)
+                        } else {
+                            (*head_idx, head_offset, *anchor_idx, anchor_offset)
+                        };
+                    Some((
+                        anchor_parent.to_vec(),
+                        start_idx,
+                        start_offset,
+                        end_idx,
+                        end_offset,
+                    ))
+                }
+            }
+            Selection::Text { .. } | Selection::Node { .. } => None,
         };
 
-        let Some((leaf_idx, parent_path)) = leaf_path.split_last() else {
+        // Never degrade an unsupported non-collapsed range into a caret insertion. In particular,
+        // endpoint blocks in different nested containers need a structural merge policy that this
+        // transaction does not provide; inserting at `head` would preserve the selection's old bytes
+        // and recreate the exact silent fallback/caret-insertion defect this path is meant to close.
+        let has_noncollapsed_text_selection = matches!(
+            &state.selection,
+            Selection::Text { anchor, head } if anchor != head
+        );
+        if has_noncollapsed_text_selection
+            && selected_text_range.is_none()
+            && selected_cross_block_range.is_none()
+        {
             return false;
+        }
+
+        // A loaded empty paragraph has a synthetic `[block, 0]` caret but no text leaf. Validate a
+        // collapsed selected leaf before using it; otherwise fall back to an existing inline leaf, and
+        // finally to the empty inline block. This keeps the documented empty-document path real.
+        let selected_leaf = match &state.selection {
+            Selection::Text { head, .. } => {
+                head.path.split_last().and_then(|(leaf_idx, parent)| {
+                    Self::block_at_path(&state.doc, parent)
+                        .and_then(|block| block.children.get(*leaf_idx))
+                        .and_then(Child::as_text)
+                        .map(|_| (head.path.clone(), head.char_offset))
+                })
+            }
+            Selection::Node { .. } => None,
+        };
+        let selected_empty_parent = match &state.selection {
+            Selection::Text { head, .. } => head.path.split_last().and_then(|(_, parent_path)| {
+                Self::block_at_path(&state.doc, parent_path)
+                    .filter(|block| block.kind.holds_inline_content() && block.children.is_empty())
+                    .map(|_| parent_path.to_vec())
+            }),
+            Selection::Node { .. } => None,
+        };
+        // An empty selected paragraph owns the caret even when a later paragraph contains text. Only
+        // use the document-wide leaf fallback when the selection does not identify such an empty block.
+        let leaf_target = if selected_text_range.is_none() && selected_cross_block_range.is_none() {
+            selected_leaf.or_else(|| {
+                selected_empty_parent
+                    .is_none()
+                    .then(|| Self::first_inline_leaf_path(&state.doc))
+                    .flatten()
+            })
+        } else {
+            None
         };
 
-        // Pre-state facts (read-only): the caret leaf's split point + tail text, and whether the child
-        // after the atom will be a text leaf (the caret-host rule confirm_wikilink uses). The split tail
-        // `[caret_char, end)` moves after the atom so the atom lands at the exact drop position.
-        let (tail_text, needs_new_trailing, split_range) = {
+        // Build one transaction. A range in one text leaf removes `[start,end)` and re-hosts its tail;
+        // a range spanning formatted inline runs trims both endpoints and deletes the intervening atoms
+        // in descending index order. A collapsed target retains the existing split-at-caret behavior.
+        // An empty paragraph gets the atom plus an empty text leaf so the resulting caret stays valid.
+        let (parent_path, trailing_idx, steps) = if let Some((
+            container_path,
+            start_block_idx,
+            start_leaf_idx,
+            start_offset,
+            end_block_idx,
+            end_leaf_idx,
+            end_offset,
+        )) = selected_cross_block_range
+        {
+            let start_block_path = [container_path.as_slice(), &[start_block_idx]].concat();
+            let end_block_path = [container_path.as_slice(), &[end_block_idx]].concat();
+            let Some(start_block) = Self::block_at_path(&state.doc, &start_block_path) else {
+                return false;
+            };
+            let Some(end_block) = Self::block_at_path(&state.doc, &end_block_path) else {
+                return false;
+            };
+            if !start_block.kind.holds_inline_content() || !end_block.kind.holds_inline_content() {
+                return false;
+            }
+            let Some(start_leaf) = start_block
+                .children
+                .get(start_leaf_idx)
+                .and_then(Child::as_text)
+            else {
+                return false;
+            };
+            let Some(end_leaf) = end_block
+                .children
+                .get(end_leaf_idx)
+                .and_then(Child::as_text)
+            else {
+                return false;
+            };
+
+            let mut replacement = start_block.clone();
+            let mut children = start_block.children[..start_leaf_idx].to_vec();
+            if start_offset > 0 {
+                let mut prefix = start_leaf.clone();
+                prefix.text.remove(start_offset, prefix.text.len_chars());
+                children.push(Child::Text(prefix));
+            }
+            children.push(inserted_child.clone());
+            let inserted_idx = children.len() - 1;
+
+            let mut suffix = Vec::new();
+            if end_offset < end_leaf.text.len_chars() {
+                let mut tail = end_leaf.clone();
+                tail.text.remove(0, end_offset);
+                suffix.push(Child::Text(tail));
+            }
+            suffix.extend_from_slice(&end_block.children[end_leaf_idx + 1..]);
+            let trailing_idx = inserted_idx + 1;
+            if suffix.first().and_then(Child::as_text).is_none() {
+                children.push(Child::Text(TextLeaf::new("")));
+            }
+            children.extend(suffix);
+            replacement.children = children;
+
+            let mut steps = Vec::with_capacity(end_block_idx - start_block_idx + 2);
+            for _ in start_block_idx..=end_block_idx {
+                steps.push(Step::DeleteNode {
+                    parent_path: container_path.clone(),
+                    index: start_block_idx,
+                });
+            }
+            steps.push(Step::InsertNode {
+                parent_path: container_path.clone(),
+                index: start_block_idx,
+                node: replacement,
+            });
+            (start_block_path, trailing_idx, steps)
+        } else if let Some((parent_path, start_idx, start_offset, end_idx, end_offset)) =
+            selected_text_range
+        {
+            let Some(parent) = Self::block_at_path(&state.doc, &parent_path) else {
+                return false;
+            };
+            let Some(start_leaf) = parent.children.get(start_idx).and_then(Child::as_text) else {
+                return false;
+            };
+            let start_len = start_leaf.text.len_chars();
+            if start_idx == end_idx {
+                let tail_text = start_leaf
+                    .text
+                    .to_string()
+                    .chars()
+                    .skip(end_offset)
+                    .collect::<String>();
+                let needs_new_trailing = parent
+                    .children
+                    .get(start_idx + 1)
+                    .map(|child| child.as_text().is_none())
+                    .unwrap_or(true);
+                let insert_at = start_idx + 1;
+                let trailing_idx = insert_at + 1;
+                let mut steps = Vec::with_capacity(3);
+                steps.push(Step::DeleteText {
+                    path: [parent_path.as_slice(), &[start_idx]].concat(),
+                    start: start_offset,
+                    end: start_len,
+                });
+                steps.push(Step::InsertInlineChild {
+                    parent_path: parent_path.clone(),
+                    index: insert_at,
+                    child: inserted_child.clone(),
+                });
+                if needs_new_trailing {
+                    steps.push(Step::InsertInlineChild {
+                        parent_path: parent_path.clone(),
+                        index: trailing_idx,
+                        child: Child::Text(TextLeaf::new(&tail_text)),
+                    });
+                } else if !tail_text.is_empty() {
+                    steps.push(Step::InsertText {
+                        path: [parent_path.as_slice(), &[trailing_idx]].concat(),
+                        char_offset: 0,
+                        text: tail_text,
+                    });
+                }
+                (parent_path, trailing_idx, steps)
+            } else {
+                let Some(end_leaf) = parent.children.get(end_idx).and_then(Child::as_text) else {
+                    return false;
+                };
+                let end_len = end_leaf.text.len_chars();
+                let mut steps = Vec::with_capacity(end_idx - start_idx + 3);
+                if start_offset < start_len {
+                    steps.push(Step::DeleteText {
+                        path: [parent_path.as_slice(), &[start_idx]].concat(),
+                        start: start_offset,
+                        end: start_len,
+                    });
+                }
+                if end_offset > 0 {
+                    steps.push(Step::DeleteText {
+                        path: [parent_path.as_slice(), &[end_idx]].concat(),
+                        start: 0,
+                        end: end_offset.min(end_len),
+                    });
+                }
+                for index in ((start_idx + 1)..end_idx).rev() {
+                    steps.push(Step::DeleteInlineChild {
+                        parent_path: parent_path.clone(),
+                        index,
+                    });
+                }
+                let insert_at = start_idx + 1;
+                steps.push(Step::InsertInlineChild {
+                    parent_path: parent_path.clone(),
+                    index: insert_at,
+                    child: inserted_child.clone(),
+                });
+                (parent_path, insert_at + 1, steps)
+            }
+        } else if let Some((leaf_path, caret_char)) = leaf_target {
+            let Some((leaf_idx, parent_path)) = leaf_path.split_last() else {
+                return false;
+            };
             let Some(parent) = Self::block_at_path(&state.doc, parent_path) else {
                 return false;
             };
-            if *leaf_idx >= parent.children.len() {
+            let Some(leaf) = parent.children.get(*leaf_idx).and_then(Child::as_text) else {
                 return false;
-            }
-            let (tail, split_range) = match parent.children.get(*leaf_idx).and_then(Child::as_text)
-            {
-                Some(leaf) => {
-                    let len = leaf.text.len_chars();
-                    let split = caret_char.min(len);
-                    if split < len {
-                        let full = leaf.text.to_string();
-                        let tail: String = full.chars().skip(split).collect();
-                        (Some(tail), Some((split, len)))
-                    } else {
-                        (None, None)
-                    }
-                }
-                None => (None, None),
+            };
+            let len = leaf.text.len_chars();
+            let split = caret_char.min(len);
+            let tail_text = if split < len {
+                Some(
+                    leaf.text
+                        .to_string()
+                        .chars()
+                        .skip(split)
+                        .collect::<String>(),
+                )
+            } else {
+                None
             };
             let needs_new_trailing = parent
                 .children
                 .get(*leaf_idx + 1)
-                .map(|c| c.as_text().is_none())
+                .map(|child| child.as_text().is_none())
                 .unwrap_or(true);
-            (tail, needs_new_trailing, split_range)
-        };
-
-        // Build the ONE transaction: tail removal from the caret leaf, atom insert, tail re-host.
-        let insert_at = *leaf_idx + 1;
-        let trailing_idx = insert_at + 1;
-        let trailing_text = tail_text.unwrap_or_default();
-        let mut steps = Vec::with_capacity(3);
-        if let Some((split, len)) = split_range {
-            steps.push(Step::DeleteText {
-                path: leaf_path.to_vec(),
-                start: split,
-                end: len,
-            });
-        }
-        steps.push(Step::InsertInlineChild {
-            parent_path: parent_path.to_vec(),
-            index: insert_at,
-            child: Child::HsLink(link),
-        });
-        if needs_new_trailing {
-            // No text leaf follows the atom: the tail (or a fresh empty leaf) becomes the caret host.
+            let insert_at = *leaf_idx + 1;
+            let trailing_idx = insert_at + 1;
+            let trailing_text = tail_text.clone().unwrap_or_default();
+            let mut steps = Vec::with_capacity(3);
+            if tail_text.is_some() {
+                steps.push(Step::DeleteText {
+                    path: leaf_path.clone(),
+                    start: split,
+                    end: len,
+                });
+            }
             steps.push(Step::InsertInlineChild {
                 parent_path: parent_path.to_vec(),
-                index: trailing_idx,
-                child: Child::Text(TextLeaf::new(&trailing_text)),
+                index: insert_at,
+                child: inserted_child.clone(),
             });
-        } else if !trailing_text.is_empty() {
-            // A text leaf already follows (now at trailing_idx after the atom insert): prepend the tail.
-            let mut tail_leaf_path = parent_path.to_vec();
-            tail_leaf_path.push(trailing_idx);
-            steps.push(Step::InsertText {
-                path: tail_leaf_path,
-                char_offset: 0,
-                text: trailing_text,
-            });
-        }
+            if needs_new_trailing {
+                steps.push(Step::InsertInlineChild {
+                    parent_path: parent_path.to_vec(),
+                    index: trailing_idx,
+                    child: Child::Text(TextLeaf::new(&trailing_text)),
+                });
+            } else if !trailing_text.is_empty() {
+                let mut tail_leaf_path = parent_path.to_vec();
+                tail_leaf_path.push(trailing_idx);
+                steps.push(Step::InsertText {
+                    path: tail_leaf_path,
+                    char_offset: 0,
+                    text: trailing_text,
+                });
+            }
+            (parent_path.to_vec(), trailing_idx, steps)
+        } else {
+            let Some(parent_path) =
+                selected_empty_parent.or_else(|| Self::first_inline_block_path(&state.doc))
+            else {
+                return false;
+            };
+            let steps = vec![
+                Step::InsertInlineChild {
+                    parent_path: parent_path.clone(),
+                    index: 0,
+                    child: inserted_child.clone(),
+                },
+                Step::InsertInlineChild {
+                    parent_path: parent_path.clone(),
+                    index: 1,
+                    child: Child::Text(TextLeaf::new("")),
+                },
+            ];
+            (parent_path, 1, steps)
+        };
 
         // Apply atomically + record on BOTH undo authorities: the model-level UndoManager receipt and the
         // MT-035 unified bus snapshot pair (drained at frame end through `record_rich_edit_undo`).
@@ -2950,7 +4115,7 @@ impl RichEditorWidget {
                 if let Some(save) = state.save.as_mut() {
                     save.mark_dirty();
                 }
-                let mut caret_path = parent_path.to_vec();
+                let mut caret_path = parent_path;
                 caret_path.push(trailing_idx);
                 state.selection = Selection::caret(DocPosition::new(caret_path, 0));
                 true
@@ -2987,6 +4152,15 @@ impl RichEditorWidget {
             }
         }
         None
+    }
+
+    fn first_inline_block_path(doc: &BlockNode) -> Option<Vec<usize>> {
+        doc.children.iter().enumerate().find_map(|(index, child)| {
+            child
+                .as_block()
+                .filter(|block| block.kind.holds_inline_content())
+                .map(|_| vec![index])
+        })
     }
 
     /// MT-016: claim the slash menu's nav/confirm/cancel keys while it is open. Up/Down move the
@@ -3051,6 +4225,7 @@ impl RichEditorWidget {
             SlashMenuOutcome::Cancel => {
                 // AC-5: Escape (or Enter on an empty list) closes the menu, leaving the `/` in the text.
                 state.slash_menu = None;
+                state.slash_menu_opened_explicitly = false;
             }
             SlashMenuOutcome::None => {}
         }
@@ -3073,7 +4248,8 @@ impl RichEditorWidget {
     /// execute time (the same invisible-mutation class); a no-op execution pushes nothing.
     fn execute_slash_selection(state: &mut RichEditorState, filtered_index: usize) {
         use crate::rich_editor::slash_commands::executor::{
-            execute_slash_command, SlashExecContext, SlashExecOutcome,
+            execute_slash_command, execute_slash_command_without_trigger, SlashExecContext,
+            SlashExecOutcome,
         };
         use crate::rich_editor::slash_commands::registry::filter_slash_commands;
 
@@ -3083,8 +4259,10 @@ impl RichEditorWidget {
         let filtered = filter_slash_commands(&menu.filter);
         let Some(cmd) = filtered.get(filtered_index).copied() else {
             state.slash_menu = None;
+            state.slash_menu_opened_explicitly = false;
             return;
         };
+        let opened_explicitly = state.slash_menu_opened_explicitly;
         let before =
             crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
         let outcome = {
@@ -3101,14 +4279,21 @@ impl RichEditorWidget {
                 selection,
                 actor_id: actor_id.as_str(),
             };
-            execute_slash_command(&mut ctx, &menu, cmd)
+            if opened_explicitly {
+                execute_slash_command_without_trigger(&mut ctx, &menu, cmd)
+            } else {
+                execute_slash_command(&mut ctx, &menu, cmd)
+            }
         };
         let after = crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
         if after != before {
             state.pending_bus_undo.push((before, after));
         }
         match outcome {
-            SlashExecOutcome::Done { .. } => state.slash_menu = None,
+            SlashExecOutcome::Done { .. } => {
+                state.slash_menu = None;
+                state.slash_menu_opened_explicitly = false;
+            }
             SlashExecOutcome::OpenPrompt(prompt) => {
                 // Keep the menu open carrying the prompt; the list hides and the modal renders.
                 if let Some(m) = state.slash_menu.as_mut() {
@@ -3118,12 +4303,14 @@ impl RichEditorWidget {
             SlashExecOutcome::OpenWikilinkAutocomplete => {
                 // The `[[` was inserted; close the slash menu and let the autocomplete refresh take it.
                 state.slash_menu = None;
+                state.slash_menu_opened_explicitly = false;
             }
             SlashExecOutcome::OpenCodeSymbolSearch => {
                 // MT-034: close the slash menu and open the code-symbol search dialog (scoped to the
                 // editor's code-ref workspace + runtime context). The dialog renders next frame; on
                 // select it inserts a `code` hsLink atom at the caret (where the `/code-ref` was).
                 state.slash_menu = None;
+                state.slash_menu_opened_explicitly = false;
                 state.code_symbol_search = Some(
                     crate::rich_editor::slash_commands::code_symbol_search::CodeSymbolSearchState::open(
                         state.code_ref_workspace_id.clone(),
@@ -3142,6 +4329,12 @@ impl RichEditorWidget {
         use crate::rich_editor::slash_commands::{
             caret_char_offset, caret_leaf_text, open_slash_trigger, SlashMenuState,
         };
+
+        // Toolbar/AccessKit opening deliberately does not insert a `/` character. Its menu is closed by
+        // execute/cancel, not by the detector that owns only document-authored slash tokens.
+        if state.slash_menu_opened_explicitly {
+            return;
+        }
 
         // The caret's leaf text + the caret's char offset within it.
         let (Some((leaf_path, leaf_text)), Some(caret_char)) = (
@@ -3175,6 +4368,7 @@ impl RichEditorWidget {
                     let mut menu = SlashMenuState::open(leaf_path, trigger_char);
                     menu.filter = filter;
                     state.slash_menu = Some(menu);
+                    state.slash_menu_opened_explicitly = false;
                 }
             }
             // No open trigger -> close the menu.
@@ -3183,7 +4377,8 @@ impl RichEditorWidget {
     }
 
     /// Paint ONE inline wikilink chip: a colored rounded rect at the (scroll-adjusted) glyph span +
-    /// the label text on top, an interactive AccessKit node (`wikilink-chip-{hash}`, Role::Link), and
+    /// the label text on top, an interactive occurrence-scoped AccessKit node
+    /// (`editor.rich.wikilink.chip.v{target-utf8-hex}.path.{model-path}`, Role::Link), and
     /// click handling that returns a `WikilinkActivated` event (the caller enqueues it). `origin` is
     /// the block's painted screen top-left (already scroll-adjusted — RISK-1 / MC-001).
     ///
@@ -3197,15 +4392,18 @@ impl RichEditorWidget {
     fn paint_one_wikilink_chip(
         ui: &mut egui::Ui,
         spec: &WikilinkChipSpec,
+        instance_key: (usize, usize),
+        locus_occurrence_index: usize,
         origin: egui::Pos2,
         palette: &HsPalette,
         creating: bool,
         allow_swarm_edit: bool,
+        accessibility_namespace: Option<&str>,
     ) -> ChipPaintOutcome {
         use crate::rich_editor::wikilinks::inline_view::{
-            chip_author_id, chip_rect_for_span, code_ref_chip_author_id,
-            create_affordance_author_id, is_code_ref, is_locus_ref, locus_ref_chip_author_id,
-            EditorEvent, CHIP_ROLE,
+            chip_occurrence_author_id, chip_rect_for_span, code_ref_chip_author_id,
+            create_affordance_author_id, is_code_ref, is_locus_ref,
+            locus_ref_chip_occurrence_author_id, EditorEvent, CHIP_ROLE,
         };
 
         let rect = chip_rect_for_span(spec.local_start, spec.local_end, origin);
@@ -3230,31 +4428,60 @@ impl RichEditorWidget {
         // WP-KERNEL-012 MT-058: an inline TAG atom (ref_kind="tag") gets the contract `inline-tag-{name}`
         // id (the canonical tag identity — what a swarm agent / kittest targets), Role::Link.
         let is_tag = crate::rich_editor::inline_tags::is_tag_link(&spec.link);
-        let author = if is_tag {
+        let is_code_reference = is_code_ref(&spec.link);
+        let base_author = if is_tag {
             crate::rich_editor::inline_tags::inline_tag_author_id(
                 &crate::rich_editor::inline_tags::tag_from_link(&spec.link),
             )
-        } else if is_code_ref(&spec.link) {
+        } else if is_code_reference {
             code_ref_chip_author_id(&spec.link.ref_value)
         } else if is_locus_ref(&spec.link) {
-            // WP-KERNEL-012 MT-068: a Locus ref gets the contract `locus-ref-chip-{kind}-{id}` id (the
-            // WP/MT the chip references — what a kittest / swarm agent targets), Role::Link.
-            locus_ref_chip_author_id(&spec.link.ref_value)
+            // WP-KERNEL-012 MT-068: the first occurrence keeps the contract
+            // `locus-ref-chip-{kind}-{id}` id. Repeated identical refs append their stable document path,
+            // so their AccessKit author_ids are unique and remain unchanged when viewport reflow moves
+            // the painted rect.
+            locus_ref_chip_occurrence_author_id(
+                &spec.link.ref_value,
+                &[instance_key.0, instance_key.1],
+                locus_occurrence_index,
+            )
         } else {
-            chip_author_id(&spec.link.ref_value)
+            chip_occurrence_author_id(&spec.link.ref_value, &[instance_key.0, instance_key.1])
         };
-        // WP-KERNEL-012 MT-058 (MC-006): fold the chip's distinct on-screen position into the egui Id so
-        // two occurrences of the SAME tag/ref (e.g. two `#rust` in one doc) get DISTINCT NodeIds while
-        // sharing the same addressable `author_id` STRING. Without this, `ui.id().with((..,&author))`
-        // collides for an identical author and only ONE chip node reaches the AccessKit tree (the
-        // repeated-tag collision the contract red-teams). The position is quantized to whole pixels so a
-        // sub-pixel jitter does not churn the id frame-to-frame.
-        let pos_key = (rect.min.x.round() as i32, rect.min.y.round() as i32);
-        let chip_id = ui.id().with(("wikilink-chip", &author, pos_key));
-        let resp = ui.interact(rect, chip_id, egui::Sense::click());
-        let role = CHIP_ROLE;
+        let _ = accessibility_namespace;
+        let author = crate::rich_editor::scoped_author_id(base_author);
+        // WP-KERNEL-012 MT-058 (MC-006): use the atom's stable document path as the egui instance salt.
+        // Two occurrences of the SAME tag/ref therefore get DISTINCT NodeIds. Repeated Locus refs also
+        // get unique path-suffixed author_ids above; generic wikilinks also use injective target+path
+        // identities. Screen position must not participate: asynchronous chrome or wrapping can
+        // move a chip between the tree snapshot and the next AccessKit action frame; a position-derived
+        // NodeId then drops the otherwise valid action as a stale target.
+        let chip_id = ui
+            .id()
+            .with(("editor.rich.wikilink.chip", &author, instance_key));
+        let resp = ui.interact(
+            rect,
+            chip_id,
+            if spec.ambiguity_matches.is_some() {
+                egui::Sense::hover()
+            } else {
+                egui::Sense::click()
+            },
+        );
+        // MT-034 names code-ref chips as executable controls, so their stable `code-ref-chip-*`
+        // nodes are Buttons. Generic wikilinks, tags, and locus refs retain the shared Link role.
+        let role = if spec.ambiguity_matches.is_some() {
+            accesskit::Role::Alert
+        } else if is_code_reference {
+            accesskit::Role::Button
+        } else {
+            CHIP_ROLE
+        };
         let author_for_node = author.clone();
-        let label_for_node = spec.label.clone();
+        let label_for_node = spec
+            .ambiguity_matches
+            .map(|count| format!("{} — ambiguous link, {count} matching notes", spec.label))
+            .unwrap_or_else(|| spec.label.clone());
         // WP-KERNEL-012 MT-110: a PLAIN wikilink chip (not a tag / code-ref / locus-ref specialized chip)
         // advertises `Action::SetValue` in the editable path so a swarm agent can pick this chip's target
         // by id (headless, no live backend search). The node's live id is returned so the caller records
@@ -3262,8 +4489,9 @@ impl RichEditorWidget {
         // `ref_value`. A specialized chip (tag/code/locus references a specific entity, not a generic
         // wikilink target) and reading mode never advertise it.
         let swarm_edit_node = allow_swarm_edit
+            && spec.ambiguity_matches.is_none()
             && !is_tag
-            && !is_code_ref(&spec.link)
+            && !is_code_reference
             && !is_locus_ref(&spec.link);
         ui.ctx().accesskit_node_builder(chip_id, move |node| {
             node.set_role(role);
@@ -3277,6 +4505,31 @@ impl RichEditorWidget {
         // `(node id -> atom path)` mapping when this chip advertised the swarm SetValue action.
         let swarm_node_id = if swarm_edit_node { Some(chip_id) } else { None };
 
+        if let Some(count) = spec.ambiguity_matches {
+            let badge_rect = egui::Rect::from_min_size(
+                egui::pos2(rect.max.x + 4.0, rect.min.y),
+                egui::vec2(104.0, rect.height().max(super::line_layout::BASE_FONT_SIZE)),
+            );
+            painter.rect_filled(badge_rect, 4.0, palette.surface);
+            painter.rect_stroke(
+                badge_rect,
+                4.0,
+                egui::Stroke::new(1.0, palette.border),
+                egui::StrokeKind::Inside,
+            );
+            painter.text(
+                egui::pos2(badge_rect.min.x + 4.0, badge_rect.center().y),
+                egui::Align2::LEFT_CENTER,
+                format!("⚠ {count} matches"),
+                egui::FontId::proportional(super::line_layout::BASE_FONT_SIZE - 1.0),
+                palette.text_subtle,
+            );
+            return ChipPaintOutcome {
+                event: None,
+                swarm_node_id: None,
+            };
+        }
+
         // WP-KERNEL-012 MT-057: an UNRESOLVED wikilink offers a "Create note" affordance to the RIGHT of
         // the chip — a small Button addressable by the STABLE `wikilink-create-{hash}` author_id
         // (MC-005), Role::Button, so a swarm agent / kittest targets it deterministically. While a
@@ -3285,7 +4538,8 @@ impl RichEditorWidget {
         // RISK-007 / MC-007); the async handler creates the note + rewrites this mark to resolved.
         let mut create_event: Option<EditorEvent> = None;
         if let Some(title) = spec.create_title.clone() {
-            let create_author = create_affordance_author_id(&title);
+            let create_author =
+                crate::rich_editor::scoped_author_id(create_affordance_author_id(&title));
             let create_id = ui.id().with(("wikilink-create", &create_author));
             // Place the button just right of the chip, same row height.
             let btn_rect = egui::Rect::from_min_size(
@@ -3411,7 +4665,7 @@ impl RichEditorWidget {
         // panel by a stable key without ambiguity.
         ui.ctx()
             .accesskit_node_builder(header.header_response.id, move |node| {
-                node.set_author_id("properties-header".to_owned());
+                node.set_author_id(crate::rich_editor::scoped_author_id("properties-header"));
             });
     }
 
@@ -3524,7 +4778,7 @@ impl RichEditorWidget {
             // node, so it MUST carry a stable author_id (the shell HBR-SWARM gate panics on an unnamed
             // interactive node). Clicking it toggles the picker open (a second click closes it).
             let export = ui.button("Export…");
-            let author = Self::EXPORT_BUTTON_AUTHOR_ID.to_owned();
+            let author = crate::rich_editor::scoped_author_id(Self::EXPORT_BUTTON_AUTHOR_ID);
             ui.ctx().accesskit_node_builder(export.id, move |node| {
                 node.set_author_id(author.clone());
             });
@@ -3571,7 +4825,10 @@ impl RichEditorWidget {
         // MT-015: drain any off-thread wikilink resolutions (transclusion / backlinks) + autocomplete
         // search results into their caches BEFORE rendering, with generation-counter cancellation
         // (MC-004). Then, while a popup is open, issue the debounced search (MC-002).
-        let mut wikilink_applied = state.wikilinks.drain();
+        let mut wikilink_applied = state.wikilinks.observe_backlinks_invalidation(ui.ctx());
+        if state.wikilinks.drain() {
+            wikilink_applied = true;
+        }
         if state
             .wikilinks
             .autocomplete
@@ -3579,28 +4836,7 @@ impl RichEditorWidget {
         {
             wikilink_applied = true;
         }
-        // WP-KERNEL-012 MT-057: drain a completed create-from-unresolved. On success the runtime already
-        // inserted the new title into the resolver index (so the link resolves live); here we rewrite
-        // the ORIGINATING mark Unresolved -> Resolved so it re-renders as a live link WITHOUT a reload
-        // (AC-002). A failure clears the in-flight guard (the affordance re-enables) and the editor keeps
-        // the link unresolved (no silent success).
-        if let Some(outcome) = state.wikilinks.drain_create() {
-            use crate::rich_editor::wikilinks::runtime::CreateNoteOutcome;
-            if let CreateNoteOutcome::Created {
-                normalized_title,
-                display_title,
-                document_id,
-            } = outcome
-            {
-                crate::rich_editor::wikilinks::confirm::rewrite_mark_to_resolved(
-                    &mut state.doc,
-                    &normalized_title,
-                    &document_id,
-                    &display_title,
-                );
-            }
-            wikilink_applied = true;
-        }
+        // Create-note outcomes are drained by the shell host, independent of rich-tab visibility.
         if let Some(ac) = state.wikilink_autocomplete.as_mut() {
             // The autocomplete runtime lives inside the wikilink runtime; borrow it to issue the
             // debounced search for the current query (no-op until the 150ms window elapses).
@@ -3632,7 +4868,9 @@ impl RichEditorWidget {
                     );
                 });
             ui.ctx().accesskit_node_builder(banner.response.id, |node| {
-                node.set_author_id("wikilink-alias-local-only-banner".to_owned());
+                node.set_author_id(crate::rich_editor::scoped_author_id(
+                    "wikilink-alias-local-only-banner",
+                ));
                 node.set_label(
                     "Alias resolution local-only: backend aliases unavailable".to_owned(),
                 );
@@ -3692,8 +4930,42 @@ impl RichEditorWidget {
                 // caret after all blocks (so it sits on top).
                 let mut caret_galley: Option<(std::sync::Arc<egui::Galley>, egui::Pos2)> = None;
 
+                // Per-frame document-order counts make repeated identical Locus refs uniquely addressable.
+                // The suffix itself uses the stable document path, not this count or screen geometry, so
+                // resizing/reflow does not change an occurrence's AccessKit identity.
+                let mut locus_chip_occurrences = std::collections::HashMap::<String, usize>::new();
                 for idx in 0..state.doc.children.len() {
                     let Some(block) = state.doc.children[idx].as_block() else { continue };
+
+                    // Virtualize the common large-document case before invoking the expensive
+                    // text shaper. Plain text paragraphs have a deterministic single-line extent;
+                    // reserve that extent for off-screen blocks and paint only the clip window. This
+                    // keeps scroll frames bounded while richer blocks (links, tables, embeds, code)
+                    // continue through the canonical renderer so their interaction/accessibility
+                    // semantics remain unchanged.
+                    let virtualizable = matches!(block.kind, NodeKind::Paragraph)
+                        && block
+                            .children
+                            .iter()
+                            .all(|child| matches!(child, Child::Text(_)));
+                    if virtualizable {
+                        let estimated_height = base_font_size + super::line_layout::BLOCK_GAP_PTS;
+                        let block_rect = egui::Rect::from_min_size(
+                            top,
+                            egui::vec2(content_width, estimated_height),
+                        );
+                        let clip = ui.clip_rect();
+                        let offscreen = block_rect.max.y < clip.min.y || block_rect.min.y > clip.max.y;
+                        if offscreen {
+                            if state.pending_scroll_block.as_deref() == Some(&[idx][..]) {
+                                ui.scroll_to_rect(block_rect, Some(egui::Align::TOP));
+                                state.last_consumed_scroll_block = state.pending_scroll_block.take();
+                                ui.ctx().request_repaint();
+                            }
+                            top.y += estimated_height;
+                            continue;
+                        }
+                    }
 
                     // MT-014: a standalone media-embed block routes to the INTERACTIVE embed
                     // renderer (it owns an egui::Ui for buttons/modals), not the painter path.
@@ -3825,6 +5097,67 @@ impl RichEditorWidget {
                         caret_galley = Some(g.clone());
                     }
 
+                    // WP-KERNEL-012 MT-043: expose an operator- and AccessKit-reachable route from
+                    // one EXACT rich-note code block into the native CodeEditorPanel. The event binds
+                    // the PostgreSQL document id, stable model path, current code snapshot, and the
+                    // owning document's structural snapshot; the host later verifies all four before
+                    // applying `editor.code.save`, so identical code blocks cannot silently drift into
+                    // a different positional target.
+                    let code_open = if !read_only && matches!(block.kind, NodeKind::CodeBlock) {
+                        state.save.as_ref().map(|save| {
+                            let code = block
+                                .children
+                                .first()
+                                .and_then(Child::as_text)
+                                .map(|leaf| leaf.text.to_string())
+                                .unwrap_or_default();
+                            let language = block
+                                .attrs
+                                .get("language")
+                                .and_then(serde_json::Value::as_str)
+                                .unwrap_or_default()
+                                .to_owned();
+                            (save.document_id().to_owned(), language, code)
+                        })
+                    } else {
+                        None
+                    };
+                    if let Some((document_id, language, code)) = code_open {
+                        let path = vec![idx];
+                        let button_rect = egui::Rect::from_min_size(
+                            egui::pos2((top.x + content_width - 102.0).max(top.x), top.y + 4.0),
+                            egui::vec2(96.0_f32.min(content_width), 24.0),
+                        );
+                        let response = ui.put(button_rect, egui::Button::new("Edit code"));
+                        let author = crate::rich_editor::scoped_author_id(
+                            rich_code_block_open_author_id(&path),
+                        );
+                        ui.ctx().accesskit_node_builder(response.id, move |node| {
+                            node.set_role(accesskit::Role::Button);
+                            node.set_author_id(author.clone());
+                            node.set_label("Open this code block in Code Editor".to_owned());
+                        });
+                        if response.clicked() {
+                            // Serialize only for an actual open request, never on idle repaint. This is
+                            // the conservative identity witness used when the document model has no
+                            // durable node id for a code block.
+                            let document_snapshot =
+                                crate::rich_editor::document_model::doc_json::to_content_json_value(
+                                    &state.doc,
+                                );
+                            state.pending_events.push(
+                                crate::rich_editor::wikilinks::inline_view::EditorEvent::CodeBlockOpenRequested {
+                                    document_id,
+                                    document_snapshot,
+                                    block_path: path,
+                                    language,
+                                    code,
+                                },
+                            );
+                            ui.ctx().request_repaint();
+                        }
+                    }
+
                     // WP-KERNEL-012 MT-056 (E2 — outline/TOC): if the outline requested a scroll to THIS
                     // top-level block, bring its painted rect into view through the EXISTING scroll area
                     // (RISK-002 / MC-002 — `ui.scroll_to_rect` on the SAME `rich-editor-scroll` ScrollArea,
@@ -3835,7 +5168,7 @@ impl RichEditorWidget {
                     if state.pending_scroll_block.as_deref() == Some(&[idx][..]) {
                         let block_rect = egui::Rect::from_min_size(top, egui::vec2(content_width, bp.height));
                         ui.scroll_to_rect(block_rect, Some(egui::Align::TOP));
-                        state.pending_scroll_block = None;
+                        state.last_consumed_scroll_block = state.pending_scroll_block.take();
                         ui.ctx().request_repaint();
                     }
 
@@ -3843,7 +5176,8 @@ impl RichEditorWidget {
                     // re-layout the block (cheap) to get the galley, find each hsLink's char span in
                     // the laid-out text, and paint a colored rounded chip at the glyph span — the chip
                     // Y is the (already scroll-adjusted) paint origin `top` (RISK-1 / MC-001). Each chip
-                    // is an interactive AccessKit node (`wikilink-chip-{hash}`, Role::Link); a click
+                    // is an interactive occurrence-scoped AccessKit node
+                    // (`editor.rich.wikilink.chip.v{target-utf8-hex}.path.{model-path}`, Role::Link); a click
                     // enqueues a WikilinkActivated event for the shell. The chip specs are computed
                     // into an owned vec FIRST (ending the doc borrow) so `pending_events` can be
                     // borrowed mutably when handling a click.
@@ -3857,6 +5191,17 @@ impl RichEditorWidget {
                         &state.wikilinks.resolver_index,
                     );
                     for spec in chip_specs {
+                        let locus_occurrence_index = if crate::rich_editor::wikilinks::inline_view::is_locus_ref(&spec.link) {
+                            let base = crate::rich_editor::wikilinks::inline_view::locus_ref_chip_author_id(
+                                &spec.link.ref_value,
+                            );
+                            let next = locus_chip_occurrences.entry(base).or_insert(0);
+                            let current = *next;
+                            *next += 1;
+                            current
+                        } else {
+                            0
+                        };
                         // WP-KERNEL-012 MT-057: an in-flight create (keyed on the normalized title)
                         // DISABLES the create affordance so a double-click cannot POST twice (MC-001).
                         let creating = spec
@@ -3868,7 +5213,15 @@ impl RichEditorWidget {
                         // SetValue dispatched at this chip resolves to the exact hsLink atom.
                         let atom_path = vec![idx, spec.leaf_index];
                         let outcome = Self::paint_one_wikilink_chip(
-                            ui, &spec, top, palette, creating, !read_only,
+                            ui,
+                            &spec,
+                            (idx, spec.leaf_index),
+                            locus_occurrence_index,
+                            top,
+                            palette,
+                            creating,
+                            !read_only,
+                            state.accessibility_namespace.as_deref(),
                         );
                         // WP-KERNEL-012 MT-110: record the chip's live node id -> atom path when the chip
                         // advertised the swarm SetValue action, so `consume_swarm_text_actions` can pick
@@ -3882,7 +5235,14 @@ impl RichEditorWidget {
                             // inline on this frame, RISK-007/MC-007) AND enqueued for the shell to
                             // observe. The dispatch guards against a duplicate in-flight create (MC-001).
                             if let crate::rich_editor::wikilinks::inline_view::EditorEvent::CreateNote { title } = &ev {
-                                state.wikilinks.dispatch_create_note(title);
+                                if state.wikilinks.dispatch_create_note(title) {
+                                    state.wikilink_create_error = None;
+                                } else {
+                                    state.wikilink_create_error = Some(format!(
+                                        "Could not start note creation for '{}'. Retry when the editor backend is available.",
+                                        title.trim()
+                                    ));
+                                }
                                 ui.ctx().request_repaint();
                             }
                             state.pending_events.push(ev);
@@ -3925,7 +5285,7 @@ impl RichEditorWidget {
                     // independent of the egui Id, so addressing-by-author_id is unaffected.
                     if matches!(block.kind, NodeKind::Paragraph | NodeKind::Heading(_)) {
                         let path = vec![idx];
-                        let author = block_author_id(&path);
+                        let author = crate::rich_editor::scoped_author_id(block_author_id(&path));
                         let label = state.block_plain_text(idx).unwrap_or_default();
                         let scope_salt = block_node_id(&path);
                         ui.scope_builder(egui::UiBuilder::new().id_salt(scope_salt), |ui| {
@@ -4007,7 +5367,7 @@ impl RichEditorWidget {
                     let local = galley.pos_from_cursor(cursor);
                     egui::pos2(origin.x + local.min.x, origin.y + local.max.y)
                 });
-                Self::render_slash_surface(ui, state, palette, caret_pixel);
+                Self::render_slash_surface(ui, state, palette, caret_pixel, has_focus);
             }
 
             // WP-KERNEL-012 MT-058: the inline-tag `#` autocomplete menu, anchored at the caret pixel
@@ -4141,6 +5501,25 @@ impl RichEditorWidget {
                         &state.doc,
                     );
                     state.pending_bus_undo.push((before, after));
+                    let pane_id = state
+                        .undo_pane_id
+                        .as_ref()
+                        .map(|pane| pane.as_ref().to_owned())
+                        .unwrap_or_else(|| "pane-rich".to_owned());
+                    let target_document_id = state
+                        .save
+                        .as_ref()
+                        .map(|save| save.document_id().to_owned())
+                        .unwrap_or_else(|| pane_id.clone());
+                    let event = crate::event_emitter::NativeEditorEvent::cross_ref_inserted(
+                        "code",
+                        symbol_entity_id,
+                        target_document_id,
+                        pane_id,
+                        state.actor_id.clone(),
+                        state.code_ref_workspace_id.clone(),
+                    );
+                    crate::event_emitter::dispatch_event_from_frame(ui.ctx(), event);
                 }
                 state.code_symbol_search = None;
             }
@@ -4153,7 +5532,7 @@ impl RichEditorWidget {
     /// rows blended from the resolver index. Clicking a row confirms it (inserts the hsLink atom) and
     /// closes the popup — the same effect as Enter. AccessKit: the popup is `wikilink-autocomplete`,
     /// each backend row is `wikilink-result-{i}`, and each alias candidate row is
-    /// `wikilink-candidate-{document_id}` (the contract ids).
+    /// `editor.rich.wikilink.candidate.{document_id}` (the canonical ids).
     fn render_autocomplete_popup(
         ui: &mut egui::Ui,
         state: &mut RichEditorState,
@@ -4225,7 +5604,9 @@ impl RichEditorWidget {
                                     let label = format!("{}  ({})", row.title, row.content_type);
                                     let item = ui.add(egui::Button::selectable(selected, label));
                                     // AccessKit: each backend result row is `wikilink-result-{i}`.
-                                    let author = format!("wikilink-result-{i}");
+                                    let author = crate::rich_editor::scoped_author_id(format!(
+                                        "wikilink-result-{i}"
+                                    ));
                                     let row_id = item.id;
                                     let author_for_node = author.clone();
                                     ui.ctx().accesskit_node_builder(row_id, move |node| {
@@ -4252,7 +5633,7 @@ impl RichEditorWidget {
                         // WP-KERNEL-012 MT-057 (WIRE 1): the ALIAS candidate rows, blended below the
                         // backend rows. Each renders the canonical title as the primary label and, when
                         // the match came from an alias, the `— alias: "…"` secondary label (AC-005), and
-                        // carries the stable `wikilink-candidate-{document_id}` AccessKit author_id so a
+                        // carries the stable `editor.rich.wikilink.candidate.{document_id}` AccessKit author_id so a
                         // swarm agent / kittest targets it by the document it resolves to. A candidate
                         // whose document a backend row already lists is skipped (dedupe-by-id).
                         for cand in &alias_candidates {
@@ -4264,7 +5645,9 @@ impl RichEditorWidget {
                                 None => cand.display_title.clone(),
                             };
                             let item = ui.add(egui::Button::selectable(false, label.clone()));
-                            let author = candidate_author_id(&cand.document_id);
+                            let author = crate::rich_editor::scoped_author_id(candidate_author_id(
+                                &cand.document_id,
+                            ));
                             let row_id = item.id;
                             let label_for_node = label.clone();
                             let author_for_node = author.clone();
@@ -4290,7 +5673,9 @@ impl RichEditorWidget {
                 let popup_id = resp.id;
                 ui.ctx().accesskit_node_builder(popup_id, |node| {
                     node.set_role(egui::accesskit::Role::ListBox);
-                    node.set_author_id("wikilink-autocomplete".to_owned());
+                    node.set_author_id(crate::rich_editor::scoped_author_id(
+                        "wikilink-autocomplete",
+                    ));
                 });
             });
 
@@ -4369,7 +5754,9 @@ impl RichEditorWidget {
                             let row = ui.add(egui::Button::selectable(selected, label.clone()));
                             // AccessKit: each row is `inline-tag-menu-row-{i}` so a swarm agent / kittest
                             // targets it deterministically.
-                            let author = format!("inline-tag-menu-row-{i}");
+                            let author = crate::rich_editor::scoped_author_id(format!(
+                                "inline-tag-menu-row-{i}"
+                            ));
                             let row_id = row.id;
                             let label_for_node = label.clone();
                             ui.ctx().accesskit_node_builder(row_id, move |node| {
@@ -4386,7 +5773,7 @@ impl RichEditorWidget {
                 let popup_id = resp.id;
                 ui.ctx().accesskit_node_builder(popup_id, |node| {
                     node.set_role(egui::accesskit::Role::ListBox);
-                    node.set_author_id("inline-tag-menu".to_owned());
+                    node.set_author_id(crate::rich_editor::scoped_author_id("inline-tag-menu"));
                 });
             });
 
@@ -4409,6 +5796,7 @@ impl RichEditorWidget {
         state: &mut RichEditorState,
         palette: &HsPalette,
         caret_pixel: Option<egui::Pos2>,
+        editor_has_focus: bool,
     ) {
         use crate::rich_editor::slash_commands::executor::{confirm_prompt, SlashExecContext};
         use crate::rich_editor::slash_commands::menu::{
@@ -4462,14 +5850,41 @@ impl RichEditorWidget {
                                 &state.doc,
                             );
                         state.pending_bus_undo.push((before, after));
+                        if let crate::rich_editor::slash_commands::SlashPromptKind::Embed(kind) =
+                            &confirm_state.kind
+                        {
+                            let pane_id = state
+                                .undo_pane_id
+                                .as_ref()
+                                .map(|pane| pane.as_ref().to_owned())
+                                .unwrap_or_else(|| "pane-rich".to_owned());
+                            let target_document_id = state
+                                .save
+                                .as_ref()
+                                .map(|save| save.document_id().to_owned())
+                                .unwrap_or_else(|| pane_id.clone());
+                            let event = crate::event_emitter::NativeEditorEvent::embed_created(
+                                kind.ref_kind(),
+                                // `confirm_prompt` inserts the trimmed value. Event identity must be
+                                // byte-for-byte identical to the atom persisted in the document.
+                                confirm_state.input.trim().to_owned(),
+                                target_document_id,
+                                pane_id,
+                                state.actor_id.clone(),
+                                state.code_ref_workspace_id.clone(),
+                            );
+                            crate::event_emitter::dispatch_event_from_frame(ui.ctx(), event);
+                        }
                     }
                     // Whether or not the insert happened (blank input is a no-op), close the surface on
                     // confirm so a blank confirm dismisses cleanly.
                     state.slash_menu = None;
+                    state.slash_menu_opened_explicitly = false;
                     ui.ctx().request_repaint();
                 }
                 SlashPromptOutcome::Cancel => {
                     state.slash_menu = None;
+                    state.slash_menu_opened_explicitly = false;
                     ui.ctx().request_repaint();
                 }
                 SlashPromptOutcome::None => {}
@@ -4487,6 +5902,15 @@ impl RichEditorWidget {
             }
             SlashMenuOutcome::Cancel => {
                 state.slash_menu = None;
+                state.slash_menu_opened_explicitly = false;
+            }
+            // MT-016 (RISK-4 / MC-004): evaluate focus loss only AFTER the popup processed this
+            // frame. A pointer/AccessKit click on a slash row legitimately transfers focus away from
+            // the editor surface; eagerly clearing the menu before render swallowed that operator
+            // action. A non-executing focus loss still dismisses the menu so it cannot strand input.
+            SlashMenuOutcome::None if !editor_has_focus && !state.slash_menu_opened_explicitly => {
+                state.slash_menu = None;
+                state.slash_menu_opened_explicitly = false;
             }
             SlashMenuOutcome::None => {}
         }
@@ -4539,6 +5963,9 @@ struct WikilinkChipSpec {
     /// a code ref / known-kind chip not subject to create-from-unresolved). The title is the trimmed
     /// original-case title the create intent + the create affordance author_id are keyed on.
     create_title: Option<String>,
+    /// Number of normalized-title-or-alias matches when resolution is ambiguous. Ambiguous chips are
+    /// visible AccessKit Alert surfaces, not navigation/create/swarm-edit controls.
+    ambiguity_matches: Option<usize>,
     /// WP-KERNEL-012 MT-110: the atom's child index within its block (the leaf index). Combined with the
     /// block index at the call site it gives the doc path `[block_idx, leaf_index]` the swarm
     /// wikilink-target consume ([`RichEditorWidget::set_hs_link_ref_value`]) mutates. The chip's swarm
@@ -4601,16 +6028,20 @@ fn wikilink_chip_specs(
                 // A locus ref (MT-068) references a governed WP/MT work unit, NOT a note, so — like a code
                 // ref — it is NEVER a create-from-unresolved-note candidate even when greyed (the greyed
                 // state means the record/endpoint is unavailable, not "create a note named WP-KERNEL-012").
-                let create_title = if link.resolved || is_code_ref(link) || is_locus_ref(link) {
-                    None
-                } else {
-                    match resolve_wikilink(resolver_index, &link.ref_value) {
-                        WikilinkResolution::Unresolved { title } if !title.is_empty() => {
-                            Some(title)
+                let (create_title, ambiguity_matches) =
+                    if link.resolved || is_code_ref(link) || is_locus_ref(link) {
+                        (None, None)
+                    } else {
+                        match resolve_wikilink(resolver_index, &link.ref_value) {
+                            WikilinkResolution::Unresolved { title } if !title.is_empty() => {
+                                (Some(title), None)
+                            }
+                            WikilinkResolution::Ambiguous { document_ids, .. } => {
+                                (None, Some(document_ids.len()))
+                            }
+                            _ => (None, None), // the index now resolves it -> not a create candidate
                         }
-                        _ => None, // the index now resolves it -> not a create candidate
-                    }
-                };
+                    };
                 specs.push(WikilinkChipSpec {
                     link: link.clone(),
                     local_start,
@@ -4619,6 +6050,7 @@ fn wikilink_chip_specs(
                     fg,
                     label,
                     create_title,
+                    ambiguity_matches,
                     leaf_index,
                 });
                 char_cursor = end;
@@ -4730,12 +6162,394 @@ pub use accessibility::assert_no_unnamed_interactive;
 mod tests {
     use super::*;
 
+    struct StageTestTransport;
+    impl crate::event_emitter::EventLedgerTransport for StageTestTransport {
+        fn build_post_body(
+            &self,
+            event: &crate::event_emitter::NativeEditorEvent,
+        ) -> serde_json::Value {
+            event.to_native_payload()
+        }
+
+        fn post(
+            &self,
+            _event: crate::event_emitter::NativeEditorEvent,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<Output = Result<(), crate::event_emitter::EmitError>>
+                    + Send,
+            >,
+        > {
+            Box::pin(async { Ok(()) })
+        }
+    }
+
+    struct StageTestSaveBackend;
+    impl crate::rich_editor::save::save_manager::SaveBackend for StageTestSaveBackend {
+        fn save_document(
+            &self,
+            _document_id: &str,
+            _content_json: serde_json::Value,
+            _expected_version: u64,
+        ) -> crate::rich_editor::save::save_manager::SaveFuture {
+            Box::pin(async {
+                Err(crate::rich_editor::save::save_manager::SaveError::Network(
+                    "test delivery is injected".to_owned(),
+                ))
+            })
+        }
+    }
+
+    fn stage_test_marker(
+        link: crate::rich_editor::document_model::node::HsLinkNode,
+    ) -> PendingStageEmbedSave {
+        PendingStageEmbedSave {
+            link,
+            artifact_id: "artifact-1".to_owned(),
+            sha256: "a".repeat(64),
+            target_pane: "pane-rich".to_owned(),
+            workspace_id: "workspace-1".to_owned(),
+            target_epoch: 1,
+            emitter: crate::event_emitter::NativeEditorEventEmitter::new(
+                "workspace-1",
+                Arc::new(StageTestTransport),
+                None,
+            ),
+            receipt: crate::event_emitter::NativeEditorEvent::stage_embed_back(
+                "artifact-1",
+                "pane-rich",
+                "a".repeat(64),
+                "manifest-1",
+                "actor-1",
+                "workspace-1",
+            ),
+            in_flight_lease: None,
+            launch_runtime: None,
+        }
+    }
+
     #[test]
     fn state_new_places_caret_at_doc_start() {
         let st = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("hi")]));
+        assert_eq!(RICH_EDITOR_TEXT_AUTHOR_ID, "editor.rich.text");
         assert!(matches!(
             st.selection,
             Selection::Text { ref head, .. } if head.path == vec![0, 0] && head.char_offset == 0
+        ));
+    }
+
+    #[test]
+    fn canonical_slash_payload_inserts_exact_wikilink_without_transient_row_id() {
+        let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("anchor")]));
+        state.selection = Selection::caret(DocPosition::new(vec![0, 0], 6));
+        RichEditorWidget::run_rich_dispatch(
+            &mut state,
+            &RichDispatch::InsertSlashCommand,
+            "insert-slash-command",
+            Some(
+                r#"{"kind":"wikilink","ref_kind":"note","ref_value":"DOC-EXACT-9","label":"Exact note"}"#,
+            ),
+            &egui::Context::default(),
+        );
+        let paragraph = state.doc.children[0].as_block().unwrap();
+        let link = paragraph
+            .children
+            .iter()
+            .find_map(Child::as_hs_link)
+            .expect("direct payload inserted hsLink");
+        assert_eq!(link.ref_kind, "note");
+        assert_eq!(link.ref_value, "DOC-EXACT-9");
+        assert_eq!(link.label, "Exact note");
+        assert_eq!(state.pending_bus_undo.len(), 1);
+        assert!(state.interop_error.is_none());
+    }
+
+    #[test]
+    fn canonical_slash_payload_inserts_exact_code_block_without_transient_row_id() {
+        let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("anchor")]));
+        state.selection = Selection::caret(DocPosition::new(vec![0, 0], 6));
+        RichEditorWidget::run_rich_dispatch(
+            &mut state,
+            &RichDispatch::InsertSlashCommand,
+            "insert-slash-command",
+            Some(
+                r#"{"kind":"code_block","language":"rust","code":"fn exact() {\n    work();\n}"}"#,
+            ),
+            &egui::Context::default(),
+        );
+        let block = state.doc.children[1]
+            .as_block()
+            .expect("code block inserted");
+        assert_eq!(block.kind, NodeKind::CodeBlock);
+        assert_eq!(
+            block.attrs.get("language").and_then(|value| value.as_str()),
+            Some("rust")
+        );
+        let code = block.children[0].as_text().expect("code text leaf");
+        assert_eq!(code.text.to_string(), "fn exact() {\n    work();\n}");
+        assert_eq!(state.pending_bus_undo.len(), 1);
+        assert!(state.interop_error.is_none());
+    }
+
+    #[test]
+    fn canonical_slash_payload_rejects_unknown_wikilink_kind_without_mutation() {
+        let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("anchor")]));
+        state.selection = Selection::caret(DocPosition::new(vec![0, 0], 6));
+        let before =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        RichEditorWidget::run_rich_dispatch(
+            &mut state,
+            &RichDispatch::InsertSlashCommand,
+            "insert-slash-command",
+            Some(
+                r#"{"kind":"wikilink","ref_kind":"spoofed","ref_value":"TARGET","label":"must reject"}"#,
+            ),
+            &egui::Context::default(),
+        );
+        assert_eq!(
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+            before
+        );
+        assert!(state.pending_bus_undo.is_empty());
+        assert!(state
+            .interop_error
+            .as_deref()
+            .is_some_and(|error| { error.contains("could not insert") }));
+    }
+
+    #[test]
+    fn canonical_slash_payload_rejects_whitespace_wikilink_identity_without_mutation() {
+        for payload in [
+            r#"{"kind":"wikilink","ref_kind":"   ","ref_value":"TARGET","label":"x"}"#,
+            r#"{"kind":"wikilink","ref_kind":"note","ref_value":"   ","label":"x"}"#,
+        ] {
+            let mut state =
+                RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("anchor")]));
+            let before =
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+            RichEditorWidget::run_rich_dispatch(
+                &mut state,
+                &RichDispatch::InsertSlashCommand,
+                "insert-slash-command",
+                Some(payload),
+                &egui::Context::default(),
+            );
+            assert_eq!(
+                crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+                before
+            );
+            assert!(state.pending_bus_undo.is_empty());
+            assert!(state.interop_error.is_some());
+        }
+    }
+
+    #[test]
+    fn atelier_embed_inserts_transactionally_into_empty_paragraph() {
+        use crate::rich_editor::document_model::node::HsLinkNode;
+
+        let empty = BlockNode::with_children(NodeKind::Paragraph, vec![]);
+        let mut state = RichEditorState::new(BlockNode::doc(vec![empty]));
+        assert!(matches!(
+            state.selection,
+            Selection::Text { ref head, .. } if head.path == vec![0, 0]
+        ));
+
+        assert!(RichEditorWidget::insert_atelier_embed_at_caret(
+            &mut state,
+            HsLinkNode::new("media", "item-empty", "empty.png"),
+        ));
+        let paragraph = state.doc.children[0].as_block().unwrap();
+        assert!(matches!(
+            paragraph.children.as_slice(),
+            [Child::HsLink(link), Child::Text(_)]
+                if link.ref_kind == "media" && link.ref_value == "item-empty"
+        ));
+        assert_eq!(
+            state.undo.len(),
+            1,
+            "empty-doc insert remains one undo unit"
+        );
+        assert_eq!(state.pending_bus_undo.len(), 1);
+        assert!(matches!(
+            state.selection,
+            Selection::Text { ref head, .. } if head.path == vec![0, 1] && head.char_offset == 0
+        ));
+    }
+
+    #[test]
+    fn atelier_embed_replaces_reverse_multi_run_selection_in_one_transaction() {
+        use crate::rich_editor::document_model::node::{HsLinkNode, TextLeaf};
+
+        let paragraph = BlockNode::with_children(
+            NodeKind::Paragraph,
+            vec![
+                Child::Text(TextLeaf::new("before ")),
+                Child::HsLink(HsLinkNode::new("note", "old", "old")),
+                Child::Text(TextLeaf::new(" after")),
+            ],
+        );
+        let mut state = RichEditorState::new(BlockNode::doc(vec![paragraph]));
+        let before = state.doc.clone();
+        state.selection = Selection::text(
+            DocPosition::new(vec![0, 2], 3),
+            DocPosition::new(vec![0, 0], 3),
+        );
+
+        assert!(RichEditorWidget::insert_atelier_embed_at_caret(
+            &mut state,
+            HsLinkNode::new("code", "src/lib.rs#replacement", "replacement"),
+        ));
+        let paragraph = state.doc.children[0].as_block().unwrap();
+        assert!(matches!(
+            paragraph.children.as_slice(),
+            [Child::Text(prefix), Child::HsLink(link), Child::Text(suffix)]
+                if prefix.text.to_string() == "bef"
+                    && link.ref_kind == "code"
+                    && link.ref_value == "src/lib.rs#replacement"
+                    && suffix.text.to_string() == "ter"
+        ));
+        assert_eq!(state.undo.len(), 1);
+        assert_eq!(state.pending_bus_undo.len(), 1);
+        assert!(state.undo.undo(&mut state.doc).unwrap());
+        assert_eq!(
+            state.doc, before,
+            "one model undo restores every removed run"
+        );
+    }
+
+    #[test]
+    fn atelier_embed_replaces_reverse_cross_block_selection_in_one_transaction() {
+        use crate::rich_editor::document_model::node::HsLinkNode;
+
+        let mut state = RichEditorState::new(BlockNode::doc(vec![
+            BlockNode::paragraph("see REPLACE_"),
+            BlockNode::paragraph("ME later"),
+        ]));
+        let before = state.doc.clone();
+        state.selection = Selection::text(
+            DocPosition::new(vec![1, 0], 2),
+            DocPosition::new(vec![0, 0], 4),
+        );
+
+        assert!(RichEditorWidget::insert_atelier_embed_at_caret(
+            &mut state,
+            HsLinkNode::new("code", "src/lib.rs#replacement", "replacement"),
+        ));
+        assert_eq!(state.doc.children.len(), 1);
+        let paragraph = state.doc.children[0].as_block().unwrap();
+        assert!(matches!(
+            paragraph.children.as_slice(),
+            [Child::Text(prefix), Child::HsLink(link), Child::Text(suffix)]
+                if prefix.text.to_string() == "see "
+                    && link.ref_value == "src/lib.rs#replacement"
+                    && suffix.text.to_string() == " later"
+        ));
+        assert_eq!(state.undo.len(), 1);
+        assert_eq!(state.pending_bus_undo.len(), 1);
+        assert!(state.undo.undo(&mut state.doc).unwrap());
+        assert_eq!(state.doc, before);
+    }
+
+    #[test]
+    fn host_plain_text_replaces_same_and_cross_block_selections_atomically() {
+        let mut same = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph(
+            "before REMOVE after",
+        )]));
+        let same_before = same.doc.clone();
+        same.selection = Selection::text(
+            DocPosition::new(vec![0, 0], 7),
+            DocPosition::new(vec![0, 0], 13),
+        );
+        assert!(same.insert_plain_text_for_host("plain"));
+        assert_eq!(
+            same.block_plain_text(0).as_deref(),
+            Some("before plain after")
+        );
+        assert_eq!(same.undo.len(), 1);
+        assert_eq!(same.pending_bus_undo.len(), 1);
+        assert!(same.undo.undo(&mut same.doc).unwrap());
+        assert_eq!(same.doc, same_before);
+
+        let mut cross = RichEditorState::new(BlockNode::doc(vec![
+            BlockNode::paragraph("before REMOVE_"),
+            BlockNode::paragraph("ME after"),
+        ]));
+        let cross_before = cross.doc.clone();
+        cross.selection = Selection::text(
+            DocPosition::new(vec![1, 0], 2),
+            DocPosition::new(vec![0, 0], 7),
+        );
+        assert!(cross.insert_plain_text_for_host("see [[code:src/lib.rs#symbol]] now"));
+        assert_eq!(
+            cross.block_plain_text(0).as_deref(),
+            Some("before see [[code:src/lib.rs#symbol]] now after")
+        );
+        assert_eq!(cross.doc.children.len(), 1);
+        assert_eq!(cross.undo.len(), 1);
+        assert_eq!(cross.pending_bus_undo.len(), 1);
+        assert!(cross.undo.undo(&mut cross.doc).unwrap());
+        assert_eq!(cross.doc, cross_before);
+    }
+
+    #[test]
+    fn host_plain_text_nested_cross_container_selection_fails_closed() {
+        let list_item = |text| {
+            BlockNode::with_children(
+                NodeKind::ListItem,
+                vec![Child::Block(BlockNode::paragraph(text))],
+            )
+        };
+        let list = BlockNode::with_children(
+            NodeKind::BulletList,
+            vec![
+                Child::Block(list_item("first")),
+                Child::Block(list_item("second")),
+            ],
+        );
+        let mut state = RichEditorState::new(BlockNode::doc(vec![list]));
+        let before = state.doc.clone();
+        state.selection = Selection::text(
+            DocPosition::new(vec![0, 0, 0, 0], 2),
+            DocPosition::new(vec![0, 1, 0, 0], 3),
+        );
+
+        assert!(!state.insert_plain_text_for_host("replacement"));
+        assert_eq!(state.doc, before);
+        assert!(state.undo.is_empty());
+        assert!(state.pending_bus_undo.is_empty());
+    }
+
+    #[test]
+    fn atelier_embed_keeps_caret_in_selected_empty_paragraph_before_later_text() {
+        use crate::rich_editor::document_model::node::HsLinkNode;
+
+        let empty = BlockNode::with_children(NodeKind::Paragraph, vec![]);
+        let later = BlockNode::paragraph("later");
+        let mut state = RichEditorState::new(BlockNode::doc(vec![empty, later]));
+
+        assert!(RichEditorWidget::insert_atelier_embed_at_caret(
+            &mut state,
+            HsLinkNode::new("media", "item-first", "first.png"),
+        ));
+        let first = state.doc.children[0].as_block().unwrap();
+        assert!(matches!(
+            first.children.as_slice(),
+            [Child::HsLink(link), Child::Text(_)] if link.ref_value == "item-first"
+        ));
+        assert_eq!(
+            state.doc.children[1].as_block().unwrap().children[0]
+                .as_text()
+                .unwrap()
+                .text
+                .to_string(),
+            "later",
+            "the later text-bearing paragraph remains untouched"
+        );
+        assert_eq!(state.undo.len(), 1);
+        assert_eq!(state.pending_bus_undo.len(), 1);
+        assert!(matches!(
+            state.selection,
+            Selection::Text { ref head, .. } if head.path == vec![0, 1]
         ));
     }
 
@@ -4777,6 +6591,219 @@ mod tests {
         assert_eq!(f.accesskit_role(), accesskit::Role::TextInput);
     }
 
+    #[test]
+    fn stage_embed_without_save_context_does_not_mutate_or_install_marker() {
+        use crate::event_emitter::{
+            EmitError, EventLedgerTransport, NativeEditorEvent, NativeEditorEventEmitter,
+        };
+        use crate::rich_editor::document_model::node::HsLinkNode;
+
+        struct AcceptingTransport;
+        impl EventLedgerTransport for AcceptingTransport {
+            fn build_post_body(&self, event: &NativeEditorEvent) -> serde_json::Value {
+                event.to_native_payload()
+            }
+
+            fn post(
+                &self,
+                _event: NativeEditorEvent,
+            ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EmitError>> + Send>>
+            {
+                Box::pin(async { Ok(()) })
+            }
+        }
+
+        let mut state = RichEditorState::demo();
+        let before =
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc);
+        let link = HsLinkNode::new("stage_capture", "artifact-1", "capture");
+        let pending = PendingStageEmbedSave {
+            link,
+            artifact_id: "artifact-1".to_owned(),
+            sha256: "a".repeat(64),
+            target_pane: "pane-rich".to_owned(),
+            workspace_id: "workspace-1".to_owned(),
+            target_epoch: 1,
+            emitter: NativeEditorEventEmitter::new(
+                "workspace-1",
+                Arc::new(AcceptingTransport),
+                None,
+            ),
+            receipt: NativeEditorEvent::stage_embed_back(
+                "artifact-1",
+                "pane-rich",
+                "a".repeat(64),
+                "manifest-1",
+                "actor-1",
+                "workspace-1",
+            ),
+            in_flight_lease: None,
+            launch_runtime: None,
+        };
+
+        let result = RichEditorWidget::insert_stage_embed_and_request_save(&mut state, pending);
+        assert!(result.is_err());
+        assert_eq!(
+            crate::rich_editor::document_model::doc_json::to_content_json_value(&state.doc),
+            before,
+            "failed save preflight must leave the document byte-structurally unchanged"
+        );
+        assert!(state.pending_stage_embed_save.is_none());
+    }
+
+    #[test]
+    fn stage_embed_save_verifier_requires_exact_hslink_tuple() {
+        use crate::rich_editor::document_model::node::HsLinkNode;
+
+        let mut expected = HsLinkNode::new("stage_capture", "artifact-1", "capture");
+        expected.provenance = Some(serde_json::json!({
+            "source": "stage_capture",
+            "artifact_id": "artifact-1",
+            "sha256": "a".repeat(64),
+            "manifest_ref": "manifest-1"
+        }));
+        let document = BlockNode::doc(vec![BlockNode::with_children(
+            NodeKind::Paragraph,
+            vec![Child::HsLink(expected.clone())],
+        )]);
+        let saved = crate::rich_editor::document_model::doc_json::to_content_json_value(&document);
+        assert!(saved_content_contains_exact_hs_link(&saved, &expected));
+
+        let mut wrong = expected.clone();
+        wrong.provenance.as_mut().unwrap()["manifest_ref"] =
+            serde_json::Value::String("manifest-2".to_owned());
+        assert!(
+            !saved_content_contains_exact_hs_link(&saved, &wrong),
+            "artifact id alone cannot satisfy provenance durability proof"
+        );
+    }
+
+    #[test]
+    fn stage_embed_stays_persisting_while_save_has_no_delivery() {
+        use crate::rich_editor::document_model::node::HsLinkNode;
+        use crate::rich_editor::save::save_manager::SaveManager;
+
+        let mut state = RichEditorState::demo();
+        state.save = Some(SaveManager::new(
+            Arc::new(StageTestSaveBackend),
+            None,
+            "DOC-1",
+            1,
+        ));
+        let in_flight = Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let mut marker =
+            stage_test_marker(HsLinkNode::new("stage_capture", "artifact-1", "capture"));
+        marker.in_flight_lease = Some(crate::stage_pane::StageEmbedInFlightLease::new(Arc::clone(
+            &in_flight,
+        )));
+        RichEditorWidget::insert_stage_embed_and_request_save(&mut state, marker).unwrap();
+        RichEditorWidget::drive_save_and_draft(&egui::Context::default(), &mut state);
+        assert!(state.pending_stage_embed_save.is_some());
+        assert!(state.take_stage_embed_save_completion().is_none());
+        assert!(state.save.as_ref().is_some_and(|save| save.is_saving()));
+        assert!(in_flight.load(std::sync::atomic::Ordering::Acquire));
+        assert!(
+            in_flight
+                .compare_exchange(
+                    false,
+                    true,
+                    std::sync::atomic::Ordering::AcqRel,
+                    std::sync::atomic::Ordering::Acquire,
+                )
+                .is_err(),
+            "a repeated click while the save is delayed must not admit a second Stage capture"
+        );
+        drop(state);
+        assert!(
+            !in_flight.load(std::sync::atomic::Ordering::Acquire),
+            "dropping the pending authority must release its Stage latch"
+        );
+    }
+
+    #[test]
+    fn stage_embed_conflict_retains_marker_and_withholds_success() {
+        use crate::rich_editor::document_model::node::HsLinkNode;
+        use crate::rich_editor::save::save_manager::{RichDocLoad, SaveError, SaveManager};
+
+        let mut state = RichEditorState::demo();
+        state.save = Some(SaveManager::new(
+            Arc::new(StageTestSaveBackend),
+            None,
+            "DOC-1",
+            1,
+        ));
+        RichEditorWidget::insert_stage_embed_and_request_save(
+            &mut state,
+            stage_test_marker(HsLinkNode::new("stage_capture", "artifact-1", "capture")),
+        )
+        .unwrap();
+        state
+            .save
+            .as_ref()
+            .unwrap()
+            .deliver_for_test(Err(SaveError::VersionConflict(Box::new(RichDocLoad {
+                rich_document_id: "DOC-1".to_owned(),
+                doc_version: 2,
+                title: "server".to_owned(),
+                content_json: Some(serde_json::json!({"type":"doc","content":[]})),
+                updated_at: None,
+            }))));
+        RichEditorWidget::drive_save_and_draft(&egui::Context::default(), &mut state);
+        assert!(state.pending_stage_embed_save.is_some());
+        assert!(matches!(
+            state.take_stage_embed_save_completion(),
+            Some(StageEmbedSaveCompletion::Failed(_))
+        ));
+    }
+
+    #[test]
+    fn stage_embed_exact_saved_snapshot_yields_one_persisted_completion() {
+        use crate::rich_editor::document_model::node::HsLinkNode;
+        use crate::rich_editor::save::save_manager::{RichDocLoad, RichDocSaveResult, SaveManager};
+
+        let mut link = HsLinkNode::new("stage_capture", "artifact-1", "capture");
+        link.provenance = Some(serde_json::json!({
+            "source": "stage_capture",
+            "artifact_id": "artifact-1",
+            "sha256": "a".repeat(64),
+            "manifest_ref": "manifest-1"
+        }));
+        let mut state = RichEditorState::demo();
+        state.save = Some(SaveManager::new(
+            Arc::new(StageTestSaveBackend),
+            None,
+            "DOC-1",
+            1,
+        ));
+        RichEditorWidget::insert_stage_embed_and_request_save(&mut state, stage_test_marker(link))
+            .unwrap();
+        state
+            .save
+            .as_ref()
+            .unwrap()
+            .deliver_for_test(Ok(RichDocSaveResult {
+                document: RichDocLoad {
+                    rich_document_id: "DOC-1".to_owned(),
+                    doc_version: 2,
+                    title: "saved".to_owned(),
+                    content_json: None,
+                    updated_at: None,
+                },
+                backlinks_persisted: 0,
+                backlinks_error: None,
+                backlinks_skipped_reason: None,
+                save_receipt_event_id: None,
+                attribution: None,
+            }));
+        RichEditorWidget::drive_save_and_draft(&egui::Context::default(), &mut state);
+        assert!(state.pending_stage_embed_save.is_none());
+        assert!(matches!(
+            state.take_stage_embed_save_completion(),
+            Some(StageEmbedSaveCompletion::Persisted(_))
+        ));
+        assert!(state.take_stage_embed_save_completion().is_none());
+    }
+
     /// MT-036 exactly-once proof for the Ctrl+Z CHORD path. The chord routes through `b.undo`, which is now
     /// the single `undo_fired` emit choke point; this asserts the chord emits EXACTLY ONE local undo_fired
     /// (not zero — the chord's OWN emit was removed; not two — the pre-MT-036 double-emit is gone). Capture
@@ -4785,7 +6812,7 @@ mod tests {
     #[test]
     fn chord_undo_emits_exactly_one_local_undo_fired() {
         use crate::event_emitter::{
-            NativeEditorEvent, NativeEditorEventEmitter, RuntimeChatLedgerTransport,
+            EmitError, EventLedgerTransport, NativeEditorEvent, NativeEditorEventEmitter,
         };
         use crate::interop::interaction_bus::{InteractionBus, SharedSelection};
         use crate::surface_extension_seam::{EditorSurface, UndoResult as SeamUndoResult};
@@ -4796,6 +6823,21 @@ mod tests {
 
         struct Recorder {
             seen: SeenLog,
+        }
+
+        struct AcceptingTransport;
+        impl EventLedgerTransport for AcceptingTransport {
+            fn build_post_body(&self, event: &NativeEditorEvent) -> serde_json::Value {
+                event.to_native_payload()
+            }
+
+            fn post(
+                &self,
+                _event: NativeEditorEvent,
+            ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), EmitError>> + Send>>
+            {
+                Box::pin(async { Ok(()) })
+            }
         }
         impl EditorSurface for Recorder {
             fn surface_id(&self) -> &'static str {
@@ -4817,27 +6859,27 @@ mod tests {
         }
 
         let seen = Arc::new(Mutex::new(Vec::new()));
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("MT-036 chord accepting runtime");
         let bus = Arc::new(Mutex::new(InteractionBus::new()));
         let pane: crate::pane_registry::PaneId = Arc::from("pane-rich");
         {
             let mut b = bus.lock().unwrap();
-            // Headless emitter (no runtime): the async ledger POST is a NoRuntime no-op, but the SYNCHRONOUS
-            // surface fan-out still records — deterministic exactly-once capture, no tokio runtime needed.
+            // The callback is now acceptance-gated. Use a real runtime-backed accepting transport so
+            // this proof cannot pass through the explicit NoRuntime failure path.
             b.set_event_emitter(NativeEditorEventEmitter::new(
                 "WS-CHORD",
-                Arc::new(RuntimeChatLedgerTransport::new("http://test")),
-                None,
+                Arc::new(AcceptingTransport),
+                Some(runtime.handle().clone()),
             ));
             b.register_surface(Box::new(Recorder {
                 seen: Arc::clone(&seen),
             }));
             b.push_undo_local(
                 pane.clone(),
-                UndoAction::sync(
-                    "edit",
-                    Arc::new(UndoResult::ok),
-                    Arc::new(UndoResult::ok),
-                ),
+                UndoAction::sync("edit", Arc::new(UndoResult::ok), Arc::new(UndoResult::ok)),
             );
         }
 
@@ -4851,5 +6893,121 @@ mod tests {
             &[("undo_fired".to_owned(), Some("local".to_owned()))],
             "the chord path emits EXACTLY ONE local undo_fired (not zero, not the pre-MT-036 double-emit)"
         );
+    }
+
+    #[test]
+    fn code_ref_resolution_state_updates_exact_matching_atoms_only() {
+        use crate::rich_editor::document_model::node::HsLinkNode;
+
+        let doc = BlockNode::doc(vec![BlockNode::with_children(
+            NodeKind::Paragraph,
+            vec![
+                Child::HsLink(HsLinkNode::new("code", "KEN-A", "A")),
+                Child::HsLink(HsLinkNode::new("code", "KEN-B", "B")),
+                Child::HsLink(HsLinkNode::new("note", "KEN-A", "not code")),
+            ],
+        )]);
+        let mut state = RichEditorState::new(doc);
+        assert_eq!(state.set_code_ref_resolved("KEN-A", false), 1);
+        let paragraph = match &state.doc.children[0] {
+            Child::Block(block) => block,
+            other => panic!("expected paragraph, got {other:?}"),
+        };
+        let resolved: Vec<_> = paragraph
+            .children
+            .iter()
+            .filter_map(|child| match child {
+                Child::HsLink(link) => Some((
+                    link.ref_kind.as_str(),
+                    link.ref_value.as_str(),
+                    link.resolved,
+                )),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            resolved,
+            vec![
+                ("code", "KEN-A", false),
+                ("code", "KEN-B", true),
+                ("note", "KEN-A", true),
+            ],
+            "a backend miss must grey only the exact mounted code-link identity"
+        );
+        assert_eq!(state.set_code_ref_resolved("KEN-A", true), 1);
+    }
+
+    #[test]
+    fn failed_create_note_outcome_retains_backend_reason_for_visible_status() {
+        use crate::rich_editor::wikilinks::runtime::CreateNoteOutcome;
+
+        let mut state =
+            RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("[[Atlas]]")]));
+        state.apply_create_note_outcome(
+            CreateNoteOutcome::Failed {
+                normalized_title: "atlas".to_owned(),
+                reason: "409 title already exists".to_owned(),
+            },
+            true,
+        );
+
+        assert_eq!(
+            state.wikilink_create_error.as_deref(),
+            Some("Could not create note 'atlas': 409 title already exists")
+        );
+        assert!(state.pending_created_document_navigation.is_none());
+        assert_eq!(
+            state.take_create_note_failure().as_deref(),
+            Some("Could not create note 'atlas': 409 title already exists")
+        );
+    }
+
+    #[test]
+    fn hidden_document_switch_host_drains_create_success_exactly_once() {
+        use crate::rich_editor::wikilinks::runtime::CreateNoteOutcome;
+
+        let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("current")]));
+        state.wikilinks.set_context("workspace", "DOC-ORIGIN");
+        state.wikilinks.stage_create(CreateNoteOutcome::Created {
+            normalized_title: "atlas".to_owned(),
+            display_title: "Atlas".to_owned(),
+            document_id: "DOC-ATLAS".to_owned(),
+            created: true,
+        });
+        state.wikilinks.set_context("workspace", "DOC-CURRENT");
+
+        assert!(state.drain_create_note_outcome_for_host());
+        assert_eq!(
+            state.take_created_document_navigation(),
+            Some(("DOC-ATLAS".to_owned(), "Atlas".to_owned(), true))
+        );
+        assert!(!state.drain_create_note_outcome_for_host());
+        assert!(state.take_created_document_navigation().is_none());
+        assert_eq!(
+            state.doc,
+            BlockNode::doc(vec![BlockNode::paragraph("current")]),
+            "an origin-document completion must not rewrite the newly mounted document"
+        );
+    }
+
+    #[test]
+    fn hidden_workspace_switch_host_surfaces_create_failure_exactly_once() {
+        use crate::rich_editor::wikilinks::runtime::CreateNoteOutcome;
+
+        let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("current")]));
+        state.wikilinks.set_context("workspace-a", "DOC-A");
+        state.wikilinks.stage_create(CreateNoteOutcome::Failed {
+            normalized_title: "atlas".to_owned(),
+            reason: "ambiguous document title (409)".to_owned(),
+        });
+        state.wikilinks.set_context("workspace-b", "DOC-B");
+
+        assert!(state.drain_create_note_outcome_for_host());
+        assert_eq!(
+            state.take_create_note_failure().as_deref(),
+            Some("Could not create note 'atlas': ambiguous document title (409)")
+        );
+        assert!(!state.drain_create_note_outcome_for_host());
+        assert!(state.take_create_note_failure().is_none());
     }
 }

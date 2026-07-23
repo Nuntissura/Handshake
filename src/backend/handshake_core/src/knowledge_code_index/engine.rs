@@ -38,16 +38,17 @@ use std::time::Instant;
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::{Postgres, Transaction};
+use sqlx::{Postgres, QueryBuilder, Row, Transaction};
 use uuid::Uuid;
 
-use crate::kernel::{KernelActor, KernelEventType, NewKernelEvent};
+use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
 use crate::storage::knowledge::{
     KnowledgeCodeLanguage, KnowledgeCodeParseStatus, KnowledgeCodeRepairReason, KnowledgeEdgeType,
-    KnowledgeEntityKind, KnowledgeExtractionStatus, KnowledgeParserStatus,
-    KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeSourceKind, KnowledgeSpanKind,
-    KnowledgeStore, NewKnowledgeCodeRepairEntry, NewKnowledgeEdge, NewKnowledgeEntity,
-    NewKnowledgeSource, NewKnowledgeSpan, UpsertKnowledgeCodeFile,
+    KnowledgeEntityKind, KnowledgeExtractionStatus, KnowledgeIndexRunOutcome,
+    KnowledgeParserStatus, KnowledgePermissionScope, KnowledgeRedactionState, KnowledgeSourceKind,
+    KnowledgeSpanKind, KnowledgeStore, NewKnowledgeCodeRepairEntry, NewKnowledgeEdge,
+    NewKnowledgeEntity, NewKnowledgeSource, NewKnowledgeSpan, UpsertKnowledgeCodeFile,
+    derive_knowledge_relationship_id,
 };
 use crate::storage::postgres::{append_kernel_event_with_executor, PostgresDatabase};
 use crate::storage::{Database, StorageError};
@@ -65,6 +66,8 @@ use super::relationships::{extract_relationships, RelationshipKind};
 use super::symbols::{extract_symbols, ExtractedSymbol, SymbolKind};
 use super::tests_map::{extract_test_mappings, TestMapping};
 use super::{CodeIndexError, CodeIndexResult, CODE_EXTRACTOR_VERSION};
+
+use crate::knowledge_ingestion::engine::PreparedCodeNavFile;
 
 /// Backend-navigation context (spec 2.3.13.11): every engine mutation carries
 /// actor id, session id, and correlation id into its receipts.
@@ -122,6 +125,35 @@ pub struct QuietCodeIndexRun {
     pub quiet_receipt: QuietBackgroundWorkRecord,
 }
 
+struct BatchParsedCodeFile {
+    source_id: String,
+    relative_path: String,
+    language: CodeLanguage,
+    parser_version: String,
+    content_hash: String,
+    symbols: Vec<ExtractedSymbol>,
+    receipt: NewKernelEvent,
+    perf_failure: Option<Value>,
+}
+
+struct BatchSpan {
+    span_id: String,
+    source_id: String,
+    range_start: i64,
+    range_end: i64,
+    line_start: i32,
+    line_end: i32,
+    section_path: String,
+    content_sha256: String,
+    parser_version: String,
+    receipt_event_id: String,
+    index_run_id: String,
+}
+
+fn batch_id(prefix: &str) -> String {
+    format!("{prefix}-{}", Uuid::now_v7().simple())
+}
+
 fn new_code_index_run_id() -> String {
     format!("KIR-{}", Uuid::now_v7().simple())
 }
@@ -168,6 +200,33 @@ impl CodeIndexEngine {
         Ok(stored.event_id)
     }
 
+    async fn append_terminal_receipt_event(
+        &self,
+        ctx: &CodeIndexContext,
+        event_type: KernelEventType,
+        index_run_id: &str,
+        kind: &str,
+    ) -> CodeIndexResult<String> {
+        let mut builder = NewKernelEvent::builder(
+            ctx.kernel_task_run_id.clone(),
+            ctx.session_run_id.clone(),
+            event_type,
+            ctx.actor.clone(),
+        )
+        .aggregate("knowledge_code_index_run", index_run_id)
+        .idempotency_key(format!("knowledge-code-index:finish:{index_run_id}:{kind}"))
+        .source_component("knowledge_code_index")
+        .payload(json!({"kind": kind, "index_run_id": index_run_id}));
+        if let Some(correlation_id) = &ctx.correlation_id {
+            builder = builder.correlation_id(correlation_id.clone());
+        }
+        let event = builder
+            .build()
+            .map_err(|err| CodeIndexError::Kernel(err.to_string()))?;
+        let stored = self.db.append_kernel_event(event).await?;
+        Ok(stored.event_id)
+    }
+
     /// Start a code-index run (reuses the shared knowledge_index_runs
     /// lifecycle). Returns the run id to thread through per-file indexing.
     pub async fn start_run(
@@ -181,6 +240,302 @@ impl CodeIndexEngine {
         self.start_run_with_id(ctx, &index_run_id, workspace_id, root_id)
             .await?;
         Ok(index_run_id)
+    }
+
+    /// Finish a code-index run with a terminal EventLedger receipt. Routes that
+    /// fan out per-file work must call this on both success and failure so a
+    /// client timeout or one bad file cannot leave a durable `started` run.
+    pub async fn finish_run(
+        &self,
+        ctx: &CodeIndexContext,
+        index_run_id: &str,
+        outcome: KnowledgeIndexRunOutcome,
+    ) -> CodeIndexResult<()> {
+        let (event_type, kind) = match &outcome {
+            KnowledgeIndexRunOutcome::Completed { .. } => (
+                KernelEventType::KnowledgeIndexRunCompleted,
+                "code_index_run_completed",
+            ),
+            KnowledgeIndexRunOutcome::Failed { .. } => (
+                KernelEventType::KnowledgeIndexRunFailed,
+                "code_index_run_failed",
+            ),
+            KnowledgeIndexRunOutcome::Cancelled { .. } => (
+                KernelEventType::KnowledgeIndexRunCancelled,
+                "code_index_run_cancelled",
+            ),
+        };
+        let finish_receipt_event_id = self
+            .append_terminal_receipt_event(ctx, event_type, index_run_id, kind)
+            .await?;
+        self.db
+            .finish_knowledge_index_run(
+                index_run_id,
+                outcome,
+                Some(finish_receipt_event_id.as_str()),
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Terminalize a run with one bounded retry. A transient connection/lock
+    /// failure must not strand the durable run in `started`; the operation is
+    /// idempotent through the EventLedger key and the run-state guard.
+    pub async fn finish_run_with_retry(
+        &self,
+        ctx: &CodeIndexContext,
+        index_run_id: &str,
+        outcome: KnowledgeIndexRunOutcome,
+    ) -> CodeIndexResult<()> {
+        const TERMINALIZATION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+        let first = match tokio::time::timeout(
+            TERMINALIZATION_TIMEOUT,
+            self.finish_run(ctx, index_run_id, outcome.clone()),
+        )
+        .await
+        {
+            Ok(result) => result,
+            Err(_) => Err(CodeIndexError::Kernel(format!(
+                "terminalization timed out after {}s",
+                TERMINALIZATION_TIMEOUT.as_secs()
+            ))),
+        };
+        match first {
+            Ok(()) => Ok(()),
+            Err(first_error) => {
+                tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+                tokio::time::timeout(
+                    TERMINALIZATION_TIMEOUT,
+                    self.finish_run(ctx, index_run_id, outcome),
+                )
+                .await
+                .map_err(|_| {
+                    CodeIndexError::Kernel(format!(
+                        "terminalization retry timed out after {}s",
+                        TERMINALIZATION_TIMEOUT.as_secs()
+                    ))
+                })?
+                .map_err(|retry_error| {
+                    CodeIndexError::Kernel(format!(
+                        "terminalization failed after retry: {first_error}; {retry_error}"
+                    ))
+                })
+            }
+        }
+    }
+
+    /// Try the low-round-trip code-index writer used by the large-code
+    /// navigation route. The guard is deliberately narrow: only clean code
+    /// files with no relationship/doc/test/operator passages use it. Any
+    /// richer input returns `Ok(None)` so the established per-file writer
+    /// remains the semantic fallback.
+    pub(crate) async fn try_index_prepared_batch(
+        &self,
+        ctx: &CodeIndexContext,
+        workspace_id: &str,
+        prepared: &[PreparedCodeNavFile],
+        persisted_sources: &[(String, String)],
+        index_run_id: &str,
+    ) -> CodeIndexResult<Option<Vec<CodeFileIndexOutcome>>> {
+        ctx.validate()?;
+        if prepared.is_empty() || prepared.len() != persisted_sources.len() {
+            return Ok(None);
+        }
+
+        let mut parsed = Vec::with_capacity(prepared.len());
+        for (file, (source_id, relative_path)) in prepared.iter().zip(persisted_sources) {
+            if &file.relative_path != relative_path {
+                return Ok(None);
+            }
+            let Some(language) = super::parser::detect_code_language(relative_path) else {
+                return Ok(None);
+            };
+            let Ok(text) = std::str::from_utf8(&file.content) else {
+                return Ok(None);
+            };
+            let adapter = CodeParserAdapter::new(language);
+            let parser_version = adapter.parser_version();
+            let started = Instant::now();
+            let Ok(tree) = adapter.parse(text) else {
+                return Ok(None);
+            };
+            if tree.root_has_error {
+                return Ok(None);
+            }
+            let symbols = extract_symbols(&tree, text);
+            let mut docs = extract_doc_passages(text);
+            let operators = extract_operator_strings(&tree, text);
+            let relationships = extract_relationships(&tree, text, &symbols);
+            let test_mappings = extract_test_mappings(&tree, text, &symbols);
+            docs.extend(operators);
+            if !docs.is_empty() || !relationships.is_empty() || !test_mappings.is_empty() {
+                return Ok(None);
+            }
+            let perf = PerfSample::measure(
+                &CodeIndexBudget::default(),
+                relative_path,
+                text.lines().count(),
+                started.elapsed().as_secs_f64() * 1000.0,
+            );
+            let perf_failure = (!perf.within_budget).then(|| {
+                perf_sample_json(&perf, &CodeIndexBudget::default())
+            });
+            let mut builder = NewKernelEvent::builder(
+                ctx.kernel_task_run_id.clone(),
+                ctx.session_run_id.clone(),
+                KernelEventType::KnowledgeValidationRecorded,
+                ctx.actor.clone(),
+            )
+            .aggregate("knowledge_code_index_file", source_id)
+            .source_component("knowledge_code_index")
+            .payload(json!({
+                "kind": "code_file_indexed",
+                "workspace_id": workspace_id,
+                "source_id": source_id,
+                "relative_path": relative_path,
+                "language": language.as_str(),
+                "parser_version": &parser_version,
+                "parse_status": KnowledgeCodeParseStatus::Parsed.as_str(),
+                "symbols": symbols.len(),
+                "doc_passages": 0,
+                "operator_strings": 0,
+                "relationships": 0,
+                "content_hash": &file.content_hash,
+                "extractor_version": CODE_EXTRACTOR_VERSION,
+                "perf_budget": perf_failure.clone(),
+            }));
+            if let Some(correlation_id) = &ctx.correlation_id {
+                builder = builder.correlation_id(correlation_id.clone());
+            }
+            parsed.push(BatchParsedCodeFile {
+                source_id: source_id.clone(),
+                relative_path: relative_path.clone(),
+                language,
+                parser_version,
+                content_hash: file.content_hash.clone(),
+                symbols,
+                receipt: builder
+                    .build()
+                    .map_err(|err| CodeIndexError::Kernel(err.to_string()))?,
+                perf_failure,
+            });
+        }
+
+        let mut tx = self.db.pool().begin().await.map_err(StorageError::from)?;
+        let result = self
+            .persist_prepared_batch_tx(&mut tx, workspace_id, index_run_id, parsed)
+            .await;
+        match result {
+            Ok(outcomes) => {
+                tx.commit().await.map_err(StorageError::from)?;
+                Ok(Some(outcomes))
+            }
+            Err(error) => {
+                let _ = tx.rollback().await;
+                Err(error)
+            }
+        }
+    }
+
+    async fn persist_prepared_batch_tx(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        workspace_id: &str,
+        index_run_id: &str,
+        parsed: Vec<BatchParsedCodeFile>,
+    ) -> CodeIndexResult<Vec<CodeFileIndexOutcome>> {
+        let events = parsed.iter().map(|item| item.receipt.clone()).collect::<Vec<_>>();
+        let receipt_ids = append_batch_events(tx, &events).await?;
+
+        let mut spans = Vec::new();
+        let mut span_by_source = HashMap::new();
+        for item in &parsed {
+            let receipt_id = receipt_ids
+                .get(&item.receipt.idempotency_key)
+                .ok_or_else(|| CodeIndexError::Storage(StorageError::NotFound("code receipt event")))?;
+            for symbol in &item.symbols {
+                let span_id = batch_id("KSP");
+                span_by_source.insert((item.source_id.clone(), symbol.symbol_path.clone()), span_id.clone());
+                spans.push(BatchSpan {
+                    span_id,
+                    source_id: item.source_id.clone(),
+                    range_start: symbol.start_byte as i64,
+                    range_end: symbol.end_byte as i64,
+                    line_start: symbol.start_line as i32,
+                    line_end: symbol.end_line as i32,
+                    section_path: symbol.symbol_path.clone(),
+                    content_sha256: sha256_hex(format!("{}|{}|{}", symbol.node_kind, symbol.symbol_path, symbol.start_byte).as_bytes()),
+                    parser_version: item.parser_version.clone(),
+                    receipt_event_id: receipt_id.clone(),
+                    index_run_id: index_run_id.to_string(),
+                });
+            }
+        }
+        insert_batch_spans(tx, &spans).await?;
+
+        let mut entity_rows = Vec::new();
+        for item in &parsed {
+            entity_rows.push((
+                item.source_id.clone(),
+                KnowledgeEntityKind::File,
+                format!("file:{}", item.relative_path),
+                item.relative_path.clone(),
+                json!({"extractor":"knowledge_code_index","extractor_version":CODE_EXTRACTOR_VERSION,"language":item.language.as_str()}),
+                Some(item.source_id.clone()),
+            ));
+            for symbol in &item.symbols {
+                entity_rows.push((
+                    item.source_id.clone(),
+                    KnowledgeEntityKind::Symbol,
+                    symbol.entity_key(item.language, &item.relative_path),
+                    symbol.name.clone(),
+                    json!({"extractor":"knowledge_code_index","extractor_version":CODE_EXTRACTOR_VERSION,"language":item.language.as_str(),"symbol_kind":symbol.kind.as_str(),"node_kind":symbol.node_kind,"symbol_path":symbol.symbol_path}),
+                    Some(item.source_id.clone()),
+                ));
+            }
+        }
+        let entity_ids = insert_batch_entities(tx, workspace_id, index_run_id, &entity_rows).await?;
+
+        let mut entity_spans = Vec::new();
+        let mut edges = Vec::new();
+        let mut span_offset = 0usize;
+        for item in &parsed {
+            let file_key = format!("file:{}", item.relative_path);
+            let file_id = entity_ids.get(&(KnowledgeEntityKind::File.as_str().to_string(), file_key.clone())).cloned().ok_or_else(|| CodeIndexError::Storage(StorageError::NotFound("file entity")))?;
+            for symbol in &item.symbols {
+                let symbol_key = symbol.entity_key(item.language, &item.relative_path);
+                let symbol_id = entity_ids.get(&(KnowledgeEntityKind::Symbol.as_str().to_string(), symbol_key.clone())).cloned().ok_or_else(|| CodeIndexError::Storage(StorageError::NotFound("symbol entity")))?;
+                let span = spans.get(span_offset).ok_or_else(|| CodeIndexError::Storage(StorageError::NotFound("symbol span")))?;
+                span_offset += 1;
+                entity_spans.push((symbol_id.clone(), span.span_id.clone()));
+                let rel_id = derive_knowledge_relationship_id(KnowledgeEdgeType::Contains, KnowledgeEntityKind::File, &file_key, KnowledgeEntityKind::Symbol, &symbol_key);
+                edges.push((rel_id, file_id.clone(), symbol_id, span.span_id.clone()));
+            }
+        }
+        insert_batch_entity_spans(tx, index_run_id, &entity_spans).await?;
+        let edge_ids = insert_batch_edges(tx, workspace_id, index_run_id, &edges).await?;
+        insert_batch_edge_spans(tx, index_run_id, &edge_ids, &edges).await?;
+        insert_batch_code_files(tx, workspace_id, index_run_id, &parsed, &receipt_ids, &entity_ids).await?;
+        update_batch_sources(tx, &parsed, &receipt_ids).await?;
+
+        let mut outcomes = Vec::with_capacity(parsed.len());
+        for item in parsed {
+            let receipt_id = receipt_ids.get(&item.receipt.idempotency_key).cloned().ok_or_else(|| CodeIndexError::Storage(StorageError::NotFound("code receipt event")))?;
+            outcomes.push(CodeFileIndexOutcome {
+                source_id: item.source_id,
+                relative_path: item.relative_path,
+                language: Some(item.language),
+                parse_status: KnowledgeCodeParseStatus::Parsed,
+                symbols_indexed: item.symbols.len(),
+                edges_indexed: item.symbols.len(),
+                doc_passages_indexed: 0,
+                config_facts_indexed: 0,
+                failed: false,
+                failure_reason: None,
+                receipt_event_id: receipt_id,
+            });
+        }
+        Ok(outcomes)
     }
 
     async fn start_run_with_id(
@@ -1368,6 +1723,271 @@ impl CodeIndexEngine {
             .await?;
         Ok(source.source_id)
     }
+}
+
+async fn append_batch_events(
+    tx: &mut Transaction<'_, Postgres>,
+    events: &[NewKernelEvent],
+) -> CodeIndexResult<HashMap<String, String>> {
+    let mut keys = Vec::with_capacity(events.len());
+    let mut query = QueryBuilder::<Postgres>::new(
+        "INSERT INTO kernel_event_ledger (event_id,event_version,kernel_task_run_id,session_run_id,aggregate_type,aggregate_id,idempotency_key,event_type,actor_kind,actor_id,causation_id,correlation_id,payload_hash,source_component,payload,created_at) ",
+    );
+    query.push_values(events, |mut b, event| {
+        event
+            .validate()
+            .expect("validated kernel event builder output");
+        let kernel = KernelEvent::from_new(event.clone());
+        keys.push(event.idempotency_key.clone());
+        b.push_bind(kernel.event_id)
+            .push_bind(event.event_version.clone())
+            .push_bind(event.kernel_task_run_id.clone())
+            .push_bind(event.session_run_id.clone())
+            .push_bind(event.aggregate_type.clone())
+            .push_bind(event.aggregate_id.clone())
+            .push_bind(event.idempotency_key.clone())
+            .push_bind(event.event_type.as_str())
+            .push_bind(event.actor.actor_kind())
+            .push_bind(event.actor.actor_id())
+            .push_bind(event.causation_id.clone())
+            .push_bind(event.correlation_id.clone())
+            .push_bind(event.payload_hash.clone())
+            .push_bind(event.source_component.clone())
+            .push_bind(sqlx::types::Json(event.payload.clone()))
+            .push_bind(chrono::Utc::now());
+    });
+    query.push(" ON CONFLICT (idempotency_key) DO NOTHING");
+    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
+    let rows = sqlx::query(
+        "SELECT idempotency_key,event_id,event_version,kernel_task_run_id,session_run_id,aggregate_type,aggregate_id,event_type,actor_kind,actor_id,causation_id,correlation_id,payload_hash,source_component FROM kernel_event_ledger WHERE idempotency_key = ANY($1)",
+    )
+    .bind(&keys)
+    .fetch_all(&mut **tx)
+    .await
+    .map_err(StorageError::from)?;
+    let mut result = HashMap::with_capacity(rows.len());
+    let expected = events
+        .iter()
+        .map(|event| (event.idempotency_key.as_str(), event))
+        .collect::<HashMap<_, _>>();
+    for row in rows {
+        let key: String = row.get("idempotency_key");
+        let event = expected
+            .get(key.as_str())
+            .ok_or(StorageError::NotFound("kernel event idempotency key"))?;
+        let matches = row.get::<String, _>("event_version") == event.event_version
+            && row.get::<String, _>("kernel_task_run_id") == event.kernel_task_run_id
+            && row.get::<String, _>("session_run_id") == event.session_run_id
+            && row.get::<String, _>("aggregate_type") == event.aggregate_type
+            && row.get::<String, _>("aggregate_id") == event.aggregate_id
+            && row.get::<String, _>("event_type") == event.event_type.as_str()
+            && row.get::<String, _>("actor_kind") == event.actor.actor_kind()
+            && row.get::<String, _>("actor_id") == event.actor.actor_id()
+            && row.get::<Option<String>, _>("causation_id") == event.causation_id
+            && row.get::<Option<String>, _>("correlation_id") == event.correlation_id
+            && row.get::<String, _>("payload_hash") == event.payload_hash
+            && row.get::<String, _>("source_component") == event.source_component;
+        if !matches {
+            return Err(CodeIndexError::Storage(StorageError::Conflict(
+                "kernel event idempotency conflict",
+            )));
+        }
+        result.insert(key, row.get("event_id"));
+    }
+    Ok(result)
+}
+
+async fn insert_batch_spans(
+    tx: &mut Transaction<'_, Postgres>,
+    spans: &[BatchSpan],
+) -> CodeIndexResult<()> {
+    if spans.is_empty() {
+        return Ok(());
+    }
+    let mut query = QueryBuilder::<Postgres>::new(
+        "INSERT INTO knowledge_spans (span_id,source_id,span_kind,range_start,range_end,line_start,line_end,section_path,content_sha256,parser_version,extraction_receipt_event_id,index_run_id,display_snippet) ",
+    );
+    query.push_values(spans, |mut b, span| {
+        b.push_bind(span.span_id.clone())
+            .push_bind(span.source_id.clone())
+            .push_bind(KnowledgeSpanKind::Ast.as_str())
+            .push_bind(span.range_start)
+            .push_bind(span.range_end)
+            .push_bind(span.line_start)
+            .push_bind(span.line_end)
+            .push_bind(Some(span.section_path.clone()))
+            .push_bind(span.content_sha256.clone())
+            .push_bind(span.parser_version.clone())
+            .push_bind(Some(span.receipt_event_id.clone()))
+            .push_bind(Some(span.index_run_id.clone()))
+            .push_bind(Some("symbol definition".to_string()));
+    });
+    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
+    Ok(())
+}
+
+type BatchEntityRow = (String, KnowledgeEntityKind, String, String, Value, Option<String>);
+
+async fn insert_batch_entities(
+    tx: &mut Transaction<'_, Postgres>,
+    workspace_id: &str,
+    index_run_id: &str,
+    rows: &[BatchEntityRow],
+) -> CodeIndexResult<HashMap<(String, String), String>> {
+    let mut query = QueryBuilder::<Postgres>::new(
+        "INSERT INTO knowledge_entities (entity_id,workspace_id,entity_kind,entity_key,display_name,detection_provenance,primary_source_id,first_detected_in_run,last_detected_in_run) ",
+    );
+    query.push_values(rows, |mut b, row| {
+        b.push_bind(batch_id("KEN"))
+            .push_bind(workspace_id)
+            .push_bind(row.1.as_str())
+            .push_bind(row.2.clone())
+            .push_bind(row.3.clone())
+            .push_bind(row.4.clone())
+            .push_bind(row.5.clone())
+            .push_bind(Some(index_run_id))
+            .push_bind(Some(index_run_id));
+    });
+    query.push(" ON CONFLICT (workspace_id,entity_kind,entity_key) DO UPDATE SET display_name=EXCLUDED.display_name,detection_provenance=EXCLUDED.detection_provenance,primary_source_id=COALESCE(EXCLUDED.primary_source_id,knowledge_entities.primary_source_id),last_detected_in_run=COALESCE(EXCLUDED.last_detected_in_run,knowledge_entities.last_detected_in_run),lifecycle_state='active',updated_at=NOW() RETURNING entity_id,entity_kind,entity_key");
+    let result = query.build().fetch_all(&mut **tx).await.map_err(StorageError::from)?;
+    Ok(result
+        .into_iter()
+        .map(|row| {
+            (
+                (row.get::<String, _>("entity_kind"), row.get::<String, _>("entity_key")),
+                row.get("entity_id"),
+            )
+        })
+        .collect())
+}
+
+async fn insert_batch_entity_spans(
+    tx: &mut Transaction<'_, Postgres>,
+    index_run_id: &str,
+    rows: &[(String, String)],
+) -> CodeIndexResult<()> {
+    if rows.is_empty() {
+        return Ok(());
+    }
+    let mut query = QueryBuilder::<Postgres>::new(
+        "INSERT INTO knowledge_entity_spans (entity_id,span_id,detected_in_run) ",
+    );
+    query.push_values(rows, |mut b, row| {
+        b.push_bind(row.0.clone())
+            .push_bind(row.1.clone())
+            .push_bind(Some(index_run_id));
+    });
+    query.push(" ON CONFLICT (entity_id,span_id) DO UPDATE SET detected_in_run=EXCLUDED.detected_in_run");
+    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
+    Ok(())
+}
+
+async fn insert_batch_edges(
+    tx: &mut Transaction<'_, Postgres>,
+    workspace_id: &str,
+    index_run_id: &str,
+    rows: &[(String, String, String, String)],
+) -> CodeIndexResult<HashMap<String, String>> {
+    if rows.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let mut query = QueryBuilder::<Postgres>::new(
+        "INSERT INTO knowledge_edges (edge_id,workspace_id,relationship_id,edge_type,source_entity_id,target_entity_id,extractor_version,confidence,created_in_run,last_seen_in_run) ",
+    );
+    query.push_values(rows, |mut b, row| {
+        b.push_bind(batch_id("KED"))
+            .push_bind(workspace_id)
+            .push_bind(row.0.clone())
+            .push_bind(KnowledgeEdgeType::Contains.as_str())
+            .push_bind(row.1.clone())
+            .push_bind(row.2.clone())
+            .push_bind(CODE_EXTRACTOR_VERSION)
+            .push_bind(1.0_f64)
+            .push_bind(Some(index_run_id))
+            .push_bind(Some(index_run_id));
+    });
+    query.push(" ON CONFLICT (workspace_id,relationship_id) DO UPDATE SET confidence=EXCLUDED.confidence,extractor_version=EXCLUDED.extractor_version,last_seen_in_run=COALESCE(EXCLUDED.last_seen_in_run,knowledge_edges.last_seen_in_run),updated_at=NOW() RETURNING edge_id,relationship_id");
+    let result = query.build().fetch_all(&mut **tx).await.map_err(StorageError::from)?;
+    Ok(result
+        .into_iter()
+        .map(|row| (row.get("relationship_id"), row.get("edge_id")))
+        .collect())
+}
+
+async fn insert_batch_edge_spans(
+    tx: &mut Transaction<'_, Postgres>,
+    index_run_id: &str,
+    edge_ids: &HashMap<String, String>,
+    rows: &[(String, String, String, String)],
+) -> CodeIndexResult<()> {
+    let mut query = QueryBuilder::<Postgres>::new(
+        "INSERT INTO knowledge_edge_spans (edge_id,span_id,recorded_in_run) ",
+    );
+    let mut count = 0usize;
+    query.push(" VALUES ");
+    for row in rows {
+        let Some(edge_id) = edge_ids.get(&row.0) else { continue };
+        if count > 0 { query.push(","); }
+        query.push("(").push_bind(edge_id).push(",").push_bind(&row.3).push(",").push_bind(Some(index_run_id)).push(")");
+        count += 1;
+    }
+    if count == 0 { return Ok(()); }
+    query.push(" ON CONFLICT (edge_id,span_id) DO UPDATE SET recorded_in_run=EXCLUDED.recorded_in_run");
+    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
+    Ok(())
+}
+
+async fn insert_batch_code_files(
+    tx: &mut Transaction<'_, Postgres>,
+    workspace_id: &str,
+    index_run_id: &str,
+    parsed: &[BatchParsedCodeFile],
+    receipt_ids: &HashMap<String, String>,
+    entity_ids: &HashMap<(String, String), String>,
+) -> CodeIndexResult<()> {
+    let mut query = QueryBuilder::<Postgres>::new(
+        "INSERT INTO knowledge_code_files (code_file_id,workspace_id,source_id,file_entity_id,language,indexed_content_hash,parser_version,parse_status,stale,symbols_indexed,edges_indexed,failure_detail,last_indexed_in_run,last_index_receipt_event_id) ",
+    );
+    query.push_values(parsed, |mut b, item| {
+        let key = (KnowledgeEntityKind::File.as_str().to_string(), format!("file:{}", item.relative_path));
+        let receipt = receipt_ids.get(&item.receipt.idempotency_key).cloned();
+        b.push_bind(batch_id("KCF"))
+            .push_bind(workspace_id)
+            .push_bind(item.source_id.clone())
+            .push_bind(entity_ids.get(&key).cloned())
+            .push_bind(code_language_to_storage(item.language).as_str())
+            .push_bind(item.content_hash.clone())
+            .push_bind(item.parser_version.clone())
+            .push_bind(KnowledgeCodeParseStatus::Parsed.as_str())
+            .push_bind(false)
+            .push_bind(item.symbols.len() as i32)
+            .push_bind(item.symbols.len() as i32)
+            .push_bind(item.perf_failure.clone())
+            .push_bind(Some(index_run_id))
+            .push_bind(receipt);
+    });
+    query.push(" ON CONFLICT (source_id) DO UPDATE SET file_entity_id=COALESCE(EXCLUDED.file_entity_id,knowledge_code_files.file_entity_id),language=EXCLUDED.language,indexed_content_hash=EXCLUDED.indexed_content_hash,parser_version=EXCLUDED.parser_version,parse_status=EXCLUDED.parse_status,stale=FALSE,symbols_indexed=EXCLUDED.symbols_indexed,edges_indexed=EXCLUDED.edges_indexed,failure_detail=EXCLUDED.failure_detail,last_indexed_in_run=COALESCE(EXCLUDED.last_indexed_in_run,knowledge_code_files.last_indexed_in_run),last_index_receipt_event_id=COALESCE(EXCLUDED.last_index_receipt_event_id,knowledge_code_files.last_index_receipt_event_id),updated_at=NOW()");
+    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
+    Ok(())
+}
+
+async fn update_batch_sources(
+    tx: &mut Transaction<'_, Postgres>,
+    parsed: &[BatchParsedCodeFile],
+    receipt_ids: &HashMap<String, String>,
+) -> CodeIndexResult<()> {
+    let mut query = QueryBuilder::<Postgres>::new(
+        "UPDATE knowledge_sources AS s SET parser_status=v.parser_status,extraction_status=v.extraction_status,last_index_receipt_event_id=v.receipt_event_id,updated_at=NOW() FROM (",
+    );
+    query.push_values(parsed, |mut b, item| {
+        b.push_bind(item.source_id.clone())
+            .push_bind("parsed")
+            .push_bind("extracted")
+            .push_bind(receipt_ids.get(&item.receipt.idempotency_key).cloned());
+    });
+    query.push(") AS v(source_id,parser_status,extraction_status,receipt_event_id) WHERE s.source_id=v.source_id");
+    query.build().execute(&mut **tx).await.map_err(StorageError::from)?;
+    Ok(())
 }
 
 /// A symbol resolved to its durable ids.

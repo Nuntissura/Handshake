@@ -185,7 +185,11 @@ fn stalled_writer_over_real_ring_confirms_freeze() {
     let state = det.poll(now, hb, &not_responding);
     match state {
         FreezeState::Frozen(report) => {
-            assert!(report.stale_ms >= 6000, "stale ~6s, got {}ms", report.stale_ms);
+            assert!(
+                report.stale_ms >= 6000,
+                "stale ~6s, got {}ms",
+                report.stale_ms
+            );
             assert_eq!(
                 report.last_heartbeat_counter, 77,
                 "the frozen counter read from the real ring"
@@ -543,8 +547,9 @@ fn live_win32_probe_detects_pumping_and_blocked_window() {
     // (The old shape called `read_line` directly on the test thread inside a deadline loop; the deadline
     // was only re-checked BETWEEN lines, so a single silent read blocked unboundedly.)
     let marker_rx = spawn_bounded_line_reader(stdout);
-    let wait_marker =
-        |marker: &str, timeout: Duration| -> bool { wait_marker_bounded(&marker_rx, marker, timeout) };
+    let wait_marker = |marker: &str, timeout: Duration| -> bool {
+        wait_marker_bounded(&marker_rx, marker, timeout)
+    };
 
     // PHASE A — the child pumps: the REAL probe must observe Responding.
     assert!(

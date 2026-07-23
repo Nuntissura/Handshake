@@ -61,7 +61,7 @@ pub struct NavigationReceipt {
     pub target: String,
     pub action: String,
     pub node_id: u64,
-    pub text_payload: Option<String>,
+    pub receipt_id: u64,
     pub expected_pane: Option<String>,
 }
 
@@ -194,18 +194,37 @@ fn dispatch_tool(
     );
 
     match response.result_ref() {
-        Ok(result) => Ok(NavigationReceipt {
-            index,
-            target: target.to_owned(),
-            action: result
+        Ok(result) => {
+            let malformed = |field: &str| NavigationError::Tool {
+                index,
+                target: target.to_owned(),
+                code: crate::mcp::ERR_TOOL_FAILED,
+                message: format!("navigation tool returned no valid {field}"),
+            };
+            let action = result
                 .get("action")
-                .and_then(|v| v.as_str())
-                .unwrap_or("Unknown")
-                .to_owned(),
-            node_id: result.get("node_id").and_then(|v| v.as_u64()).unwrap_or(0),
-            text_payload: value.map(str::to_owned),
-            expected_pane: None,
-        }),
+                .and_then(|value| value.as_str())
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| malformed("action"))?;
+            let node_id = result
+                .get("node_id")
+                .and_then(|value| value.as_u64())
+                .filter(|value| *value != 0)
+                .ok_or_else(|| malformed("node_id"))?;
+            let receipt_id = result
+                .get("receipt_id")
+                .and_then(|value| value.as_u64())
+                .filter(|value| *value != 0)
+                .ok_or_else(|| malformed("receipt_id"))?;
+            Ok(NavigationReceipt {
+                index,
+                target: target.to_owned(),
+                action: action.to_owned(),
+                node_id,
+                receipt_id,
+                expected_pane: None,
+            })
+        }
         Err(error) if error.code == ERR_UNAUTHORIZED => Err(NavigationError::Unauthorized),
         Err(error) => Err(NavigationError::Tool {
             index,
@@ -240,7 +259,7 @@ fn dispatch_focus(
         target: target.to_owned(),
         action: format!("{:?}", outcome.request.action),
         node_id: outcome.request.target.0,
-        text_payload: outcome.text_payload,
+        receipt_id: outcome.receipt_id,
         expected_pane: None,
     })
 }

@@ -619,6 +619,8 @@ pub struct WorkspaceSettingsState {
     pub view_mode: SettingsViewMode,
     /// Whether the Swarm Board opens on launch (wired).
     pub swarm_board_default_open: bool,
+    /// IANA tzdb identifier used to project Calendar local-date views.
+    pub calendar_view_tzid: String,
     /// MT-072 editor text preferences (font size, tab size, tabs-vs-spaces, word wrap, whitespace).
     /// A NEW nested field: rides the SAME serialized struct through the existing PUT/GET surface.
     pub editor_prefs: EditorPrefs,
@@ -715,6 +717,7 @@ impl WorkspaceSettingsState {
             "settings": {
                 "view_mode": self.view_mode.as_str(),
                 "swarm_board_default_open": self.swarm_board_default_open,
+                "calendar_view_tzid": self.calendar_view_tzid,
             },
             // MT-072 NEW top-level keys (the backend stores settings_state as an opaque JSON object and
             // does NOT reject unknown top-level keys — verified read-only against the backend validator).
@@ -741,12 +744,55 @@ pub fn default_workspace_settings_state() -> WorkspaceSettingsState {
             .collect(),
         view_mode: SettingsViewMode::Nsfw,
         swarm_board_default_open: false,
+        calendar_view_tzid: default_calendar_view_tzid(),
         // MT-072 editor settings default to the built-in editor prefs + Standard syntax palette + no
         // editor keybinding overrides (every editor action keeps its built-in default chord).
         editor_prefs: EditorPrefs::default(),
         syntax_palette: SyntaxPalette::default(),
         editor_keybindings: Vec::new(),
     }
+}
+
+/// Merge a completed remote settings load with edits made locally while that GET was in flight.
+/// Values unchanged from `load_baseline` accept the remote result; values changed by the operator are
+/// overlaid onto it. Arrays/scalars replace atomically, while object fields merge recursively so an
+/// editor preference changed after a failed-load Retry does not discard unrelated remote settings.
+pub fn merge_loaded_settings_preserving_local_changes(
+    remote: &Value,
+    load_baseline: &WorkspaceSettingsState,
+    local_now: &WorkspaceSettingsState,
+) -> WorkspaceSettingsState {
+    fn overlay(remote: Value, baseline: &Value, local: &Value) -> Value {
+        if baseline == local {
+            return remote;
+        }
+        match (remote, baseline, local) {
+            (Value::Object(mut remote), Value::Object(baseline), Value::Object(local)) => {
+                for (key, local_value) in local {
+                    let baseline_value = baseline.get(key).unwrap_or(&Value::Null);
+                    if baseline_value == local_value {
+                        continue;
+                    }
+                    let remote_value = remote.remove(key).unwrap_or(Value::Null);
+                    remote.insert(
+                        key.clone(),
+                        overlay(remote_value, baseline_value, local_value),
+                    );
+                }
+                Value::Object(remote)
+            }
+            (_, _, local) => local.clone(),
+        }
+    }
+
+    let fallback = default_workspace_settings_state();
+    let remote = normalize_workspace_settings_state(remote, &fallback).to_settings_state();
+    let merged = overlay(
+        remote,
+        &load_baseline.to_settings_state(),
+        &local_now.to_settings_state(),
+    );
+    normalize_workspace_settings_state(&merged, &fallback)
 }
 
 /// Normalize a keybinding chord to canonical form. Verbatim port of the React `normalizeChordInput`:
@@ -919,6 +965,12 @@ pub fn normalize_workspace_settings_state(
         .and_then(|m| m.get("swarm_board_default_open"))
         .and_then(Value::as_bool)
         .unwrap_or(fallback.swarm_board_default_open);
+    let calendar_view_tzid = raw_settings
+        .and_then(|m| m.get("calendar_view_tzid"))
+        .and_then(Value::as_str)
+        .filter(|value| value.parse::<chrono_tz::Tz>().is_ok())
+        .map(str::to_owned)
+        .unwrap_or_else(|| fallback.calendar_view_tzid.clone());
 
     // MT-072: the three new top-level keys parse with a per-field fallback so a WP-011-era stored
     // document (which lacks them entirely) deserializes cleanly to the defaults (AC-006 legacy compat —
@@ -948,10 +1000,20 @@ pub fn normalize_workspace_settings_state(
         keybindings,
         view_mode,
         swarm_board_default_open,
+        calendar_view_tzid,
         editor_prefs,
         syntax_palette,
         editor_keybindings,
     }
+}
+
+/// Resolve the operating-system timezone to an IANA tzdb identifier, with a
+/// deterministic UTC fallback on platforms where discovery is unavailable.
+pub fn default_calendar_view_tzid() -> String {
+    iana_time_zone::get_timezone()
+        .ok()
+        .filter(|value| value.parse::<chrono_tz::Tz>().is_ok())
+        .unwrap_or_else(|| "UTC".to_owned())
 }
 
 /// A setting that exists in the UI but has no backing setter yet. Port of the React
@@ -1021,13 +1083,27 @@ pub const ABOUT_VERSION: &str = env!("CARGO_PKG_VERSION");
 // with a reqwest implementation that bridges async onto the app's tokio runtime.
 // ===========================================================================
 
-/// The async delivery cell a spawned settings-LOAD task writes into (MT-018): `Ok(Some(blob))` /
-/// `Ok(None)` (first run) / `Err(message)`. Drained (try_lock) on the egui frame thread. A type alias so
-/// the field type stays legible (clippy type_complexity).
-pub type SettingsLoadCell = Arc<Mutex<Option<Result<Option<Value>, String>>>>;
+#[derive(Debug)]
+pub struct SettingsLoadDelivery {
+    pub workspace_id: String,
+    pub generation: u64,
+    pub result: Result<Option<Value>, String>,
+}
 
-/// The async delivery cell a spawned settings-SAVE task writes into (MT-018): `Ok(())` / `Err(message)`.
-pub type SettingsSaveCell = Arc<Mutex<Option<Result<(), String>>>>;
+/// The async delivery cell a spawned settings-LOAD task writes into. Workspace/generation identity is
+/// part of the producer payload so a late workspace-A result cannot be consumed by workspace B.
+pub type SettingsLoadCell = Arc<Mutex<Option<SettingsLoadDelivery>>>;
+
+#[derive(Debug)]
+pub struct SettingsSaveDelivery {
+    pub workspace_id: String,
+    pub saved_state: WorkspaceSettingsState,
+    pub result: Result<(), String>,
+}
+
+/// The async delivery cell a spawned settings-SAVE task writes into. The exact saved snapshot lets a
+/// completion clear only that version; edits made while the PUT was in flight remain queued.
+pub type SettingsSaveCell = Arc<Mutex<Option<SettingsSaveDelivery>>>;
 
 /// A transient settings-transport failure (network down, non-success status, parse error). Surfaced on
 /// the dialog's status row so a save/load failure degrades visibly without a crash. Distinct from
@@ -1074,7 +1150,7 @@ impl SettingsClient {
     /// onto `runtime`.
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
-            client: reqwest::Client::new(),
+            client: crate::backend_client::shared_http_client(),
             base_url: base_url.into(),
             runtime,
         }
@@ -1372,6 +1448,26 @@ mod tests {
              editor bindings live in the separate editor_keybindings list, got {:?}",
             kb.keys().collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn retried_load_preserves_local_editor_edit_and_accepts_unrelated_remote_values() {
+        let baseline = default_workspace_settings_state();
+        let mut local = baseline.clone();
+        local.editor_prefs.editor_font_size = 21.0;
+
+        let mut remote = baseline.clone();
+        remote.view_mode = SettingsViewMode::Sfw;
+        remote.editor_prefs.tab_size = 8;
+        let merged = merge_loaded_settings_preserving_local_changes(
+            &remote.to_settings_state(),
+            &baseline,
+            &local,
+        );
+
+        assert_eq!(merged.editor_prefs.editor_font_size, 21.0);
+        assert_eq!(merged.editor_prefs.tab_size, 8);
+        assert_eq!(merged.view_mode, SettingsViewMode::Sfw);
     }
 
     /// AC-002: `editor_font_size` is a SEPARATE field from the chrome/UI appearance — it lives ONLY under

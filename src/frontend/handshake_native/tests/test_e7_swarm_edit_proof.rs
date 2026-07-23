@@ -23,9 +23,9 @@
 //! the agent-drivable steps PURELY via AccessKit dispatch from a CHANNEL-ONLY agent thread, and proves the
 //! AccessKit ROUTING + ACTION COVERAGE + (for STEP 1) the AGENT-PRODUCED content + the backend REQUEST
 //! SHAPE the save produces (via a backend SPY capturing the E6-client request — provable NOW). The
-//! live-DB-row SELECT assertions (`knowledge_rich_documents`, `loom_edges`) + the full-app-mount flow are
-//! `NEEDS_MANAGED_RESOURCE_PROOF` — the `#[ignore]`d `*_live_pg` test, run under `--features integration`
-//! against a seeded backend. They are NOT faked and NOT a fake-PG.
+//! The standalone test remains an explicitly non-authoritative surface diagnostic. The non-ignored
+//! `integration` test creates its own isolated managed-PostgreSQL workspace and is the only live-verdict
+//! path; it does not consume seeded operator data and never substitutes a mock database.
 //!
 //! ## Spec-Realism Gate: agent-PRODUCED content, never implementer-injected (adversarial-review fix)
 //!
@@ -69,14 +69,17 @@
 //! pick, not implementer-injected; the Spec-Realism Gate holds). Only the live-PG `loom_edges` row stays
 //! GATED (`NEEDS_MANAGED_RESOURCE_PROOF`).
 //!
-//! All four steps now GATED/PASS with NO genuine blocker, so the terminal marker is `PROOF_PASS`: STEP 1
-//! (agent-produced create + save shape, row GATED), STEP 2 PASS (MT-080), STEP 3 PASS (MT-110), and STEP 4
-//! recorded GATED:SEEDED. STEP 4's seeded search-result SURFACE witness is retained as the SEPARATE,
-//! honestly GATED:SEEDED test [`step4_search_result_surface_is_gated_seeded`] (it proves the result
-//! AccessKit surface renders for a hit — provable now — but the search DATA is pre-seeded, so the live
-//! search is `NEEDS_MANAGED_RESOURCE_PROOF`, never a live-search PASS).
+//! The standalone widget proof is deliberately NON-AUTHORITATIVE: gated or seeded observations can
+//! never produce `PROOF_PASS`. Only the integration proof may write that terminal marker, and only
+//! after its managed-PostgreSQL edit/conflict/merge/search/refetch/reload/attribution assertions pass.
 
+#[path = "interconnect_support/mod.rs"]
+mod interconnect_support;
+
+use std::fs::OpenOptions;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -87,22 +90,38 @@ use egui_kittest::Harness;
 
 use handshake_native::accessibility::editor_action_registry::EditorActionRegistry;
 use handshake_native::accessibility::{UiNodeBounds, UiTreeNode, UiTreeSnapshot};
+use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::backend_client::{
+    HealthInfo, HSK_HEADER_ACTOR_ID, HSK_HEADER_ACTOR_KIND, HSK_HEADER_KERNEL_TASK_RUN_ID,
+    HSK_HEADER_SESSION_RUN_ID,
+};
 use handshake_native::backend_client::{LoomSearchBlock, LoomSearchV2Hit, LoomSearchV2Response};
 use handshake_native::loom_search_v2 as lsv2;
 use handshake_native::mcp::action::{ActionChannel, ActionError, UiAction};
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+};
 use handshake_native::rich_editor::document_model::node::{BlockNode, NodeKind};
 use handshake_native::rich_editor::document_model::position::DocPosition;
 use handshake_native::rich_editor::document_model::selection::Selection;
 use handshake_native::rich_editor::renderer::rich_editor_widget::{
     RichEditorState, RichEditorWidget,
 };
+use handshake_native::rich_editor::renderer::RICH_EDITOR_ROOT_AUTHOR_ID;
+use handshake_native::rich_editor::save::conflict_ui::CONFLICT_KEEP_SERVER_AUTHOR_ID;
 use handshake_native::rich_editor::save::draft_manager::{
     DraftBackend, DraftError, DraftLoadFuture, DraftManager, DraftWriteFuture,
     RichDocumentDraftLoad,
 };
 use handshake_native::rich_editor::save::save_manager::{
-    RichDocLoad, RichDocSaveResult, SaveBackend, SaveFuture, SaveManager,
+    RichDocLoad, RichDocSaveResult, SaveBackend, SaveFuture, SaveManager, SaveState,
 };
+use handshake_native::tab_bar::TabState;
+
+use handshake_native::backend::knowledge_documents::{
+    HskDocumentHeaders, KnowledgeDocumentsClient, HSK_HEADER_CORRELATION_ID,
+};
+use handshake_native::rich_editor::document_model::doc_json::to_content_json_value;
 
 // ── artifact-hygiene guard (CX-212E) ─────────────────────────────────────────────────────────────
 
@@ -123,12 +142,231 @@ fn assert_no_local_artifact_dir() {
     }
 }
 
-/// The checked-in proof-log path (HBR-VIS evidence). It is a REPO fixture, not a screenshot/binary
-/// artifact, so it is exempt from the external-artifact rule (the contract names this exact path as the
-/// checked-in evidence the WP_VALIDATOR reads). Resolved relative to the crate dir (cargo's CWD for an
-/// integration test is the crate root).
+/// Runtime proof evidence is retained both externally and in the contract-required checked-in
+/// fixture. Every authoritative attempt replaces both copies atomically and begins with its unique
+/// attempt id, so an earlier fixture can never masquerade as the current managed-backend verdict.
 fn proof_log_path() -> PathBuf {
-    Path::new("tests/fixtures/swarm_edit_proof_log.txt").to_path_buf()
+    let artifacts_root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .ancestors()
+                .nth(4)
+                .expect("handshake_native crate must be nested below the shared worktree root")
+                .join("Handshake_Artifacts")
+        });
+    artifacts_root
+        .join("handshake-test/wp-kernel-012-mt-043")
+        .join("swarm_edit_proof_log.txt")
+}
+
+const MT043_PARENT_PID_ENV: &str = "HSK_MT043_PARENT_PID";
+const MT043_ATTEMPT_ID_ENV: &str = "HSK_MT043_ATTEMPT_ID";
+
+fn checked_in_proof_log_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/swarm_edit_proof_log.txt")
+}
+
+fn attempt_proof_log_path(attempt_id: &str) -> PathBuf {
+    assert!(
+        !attempt_id.is_empty()
+            && attempt_id
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_')),
+        "MT-043 attempt id must be a safe filename component"
+    );
+    proof_log_path()
+        .parent()
+        .expect("MT-043 proof path has a parent")
+        .join("runs")
+        .join(format!("{attempt_id}.txt"))
+}
+
+fn timeout_workspace_path(parent_pid: &str) -> PathBuf {
+    proof_log_path()
+        .parent()
+        .expect("MT-043 proof path has a parent")
+        .join(format!("active_workspace_{parent_pid}.txt"))
+}
+
+fn publish_timeout_workspace(workspace_id: &str) -> PathBuf {
+    let parent_pid = std::env::var(MT043_PARENT_PID_ENV)
+        .expect("bounded MT-043 child receives its parent process id");
+    let path = timeout_workspace_path(&parent_pid);
+    std::fs::create_dir_all(path.parent().expect("timeout workspace path parent"))
+        .expect("create MT-043 timeout workspace directory");
+    let temporary = path.with_extension(format!("tmp.{}", std::process::id()));
+    std::fs::write(&temporary, workspace_id).expect("write MT-043 timeout workspace sidecar");
+    if path.exists() {
+        std::fs::remove_file(&path).expect("replace prior MT-043 timeout workspace sidecar");
+    }
+    std::fs::rename(&temporary, &path).expect("publish MT-043 timeout workspace sidecar");
+    path
+}
+
+/// Read the atomically published workspace identity, rejecting an unsafe/truncated sidecar.
+fn timeout_workspace_id(path: &Path) -> Option<String> {
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|workspace_id| {
+            !workspace_id.is_empty()
+                && workspace_id
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_'))
+        })
+}
+
+fn terminate_child_tree_bounded(child: &mut std::process::Child, budget: Duration) {
+    let deadline = Instant::now() + budget;
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut taskkill = Command::new("taskkill");
+        taskkill
+            .args(["/PID", &child.id().to_string(), "/T", "/F"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .creation_flags(0x0800_0000);
+        if let Ok(mut reaper) = taskkill.spawn() {
+            // Reserve at least half of the caller's hard budget for directly terminating and reaping
+            // the owned child if taskkill itself stalls. Otherwise taskkill can consume the entire
+            // deadline and leave `child.kill()` with no time to observe process exit.
+            let taskkill_deadline = Instant::now() + (budget / 2).min(Duration::from_millis(500));
+            while reaper.try_wait().ok().flatten().is_none() && Instant::now() < taskkill_deadline {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            if reaper.try_wait().ok().flatten().is_none() {
+                let _ = reaper.kill();
+            }
+        }
+    }
+    let _ = child.kill();
+    while child.try_wait().ok().flatten().is_none() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+/// Prefer the product workspace DELETE while the backend is still alive so its Flight Recorder purge
+/// runs. SQL cleanup below remains the crash-safe fallback and canonical residue assertion.
+fn cleanup_timeout_workspace_via_api(path: &Path, budget: Duration) -> bool {
+    let Some(workspace_id) = timeout_workspace_id(path) else {
+        return false;
+    };
+    let base = std::env::var("HSK_TEST_BASE")
+        .unwrap_or_else(|_| interconnect_support::DEFAULT_BASE.to_owned());
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build bounded MT-043 timeout API-cleanup runtime");
+    runtime.block_on(async {
+        let request = reqwest::Client::new()
+            .delete(format!("{base}/workspaces/{workspace_id}"))
+            .header(HSK_HEADER_ACTOR_ID, "mt043-timeout-parent")
+            .header(HSK_HEADER_ACTOR_KIND, "operator")
+            .header(HSK_HEADER_KERNEL_TASK_RUN_ID, "mt043-timeout-cleanup")
+            .header(HSK_HEADER_SESSION_RUN_ID, "mt043-timeout-cleanup")
+            .header(HSK_HEADER_CORRELATION_ID, "mt043-timeout-cleanup");
+        matches!(
+            tokio::time::timeout(budget, request.send()).await,
+            Ok(Ok(response)) if response.status().is_success() || response.status() == reqwest::StatusCode::NOT_FOUND
+        )
+    })
+}
+
+/// Crash/timeout cleanup by exact workspace id or, if termination landed between workspace creation
+/// and sidecar publication, by the attempt-unique workspace name. The command and reap are bounded.
+fn cleanup_timeout_workspace(path: &Path, attempt_id: &str, budget: Duration) {
+    assert!(
+        !attempt_id.is_empty()
+            && attempt_id
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_')),
+        "timeout cleanup attempt id is unsafe"
+    );
+    let workspace_id = timeout_workspace_id(path);
+    let database_url = [
+        "HANDSHAKE_TEST_PG_DSN",
+        "HSK_PROOF_DATABASE_URL",
+        "POSTGRES_TEST_URL",
+        "DATABASE_URL",
+    ]
+    .into_iter()
+    .find_map(|name| {
+        std::env::var(name)
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+    })
+    .expect("timeout cleanup requires the managed PostgreSQL DSN");
+    let psql = std::env::var_os("HSK_PSQL_BIN").unwrap_or_else(|| "psql".into());
+    let workspace_predicate = workspace_id
+        .as_deref()
+        .map(|workspace_id| {
+            format!(
+                "id = {} OR name = {}",
+                sql_literal(workspace_id),
+                sql_literal(&format!("mt043-{attempt_id}"))
+            )
+        })
+        .unwrap_or_else(|| format!("name = {}", sql_literal(&format!("mt043-{attempt_id}"))));
+    let sql = format!(
+        "DO $$ BEGIN DELETE FROM workspaces WHERE {workspace_predicate}; IF EXISTS (SELECT 1 FROM workspaces WHERE {workspace_predicate}) THEN RAISE EXCEPTION 'MT-043 timeout cleanup left workspace'; END IF; END $$;"
+    );
+    let mut command = Command::new(psql);
+    command
+        .arg("--no-psqlrc")
+        .arg("--set")
+        .arg("ON_ERROR_STOP=1")
+        .arg("--dbname")
+        .arg(database_url)
+        .arg("--command")
+        .arg(sql)
+        .env("PGCONNECT_TIMEOUT", "1")
+        .stdin(Stdio::null())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let mut cleanup = command
+        .spawn()
+        .expect("start bounded MT-043 PostgreSQL timeout cleanup");
+    let deadline = Instant::now() + budget;
+    let status = loop {
+        match cleanup.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            Ok(None) => {
+                let _ = cleanup.kill();
+                let reap_deadline = Instant::now() + Duration::from_millis(250);
+                while cleanup.try_wait().ok().flatten().is_none() && Instant::now() < reap_deadline
+                {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                panic!("MT-043 PostgreSQL timeout cleanup exceeded its bounded budget");
+            }
+            Err(error) => {
+                let _ = cleanup.kill();
+                panic!("poll MT-043 PostgreSQL timeout cleanup: {error}");
+            }
+        }
+    };
+    assert!(
+        status.success(),
+        "MT-043 PostgreSQL timeout cleanup failed with {status}"
+    );
+    if path.exists() {
+        std::fs::remove_file(path).expect("remove MT-043 timeout workspace sidecar after cleanup");
+    }
+}
+
+fn sql_literal(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
 }
 
 // ── proof-log recorder (IN-043-07 format + CTRL-043-03 atomic PROOF_PASS) ─────────────────────────
@@ -140,7 +378,7 @@ fn proof_log_path() -> PathBuf {
 enum DbResult {
     /// A request-SHAPE / routing assertion passed at the widget layer (provable now).
     Pass,
-    /// A live-DB round-trip that needs a managed PostgreSQL — gated `#[ignore]` integration only.
+    /// A backend assertion that the standalone surface diagnostic cannot prove.
     Gated,
     /// A genuine AccessKit action GAP blocks the step (a typed blocker, NOT a fake pass, NOT a masked
     /// PROOF_FAIL of the runnable steps). Carries the missing-surface name so the blocked step's token is
@@ -164,13 +402,15 @@ impl DbResult {
     }
 }
 
-/// Accumulates proof lines IN MEMORY and writes them ATOMICALLY at the very end (a SINGLE `std::fs::write`
-/// — CTRL-043-03), so a partial run can NEVER leave a `PROOF_PASS` on disk. The terminal line is
-/// `PROOF_PASS` only when [`Self::finish_pass`] is called after every runnable step asserted; otherwise
-/// [`Self::finish_fail`] writes `PROOF_FAIL: <reason>`.
+/// Accumulates proof lines in memory. Only [`Self::finish_live_pass`] can write `PROOF_PASS`, after the
+/// complete integration scenario; standalone surface diagnostics never write an authority artifact.
 struct ProofLog {
     lines: Vec<String>,
     seq: u64,
+    live_authority: bool,
+    terminal: bool,
+    attempt_id: String,
+    generation: u128,
 }
 
 impl ProofLog {
@@ -178,7 +418,57 @@ impl ProofLog {
         Self {
             lines: Vec::new(),
             seq: 0,
+            live_authority: false,
+            terminal: false,
+            attempt_id: "surface-only".to_owned(),
+            generation: 0,
         }
+    }
+
+    /// Start one authoritative managed-runtime attempt and immediately replace any result from an
+    /// earlier run. The Drop guard below turns every unwind/early return into a terminal failure, so a
+    /// stale `PROOF_PASS` can never survive a newer failed attempt.
+    fn begin_live_attempt(attempt_id: &str) -> Self {
+        let generation = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("proof generation clock after unix epoch")
+            .as_nanos();
+        let mut log = Self {
+            lines: vec![format!(
+                "PROOF_RUNNING attempt_id={attempt_id} generation={generation}"
+            )],
+            seq: 0,
+            live_authority: true,
+            terminal: false,
+            attempt_id: attempt_id.to_owned(),
+            generation,
+        };
+        log.note("authoritative managed-PostgreSQL attempt started");
+        log.flush();
+        log
+    }
+
+    /// Publish one terminal failure with a caller-supplied per-file lock budget. Parent watchdog paths
+    /// use this single-flush form so recording failure cannot silently consume the hard wall deadline
+    /// through the two flushes of `begin_live_attempt(...).finish_fail(...)`.
+    fn write_terminal_fail(attempt_id: &str, reason: &str, lock_budget: Duration) {
+        let generation = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("proof generation clock after unix epoch")
+            .as_nanos();
+        let mut log = Self {
+            lines: vec![format!(
+                "PROOF_RUNNING attempt_id={attempt_id} generation={generation}"
+            )],
+            seq: 0,
+            live_authority: true,
+            terminal: true,
+            attempt_id: attempt_id.to_owned(),
+            generation,
+        };
+        log.note("authoritative managed-PostgreSQL attempt started");
+        log.lines.push(format!("PROOF_FAIL: {reason}"));
+        log.flush_with_lock_budget(lock_budget);
     }
 
     /// A pseudo-ISO8601 monotonic timestamp token. The proof is deterministic + headless, so a wall
@@ -191,10 +481,14 @@ impl ProofLog {
 
     /// Record a DISPATCH line (IN-043-07): the action a swarm agent dispatched, by author_id.
     fn dispatch(&mut self, author_id: &str, action: &str, payload: Option<&str>) {
+        assert_mt043_action_namespace(author_id);
         let ts = self.ts();
+        let payload = payload
+            .map(|value| serde_json::to_string(value).expect("serialize one-line proof payload"))
+            .unwrap_or_else(|| "null".to_owned());
         self.lines.push(format!(
             "[{ts}] DISPATCH author_id={author_id} action={action} payload={}",
-            payload.unwrap_or("null")
+            payload
         ));
     }
 
@@ -220,12 +514,31 @@ impl ProofLog {
             .count()
     }
 
-    /// Atomically write the full log + the terminal `PROOF_PASS` (CTRL-043-03). Called now that MT-080
-    /// (code editor) + MT-110 (rich editor) closed the swarm-edit gaps and ALL four steps GATED/PASS with
-    /// NO genuine blocker.
-    fn finish_pass(mut self) {
+    /// Write a live verdict only when no gated/blocked observation remains in the asserted scenario.
+    fn finish_live_pass(mut self) {
+        assert!(
+            self.action_line_count() >= 10,
+            "live PROOF_PASS requires at least ten canonical dispatch/response action lines"
+        );
+        assert!(
+            self.lines
+                .iter()
+                .all(|line| !line.contains("GATED:") && !line.contains("BLOCKED:")),
+            "PROOF_PASS is forbidden while any scenario assertion is gated or blocked"
+        );
         self.lines.push("PROOF_PASS".to_owned());
         self.flush();
+        self.terminal = true;
+    }
+
+    /// Standalone surface checks are useful diagnostics, but cannot issue a live verdict or mutate
+    /// the proof artifact. Print them only.
+    fn finish_surface_only(mut self) {
+        self.lines
+            .push("PROOF_NOT_RUN: managed PostgreSQL scenario required".to_owned());
+        let body = self.lines.join("\n") + "\n";
+        assert!(!body.contains("PROOF_PASS"));
+        println!("--- MT-043 standalone surface diagnostics (non-authoritative) ---\n{body}");
     }
 
     /// Atomically write the full log + `PROOF_FAIL: <reason>` (the HBR-STOP path — a genuine gap that
@@ -236,13 +549,161 @@ impl ProofLog {
     fn finish_fail(mut self, reason: &str) {
         self.lines.push(format!("PROOF_FAIL: {reason}"));
         self.flush();
+        self.terminal = true;
     }
 
     fn flush(&self) {
+        self.flush_with_lock_budget(Duration::from_secs(2));
+    }
+
+    fn flush_with_lock_budget(&self, lock_budget: Duration) {
         let body = self.lines.join("\n") + "\n";
-        // SINGLE write call (atomic overwrite) — IN-043-07 / CTRL-043-03.
-        std::fs::write(proof_log_path(), &body).expect("write proof log fixture");
+        let attempt_path = attempt_proof_log_path(&self.attempt_id);
+        self.write_body(
+            &attempt_path,
+            &body,
+            "attempt-scoped external runtime proof log",
+            lock_budget,
+        );
+        self.write_body(
+            &proof_log_path(),
+            &body,
+            "canonical external runtime proof log",
+            lock_budget,
+        );
+        self.write_body(
+            &checked_in_proof_log_path(),
+            &body,
+            "checked-in MT-043 proof fixture",
+            lock_budget,
+        );
         println!("--- PROOF-043-B: swarm_edit_proof_log.txt ---\n{body}");
+    }
+
+    fn write_body(&self, path: &Path, body: &str, label: &str, lock_budget: Duration) {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .unwrap_or_else(|error| panic!("create {label} directory: {error}"));
+        }
+        let _lock = ProofLogLock::acquire(&path.with_extension("lock"), lock_budget);
+        if proof_log_generation(&path).is_some_and(|current| current > self.generation) {
+            println!(
+                "MT-043 {label} ignored stale attempt_id={} generation={} (newer generation already committed)",
+                self.attempt_id, self.generation,
+            );
+            return;
+        }
+        let temporary =
+            path.with_extension(format!("tmp.{}.{}", std::process::id(), self.attempt_id));
+        std::fs::write(&temporary, body)
+            .unwrap_or_else(|error| panic!("write {label} temp: {error}"));
+        if path.exists() {
+            std::fs::remove_file(path)
+                .unwrap_or_else(|error| panic!("replace previous {label}: {error}"));
+        }
+        std::fs::rename(&temporary, path)
+            .unwrap_or_else(|error| panic!("commit {label} atomically: {error}"));
+    }
+}
+
+fn proof_log_generation(path: &Path) -> Option<u128> {
+    let first = std::fs::read_to_string(path)
+        .ok()?
+        .lines()
+        .next()?
+        .to_owned();
+    first
+        .split_whitespace()
+        .find_map(|token| token.strip_prefix("generation="))?
+        .parse()
+        .ok()
+}
+
+struct ProofLogLock {
+    path: PathBuf,
+    owner: String,
+}
+
+impl ProofLogLock {
+    fn acquire(path: &Path, budget: Duration) -> Self {
+        let deadline = Instant::now() + budget;
+        let owner = format!("{}-{}", std::process::id(), uuid::Uuid::new_v4());
+        loop {
+            match OpenOptions::new().write(true).create_new(true).open(path) {
+                Ok(mut file) => {
+                    file.write_all(owner.as_bytes())
+                        .expect("write MT-043 proof-log lock owner");
+                    file.sync_all().expect("sync MT-043 proof-log lock owner");
+                    return Self {
+                        path: path.to_owned(),
+                        owner,
+                    };
+                }
+                Err(error) if Instant::now() < deadline => {
+                    if error.kind() != std::io::ErrorKind::AlreadyExists {
+                        panic!("acquire MT-043 proof-log lock {}: {error}", path.display());
+                    }
+                    let old_enough_for_recovery = std::fs::metadata(path)
+                        .and_then(|metadata| metadata.modified())
+                        .ok()
+                        .and_then(|modified| modified.elapsed().ok())
+                        .is_some_and(|elapsed| elapsed >= Duration::from_millis(500));
+                    let owner_is_alive = std::fs::read_to_string(path)
+                        .ok()
+                        .and_then(|owner| owner.split('-').next()?.parse::<u32>().ok())
+                        .is_some_and(|pid| {
+                            handshake_native::mcp::binding::process_birth_identity(pid).is_ok()
+                        });
+                    if old_enough_for_recovery && !owner_is_alive {
+                        match std::fs::remove_file(path) {
+                            Ok(()) => continue,
+                            Err(remove_error)
+                                if remove_error.kind() == std::io::ErrorKind::NotFound =>
+                            {
+                                continue;
+                            }
+                            Err(remove_error) => panic!(
+                                "recover stale MT-043 proof-log lock {}: {remove_error}",
+                                path.display()
+                            ),
+                        }
+                    }
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                Err(error) => panic!(
+                    "MT-043 proof-log lock {} unavailable inside {} ms: {error}",
+                    path.display(),
+                    budget.as_millis()
+                ),
+            }
+        }
+    }
+}
+
+impl Drop for ProofLogLock {
+    fn drop(&mut self) {
+        if std::fs::read_to_string(&self.path).ok().as_deref() == Some(self.owner.as_str()) {
+            match std::fs::remove_file(&self.path) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => panic!("release MT-043 proof-log lock: {error}"),
+            }
+        }
+    }
+}
+
+impl Drop for ProofLog {
+    fn drop(&mut self) {
+        if !self.live_authority || self.terminal {
+            return;
+        }
+        self.lines
+            .retain(|line| line != "PROOF_PASS" && !line.starts_with("PROOF_FAIL:"));
+        self.lines.push(
+            "PROOF_FAIL: authoritative live attempt exited before all proof gates passed"
+                .to_owned(),
+        );
+        self.flush();
     }
 }
 
@@ -271,6 +732,81 @@ impl AgentChannel {
             author_id: author_id.to_owned(),
             action,
         });
+    }
+}
+
+fn count_exact_json_strings(value: &serde_json::Value, needle: &str) -> usize {
+    match value {
+        serde_json::Value::String(text) => usize::from(text == needle),
+        serde_json::Value::Array(values) => values
+            .iter()
+            .map(|value| count_exact_json_strings(value, needle))
+            .sum(),
+        serde_json::Value::Object(values) => values
+            .values()
+            .map(|value| count_exact_json_strings(value, needle))
+            .sum(),
+        _ => 0,
+    }
+}
+
+fn count_json_strings_containing(value: &serde_json::Value, needle: &str) -> usize {
+    match value {
+        serde_json::Value::String(text) => usize::from(text.contains(needle)),
+        serde_json::Value::Array(values) => values
+            .iter()
+            .map(|value| count_json_strings_containing(value, needle))
+            .sum(),
+        serde_json::Value::Object(values) => values
+            .values()
+            .map(|value| count_json_strings_containing(value, needle))
+            .sum(),
+        _ => 0,
+    }
+}
+
+fn count_code_blocks_with_exact_text(value: &serde_json::Value, text: &str) -> usize {
+    match value {
+        serde_json::Value::Array(values) => values
+            .iter()
+            .map(|value| count_code_blocks_with_exact_text(value, text))
+            .sum(),
+        serde_json::Value::Object(values) => {
+            if values.get("type").and_then(serde_json::Value::as_str) == Some("codeBlock")
+                && count_exact_json_strings(value, text) == 1
+            {
+                1
+            } else {
+                values
+                    .values()
+                    .map(|value| count_code_blocks_with_exact_text(value, text))
+                    .sum()
+            }
+        }
+        _ => 0,
+    }
+}
+
+fn assert_mt043_action_namespace(author_id: &str) {
+    assert!(
+        ["editor.", "graph.", "canvas.", "collection.", "search."]
+            .iter()
+            .any(|prefix| author_id.starts_with(prefix)),
+        "AC-043-07: dispatched author_id '{author_id}' is outside the MT-041/042 action namespace"
+    );
+}
+
+struct Mt043WorkspaceCleanup<'a> {
+    backend: &'a interconnect_support::LiveBackend,
+    workspace_id: String,
+    active: bool,
+}
+
+impl Drop for Mt043WorkspaceCleanup<'_> {
+    fn drop(&mut self) {
+        if self.active {
+            let _ = self.backend.delete_workspace(&self.workspace_id);
+        }
     }
 }
 
@@ -310,6 +846,7 @@ fn resolve_to_events(
     snapshot: &UiTreeSnapshot,
     req: &AgentRequest,
 ) -> Result<Vec<egui::Event>, ActionError> {
+    assert_mt043_action_namespace(&req.author_id);
     let mut chan = ActionChannel::new();
     chan.enqueue(snapshot, &req.author_id, req.action.clone())?;
     Ok(chan.drain_into_events())
@@ -320,8 +857,8 @@ fn resolve_to_events(
 /// egui (the `harness.event()` path the MT-041/042 swarm-dispatch proofs use). Returns the resolved error
 /// (never panics) so a caller can assert a target is absent (the STEP-2 gap path). The editor consumes the
 /// dispatch within the frame `run()` advances.
-fn dispatch_via_harness(
-    harness: &mut Harness<'_, ()>,
+fn dispatch_via_harness<S>(
+    harness: &mut Harness<'_, S>,
     req: &AgentRequest,
 ) -> Result<(), ActionError> {
     let snapshot = snapshot_harness(harness);
@@ -330,6 +867,57 @@ fn dispatch_via_harness(
         harness.event(ev);
     }
     Ok(())
+}
+
+/// Deliver exactly one request through a newly spawned channel-only agent, resolve it against the
+/// currently mounted AccessKit tree, and record both sides of that exchange in the authoritative log.
+/// Keeping this pump as the sole integration-test ingress prevents later proof steps from accidentally
+/// bypassing the swarm channel with a direct UI-thread request.
+fn dispatch_from_spawned_agent<S>(
+    harness: &mut Harness<'_, S>,
+    log: &mut ProofLog,
+    request: AgentRequest,
+    response: &str,
+) {
+    let expected = request.clone();
+    let (_agent, rx, join) = spawn_agent(vec![request]);
+    let received = rx
+        .recv_timeout(Duration::from_secs(5))
+        .unwrap_or_else(|_| panic!("agent request {} timed out", expected.author_id));
+    assert_eq!(received.author_id, expected.author_id);
+    assert_eq!(received.action, expected.action);
+
+    let (action, payload) = match &received.action {
+        UiAction::Click => ("Click", None),
+        UiAction::ClickWithPayload { payload } => ("ClickWithPayload", Some(payload.as_str())),
+        UiAction::Focus => ("Focus", None),
+        UiAction::SetValue { text } => ("SetValue", Some(text.as_str())),
+        UiAction::NativeSetValue { text } => ("SetValue", Some(text.as_str())),
+        UiAction::ReplaceSelectedText { text } => ("ReplaceSelectedText", Some(text.as_str())),
+        UiAction::Scroll => ("ScrollIntoView", None),
+        UiAction::Select => ("Select", None),
+    };
+    log.dispatch(&received.author_id, action, payload);
+
+    let node_deadline = Instant::now() + Duration::from_secs(5);
+    while !harness.root().children_recursive().any(|node| {
+        let access = node.accesskit_node();
+        access.author_id() == Some(received.author_id.as_str()) && !access.is_disabled()
+    }) {
+        harness.run_steps(1);
+        assert!(
+            Instant::now() < node_deadline,
+            "agent target {} did not appear within five seconds",
+            received.author_id
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    dispatch_via_harness(harness, &received)
+        .unwrap_or_else(|error| panic!("channel dispatch {} failed: {error}", received.author_id));
+    harness.run_steps(1);
+    log.response(response, DbResult::Pass);
+    join.join()
+        .expect("channel-only single-request agent joins");
 }
 
 /// The AccessKit actions probed for each node's steerable-capability list (the `resolve_target` input —
@@ -349,7 +937,7 @@ const PROBE_ACTIONS: &[accesskit::Action] = &[
 /// exposes each node's id / author_id / role / disabled / supported-actions — exactly the fields
 /// `resolve_target` reads. Built as a synthetic root with every live node as a flat child (the resolver
 /// only needs `find_by_author_id`, which walks recursively).
-fn snapshot_harness(harness: &mut Harness<'_, ()>) -> UiTreeSnapshot {
+fn snapshot_harness<S>(harness: &mut Harness<'_, S>) -> UiTreeSnapshot {
     let root = harness.root();
     let mut children = Vec::new();
     for node in root.children_recursive() {
@@ -469,6 +1057,11 @@ impl SaveBackend for SaveSpy {
                     content_json: Some(content_json),
                     updated_at: Some("gated".to_owned()),
                 },
+                backlinks_persisted: 0,
+                backlinks_error: None,
+                backlinks_skipped_reason: None,
+                save_receipt_event_id: None,
+                attribution: None,
             })
         })
     }
@@ -762,7 +1355,7 @@ fn swarm_edit_proof_all_steps() {
             text_node.actions
         );
         log.dispatch(
-            "code_editor_text",
+            CODE_EDITOR_TEXT_AUTHOR_ID,
             "SetValue",
             Some(r#"{"value":"print(\"swarm-proof\")\n"}"#),
         );
@@ -776,11 +1369,13 @@ fn swarm_edit_proof_all_steps() {
             .expect("STEP2: code_editor_text node present in the live tree")
             .accesskit_node()
             .id();
-        code_harness.event(egui::Event::AccessKitActionRequest(accesskit::ActionRequest {
-            action: accesskit::Action::SetValue,
-            target: node_id,
-            data: Some(accesskit::ActionData::Value(AGENT_CODE.into())),
-        }));
+        code_harness.event(egui::Event::AccessKitActionRequest(
+            accesskit::ActionRequest {
+                action: accesskit::Action::SetValue,
+                target: node_id,
+                data: Some(accesskit::ActionData::Value(AGENT_CODE.into())),
+            },
+        ));
         // `consume_swarm_text_actions` drains the request + applies it within a frame (MT-080). Bounded
         // explicit frames (not pump_until's repaint-loop) so a transient panel repaint cannot trip the
         // max-steps guard.
@@ -851,12 +1446,18 @@ fn swarm_edit_proof_all_steps() {
         // Snapshot the live AccessKit tree; MT-110 made the plain wikilink chip advertise SetValue (the
         // headless wikilink-target-by-id surface — NO live backend search, so it resolves with no PG).
         let snap = snapshot_harness(&mut rich_harness);
+        // Generic wikilink chips use the collision-safe occurrence identity introduced by
+        // MT-041.  This link is the second leaf in the first block, so its canonical
+        // AccessKit author id is the path-scoped form rather than the legacy base id.
+        let chip_author =
+            handshake_native::rich_editor::wikilinks::inline_view::chip_occurrence_author_id(
+                PLACEHOLDER_REF,
+                &[0, 1],
+            );
         let chip_node = snap
             .iter_nodes()
             .find(|n| {
-                n.author_id
-                    .as_deref()
-                    .is_some_and(|a| a.starts_with("wikilink-chip-"))
+                n.author_id.as_deref() == Some(chip_author.as_str())
                     && n.actions.iter().any(|a| a == "SetValue")
             })
             .cloned()
@@ -866,7 +1467,7 @@ fn swarm_edit_proof_all_steps() {
             "STEP3: the wikilink chip node is enabled (dispatchable)"
         );
         log.dispatch(
-            "wikilink-chip",
+            &chip_author,
             "SetValue",
             Some(&format!(r#"{{"ref_value":"{PROOF_TARGET_BLOCK_ID}"}}"#)),
         );
@@ -879,18 +1480,19 @@ fn swarm_edit_proof_all_steps() {
             .children_recursive()
             .find(|n| {
                 let ak = n.accesskit_node();
-                ak.author_id()
-                    .is_some_and(|a| a.starts_with("wikilink-chip-"))
+                ak.author_id() == Some(chip_author.as_str())
                     && ak.data().supports_action(accesskit::Action::SetValue)
             })
             .expect("STEP3: wikilink chip node present in the live tree")
             .accesskit_node()
             .id();
-        rich_harness.event(egui::Event::AccessKitActionRequest(accesskit::ActionRequest {
-            action: accesskit::Action::SetValue,
-            target: node_id,
-            data: Some(accesskit::ActionData::Value(PROOF_TARGET_BLOCK_ID.into())),
-        }));
+        rich_harness.event(egui::Event::AccessKitActionRequest(
+            accesskit::ActionRequest {
+                action: accesskit::Action::SetValue,
+                target: node_id,
+                data: Some(accesskit::ActionData::Value(PROOF_TARGET_BLOCK_ID.into())),
+            },
+        ));
         // `consume_swarm_text_actions` drains the request + applies it within a frame (MT-110), routed
         // through the MT-035 unified undo bus. Bounded explicit frames (not pump_until's repaint-loop).
         let mut authored = false;
@@ -949,8 +1551,8 @@ fn swarm_edit_proof_all_steps() {
     }
 
     // ── STEP 4: RUN SEARCH — GATED:SEEDED (the search-result SURFACE witness) ──────────────────────────
-    // All four steps now GATED/PASS with NO genuine blocker, so — unlike the prior HBR-STOP-at-first-blocker
-    // path — STEP 4 is recorded here as GATED:SEEDED and the proof completes with PROOF_PASS. STEP 4's
+    // STEP 4 is recorded here as GATED:SEEDED. This standalone sequence is diagnostic only and can
+    // never complete the live proof. STEP 4's
     // runnable SURFACE witness (the LoomSearchV2 result AccessKit node renders for a hit) is proven in the
     // SEPARATE `step4_search_result_surface_is_gated_seeded` test; the live search DATA is pre-seeded, so the
     // live `POST /loom/search/v2` round-trip stays NEEDS_MANAGED_RESOURCE_PROOF (never a live-search PASS).
@@ -973,19 +1575,1362 @@ fn swarm_edit_proof_all_steps() {
         .join()
         .expect("swarm agent thread joined cleanly");
 
-    // All four steps GATED/PASS with NO genuine blocker (MT-080 code editor + MT-110 rich editor closed the
-    // swarm-edit gaps). The terminal marker is PROOF_PASS.
+    // This standalone surface sequence contains gated/seeded observations and therefore cannot issue
+    // a live verdict. The managed-PG integration scenario below owns PROOF_PASS authority.
     assert_no_local_artifact_dir();
     assert!(
         log.action_line_count() >= 6,
         "PROOF-043-B: the proof log must carry the STEP 1-4 action lines; got {}",
         log.action_line_count()
     );
-    log.finish_pass();
+    log.finish_surface_only();
     println!(
-        "PROOF-043-A: ALL FOUR STEPS GATED/PASS (no genuine blocker): STEP1 create-note (shape PASS, row \
+        "PROOF-043-A SURFACE-ONLY: STEP1 create-note (shape PASS, row \
          GATED), STEP2 edit-code (PASS via MT-080 code_editor_text SetValue), STEP3 add-backlink (PASS via \
-         MT-110 rich wikilink-target-by-id SetValue), STEP4 search (GATED:SEEDED) -> PROOF_PASS. ... ok"
+         MT-110 rich wikilink-target-by-id SetValue), STEP4 search (GATED:SEEDED) -> NO LIVE VERDICT. ... ok"
+    );
+}
+
+/// The only MT-043 success authority. Every datum is created inside one isolated managed-PG
+/// workspace, all editor mutations originate at stable AccessKit nodes, both agents race the same
+/// optimistic version, the loser refetches and merges, and success is written only after durable
+/// reload, live search, attribution, EventLedger/Flight-Recorder idempotency, and cleanup pass.
+fn run_swarm_edit_live_pg_conflict_merge_search_and_receipts() {
+    let started = Instant::now();
+    let deadline = started + Duration::from_secs(24);
+    let nonce = std::env::var(MT043_ATTEMPT_ID_ENV)
+        .unwrap_or_else(|_| format!("{}-{}", std::process::id(), uuid::Uuid::new_v4()));
+    let mut live_log = ProofLog::begin_live_attempt(&nonce);
+    let live = interconnect_support::require_reachable_backend();
+    let title = format!("SwarmProofNote-{nonce}");
+    let workspace = live.create_workspace(&format!("mt043-{nonce}"));
+    let workspace_id = workspace["id"].as_str().expect("workspace id").to_owned();
+    let timeout_workspace_sidecar = publish_timeout_workspace(&workspace_id);
+    let mut cleanup = Mt043WorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        active: true,
+    };
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("MT-043 runtime");
+    let docs_a = KnowledgeDocumentsClient::with_client(reqwest::Client::new(), live.base.clone());
+    let actor = |name: &str| HskDocumentHeaders {
+        actor_id: format!("mt043-agent-{name}-{nonce}"),
+        kernel_task_run_id: format!("mt043-run-{name}-{nonce}"),
+        session_run_id: format!("mt043-session-{name}-{nonce}"),
+        actor_kind: Some("operator".to_owned()),
+        correlation_id: Some(format!("mt043-correlation-{name}-{nonce}")),
+    };
+    let actor_a = actor("a");
+    let actor_b = actor("b");
+    assert_ne!(actor_a.actor_id, actor_b.actor_id);
+
+    // One continuously mounted production app owns creation, editing, save, backlink, and search. The
+    // workspace is the only fixture; required documents are created through the mounted parameterized
+    // editor.rich.insert-slash-command ActionChannel path.
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app.set_native_editor_participant_actor_id(actor_a.actor_id.clone())
+        .expect("actor A identity binds before rich-document mount");
+    app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
+    app.bind_active_project_for_integration_test(workspace_id.clone());
+    for (pane, pane_type, content_id) in [
+        ("pane-a", PaneType::CodeSymbol, None),
+        ("pane-b", PaneType::LoomWikiPage, None),
+        ("pane-c", PaneType::LoomSearchV2, None),
+    ] {
+        let pane_id = PaneId::from(pane);
+        app.pane_registry().lock().unwrap().insert(PaneRecord::new(
+            pane_id.clone(),
+            pane_type.clone(),
+            workspace_id.clone(),
+            content_id.clone(),
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+        let mut tab = TabState::new(pane_type);
+        tab.content_id = content_id;
+        let bar = app
+            .tab_bar_states_mut()
+            .get_mut(&pane_id)
+            .expect("seeded application pane has a tab bar");
+        bar.tabs = vec![tab];
+        bar.active_index = 0;
+    }
+    app.set_active_pane_for_test(Some(PaneId::from("pane-b")));
+    let mut app_harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+
+    let mut create_note = |note_title: &str, previous: Option<&str>| -> String {
+        let request = AgentRequest {
+            author_id: "editor.rich.insert-slash-command".to_owned(),
+            action: UiAction::ClickWithPayload {
+                payload: serde_json::json!({"kind":"note","title":note_title}).to_string(),
+            },
+        };
+        dispatch_from_spawned_agent(
+            &mut app_harness,
+            &mut live_log,
+            request,
+            "mounted slash-note request accepted",
+        );
+        let create_deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            app_harness.run_steps(1);
+            if let Some(value) = app_harness
+                .root()
+                .children_recursive()
+                .find(|node| {
+                    node.accesskit_node().author_id() == Some("editor.rich.created-document")
+                })
+                .and_then(|node| node.accesskit_node().value())
+                .filter(|value| previous != Some(value.as_str()))
+            {
+                return value;
+            }
+            assert!(
+                Instant::now() < create_deadline,
+                "mounted slash-note create did not expose its backend id within five seconds"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    };
+    let target_title = format!("SwarmProofTarget-{nonce}");
+    let target_document_id = create_note(&target_title, None);
+    let document_id = create_note(&title, Some(&target_document_id));
+    drop(create_note);
+
+    // Read-only verification may inspect canonical identities, but it does not create or mutate them.
+    let target = runtime
+        .block_on(docs_a.load_document(&actor_a, &target_document_id))
+        .expect("read back slash-created target");
+    let target_block_id = target.document["block_id"]
+        .as_str()
+        .or_else(|| target.document["loom_block_id"].as_str())
+        .unwrap_or(&target_document_id)
+        .to_owned();
+    let created = runtime
+        .block_on(docs_a.load_document(&actor_a, &document_id))
+        .expect("read back slash-created source");
+    let block_id = created.document["block_id"]
+        .as_str()
+        .or_else(|| created.document["loom_block_id"].as_str())
+        .unwrap_or(&document_id)
+        .to_owned();
+    let mut initial_version = created.document["doc_version"].as_i64().unwrap_or(1);
+    live.run_fixture_sql(
+        "mt043-created-rich-documents-assert",
+        &format!(
+            "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM knowledge_rich_documents WHERE workspace_id = {workspace} AND rich_document_id = {source_id} AND title = {source_title}) THEN RAISE EXCEPTION 'missing exact MT-043 source rich document'; END IF; IF NOT EXISTS (SELECT 1 FROM knowledge_rich_documents WHERE workspace_id = {workspace} AND rich_document_id = {target_id} AND title = {target_title}) THEN RAISE EXCEPTION 'missing exact MT-043 target rich document'; END IF; END $$;",
+            workspace = sql_literal(&workspace_id),
+            source_id = sql_literal(&document_id),
+            source_title = sql_literal(&title),
+            target_id = sql_literal(&target_document_id),
+            target_title = sql_literal(&target_title),
+        ),
+    );
+    println!(
+        "PROOF-043-C PostgreSQL knowledge_rich_documents: workspace={workspace_id} source=({document_id},{title}) target=({target_document_id},{target_title})"
+    );
+    live_log.response(
+        "exact slash-created source and target rows exist in canonical knowledge_rich_documents",
+        DbResult::Pass,
+    );
+
+    // The production create outcome automatically navigates the active pane to the newly created note.
+    // Observe that destination; do not repair it with a test-only tab/pane mutation.
+    assert_eq!(
+        app_harness.state().active_pane().map(|pane| pane.as_ref()),
+        Some("pane-b"),
+        "slash-create must retain the active rich pane"
+    );
+    let source_tab = app_harness
+        .state()
+        .tab_bar_states()
+        .get(&PaneId::from("pane-b"))
+        .and_then(|bar| bar.tabs.get(bar.active_index))
+        .and_then(|tab| tab.content_id.as_deref());
+    assert_eq!(
+        source_tab,
+        Some(document_id.as_str()),
+        "production slash-create navigation must mount the exact source document"
+    );
+    live_log.response(
+        "production slash-create navigation mounted the exact source document without test-state rebinding",
+        DbResult::Pass,
+    );
+    let mount_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        app_harness.run_steps(1);
+        let ids: Vec<String> = app_harness
+            .root()
+            .children_recursive()
+            .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+            .collect();
+        if ids.iter().any(|id| id == RICH_EDITOR_ROOT_AUTHOR_ID)
+            && ids
+                .iter()
+                .any(|id| id == handshake_native::code_editor::CODE_EDITOR_TEXT_AUTHOR_ID)
+            && ids.iter().any(|id| id == lsv2::QUERY_AUTHOR_ID)
+        {
+            break;
+        }
+        assert!(
+            Instant::now() < mount_deadline,
+            "STEP0 continuous Handshake app mount exceeded five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+
+    // The two create actions intentionally navigate away from the untitled state. Bind the proof to
+    // the actual mounted source-document state after that navigation; retaining the pre-create Arc
+    // would test a retired view and could never observe the live save/conflict receipt.
+    let mounted_rich = app_harness.state().mounted_rich_state();
+
+    let mut app_b = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    app_b
+        .set_native_editor_participant_actor_id(actor_b.actor_id.clone())
+        .expect("actor B identity binds before rich-document mount");
+    app_b.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
+    app_b.bind_active_project_for_integration_test(workspace_id.clone());
+    {
+        let pane_id = PaneId::from("pane-b");
+        app_b
+            .pane_registry()
+            .lock()
+            .unwrap()
+            .insert(PaneRecord::new(
+                pane_id.clone(),
+                PaneType::LoomWikiPage,
+                workspace_id.clone(),
+                Some(document_id.clone()),
+                LockState::Unlocked,
+                DirtyState::Clean,
+                PaneAuthority::System,
+            ));
+        let mut tab = TabState::new(PaneType::LoomWikiPage);
+        tab.content_id = Some(document_id.clone());
+        let bar = app_b
+            .tab_bar_states_mut()
+            .get_mut(&pane_id)
+            .expect("second host rich tab bar");
+        bar.tabs = vec![tab];
+        bar.active_index = 0;
+        app_b.set_active_pane_for_test(Some(pane_id));
+    }
+    let mounted_rich_b = app_b.mounted_rich_state();
+    let mut app_harness_b = Harness::builder()
+        .with_size(egui::vec2(900.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app_b);
+    let second_mount_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        app_harness_b.run_steps(1);
+        if mounted_rich_b
+            .lock()
+            .ok()
+            .and_then(|state| state.save.as_ref().map(|save| save.doc_version))
+            == Some(initial_version as u64)
+        {
+            break;
+        }
+        assert!(
+            Instant::now() < second_mount_deadline,
+            "second mounted host did not load the shared canonical version"
+        );
+    }
+    let code = "fn swarm_merge() -> &'static str { \"MT-043\" }\n".to_owned();
+    let edit_plan = vec![
+        AgentRequest {
+            author_id: RICH_EDITOR_ROOT_AUTHOR_ID.to_owned(),
+            action: UiAction::Focus,
+        },
+        AgentRequest {
+            author_id: "editor.rich.insert-slash-command".to_owned(),
+            action: UiAction::ClickWithPayload {
+                payload: serde_json::json!({
+                    "kind": "wikilink",
+                    "ref_kind": "note",
+                    "ref_value": target_document_id,
+                    "label": target_title,
+                })
+                .to_string(),
+            },
+        },
+        AgentRequest {
+            author_id: "editor.rich.insert-slash-command".to_owned(),
+            action: UiAction::ClickWithPayload {
+                payload: serde_json::json!({
+                    "kind": "code_block",
+                    "language": "rust",
+                    "code": "",
+                })
+                .to_string(),
+            },
+        },
+    ];
+    let expected_edit_actions = edit_plan.clone();
+    let (_agent, edit_rx, edit_join) = spawn_agent(edit_plan);
+    for expected in expected_edit_actions {
+        let request = edit_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap_or_else(|_| panic!("STEP edit action {} timed out", expected.author_id));
+        assert_eq!(request.author_id, expected.author_id);
+        let (action_name, payload) = match &request.action {
+            UiAction::Click => ("Click", None),
+            UiAction::ClickWithPayload { payload } => ("ClickWithPayload", Some(payload.as_str())),
+            UiAction::Focus => ("Focus", None),
+            UiAction::SetValue { text } | UiAction::NativeSetValue { text } => {
+                ("SetValue", Some(text.as_str()))
+            }
+            UiAction::ReplaceSelectedText { text } => ("ReplaceSelectedText", Some(text.as_str())),
+            UiAction::Scroll => ("ScrollIntoView", None),
+            UiAction::Select => ("Select", None),
+        };
+        live_log.dispatch(&request.author_id, action_name, payload);
+        let action_deadline = Instant::now() + Duration::from_secs(5);
+        while !app_harness.root().children_recursive().any(|node| {
+            let access = node.accesskit_node();
+            access.author_id() == Some(request.author_id.as_str()) && !access.is_disabled()
+        }) {
+            app_harness.run_steps(1);
+            assert!(
+                Instant::now() < action_deadline,
+                "STEP action node {} did not become enabled within five seconds; matches={:?}; rich_state={:?}; active_pane={:?}",
+                request.author_id,
+                app_harness
+                    .root()
+                    .children_recursive()
+                    .filter_map(|node| {
+                        let access = node.accesskit_node();
+                        (access.author_id() == Some(request.author_id.as_str())).then(|| {
+                            (
+                                access.id().0,
+                                access.is_disabled(),
+                                format!("{:?}", access.role()),
+                                access.data().supports_action(accesskit::Action::Click),
+                            )
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+                mounted_rich.lock().ok().map(|state| (
+                    format!("{:?}", state.selection),
+                    state.slash_menu.as_ref().map(|menu| (
+                        menu.filter.clone(),
+                        menu.selected,
+                        menu.prompt.is_some(),
+                    )),
+                    state.editor_focus_pending,
+                )),
+                app_harness.state().active_pane().map(|pane| pane.as_ref().to_owned())
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        dispatch_via_harness(&mut app_harness, &request).unwrap_or_else(|error| {
+            panic!("channel dispatch {} failed: {error}", request.author_id)
+        });
+        app_harness.run_steps(1);
+        live_log.response(
+            "continuous mounted application state advanced",
+            DbResult::Pass,
+        );
+    }
+    let join_deadline = Instant::now() + Duration::from_secs(5);
+    while !edit_join.is_finished() {
+        assert!(
+            Instant::now() < join_deadline,
+            "STEP edit agent thread exceeded five seconds"
+        );
+        std::thread::yield_now();
+    }
+    edit_join.join().expect("channel-only edit agent joins");
+
+    // Open the exact slash-created rich code block through its stable MT-041 action, then author and
+    // save through the native CodeEditorPanel. The resulting SaveManager receipt is the winner's
+    // canonical note save; there is no independent rich-root copy of `code` and no local-file mirror.
+    let code_open_author = {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            app_harness.run_steps(1);
+            let matches = app_harness
+                .root()
+                .children_recursive()
+                .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+                .filter(|author| author.starts_with("editor.rich.code-block.open."))
+                .collect::<Vec<_>>();
+            if !matches.is_empty() {
+                assert_eq!(
+                    matches.len(),
+                    1,
+                    "the source note exposes one exact code-block open action"
+                );
+                break matches[0].clone();
+            }
+            assert!(
+                Instant::now() < deadline,
+                "slash-created code block did not expose its MT-041 open action"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    };
+    dispatch_from_spawned_agent(
+        &mut app_harness,
+        &mut live_log,
+        AgentRequest {
+            author_id: code_open_author,
+            action: UiAction::Click,
+        },
+        "exact rich code block opened in the native code editor",
+    );
+    let (rich_code_content_id, rich_code_panel, rich_code_save_author) = {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            app_harness.run_steps(1);
+            let content_id = app_harness
+                .state()
+                .tab_bar_states()
+                .values()
+                .flat_map(|bar| bar.tabs.iter())
+                .filter_map(|tab| tab.content_id.as_deref())
+                .find(|content_id| content_id.starts_with("rich-code-block:"))
+                .map(str::to_owned);
+            let save_authors = app_harness
+                .root()
+                .children_recursive()
+                .filter_map(|node| {
+                    let access = node.accesskit_node();
+                    access
+                        .author_id()
+                        .filter(|author| {
+                            author.starts_with("editor.code.save.document-")
+                                && !access.is_disabled()
+                        })
+                        .map(str::to_owned)
+                })
+                .collect::<Vec<_>>();
+            if let Some(content_id) = content_id {
+                if let Some(panel) = app_harness
+                    .state()
+                    .mounted_code_panel_for_content_id(&content_id)
+                {
+                    if save_authors.len() == 1 {
+                        break (content_id, panel, save_authors[0].clone());
+                    }
+                }
+            }
+            assert!(
+                Instant::now() < deadline,
+                "exact rich code block did not mount one enabled editor.code.save action"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    };
+    let rich_code_text_author = rich_code_panel.text_author_id();
+    dispatch_from_spawned_agent(
+        &mut app_harness,
+        &mut live_log,
+        AgentRequest {
+            author_id: rich_code_text_author,
+            action: UiAction::NativeSetValue { text: code.clone() },
+        },
+        "agent-authored code entered the exact bound native code buffer",
+    );
+    assert_eq!(rich_code_panel.buffer().to_string(), code);
+    dispatch_from_spawned_agent(
+        &mut app_harness,
+        &mut live_log,
+        AgentRequest {
+            author_id: rich_code_save_author,
+            action: UiAction::Click,
+        },
+        "editor.code.save entered the exact rich-code persistence bridge",
+    );
+    live_log.response(
+        &format!("exact rich code content binding mounted as {rich_code_content_id}"),
+        DbResult::Pass,
+    );
+
+    let losing_text = format!("agent-b-recoverable-{nonce}");
+    dispatch_from_spawned_agent(
+        &mut app_harness_b,
+        &mut live_log,
+        AgentRequest {
+            author_id: RICH_EDITOR_ROOT_AUTHOR_ID.to_owned(),
+            action: UiAction::NativeSetValue {
+                text: losing_text.clone(),
+            },
+        },
+        "second mounted actor applied its independent stale edit",
+    );
+
+    // Actor A's editor.code.save commits first; actor B then submits its independently edited stale
+    // version and receives the real optimistic-concurrency conflict. Both save intents originate at
+    // mounted AccessKit nodes.
+    let save_deadline = Instant::now() + Duration::from_secs(5);
+    let (app_receipt, app_attribution, app_version) = loop {
+        app_harness.run_steps(1);
+        let saved = mounted_rich.lock().ok().and_then(|state| {
+            state.save.as_ref().and_then(|save| {
+                save.last_save_receipt_event_id
+                    .clone()
+                    .zip(save.last_save_attribution.clone())
+                    .map(|pair| (pair, save.doc_version))
+            })
+        });
+        if let Some(((receipt, attribution), version)) = saved {
+            break (receipt, attribution, version);
+        }
+        assert!(
+            Instant::now() < save_deadline,
+            "STEP save receipt did not arrive within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    dispatch_from_spawned_agent(
+        &mut app_harness_b,
+        &mut live_log,
+        AgentRequest {
+            author_id: "editor.rich.save".to_owned(),
+            action: UiAction::Click,
+        },
+        "actor B stale save intent entered the mounted save manager",
+    );
+    let conflict_deadline = Instant::now() + Duration::from_secs(5);
+    let (conflict_server_version, conflict_server_content, conflict_local_content) = loop {
+        app_harness_b.run_steps(1);
+        let recoverable = mounted_rich_b.lock().ok().and_then(|state| {
+            state.save.as_ref().and_then(|save| match &save.state {
+                SaveState::Conflict {
+                    server,
+                    local_content,
+                } => Some((
+                    server.doc_version,
+                    server
+                        .content_json
+                        .clone()
+                        .expect("conflict carries server content"),
+                    local_content.clone(),
+                )),
+                _ => None,
+            })
+        });
+        if let Some((server_version, server_content, local_content)) = recoverable {
+            assert_eq!(count_exact_json_strings(&local_content, &losing_text), 1);
+            let losing_save = mounted_rich_b.lock().unwrap();
+            let losing_save = losing_save.save.as_ref().expect("losing SaveManager");
+            assert!(losing_save.last_save_receipt_event_id.is_none());
+            break (server_version, server_content, local_content);
+        }
+        assert!(
+            Instant::now() < conflict_deadline,
+            "actor B stale mounted save did not reach recoverable conflict state"
+        );
+    };
+    assert_eq!(
+        count_exact_json_strings(&conflict_local_content, &losing_text),
+        1,
+        "the losing version remains recoverable until merge"
+    );
+    assert_eq!(rich_code_panel.buffer().to_string(), code);
+    assert_eq!(app_attribution.actor_id, actor_a.actor_id);
+
+    // The loser now performs the required recovery sequence. First refetch canonical state through a
+    // fresh backend read, prove it matches the server snapshot carried by the 409, then select the
+    // mounted conflict UI's Keep-server action through the spawned-agent channel. Finally merge the
+    // losing edit through the rich root's native ReplaceSelectedText action and resave through that same
+    // mounted channel. The direct client below is read-only verification; it never mutates authority.
+    let loser_refetch = runtime
+        .block_on(async {
+            tokio::time::timeout(
+                Duration::from_secs(5),
+                docs_a.load_document(&actor_b, &document_id),
+            )
+            .await
+        })
+        .expect("loser canonical refetch exceeded five seconds")
+        .expect("loser refetches canonical document after conflict");
+    assert_eq!(
+        loser_refetch.document["doc_version"].as_u64(),
+        Some(conflict_server_version)
+    );
+    assert_eq!(
+        loser_refetch.document["content_json"], conflict_server_content,
+        "409 snapshot and independently refetched canonical document agree"
+    );
+    live_log.response(
+        "loser refetched canonical server document after 409",
+        DbResult::Pass,
+    );
+
+    dispatch_from_spawned_agent(
+        &mut app_harness_b,
+        &mut live_log,
+        AgentRequest {
+            author_id: CONFLICT_KEEP_SERVER_AUTHOR_ID.to_owned(),
+            action: UiAction::Click,
+        },
+        "mounted conflict UI adopted the refetched server version",
+    );
+    {
+        let losing_state = mounted_rich_b.lock().expect("loser rich state");
+        let save = losing_state.save.as_ref().expect("loser SaveManager");
+        assert_eq!(save.doc_version, conflict_server_version);
+        assert!(matches!(&save.state, SaveState::Idle));
+        assert_eq!(
+            count_exact_json_strings(&to_content_json_value(&losing_state.doc), &code),
+            1,
+            "refetched winner content is mounted before merge"
+        );
+    }
+    dispatch_from_spawned_agent(
+        &mut app_harness_b,
+        &mut live_log,
+        AgentRequest {
+            author_id: RICH_EDITOR_ROOT_AUTHOR_ID.to_owned(),
+            action: UiAction::ReplaceSelectedText {
+                text: losing_text.clone(),
+            },
+        },
+        "loser merged its recoverable edit into the adopted server document through mounted AccessKit",
+    );
+    {
+        let losing_state = mounted_rich_b.lock().expect("loser merged rich state");
+        let merged = to_content_json_value(&losing_state.doc);
+        assert_eq!(
+            count_json_strings_containing(&merged, &losing_text),
+            1,
+            "the AccessKit merge inserted the losing edit exactly once"
+        );
+        assert_eq!(
+            count_exact_json_strings(&merged, &code),
+            1,
+            "the AccessKit merge preserved the winner's structured code node"
+        );
+    }
+    dispatch_from_spawned_agent(
+        &mut app_harness_b,
+        &mut live_log,
+        AgentRequest {
+            author_id: "editor.rich.save".to_owned(),
+            action: UiAction::Click,
+        },
+        "loser submitted the merged winner-plus-loser document",
+    );
+    let merge_deadline = Instant::now() + Duration::from_secs(5);
+    let (merge_receipt, merge_attribution) = loop {
+        app_harness_b.run_steps(1);
+        let saved = mounted_rich_b.lock().ok().and_then(|state| {
+            state.save.as_ref().and_then(|save| {
+                save.last_save_receipt_event_id
+                    .clone()
+                    .zip(save.last_save_attribution.clone())
+                    .map(|pair| (pair, save.doc_version))
+            })
+        });
+        if let Some(((receipt, attribution), version)) = saved {
+            initial_version = i64::try_from(version).expect("merged version fits i64");
+            break (receipt, attribution);
+        }
+        assert!(
+            Instant::now() < merge_deadline,
+            "loser merged resave did not return a receipt within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    assert_eq!(merge_attribution.actor_id, actor_b.actor_id);
+    assert_ne!(merge_receipt, app_receipt);
+
+    // A fresh transport and identity observes exactly the mounted ActionChannel-authored code and
+    // backlink plus the loser's merged text. No direct test client writes participate in this proof.
+    let fresh_docs =
+        KnowledgeDocumentsClient::with_client(reqwest::Client::new(), live.base.clone());
+    let reload_headers = actor("reload");
+    let reloaded = runtime
+        .block_on(async {
+            tokio::time::timeout(
+                Duration::from_secs(5),
+                fresh_docs.load_document(&reload_headers, &document_id),
+            )
+            .await
+        })
+        .expect("STEP durable reload exceeded five seconds")
+        .expect("fresh-client durable reload");
+    assert_eq!(
+        reloaded.document["doc_version"].as_i64(),
+        Some(initial_version)
+    );
+    let durable = reloaded.document["content_json"].clone();
+    assert_eq!(
+        count_code_blocks_with_exact_text(&durable, &code),
+        1,
+        "durable reload preserves exactly one structured codeBlock containing the AccessKit-authored code"
+    );
+    assert_eq!(
+        count_exact_json_strings(&durable, &code),
+        1,
+        "no duplicate code edit"
+    );
+    assert_eq!(
+        count_exact_json_strings(&durable, &target_block_id),
+        1,
+        "no duplicate or lost backlink"
+    );
+    assert_eq!(
+        count_json_strings_containing(&durable, &losing_text),
+        1,
+        "loser's edit survives exactly once after refetch/merge/resave"
+    );
+
+    // Search query + execution stay on the same app and the same production action channel.
+    let search_plan = vec![
+        AgentRequest {
+            author_id: lsv2::QUERY_AUTHOR_ID.to_owned(),
+            action: UiAction::NativeSetValue {
+                text: title.clone(),
+            },
+        },
+        AgentRequest {
+            author_id: lsv2::SEARCH_AUTHOR_ID.to_owned(),
+            action: UiAction::Click,
+        },
+    ];
+    let expected_search_actions = search_plan.clone();
+    let (_agent, search_rx, search_join) = spawn_agent(search_plan);
+    for expected in expected_search_actions {
+        let request = search_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap_or_else(|_| panic!("STEP search action {} timed out", expected.author_id));
+        let (action, payload) = match &request.action {
+            UiAction::Click => ("Click", None),
+            UiAction::NativeSetValue { text } | UiAction::SetValue { text } => {
+                ("SetValue", Some(text.as_str()))
+            }
+            other => panic!("unexpected search action: {other:?}"),
+        };
+        live_log.dispatch(&request.author_id, action, payload);
+        dispatch_via_harness(&mut app_harness, &request)
+            .unwrap_or_else(|error| panic!("channel search dispatch failed: {error}"));
+        app_harness.run_steps(1);
+        live_log.response("continuous mounted search state advanced", DbResult::Pass);
+    }
+    search_join.join().expect("channel-only search agent joins");
+    let result_author = lsv2::result_author_id(&block_id);
+    let search_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        app_harness.run_steps(1);
+        if app_harness
+            .root()
+            .children_recursive()
+            .any(|node| node.accesskit_node().author_id() == Some(result_author.as_str()))
+        {
+            break;
+        }
+        assert!(
+            Instant::now() < search_deadline,
+            "STEP live search result did not appear within five seconds"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let result_plan = vec![AgentRequest {
+        author_id: result_author.clone(),
+        action: UiAction::Click,
+    }];
+    let (_agent, result_rx, result_join) = spawn_agent(result_plan);
+    let result_request = result_rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("STEP search result activation arrived");
+    live_log.dispatch(&result_request.author_id, "Click", None);
+    dispatch_via_harness(&mut app_harness, &result_request)
+        .expect("activate live search result through production channel");
+    app_harness.run_steps(1);
+    live_log.response("search result activated on continuous app", DbResult::Pass);
+    result_join.join().expect("channel-only result agent joins");
+
+    // The mounted save path emits automatically. Poll the production reader for the row whose immutable
+    // native payload references the exact canonical save receipt; the test never POSTs a fabricated FR row.
+    let http = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(5))
+        .build()
+        .expect("bounded MT-043 HTTP client");
+    let mut poll_flight_recorder = |actor_id: &str, receipt: &str| {
+        let fr_deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            app_harness.run_steps(1);
+            let rows: serde_json::Value = runtime.block_on(async {
+                http.get(format!(
+                    "{}/api/flight_recorder?wsid={workspace_id}&actor_id={actor_id}",
+                    live.base
+                ))
+                .send()
+                .await
+                .expect("FR GET")
+                .error_for_status()
+                .expect("FR GET status")
+                .json()
+                .await
+                .expect("FR GET JSON")
+            });
+            let matching: Vec<&serde_json::Value> = rows
+                .as_array()
+                .expect("Flight Recorder response is an array")
+                .iter()
+                .filter(|row| {
+                    row["payload"]["native_payload"]["save_receipt_event_id"].as_str()
+                        == Some(receipt)
+                })
+                .collect();
+            assert!(
+                matching.len() <= 1,
+                "automatic Flight Recorder projection duplicated receipt {receipt}"
+            );
+            if let Some(row) = matching.first() {
+                break (**row).clone();
+            }
+            assert!(
+                Instant::now() < fr_deadline,
+                "automatic authentic document_saved row for actor {actor_id} receipt {receipt} did not arrive within five seconds"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    };
+    let automatic_fr = poll_flight_recorder(&app_attribution.actor_id, &app_receipt);
+    let automatic_merge_fr = poll_flight_recorder(&merge_attribution.actor_id, &merge_receipt);
+    drop(poll_flight_recorder);
+    assert_ne!(
+        automatic_fr["event_id"].as_str(),
+        Some(app_receipt.as_str())
+    );
+    let native_payload = &automatic_fr["payload"]["native_payload"];
+    assert_eq!(
+        native_payload["document_id"].as_str(),
+        Some(document_id.as_str())
+    );
+    assert_eq!(
+        native_payload["kernel_task_run_id"].as_str(),
+        Some(app_attribution.kernel_task_run_id.as_str())
+    );
+    assert_eq!(
+        native_payload["session_run_id"].as_str(),
+        Some(app_attribution.session_run_id.as_str())
+    );
+    assert_eq!(
+        native_payload["correlation_id"].as_str(),
+        app_attribution.correlation_id.as_deref()
+    );
+    assert_ne!(
+        automatic_merge_fr["event_id"].as_str(),
+        Some(merge_receipt.as_str())
+    );
+    let merge_native_payload = &automatic_merge_fr["payload"]["native_payload"];
+    assert_eq!(
+        merge_native_payload["save_receipt_event_id"].as_str(),
+        Some(merge_receipt.as_str())
+    );
+    assert_eq!(
+        merge_native_payload["document_id"].as_str(),
+        Some(document_id.as_str())
+    );
+    assert_eq!(
+        merge_native_payload["kernel_task_run_id"].as_str(),
+        Some(merge_attribution.kernel_task_run_id.as_str())
+    );
+    assert_eq!(
+        merge_native_payload["session_run_id"].as_str(),
+        Some(merge_attribution.session_run_id.as_str())
+    );
+    assert_eq!(
+        merge_native_payload["correlation_id"].as_str(),
+        merge_attribution.correlation_id.as_deref()
+    );
+    let app_ledger_payload = interconnect_support::event_ledger_payload(&app_receipt);
+    let merge_ledger_payload = interconnect_support::event_ledger_payload(&merge_receipt);
+    for (payload, expected_version) in [
+        (&app_ledger_payload, app_version),
+        (
+            &merge_ledger_payload,
+            u64::try_from(initial_version).expect("merged document version is non-negative"),
+        ),
+    ] {
+        assert_eq!(payload["event"].as_str(), Some("saved"));
+        assert_eq!(
+            payload["workspace_id"].as_str(),
+            Some(workspace_id.as_str())
+        );
+        assert_eq!(payload["doc_version"].as_u64(), Some(expected_version));
+    }
+    live.run_fixture_sql(
+        "mt043-exact-event-ledger-attribution-assert",
+        &format!(
+            "DO $$ BEGIN \
+             IF (SELECT COUNT(*) FROM kernel_event_ledger WHERE event_id = {a_event} AND event_type = 'KNOWLEDGE_RICH_DOCUMENT_SAVED' AND aggregate_type = 'knowledge_rich_document' AND aggregate_id = {document} AND actor_id = {a_actor} AND actor_kind = 'operator' AND kernel_task_run_id = {a_task} AND session_run_id = {a_session} AND correlation_id = {a_correlation} AND source_component = 'knowledge_documents_api') <> 1 THEN RAISE EXCEPTION 'missing or duplicate exact actor-A MT-043 EventLedger receipt'; END IF; \
+             IF (SELECT COUNT(*) FROM kernel_event_ledger WHERE event_id = {b_event} AND event_type = 'KNOWLEDGE_RICH_DOCUMENT_SAVED' AND aggregate_type = 'knowledge_rich_document' AND aggregate_id = {document} AND actor_id = {b_actor} AND actor_kind = 'operator' AND kernel_task_run_id = {b_task} AND session_run_id = {b_session} AND correlation_id = {b_correlation} AND source_component = 'knowledge_documents_api') <> 1 THEN RAISE EXCEPTION 'missing or duplicate exact actor-B MT-043 EventLedger receipt'; END IF; \
+             END $$;",
+            a_event = sql_literal(&app_receipt),
+            b_event = sql_literal(&merge_receipt),
+            document = sql_literal(&document_id),
+            a_actor = sql_literal(&app_attribution.actor_id),
+            b_actor = sql_literal(&merge_attribution.actor_id),
+            a_task = sql_literal(&app_attribution.kernel_task_run_id),
+            b_task = sql_literal(&merge_attribution.kernel_task_run_id),
+            a_session = sql_literal(&app_attribution.session_run_id),
+            b_session = sql_literal(&merge_attribution.session_run_id),
+            a_correlation = sql_literal(
+                app_attribution
+                    .correlation_id
+                    .as_deref()
+                    .expect("actor A correlation id"),
+            ),
+            b_correlation = sql_literal(
+                merge_attribution
+                    .correlation_id
+                    .as_deref()
+                    .expect("actor B correlation id"),
+            ),
+        ),
+    );
+    live_log.response(
+        "both actors have distinct exact-one canonical EventLedger receipts and automatic attributed Flight Recorder rows",
+        DbResult::Pass,
+    );
+    live_log.note(&format!(
+        "FLIGHT_RECORDER actor_a={} actor_b={}",
+        serde_json::to_string(&automatic_fr).expect("serialize actor-A Flight Recorder evidence"),
+        serde_json::to_string(&automatic_merge_fr)
+            .expect("serialize actor-B Flight Recorder evidence")
+    ));
+
+    // AC-043-04: prove the final save projected the exact source->target backlink into canonical
+    // PostgreSQL. A content_json string match is not enough: this DO block fails unless the precise
+    // loom_edges identity exists after the winner+loser merge was durably reloaded.
+    live.run_fixture_sql(
+        "mt043-final-backlink-assert",
+        &format!(
+            "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM loom_edges WHERE workspace_id = {workspace} \
+             AND source_block_id = {source} AND target_block_id = {target}) THEN \
+             RAISE EXCEPTION 'missing exact MT-043 loom_edges source->target row'; END IF; END $$;",
+            workspace = sql_literal(&workspace_id),
+            source = sql_literal(&block_id),
+            target = sql_literal(&target_block_id),
+        ),
+    );
+    live_log.response(
+        "exact canonical loom_edges source->target row exists after final save",
+        DbResult::Pass,
+    );
+
+    // Mount a fresh product Graph observer after persistence, with its pane fully configured before the
+    // first frame. Every post-mount interaction below stays in the contract-authorized `graph.*`
+    // ActionChannel namespace; no menu/palette bypass or direct state mutation participates in proof.
+    let graph_pane_type = handshake_native::editor_pane_factories::placeholder_pane_type(
+        handshake_native::editor_pane_factories::GRAPH_VIEW_PANE_LABEL,
+    );
+    let mut graph_app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(),
+        db_status: "ok".to_owned(),
+        migration_version: Some(1),
+    }));
+    graph_app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
+    graph_app.bind_active_project_for_integration_test(workspace_id.clone());
+    // Reuse one of the shell's real pane slots so the pre-frame tab bar and split-layout route both
+    // exist. A synthetic pane id has no TabBarState and would fail before the Graph product surface
+    // mounts, proving only a harness construction error.
+    let graph_pane_id = PaneId::from("pane-a");
+    graph_app
+        .pane_registry()
+        .lock()
+        .unwrap()
+        .insert(PaneRecord::new(
+            graph_pane_id.clone(),
+            graph_pane_type.clone(),
+            workspace_id.clone(),
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+    let graph_tab = TabState::new(graph_pane_type);
+    let graph_bar = graph_app
+        .tab_bar_states_mut()
+        .get_mut(&graph_pane_id)
+        .expect("graph observer tab bar");
+    graph_bar.tabs = vec![graph_tab];
+    graph_bar.active_index = 0;
+    graph_app.set_active_pane_for_test(Some(graph_pane_id));
+    let mut graph_harness = Harness::builder()
+        .with_size(egui::vec2(900.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), graph_app);
+    let source_graph_author = handshake_native::graph::graph_view::node_author_id(&block_id);
+    let target_graph_author = handshake_native::graph::graph_view::node_author_id(&target_block_id);
+    let graph_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        graph_harness.run_steps(1);
+        let authors: std::collections::HashSet<String> = graph_harness
+            .root()
+            .children_recursive()
+            .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+            .collect();
+        if authors.contains(&source_graph_author) && authors.contains(&target_graph_author) {
+            break;
+        }
+        assert!(
+            Instant::now() < graph_deadline,
+            "mounted Graph pane did not expose exact source+target nodes {source_graph_author} and {target_graph_author} after final save"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    live_log.response(
+        &format!(
+            "mounted graph tree contains source={source_graph_author} and target={target_graph_author}"
+        ),
+        DbResult::Pass,
+    );
+
+    // Put the graph into Local mode through its registry-backed stable actions. After the cleanup DELETEs,
+    // toggling back to Global is a real product refresh whose AccessKit projection must delete both nodes.
+    dispatch_from_spawned_agent(
+        &mut graph_harness,
+        &mut live_log,
+        AgentRequest {
+            author_id: "graph.select-node".to_owned(),
+            action: UiAction::ClickWithPayload {
+                payload: serde_json::json!({"block_id": block_id}).to_string(),
+            },
+        },
+        "graph selected the exact source block before the cleanup refresh",
+    );
+    dispatch_from_spawned_agent(
+        &mut graph_harness,
+        &mut live_log,
+        AgentRequest {
+            author_id: handshake_native::graph::graph_view::MODE_LOCAL_AUTHOR_ID.to_owned(),
+            action: UiAction::Click,
+        },
+        "graph entered Local mode through AccessKit",
+    );
+
+    let cleanup_actor = actor("cleanup");
+    for cleanup_document_id in [&document_id, &target_document_id] {
+        let status = runtime.block_on(async {
+            let mut request = http
+                .delete(format!(
+                    "{}/knowledge/documents/{cleanup_document_id}",
+                    live.base
+                ))
+                .header(HSK_HEADER_ACTOR_ID, &cleanup_actor.actor_id)
+                .header(
+                    HSK_HEADER_KERNEL_TASK_RUN_ID,
+                    &cleanup_actor.kernel_task_run_id,
+                )
+                .header(HSK_HEADER_SESSION_RUN_ID, &cleanup_actor.session_run_id)
+                .header(
+                    HSK_HEADER_ACTOR_KIND,
+                    cleanup_actor
+                        .actor_kind
+                        .as_deref()
+                        .expect("cleanup actor kind"),
+                );
+            if let Some(correlation_id) = &cleanup_actor.correlation_id {
+                request = request.header(HSK_HEADER_CORRELATION_ID, correlation_id);
+            }
+            request
+                .send()
+                .await
+                .expect("cleanup document DELETE")
+                .status()
+        });
+        assert!(
+            status.is_success(),
+            "cleanup DELETE for {cleanup_document_id} returned {status}"
+        );
+    }
+    live.run_fixture_sql(
+        "mt043-document-and-edge-cleanup-assert",
+        &format!(
+            "DO $$ BEGIN IF (SELECT COUNT(*) FROM knowledge_rich_documents WHERE workspace_id = {workspace} AND rich_document_id IN ({source_document}, {target_document}) AND deleted_at IS NOT NULL) <> 2 THEN RAISE EXCEPTION 'MT-043 document cleanup did not tombstone both documents'; END IF; IF EXISTS (SELECT 1 FROM loom_edges WHERE workspace_id = {workspace} AND (source_block_id IN ({source_block}, {target_block}) OR target_block_id IN ({source_block}, {target_block}))) THEN RAISE EXCEPTION 'MT-043 cleanup left a graph edge'; END IF; END $$;",
+            workspace = sql_literal(&workspace_id),
+            source_document = sql_literal(&document_id),
+            target_document = sql_literal(&target_document_id),
+            source_block = sql_literal(&block_id),
+            target_block = sql_literal(&target_block_id),
+        ),
+    );
+    dispatch_from_spawned_agent(
+        &mut graph_harness,
+        &mut live_log,
+        AgentRequest {
+            author_id: handshake_native::graph::graph_view::MODE_GLOBAL_AUTHOR_ID.to_owned(),
+            action: UiAction::Click,
+        },
+        "graph returned to Global mode and issued a canonical cleanup refresh",
+    );
+    let graph_cleanup_deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        graph_harness.run_steps(1);
+        let stale_node_present = graph_harness.root().children_recursive().any(|node| {
+            matches!(
+                node.accesskit_node().author_id(),
+                Some(author)
+                    if author == source_graph_author.as_str()
+                        || author == target_graph_author.as_str()
+            )
+        });
+        if !stale_node_present {
+            break;
+        }
+        assert!(
+            Instant::now() < graph_cleanup_deadline,
+            "canonical Graph refresh retained deleted source or target AccessKit identity"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    live_log.response(
+        "document cleanup removed both canonical rows/edges and the refreshed graph tree removed both AccessKit node identities",
+        DbResult::Pass,
+    );
+    assert!(
+        Instant::now() < deadline,
+        "complete MT-043 scenario exceeded 30 seconds"
+    );
+    assert!(matches!(
+        live.delete_workspace(&workspace_id),
+        200 | 202 | 204
+    ));
+    cleanup.active = false;
+    assert!(live
+        .get_json("/workspaces")
+        .as_array()
+        .expect("workspace list")
+        .iter()
+        .all(|workspace| workspace["id"].as_str() != Some(workspace_id.as_str())));
+    live.run_fixture_sql(
+        "mt043-workspace-cascade-cleanup-assert",
+        &format!(
+            "DO $$ BEGIN IF EXISTS (SELECT 1 FROM knowledge_rich_documents WHERE workspace_id = {workspace}) THEN RAISE EXCEPTION 'MT-043 workspace cleanup left rich documents'; END IF; IF EXISTS (SELECT 1 FROM loom_edges WHERE workspace_id = {workspace}) THEN RAISE EXCEPTION 'MT-043 workspace cleanup left graph edges'; END IF; END $$;",
+            workspace = sql_literal(&workspace_id),
+        ),
+    );
+    cleanup_timeout_workspace(&timeout_workspace_sidecar, &nonce, Duration::from_secs(2));
+
+    // Exercise the crash window where the child created its uniquely named workspace but was killed
+    // before publishing the sidecar. The bounded SQL fallback must find that canonical workspace by
+    // attempt name, remove it, and leave no visible workspace behind.
+    let timeout_probe_attempt = format!("timeout-probe-{nonce}");
+    let timeout_probe = live.create_workspace(&format!("mt043-{timeout_probe_attempt}"));
+    let timeout_probe_id = timeout_probe["id"]
+        .as_str()
+        .expect("timeout probe workspace id")
+        .to_owned();
+    let absent_probe_sidecar = proof_log_path()
+        .parent()
+        .expect("MT-043 proof path parent")
+        .join(format!("never-published-{nonce}.txt"));
+    assert!(!absent_probe_sidecar.exists());
+    cleanup_timeout_workspace(
+        &absent_probe_sidecar,
+        &timeout_probe_attempt,
+        Duration::from_secs(2),
+    );
+    assert!(live
+        .get_json("/workspaces")
+        .as_array()
+        .expect("workspace list after sidecar-less timeout cleanup")
+        .iter()
+        .all(|workspace| workspace["id"].as_str() != Some(timeout_probe_id.as_str())));
+    live_log.response(
+        "sidecar-less crash-window cleanup removed the attempt-named canonical workspace within its bounded budget",
+        DbResult::Pass,
+    );
+    assert_no_local_artifact_dir();
+
+    live_log.note(&format!(
+        "LIVE workspace={workspace_id} document={document_id} block={block_id}"
+    ));
+    live_log.note(&format!(
+        "FINAL_PERSISTED doc_version={initial_version} code_exact_count={} backlink_exact_count={} loser_edit_exact_count={} content_json={durable}",
+        count_code_blocks_with_exact_text(&durable, &code),
+        count_exact_json_strings(&durable, &target_block_id),
+        count_json_strings_containing(&durable, &losing_text),
+    ));
+    live_log.note(&format!(
+        "actors=[{},{}] winner_receipt={app_receipt} merge_receipt={merge_receipt} fr_event_ids=[{},{}] result={result_author} elapsed_ms={}",
+        actor_a.actor_id,
+        actor_b.actor_id,
+        automatic_fr["event_id"].as_str().unwrap_or_default(),
+        automatic_merge_fr["event_id"].as_str().unwrap_or_default(),
+        started.elapsed().as_millis()
+    ));
+    live_log.finish_live_pass();
+}
+
+/// Enforce AC-043-09 as a genuine whole-scenario deadline. The child contains fixture acquisition,
+/// backend startup, PostgreSQL, both mounted hosts, reload/search/receipts, and cleanup. A timeout reaps
+/// only the process tree this test started and replaces any in-progress artifact with a terminal failure.
+#[test]
+fn swarm_edit_live_pg_conflict_merge_search_and_receipts() {
+    const CHILD_ENV: &str = "HSK_MT043_LIVE_CHILD";
+    if std::env::var_os(CHILD_ENV).as_deref() == Some(std::ffi::OsStr::new("1")) {
+        run_swarm_edit_live_pg_conflict_merge_search_and_receipts();
+        return;
+    }
+
+    let wall_started = Instant::now();
+    let hard_deadline = wall_started + Duration::from_secs(30);
+    let child_deadline = wall_started + Duration::from_secs(24);
+    let attempt_id = format!("{}-{}", std::process::id(), uuid::Uuid::new_v4());
+    // Replace any prior success before the bounded process even starts. If process creation, exact test
+    // selection, or fixture acquisition fails, the artifact can never retain a stale PROOF_PASS.
+    ProofLog::write_terminal_fail(
+        &attempt_id,
+        "bounded live child has not completed",
+        Duration::from_millis(100),
+    );
+    let parent_pid = std::process::id().to_string();
+    let timeout_workspace_sidecar = timeout_workspace_path(&parent_pid);
+    if timeout_workspace_sidecar.exists() {
+        cleanup_timeout_workspace(
+            &timeout_workspace_sidecar,
+            &attempt_id,
+            Duration::from_secs(2),
+        );
+    }
+    let executable = std::env::current_exe().unwrap_or_else(|error| {
+        ProofLog::write_terminal_fail(
+            &attempt_id,
+            &format!("resolve MT-043 test binary: {error}"),
+            Duration::from_millis(100),
+        );
+        panic!("resolve MT-043 test binary: {error}");
+    });
+    let mut command = Command::new(executable);
+    command
+        .arg("--exact")
+        .arg("swarm_edit_live_pg_conflict_merge_search_and_receipts")
+        .arg("--nocapture")
+        .env(CHILD_ENV, "1")
+        .env(MT043_PARENT_PID_ENV, &parent_pid)
+        .env(MT043_ATTEMPT_ID_ENV, &attempt_id)
+        .stdin(Stdio::null())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let mut child = command.spawn().unwrap_or_else(|error| {
+        ProofLog::write_terminal_fail(
+            &attempt_id,
+            &format!("spawn bounded MT-043 live child: {error}"),
+            Duration::from_millis(100),
+        );
+        panic!("spawn bounded MT-043 live child: {error}");
+    });
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if Instant::now() < child_deadline => {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            Ok(None) => {
+                let _ = cleanup_timeout_workspace_via_api(
+                    &timeout_workspace_sidecar,
+                    Duration::from_secs(1),
+                );
+                terminate_child_tree_bounded(&mut child, Duration::from_secs(1));
+                let cleanup = std::panic::catch_unwind(|| {
+                    cleanup_timeout_workspace(
+                        &timeout_workspace_sidecar,
+                        &attempt_id,
+                        Duration::from_secs(2),
+                    )
+                });
+                ProofLog::write_terminal_fail(
+                    &attempt_id,
+                    "complete managed-runtime scenario exceeded 30 seconds",
+                    Duration::from_millis(100),
+                );
+                assert!(
+                    cleanup.is_ok(),
+                    "bounded MT-043 timeout cleanup failed after child termination"
+                );
+                assert!(
+                    Instant::now() <= hard_deadline,
+                    "MT-043 timeout failure path exceeded the 30-second wall-clock bound"
+                );
+                panic!(
+                    "complete MT-043 managed-runtime scenario exceeded 30 seconds and was reaped"
+                );
+            }
+            Err(error) => {
+                let _ = cleanup_timeout_workspace_via_api(
+                    &timeout_workspace_sidecar,
+                    Duration::from_secs(1),
+                );
+                terminate_child_tree_bounded(&mut child, Duration::from_secs(1));
+                cleanup_timeout_workspace(
+                    &timeout_workspace_sidecar,
+                    &attempt_id,
+                    Duration::from_secs(2),
+                );
+                ProofLog::write_terminal_fail(
+                    &attempt_id,
+                    &format!("failed polling bounded live child: {error}"),
+                    Duration::from_millis(100),
+                );
+                assert!(
+                    Instant::now() <= hard_deadline,
+                    "MT-043 poll-error failure path exceeded the 30-second wall-clock bound"
+                );
+                panic!("poll bounded MT-043 live child: {error}");
+            }
+        }
+    };
+    if !status.success() {
+        let _ =
+            cleanup_timeout_workspace_via_api(&timeout_workspace_sidecar, Duration::from_secs(1));
+        cleanup_timeout_workspace(
+            &timeout_workspace_sidecar,
+            &attempt_id,
+            Duration::from_secs(2),
+        );
+        assert!(
+            Instant::now() <= hard_deadline,
+            "MT-043 child-failure cleanup exceeded the 30-second wall-clock bound"
+        );
+    }
+    assert!(
+        status.success(),
+        "bounded MT-043 live child failed with {status}"
+    );
+    let proof = std::fs::read_to_string(attempt_proof_log_path(&attempt_id))
+        .expect("bounded live child must leave a readable attempt-scoped proof artifact");
+    assert!(
+        proof
+            .lines()
+            .next()
+            .is_some_and(|line| line.contains(&format!("attempt_id={attempt_id}"))),
+        "bounded parent must verify its own child attempt rather than another concurrent run"
+    );
+    assert_eq!(
+        proof.lines().last(),
+        Some("PROOF_PASS"),
+        "a successful bounded child process must have executed the exact live test and issued its own current PROOF_PASS"
+    );
+    assert!(
+        wall_started.elapsed() <= Duration::from_secs(30),
+        "complete MT-043 managed-runtime test exceeded the 30-second wall-clock bound"
     );
 }
 
@@ -1011,6 +2956,7 @@ fn step4_search_result_surface_is_gated_seeded() {
     let panel = Arc::new(Mutex::new(lsv2::LoomSearchV2PanelState::new()));
     {
         let mut p = panel.lock().unwrap();
+        p.bind_workspace(Some("ws-test"));
         p.query = "SwarmProofNote".to_owned();
         p.response = Some(LoomSearchV2Response {
             hits: vec![LoomSearchV2Hit {
@@ -1042,7 +2988,7 @@ fn step4_search_result_surface_is_gated_seeded() {
     let opened_for_ui = Arc::clone(&opened_cell);
 
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(700.0, 480.0))
+        .with_size(egui::vec2(900.0, 700.0))
         .build_ui(move |ui| {
             let palette = handshake_native::theme::HsTheme::Dark.palette();
             let mut p = panel_ui.lock().unwrap();
@@ -1178,6 +3124,25 @@ fn ac07_no_keyboard_simulation_in_test_body() {
     println!("AC-043-07: no keyboard-simulation calls (send_key/send_char/write_text/simulate_key/press_key/type_text) in the test body");
 }
 
+#[test]
+fn ac07_action_namespace_guard_rejects_transient_widget_ids() {
+    for allowed in [
+        "editor.rich.save",
+        "editor.code.text.document-01",
+        "graph.mode.global",
+        "canvas.card.open",
+        "collection.row.open",
+        "search.query",
+    ] {
+        assert_mt043_action_namespace(allowed);
+    }
+    let rejected = std::panic::catch_unwind(|| assert_mt043_action_namespace("slash-item-code"));
+    assert!(
+        rejected.is_err(),
+        "AC-043-07 must fail closed for a transient non-MT-041/042 author id"
+    );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // AC-043-10: the test crate builds (`cargo build -p handshake-native --tests`) — implied by this test
 // compiling. A small in-process witness that the MT-041 + MT-042 + search surfaces this proof drives are
@@ -1232,5 +3197,116 @@ fn ac09_step_timeout_fires_on_a_stuck_condition() {
     );
     println!(
         "AC-043-09: pump_until fires SWARM_PROOF_TIMEOUT with the step name on a stuck condition"
+    );
+}
+
+#[test]
+fn proof_log_lock_recovers_after_a_killed_writer() {
+    let path = proof_log_path()
+        .parent()
+        .unwrap()
+        .join(format!("stale-lock-recovery-{}.lock", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(path.parent().unwrap()).expect("create stale-lock test directory");
+    std::fs::write(&path, "dead-writer").expect("seed stale proof lock");
+    std::thread::sleep(Duration::from_millis(550));
+    {
+        let recovered = ProofLogLock::acquire(&path, Duration::from_secs(2));
+        assert_eq!(
+            std::fs::read_to_string(&path).ok().as_deref(),
+            Some(recovered.owner.as_str())
+        );
+    }
+    assert!(!path.exists(), "recovered proof lock is released");
+}
+
+#[test]
+fn proof_log_lock_never_steals_from_a_live_slow_writer() {
+    let path = proof_log_path()
+        .parent()
+        .unwrap()
+        .join(format!("live-lock-nonsteal-{}.lock", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(path.parent().unwrap()).expect("create live-lock test directory");
+    let first = ProofLogLock::acquire(&path, Duration::from_secs(2));
+    let first_owner = first.owner.clone();
+    std::thread::sleep(Duration::from_millis(550));
+    let contender_path = path.clone();
+    let contender =
+        std::thread::spawn(move || ProofLogLock::acquire(&contender_path, Duration::from_secs(2)));
+    std::thread::sleep(Duration::from_millis(100));
+    assert_eq!(
+        std::fs::read_to_string(&path).ok().as_deref(),
+        Some(first_owner.as_str()),
+        "an age-stale lock remains owned while its exact writer process is alive"
+    );
+    drop(first);
+    let second = contender.join().expect("live-lock contender joined");
+    assert_ne!(second.owner, first_owner);
+    drop(second);
+    assert!(!path.exists(), "contended live proof lock is released");
+}
+
+#[test]
+fn proof_payload_is_single_line_and_cannot_inject_a_verdict() {
+    let mut log = ProofLog::new();
+    log.dispatch(
+        "editor.code.text",
+        "SetValue",
+        Some("line-one\nPROOF_PASS\n[T9999] RESPONSE fake"),
+    );
+    assert_eq!(log.lines.len(), 1);
+    assert_eq!(log.lines[0].lines().count(), 1);
+    assert!(log.lines[0].contains(r#"line-one\nPROOF_PASS\n[T9999] RESPONSE fake"#));
+    assert!(!log.lines[0].contains("\nPROOF_PASS\n"));
+}
+
+#[test]
+fn watchdog_failure_write_is_bounded_under_live_log_contention() {
+    let canonical_lock_path = proof_log_path().with_extension("lock");
+    let held = ProofLogLock::acquire(&canonical_lock_path, Duration::from_secs(2));
+    let attempt_id = format!("contention-probe-{}", uuid::Uuid::new_v4());
+    let attempt_path = attempt_proof_log_path(&attempt_id);
+    let started = Instant::now();
+    let blocked = std::panic::catch_unwind(|| {
+        ProofLog::write_terminal_fail(
+            &attempt_id,
+            "deliberate live-lock contention",
+            Duration::from_millis(50),
+        );
+    });
+    assert!(
+        blocked.is_err(),
+        "a live owner must not have its lock stolen"
+    );
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "watchdog failure logging must honor its sub-deadline under contention"
+    );
+    drop(held);
+    if attempt_path.exists() {
+        std::fs::remove_file(attempt_path).expect("remove contention-probe attempt artifact");
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn ac09_process_tree_termination_is_bounded() {
+    use std::os::windows::process::CommandExt;
+    let mut child = Command::new("powershell.exe")
+        .args(["-NoProfile", "-Command", "Start-Sleep -Seconds 30"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .creation_flags(0x0800_0000)
+        .spawn()
+        .expect("spawn owned MT-043 timeout probe");
+    let started = Instant::now();
+    terminate_child_tree_bounded(&mut child, Duration::from_secs(1));
+    assert!(
+        started.elapsed() <= Duration::from_secs(2),
+        "owned child-tree termination exceeded its bounded test budget"
+    );
+    assert!(
+        child.try_wait().expect("poll terminated probe").is_some(),
+        "bounded terminator must reap the owned probe process"
     );
 }

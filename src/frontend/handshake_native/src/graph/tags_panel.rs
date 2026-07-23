@@ -60,12 +60,13 @@
 //! ## AccessKit (HBR-SWARM)
 //!
 //! - [`LoomTagsPanel`]: the search box is `tags.search` (Role::TextInput); each tag row is
-//!   `tags.row.{sanitized_block_id}` (Role::ListItem, Click default-open, member count in the accessible
+//!   `tags.row.{encoded_block_id}` (Role::ListItem, Click default-open, member count in the accessible
 //!   description).
-//! - [`LoomTagHubPanel`]: the hub title label is `tag-hub.title.{sanitized_block_id}`; each member row is
-//!   `tag-hub.member.{sanitized_block_id}` (Role::ListItem, Click open); the add-tag button is
-//!   `tag-hub.add-tag.{sanitized_block_id}` (Role::Button). Ids are sanitized to `[a-z0-9-]` via
-//!   [`crate::project_tree::stable_part`] so a raw id with slashes/colons can never break the tree.
+//! - [`LoomTagHubPanel`]: the hub title label is `tag-hub.title.{encoded_block_id}`; each member row is
+//!   `tag-hub.member.{encoded_block_id}` (Role::ListItem, Click open); the add-tag button is
+//!   `tag-hub.add-tag.{encoded_block_id}` (Role::Button). Canonical lowercase `[a-z0-9-]` ids retain
+//!   their spelling; every other UTF-8 id uses the reserved, injective `u8-<hex>` encoding so distinct
+//!   raw ids can never collapse onto the same actionable AccessKit node.
 
 use egui::accesskit;
 use egui::{Color32, Sense, Vec2};
@@ -102,11 +103,34 @@ pub const HUB_RETRY_AUTHOR_ID: &str = "tag-hub.retry";
 /// Size of the colored tag chip's leading swatch (px). Cosmetic.
 pub const CHIP_SWATCH_SIZE: f32 = 12.0;
 
-/// The stable AccessKit author_id for a tag row: `tags.row.{sanitized_block_id}`.
+/// Return an AccessKit-safe, injective suffix for arbitrary UTF-8 ids. This intentionally mirrors the
+/// proven graph-node encoding without changing the shared lossy `stable_part` helper's semantics.
+fn collision_safe_tag_part(block_id: &str) -> String {
+    let canonical = !block_id.is_empty()
+        && !block_id.starts_with("u8-")
+        && block_id
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        && crate::project_tree::stable_part(block_id) == block_id;
+    if canonical {
+        return block_id.to_owned();
+    }
+
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(3 + block_id.len() * 2);
+    encoded.push_str("u8-");
+    for byte in block_id.as_bytes() {
+        encoded.push(char::from(HEX[usize::from(byte >> 4)]));
+        encoded.push(char::from(HEX[usize::from(byte & 0x0f)]));
+    }
+    encoded
+}
+
+/// The stable AccessKit author_id for a tag row: `tags.row.{encoded_block_id}`.
 pub fn tag_row_author_id(block_id: &str) -> String {
     format!(
         "{TAG_ROW_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
+        collision_safe_tag_part(block_id)
     )
 }
 
@@ -114,7 +138,7 @@ pub fn tag_row_author_id(block_id: &str) -> String {
 pub fn hub_title_author_id(block_id: &str) -> String {
     format!(
         "{HUB_TITLE_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
+        collision_safe_tag_part(block_id)
     )
 }
 
@@ -122,7 +146,7 @@ pub fn hub_title_author_id(block_id: &str) -> String {
 pub fn hub_member_author_id(block_id: &str) -> String {
     format!(
         "{HUB_MEMBER_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
+        collision_safe_tag_part(block_id)
     )
 }
 
@@ -131,7 +155,7 @@ pub fn hub_member_author_id(block_id: &str) -> String {
 pub fn hub_add_tag_author_id(block_id: &str) -> String {
     format!(
         "{HUB_ADD_TAG_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
+        collision_safe_tag_part(block_id)
     )
 }
 
@@ -140,7 +164,7 @@ pub fn hub_add_tag_author_id(block_id: &str) -> String {
 pub fn hub_add_result_author_id(block_id: &str) -> String {
     format!(
         "{HUB_ADD_RESULT_AUTHOR_ID_PREFIX}{}",
-        crate::project_tree::stable_part(block_id)
+        collision_safe_tag_part(block_id)
     )
 }
 
@@ -269,8 +293,11 @@ impl LoomTagsPanel {
         }
     }
 
-    /// Install the enumerated tag list from a `GET /loom/tags` result, clearing loading/error.
-    pub fn set_tags(&mut self, tags: Vec<TagEntry>) {
+    /// Install the enumerated tag list from a `GET /loom/tags` result in deterministic title order,
+    /// clearing loading/error. The backend orders tag hubs by update time, so the native panel owns the
+    /// contract's case-insensitive title ordering with `block_id` as the stable tie-breaker.
+    pub fn set_tags(&mut self, mut tags: Vec<TagEntry>) {
+        tags.sort_by_cached_key(|tag| (tag.title.to_lowercase(), tag.block_id.clone()));
         self.tags = tags;
         self.loading = false;
         self.error = None;
@@ -331,6 +358,10 @@ impl LoomTagsPanel {
             "Filter tags",
             &self.search_filter,
         );
+        // egui's stock TextEdit advertises a text-input node but does not apply an AccessKit
+        // `SetValue` payload to its backing String. Drain that model-facing action explicitly so the
+        // mounted production pane, not only direct widget tests, supports deterministic headless input.
+        consume_text_input_set_value(ui, search.id, &mut self.search_filter);
         ui.separator();
 
         // ── Top-level loading spinner (bounded: only while the initial fetch is in flight) ─────────────
@@ -420,6 +451,7 @@ fn render_tag_row(
         &tag_row_author_id(&entry.block_id),
         &entry.title,
         &desc,
+        true,
     );
 
     if resp.clicked() {
@@ -523,10 +555,16 @@ pub struct LoomTagHubPanel {
     pub members: Vec<HubMember>,
     /// The add-tag popup's current search text.
     pub add_search: String,
+    /// Explicit popup state. The bool-backed state lets model-facing `SetValue` keep the popup mounted
+    /// across the request frame while ordinary pointer clicks outside can still close it.
+    pub add_popup_open: bool,
     /// The add-tag popup's current search results (delivered by the host after an `AddTagSearch`).
     pub add_candidates: Vec<AddTagCandidate>,
     /// True ONLY while the initial hub-detail fetch is in flight (bounded spinner).
     pub loading: bool,
+    /// True while the host is awaiting the current add-tag POST. The add control and result rows are
+    /// disabled during this interval so repeated selection cannot create duplicate concurrent edges.
+    pub add_tag_in_flight: bool,
     /// Set on a backend failure; renders the error banner + Retry. `None` => no error.
     pub error: Option<String>,
 }
@@ -643,15 +681,35 @@ impl LoomTagHubPanel {
     /// candidate selection). The popup is anchored to the button and toggles on click.
     fn add_tag_control(&mut self, ui: &mut egui::Ui) -> Option<TagHubEvent> {
         let mut event = None;
-        let add_btn = ui.button("➕ Add tag to block");
-        emit_button_accesskit(
+        let add_label = if self.add_tag_in_flight {
+            "Adding tag…"
+        } else {
+            "➕ Add tag to block"
+        };
+        let add_btn = ui.add_enabled(!self.add_tag_in_flight, egui::Button::new(add_label));
+        emit_button_accesskit_enabled(
             ui,
             add_btn.id,
             &hub_add_tag_author_id(&self.block_id),
             "Add tag to block",
+            !self.add_tag_in_flight,
         );
 
-        egui::Popup::from_toggle_button_response(&add_btn)
+        let add_button_clicked = add_btn.clicked() && !self.add_tag_in_flight;
+        if add_button_clicked {
+            if self.add_popup_open {
+                self.add_popup_open = false;
+                self.add_search.clear();
+                self.add_candidates.clear();
+            } else {
+                self.add_popup_open = true;
+            }
+        }
+        let mut popup_open = self.add_popup_open;
+        let mut accesskit_search_changed = false;
+
+        egui::Popup::from_response(&add_btn)
+            .open_bool(&mut popup_open)
             .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
             .show(|ui| {
                 ui.set_min_width(240.0);
@@ -670,7 +728,10 @@ impl LoomTagHubPanel {
                     "Search for a block",
                     &self.add_search,
                 );
-                if search.changed() {
+                let accesskit_changed =
+                    consume_text_input_set_value(ui, search.id, &mut self.add_search);
+                accesskit_search_changed |= accesskit_changed;
+                if search.changed() || accesskit_changed {
                     event = Some(TagHubEvent::AddTagSearch {
                         query: self.add_search.clone(),
                     });
@@ -685,13 +746,17 @@ impl LoomTagHubPanel {
                             ui.weak("Type to search for a block to tag");
                         }
                         for cand in &self.add_candidates {
-                            let resp = ui.add(egui::Label::new(&cand.title).sense(Sense::click()));
+                            let resp = ui.add_enabled(
+                                !self.add_tag_in_flight,
+                                egui::Label::new(&cand.title).sense(Sense::click()),
+                            );
                             emit_list_item_accesskit(
                                 ui,
                                 resp.id,
                                 &hub_add_result_author_id(&cand.block_id),
                                 &cand.title,
                                 "Tag this block with the hub",
+                                !self.add_tag_in_flight,
                             );
                             if resp.clicked() {
                                 event = Some(TagHubEvent::AddTagSelected {
@@ -701,6 +766,16 @@ impl LoomTagHubPanel {
                         }
                     });
             });
+
+        // AccessKit `SetValue` is a text edit inside this popup, not an outside click. Some headless
+        // event paths lack pointer containment metadata, so preserve the mounted result list explicitly.
+        if !add_button_clicked && (accesskit_search_changed || !self.add_search.trim().is_empty()) {
+            popup_open = true;
+        }
+        if matches!(event, Some(TagHubEvent::AddTagSelected { .. })) {
+            popup_open = false;
+        }
+        self.add_popup_open = popup_open;
 
         event
     }
@@ -724,6 +799,7 @@ fn render_member_row(
         &hub_member_author_id(&member.block_id),
         &member.title,
         &member.content_type,
+        true,
     );
     if resp.clicked() {
         event = Some(TagHubEvent::OpenMember {
@@ -737,13 +813,27 @@ fn render_member_row(
 
 /// Emit a generic button's live AccessKit node (Role::Button + Action::Click + author_id).
 fn emit_button_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &str) {
+    emit_button_accesskit_enabled(ui, id, author_id, label, true);
+}
+
+fn emit_button_accesskit_enabled(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    label: &str,
+    enabled: bool,
+) {
     let author = author_id.to_owned();
     let label = label.to_owned();
     ui.ctx().accesskit_node_builder(id, move |node| {
         node.set_role(accesskit::Role::Button);
         node.set_author_id(author.clone());
         node.set_label(label.clone());
-        node.add_action(accesskit::Action::Click);
+        if enabled {
+            node.add_action(accesskit::Action::Click);
+        } else {
+            node.set_disabled();
+        }
     });
 }
 
@@ -763,7 +853,29 @@ fn emit_text_input_accesskit(
         node.set_author_id(author.clone());
         node.set_label(label.clone());
         node.set_value(value.clone());
+        node.add_action(accesskit::Action::SetValue);
     });
+}
+
+/// Apply the model-facing whole-value action and report whether a valid payload was observed. Newer
+/// egui versions may copy the value before this hook runs while older paths leave it untouched; action
+/// observation (not post-widget string inequality) is therefore the stable signal for popup retention.
+fn consume_text_input_set_value(ui: &egui::Ui, id: egui::Id, value: &mut String) -> bool {
+    let mut replacement = None;
+    ui.input(|input| {
+        for request in input.accesskit_action_requests(id, accesskit::Action::SetValue) {
+            if let Some(accesskit::ActionData::Value(next)) = &request.data {
+                replacement = Some(next.clone());
+            }
+        }
+    });
+    let Some(replacement) = replacement else {
+        return false;
+    };
+    if value.as_str() != replacement.as_ref() {
+        *value = replacement.into_string();
+    }
+    true
 }
 
 /// Emit a plain label's live AccessKit node (Role::Label + author_id) so the hub title is addressable.
@@ -779,7 +891,14 @@ fn emit_label_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, label: &st
 
 /// Emit a list-row's live AccessKit node: Role::ListItem, label = title, author_id, Click default action,
 /// plus an accessible description (the member count for a tag row, the content type for a member row).
-fn emit_list_item_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, title: &str, desc: &str) {
+fn emit_list_item_accesskit(
+    ui: &egui::Ui,
+    id: egui::Id,
+    author_id: &str,
+    title: &str,
+    desc: &str,
+    enabled: bool,
+) {
     let author = author_id.to_owned();
     let label = title.to_owned();
     let description = desc.to_owned();
@@ -788,7 +907,11 @@ fn emit_list_item_accesskit(ui: &egui::Ui, id: egui::Id, author_id: &str, title:
         node.set_author_id(author.clone());
         node.set_label(label.clone());
         node.set_description(description.clone());
-        node.add_action(accesskit::Action::Click);
+        if enabled {
+            node.add_action(accesskit::Action::Click);
+        } else {
+            node.set_disabled();
+        }
     });
 }
 
@@ -856,6 +979,19 @@ mod tests {
         );
     }
 
+    #[test]
+    fn set_tags_sorts_case_insensitive_title_with_block_id_tie_breaker() {
+        let mut panel = LoomTagsPanel::new("ws-sort");
+        panel.set_tags(vec![
+            TagEntry::new("tag-z", "zeta", None),
+            TagEntry::new("tag-b", "Alpha", None),
+            TagEntry::new("tag-a", "alpha", None),
+            TagEntry::new("tag-m", "Beta", None),
+        ]);
+        let ids: Vec<_> = panel.tags.iter().map(|tag| tag.block_id.as_str()).collect();
+        assert_eq!(ids, vec!["tag-a", "tag-b", "tag-m", "tag-z"]);
+    }
+
     /// PROOF1 (chip color, MC-3): the title-hash color index is stable + the palette has >= 12 colors and
     /// the collision rate over a 50-tag sample is < 20%.
     #[test]
@@ -907,9 +1043,9 @@ mod tests {
         }
     }
 
-    /// AccessKit ids are sanitized to `[a-z0-9-]` (no slashes/colons can break the tree).
+    /// AccessKit ids are safe and injective for arbitrary UTF-8 identities.
     #[test]
-    fn author_ids_are_sanitized() {
+    fn author_ids_are_collision_safe_utf8_encodings() {
         let row = tag_row_author_id("ws:1/tag 7#x");
         assert!(row.starts_with(TAG_ROW_AUTHOR_ID_PREFIX));
         let suffix = &row[TAG_ROW_AUTHOR_ID_PREFIX.len()..];
@@ -922,6 +1058,22 @@ mod tests {
         assert!(hub_title_author_id("a/b").starts_with(HUB_TITLE_AUTHOR_ID_PREFIX));
         assert!(hub_member_author_id("a:b").starts_with(HUB_MEMBER_AUTHOR_ID_PREFIX));
         assert!(hub_add_tag_author_id("a b").starts_with(HUB_ADD_TAG_AUTHOR_ID_PREFIX));
+        assert_ne!(
+            tag_row_author_id("a/b"),
+            tag_row_author_id("a:b"),
+            "lossy punctuation normalization must not merge actionable rows"
+        );
+        assert_ne!(
+            tag_row_author_id("é"),
+            tag_row_author_id("e"),
+            "complete UTF-8 bytes participate in identity"
+        );
+        assert_eq!(tag_row_author_id("canonical-7"), "tags.row.canonical-7");
+        assert_ne!(
+            tag_row_author_id("u8-612f62"),
+            tag_row_author_id("a/b"),
+            "the encoded namespace is reserved against raw-id collisions"
+        );
     }
 
     /// set_member_count installs the resolved count on the matching entry only.

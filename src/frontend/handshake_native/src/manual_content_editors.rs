@@ -19,33 +19,39 @@
 //!   * rich-text editor — `rich_action_catalog()` mapped through `editor.rich.<action>`;
 //!   * graph / canvas / collection — the
 //!     [`crate::accessibility::GRAPH_CONTROL_CATALOG`] / `CANVAS_CONTROL_CATALOG` / `COLLECTION_CONTROL_CATALOG`;
-//!   * FEMS — `relevant-memory-panel` / `relevant-memory-list` / `fems-propose-dialog` /
-//!     `fems-propose-confirm` ([`crate::fems`]);
+//!   * FEMS — `relevant-memory-panel` / `relevant-memory-list` /
+//!     `editor.fems.memorypack-refresh` / `fems-propose-dialog` / `fems-propose-confirm` /
+//!     `fems-review-approve` / `fems-review-reject`
+//!     ([`crate::fems`]);
 //!   * Stage — `stage-pane` / `stage-routed-content` / `stage-capture-embed-back` ([`crate::stage_pane`]);
 //!   * Calendar — `daily-journal-panel` / `daily-journal-date-header` /
 //!     `daily-journal-calendar-event-chip` / `daily-journal-activity-strip` ([`crate::graph::daily_journal_panel`]);
 //!   * Locus — `outgoing.panel` / `outgoing.section.resolved` / `outgoing.section.unresolved`
 //!     ([`crate::rich_editor::wikilinks::outgoing_links_panel`]) — the locus-ref chip lives inline.
-//! - Every documented `mcp_tool` is one of the FOUR REAL [`crate::mcp::tools`] methods:
-//!   `list_widgets` / `click_widget` / `set_value` / `screenshot`. These are the current MCP method names
-//!   for the Argus verbs (`argus.inspect`, `argus.click`, `argus.set_value`, `argus.screenshot`); the
-//!   contract's invented `gui.invoke_action` / `gui.read_state` are NOT used.
+//! - Every documented `mcp_tool` is one of the FOUR canonical [`crate::mcp::argus`] methods:
+//!   `argus.inspect` / `argus.click` / `argus.set_value` / `argus.screenshot`. The older MCP method
+//!   spellings remain transport aliases only and are not presented as the product contract.
 //!
-//! ## Honest interop-edge gap note (RISK-007)
+//! ## Honest interop-edge failure semantics (RISK-007)
 //!
-//! FEMS, Stage, Calendar, and Locus each have an editor-side AccessKit surface that an agent can drive
-//! TODAY, but the backend HTTP route that completes the cross-edge round-trip is ABSENT in the current
-//! `handshake_core` build (verified: the FEMS read route, the Stage embed-back route, the Calendar
-//! activity-span route, and the Locus read route return a typed `EndpointMissing`/gated empty-state).
-//! The manual states this as a typed blocker rather than fabricating live cross-edge behavior.
+//! FEMS has a live PostgreSQL/EventLedger-backed read, review, and explicit approved-proposal commit
+//! round trip. Stage,
+//! Calendar, and Locus have live cross-edge routes; endpoint, fetch, and record failures remain typed and
+//! visible so the manual never reports a fabricated success.
 
 use crate::accessibility::editor_action_registry::{rich_action_catalog, CODE_ACTION_CATALOG};
 use crate::accessibility::{
     CANVAS_CONTROL_CATALOG, COLLECTION_CONTROL_CATALOG, GRAPH_CONTROL_CATALOG,
 };
+use crate::app::NOTES_LOAD_RETRY_AUTHOR_ID;
 use crate::command_palette::{PALETTE_LIST_AUTHOR_ID, PALETTE_SEARCH_AUTHOR_ID};
 use crate::manual_pane::{
     AgentToolReference, AgentToolRow, ManualSection, ManualSurface, ManualTopic,
+};
+use crate::settings_editor_section::{
+    editor_action_catalog, editor_keybind_row_author_id, EditorActionSurface,
+    EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX, EDITOR_SETTINGS_CONTROL_AUTHOR_IDS,
+    EDITOR_SETTINGS_OPTION_AUTHOR_IDS, SYNTAX_SWATCH_AUTHOR_IDS,
 };
 
 /// The stable section id for the native-editors manual section.
@@ -70,6 +76,11 @@ pub const REQUIRED_HEADINGS: &[&str] = &[
 /// The four interop-edge names that MUST each appear in the interop topic with an associated author_id +
 /// mcp_tool (AC-005 / MC-007).
 pub const INTEROP_EDGES: &[&str] = &["FEMS", "Stage", "Calendar", "Locus"];
+
+/// Dedicated MT-045/MT-046 operator/model topic: contract-sized large-document behavior and the four
+/// editor-to-editor interconnection edge families are one addressable manual page.
+pub const E8_PERFORMANCE_INTERCONNECTION_HEADING: &str =
+    "Large Documents and Editor Interconnection";
 
 /// WP-KERNEL-012 MT-104 product-manual topics added after the notes+chat, diagnostics, visual-debugger,
 /// and foreground-safe navigation work landed.
@@ -96,6 +107,7 @@ pub const DIAGNOSTIC_TOOL_HEADINGS: &[&str] =
 pub const WP_SURFACE_HEADINGS: &[&str] = &[
     "Code Editor",
     "Rich Text Editor",
+    "Wiki Projection",
     "Knowledge Graph",
     "Folder Tree",
     "Tags and Tag Hubs",
@@ -126,8 +138,98 @@ pub const INFERENCE_LAB_PALETTE_AUTHOR_ID: &str =
 pub const FLIGHT_RECORDER_MENU_AUTHOR_ID: &str = "menu.run.flight-recorder";
 pub const FLIGHT_RECORDER_PALETTE_AUTHOR_ID: &str = "command-palette.option.hs-flight-palette-open";
 pub const SETTINGS_DIAGNOSTICS_SECTION_AUTHOR_ID: &str = "settings.section.diagnostics";
+/// Exact seeded Gamma heading targeted by the MT-108 outline server-loop proof (`block path [3]`).
+pub const MT108_ARGUS_OUTLINE_PROOF_AUTHOR_ID: &str = "outline.heading.re-block-3710791291";
+
+/// One row in the MT-108 seven-surface Argus proof matrix. Rows name only stable live AccessKit ids
+/// and canonical Argus methods; the proof binary is the current runtime test that mounts the surface.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ArgusEvidenceRow {
+    pub surface: &'static str,
+    pub inspect_author_id: &'static str,
+    pub steer_method: &'static str,
+    pub steer_author_id: &'static str,
+    pub proof_binary: &'static str,
+    pub proof_test: &'static str,
+    /// Automation path implemented by the named binary.
+    pub automation_status: ArgusAutomationStatus,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ArgusAutomationStatus {
+    CanonicalServerLoop,
+}
+
+/// Seven-surface Argus validation inventory required by MT-108. Every named binary mounts its real
+/// surface and executes the canonical localhost server/session/action-channel loop.
+pub const MT108_ARGUS_EVIDENCE_MATRIX: &[ArgusEvidenceRow] = &[
+    ArgusEvidenceRow {
+        surface: "find bar",
+        inspect_author_id: crate::code_editor::panel::CODE_EDITOR_FIND_BAR_AUTHOR_ID,
+        steer_method: crate::mcp::argus::ARGUS_SET_VALUE_METHOD,
+        steer_author_id: crate::code_editor::panel::CODE_EDITOR_FIND_BAR_AUTHOR_ID,
+        proof_binary: "test_find_bar_accesskit",
+        proof_test: "mt108_argus_find_bar_real_server_loop",
+        automation_status: ArgusAutomationStatus::CanonicalServerLoop,
+    },
+    ArgusEvidenceRow {
+        surface: "formatting toolbar",
+        inspect_author_id: "toolbar-btn-toggle_bold",
+        steer_method: crate::mcp::argus::ARGUS_CLICK_METHOD,
+        steer_author_id: "toolbar-btn-toggle_bold",
+        proof_binary: "test_formatting_toolbar",
+        proof_test: "mt108_argus_formatting_toolbar_real_server_loop",
+        automation_status: ArgusAutomationStatus::CanonicalServerLoop,
+    },
+    ArgusEvidenceRow {
+        surface: "slash menu",
+        inspect_author_id: crate::rich_editor::slash_commands::SLASH_MENU_AUTHOR_ID,
+        steer_method: crate::mcp::argus::ARGUS_CLICK_METHOD,
+        steer_author_id: "slash-item-paragraph",
+        proof_binary: "test_slash_commands",
+        proof_test: "mt108_argus_slash_menu_real_server_loop",
+        automation_status: ArgusAutomationStatus::CanonicalServerLoop,
+    },
+    ArgusEvidenceRow {
+        surface: "outline pane",
+        inspect_author_id: crate::rich_editor::outline_panel::OUTLINE_CONTAINER_AUTHOR_ID,
+        steer_method: crate::mcp::argus::ARGUS_CLICK_METHOD,
+        steer_author_id: MT108_ARGUS_OUTLINE_PROOF_AUTHOR_ID,
+        proof_binary: "test_outline",
+        proof_test: "mt108_argus_outline_real_server_loop",
+        automation_status: ArgusAutomationStatus::CanonicalServerLoop,
+    },
+    ArgusEvidenceRow {
+        surface: "rich find/replace panel",
+        inspect_author_id: crate::rich_editor::find_replace::FIND_PANEL_AUTHOR_ID,
+        steer_method: crate::mcp::argus::ARGUS_SET_VALUE_METHOD,
+        steer_author_id: crate::rich_editor::find_replace::FIND_INPUT_AUTHOR_ID,
+        proof_binary: "test_rich_find_replace",
+        proof_test: "mt108_argus_rich_find_replace_real_server_loop",
+        automation_status: ArgusAutomationStatus::CanonicalServerLoop,
+    },
+    ArgusEvidenceRow {
+        surface: "runtime chat pane",
+        inspect_author_id: crate::runtime_chat::RUNTIME_CHAT_PANEL_AUTHOR_ID,
+        steer_method: crate::mcp::argus::ARGUS_SET_VALUE_METHOD,
+        steer_author_id: crate::runtime_chat::RUNTIME_CHAT_INPUT_AUTHOR_ID,
+        proof_binary: "test_runtime_chat_pane",
+        proof_test: "mt108_argus_runtime_chat_real_server_loop",
+        automation_status: ArgusAutomationStatus::CanonicalServerLoop,
+    },
+    ArgusEvidenceRow {
+        surface: "diagnostics panel",
+        inspect_author_id: crate::diagnostics::DIAGNOSTICS_PANEL_AUTHOR_ID,
+        steer_method: crate::mcp::argus::ARGUS_CLICK_METHOD,
+        steer_author_id: crate::visual_debugger::WORKSURFACE_INSPECTOR_DUMP_BUTTON_AUTHOR_ID,
+        proof_binary: "test_diagnostics_panel",
+        proof_test: "mt108_argus_diagnostics_panel_real_server_loop",
+        automation_status: ArgusAutomationStatus::CanonicalServerLoop,
+    },
+];
 pub const VIEW_OPEN_CODE_EDITOR_MENU_AUTHOR_ID: &str = "menu.view.open-code-editor";
 pub const VIEW_OPEN_RICH_NOTE_MENU_AUTHOR_ID: &str = "menu.view.open-rich-note";
+pub const VIEW_OPEN_WIKI_PROJECTION_MENU_AUTHOR_ID: &str = "menu.view.open-wiki-projection";
 pub const VIEW_OPEN_KNOWLEDGE_GRAPH_MENU_AUTHOR_ID: &str = "menu.view.open-knowledge-graph";
 pub const VIEW_OPEN_FOLDERS_MENU_AUTHOR_ID: &str = "menu.view.open-folders";
 pub const VIEW_OPEN_TAGS_MENU_AUTHOR_ID: &str = "menu.view.open-tags";
@@ -142,6 +244,8 @@ pub const VIEW_OPEN_CODE_EDITOR_PALETTE_AUTHOR_ID: &str =
     "command-palette.option.hs-view-palette-code-editor";
 pub const VIEW_OPEN_RICH_NOTE_PALETTE_AUTHOR_ID: &str =
     "command-palette.option.hs-view-palette-rich-note";
+pub const VIEW_OPEN_WIKI_PROJECTION_PALETTE_AUTHOR_ID: &str =
+    "command-palette.option.hs-view-palette-wiki-projection";
 pub const VIEW_OPEN_KNOWLEDGE_GRAPH_PALETTE_AUTHOR_ID: &str =
     "command-palette.option.hs-view-palette-graph";
 pub const VIEW_OPEN_FOLDERS_PALETTE_AUTHOR_ID: &str =
@@ -182,6 +286,7 @@ pub const GRAPH_MODE_GLOBAL_AUTHOR_ID: &str = crate::graph::MODE_GLOBAL_AUTHOR_I
 pub const GRAPH_ZOOM_IN_AUTHOR_ID: &str = crate::graph::ZOOM_IN_AUTHOR_ID;
 pub const GRAPH_ZOOM_OUT_AUTHOR_ID: &str = crate::graph::ZOOM_OUT_AUTHOR_ID;
 pub const GRAPH_RELAYOUT_AUTHOR_ID: &str = crate::graph::RELAYOUT_AUTHOR_ID;
+pub const GRAPH_RETRY_AUTHOR_ID: &str = crate::graph::graph_view::RETRY_AUTHOR_ID;
 pub const GRAPH_NODE_AUTHOR_ID_PATTERN: &str = "graph.node.{block_id}";
 pub const FOLDER_TREE_NODE_AUTHOR_ID_PATTERN: &str = "folder-tree.node.{folder_id}";
 pub const FOLDER_TREE_COLOR_AUTHOR_ID_PATTERN: &str = "folder-tree.color.{folder_id}";
@@ -235,6 +340,10 @@ pub fn editors_manual_section() -> ManualSection {
         heading: "Interop Edges",
         body: interop_edges_body(),
     });
+    topics.push(ManualTopic {
+        heading: E8_PERFORMANCE_INTERCONNECTION_HEADING,
+        body: large_documents_interconnection_body(),
+    });
     for (heading, body) in [
         (
             "Notes Worksurface and Chat",
@@ -255,6 +364,10 @@ pub fn editors_manual_section() -> ManualSection {
         ("Flight Recorder", flight_recorder_body()),
         ("internal_diagnostics", internal_diagnostics_body()),
         ("Palmistry", palmistry_body()),
+        (
+            "Residual Hardening and Argus Evidence",
+            mt108_hardening_body(),
+        ),
     ] {
         topics.push(ManualTopic { heading, body });
     }
@@ -263,6 +376,7 @@ pub fn editors_manual_section() -> ManualSection {
     for (heading, body) in [
         ("Code Editor", code_editor_body()),
         ("Rich Text Editor", rich_text_editor_body()),
+        ("Wiki Projection", wiki_projection_body()),
         ("Knowledge Graph", knowledge_graph_body()),
         ("Folder Tree", folder_tree_body()),
         ("Tags and Tag Hubs", tags_and_tag_hubs_body()),
@@ -283,6 +397,11 @@ pub fn editors_manual_section() -> ManualSection {
         ("Relevant Memory (FEMS)", relevant_memory_body()),
     ] {
         topics.push(ManualTopic { heading, body });
+    }
+    // Historical body sources predate the canonical Argus namespace. Normalize the rendered manual
+    // projection in one place so no no-context workflow presents a compatibility alias as primary.
+    for topic in &mut topics {
+        topic.body = canonical_argus_prose(&topic.body);
     }
     // The agent-tool reference is also a searchable/selectable topic (so the search box surfaces it), and
     // its structured rows live in `agent_tools`.
@@ -306,6 +425,31 @@ pub fn editors_manual_section() -> ManualSection {
 // GLOBAL-BUILD-MANUAL topic bodies (no-context: concrete commands, panes, AccessKit ids, keybinds).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
+fn mt108_hardening_body() -> String {
+    let matrix = MT108_ARGUS_EVIDENCE_MATRIX
+        .iter()
+        .map(|row| {
+            format!(
+                "{}: inspect author_id={}, steer with {} target={}, fresh re-inspect, then argus.screenshot through the real localhost JSON-RPC/session/action-channel route; exact command cargo test --test {} {} -- --exact --nocapture ({:?})",
+                row.surface,
+                row.inspect_author_id,
+                row.steer_method,
+                row.steer_author_id,
+                row.proof_binary,
+                row.proof_test,
+                row.automation_status
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let body = format!(
+        "Replace All is deliberately bounded to 1000 matches per click from the ORIGINAL match set so one frame cannot perform an unbounded edit. After a capped click the find bar reports '<N> more not yet replaced — click Replace All again'. The continuation retains the original match set and advances by buffer-version-checked offsets, so x->x and x->xx terminate without reprocessing replacement-generated matches. Each click is one recoverable editor mutation and the normal undo command reverses it. Changing the query, replacement, toggles, buffer, or closing/reopening Find invalidates the prior continuation. If no original matches remain, another click starts a fresh operation over the then-current document.\n\nThe operation watchdog has two independent clocks. The progress-gap deadline reports an operation that stops advancing; progress ticks reset only that clock. The hard total-runtime cap is measured from registration and does not reset, so a forever-ticking backend operation is still reported. Production health and layout requests use both bounds through register_backend_operation. A StalledOperation diagnostic is observational: it does not cancel, retry, or duplicate the request. Completion clears the active stalled count; a later retry/action receives a new operation id and is watched independently. Recovery is to let the finite backend timeout settle, correct connectivity, then retry from the visible surface.\n\nHBR-INT-009 posture: Tier 1 Flight Recorder remains the business EventLedger and is not repurposed for local watchdog mechanics; normal saved editor authority continues through its existing EventLedger path. Tier 2 internal_diagnostics is WIRED: the watchdog emits the typed allowlisted StalledOperation row and the status bar/Settings Diagnostics project it without project content. Tier 3 Palmistry is WIRED at the shared diagnostic-ring boundary: the external watcher can retain the last-N typed event while the UI is frozen and forward recovered freeze/crash evidence through the existing recovery path. Replace All itself is a bounded local editor mutation, not a Palmistry child process.\n\nScreenshot completion is explicit. Every runtime render call passes through the systemic harness. A headless proof leaves HANDSHAKE_GPU_SCREENSHOT unset, defers before wgpu initialization, and writes a typed hsk.native_gui.screenshot_marker@2 DEFERRED row. A real-GPU proof MUST set HANDSHAKE_GPU_SCREENSHOT=1 and MUST run through tests/run_mt108_argus_proof.ps1. The supervisor canonicalizes both configured roots beneath the external Handshake_Artifacts directory and refuses a reused RunId before creating a fresh empty absolute run directory. It owns the hard wall-clock bound because adapter/device initialization cannot be safely timed out inside the rendering thread. Each hidden Cargo child emits a durable hsk.native_gui.external_process_receipt@2 STARTED row with child PID, exact command, start, deadline, and correlation id. The receipt also accumulates the owned PID/start-time tree and exact test executable identity because Cargo's root PID is not the test binary PID recorded by Argus. A zero exit adds COMPLETED with the exit code only when that identity is present in the owned tree. A timeout adds BLOCKED, reclaims that exact owned process tree, re-enumerates PID/start identities until no owned process remains, and only then emits terminal RECLAIMED; an unproven cleanup emits RECLAIM_FAILED. The in-process harness catches returned errors/panics, saves the frame centrally, verifies a decodable non-zero PNG, and only then writes CAPTURED. A save/render failure writes BLOCKED. No BLOCKED, FAILED, RECLAIMED, or RECLAIM_FAILED lifecycle closes proof.\n\nEach of the seven proof binaries mounts its exact live surface and sends canonical argus.inspect -> argus.click/argus.set_value -> fresh argus.inspect -> argus.screenshot requests through a real localhost SwarmMcpServer binding. The server-resolved AccessKit action is drained through the shared ActionChannel into the mounted frame. Evidence schema hsk.native_gui.argus_surface_evidence@4 retains run_id/outcome_id, exact method/target, inspect/reinspect ids, the actual client_session_id-derived agent_id, ActionLog sequence, terminal receipt, concrete post-state, explicit GPU posture, the exact screenshot marker outcome/scenario/frame path, and the supervisor process correlation id/scenario plus actual test executable PID. The aggregate binds all rows to the supervisor RunId; requires exactly seven correlated Argus rows, seven screenshot markers, seven successful surface process lifecycles, and its own STARTED process receipt; joins every Argus row to the exact STARTED/COMPLETED lifecycle by scenario, correlation id, and test executable PID/start-time identity; rejects any blocked/failed lifecycle; and reopens every CAPTURED frame to decode a non-zero PNG inside the exact run directory.\n\nFrom src/frontend/handshake_native, choose a NEW id and use only external roots: `$runId = 'mt108-' + [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(); powershell -NoProfile -ExecutionPolicy Bypass -File tests/run_mt108_argus_proof.ps1 -RunId $runId -CargoTargetDir '..\\..\\..\\..\\Handshake_Artifacts\\handshake-cargo-target' -ProofArtifactDir '..\\..\\..\\..\\Handshake_Artifacts\\handshake-test\\native_gui'`. This real-GPU command sets HANDSHAKE_GPU_SCREENSHOT=1 inside the supervisor. For typed headless evidence add `-Headless`; DEFERRED is an honest environment disposition, not captured-pixel proof. The runner uses one shared HANDSHAKE_SCREENSHOT_RUN_ID, executes the seven exact commands below, then executes `cargo test --test test_mt108_argus_aggregate mt108_verify_argus_evidence_exact_seven -- --ignored --exact --nocapture`. The final verifier is mandatory: six rows fail closure. After it exits zero, the supervisor writes the verifier COMPLETED row and requires exactly eight successful processes represented by sixteen STARTED/COMPLETED lifecycle rows before printing closure. Read `<ProofArtifactDir>/<runId>/argus-seven-surface.jsonl`, screenshot_marker.jsonl, external_process_receipts.jsonl, frames, and per-process stdout/stderr logs. Any BLOCKED/TIMEOUT/FAILED/RECLAIM_FAILED receipt means the run is not successful.\n\nArgus seven-surface validation matrix and exact Cargo commands:\n{matrix}"
+    );
+    format!(
+        "{body}\n\nArgus proof execution rule: use the canonical supervisor command above with one explicit non-empty HANDSHAKE_SCREENSHOT_RUN_ID for all seven binaries; process-local fallback ids are rejected. A surface row is written only after a terminal non-rejected receipt and that surface's live mutation predicate produce concrete observed_post_state. Locked aggregation and the mandatory post-run verifier require exactly the seven material matrix surfaces. The owned lifecycle evidence retains the actual child PID (test executable PID), joins by scenario, correlation id, and PID plus start-time identity, and rechecks that the test PID belongs to the owned process tree. Use a new run id for every rerun; never reuse or merge artifacts."
+    )
+}
+
 fn purpose_body() -> String {
     "The native editors are Handshake's Notes pillar. They REPLACE the legacy React/Monaco/Excalidraw/\
 graph surfaces (kept read-only under app/src as the parity reference) with native egui + AccessKit panes \
@@ -327,12 +471,19 @@ fn core_workflows_body() -> String {
 left-rail.activity.files), then the file mounts in the code pane; save with editor.code.save (Ctrl+S). \
 Open an existing knowledge note through the project tree or quick switcher: the shell opens a \
 LoomWikiPage tab carrying the document id, performs GET /knowledge/documents/:id, and installs that \
-backend content into the mounted rich-editor-surface. Edit rich-text/knowledge notes by typing in the \
+backend content into the mounted editor.rich.text surface. Edit rich-text/knowledge notes by typing in the \
 rich pane; toggle bold with editor.rich.format-bold (Ctrl+B), insert a block with \
-editor.rich.insert-slash-command ('/'), then save with FILE > Save, Ctrl+S, or editor.rich.save. The \
+editor.rich.insert-slash-command ('/'). A model creates a note through that same mounted action with \
+click_widget{target:editor.rich.insert-slash-command,payload:{kind:note,title:<title>}}; direct model inserts also accept \
+{kind:wikilink,ref_kind:<kind>,ref_value:<exact-id>,label:<label>} and \
+{kind:code_block,language:<language>,code:<exact-code>}, without transient picker-row ids. Success for note creation appears as \
+editor.rich.created-document with the real backend document id as its value. Then save with FILE > Save, Ctrl+S, or editor.rich.save. The \
 save path is the MT-020 SaveManager backed by PUT /knowledge/documents/:id/save with the loaded \
 doc_version; reopening the same note invalidates the mounted state and forces a fresh GET before the \
-editor is considered current. Build a graph: pan with graph.pan-left/\
+editor is considered current. To edit a slash-inserted note code block in the native Code Editor, activate \
+that block's editor.rich.code-block.open.re-block-* Edit-code action, set editor.code.text, and dispatch \
+editor.code.save; the exact block is persisted into the same note content_json through that SaveManager. \
+Build a graph: pan with graph.pan-left/\
 graph.pan-right, zoom with graph.zoom-in/graph.zoom-out, open a node with graph.open-node, connect blocks \
 with graph.add-edge. Sketch on the canvas: add a card with canvas.add-card, place a Loom block with \
 canvas.place-block, connect with canvas.add-edge. Drive FEMS: the relevant-memory-panel shows the \
@@ -354,7 +505,7 @@ fn startup_and_run_body() -> String {
 split_layout.rs + pane_registry.rs + layout_persistence.rs (the layout persists per workspace). Run the \
 native frontend from the crate directory src/frontend/handshake_native with:\n\
 \n\
-    cargo run -p handshake-native\n\
+    cargo run --manifest-path src/frontend/handshake_native/Cargo.toml -p handshake-native\n\
 \n\
 The cargo package is 'handshake-native' and the binary target is also 'handshake-native' (verified \
 against src/frontend/handshake_native/Cargo.toml [[bin]] name). For a swarm/headless session the MCP \
@@ -404,7 +555,8 @@ handshake_core — PostgreSQL/EventLedger only; there are no direct database wri
 Destructive actions are bounded and QUIET (HBR-QUIET, quiet_mode/focus_guard.rs): no focus-stealing \
 popup appears while a swarm agent is driving, no window grabs the keyboard, and background work does not \
 steal OS focus. FEMS memory writes are ALWAYS review-gated proposals (fems-propose-dialog -> \
-fems-propose-confirm), never an editor-direct commit."
+fems-propose-confirm), never an editor-direct commit. Approval uses a separate governed commit route; \
+rejection performs no commit."
         .to_owned()
 }
 
@@ -417,8 +569,8 @@ stored swarm reference points at a node that is gone (deletion is signalled by A
 tree, not a tombstone). An AccessKit node is not found by an agent because its backing widget is not \
 rendered this frame (a transient control like find-next while the find panel is closed is marked \
 present=false and suppressed). The backend persistence API returns a typed error (e.g. a \
-knowledge-document save conflict, or a FEMS/Stage/Calendar/Locus route that is EndpointMissing in the \
-current handshake_core build). Runtime Chat send also returns EndpointMissing in this build; this is the \
+knowledge-document save conflict, or a temporarily unavailable FEMS/Stage/Calendar/Locus route). \
+Runtime Chat send also returns EndpointMissing in this build; this is the \
 expected typed blocker, not a spinner or silent failure."
         .to_owned()
 }
@@ -432,31 +584,190 @@ accessibility/registry.rs + the live editor/knowledge action registries. For a n
 unusable, reopen its document tab through the project tree/quick switcher; the shell invalidates the \
 mounted rich state and issues a fresh GET /knowledge/documents/:id before rebinding SaveManager/DraftManager \
 to that id. Retry persistence after the typed backend error clears (a save conflict resolves once the newer \
-revision is loaded). Where a step needs a backend capability that does not yet exist — the FEMS read route, \
-the Stage embed-back route, the Calendar activity-span route, the Locus read route, or Runtime Chat \
-assistant generation — the editor surfaces a typed blocker and a visible empty-state rather than fabricating \
-behavior; the cross-edge or chat round-trip completes once the backend packet lands."
+    revision is loaded). A Stage route or embed-back failure remains visible at stage-route-status or \
+stage-embed-back-status; restore the endpoint and use stage-route-retry for the retained route. If the \
+document saved but EventLedger acknowledgement failed, the HsLink is already saved and the stable \
+stage-embed-back-status exposes LedgerPending with the exact event id. stage-capture-embed-back is then \
+relabelled Retry exact EventLedger receipt and replays the same immutable event_id; use that action instead \
+of starting a new capture or minting a new receipt. It does not insert another hsLink. Retry the full \
+capture/embed action only for failures that happened before the document save. A failed \
+CalendarEvent and ActivitySpan reads retry transport, 408, 425, 429, and 5xx failures at most three times; \
+404 and other terminal 4xx responses are not retried. While the mounted JournalStore performs the one \
+open/create PUT for a date, Calendar shows Waiting for daily note; a journal failure points to the editor's \
+typed daily-note error and is never relabelled as a Calendar endpoint failure. Retry exhaustion, invalid \
+responses, and endpoint absence remain distinct. A failed ActivitySpan fetch preserves the resolved event \
+chip and daily-note binding, marks only the activity strip with its typed failure, and suppresses correlation \
+receipts until a fresh successful load. Date/workspace changes cancel retry backoff and queued old-generation \
+receipts; retries reuse one immutable event envelope and same-id queued retries coalesce, while a fresh \
+successful load records a fresh receipt. A Locus record-not-found stays an unresolved chip, while a \
+route failure is a distinct typed unavailable state; restore the route and reload the document. Runtime Chat \
+assistant generation remains EndpointMissing in this build and must not be reported as a completed reply."
         .to_owned()
 }
 
 fn interop_edges_body() -> String {
-    "The native editors melt together with four named pillars beyond CKC/Loom. Each edge has an editor-side \
-AccessKit surface an agent drives TODAY; the backend route that completes the cross-edge round-trip is \
-gated (EndpointMissing) in the current handshake_core build — an HONEST typed blocker, not a silent no-op.\n\
+    "The native editors melt together with CKC/Loom and four named pillars. Open the operator-facing CKC \
+drag source from VIEW > Toggle Atelier / CKC Panel (menu.view.toggle-atelier). The mounted \
+atelier-side-panel loads real GET /atelier/intake/batches and GET /atelier/command-corpus data; expand an \
+atelier-batch-* row to load GET /atelier/intake/batches/{batch_id}/items, then drag an atelier-item-* row. \
+Dropping on editor.rich.text inserts the existing hsLink atom (refKind=media, refValue=item UUID), which \
+survives PUT /knowledge/documents/:id/save and a fresh GET, including when the note starts as an empty \
+paragraph with no text leaf. AccessKit 0.21.1 has no StartDrag action: Click on the atelier-item-* ListItem \
+inserts that exact item into the active rich editor, while atelier-item-insert-* and atelier-item-canvas-* \
+remain explicit insert/place controls and pointer users retain typed drag-and-drop. Canvas \
+placement requires an already-published Loom file block carrying a real document_id or asset_id. A raw \
+intake row with no durable relation shows a typed unsupported blocker; the editor never creates an empty \
+synthetic file block. Placement retries reconcile against a fresh board and the backend one-block-per-canvas \
+uniqueness constraint before reporting success or registering undo. Async placement completion is keyed by \
+workspace_id plus canvas_id: a late success/failure for board A cannot reload or paint board B, and returning \
+to A restores A's retained error until a successful A retry clears it. The panel displays source_path as \
+metadata only; it does not load or claim a thumbnail/media preview. The current Atelier backend exposes no character-list or moodboard-list route, so \
+atelier-character-list-blocker and atelier-moodboard-list-blocker are visible typed blockers rather than \
+fabricated rows. A failed items request shows Items unavailable plus atelier-items-retry-*; it is never \
+reported as '(no items)'. Item, batch, and corpus AccessKit ids use injective UTF-8 hex suffixes, so copy the \
+live id from list_widgets instead of deriving a lossy slug. \
+From the mounted Code Editor, place the caret on a tree-sitter identifier or select exactly that identifier, \
+then choose the context-menu action Copy as note reference; \
+the mounted pane writes [[code:path#symbol]] to the shared InteractionBus clipboard. Activate the Rich \
+Text Editor and Paste (Ctrl+V): a complete canonical code reference replaces the active rich selection \
+with the existing persisted hsLink atom (refKind=code, refValue=path#symbol) in one undo transaction; \
+Ctrl+Z restores the exact pre-paste document. Empty or malformed code targets, non-reference tokens, and \
+mixed clipboard text keep ordinary lossless plain-text paste behavior and replace an active same-block or \
+sibling cross-block selection in the same single undo transaction. A structurally nested cross-container \
+selection fails closed without changing the document; collapse it or select within sibling text blocks before \
+retrying Paste. Arbitrary selected prose is never emitted as a \
+symbol reference. If no exact identifier or canonical parser-encodable file path is available, the menu \
+action is disabled; save the buffer to establish its path. \
+If Paste produces no change, re-focus editor.rich.text, confirm the shared clipboard through \
+Argus diagnostics, and retry. The paste is local editor state until the normal Save action returns its \
+SaveManager/EventLedger receipt. \
+For Stage, EDITORS > View: Stage (menu.editors.stage) opens or focuses the one docked stage-pane Role::GenericContainer; \
+EDITORS > Route selection to Stage (menu.editors.route-to-stage) sends the active rich selection or document \
+through the same interop.route-to-stage command used by the palette and context menu. Right-click editor.rich.text \
+and choose Route to Stage (rich-editor.route-to-stage): a same-block or cross-block selection \
+routes selected text, while no selection routes the whole active document. The same interop.route-to-stage \
+command is available in the Command Palette. A Canvas node exposes the live AccessKit menu target \
+ctx-menu.ctxmenu-node-route-to-stage only when the clicked node has a stable id and its mounted board has \
+the matching workspace + canvas projection confirmed by a completed board load; pending, failed, rebound, \
+or stale projections keep Route to Stage visible but disabled with a reason. \
+Graph-view nodes do not carry a live Canvas board route, so their Route to Stage entry is always disabled. \
+Use argus.inspect to read the current disabled state before argus.click; never infer availability from the \
+node id alone. These paths \
+use the shared InteractionBus, open stage-pane, and expose the payload at stage-routed-content. If the bus is \
+busy, stage-route-status remains visible and stage-route-retry / rich-editor-stage-route-retry retries the \
+retained exact request with the same causal action id. In stage-pane, activate stage-capture-embed-back to \
+run the live privileged create -> exact-byte descriptor/content retrieval -> SHA-256 verification -> note \
+or Canvas embed workflow; EDITORS > Capture and embed from Stage \
+(menu.editors.embed-stage-capture) invokes the same command. Stage authenticates create and both reads with \
+the running native app's owner-restricted MCP session token; the backend derives actor/capability/approval \
+identity from that binding and never trusts caller-supplied privilege headers. The capture is idempotent, bounded to 16 KiB, and returns stable artifact, Job History, \
+EventLedger, manifest, correlation, and digest ids; stage-embed-back-status exposes the exact success or \
+typed failure, including busy and runtime-unavailable outcomes that dispatch no request. No Stage-specific \
+setting exists or is required: Stage follows the live active note/Canvas target and authenticated native \
+session. With no active document, stage-route-status visibly reports the typed failure; a \
+failed CKC insertion similarly appears at rich-editor-interop-status. \
+Verification and diagnostics: discover atelier-side-panel / atelier-batch-* / atelier-item-* / \
+atelier-item-insert-* / atelier-item-canvas-* / \
+atelier-corpus-* / editor.rich.text / stage-pane with list_widgets, exercise the real drag or context-menu \
+path, and use screenshot for pixels. From src/frontend/handshake_native, run the focused proof as `cargo test \
+-p handshake-native --test test_ckc_embed -- --nocapture` with CARGO_TARGET_DIR set to the standardized \
+outside-repo artifacts folder; run its managed PostgreSQL proof as `cargo test -p handshake-native --features \
+integration --test test_ckc_embed -- --nocapture`. From repo root, add `--manifest-path \
+src/frontend/handshake_native/Cargo.toml` to either command. The integration-gated cases self-seed PostgreSQL, require nonzero \
+batches/items/corpus, reload with fresh clients, and clean their workspace/Atelier rows. Backend-down, \
+malformed response, projection failure, placement failure, and insertion failure remain visible with \
+Retry/reload guidance; never infer success from a spinner or old row. \
+Each additional edge has a live editor-side AccessKit surface and bound backend route an agent drives today.\n\
 \n\
 - FEMS (Pillar 12, typed memory): the relevant-memory-panel renders the retrieval capsule \
 (relevant-memory-list); an agent reads it with list_widgets and screenshot. A review-gated memory-write \
-proposal is opened at fems-propose-dialog and confirmed at fems-propose-confirm (click_widget). Cross-edge \
-read is gated until the FEMS pack route exists.\n\
-- Stage (Pillar 17): content is routed to the stage-pane (stage-routed-content); the agent embeds a \
-capture back with stage-capture-embed-back (click_widget). The embed-back backend route is gated.\n\
-- Calendar (Pillar 2): the daily-journal-panel binds a daily note to a CalendarEvent \
-(daily-journal-date-header, daily-journal-calendar-event-chip) and shows a read-only activity strip \
-(daily-journal-activity-strip). The ActivitySpan correlation route is gated.\n\
+proposal is opened through command-palette.option.hs-fems-palette-propose-to-memory, reviewed at \
+fems-propose-dialog, cancelled at fems-propose-cancel, or confirmed at fems-propose-confirm. Read \
+editor.fems.memorypack-status and proposal fems-propose-status values for structured outcomes and IDs. \
+After durable proposal acceptance, click fems-review-approve or fems-review-reject; read \
+fems-review-status for the exact decision and durable EventLedger/Flight Recorder receipt identities. \
+Approval then calls the separate explicit commit route and publishes the committed item plus strict \
+MemoryPack; rejection performs no commit. If \
+the canonical pending queue cannot be loaded, click fems-review-refresh-retry; creating another proposal \
+remains blocked until that queue is known.\n\
+- Stage (Pillar 17): selection/document/Canvas-node content is routed over the shared bus to stage-pane \
+(stage-routed-content); stage-route-status carries failures and stage-route-retry retries contention without \
+changing causal attribution. The agent activates the live create/retrieve/embed workflow with \
+stage-capture-embed-back (click_widget); stage-embed-back-status exposes the exact artifact id, verified \
+SHA-256 provenance, target, or typed failure. When it reports LedgerPending, the HsLink is already saved: \
+activate the relabelled Retry exact EventLedger receipt action instead of starting a new capture or minting \
+a new receipt; that action replays the same immutable event_id and does not insert another hsLink. Capture writes are visible in Job History, EventLedger, and \
+Flight Recorder; retrieval verifies the dedicated content bytes before embedding. \
+A missing or unimplemented artifact route is a typed endpoint-absent result, never an embed success.\n\
+- Calendar (Pillar 2): the daily-journal-panel binds the mounted JournalStore's single selected-date \
+  open/create result to a CalendarEvent (daily-journal-date-header, daily-journal-calendar-event-chip) and \
+  shows a read-only activity strip (daily-journal-activity-strip). Waiting for the daily note, daily-note \
+  failure, Calendar loading, successful no-event, event success, endpoint absence, retry exhaustion, and \
+  invalid-response states are distinct. Calendar and ActivitySpan reads retry only transient transport/ \
+  408/425/429/5xx failures, at most three attempts. An ActivitySpan failure keeps the event chip and \
+  selected-date daily-note binding usable, switches only the activity strip to its typed failure, and \
+  suppresses correlation success receipts; a failed fetch is never rendered as an authoritative zero-span \
+  result. Date/workspace navigation cancels stale deliveries and queued receipts; transport retries reuse \
+  the same immutable event id/timestamp and duplicate queued copies of that exact receipt coalesce. Each \
+  successful selected-date journal binding emits at most one accepted CalendarEvent/activity receipt set; \
+  a multi-day event can therefore emit one distinct set for each date because its bound daily-note document \
+  differs.\n\
 - Locus (Pillar 6): a locus:// WP/MT reference renders as an inline locus-ref chip in the rich editor, and \
 the outgoing-links pane (outgoing.panel) lists resolved (outgoing.section.resolved) and unresolved \
-(outgoing.section.unresolved) references. The Locus read route is gated. An agent drives all of these with \
+(outgoing.section.unresolved) references. Bound WP and MT reads resolve through the shared navigation seam; \
+record-not-found remains a grey unresolved chip, while a missing route is the distinct typed unavailable state. An agent drives all of these with \
 click_widget / list_widgets."
+        .to_owned()
+}
+
+fn large_documents_interconnection_body() -> String {
+    "Large-document handling is built into the native editors; there is no performance-mode switch and no \
+hidden debug budget multiplier. The code editor virtualizes a 10,000-line buffer, minimap rows cover all \
+10,000 lines, Find/Replace runs on the native buffer, and multi-cursor edits use the mounted \
+CodeEditorPanel. The rich editor parses persisted content_json into the native DocModel, renders and scrolls \
+1,000 blocks through editor.rich.text, finds through FindReplaceState, saves with an exact \
+KNOWLEDGE_RICH_DOCUMENT_SAVED EventLedger receipt, and detects both a live 50-hop transclusion chain and a \
+persisted cyclic-5 as cycle_detected. Knowledge proofs exercise a 1,000-node/~2,000-edge LoomGraphView pass, \
+5,000-block tags/search, and a 200-folder/1,000-child tree. RSS is a hard median-of-three process delta; an \
+unavailable RSS sample or receipt write fails validation instead of recording zero or PASS. Checked-in \
+manifests are scenario catalogs, not current runtime verdicts; only the current external receipt from an \
+actually executed command can carry the run result. \
+Operator controls remain the normal Editor settings: settings-editor-font-size, settings-editor-word-wrap, \
+settings-editor-wrap-column, settings-editor-minimap, and settings-editor-sticky-scroll. These affect the \
+mounted editors immediately; they do not widen validation budgets. Open the operator-facing VIEW menu and \
+use menu.view.open-code-editor, menu.view.open-rich-note, menu.view.open-knowledge-graph, \
+menu.view.open-canvas, menu.view.open-loom-search, or menu.view.open-find-in-files. EDIT > Quick Open \
+(menu.edit.quick-switcher) opens the same QuickSwitcher graph-search used for note and file hits. \
+The interconnection paths use shipped surfaces, not parallel copies: CKC/Atelier DragPayload becomes a rich \
+hsLink insertion transaction or a LoomCanvasBoard placement; a code hsLink dispatches open-code-symbol and \
+the code editor focuses the definition selected by the shipped code-nav resolver; one product Find bus \
+dispatch fans out to mounted native code FindState and rich \
+FindReplaceState with the same query; LoomSearchV2 facets include note and file; the exact persisted Loom \
+graph projection is laid out by LoomGraphView; QuickSwitcher maps typed LoomGraphSearchHit rows to real \
+navigation targets; diagnostic related-note chips in the code gutter open and focus the exact rich-note \
+destination; and InteractionBus undo restores native RichEditorState/CodeEditorPanel snapshots per focused \
+pane through the canonical Ctrl+Z key-command route. Rich undo proof saves EDIT_A, sends Ctrl+Z to the \
+AccessKit-focused rich surface, saves the restored snapshot, and \
+confirms absence with a backend GET. Save and cross-surface receipts are PostgreSQL/EventLedger authority, \
+never a cached widget. \
+For validation, set CARGO_TARGET_DIR to the standardized outside-repo Handshake_Artifacts folder, then run \
+the focused test binaries test_perf_large_code, test_perf_large_rich, test_perf_large_knowledge, and the \
+four test_interconnect_* binaries from src/frontend/handshake_native. The `perf_proof` test-name filter runs \
+the performance proof suite; `perf_lr05_transclusion_chain` selects separate linear and cycle-detected LR05 \
+paths. IC-13 skips only when SKIP_AI_TESTS is exactly 1; when unset or any other value it runs the real AI + \
+PostgreSQL suggestion/accept/backlink path and fails closed if the configured model is unavailable. Managed tests attach to HSK_TEST_BASE \
+or start the already-built HSK_TEST_BACKEND_BIN, create one owned workspace, and never stop an attached \
+backend. Current run receipts live outside the repo under Handshake_Artifacts/wp-kernel-012/mt-045/measurements \
+and Handshake_Artifacts/wp-kernel-012/mt-046/measurements. Each rerun writes RUNNING with a unique attempt id \
+before any skip gate, health/setup work, or assertion, then terminal PASS/SKIPPED or FAIL; an exact skip is \
+terminal SKIPPED, while panic/drop records FAIL. This current receipt supersedes the checked-in scenario \
+catalog, so a stale PASS cannot survive a failed rerun. Large 1,000/5,000-row fixtures use one canonical \
+PostgreSQL transaction through psql instead of sequential HTTP setup; every setup process has a hard 60-second \
+ceiling (HSK_PROOF_SETUP_TIMEOUT_SECS may lower it), is killed/reaped on timeout, and PASS is written only after workspace/process/temp-dir \
+cleanup assertions succeed. Recovery: a budget miss, missing EventLedger receipt, unavailable RSS sample, \
+fixture timeout, malformed native parse, unresolved drag payload, missing graph root, or absent search hit is \
+a failing proof. Fix the product/backend cause and rerun the exact scenario; do not edit the catalog or \
+manufacture a PASS receipt."
         .to_owned()
 }
 
@@ -488,7 +799,11 @@ the note-body chip editor path; persisted Loom tag hubs are covered by the Tags 
 save route is PUT /knowledge/documents/:id/save with expected_version and content_json; drafts use \
 GET/PUT/DELETE /knowledge/documents/:id/draft for crash recovery. Reopening the same note invalidates stale \
 mounted state and issues a fresh GET, so a no-context model should trust the reopened document and the \
-EventLedger receipt, not an old widget value or cached editor state."
+EventLedger receipt, not an old widget value or cached editor state. If that GET or its document payload \
+fails, the exact document/generation failure stays visibly latched at notes-document-load-error and the \
+shell does not spin an automatic GET/repaint retry loop. Read the error with list_widgets, restore the \
+backend or document payload, then click notes-document-load-retry; that explicit Retry issues one new GET \
+for the still-active document, and another retry requires another explicit click."
         .to_owned()
 }
 
@@ -584,15 +899,61 @@ return typed NavigationError values instead of panicking, so a parallel model ca
 }
 
 fn flight_recorder_body() -> String {
-    "Flight Recorder is Tier 1: the backend business-event ledger. It is the canonical replay/audit record \
-for application-level events that successfully reached the backend while the system is healthy enough to \
-emit them. Use it for questions like 'what editor/save/job/event happened' and for replay/audit trails, \
-not for detecting a frozen UI thread. In the native shell it is opened from Run -> Open Flight Recorder \
-(menu.run.flight-recorder) or the generated command-palette row \
-command-palette.option.hs-flight-palette-open, and it surfaces the native editor event stream as a readable \
-pane. Backend routes such as GET /events are the durable authority for ledger reads. Flight Recorder is kept \
-as-is by the diagnostics MTs; internal_diagnostics supplements it with in-app health, and Palmistry survives \
-cases where the app cannot emit events."
+    "Flight Recorder is Tier 1: the backend business-event ledger and canonical replay/audit record for \
+governed application events. Open the actual operator surface with OPERATOR -> Open Flight Recorder \
+(menu.operator.flight-recorder), RUN -> Open Flight Recorder (menu.run.flight-recorder), or the \
+command-palette alternative \
+command-palette.option.hs-flight-palette-open. The mounted pane is flight-recorder-pane; each accepted row is \
+fr-event-{event_id} and shows action, actor_id, and RFC3339 timestamp. On open, and whenever Refresh is \
+pressed through flight-recorder.refresh, the shell issues GET /api/flight_recorder with only \
+wsid=<active workspace>. A Refresh pressed while a GET is active remains queued and runs after that \
+delivery; it does not start an unbounded parallel fetch or leave a perpetual spinner. The workspace filter \
+is the runtime-derived ownership boundary; the closed reader then accepts native-editor rows and exact canonical \
+FEMS lifecycle rows: FR-EVT-MEM-001 memory_write_proposed, FR-EVT-MEM-002 memory_write_reviewed, \
+FR-EVT-MEM-003 memory_write_committed, FR-EVT-MEM-004 memory_pack_built, and FR-EVT-MEM-005 \
+memory_item_status_changed. The pane shows each FEMS event code in its row and quarantines a mismatched \
+event_type/event_code or malformed payload at flight-recorder.quarantine-status. Load failures remain at \
+flight-recorder.load-failure; recent native emit failures are listed under flight-recorder.error-ring as \
+flight-recorder.emit-error-{index}. Editor Settings therefore exposes \
+settings-editor-flight-recorder-posture: Flight Recorder has no dedicated preference or disable toggle. \
+The native POST envelope is closed: schema_version=hsk.native_editor@0.1; event_id=non-nil UUID; \
+ts_utc=RFC3339; kind=one accepted action; actor_id, pane_id, and workspace_id=non-empty strings; \
+actor_kind=optional human|agent|system; surface=optional non-empty string (otherwise pane_id); \
+session_id=optional non-nil UUID; work_packet_id=optional non-empty string; payload=an object no larger than 64 KiB. \
+Each action payload is also closed and required-key typed: document_saved={document_id:string, \
+content_hash:sha256,save_receipt_event_id:string,actor_kind:string,kernel_task_run_id:string, \
+session_run_id:string,correlation_id:string}; the backend accepts it only when that receipt is an immutable \
+KNOWLEDGE_RICH_DOCUMENT_SAVED EventLedger row matching the exact workspace/document/action/actor/run/correlation/hash. \
+Missing, fabricated, or cross-save receipts fail closed. code_edit={file_path:string,line_delta:i64}; embed_created={embed_kind:string, \
+item_id:string,target_document_id:string}; canvas_node_placed={canvas_id:string,node_id:string,node_kind:string}; \
+cross_ref_inserted={ref_kind:string,symbol_entity_id:string,target_document_id:string}; \
+undo_fired={scope:local|cross_pane}; route_to_stage={content_kind:string,causal_action_id?:non-empty string}; \
+memory_write_proposed={action:memory_write_proposed,proposal_id:string,status:pending_review,class:episodic|semantic|procedural, \
+document_id:string,selection_start:u64,selection_end:u64>=selection_start,content_hash:sha256, \
+review_gated:true,pane_id:string}; stage_embed_back={artifact_id:string,target_pane_id:string,sha256:sha256, \
+manifest_ref:string,causal_action_id?:non-empty string}; calendar_event_bound={date:YYYY-MM-DD,document_id:string,calendar_event_id:string}; \
+activity_span_correlated={calendar_event_id:string,activity_span_id:string,edited_document_ids:non-empty string[]}; \
+locus_ref_resolved={locus_uri:string,target_kind:work_packet|microtask,target_id:string}; \
+locus_reverse_lookup={locus_uri:string,document_ids:non-empty string[]}. Accepted storage rows use \
+event_type=system with payload.event_family=native_editor, payload.schema and payload.schema_version \
+hsk.native_editor@0.1, matching action/kind, editor_surface, pane_id, workspace_id, actor_id, ts_utc, ops, and \
+native_payload. The 13 accepted actions are document_saved, code_edit, \
+embed_created, canvas_node_placed, cross_ref_inserted, undo_fired, route_to_stage, memory_write_proposed, \
+stage_embed_back, calendar_event_bound, activity_span_correlated, locus_ref_resolved, and \
+locus_reverse_lookup. Unknown actions, unknown payload fields, missing required fields, wrong types, malformed \
+UUIDs/timestamps, and cross-identity rows fail closed. The reader skips unrelated traffic and quarantines \
+malformed native-editor or FEMS candidates with an operator-visible rejection reason instead of displaying \
+them as trusted history. Actor attribution is explicit: the current shell binds human edits to \
+native_editor_human and never reuses the last model-launch request as if it were a live actor lease. An \
+identity-aware emitter may use a model/session actor only when the shell has an authoritative live binding. \
+Emit work stays off the egui frame thread and uses a bounded queue. Transport, backpressure, no-runtime, \
+closed-worker, and workspace-mismatch failures enter the shared in-memory error ring (latest 20), which the \
+pane renders below the durable rows; this ring explains recent local failures but is not durable authority. \
+Recovery: restore handshake_core/PostgreSQL reachability, inspect the error ring and quarantine message, then \
+press Refresh. The backend's durable pending-mirror receipt and reconciler repair interrupted EventLedger -> \
+Flight Recorder mirror windows; never fabricate a row or treat an empty pane as proof that no action occurred. \
+Use internal_diagnostics for in-process health/backend-down evidence and Palmistry for freeze/crash survival; \
+they supplement, never replace, this Tier-1 business ledger."
         .to_owned()
 }
 
@@ -614,7 +975,16 @@ StalledOperation rows, and diagnostics_palmistry for Tier-3 survivor projection.
 Stalled ops while an operation is actively stalled and clears when it completes. Recovery is to inspect the \
 typed event, identify the OperationCode lane, let or force the operation to finish/cancel, then verify the \
 status bar clears and no new StalledOperation event is emitted for a ticking/completed operation. It does \
-not replace Flight Recorder's business ledger and it cannot by itself survive a fully dead process."
+not replace Flight Recorder's business ledger and it cannot by itself survive a fully dead process. When \
+handshake_core is unavailable, backend work remains off the egui frame thread: the status bar changes to a \
+finite Disconnected/degraded state, the heartbeat and editor input continue, and Settings -> Diagnostics \
+records one BackendUnreachable row on the down edge instead of flooding every frame. The shared native \
+HTTP pool bounds connection setup at 1.5 seconds and a silent accepted request at 10 seconds; these are \
+fixed safety bounds, not operator preferences, so this WP adds no timeout setting. Handshake continues \
+bounded health probes; after the backend responds again the surface reconnects, the degraded state clears, \
+and exactly one BackendRecovered edge is recorded. A model diagnosing backend loss should read the status \
+bar plus diagnostics_events, keep editing local buffers, avoid repeated commands while a write outcome is \
+unknown, and verify BackendRecovered before retrying a mutation."
         .to_owned()
 }
 
@@ -666,20 +1036,45 @@ find + replace (editor.code.find-open Ctrl+F, editor.code.replace-open, with edi
 code_editor_fold_0 with Expand/Collapse actions, EDIT menu leaves menu.edit.fold-region / \
 menu.edit.unfold-region / menu.edit.fold-all / menu.edit.unfold-all, palette commands editor.fold.atCursor / \
 editor.fold.unfoldAtCursor / editor.fold.all / editor.fold.unfoldAll, Ctrl+Shift+[ / Ctrl+Shift+] for the \
-region at cursor, and Ctrl+K Ctrl+0 / Ctrl+K Ctrl+J for Fold All / Unfold All; a collapsed region renders its ellipsis summary \
-    label while hidden body rows are absent. Code intelligence attaches a discovered language server when one is \
-    available and otherwise stays in a typed graceful absent state. Completion opens from Ctrl+Space or trigger \
-    characters into code_editor_completion_popup with code_editor_completion_item_{n}; hover dwell opens \
-    code_editor_hover with the symbol name and go-to-definition link; LSP publishDiagnostics is URI-scoped before \
-    it reaches the gutter. The Handshake code-nav fallback uses /knowledge/code/symbols and related routes; \
-    backend-populated completion/hover content requires an indexed PostgreSQL workspace and is honestly treated \
-    as NEEDS_MANAGED_RESOURCE_PROOF when no indexed workspace is seeded. Code navigation is reachable from the GO \
+    region at cursor, and Ctrl+K Ctrl+0 / Ctrl+K Ctrl+J for Fold All / Unfold All; a collapsed region renders its ellipsis summary \
+    label while hidden body rows are absent. Code intelligence currently discovers rust-analyzer on PATH for Rust \
+    buffers; unsupported languages and missing or failed servers remain usable in an honest typed absent state. The \
+    visible AccessKit status node code-editor.lsp-status reports configured, initializing, attached, restarting, or \
+    absent for the detected language. Server processes launch without a foreground console, restart after transport \
+    failure, and receive bounded shutdown/exit cleanup when the editor closes. Document synchronization is serialized \
+    as didOpen/didChange/didClose before completion, hover, definition, and reference requests. Completion opens \
+    immediately from Ctrl+Space or after a bound trigger-character debounce into code_editor_completion_popup with \
+    code_editor_completion_item_{n}; moving the caret, changing the document, or dismissing the popup invalidates stale \
+    work. Hover dwell opens code_editor_hover with a same-file or cross-file go-to-definition link. A same-file \
+    target moves the caret in the current panel; a cross-file target is percent-decoded, resolves relative to the \
+    current document, loads on the background runtime, and opens an independent file-backed editor tab without \
+    replacing the source buffer, undo history, breakpoints, or draft edits. Duplicate exact CodeNav symbol names are \
+    resolved only when the active source path identifies one candidate; otherwise navigation remains ambiguous instead \
+    of opening an arbitrary definition. LSP publishDiagnostics is URI-scoped and uses normalized URI identity before it reaches the \
+    gutter, and diagnostic UI remains evidence-only under the \
+    HBR-INT disposition model. F12 and Shift+F12 prefer LSP results, then use the Handshake code-nav fallback through \
+    /knowledge/code/symbols and related routes. References from either source share the actionable \
+    code_editor_references list; enrichment is capped at 20 results with at most four backend requests in flight and \
+    is cancelled when the request generation changes or the overlay closes. code_editor_reference_{n} opens the exact \
+    same-file or cross-file target and \
+    code_editor_references_close dismisses it. Backend-populated CodeNav content requires an indexed PostgreSQL \
+    workspace and is honestly treated as NEEDS_MANAGED_RESOURCE_PROOF when no indexed workspace is seeded. Code \
+    navigation is reachable from the GO \
     menu or keys: Go to Definition (F12), Go to References (Shift+F12), Go to Symbol in File (Ctrl+Shift+O), Go to Line \
     (Ctrl+G), and jump Back/Forward (Alt+Left / Alt+Right). Plain typing, IME commits, Backspace/Delete, \
 paste/cut, completion accept, and whole-buffer edits record into the MT-035 focused-pane undo ring; Ctrl+Z, \
 menu.edit.undo, and the header indicator undo-count-{pane_id} all read the same shared InteractionBus depth. \
 Save with editor.code.save (Ctrl+S); the buffer \
     persists through the handshake_core backend client onto PostgreSQL/EventLedger, never bypassing handshake_core. \
+For a code block inside a mounted rich note, activate its stable editor.rich.code-block.open.re-block-* \
+Edit-code action (a model uses click_widget on that exact author_id). The selected block opens as an \
+independent native Code Editor tab; editor.code.text accepts AccessKit SetValue/ReplaceSelectedText, and \
+editor.code.save writes that exact block back into the SAME note's content_json through the note's existing \
+MT-020 SaveManager and PUT /knowledge/documents/:id/save route. If the note/block changed after opening, or \
+if a version conflict/save is already active, save fails visibly and leaves the code buffer dirty; reconcile \
+the note/conflict, reopen the exact block, and retry rather than overwriting another block. The binding captures \
+the owning document's complete structural snapshot when Edit code is activated and verifies it at save time; \
+even inserting another identical-text code block before the selected path is rejected as positional drift. \
 The bottom status bar exposes the editor segments status-bar-language-mode / status-bar-eol / \
 status-bar-indent / status-bar-encoding / status-bar-render-whitespace. Indent width, tabs-vs-spaces, word \
 wrap, and render-whitespace are driven live from Settings -> Editor (see the Editor Settings topic)."
@@ -694,20 +1089,47 @@ shell performs GET /knowledge/documents/:id and binds the MT-020 SaveManager + D
 doc_version. Formatting commands: editor.rich.format-bold (Ctrl+B), editor.rich.format-italic (Ctrl+I), \
 editor.rich.format-code (Ctrl+E), editor.rich.format-heading-1..6, plus lists, blockquotes, code blocks, \
 horizontal rules, and tables from the toolbar. Insert blocks/embeds/wikilinks with the slash menu \
-(editor.rich.insert-slash-command, '/'). Reading (preview) view is the Obsidian reading-view parity toggle \
+    (editor.rich.insert-slash-command, '/'). For headless creation, dispatch ClickWithPayload JSON exactly \
+    {\"kind\":\"note\",\"title\":\"<title>\"}; insert an exact persisted wikilink with \
+    {\"kind\":\"wikilink\",\"ref_kind\":\"note\",\"ref_value\":\"<exact-id>\",\"label\":\"<display>\"}, or an exact code block with \
+    {\"kind\":\"code_block\",\"language\":\"rust\",\"code\":\"<exact-code>\"}. Wikilink and code-block payloads use the existing \
+    transactional slash executor and immediately join model undo, unified undo, and save/draft dirty state; no transient \
+    slash-row or autocomplete-candidate id is required. Direct wikilinks use the same canonical prefix-to-kind \
+    classification table as typed wikilinks; unknown kinds and whitespace-only identities are rejected without \
+    mutating the document or recording undo. For note creation, the existing WikilinkRuntime performs the production POST and the mounted \
+    result node editor.rich.created-document exposes the created id. Blank/malformed payloads and missing runtime/workspace \
+    stay visible as interop_error; correct the payload or restore backend reachability and retry. Reading (preview) view is the Obsidian reading-view parity toggle \
 rich-reading-mode-toggle with segments rich-reading-mode-edit and rich-reading-mode-reading; the chosen mode \
 is per-document and reuses the ONE MT-011 document model (no second render path). Save with editor.rich.save \
 (Ctrl+S) or FILE > Save; the authoritative route is PUT /knowledge/documents/:id/save with expected_version \
 and content_json, and drafts use GET/PUT/DELETE /knowledge/documents/:id/draft for crash recovery. All \
-persistence is handshake_core PostgreSQL/EventLedger; reopening a note re-GETs the authoritative document \
+    persistence is handshake_core PostgreSQL/EventLedger; a successful mounted save automatically emits document_saved \
+    only when its canonical save receipt plus actor/task/session/correlation attribution are present and backend-authentic. \
+    Every desktop/headless HandshakeApp constructor allocates a distinct hsk:native_editor:host:<uuid> save-participant \
+    actor automatically; an embedding host may override it only before any rich document mounts. \
+    If receipt correlation is unavailable, the save remains committed but interop_error explains why no FR claim was emitted; \
+    restore EventLedger health and save again rather than fabricating a receipt. Reopening a note re-GETs the authoritative document \
 rather than trusting a cached editor buffer. Save conflicts render conflict-dialog with conflict-keep-yours, \
-conflict-keep-server, conflict-keep-yours-confirm, and conflict-open-merge; the evidence posture is \
+editor.rich.conflict.keep-server, conflict-keep-yours-confirm, and conflict-open-merge; the evidence posture is \
 Flight Recorder/EventLedger plus internal_diagnostics and Palmistry per HBR-INT-009. Draft recovery renders \
 draft-recovery-banner when the second open serves a non-null GET /knowledge/documents/:id/draft response; \
 draft-restore loads the recovered content into the editor without canonical-saving it, and draft-discard \
 clears the draft through DELETE /knowledge/documents/:id/draft. Wikilinks, tags, embeds, transclusions, and \
 code refs insert inline atoms through Step::InsertInlineChild with a pushed history receipt, so Ctrl+Z restores \
-the exact pre-insert content before later text undo. Export starts at rich-editor-export-button and opens \
+    the exact pre-insert content before later text undo. Live wikilink chips use \
+    editor.rich.wikilink.chip.* and autocomplete candidates use editor.rich.wikilink.candidate.*; discover exact \
+    dynamic suffixes with list_widgets. A generic chip id encodes the complete target UTF-8 bytes plus its \
+    document occurrence path, so repeated identical wikilinks remain individually addressable without hash \
+    collision or full-tree author-id overlap. Media embed blocks support image, slideshow, album, \
+    and video assets from the active workspace. A sequence can use an ordered comma-separated asset list or \
+    collection:<id>; the resolver uses backend metadata plus thumb, preview, poster, and full content tiers. \
+    Album cells load thumbnails and fetch a full image only after selection, slideshows fetch the active image, \
+    and videos render a poster with an in-app play state instead of launching a foreground player. All metadata, \
+    body fetch, and decode work shares a six-operation limit; oversized bodies, dimensions, and pixel counts fail \
+    with a typed visible error. Click a single image to open embed-image-modal-{asset_id}, close it with \
+    embed-image-modal-close-{asset_id}, or retry a transient asset failure with embed-retry-{asset_id}. Changing \
+    workspace cancels owned work and clears metadata, decoded-image, texture, sequence, modal, and failure caches so \
+    an asset id cannot leak content from the prior workspace. Export starts at rich-editor-export-button and opens \
 export-format-picker for HTML/MD/TXT/JSON output."
         .to_owned()
 }
@@ -716,23 +1138,41 @@ fn knowledge_graph_body() -> String {
     "The Knowledge Graph (Loom graph view) renders the block/note link graph for the workspace. Open the \
 graph SURFACE from VIEW > Knowledge Graph (menu.view.open-knowledge-graph), the Command Palette option \
 command-palette.option.hs-view-palette-graph, or command id view.graph. The mounted pane performs its initial \
-fetch when the Graph View pane is visible, drains the shared backend delivery cell into LoomGraphView::set_graph, \
+fetch when the Graph View pane is visible, drains the shared backend delivery cell into LoomGraphView::set_graph_projection, \
 and refreshes the same mounted view after graph mutations. Global mode uses graph.mode.global and \
-GET /workspaces/{id}/loom/views/all. Local mode uses graph.mode.local and \
-GET /workspaces/{id}/loom/graph-search?q={title}&backlink_depth=N&limit=200. The Link-depth/backlink_depth \
-control re-queries Local mode for the chosen depth. Zoom with graph.zoom.in / graph.zoom.out; pan by dragging \
+GET /workspaces/{id}/loom/graph/global?node_limit=5000&hub_degree_threshold=0; \
+GET /workspaces/{id}/loom/views/all is the independent block-count oracle used to verify the projection. \
+Local mode uses graph.mode.local and GET /workspaces/{id}/loom/graph/local?start_block_id={block_id}&max_depth=N&node_limit=200. \
+The Link-depth/max_depth control re-queries Local mode for the chosen depth. Zoom with graph.zoom.in / graph.zoom.out; pan by dragging \
 the empty canvas or by the catalog actions graph.pan-left / graph.pan-right; click graph.relayout to restart \
-layout; open a rendered node by clicking its dynamic AccessKit id graph.node.{block_id}; the legacy catalog \
+layout; open a rendered TreeItem node by clicking its dynamic AccessKit id graph.node.{block_id}. Already-safe \
+block ids remain literal; every other raw UTF-8 id is encoded injectively as a u8- hexadecimal suffix so two blocks cannot alias, \
+so use list_widgets to discover the emitted id instead of guessing it. The legacy catalog \
 action graph.open-node is the registry action shape for node-open automation. ModeChanged re-fetches Local or \
 Global data through the LoomGraphClient. AddEdge and RemoveEdge dispatch the existing /loom/edges backend \
-mutation requests and then re-fetch the graph; no graph read or write bypasses handshake_core. Empty workspaces \
-show 0 nodes. Backend failures stay visible as Graph error: ... instead of clearing the surface. Populated live \
-Global/Local proof requires a seeded Handshake-managed PostgreSQL/EventLedger backend and is typed \
-NEEDS_MANAGED_RESOURCE_PROOF until that resource is available. Recovery: use list_widgets to verify the \
+mutation requests and then re-fetch the graph; no graph read or write bypasses handshake_core. The backend's \
+truncated flag and suppressed_hub_ids make a bounded projection visible; an omitted suppressed_hub_ids field \
+means no hubs were suppressed. Empty workspaces show 0 nodes. Backend failures stay visible as Graph error: ... \
+with graph.retry instead of clearing the surface. A workspace switch clears nodes, selection, local focus, errors, \
+and queued request identity even while the graph tab is closed, so an older A response cannot re-enter after \
+A -> B -> A. The integration-gated graph_view_live_pg_self_seeds_local_global proof creates an isolated \
+Handshake-managed PostgreSQL workspace, verifies the real pre-seed 0-node Global projection, seeds linked \
+Loom blocks, verifies populated Global and Local projections, forces a bounded typed transport failure, and \
+retries the exact same workspace/mode/depth before its cleanup guard removes the seeded workspace. A missing \
+backend fails that proof instead of skipping it. Recovery: use list_widgets to verify the \
 toolbar and graph.node.* ids, switch graph.mode.local / graph.mode.global to re-query, click graph.relayout \
-after layout confusion, seed or restart the backend when the live graph is empty, retry the view, and inspect \
-internal_diagnostics if Graph error: remains."
+after layout confusion, seed or restart the backend when the live graph is empty, click graph.retry, and inspect \
+internal_diagnostics if Graph error: remains. Edge mutations retain their handshake_core EventLedger evidence; \
+internal_diagnostics observes in-process health and Palmistry supplies the external freeze/crash watcher."
         .to_owned()
+}
+
+fn wiki_projection_body() -> String {
+    "Wiki Projection is the dedicated generated Loom wiki-page surface. It is distinct from Rich Note: Rich Note opens PaneType::LoomWikiPage for an editable document, while Wiki Projection opens the mounted PaneType::Placeholder(\"Wiki Page\") host for a backend LoomWikiProjection. VIEW > Open Wiki Projection (menu.view.open-wiki-projection), the Command Palette row command-palette.option.hs-view-palette-wiki-projection, and command id view.wiki-projection reopen the concrete mounted projection when one exists; otherwise they open Quick Switcher with wiki discovery and the truthful status No active wiki projection instead of creating an empty pane. Selecting a wiki_page result opens its concrete projection id. The host strictly validates every GET /workspaces/{workspace_id}/loom/wiki/{projection_id} response: required fields must exist and returned workspace/projection ids must match the request. The title, page type, rebuild time, source-block count, and rendered_content are derived and read-only. Persisted overlay annotations are loaded through GET /overlays and rendered below the projection as wiki.overlays.{sanitized_projection_id} with each annotation at wiki.overlay.{sanitized_overlay_id}. Edit opens an additive annotation buffer. Save POSTs to /overlays and only exits after the identity-matched projection-plus-overlay reload succeeds. While Save and reload are in flight, Cancel and editing are locked so an old completion cannot clear a newer same-pane buffer. Cancel otherwise discards the unsaved buffer and performs no write. Rebuild calls /regenerate only for untyped Loom projections; typed project-wiki pages display that rebuild belongs to the project wiki engine. A rebuild failure retains the last-good page and appears at wiki.error.{sanitized_projection_id}; Retry repeats an initial failed load. Every asynchronous load, save, rebuild, and post-save reload carries workspace id, projection id, and pane generation. A late delivery for A is rejected after A -> B or A -> B -> A and cannot replace B or clear B's edit buffer. Stable AccessKit targets are wiki.title.{sanitized_projection_id}, wiki.content.{sanitized_projection_id}, wiki.metadata.{sanitized_projection_id}, wiki.edit.{sanitized_projection_id}, wiki.edit-area.{sanitized_projection_id}, wiki.save.{sanitized_projection_id}, wiki.cancel.{sanitized_projection_id}, wiki.rebuild.{sanitized_projection_id}, wiki.stale.{sanitized_projection_id}, wiki.error.{sanitized_projection_id}, wiki.retry.{sanitized_projection_id}, wiki.overlays.{sanitized_projection_id}, and wiki.overlay.{sanitized_overlay_id}. The Editor Settings section exposes settings-editor-wiki-projection-posture to state the contract truth: Wiki Projection has no dedicated preference; it uses the active workspace/theme and does not invent a second setting. Recovery: Save or reload failures preserve the annotation and expose wiki.error.{sanitized_projection_id}; restore the backend and press Save again or Cancel after the in-flight operation ends. Initial load failures use wiki.retry.{sanitized_projection_id}. The managed-PostgreSQL proof retires the previous canonical receipt before starting, self-seeds generated live ids, drives the mounted HandshakeApp host, verifies overlays through the visible mounted panel after reload, covers strict malformed/cross-identity rejection and last-good rebuild preservation, cleans up, confirms fresh absence, and only then writes the canonical current receipt. The overlay route does not claim a Flight Recorder/EventLedger business event; internal_diagnostics and Palmistry remain general runtime recovery surfaces rather than MT-025 acceptance evidence."
+        .replace(
+            "Recovery: Save or reload failures preserve the annotation and expose wiki.error.{sanitized_projection_id}; restore the backend and press Save again or Cancel after the in-flight operation ends. Initial load failures use wiki.retry.{sanitized_projection_id}.",
+            "Recovery: a POST failure preserves the annotation and allows Save retry or Cancel because no overlay was committed. If the overlay was saved but its follow-up reload fails, Save and Cancel remain locked, the panel says the overlay is already saved, and wiki.retry.{sanitized_projection_id} performs only Retry Reload; restore the backend and activate that control so no duplicate overlay is posted. Initial load failures use the same stable retry id for a normal load.",
+        )
 }
 
 fn folder_tree_body() -> String {
@@ -742,20 +1182,57 @@ command-palette.option.hs-view-palette-folders, or command id view.folders. The 
 PaneType::Placeholder(\"Folders\") host, backed by LoomFolderTree, not a placeholder. When the Folders pane \
 is visible the host performs GET /workspaces/{id}/loom/folders, builds the folder forest, and renders each \
 folder row as folder-tree.node.{folder_id}; each folder color swatch is \
-folder-tree.color.{folder_id}. Expand a folder to emit FolderTreeEvent::ExpandFolder; the host sets a \
+folder-tree.color.{folder_id}. Use New folder to create a root. For row-scoped operations, open the stable \
+folder-tree.node.{folder_id} context menu: New subfolder opens a create dialog with that row as parent; \
+Rename opens the rename dialog; Move to root clears parent and order; Move under opens a target-folder \
+submenu whose choices are addressable as folder-tree.move-target.{source_folder_id}.{target_folder_id}, so \
+same-title targets remain unambiguous; Delete opens an explicit confirmation. The confirmation reports the \
+current in-memory descendant-folder count because PostgreSQL recursively deletes that subtree and its folder \
+memberships. Loom blocks are not deleted. These emit FolderTreeEvent::CreateFolder, RenameFolder, \
+MoveFolder, or DeleteFolder and use the production POST, PATCH, and DELETE folder routes. Every successful \
+write triggers an authoritative list refetch, so labels, hierarchy, ordering, selection removal, moves, and \
+deletes reflect persisted state. Recolor follows the same rule: PATCH success only triggers the list \
+refetch; the host does not apply the response color directly, and the displayed swatch changes only when \
+that authoritative refetch delivers. Expand a folder to emit FolderTreeEvent::ExpandFolder; the host sets a \
 bounded loading state and lazily fetches its children with GET \
-/workspaces/{id}/loom/folders/{folder_id}/blocks?limit=100. Click a folder or child block to emit \
-FolderTreeEvent::OpenFolder or FolderTreeEvent::OpenBlock, which routes through the same shell \
-open_content_on_active_pane path as other Loom navigation. Right-click a folder row and choose Change color, \
+/workspaces/{id}/loom/folders/{folder_id}/blocks?limit=500&offset={n}; the client continues until a short \
+page, so folders above 100 members are not silently truncated. A defensive 100,000-member ceiling fails \
+closed as a visible error instead of hanging or showing a partial folder. Click a folder to select and expand that \
+organizational overlay inside the Folder Tree and reveal its member-block rows; an LFD-* folder id is never \
+opened as a LoomBlock, and folder selection does not globally filter another pane. Click a child block to \
+emit FolderTreeEvent::OpenBlock, which opens that real block through the shell LoomBlock navigation path. \
+The folder row's stable TreeItem accepts real AccessKit Expand and Collapse actions; models should target \
+folder-tree.node.{folder_id}, not the visual disclosure glyph. Right-click a folder row and choose Change color, \
 or click its swatch shortcut, to open the picker; choosing a color emits FolderTreeEvent::ChangeColor and \
 the host sends PATCH /workspaces/{id}/loom/folders/{folder_id} with only {\"color\":\"#rrggbb\"}, so name, \
-sort, and parent fields are not clobbered. Empty workspaces show No folders. Backend failures stay visible \
+sort, and parent fields are not clobbered. The prior swatch remains when PATCH or its authoritative refetch \
+fails. Empty workspaces show No folders. Missing-parent, \
+self-parent, and descendant-cycle move conflicts stay visible as Folder move failed and do not mutate the \
+persisted hierarchy. Backend failures stay visible \
 with folder-tree.retry as a Retry button; clicking it emits FolderTreeEvent::Retry and re-runs the folder \
-list fetch. Populated live folder, child, and recolor persistence proof requires a seeded \
-Handshake-managed PostgreSQL/EventLedger backend and remains NEEDS_MANAGED_RESOURCE_PROOF until that \
-resource is available. A model should use list_widgets to enumerate folder-tree.node.* and \
+list fetch. Failed mutations remain visible across authoritative reconciliation and clear only when a new \
+mutation begins or Retry is chosen. Dialog controls are addressable as folder-tree.create.name, \
+folder-tree.create.submit, folder-tree.create.cancel, folder-tree.rename.name, \
+folder-tree.rename.submit, folder-tree.rename.cancel, folder-tree.delete.confirm, and \
+folder-tree.delete.cancel. Sibling-name conflicts return typed HTTP 409 loom_folder_sibling_name. During a \
+pre-0342 database upgrade, every duplicate folder is preserved and later duplicates receive a deterministic \
+[recovered-{folder_id}] suffix before the truthful sibling indexes are installed. Recovery: use \
+folder-tree.retry after backend loss, wait for the authoritative list, then retry \
+the row action. Deletion has no automatic undo: cancel before confirming, or recover by recreating the folder \
+subtree and reassigning surviving Loom blocks from authoritative block data. Populated live folder, child, \
+CRUD, conflict, move-to-root, delete, and recolor persistence \
+is covered by the self-seeding folder_tree_live_pg_self_seeded_round_trip proof against a \
+Handshake-managed PostgreSQL backend. It records exact seed ids and cleanup_verified=true in the external \
+MT-022-live-pg-seed.json receipt; a missing backend fails the proof rather than skipping it. HBR-INT-009 \
+diagnostic posture: Flight Recorder/EventLedger = \
+NOT_APPLICABLE-with-reason because the current folder-overlay routes do not define a typed business-event \
+append; internal_diagnostics = DEFERRED-with-reason because this host has no folder-operation-specific event \
+code yet; Palmistry = DEFERRED-with-reason because no folder-tree-specific external tracker is registered. \
+Folder errors remain visible in-pane while those feature-specific diagnostic links are deferred. A model \
+should use list_widgets to enumerate folder-tree.node.*, folder-tree.move-target.*, and \
 folder-tree.color.* ids, click_widget on folder-tree.retry after an error, click_widget on a swatch or row \
-context path for Change color, and screenshot the tree when verifying swatch color or hierarchy."
+context path for Change color/New subfolder/Rename/Move/Delete, and screenshot the tree when verifying \
+swatch color or hierarchy."
         .to_owned()
 }
 
@@ -777,9 +1254,12 @@ GET /workspaces/{id}/loom/search?q={query}&limit=20, and selecting a candidate P
 the hub, and created_by='user'; the host re-queries the hub only after the POST response resolves, with no \
 fixed sleep. Switching projects clears the previous workspace's tag rows, search text, open hub, queued \
 events, and stale async deliveries before refetching, so a no-context model should trust the active \
-workspace in the visible pane rather than cached row text. Empty workspaces show No tags. Live AC1/AC4/AC6 \
-proof requires a seeded Handshake-managed PostgreSQL/EventLedger backend with tag_hub blocks, members, and \
-a taggable block, and remains NEEDS_MANAGED_RESOURCE_PROOF until that managed resource is available. A \
+workspace in the visible pane rather than cached row text. Empty workspaces show No tags. The \
+integration-gated tags_tag_hub_live_pg_self_seeds_mounted_round_trip proof creates an isolated workspace \
+against Handshake-managed PostgreSQL/EventLedger, drives the mounted pane through empty/list/filter/open/add, verifies \
+rename and tag removal with a fresh client, checks bounded backend loss, writes an external receipt, and \
+deletes the workspace before reporting success. Until that command runs, its status is \
+NEEDS_MANAGED_RESOURCE_PROOF; it needs a running managed backend but no preseeded ids. A \
 model should use list_widgets for tags.search / tags.row.* / tag-hub.member.*, set_value on tags.search to \
 filter, click_widget on a tag row or member row to navigate, and screenshot the pane when verifying counts \
 or hub membership."
@@ -789,27 +1269,120 @@ or hub membership."
 fn canvas_body() -> String {
     "The Canvas is the free-form spatial board (PaneType::AtelierEditor / the CKC atelier surface) for \
 arranging Loom blocks and text cards. Add a text card with canvas.add-card, place an existing Loom block with \
-canvas.place-block, and connect items with canvas.add-edge; cards can be resized, grouped into sections, and \
-edited inline when the card-edit route exists. Each persisted mutation (placement/card creation, resize, \
-section assignment, visual edge, remove placement) emits a typed canvas event that the host turns into the \
+canvas.place-block, switch semantic/visual edge authoring with canvas.edge-mode, and connect items with \
+canvas.add-edge. Pan and zoom with canvas.pan-left, canvas.pan-right, canvas.zoom-in, and canvas.zoom-out; \
+canvas.zoom-value exposes the persisted zoom. Cards can be resized, grouped into sections, moved by dragging, \
+and edited inline when the card-edit route exists. A completed card drag sends its canvas-space x/y and its \
+resolved section together in one placement PATCH, so a fresh getCanvasBoard reload cannot snap the card back \
+or retain a half-applied group change. Each persisted mutation (placement/card creation, move, resize, \
+section assignment, semantic/visual edge, remove placement) emits a typed canvas event that the host turns into the \
 real backend call — POST/PATCH/DELETE through the handshake_core canvas routes — followed by a \
 getCanvasBoard refresh, all on PostgreSQL/EventLedger. Creation responses carry the backend-minted \
 placement id; the host registers a cross-pane MT-035 compensating undo, so Ctrl+Shift+Z removes that \
-created placement with DELETE /workspaces/{id}/loom/canvas-placements/{placement_id} and redo re-places \
-the same block geometry. Inline text-card edit remains a typed blocker when the required persistence route \
-is absent. Open the canvas from the CKC module or the Command Palette; the editor never \
-bypasses handshake_core. A no-context model reads the board with list_widgets + screenshot and drives cards \
-with click_widget / set_value."
+  created placement with DELETE /workspaces/{id}/loom/canvas-placements/{placement_id} and redo re-places \
+  the same block geometry. Undo and redo are provisional until the backend responds; each completion reloads \
+  getCanvasBoard so the mounted Canvas immediately reflects PostgreSQL truth. Redo accepts the newly minted \
+  replacement placement id, so a later Ctrl+Shift+Z removes that replacement rather than retrying a stale id. \
+  A failed compensation remains \
+  visible in the Canvas status, restores the action to its original undo/redo ring, and can be retried without \
+  losing history. Atelier items reach Canvas through a durable canonical relation: publish or confirm \
+the relation with PUT /atelier/intake/items/{item_id}/loom-projection, then the batch-items response carries \
+loom_block_id. The canvas emits ResolveAtelierAndPlace, accepts only that backend-provided identity, posts only \
+placed_block_id to the canonical placements route, and freshly reloads the board. A missing or conflicting \
+relation stays a visible typed blocker and never fabricates a Loom block. Inline text-card edit remains a typed blocker when the required persistence route \
+is absent. If getCanvasBoard fails, the Canvas status shows the typed error and exposes canvas.retry; \
+click_widget on canvas.retry re-runs the authoritative getCanvasBoard request through the host. Retry uses \
+a bounded loading state: another failure stops loading and restores the error/Retry surface, while success \
+replaces it with the fresh PostgreSQL board. Removing canvas.placement.{placement_id}.remove deletes only the \
+placement reference; the canonical Loom source block remains available to other panes. Open the canvas from \
+the CKC module or the Command Palette; the editor never bypasses handshake_core. A no-context model should \
+discover canvas.placement.*, canvas.edge-mode, canvas.place-block, canvas.add-card, and canvas.retry with \
+list_widgets, verify exact resolved placement titles and section ids in AccessKit, use click_widget/set_value \
+for deterministic controls, and use screenshot when spatial placement itself must be judged."
         .to_owned()
 }
 
 fn search_body() -> String {
     "Handshake has three complementary search surfaces for the melt-together worksurface. (1) Loom Search v2 \
-is the hybrid semantic+keyword block search: type into loom-search-v2.query, run loom-search-v2.search, narrow \
-with loom-search-v2.facet.* facets, read loom-search-v2.status, and open a hit from loom-search-v2.result.*; \
-it queries the handshake_core Loom hybrid-search route. (2) Find in Files is workspace-wide text search + \
+is the hybrid semantic+keyword block search: type into search.query, run search.run, narrow \
+with loom-search-v2.facet.* facets, read loom-search-v2.status, and open a hit from search.result.*; \
+it queries the handshake_core Loom hybrid-search route. The primary Loom Search pane retains those canonical ids; \
+each additional pane appends --pane-<full-pane-id-UTF-8-hex> to every query, run, save, status, facet, and result \
+id so multiple live panes remain globally unique and deterministic. The status reports semantic-on versus keyword/fuzzy-only \
+from the backend's semantic_available truth; marked excerpts render as highlighted text, never raw mark tags. \
+loom-search-v2.save-view is disabled until results exist; after a facet rerun it persists the current facet as a \
+table view through POST /workspaces/{workspace_id}/loom/views/definitions, then shows the reloadable view block id. \
+Empty queries and backend failures remain visible instead of spinning forever; correct the input or backend and run \
+Search again. Workspace switches clear results, facets, errors, save receipts, and pending deliveries so an old \
+workspace or superseded query cannot overwrite the active panel. (2) Find in Files is workspace-wide text search + \
 replace: open it from EDIT > Find in Files (author_id menu.edit.find-all, Ctrl+Shift+F) or the command \
-editor.find.findInFiles, which opens the PaneType::FindInFiles surface. (3) The Quick Switcher \
+editor.find.findInFiles, which opens PaneType::FindInFiles. Enter text in find-in-files.query; optionally \
+select kind, comma-separated tag ids, path text, case-sensitive, whole-word, or regex mode; then activate \
+find-in-files.search. The panel follows every page from GET /workspaces/{workspace_id}/loom/graph-search \
+(q, limit, offset, source_kinds, tag_ids, path, case_sensitive, whole_word, regex), rejects malformed producer \
+payloads, and lists the complete bounded result set with stable reversible targets. The actual row author_id is \
+find-in-files.result.{hex(source_kind UTF-8 bytes)}.{hex(ref_id UTF-8 bytes)}: it is hex-encoded, \
+each byte is lowercase two-digit hex, decoding is exact, and a no-context model should discover dynamic row \
+ids with list_widgets instead of guessing them. Exact fixtures: source_kind=document with \
+ref_id=KRD-1:/foo?x=1 becomes \
+find-in-files.result.646f63756d656e74.4b52442d313a2f666f6f3f783d31; source_kind=文档 with \
+ref_id=résumé/東京 becomes \
+find-in-files.result.e69687e6a1a3.72c3a973756dc3a92fe69db1e4baac. The ten production destinations are exact: document \
+(result_kind knowledge_entity) opens the native Rich Note at PaneType::LoomWikiPage; loom_block, file, and \
+tag_hub open PaneType::LoomBlock; symbol (knowledge_entity) opens PaneType::CodeSymbol; work_packet \
+(knowledge_entity) opens PaneType::KernelDcc at WP:{wp_id}; micro_task (knowledge_entity) opens \
+PaneType::KernelDcc at MT:{wp_id}:{mt_id}; user_manual_page opens PaneType::UserManual at page_slug; \
+wiki_page opens the dedicated Wiki Page projection placeholder pane and never PaneType::LoomWikiPage; and \
+a loom_block whose block.content_type is view_def opens the dedicated Block Collections placeholder pane. \
+When a saved-view definition or result query fails, the pane keeps `View error: ...` visible and exposes \
+bcv.retry; activating Retry clears stale deliveries, rebinds the same view id, and issues one bounded \
+definition fetch plus one bounded result query. \
+Bookmark Search persists the exact query/filter/options blob through \
+GET/PUT /workspaces/{workspace_id}/search-bookmarks and rejects workspace-mismatched or partial responses. \
+The producer bookmark id is bookmark-v1 followed by one .{utf8_len}-{hex(component UTF-8 bytes)} frame for \
+each exact semantic component in order: trimmed query, kind, trimmed tag, trimmed path, case, whole-word, and regex. \
+The bytewise codec never lowercases semantic content, so case-sensitive Foo/foo and Unicode-only 文/東 searches \
+remain distinct saved rows instead of evicting one another. \
+Every saved row exposes \
+find-in-files.bookmark-restore.{hex(bookmark_id UTF-8 bytes)} and \
+find-in-files.bookmark-remove.{hex(bookmark_id UTF-8 bytes)}; bookmark id saved:文/1 becomes the exact \
+suffix 73617665643ae696872f31 on both routes. A failed mount-time GET exposes \
+find-in-files.bookmark-retry; Retry reissues the bounded GET for the active workspace, and another failure \
+returns to the visible Retry state. Restore repopulates query, kind, tag, path, case, whole-word, and regex; \
+Remove persists the shortened list, so a fresh panel mount must not rediscover the removed row. \
+For replacement, enter find-in-files.replace, activate find-in-files.preview-replace, inspect each document's \
+before/after preview and match count, then activate find-in-files.apply. Each preview row is addressed as \
+find-in-files.preview.{hex(document_id UTF-8 bytes)} using the same lowercase bytewise codec; for example \
+KRD-文/1 becomes find-in-files.preview.4b52442de696872f31. Preview loads only KRD- rich documents; \
+Apply PUTs each /knowledge/documents/{id}/save sequentially with the previewed expected_version and changes \
+only text plus attrs.code strings while preserving all other JSON nodes. Preview requires the loaded KRD id \
+and workspace_id to match the active workspace, carries that workspace authority in every plan, and reloads \
+the document to reverify both identities immediately before save. A version conflict never overwrites \
+the newer document. Full and partial mutation outcomes retain per-document before/after SHA-256 audit rows; \
+every usable save_receipt_event_id is nonblank, and a committed save whose EventLedger receipt failed is \
+reported explicitly as CommittedWithoutReceipt with receipt_error instead of inventing an id. After any \
+committed full or partial Apply, the panel automatically re-runs the same search so visible results are current. \
+Cancel is cooperative between saves: it keeps the old workspace-attributed operation active across a workspace \
+switch until the in-flight save reports, preserves all already committed receipts, blocks another destructive \
+Apply, and reports how many plans were skipped. Search never overlaps Apply; a Search intent during Preview \
+first detaches that read-only preview and requires Search again, preventing same-input completion reordering. \
+If a query/filter/replacement or \
+workspace generation changed, run Search then Preview Replace again; stale results/plans are blocked. On an \
+HTTP, regex, malformed-response, or conflict error, read the visible status, correct the input or reload the \
+current workspace, and retry—never assume an unseen save rolled back. Diagnostic posture: Flight Recorder / \
+EventLedger = WIRED: every graph-search page emits LoomSearchExecuted, bookmark mutation returns an \
+event_ledger_event_id, and document save returns a save_receipt_event_id or explicit receipt_error; \
+internal_diagnostics = DEFERRED-with-reason because no \
+Find-in-Files-specific diagnostic event code is registered; Palmistry = DEFERRED-with-reason because no \
+Find-in-Files-specific external liveness tracker is registered. Managed verification self-seeds PostgreSQL, \
+drives the mounted factory UI through Search -> result click/open_requests shell target -> a fully backend-loaded \
+RichEditorPaneMount with exact id/title/content/version and stable rich-editor root/block ids -> Preview -> Apply, \
+proves 501-row pagination, positive and negative tag filters, match options, workspace rejection, stale/conflict/ \
+partial/full/cancel-after-first-commit behavior, production Bookmark Search saves for case-sensitive case variants \
+and Unicode-only variants -> fresh production remount -> UI Restore-all-fields -> \
+UI Remove -> fresh backend absence -> second fresh-remount absence bookmark lifecycle, bounded bookmark-load Retry, \
+bounded backend-loss recovery, receipt integrity, and a real \
+PNG render, then proves cleanup with fresh GET /workspaces list absence and a failed graph-search refetch. (3) The Quick Switcher \
 (quick-switcher.dialog, input quick-switcher.search, list quick-switcher.list, Ctrl+P) jumps between open \
 documents, blocks, and code symbols; the Command Palette (command-palette.dialog / command-palette.search / \
 command-palette.list, Ctrl+Shift+P) runs any registered command including the View: * surface-open commands. \
@@ -822,7 +1395,16 @@ fn wikilinks_backlinks_body() -> String {
     "Wikilinks tie notes together the Obsidian way. Type [[ in the Rich Text Editor to open the wikilink \
 autocomplete (seeded from the Loom title index via GET /loom/graph-search), pick a target, and a resolvable \
 link chip is inserted; a link to a title that does not exist yet offers create-from-unresolved, which POSTs a \
-new note through the knowledge create backend. Clicking a wikilink chip navigates to its target through the \
+  new note through the knowledge create backend. If multiple notes share the same normalized title or alias, the chip \
+  shows an explicit N-matches ambiguity badge and disables both navigation and create; choose an exact note \
+  identity instead. Alias resolution is explicitly local-only and in-session: add_local_alias is the sole alias \
+  source because the backend enumeration has no aliases field. A restart or fresh resolver seed restores titles but \
+  cannot restore aliases; re-enter aliases for the new session. Duplicate-alias ambiguity therefore protects the \
+  current in-memory resolver only and is not durable backend alias coverage. Create completion is shell-owned: \
+  switching or hiding the originating document does not lose success navigation or failure status, and a late \
+  completion never rewrites the newly mounted document. The backend created flag is retained end-to-end: operator \
+  status says Created only when created=true, and Opened existing/reused when created=false. Clicking \
+  an unambiguous wikilink chip navigates to its target through the \
 MT-030 ShellNavigator (open_document / open_loom_block). Code references are the code branch of the same \
 hsLink atom: /code-ref opens code-symbol-search with input code-symbol-search-input, selecting a backend \
 lookup result inserts a chip addressed as code-ref-chip-{symbol_entity_id}, and clicking that chip dispatches \
@@ -831,26 +1413,70 @@ open-code-symbol / CMD_OPEN_CODE_SYMBOL through dispatch_code_ref_open. Hand-aut
 take_pending_code_symbol in HandshakeApp::drive_ckc_interop, ShellNavigator::open_code_symbol resolves \
 entity ids through GET /knowledge/code/symbols/{symbol_entity_id} and resolves path#Symbol refs through \
 lookup_symbols_by_name_path / GET /knowledge/code/symbols?workspace_id=&name=&path=&limit=1, then loads \
-the returned source_id into the mounted Code Editor and scrolls until the visible line range contains \
-line_start. A deleted or no-definition symbol renders an \
+  the returned source_id into the mounted Code Editor and scrolls until the visible line range contains \
+  line_start. Pane-addressed code-location navigation retains the requested pane and exact byte offset through \
+  asynchronous symbol resolution; resolver generations, pending state, and disk-load invalidation are scoped by \
+  origin pane plus source content. A new B intent cancels B-old only, while pending A can still land at A's exact \
+  pane and byte; changing focus while resolution is in flight cannot redirect or replace either target. Explorer \
+  document rows come from GET /knowledge/documents?workspace_id=..., so Rename carries the displayed KRD id and \
+  updated_at token to the same RichDocument authority. Rename disables reentry while its operation is in flight; \
+  cancel/reopen and reverse completion cannot apply an older operation to the current dialog. A deleted or \
+  no-definition symbol renders an \
 unresolved chip and surfaces a typed navigation/backend status instead of crashing. The Code Editor reverse \
 edge is NoteRefsPanel: note-refs-panel lists rich documents mentioning the current symbol, keeps block_id as \
 the matched hit identity, rows are dynamic note-ref-{document_id} ListItems, and clicking a row dispatches \
 CMD_OPEN_DOCUMENT with document_id through the shared InteractionBus so the shell opens the mounted Notes \
-pane. The Outgoing Links pane (outgoing.panel) lists the \
+pane. Open the mounted Loom navigation sidebar from EDITORS > Open Sidebar \
+(menu.editors.sidebar) or the view.sidebar command. Its independent Pins, Favorites, Backlinks, and \
+Unlinked Mentions sections load from handshake_core for the active workspace/block; each section keeps its \
+own loading/error state and Retry control, so one failed route never disables the other sections. Pin removal \
+uses the canonical two-step PUT /pin-order {pin_order:null} then PATCH {pinned:false}; favorite removal uses \
+PATCH {favorite:false}; both retain an exact rollback row until mutation confirmation, restore it immediately on \
+failure, show the typed section error, and refetch server truth. If the runtime/backend is unavailable, the row is \
+not removed and the affected section exposes Retry. Backlinks use the dedicated incoming-edge \
+route and retain the source title plus edge type; Unlinked Mentions use the active-block textual scan and exclude \
+formal backlinks. Clicking any row opens that Loom block and appends its real title to the five-entry breadcrumb \
+trail. Model operators can inspect sidebar.pin.{encoded_block_id}, sidebar.favorite.{encoded_block_id}, \
+sidebar.backlink.{encoded_block_id}, sidebar.unlinked.{encoded_block_id}, and sidebar.breadcrumb.{index}; backend \
+ids made only from letters, digits, hyphens, and underscores remain literal; unsafe ids and the reserved u8- prefix \
+use injective u8-hex encoding. The readable kind chip beside each pin/favorite title exposes content_type. There is \
+no sidebar preference in the WP contract: visibility is \
+the persisted pane/menu state, not a second settings toggle. The Outgoing Links pane (outgoing.panel) lists the \
 active note's links bucketed into outgoing.section.resolved and outgoing.section.unresolved; clicking a \
 resolved row jumps to that document/block. Backlinks (which notes point AT this one) surface through the same \
 knowledge routes. The reused MT-015 backlinks panel emits backlinks-panel and backlinks-refresh, and each \
-loaded row emits backlink-{source_document_id}; clicking a row dispatches interop.open-document \
+loaded row emits a clickable Role::ListItem named backlink-{source_document_id}; the panel is Role::List. \
+The production client supplies x-hsk-actor-id, x-hsk-kernel-task-run-id, and x-hsk-session-run-id; a 404 is \
+an empty projection shown as No backlinks yet, while network/server failures stay typed and retryable. \
+Backlink completions are generation plus workspace/document stamped, so refreshes and context switches cannot \
+apply stale or cross-workspace rows. Transclusion, autocomplete, resolver-seed, and create-note completions use \
+the same context boundary; all four completion paths are queued so concurrent or reverse completion order cannot \
+lose the current result. Create-note guards are keyed by workspace plus normalized title and survive A -> B -> A \
+workspace navigation; every completion clears its originating guard, and a successful off-workspace create is cached \
+so returning to that workspace resolves the title without issuing a duplicate create. Resolver seeding has one guard \
+for the current workspace: document navigation preserves it, while a workspace switch clears it and rejects the old \
+workspace's seed completion. Transclusion responses must also echo the requested workspace and block identity. A successful document save broadcasts a projection invalidation to every already-mounted \
+backlink panel. If the document commits but server backlink indexing reports an error or skip, every mounted panel \
+shows a sticky typed indexing failure instead of presenting stale rows as current. A read-only Backlinks Refresh \
+cannot hide or repair that write-time failure; the warning clears only after a later save reports successful backlink \
+indexing for the same source document. Invalidation state is workspace-stamped and retains a bounded revision window \
+with a current-warning snapshot plus the latest revision per workspace, so hidden panes still refresh after queue \
+eviction and another workspace or document's successful save cannot overwrite an unobserved warning. \
+Clicking a row dispatches interop.open-document \
 (CMD_OPEN_DOCUMENT) via EditorEvent::BacklinkActivated -> dispatch_backlink_open, stages pending_navigation \
 on the shared InteractionBus, and the live shell drain HandshakeApp::drive_ckc_interop routes that target \
 through ShellNavigator::open_document into the mounted Notes pane. Everything-is-a-block addressing is \
 loom://{workspace_id}/{block_id} through loom_address.rs; \
-canvas placements with placed_block_id show the loom:// chip, graph nodes expose loom:// plus backlink count, \
+canvas placements with placed_block_id show the full wrapped loom:// chip, graph nodes expose loom:// plus backlink count, \
 and content_hash is read from the backend LoomBlock / ContentHash::from_backend rather than PATCHed by the \
-client. Managed-resource proofs for live rich-document block_id, computed backlinks, and backend content_hash \
-are NEEDS_MANAGED_RESOURCE_PROOF against Handshake-managed PostgreSQL; when the backend omits a Loom block id \
-or content_hash the proof must report that typed backend-shape gap, not pass green. HBR-INT posture for \
+client. The managed proof command cargo test --manifest-path src/frontend/handshake_native/Cargo.toml \
+-p handshake-native --features integration --test test_loom_address \
+live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof -- --exact --nocapture --test-threads=1 creates A \
+and B in Handshake-managed PostgreSQL, creates/removes/restores A -> B only through normal saves, loads B \
+through ReqwestWikilinkBackend/WikilinkRuntime, deletes A, and compares the fresh RichDocument/LoomBlock \
+identity plus backend-computed content_hash. It writes the strict live visual to \
+Handshake_Artifacts/handshake-test/wp-kernel-012-mt-032/MT-032-canvas-live-B.png. When the backend omits a Loom \
+block id or content_hash the proof reports that typed backend-shape gap, not green. HBR-INT posture for \
 this editor navigation: Flight Recorder/EventLedger = NOT_APPLICABLE-with-reason for local tab navigation \
 that does not mutate authority; internal_diagnostics = DEFERRED-with-reason until the diagnostic tier ships; \
 Palmistry = DEFERRED-with-reason until the external watcher tier ships. All link/backlink data \
@@ -864,19 +1490,57 @@ fn daily_journal_body() -> String {
     "The Daily Journal is the date-addressed note surface. Open it from VIEW > Open Daily Journal \
 (menu.view.open-daily-journal), the command palette command view.journal, the left rail Notes button, or an \
 Agenda drawer card; the real app route mounts PaneType::LoomDailyJournal and exposes the editor root \
-journal-panel-root. The MT-067 calendar strip remains addressable as daily-journal-panel: \
-daily-journal-date-header selects a day, daily-journal-calendar-event-chip links to a Calendar event, and \
-daily-journal-activity-strip shows a read-only day overview. The MT-019 editor surface opens or creates the \
+journal-panel-root. The MT-067 calendar strip remains addressable as daily-journal-panel. Settings > Appearance > Calendar timezone stores a \
+validated IANA tzid per workspace (defaulting to the system IANA timezone); changing it invalidates the old \
+request generation so a late response from the previous timezone cannot replace the visible day. Today is \
+derived in that persisted view timezone on both the outer and embedded date navigators, not from the process \
+timezone. The strip: \
+daily-journal-date-header selects a day, daily-journal-calendar-event-chip opens the exact CalendarEvent through \
+the named loom.daily-note.focus-calendar-event InteractionBus command, and daily-journal-activity-strip shows a \
+read-only day overview. Previous/next/calendar navigation reloads the selected day's journal, CalendarEvent, and \
+ActivitySpans as one workspace-plus-date-plus-view-timezone request; rapid navigation discards late responses from an older day, so \
+the visible chips cannot fall back to today or be overwritten by a stale request. The content-addressed Calendar \
+Event destination exposes Details, Notes, and Activity \
+tabs as calendar-event-tab-details, calendar-event-tab-notes, and calendar-event-tab-activity. Details shows the \
+exact event id/title/start/end; Notes opens the primary linked document without mutating the event; Activity shows \
+the nested exact correlated spans and edited-document links. If activation does not open calendar-event-pane, \
+retry from the still-visible journal event chip; the one-shot typed bus payload prevents a prior event id from \
+being reused. The MT-019 editor surface opens or creates the \
 selected day's Loom journal block with PUT /workspaces/:workspace_id/loom/journals/:date, loads a linked \
 RichDocument from GET /knowledge/documents/:id when the block has document_id, offers journal-start-writing \
 when no document exists, and saves through PUT /knowledge/documents/:id/save after the 3-second idle debounce \
-or Ctrl+S. Knowledge-document load/create/save calls carry the x-hsk-* document headers. HONEST STATE: the live \
-PUT /loom/journals/:date round-trip is NEEDS_MANAGED_RESOURCE_PROOF against a managed backend. If Start writing \
+or Ctrl+S. Knowledge-document load/create/save calls carry the x-hsk-* document headers. The managed-backend \
+proof starts with the navigated date absent, drives the mounted next-day control, and verifies that the UI creates \
+one durable journal identity that reopens idempotently. For a multi-day event, each selected date owns its \
+session's exact journal binding; navigating to day two never retains the start day's document id. The outer Calendar nav uses daily-journal-prev-day, \
+daily-journal-next-day, daily-journal-today, daily-journal-calendar-toggle, and daily-journal-date-display; the \
+embedded editor keeps the distinct journal-* ids, so agents never select a control by tree order. If Start writing \
 creates a rich document but the backend cannot durably attach it to the Loom block, the editor keeps the session \
 document visible and surfaces journal-document-link-gap instead of pretending the block has a persisted \
-document_id. The CalendarEvent chip + activity strip stay in a typed EndpointUnavailable empty-state until a \
-backend packet exposes the /calendar/events + /calendar/activity-spans routes — the surface is real and \
-drivable, the cross-edge is honestly gated, never a fabricated entry."
+ document_id. Timed events preserve UTC instants, IANA tzid, original local wall times, floating-time \
+provenance, and any explicit DST-overlap normalization note; all-day events preserve date-only \
+`[start_date, end_date_exclusive)` boundaries. Selected local dates are converted to UTC half-open windows \
+with the IANA timezone database, so Europe/Brussels 23-hour and 25-hour days, near-midnight events, timed \
+midnight-exclusive endings, and multi-day events bind to the visible date instead of a UTC calendar date. \
+Invalid IANA zones, contradictory typed payloads, and nonexistent DST-gap local times are rejected; ambiguous \
+DST-overlap times retain the explicit earlier/later-offset normalization note shown with event details rather \
+than being silently coerced. Such events expose the stable daily-journal-calendar-normalization-badge and \
+calendar-event-normalization-badge addresses. Historic rows missing authoritative local/date intent remain \
+visible as typed Legacy temporal data with daily-journal-calendar-legacy-badge and \
+calendar-event-legacy-badge; reimport from the calendar source is the recovery path and the UI never guesses \
+missing intent. An ActivitySpan without ended_utc is rendered as In progress. The CalendarEvent chip and \
+activity strip use the live /calendar/events and \
+ /calendar/activity-spans routes. The mounted workspace-plus-date request retries its idempotent journal PUT and \
+ Calendar GETs at most three times only for transport failures or HTTP 408/425/429/5xx. Every attempt remains \
+ generation/date guarded, no intermediate failure replaces the selected day, and success emits one accepted set of \
+ binding/correlation receipts. Before the journal binding is ready the CalendarProjectionState is \
+ WaitingForDailyNote; journal failure becomes DailyNoteError and prevents Calendar reads. A successful empty event \
+ list becomes NoEvent rather than an endless Loading state. Terminal Calendar failures retain their exact \
+ CalendarReadFailure: 404/501 is EndpointUnavailable, malformed JSON is InvalidResponse, an exhausted transient \
+ budget is RetryExhausted, and other terminal failures are RequestFailed. They emit no binding/correlation success; \
+ restore the backend and navigate away and back to issue a fresh selected-date request. An ActivitySpan failure preserves the event chip and its selected-date \
+document binding, marks only the activity strip unavailable, and emits no correlation success; neither failure \
+is rendered as an authoritative empty event or zero-span result."
         .to_owned()
 }
 
@@ -914,9 +1578,11 @@ Editor and the Rich Text Editor."
 }
 
 fn menu_bar_and_commands_body() -> String {
-    "The operator menu bar has six top-level dropdowns, each a stable AccessKit MenuItem and each openable by \
-Alt+<first letter>: FILE (menu-file), EDIT (menu-edit), VIEW (menu-view), GO (menu-go), RUN (menu-run), and \
-HELP (menu-help). FILE opens/creates and persists documents: New Document (editor.file.new), Save \
+    "The operator menu bar has eight top-level dropdowns, each a stable AccessKit MenuItem: FILE \
+(menu-file, Alt+F), EDIT (menu-edit, Alt+E), VIEW (menu-view, Alt+V), GO (menu-go, Alt+G), RUN \
+(menu-run, Alt+R), HELP (menu-help, Alt+H), EDITORS (menu-editors, Alt+I; E remains Edit's mnemonic), \
+and OPERATOR (menu-operator, Alt+O). \
+FILE opens/creates and persists documents: New Document (editor.file.new), Save \
 (menu.file.save, Ctrl+S), Save All, Save As, Export Document HTML/MD/TXT/JSON, Close Tab, Quit. EDIT drives the \
 focused editor: Undo/Redo (menu.edit.undo / menu.edit.redo — the ONE MT-035 unified stack shared with the \
 keyboard and the pane header undo-count-{pane_id} indicator), Cut/Copy/Paste/Select All, Toggle Comment, Format Document, Find (Ctrl+F), Replace (Ctrl+H), Find \
@@ -927,23 +1593,29 @@ in Files (menu.edit.find-all, Ctrl+Shift+F), Replace in Files, plus Command Pale
   Back/Forward (Alt+Left / Alt+Right), Go to Symbol in File (Ctrl+Shift+O), Go to Definition (F12), Go to \
   References (Shift+F12), Go to Symbol in Workspace (Ctrl+T), and Go to Line (Ctrl+G). VIEW opens mounted \
   native-editor surfaces directly \
-  from the Open Editor Surfaces section: menu.view.open-code-editor, menu.view.open-rich-note, \
+  from the Open Editor Surfaces section: menu.view.open-code-editor, menu.view.open-rich-note, menu.view.open-wiki-projection, \
   menu.view.open-knowledge-graph, menu.view.open-folders, menu.view.open-tags, menu.view.open-block-collections, menu.view.open-canvas, menu.view.open-loom-search, \
   menu.view.open-find-in-files, menu.view.open-quick-switcher, menu.view.open-daily-journal, and \
   menu.view.open-diff-editor. The pane-opening entries dispatch the same open command ids the Command Palette uses \
-  (view.code-editor, view.rich-note, view.graph, view.folders, view.tags, view.block-collections, view.canvas, view.loom-search, view.find-in-files, \
+  (view.code-editor, view.rich-note, view.wiki-projection, view.graph, view.folders, view.tags, view.block-collections, view.canvas, view.loom-search, view.find-in-files, \
   view.journal, view.diff-merge). Quick Switcher uses menu.view.open-quick-switcher to open the same overlay \
   reached by the palette command workbench.action.quickOpen; the palette rows are \
-  command-palette.option.hs-view-palette-code-editor, command-palette.option.hs-view-palette-rich-note, \
+  command-palette.option.hs-view-palette-code-editor, command-palette.option.hs-view-palette-rich-note, command-palette.option.hs-view-palette-wiki-projection, \
   command-palette.option.hs-view-palette-graph, command-palette.option.hs-view-palette-folders, \
   command-palette.option.hs-view-palette-tags, command-palette.option.hs-view-palette-canvas, command-palette.option.hs-view-palette-loom-search, \
   command-palette.option.hs-view-palette-find-in-files, command-palette.option.hs-editor-menu-quick-open, \
   command-palette.option.hs-view-palette-journal, and command-palette.option.hs-view-palette-diff-merge. A model can click the menu item or run the palette \
-  command and reach the same mounted pane or overlay. RUN launches operational surfaces: Open Swarm Board, \
+  command and reach the same mounted pane or overlay. EDITORS opens editor-specific side panes and commands: \
+  Outline, Relevant Memory, Outgoing Links, Stage, Route selection to Stage, Capture and embed from Stage, Sidebar, Daily Journal, Format \
+  Document, Next/Previous Diagnostic, Rename Symbol, and Quick Fix. RUN launches operational surfaces: Open Swarm Board, \
 Open Inference Lab, Open Flight Recorder, Launch Model Session in Workspace Folder \
 (menu.run.model-session-launch), and Open Terminal in Workspace Folder (menu.run.terminal). HELP opens the \
 User Manual, Settings, and About. Every enabled item dispatches its REAL command by id through the one shell \
-dispatcher and every disabled item is honestly greyed with a reason (no lying-enabled entries)."
+dispatcher and every disabled item is honestly greyed with a reason (no lying-enabled entries). OPERATOR is \
+the consolidated operational route: menu.operator.command-palette opens command-palette.dialog; \
+menu.operator.swarm-board selects the Swarm pane; menu.operator.flight-recorder opens flight-recorder-pane; \
+menu.operator.model-session-launch opens model-session-launch.dialog; menu.operator.user-manual opens \
+manual-pane; and menu.operator.settings opens settings.dialog."
         .to_owned()
 }
 
@@ -951,21 +1623,34 @@ fn editor_settings_body() -> String {
     "Editor preferences live in the Settings dialog (open from HELP > Open Settings, the command settings.open, \
 or the settings chrome; filter with settings.search). The Editor section exposes settings-editor-font-size, \
 settings-editor-tab-size, settings-editor-insert-spaces (tabs vs spaces), settings-editor-word-wrap (Off / On / \
-Bounded column), and settings-editor-render-whitespace (None / Boundary / All). The Syntax section is \
+Bounded column, with settings-editor-wrap-column), settings-editor-render-whitespace (None / Boundary / All), \
+settings-editor-minimap, settings-editor-sticky-scroll, settings-editor-line-numbers, \
+settings-editor-line-height, settings-editor-bracket-matching, settings-editor-indent-guides, and \
+settings-editor-reading-mode-default. The reading-mode preference seeds freshly opened notes; an explicit \
+per-document Edit/Reading choice remains the active document choice. The read-only \
+settings-editor-wiki-projection-posture row explicitly states that Wiki Projection has no dedicated preference; \
+it uses the active workspace/theme and generated content remains read-only, so there is no invented second setting. \
+The settings-editor-flight-recorder-posture row likewise states that Flight Recorder has no dedicated preference: \
+its workspace filter is runtime-derived from the active shell binding and the Tier-1 audit surface \
+cannot be disabled from Editor Settings. The Syntax section is \
 settings-syntax-palette-mode (Muted / Standard / Custom) with one settings-syntax-swatch-<scope> color picker \
 per highlight scope in Custom mode. The Keybindings section extends the editor bindings with one \
-settings-keybind-row-<action_id> per code chord and rich command. All values ride the SAME workspace-settings \
+settings-keybind-row-<action_id> per code chord and every rich formatting command, plus \
+settings-keybind-reset-<action_id> to restore its built-in default. Custom code and rich chords replace that \
+action's default in the mounted editor immediately; an invalid stored rich chord is rejected while its working \
+default remains available. All values ride the SAME workspace-settings \
 payload and persist through PUT /workspaces/:id/settings (handshake_core PostgreSQL/EventLedger); reopening the \
 dialog GETs them back — the workspace-settings row is the only authority and there is no second settings store. \
-LIVE-EFFECT STATE (honest): tab size, \
-insert spaces, word wrap, render whitespace, and code keybinding overrides apply LIVE to the mounted code \
-editor (via the shell's sync-to-panel path). Editor font size also applies LIVE to the mounted code editor and \
-rich editor: a font-size change resizes the running code rows/glyph advance and rich document text layout on the \
-next frame. A Custom syntax \
-palette also repaints the mounted code editor and minimap syntax rows through the live highlight resolver, while \
-Muted and Standard keep the theme syntax tokens. Cosmetic scope edge: gutter line numbers still use their base \
-sizing, so they are not part of the live font-size claim. Rich-editor keybinding overrides persist but \
-have no live rich keymap seam yet."
+LIVE-EFFECT STATE: tab/indent settings, wrap, whitespace, minimap, sticky scroll, line-number visibility, \
+line height, bracket matching, indent guides, code keybindings, and rich keybindings apply to the mounted editors \
+without restart. Editor font size also applies LIVE to the mounted code editor and rich editor: a font-size change \
+resizes the running code rows/glyph advance and rich document text layout on the next frame. Muted, Standard, and \
+Custom palette selections repaint the mounted code editor and minimap through the live highlight resolver; Custom \
+uses the configured per-scope swatches and missing Custom entries fall back to Standard. Each mode change therefore \
+repaints the mounted code editor immediately rather than waiting for restart. Gutter line-number and fold glyphs \
+use the same live editor font size, so their geometry changes with the code rows. A failed GET or \
+PUT keeps the current in-memory edits, exposes the typed settings.persist.error status, and offers the exact \
+settings.persist.retry control to repeat the failed load or save."
         .to_owned()
 }
 
@@ -1011,23 +1696,86 @@ fn relevant_memory_body() -> String {
 command-palette.option.hs-view-palette-relevant-memory, or command id view.relevant-memory. The mounted \
 pane is the relevant-memory-panel container with the relevant-memory-list of retrieved memory items — the \
 FEMS retrieval capsule for the active context (typed memory the model has stored: episodic/semantic/\
-procedural entries relevant to the current document/task). It is READ-ONLY navigation: a memory WRITE is \
-never an editor-direct commit; it is always the review-gated proposal path (fems-propose-dialog -> \
-fems-propose-confirm). A no-context model surfaces the pane with click_widget on \
-menu.editors.relevant-memory, reads the capsule with list_widgets + screenshot, and opens a proposal only \
-through the propose dialog. The live cross-edge FEMS read route is gated (EndpointMissing) in the current \
-handshake_core build, so the pane shows a typed empty-state until the FEMS pack route lands rather than \
-fabricating memory rows; all durable memory authority is handshake_core PostgreSQL/EventLedger."
+procedural entries relevant to the current document/task). Opening the pane starts a live MemoryPack read; \
+changing workspace/document/selection/cursor context refreshes it automatically and clears the previous \
+context's pack before the new read completes. Use click_widget on \
+editor.fems.memorypack-refresh to force a same-context retry or refresh. While a request is running the \
+Refresh control is disabled; success replaces the capsule, an empty result is shown honestly, and a \
+backend failure remains visible until Refresh or a context change completes successfully. The pane is \
+READ-ONLY navigation: a memory WRITE is never an editor-direct commit. Select source content, open \
+'Propose to Memory' through the Command Palette option \
+command-palette.option.hs-fems-palette-propose-to-memory, inspect fems-propose-dialog, choose \
+fems-class-episodic, fems-class-semantic, or fems-class-procedural, then activate fems-propose-confirm, \
+or cancel with fems-propose-cancel. The result is a pending_review proposal for a \
+reviewer, not a committed memory item. Read editor.fems.memorypack-status and fems-propose-status with \
+list_widgets: their structured values expose state, refresh generation/count, operation_id, proposal_id, \
+event_id, and outcome without scraping visible labels. `state=completed;outcome=event_persisted` means the \
+proposal and canonical backend-projected FR-EVT-MEM-001 are both durable; the backend does not acknowledge \
+this operation before that projection is durable. A transport or backend rejection is reported as a failed \
+submit, not as a successful proposal with a frontend-only partial event outcome. Cancel reports \
+`state=cancelled;outcome=cancelled_before_submit` with its stable operation_id and leaves both the \
+canonical proposal-row count and committed-memory count unchanged. Once a durable \
+    proposal is pending review, activate fems-review-approve or fems-review-reject. Pending review controls \
+cannot be dismissed; after restart or workspace rebinding the shell reloads the bounded canonical pending \
+proposal list and restores the next review target. The native control calls the closed review route \
+off-frame with an operator identity; fems-review-status and fems-propose-status expose proposal_id, \
+decision, actor_id, correlation_id, event_ledger_event_id, flight_recorder_event_id, and reviewed_at. \
+    Missing/conflicted targets and mismatched acknowledgement identities retire the stale control and refresh \
+    the canonical queue; transport failures retain the target for explicit retry. Rejection ends at \
+    `state=reviewed;outcome=rejected` and performs no commit. Approval first records the review, then calls the \
+    separate explicit approved-proposal commit route. A successful approval ends at \
+    `state=committed;outcome=approved`; fems-propose-status exposes memory_id, commit_id, memory_pack_id, \
+    memory_pack_hash, commit_report_hash, the commit event_ledger_event_id, flight_recorder_event_id, and \
+    committed_at; the commit is projected as FR-EVT-MEM-003. That committed strict MemoryPack supersedes an older context-specific empty pack, so the \
+    mounted Relevant Memory pane refreshes and renders the exact committed item and provenance. Exact retries \
+    of an already approved or rejected decision converge on the original immutable review receipt; an approved \
+    retry also returns the original explicit commit receipt. If commit transport fails after approval, retry the \
+    same fems-review-approve action for that proposal; the backend does not create a second item, pack, or \
+    receipt. A commit accepted by PostgreSQL but interrupted before FR-EVT-MEM-003 is projected is recovered \
+    automatically by the backend startup projector; the original commit timestamp, pack identity/hash, report \
+    artifact, and EventLedger receipt are reused. The report artifact is resolvable from the FR event's \
+    workspace-scoped artifact_ref and re-hashes to commit_report_hash. Text-range proposals fail \
+    closed unless the active mounted tab supplies canonical same-workspace provenance: rich-text tabs cite their \
+    persisted RichDocument id, while code tabs cite the KSRC-* KnowledgeSource bound by production code-symbol \
+    navigation (the filesystem path remains a separate navigation key and is never used as provenance). Switching \
+    the pane to a different code or rich editor document invalidates the prior text selection, even when both \
+    documents contain identical bytes at the identical range. Opening the Relevant Memory utility tab deliberately \
+    retains the preceding editor context; returning to that same editor keeps it, while activating another editor \
+    document clears it. For code, \
+    open Edit -> Quick Switcher (menu.edit.quick-switcher), search an indexed symbol, and activate its result before \
+    selecting text. The backend requires a current, non-stale file KnowledgeSource plus its current \
+    knowledge_code_files row, then verifies the submitted full-buffer SHA-256, UTF-8 range, and exact selected slice \
+    against that canonical indexed source. A pane id, path suffix, or stale source is never substituted as authority. Clicking \
+    a memory item's source control navigates to its real Loom block, never a fabricated or dangling source id. \
+    While a submit is in flight, running Propose to Memory again reports \
+    `state=submitting;outcome=reentry_blocked` and cannot replace the captured operation/emitter. Switching \
+    workspaces invalidates the dialog, selection, captured emitter, pending operation, and status; an A -> B -> A \
+    round trip cannot revive A's old UI operation. A POST already accepted by the backend can still complete \
+    durably in A; A rebind starts canonical pending-queue recovery, and any later stale completion schedules \
+    another current-generation queue read. If the first read is still in flight, the second is marked deferred and \
+    starts immediately after the first drains, so the late commit cannot hide behind an earlier empty snapshot. Completed workers enter an operation-tagged FIFO, so \
+    an old-A and fresh-A result can coexist without overwriting each other; the UI drains both, the late delivery is discarded \
+    by operation identity, and the fresh proposal keeps its own proposal_id and event_id. \
+A no-context model can drive panel-open -> refresh -> propose -> confirm entirely through these stable \
+AccessKit author_ids and inspect the result with list_widgets + screenshot. Durable memory authority and \
+FR-EVT-MEM-001 proposal provenance live in handshake_core PostgreSQL/EventLedger. The workspace-scoped Flight \
+Recorder pane exposes that proposal plus exact FR-EVT-MEM-002 review, FR-EVT-MEM-003 commit, FR-EVT-MEM-004 \
+pack-build, and FR-EVT-MEM-005 status-transition rows. internal_diagnostics and Palmistry integration remain deferred to their dedicated \
+diagnostics work rather than being implied by the FEMS pane."
         .to_owned()
 }
 
 fn agent_tool_reference_body() -> String {
     "The agent-vision / steering index pairs every addressable editor/knowledge/FEMS/interop action with \
-the REAL MCP swarm tool that drives it. The four tools are: list_widgets (Argus inspect: discover the live \
-AccessKit tree), click_widget{target:<author_id>} (Argus click: activate a button/toggle/row), \
-set_value{target,value} (Argus set_value: type into a text field), and screenshot (Argus screenshot: \
-capture the pixels). Read the structured rows in the pane below; each row is author_id -> mcp_tool for a \
-real, live-registered control."
+the REAL MCP swarm tool that drives it. The four canonical tools are: argus.inspect{} (discover the live \
+AccessKit tree), argus.click{target:<author_id>,payload?:<json|string>} (activate a button/toggle/row), \
+argus.set_value{target:<author_id>,value:<string>} (replace a text field's whole value), and \
+argus.screenshot{} (capture the pixels without foreground focus changes). The legacy list_widgets, \
+click_widget, set_value, and screenshot spellings are compatibility aliases only. Read the structured \
+rows in the pane below; each row is author_id -> canonical mcp_tool for a real, live-registered control. \
+Every JSON-RPC request must carry the owner-restricted session_token. Parallel clients should also carry \
+a stable top-level client_session_id (1..=64 ASCII letters, digits, '-', '_' or '.') so receipts retain \
+the same participant identity across reconnects; callers that omit it receive a connection-scoped id."
         .to_owned()
 }
 
@@ -1070,6 +1818,97 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             description: "set_value{target:'manual-search', value:'<keyword>'} filters manual topics.",
         },
         AgentToolRow {
+            author_id: NOTES_LOAD_RETRY_AUTHOR_ID,
+            surface: ManualSurface::RichText,
+            action_label: "Retry the active Notes document load",
+            mcp_tool: "click_widget",
+            description: "After list_widgets reads notes-document-load-error, click_widget{target:'notes-document-load-retry'} issues one new GET for the still-active document.",
+        },
+        AgentToolRow {
+            author_id: crate::top_menu_bar::MenuId::Editors.author_id(),
+            surface: ManualSurface::Code,
+            action_label: "Open the EDITORS dropdown",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu-editors'} opens the operator-facing EDITORS dropdown so list_widgets can discover its live leaves.",
+        },
+        AgentToolRow {
+            author_id: crate::top_menu_bar::MenuId::Operator.author_id(),
+            surface: ManualSurface::Diagnostics,
+            action_label: "Open the OPERATOR dropdown",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu-operator'} opens the consolidated OPERATOR dropdown.",
+        },
+        AgentToolRow {
+            author_id: "menu.operator.command-palette",
+            surface: ManualSurface::Diagnostics,
+            action_label: "Open Command Palette from OPERATOR",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.operator.command-palette'} opens command-palette.dialog.",
+        },
+        AgentToolRow {
+            author_id: "menu.operator.swarm-board",
+            surface: ManualSurface::Model,
+            action_label: "Open Swarm Board from OPERATOR",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.operator.swarm-board'} selects the Swarm pane.",
+        },
+        AgentToolRow {
+            author_id: "menu.operator.flight-recorder",
+            surface: ManualSurface::Diagnostics,
+            action_label: "Open Flight Recorder from OPERATOR",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.operator.flight-recorder'} opens flight-recorder-pane.",
+        },
+        AgentToolRow {
+            author_id: "menu.operator.model-session-launch",
+            surface: ManualSurface::Model,
+            action_label: "Launch Model Session from OPERATOR",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.operator.model-session-launch'} opens model-session-launch.dialog.",
+        },
+        AgentToolRow {
+            author_id: "menu.operator.user-manual",
+            surface: ManualSurface::Knowledge,
+            action_label: "Open User Manual from OPERATOR",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.operator.user-manual'} opens manual-pane.",
+        },
+        AgentToolRow {
+            author_id: "menu.operator.settings",
+            surface: ManualSurface::Diagnostics,
+            action_label: "Open Settings from OPERATOR",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.operator.settings'} opens settings.dialog.",
+        },
+        AgentToolRow {
+            author_id: crate::flight_recorder_pane::FLIGHT_RECORDER_REFRESH_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Refresh Flight Recorder",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'flight-recorder.refresh'} retries the workspace-scoped ledger read.",
+        },
+        AgentToolRow {
+            author_id: crate::flight_recorder_pane::FLIGHT_RECORDER_LOAD_FAILURE_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read a Flight Recorder load failure",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads flight-recorder.load-failure before retrying the same pane.",
+        },
+        AgentToolRow {
+            author_id: crate::flight_recorder_pane::FLIGHT_RECORDER_QUARANTINE_STATUS_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read quarantined Flight Recorder rows",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads flight-recorder.quarantine-status and its exact rejected-row reasons.",
+        },
+        AgentToolRow {
+            author_id: crate::flight_recorder_pane::FLIGHT_RECORDER_ERROR_RING_AUTHOR_ID,
+            surface: ManualSurface::Diagnostics,
+            action_label: "Read recent Flight Recorder emit failures",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads flight-recorder.error-ring and flight-recorder.emit-error-{index} rows.",
+        },
+        AgentToolRow {
             author_id: VIEW_OPEN_CODE_EDITOR_MENU_AUTHOR_ID,
             surface: ManualSurface::Code,
             action_label: "Open Code Editor from VIEW",
@@ -1082,6 +1921,13 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             action_label: "Open Rich Note from VIEW",
             mcp_tool: "click_widget",
             description: "click_widget{target:'menu.view.open-rich-note'} opens the mounted rich Notes editor pane.",
+        },
+        AgentToolRow {
+            author_id: VIEW_OPEN_WIKI_PROJECTION_MENU_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Wiki Projection from VIEW",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'menu.view.open-wiki-projection'} reopens the concrete active Wiki Projection, or opens wiki discovery when none is active.",
         },
         AgentToolRow {
             author_id: VIEW_OPEN_KNOWLEDGE_GRAPH_MENU_AUTHOR_ID,
@@ -1168,6 +2014,13 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             description: "click_widget{target:'command-palette.option.hs-view-palette-rich-note'} opens the same rich Notes editor pane after palette filtering.",
         },
         AgentToolRow {
+            author_id: VIEW_OPEN_WIKI_PROJECTION_PALETTE_AUTHOR_ID,
+            surface: ManualSurface::Knowledge,
+            action_label: "Open Wiki Projection from the command palette",
+            mcp_tool: "click_widget",
+            description: "click_widget{target:'command-palette.option.hs-view-palette-wiki-projection'} reopens the same concrete active Wiki Projection, or opens wiki discovery when none is active.",
+        },
+        AgentToolRow {
             author_id: VIEW_OPEN_KNOWLEDGE_GRAPH_PALETTE_AUTHOR_ID,
             surface: ManualSurface::Graph,
             action_label: "Open Knowledge Graph from the command palette",
@@ -1242,7 +2095,7 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             surface: ManualSurface::RichText,
             action_label: "Resolve a save conflict by keeping the server document",
             mcp_tool: "click_widget",
-            description: "click_widget{target:'conflict-keep-server'} reloads the newer server revision from the SaveManager conflict dialog.",
+            description: "click_widget{target:'editor.rich.conflict.keep-server'} reloads the newer server revision from the SaveManager conflict dialog.",
         },
         AgentToolRow {
             author_id: CONFLICT_OPEN_MERGE_AUTHOR_ID,
@@ -1505,6 +2358,104 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         },
     ];
 
+    for &author_id in EDITOR_SETTINGS_CONTROL_AUTHOR_IDS {
+        let (surface, action_label, mcp_tool, description) = match author_id {
+            crate::settings_editor_section::EDITOR_FONT_SIZE_AUTHOR_ID => (
+                ManualSurface::Code,
+                "Set editor font size",
+                "set_value",
+                "set_value targets settings-editor-font-size; the value applies live and persists with workspace settings.",
+            ),
+            crate::settings_editor_section::EDITOR_TAB_SIZE_AUTHOR_ID => (
+                ManualSurface::Code,
+                "Set editor tab size",
+                "set_value",
+                "set_value targets settings-editor-tab-size; the value applies live and persists with workspace settings.",
+            ),
+            crate::settings_editor_section::EDITOR_WRAP_COLUMN_AUTHOR_ID => (
+                ManualSurface::Code,
+                "Set bounded wrap column",
+                "set_value",
+                "set_value targets settings-editor-wrap-column while bounded word wrap is selected.",
+            ),
+            crate::settings_editor_section::EDITOR_LINE_HEIGHT_AUTHOR_ID => (
+                ManualSurface::Code,
+                "Set editor line height",
+                "set_value",
+                "set_value targets settings-editor-line-height; the value applies to mounted editors.",
+            ),
+            crate::settings_editor_section::WIKI_PROJECTION_SETTINGS_POSTURE_AUTHOR_ID => (
+                ManualSurface::Knowledge,
+                "Read Wiki Projection settings posture",
+                "list_widgets",
+                "list_widgets reads settings-editor-wiki-projection-posture; Wiki Projection intentionally has no dedicated preference.",
+            ),
+            crate::settings_editor_section::FLIGHT_RECORDER_SETTINGS_POSTURE_AUTHOR_ID => (
+                ManualSurface::Diagnostics,
+                "Read Flight Recorder settings posture",
+                "list_widgets",
+                "list_widgets reads settings-editor-flight-recorder-posture; the audit surface cannot be disabled here.",
+            ),
+            crate::settings_editor_section::SYNTAX_PALETTE_MODE_AUTHOR_ID => (
+                ManualSurface::Code,
+                "Choose syntax palette mode",
+                "set_value",
+                "set_value targets settings-syntax-palette-mode with muted, standard, or custom; the selected palette repaints mounted editors.",
+            ),
+            crate::settings_editor_section::EDITOR_WORD_WRAP_AUTHOR_ID => (
+                ManualSurface::Code,
+                "Choose word-wrap mode",
+                "set_value",
+                "set_value targets settings-editor-word-wrap with off, on, or bounded; bounded mounts settings-editor-wrap-column.",
+            ),
+            crate::settings_editor_section::EDITOR_RENDER_WHITESPACE_AUTHOR_ID => (
+                ManualSurface::Code,
+                "Choose whitespace rendering",
+                "set_value",
+                "set_value targets settings-editor-render-whitespace with none, boundary, or all.",
+            ),
+            _ => (
+                ManualSurface::Code,
+                "Change an Editor setting",
+                "click_widget",
+                "click_widget toggles or opens this live Editor setting control; inspect the resulting state with list_widgets.",
+            ),
+        };
+        rows.push(AgentToolRow {
+            author_id,
+            surface,
+            action_label,
+            mcp_tool,
+            description,
+        });
+    }
+
+    for &author_id in EDITOR_SETTINGS_OPTION_AUTHOR_IDS {
+        rows.push(AgentToolRow {
+            author_id,
+            surface: ManualSurface::Code,
+            action_label: "Choose a mounted Editor setting option",
+            mcp_tool: "click_widget",
+            description: "Open the owning Editor/Syntax selector, inspect the mounted option rows, then click_widget targets this exact option author_id.",
+        });
+    }
+
+    for &author_id in SYNTAX_SWATCH_AUTHOR_IDS {
+        rows.push(AgentToolRow {
+            author_id,
+            surface: ManualSurface::Code,
+            action_label: "Edit a Custom syntax scope color",
+            mcp_tool: "set_value",
+            description: "set_value replaces this Custom palette swatch with #RRGGBB, #RRGGBBAA, or [r,g,b,a]; mounted editors and minimaps repaint in the same frame.",
+        });
+    }
+
+    // The keybinding table is generated from `editor_action_catalog`, and each live action renders two
+    // addressable controls: a TextEdit row and a Reset button. Generate the steering rows from that same
+    // catalog and the same author-id constructor/prefix so a newly added action cannot become an
+    // operator-visible control without an exact author_id -> MCP tool entry in the manual.
+    rows.extend_from_slice(editor_keybinding_agent_tool_rows());
+
     for &author_id in crate::top_menu_bar::EDITOR_MENU_LEAF_AUTHOR_IDS {
         rows.push(AgentToolRow {
             author_id,
@@ -1546,12 +2497,12 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         (
             GRAPH_MODE_LOCAL_AUTHOR_ID,
             "Switch graph to Local mode",
-            "click_widget{target:graph.mode.local} switches to the focused-block neighbourhood and re-fetches /loom/graph-search.",
+            "click_widget{target:graph.mode.local} switches to the focused-block neighbourhood and re-fetches /loom/graph/local with start_block_id and max_depth.",
         ),
         (
             GRAPH_MODE_GLOBAL_AUTHOR_ID,
             "Switch graph to Global mode",
-            "click_widget{target:graph.mode.global} switches to workspace-wide graph data and re-fetches /loom/views/all.",
+            "click_widget{target:graph.mode.global} switches to workspace-wide graph data and re-fetches /loom/graph/global.",
         ),
         (
             GRAPH_ZOOM_IN_AUTHOR_ID,
@@ -1567,6 +2518,11 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             GRAPH_RELAYOUT_AUTHOR_ID,
             "Relayout graph",
             "click_widget{target:graph.relayout} restarts the graph layout after a data or layout change.",
+        ),
+        (
+            GRAPH_RETRY_AUTHOR_ID,
+            "Retry graph load",
+            "click_widget{target:graph.retry} retries the current workspace, mode, focus, and max_depth after a visible graph error.",
         ),
     ] {
         rows.push(AgentToolRow {
@@ -1614,6 +2570,13 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             description: "click_widget{target:<author_id>} drives this canvas-board control.",
         });
     }
+    rows.push(AgentToolRow {
+        author_id: crate::graph::canvas_board::RETRY_AUTHOR_ID,
+        surface: ManualSurface::Canvas,
+        action_label: "Retry Canvas load",
+        mcp_tool: "click_widget",
+        description: "click_widget{target:'canvas.retry'} retries getCanvasBoard after the mounted Canvas shows a typed backend error; loading is bounded and failure restores this control.",
+    });
 
     // ── Collection controls (COLLECTION_CONTROL_CATALOG) ─────────────────────────────────────────────
     for entry in COLLECTION_CONTROL_CATALOG {
@@ -1649,11 +2612,56 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             "list_widgets reveals the relevant-memory-list rows (provenance-first capsule items).",
     });
     rows.push(AgentToolRow {
-        author_id: crate::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+        author_id: crate::fems::RELEVANT_MEMORY_REFRESH_AUTHOR_ID,
+        surface: ManualSurface::Fems,
+        action_label: "Refresh the live FEMS MemoryPack",
+        mcp_tool: "click_widget",
+        description: "click_widget{target:'editor.fems.memorypack-refresh'} retries or refreshes the mounted pane's live MemoryPack read for the current context.",
+    });
+    rows.push(AgentToolRow {
+        author_id: "command-palette.option.hs-fems-palette-propose-to-memory",
         surface: ManualSurface::Fems,
         action_label: "Open a review-gated memory-write proposal",
         mcp_tool: "click_widget",
-        description: "click_widget{target:'fems-propose-dialog'} opens the proposal (never a direct commit).",
+        description: "Open the command palette, then click_widget this option to dispatch fems.propose_to_memory through the shared command bus.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::fems::RELEVANT_MEMORY_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Fems,
+        action_label: "Read the structured MemoryPack outcome",
+        mcp_tool: "list_widgets",
+        description: "Read the status node value for state, context, generation, completed refresh count, and item count without label scraping.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::fems::FEMS_PROPOSE_DIALOG_AUTHOR_ID,
+        surface: ManualSurface::Fems,
+        action_label: "Inspect the review-gated proposal dialog",
+        mcp_tool: "list_widgets",
+        description: "list_widgets reads fems-propose-dialog and its current captured source context before confirmation.",
+    });
+    for (author_id, class) in [
+        ("fems-class-episodic", "episodic"),
+        ("fems-class-semantic", "semantic"),
+        ("fems-class-procedural", "procedural"),
+    ] {
+        rows.push(AgentToolRow {
+            author_id,
+            surface: ManualSurface::Fems,
+            action_label: "Choose the FEMS proposal class",
+            mcp_tool: "click_widget",
+            description: match class {
+                "episodic" => "click_widget{target:'fems-class-episodic'} selects episodic memory.",
+                "semantic" => "click_widget{target:'fems-class-semantic'} selects semantic memory.",
+                _ => "click_widget{target:'fems-class-procedural'} selects procedural memory.",
+            },
+        });
+    }
+    rows.push(AgentToolRow {
+        author_id: crate::fems::FEMS_PROPOSE_CANCEL_AUTHOR_ID,
+        surface: ManualSurface::Fems,
+        action_label: "Cancel the memory-write proposal",
+        mcp_tool: "click_widget",
+        description: "click_widget{target:'fems-propose-cancel'} closes the review dialog without submitting; fems-propose-status reports the stable cancelled operation.",
     });
     rows.push(AgentToolRow {
         author_id: crate::fems::FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
@@ -1661,7 +2669,42 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         action_label: "Confirm the memory-write proposal",
         mcp_tool: "click_widget",
         description:
-            "click_widget{target:'fems-propose-confirm'} submits the review-gated proposal.",
+            "click_widget{target:'fems-propose-confirm'} submits the review-gated proposal and waits for the bounded correlated EventLedger persistence receipt.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::fems::FEMS_PROPOSE_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Fems,
+        action_label: "Read the structured proposal outcome",
+        mcp_tool: "list_widgets",
+        description: "Read state, outcome, operation_id, proposal_id, and proposal event_id. After approval, state=committed;outcome=approved also carries memory_id, commit_id, memory_pack_id/hashes, commit EventLedger/Flight Recorder identities, and committed_at.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::fems::FEMS_REVIEW_APPROVE_AUTHOR_ID,
+        surface: ManualSurface::Fems,
+        action_label: "Approve a pending FEMS proposal",
+        mcp_tool: "click_widget",
+        description: "click_widget{target:'fems-review-approve'} records the live review decision and then invokes the separate explicit approved-proposal commit route; exact retry returns the original review and commit receipts.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::fems::FEMS_REVIEW_REJECT_AUTHOR_ID,
+        surface: ManualSurface::Fems,
+        action_label: "Reject a pending FEMS proposal",
+        mcp_tool: "click_widget",
+        description: "click_widget{target:'fems-review-reject'} records an operator rejection through the live FEMS review route.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::fems::FEMS_REVIEW_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Fems,
+        action_label: "Read the structured FEMS review outcome",
+        mcp_tool: "list_widgets",
+        description: "Read the pending/terminal review state and exact proposal, actor, correlation, EventLedger, Flight Recorder, and reviewed-at identities. Approved completion is reported by fems-propose-status as state=committed;outcome=approved with the explicit commit receipt.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::fems::FEMS_REVIEW_REFRESH_RETRY_AUTHOR_ID,
+        surface: ManualSurface::Fems,
+        action_label: "Retry canonical pending-review discovery",
+        mcp_tool: "click_widget",
+        description: "click_widget{target:'fems-review-refresh-retry'} retries the exact failed workspace queue refresh; new proposal creation stays blocked until recovery succeeds.",
     });
 
     // ── Stage interop edge (Pillar 17) ───────────────────────────────────────────────────────────────
@@ -1685,7 +2728,14 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Interop,
         action_label: "Stage edge: embed a capture back into notes",
         mcp_tool: "click_widget",
-        description: "click_widget{target:'stage-capture-embed-back'} embeds the Stage capture back (route gated).",
+        description: "click_widget{target:'stage-capture-embed-back'} runs privileged capture, exact-byte retrieval and SHA-256 verification, then embeds into the live note target; read stage-embed-back-status for the exact artifact/provenance success or typed failure.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::stage_pane::STAGE_EMBED_BACK_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Stage edge: read capture/embed result",
+        mcp_tool: "list_widgets",
+        description: "Read stage-embed-back-status for the stable artifact id, verified SHA-256, target pane, endpoint blocker, provenance refusal, stale target, or insertion failure.",
     });
 
     // ── Calendar interop edge (Pillar 2) ─────────────────────────────────────────────────────────────
@@ -1738,7 +2788,7 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: read-only ActivitySpan strip",
         mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the daily-journal-activity-strip (read-only correlation; route gated).",
+        description: "list_widgets surfaces the live daily-journal-activity-strip read-only correlation; fetch failures expose the typed unavailable state instead of an empty success.",
     });
 
     // ── Code<->note interop edge (MT-034) ────────────────────────────────────────────────────────────
@@ -1791,15 +2841,15 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         action_label: "Locus edge: unresolved (dangling) references section",
         mcp_tool: "list_widgets",
         description:
-            "list_widgets reveals outgoing.section.unresolved rows (Locus read route gated).",
+            "list_widgets reveals outgoing.section.unresolved rows; record-not-found remains unresolved while route-unavailable is a distinct typed failure.",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::wikilinks::backlinks_panel::PANEL_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Backlinks edge: the backlinks panel",
         mcp_tool: "list_widgets",
-        description:
-            "list_widgets surfaces backlinks-panel; rows are dynamic backlink-{source_document_id} links.",
+        description: "list_widgets surfaces the Role::List backlinks-panel; rows are clickable \
+                      Role::ListItem nodes named backlink-{source_document_id}.",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::wikilinks::backlinks_panel::REFRESH_AUTHOR_ID,
@@ -1810,7 +2860,192 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
             "click_widget{target:'backlinks-refresh'} refreshes the current document backlinks list.",
     });
 
+    // Conditionally rendered code-editor controls are sourced from the live owning constants. The
+    // default editor instance exposes these exact ids; secondary editor instances append `#<instance>`.
+    rows.extend_from_slice(&[
+        AgentToolRow {
+            author_id: crate::code_editor::rename::CODE_EDITOR_RENAME_INPUT_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Replace the inline rename value",
+            mcp_tool: "set_value",
+            description: "set_value replaces code_editor_rename_input while the rename overlay is open; inspect the preview before applying.",
+        },
+        AgentToolRow {
+            author_id: crate::code_editor::rename::CODE_EDITOR_RENAME_APPLY_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Apply the inspected rename preview",
+            mcp_tool: "click_widget",
+            description: "click_widget targets code_editor_rename_apply after the multi-file preview has been inspected.",
+        },
+        AgentToolRow {
+            author_id: crate::code_editor::rename::CODE_EDITOR_RENAME_CANCEL_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Cancel the rename preview",
+            mcp_tool: "click_widget",
+            description: "click_widget targets code_editor_rename_cancel and applies no previewed edits.",
+        },
+        AgentToolRow {
+            author_id: crate::code_editor::rename::CODE_EDITOR_CTX_RENAME_SYMBOL_MENU_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Open Rename Symbol from the code context menu",
+            mcp_tool: "click_widget",
+            description: "click_widget targets ctx-menu.code_editor_ctx_rename_symbol, then set_value replaces the live rename input.",
+        },
+        AgentToolRow {
+            author_id: crate::code_editor::code_actions::CODE_EDITOR_CTX_QUICK_FIX_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Open Quick Fix from the code context menu",
+            mcp_tool: "click_widget",
+            description: "click_widget targets code_editor_ctx_quick_fix; list_widgets then reveals the live quick-fix menu and its action rows.",
+        },
+        AgentToolRow {
+            author_id: crate::code_editor::code_actions::CODE_EDITOR_QUICKFIX_MENU_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Inspect available Quick Fix actions",
+            mcp_tool: "list_widgets",
+            description: "list_widgets reads code_editor_quickfix_menu while it is open; click the discovered action row by its live author_id.",
+        },
+        AgentToolRow {
+            author_id: default_quickfix_first_item_author_id(),
+            surface: ManualSurface::Code,
+            action_label: "Apply the first available Quick Fix",
+            mcp_tool: "click_widget",
+            description: "click_widget targets code_editor_quickfix_item_0 when at least one action is listed; inspect the menu first because item ids are generated by current result index.",
+        },
+        AgentToolRow {
+            author_id: crate::code_editor::formatting::FORMAT_SELECTION_CTX_AUTHOR_ID,
+            surface: ManualSurface::Code,
+            action_label: "Format the current code selection",
+            mcp_tool: "click_widget",
+            description: "click_widget targets code_editor_ctx_format_selection and applies the returned edits as one undo group.",
+        },
+    ]);
+
+    for row in &mut rows {
+        row.mcp_tool = canonical_argus_method(row.mcp_tool);
+        row.description = canonical_argus_description(row.description);
+    }
     rows
+}
+
+fn default_quickfix_first_item_author_id() -> &'static str {
+    static ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    ID.get_or_init(|| crate::code_editor::code_actions::quickfix_item_author_id(0, ""))
+        .as_str()
+}
+
+fn canonical_argus_method(method: &'static str) -> &'static str {
+    match method {
+        "list_widgets" => crate::mcp::argus::ARGUS_INSPECT_METHOD,
+        "click_widget" => crate::mcp::argus::ARGUS_CLICK_METHOD,
+        "set_value" => crate::mcp::argus::ARGUS_SET_VALUE_METHOD,
+        "screenshot" => crate::mcp::argus::ARGUS_SCREENSHOT_METHOD,
+        canonical => canonical,
+    }
+}
+
+/// Canonicalize historical row prose once per distinct static description. This keeps compatibility
+/// spellings out of the rendered examples without leaking a new allocation each time the manual opens.
+fn canonical_argus_description(description: &'static str) -> &'static str {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+
+    if !["list_widgets", "click_widget", "set_value", "screenshot"]
+        .iter()
+        .any(|legacy| description.contains(legacy))
+    {
+        return description;
+    }
+
+    static CACHE: OnceLock<Mutex<HashMap<&'static str, &'static str>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut cache = cache
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(canonical) = cache.get(description) {
+        return canonical;
+    }
+    let canonical: &'static str = Box::leak(canonical_argus_prose(description).into_boxed_str());
+    cache.insert(description, canonical);
+    canonical
+}
+
+fn canonical_argus_prose(prose: &str) -> String {
+    let prose = replace_method_token(prose, "list_widgets", "argus.inspect");
+    let prose = replace_method_token(&prose, "click_widget", "argus.click");
+    let prose = replace_method_token(&prose, "set_value", "argus.set_value");
+    replace_method_token(&prose, "screenshot", "argus.screenshot")
+}
+
+fn replace_method_token(prose: &str, legacy: &str, canonical: &str) -> String {
+    fn identifier_char(ch: char) -> bool {
+        ch.is_ascii_alphanumeric() || ch == '_'
+    }
+
+    let mut output = String::with_capacity(prose.len());
+    let mut copied_through = 0;
+    for (start, _) in prose.match_indices(legacy) {
+        let end = start + legacy.len();
+        // Already-canonical product names are idempotent. Without this guard, `argus.screenshot`
+        // became `argus.argus.screenshot` because `.` is intentionally not an identifier character.
+        if prose[..start].ends_with("argus.") {
+            continue;
+        }
+        let before_is_identifier = prose[..start]
+            .chars()
+            .next_back()
+            .is_some_and(identifier_char);
+        let after_is_identifier = prose[end..].chars().next().is_some_and(identifier_char);
+        if before_is_identifier || after_is_identifier {
+            continue;
+        }
+        output.push_str(&prose[copied_through..start]);
+        output.push_str(canonical);
+        copied_through = end;
+    }
+    output.push_str(&prose[copied_through..]);
+    output
+}
+
+/// Structured steering rows for every live per-action keybinding TextEdit and Reset button.
+///
+/// [`AgentToolRow`] intentionally carries static strings. The live action catalog owns dynamic `String`
+/// ids, so this cache interns each exact runtime-generated id once for the process lifetime instead of
+/// leaking another copy every time the manual pane rebuilds its section.
+fn editor_keybinding_agent_tool_rows() -> &'static [AgentToolRow] {
+    static ROWS: std::sync::OnceLock<Vec<AgentToolRow>> = std::sync::OnceLock::new();
+
+    ROWS.get_or_init(|| {
+        let actions = editor_action_catalog();
+        let mut rows = Vec::with_capacity(actions.len() * 2);
+        for action in actions {
+            let surface = match action.surface {
+                EditorActionSurface::Code => ManualSurface::Code,
+                EditorActionSurface::Rich => ManualSurface::RichText,
+            };
+            let row_author_id: &'static str =
+                Box::leak(editor_keybind_row_author_id(&action.id).into_boxed_str());
+            let reset_author_id: &'static str = Box::leak(
+                format!("{EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX}{}", action.id).into_boxed_str(),
+            );
+
+            rows.push(AgentToolRow {
+                author_id: row_author_id,
+                surface,
+                action_label: "Set an editor keybinding chord",
+                mcp_tool: "set_value",
+                description: "set_value replaces this live keybinding draft; a valid non-empty chord applies to mounted editors and persists with workspace settings.",
+            });
+            rows.push(AgentToolRow {
+                author_id: reset_author_id,
+                surface,
+                action_label: "Reset an editor keybinding",
+                mcp_tool: "click_widget",
+                description: "click_widget clears this live keybinding override, restores the built-in default, and persists the reset.",
+            });
+        }
+        rows
+    })
 }
 
 fn editor_menu_leaf_surface(author_id: &str) -> ManualSurface {

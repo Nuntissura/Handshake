@@ -21,33 +21,24 @@
 //!   API.
 //! - **(B) reverse lookup:** [`LocusInteropService::find_documents_referencing`] answers "which
 //!   documents/code reference this WP/MT?" so a Locus panel (MT-073, downstream) can list referencing
-//!   documents for a given work unit. It REUSES the MT-034 [`crate::interop::cross_ref::find_notes_with`]
-//!   loom search-v2 mechanism keyed on the normalized `locus://` ref value — NOT a re-implemented scan.
+//!   documents for a given work unit. It REUSES the MT-034
+//!   [`crate::interop::cross_ref::find_all_note_candidates_with`] bounded Loom search-v2 mechanism and exact
+//!   rich-document readback keyed on the normalized `locus://` ref value — NOT a re-implemented scan.
 //!
 //! This edge is **READ + REFERENCE ONLY**: the editors never create, mutate, transition, or delete Locus
 //! WP/MT records; they only resolve a `locus://` ref to a record title/summary and navigate to it, and
 //! enumerate inbound references.
 //!
-//! ## VERIFIED BACKEND REALITY (KERNEL_BUILDER gate 2026-06-25): NO Locus READ HTTP routes exist
+//! ## VERIFIED BACKEND REALITY
 //!
-//! VERIFIED read-only against `src/backend/handshake_core`: Locus (Pillar 6) has a kernel/governance DATA
-//! MODEL (`kernel/locus_work_tracking_reset.rs` `LocusWorkPacketRecordV1`, `locus/mod.rs`,
-//! `locus/task_board.rs` — Locus IS the WP/MT work-tracking, the same concept as the `.GOV` task packets),
-//! but there are **NO HTTP routes** exposing it to the frontend-reachable API surface: the entire
-//! `src/backend/handshake_core/src/api/` route surface has no `locus.rs`, and there is no
-//! `GET /workspaces/{ws}/locus/work-packets/{id}` / `/locus/microtasks/{id}` route registered anywhere
-//! (the only `locus` mention under `api/` is an internal `crate::workflows::locus` governance import in
-//! `role_mailbox.rs`, not an HTTP route). Like FEMS (Pillar 12), Stage (Pillar 17), and Calendar (Pillar 2),
-//! Locus is a separate system not yet wired into the frozen handshake_core HTTP surface.
+//! `handshake_core` exposes read-only Locus routes backed by the canonical PostgreSQL `work_packets` and
+//! `micro_tasks` tables. The workspace path segment is validated, while WP/MT identity remains globally keyed
+//! by the canonical record id.
 //!
-//! So [`LocusInteropService::resolve_locus_ref`] returns the FIRST-CLASS TYPED BLOCKER
-//! [`LocusInteropError::LocusReadApiUnavailable`] naming the exact missing endpoint — the contract's
-//! DESIGNED typed-blocker path (RISK-006/MC-006). The chip then renders GREYED-unavailable with a tooltip
-//! naming the missing endpoint, NEVER a panic, NEVER a fabricated record. This is DISTINCT from a live 404
-//! (record-not-found), which would grey the chip as `unresolved` once the route exists — the two failure
-//! modes are kept apart (RISK-003/MC-003). NO backend route is added, NO Locus state is mutated, NO SQLite
-//! is introduced (RISK-006). The parser + chip + node + reverse-lookup keying are PROVABLE NOW; the live
-//! resolution against real `/locus/` routes is the documented gated blocker until the route is exposed.
+//! [`LocusInteropService::resolve_locus_ref`] keeps two failure modes distinct: a canonical route-level
+//! `locus_*_not_found` response becomes [`LocusInteropError::NotFound`], while an unavailable route becomes
+//! [`LocusInteropError::LocusReadApiUnavailable`] naming the exact endpoint. The chip renders either state
+//! without panic or fabricated data. Editors remain read/reference-only and introduce no second data store.
 //!
 //! ## Reuse, do not fork (the contract's core constraint, AC-007)
 //!
@@ -60,8 +51,9 @@
 //!   `hsLink` atom (`ref_kind = "locus"`, `ref_value = locus://...`) — the sibling of the MT-034 `code_ref`
 //!   node, rendered through the SAME CrossRef chip path (RISK-002/MC-002). [`DocumentRef`] mirrors the
 //!   MT-034 [`crate::interop::cross_ref::NoteRef`] shape so the two cross-ref surfaces stay symmetric.
-//! - **Reverse lookup:** reuses [`crate::interop::cross_ref::find_notes_with`] (the MT-034 loom search-v2
-//!   mechanism) keyed on the normalized `locus://` ref value, de-duplicated on `(document_id, block_id)`.
+//! - **Reverse lookup:** reuses [`crate::interop::cross_ref::find_all_note_candidates_with`] (the MT-034
+//!   bounded Loom search-v2 mechanism), verifies persisted hsLink content, and de-duplicates on
+//!   `(document_id, block_id)`.
 //! - **HTTP stack:** the read client holds a cloned [`reqwest::Client`] (the process-wide
 //!   [`crate::backend_client::shared_http_client`] pool) + the config-resolved
 //!   [`crate::backend_client::BACKEND_BASE_URL`] — the exact MT-066/MT-067 sibling pattern. NO second
@@ -86,7 +78,8 @@ use crate::backend_client::{
     HSK_HEADER_SESSION_RUN_ID,
 };
 use crate::interop::cross_ref::{
-    find_notes_with, percent_encode_symbol, CrossRefError, FindNotesHttp, FindNotesSearch, NoteRef,
+    find_all_note_candidates_with, percent_encode_symbol, CrossRefError, FindNotesHttp,
+    FindNotesSearch, NoteRef,
 };
 
 /// The `hsLink` `ref_kind` a Locus cross-reference atom carries (the discriminator the ref -> record
@@ -179,7 +172,7 @@ impl LocusRef {
 
 /// The resolved, display-facing projection of a Locus WP/MT record (the [`LocusInteropService::resolve_locus_ref`]
 /// success output). Carries the title/summary/status the chip tooltip + a downstream Locus panel render.
-/// Built from the bound READ API response (once the route exists).
+/// Built from the bound READ API response.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocusRecord {
     /// The kind of work unit this record is (WP / MT).
@@ -327,19 +320,17 @@ pub fn parse_locus_ref(raw: &str) -> Option<LocusRef> {
 /// Why a Locus interop operation failed. Every variant renders as a VISIBLE state (greyed chip / typed
 /// error), never a silent no-op or a panic.
 ///
-/// [`Self::LocusReadApiUnavailable`] is the FIRST-CLASS TYPED BLOCKER (RISK-006/MC-006, AC-005): the Locus
-/// work-packets/microtasks GET endpoint is ABSENT from the frontend-reachable surface in this build (not
-/// merely a 404 for a missing id). It carries the exact probed endpoint so the validator + operator see
-/// which route is missing. It is DISTINCT from [`Self::NotFound`] (a live-endpoint 404 = record-not-found),
+/// [`Self::LocusReadApiUnavailable`] is the FIRST-CLASS TYPED BLOCKER (RISK-006/MC-006, AC-005) for a
+/// deployment where the Locus route is unavailable. It carries the exact probed endpoint and is DISTINCT
+/// from [`Self::NotFound`] (a live-endpoint 404 = record-not-found),
 /// so the chip can tell "feature not exposed" (greyed-unavailable, tooltip names the endpoint) apart from
 /// "record deleted" (greyed-unresolved) — the two failure modes are never conflated (RISK-003/MC-003).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LocusInteropError {
     /// No workspace bound — a Locus read needs a workspace id.
     NoWorkspace,
-    /// THE TYPED BLOCKER: the Locus READ endpoint is absent from the frontend-reachable API surface in this
-    /// build (the work-packets/microtasks GET route is not registered at all — not a per-id 404). Carries
-    /// the exact probed endpoint path. NO backend route is added; NO record is fabricated.
+    /// THE TYPED BLOCKER: the Locus READ endpoint is unavailable at the configured backend (not a canonical
+    /// per-id record 404). Carries the exact probed endpoint path; no record is fabricated.
     LocusReadApiUnavailable { endpoint: String },
     /// A live-endpoint 404 / empty projection: the route EXISTS but the WP/MT record was not found (a
     /// deleted/unknown id). DISTINCT from [`Self::LocusReadApiUnavailable`] — this greys the chip as
@@ -437,10 +428,10 @@ pub type LocusResult<T> = Result<T, LocusInteropError>;
 ///   the config-resolved base URL for the Locus record reads, and
 /// - the workspace the WP/MT records belong to.
 ///
-/// All methods are async and READ-ONLY (a single GET, never a write verb). In THIS build the Locus READ
-/// routes are absent, so [`Self::resolve_locus_ref`] returns the designed typed blocker
-/// [`LocusInteropError::LocusReadApiUnavailable`]. The reverse lookup is the REAL MT-034 search mechanism,
-/// keyed on the normalized `locus://` ref.
+/// All methods are async and READ-ONLY (a single GET, never a write verb). The Locus READ routes resolve
+/// canonical PostgreSQL work-packet and microtask records. A genuinely missing route remains distinguishable
+/// from an unknown record by inspecting the backend's typed 404 body. Reverse lookup is the REAL MT-034
+/// search mechanism, keyed on the normalized `locus://` ref.
 #[derive(Clone)]
 pub struct LocusInteropService {
     /// The shared HTTP pool (the WP-011 `backend_client` pool — no second stack).
@@ -498,7 +489,7 @@ impl LocusInteropService {
         &self.workspace_id
     }
 
-    /// The Locus record read path for a workspace + ref (the documented — currently absent — route). The
+    /// The Locus record read path for a workspace + ref. The
     /// WP/MT id is PERCENT-ENCODED (RISK-010/MC-010) via the MT-034 [`percent_encode_symbol`] before it is
     /// embedded, so an id with hyphens/uppercase (`WP-KERNEL-012`) targets the correct, correctly-encoded
     /// path. Built here so [`LocusInteropError::LocusReadApiUnavailable`] can report the exact probed path.
@@ -520,14 +511,9 @@ impl LocusInteropService {
     /// `GET /workspaces/{ws}/locus/microtasks/{id}`. READ-ONLY: a single GET, never a write verb.
     ///
     /// Behavior contract (the two failure modes kept DISTINCT, RISK-003/MC-003):
-    /// - The route ABSENT from the reachable surface (404 / 501 / route-not-registered) -> the TYPED
-    ///   BLOCKER [`LocusInteropError::LocusReadApiUnavailable`] naming the endpoint (the DESIGNED PRIMARY
-    ///   PATH in this build — the chip renders greyed-UNAVAILABLE, no panic, no fabricated record).
-    /// - The route EXISTS but the id is unknown (a per-id 404 once the route is live) -> ...this is the
-    ///   SAME wire status as an absent route over plain HTTP, so the absent-route blocker is the honest
-    ///   classification while no `/locus/` route exists at all. When the route is added, the handler can
-    ///   return a body distinguishing the two; until then, the absent-route blocker is correct and the
-    ///   [`LocusInteropError::NotFound`] variant exists + is unit-tested for that future live-404 path.
+    /// - A route-level 404/501 without a canonical Locus record error body -> the typed
+    ///   [`LocusInteropError::LocusReadApiUnavailable`] naming the endpoint.
+    /// - A live endpoint's `locus_*_not_found` 404 body -> [`LocusInteropError::NotFound`].
     ///
     /// A decode failure on a success body is [`LocusInteropError::Decode`]; a transport failure is
     /// [`LocusInteropError::Transport`].
@@ -552,35 +538,45 @@ impl LocusInteropService {
             .await
             .map_err(|e| LocusInteropError::Transport(e.to_string()))?;
         let status = resp.status();
+        let body = resp
+            .bytes()
+            .await
+            .map_err(|e| LocusInteropError::Decode(e.to_string()))?;
 
-        // THE TYPED BLOCKER (BROAD detection — RISK-006/MC-006): 404 (route absent) OR 501 (not
-        // implemented) both mean the Locus READ route is not present in this build. Because NO `/locus/`
-        // HTTP route exists at all on the reachable surface (VERIFIED), a 404 here is the route being
-        // absent, not a per-id miss — surface it as the typed blocker naming the endpoint. Never panic,
-        // never fabricate. (When the route is exposed, its handler distinguishes per-id 404 in the body;
-        // that future live-404 path maps to LocusInteropError::NotFound.)
-        if status == reqwest::StatusCode::NOT_FOUND
-            || status == reqwest::StatusCode::NOT_IMPLEMENTED
-        {
+        if status == reqwest::StatusCode::NOT_IMPLEMENTED {
             return Err(LocusInteropError::LocusReadApiUnavailable { endpoint: path });
+        }
+        if status == reqwest::StatusCode::NOT_FOUND {
+            let record_not_found = serde_json::from_slice::<serde_json::Value>(&body)
+                .ok()
+                .and_then(|value| {
+                    value
+                        .get("error")
+                        .and_then(|error| error.as_str())
+                        .map(str::to_owned)
+                })
+                .is_some_and(|code| {
+                    code == "locus_work_packet_not_found" || code == "locus_micro_task_not_found"
+                });
+            return if record_not_found {
+                Err(LocusInteropError::NotFound { id: r.id.clone() })
+            } else {
+                Err(LocusInteropError::LocusReadApiUnavailable { endpoint: path })
+            };
         }
         if !status.is_success() {
             return Err(LocusInteropError::Http {
                 status: status.as_u16(),
             });
         }
-        let body: LocusRecordWire = resp
-            .json()
-            .await
-            .map_err(|e| LocusInteropError::Decode(e.to_string()))?;
+        let body: LocusRecordWire =
+            serde_json::from_slice(&body).map_err(|e| LocusInteropError::Decode(e.to_string()))?;
         Ok(body.into_record(r))
     }
 
     /// Find the documents/code blocks that reference a given WP/MT (the reverse-lookup direction, AC-004).
-    /// REUSES the MT-034 [`find_notes_with`] loom search-v2 mechanism keyed on the NORMALIZED `locus://`
-    /// ref value (the single shared key — RISK-001), restricted to rich-doc content types, and de-duplicates
-    /// the results on `(document_id, block_id)`. Returns the documents whose stored content carries the
-    /// `locus://` ref to the given work unit.
+    /// REUSES MT-034's bounded Loom search-v2 candidate pagination keyed on the NORMALIZED `locus://` ref
+    /// value, verifies exact persisted hsLink content, and de-duplicates on `(document_id, block_id)`.
     ///
     /// An empty (zero-hit) result is `Ok(vec![])` (the honest "no documents reference this" state). A search
     /// failure surfaces as [`LocusInteropError::ReverseLookup`] (propagated from the reused
@@ -591,18 +587,36 @@ impl LocusInteropService {
         }
         // The SINGLE shared key (RISK-001): the normalized `locus://` ref value, the same key resolution
         // uses. The MT-034 search keys on this value, restricted to rich-doc content types (RISK-1 reuse).
-        let notes = find_notes_with(
+        let notes = find_all_note_candidates_with(
             self.reverse_lookup.as_ref(),
             &r.normalized,
             &self.workspace_id,
         )
         .await
         .map_err(LocusInteropError::from)?;
-        // De-duplicate on (document_id, block_id) (AC-004) — a ref mentioned in both a `note` and a
-        // `journal` block of the same document is listed once per (doc, block).
+        // Search is a bounded candidate generator, not proof of a structured reference: operator-visible
+        // text can contain the same URI without carrying an hsLink. Read each candidate from the rich-document
+        // authority and retain only the exact normalized Locus ref, failing closed if any candidate cannot be
+        // verified. This mirrors MT-034's exact code-ref readback while keeping the shared search substrate.
+        let mut verified_documents = std::collections::HashMap::new();
         let mut seen = std::collections::HashSet::new();
         let mut out = Vec::new();
         for note in notes {
+            let exact = if let Some(exact) = verified_documents.get(&note.document_id) {
+                *exact
+            } else {
+                let content = self
+                    .reverse_lookup
+                    .load_document_content(&note.document_id)
+                    .await
+                    .map_err(LocusInteropError::from)?;
+                let exact = content_has_exact_locus_ref(&content, r);
+                verified_documents.insert(note.document_id.clone(), exact);
+                exact
+            };
+            if !exact {
+                continue;
+            }
             let key = (note.document_id.clone(), note.block_id.clone());
             if seen.insert(key) {
                 out.push(DocumentRef::from_note_ref(note));
@@ -612,7 +626,35 @@ impl LocusInteropService {
     }
 }
 
-/// The wire shape a Locus record GET body decodes into (once the route exists). Tolerant `#[serde(default)]`
+fn content_has_exact_locus_ref(node: &serde_json::Value, expected: &LocusRef) -> bool {
+    if node.get("type").and_then(serde_json::Value::as_str) == Some("hsLink") {
+        let attrs = node.get("attrs");
+        let ref_kind = attrs
+            .and_then(|attrs| attrs.get("refKind"))
+            .and_then(serde_json::Value::as_str);
+        let ref_value = attrs
+            .and_then(|attrs| attrs.get("refValue"))
+            .and_then(serde_json::Value::as_str);
+        if ref_kind == Some(LOCUS_REF_KIND)
+            && ref_value
+                .and_then(parse_locus_ref)
+                .is_some_and(|candidate| {
+                    candidate.kind == expected.kind && candidate.normalized == expected.normalized
+                })
+        {
+            return true;
+        }
+    }
+    node.get("content")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|children| {
+            children
+                .iter()
+                .any(|child| content_has_exact_locus_ref(child, expected))
+        })
+}
+
+/// The wire shape a Locus record GET body decodes into. Tolerant `#[serde(default)]`
 /// fields so a partial body still decodes; the kind + id come from the [`LocusRef`] the read was issued for
 /// (the request authority), not re-derived from the body.
 #[derive(Debug, Clone, serde::Deserialize)]

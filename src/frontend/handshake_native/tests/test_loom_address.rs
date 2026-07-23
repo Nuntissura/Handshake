@@ -20,14 +20,12 @@
 //!
 //! ## Backend reality (Spec-Realism Gate / MT-008/015/020/022 pattern)
 //!
-//! AC-2 (create rich doc -> non-empty block_id parses as a LoomBlockAddr), AC-3's currently exposed
-//! backend source-route shape (doc A lists its forward wikilink edge to B; target-B inbound/reverse
-//! backlinks remain `BACKEND_SHAPE_GAP_INBOUND_BACKLINK_ROUTE` / `NEEDS_MANAGED_RESOURCE_PROOF` until the
-//! backend exposes that route), and AC-6 (content_hash READ matches the saved JSON's canonical SHA-256)
-//! are the `#[ignore]`d `*_live_pg` integration tests, gated behind the `integration` feature. Absent a
-//! seeded backend they are NEEDS_MANAGED_RESOURCE_PROOF (run with
-//! `cargo test --features integration --test test_loom_address -- --ignored` against a live handshake_core
-//! on 127.0.0.1:37501). They NEVER fake PG. The KERNEL_BUILDER gate established `content_hash` is
+//! AC-2 (create rich doc -> non-empty block_id parses as a LoomBlockAddr), AC-3 (self-seeded A -> B
+//! inbound backlink), and AC-6 (save/refetch content_hash equals canonical SHA-256) are covered by the
+//! unignored `live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof` test behind the `integration`
+//! feature. Run it against a live handshake_core on 127.0.0.1:37501; it creates its own documents,
+//! uses fresh clients for read-back, and deletes the exact created ids even during panic. It NEVER
+//! fakes PostgreSQL. The KERNEL_BUILDER gate established `content_hash` is
 //! BACKEND-COMPUTED (no writable PATCH field on `LoomBlockUpdate`); AC-6 therefore READS the backend's
 //! `content_hash` and asserts it equals the local canonical SHA-256 of the saved `content_json` — it
 //! never client-PATCHes a hash.
@@ -38,11 +36,15 @@
 //! [`external_artifact_dir`]; [`assert_no_local_artifact_dir`] fails the run if a repo-local
 //! `tests/screenshots/` or `test_output/` directory exists.
 
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use egui_kittest::kittest::{By, NodeT, Queryable};
-use egui_kittest::Harness;
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
@@ -60,8 +62,6 @@ use handshake_native::pane_registry::{
 use handshake_native::rich_editor::wikilinks::backlinks_panel::{
     dispatch_backlink_open, entry_author_id, render_backlinks_panel, PANEL_AUTHOR_ID,
 };
-#[cfg(feature = "integration")]
-use handshake_native::rich_editor::wikilinks::client::BacklinksResponse;
 use handshake_native::rich_editor::wikilinks::client::{
     ReqwestWikilinkBackend, RichDocBacklink, WikilinkBackend,
 };
@@ -221,6 +221,194 @@ fn backlink(src: &str, kind: &str) -> RichDocBacklink {
     }
 }
 
+fn one_shot_backlinks_server(
+    status: &str,
+    body: &str,
+) -> (String, std::thread::JoinHandle<String>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind backlinks capture server");
+    let address = listener.local_addr().expect("capture server address");
+    let status = status.to_owned();
+    let body = body.to_owned();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept backlinks request");
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+            .expect("bound capture read");
+        let mut request = Vec::new();
+        let mut chunk = [0_u8; 2048];
+        loop {
+            let count = stream.read(&mut chunk).expect("read backlinks request");
+            if count == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..count]);
+            if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                break;
+            }
+        }
+        let response = format!(
+            "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        stream
+            .write_all(response.as_bytes())
+            .expect("write backlinks response");
+        String::from_utf8(request).expect("captured request is HTTP text")
+    });
+    (format!("http://{address}"), server)
+}
+
+fn recovering_backlinks_server() -> (String, std::thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind recovering backlinks server");
+    let address = listener.local_addr().expect("recovering server address");
+    let server = std::thread::spawn(move || {
+        for (status, body) in [
+            ("503 Service Unavailable", r#"{"error":"temporarily_down"}"#),
+            (
+                "200 OK",
+                r#"{"source_document_id":"DOC-B","backlinks":[{"backlink_id":"BL-A","workspace_id":"ws-test","relationship_id":"REL-A","source_document_id":"DOC-A","link_kind":"wikilink","target":"DOC-B","block_id":"BLK-A"}]}"#,
+            ),
+        ] {
+            let (mut stream, _) = listener.accept().expect("accept recovering request");
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                .expect("bounded recovering read");
+            let mut request = Vec::new();
+            let mut chunk = [0_u8; 2048];
+            loop {
+                let count = stream.read(&mut chunk).expect("read recovering request");
+                if count == 0 {
+                    break;
+                }
+                request.extend_from_slice(&chunk[..count]);
+                if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            let response = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("write recovering response");
+        }
+    });
+    (format!("http://{address}"), server)
+}
+
+#[test]
+fn loom_address_backlinks_transport_sends_required_identity_headers() {
+    let (base_url, server) =
+        one_shot_backlinks_server("200 OK", r#"{"source_document_id":"DOC-B","backlinks":[]}"#);
+    let backend = ReqwestWikilinkBackend::new(base_url);
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("backlinks transport runtime");
+    let response = runtime
+        .block_on(backend.list_backlinks("DOC-B"))
+        .expect("identity-stamped backlinks request succeeds");
+    assert_eq!(response.source_document_id, "DOC-B");
+    assert!(response.backlinks.is_empty());
+
+    let request = server.join().expect("join backlinks capture server");
+    let request_lower = request.to_ascii_lowercase();
+    assert!(request.starts_with("GET /knowledge/documents/DOC-B/backlinks HTTP/1.1\r\n"));
+    assert!(request_lower.contains("x-hsk-actor-id: handshake-native-editor\r\n"));
+    assert!(request_lower.contains("x-hsk-kernel-task-run-id: native-editor-backlinks-doc-b\r\n"));
+    assert!(request_lower.contains("x-hsk-session-run-id: native-editor-wikilinks-"));
+}
+
+#[test]
+fn loom_address_backlinks_404_is_empty_projection() {
+    let (base_url, server) = one_shot_backlinks_server("404 Not Found", r#"{"error":"not_found"}"#);
+    let backend = ReqwestWikilinkBackend::new(base_url);
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("backlinks 404 runtime");
+    let response = runtime
+        .block_on(backend.list_backlinks("DOC-NEW"))
+        .expect("404 is an empty backlink projection");
+    assert_eq!(response.source_document_id, "DOC-NEW");
+    assert!(response.backlinks.is_empty());
+    let _ = server.join().expect("join backlinks 404 server");
+}
+
+#[test]
+fn loom_address_backlinks_backend_down_is_bounded_failure() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("reserve unavailable backend address");
+    let address = listener.local_addr().expect("unavailable address");
+    drop(listener);
+    let backend = ReqwestWikilinkBackend::new(format!("http://{address}"));
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("backlinks failure runtime");
+    let started = std::time::Instant::now();
+    let result = runtime.block_on(backend.list_backlinks("DOC-DOWN"));
+    assert!(
+        matches!(
+            result,
+            Err(handshake_native::rich_editor::wikilinks::client::WikilinkError::NetworkError(_))
+        ),
+        "backend-down backlinks must surface a typed network error: {result:?}"
+    );
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(6),
+        "backend-down backlinks call exceeded its five-second request bound"
+    );
+}
+
+#[test]
+fn loom_address_backlinks_refresh_recovers_failed_mounted_runtime() {
+    let (base_url, server) = recovering_backlinks_server();
+    let async_runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("backlinks recovery runtime");
+    let backend: Arc<dyn WikilinkBackend> = Arc::new(ReqwestWikilinkBackend::new(base_url));
+    let mut runtime =
+        WikilinkRuntime::new("ws-test", backend, Some(async_runtime.handle().clone()));
+    runtime.set_context("ws-test", "DOC-B");
+    runtime.ensure_backlinks_loaded();
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        runtime.drain();
+        if matches!(runtime.backlinks, BacklinksState::Failed(_)) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "initial failure timed out"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+
+    runtime.refresh_backlinks();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        runtime.drain();
+        match &runtime.backlinks {
+            BacklinksState::Loaded(rows) => {
+                assert_eq!(rows.len(), 1);
+                assert_eq!(rows[0].source_document_id, "DOC-A");
+                break;
+            }
+            BacklinksState::Failed(err) => {
+                panic!("refresh should recover the mounted runtime: {err}")
+            }
+            BacklinksState::Idle | BacklinksState::Loading => {}
+        }
+        assert!(std::time::Instant::now() < deadline, "recovery timed out");
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    server.join().expect("join recovering backlinks server");
+}
+
 #[test]
 fn backlink_click_fires_open_document() {
     // The shared bus the rich-text pane uses; register the cross-pane OpenDocument command (AC-4).
@@ -266,13 +454,13 @@ fn backlink_click_fires_open_document() {
         "nothing pending before click"
     );
 
-    // Click the backlink entry by its Role::Link node carrying value "DOC-A (note)" — the MT-015 panel
-    // renders the clickable entry as a Role::Link (its child TextRun shares the value, so disambiguate
+    // Click the backlink entry by its Role::ListItem node carrying value "DOC-A (note)" — the panel
+    // renders the clickable entry as a ListItem (its child TextRun shares the value, so disambiguate
     // by role).
     harness
         .get(
             By::new()
-                .role(egui::accesskit::Role::Link)
+                .role(egui::accesskit::Role::ListItem)
                 .value("DOC-A (note)"),
         )
         .click();
@@ -675,13 +863,7 @@ fn graph_node_loom_tooltip_in_accesskit() {
 // HBR-VIS: a .wgpu() screenshot of the canvas with a loom:// chip card (EXTERNAL artifact root only).
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-#[test]
-fn canvas_loom_chip_screenshot() {
-    let _g = wgpu_guard();
-    let board = board_with_cards(vec![
-        placed_card("p-001", "blk-7", 40.0),
-        placed_card("p-002", "blk-8", 320.0),
-    ]);
+fn save_canvas_loom_screenshot(board: Arc<Mutex<LoomCanvasBoard>>, filename: &str) -> PathBuf {
     let board_ui = Arc::clone(&board);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(900.0, 480.0))
@@ -692,27 +874,52 @@ fn canvas_loom_chip_screenshot() {
         });
     harness.run();
     harness.run();
-
-    match harness.render() {
-        Ok(image) => {
-            let (w, h) = (image.width(), image.height());
-            assert!(w > 0 && h > 0, "rendered image must be non-empty");
-            let ext_dir = external_artifact_dir("wp-kernel-012-mt-032");
-            let _ = std::fs::create_dir_all(&ext_dir);
-            let png = ext_dir.join("MT-032-canvas-loom-chips.png");
-            let saved = image.save(&png).is_ok();
-            println!(
-                "HBR-VIS: {w}x{h} canvas-loom-chip screenshot, saved={saved} ({})",
-                png.display()
-            );
-        }
-        Err(e) => {
-            println!(
-                "BLOCKER(non-fatal): canvas screenshot render unavailable (no wgpu adapter): {e}. The \
-                 AccessKit loom:// chip + address proofs passed; the PNG is a GPU-host item."
-            );
-        }
+    let image = harness
+        .render()
+        .expect("HBR-VIS: the Canvas loom-address surface must render through wgpu");
+    assert!(
+        image.width() > 0 && image.height() > 0,
+        "rendered Canvas image must be non-empty"
+    );
+    let ext_dir = external_artifact_dir("wp-kernel-012-mt-032");
+    std::fs::create_dir_all(&ext_dir).expect("create external MT-032 artifact directory");
+    let png = ext_dir.join(filename);
+    if png.exists() {
+        std::fs::remove_file(&png)
+            .unwrap_or_else(|err| panic!("remove stale Canvas visual {}: {err}", png.display()));
     }
+    image
+        .save(&png)
+        .unwrap_or_else(|err| panic!("save strict Canvas visual {}: {err}", png.display()));
+    let bytes = std::fs::metadata(&png)
+        .unwrap_or_else(|err| panic!("stat strict Canvas visual {}: {err}", png.display()))
+        .len();
+    assert!(
+        bytes > 0,
+        "strict Canvas visual is empty: {}",
+        png.display()
+    );
+    let decoded = image::open(&png)
+        .unwrap_or_else(|err| panic!("reopen strict Canvas visual {}: {err}", png.display()));
+    assert_eq!(decoded.width(), image.width());
+    assert_eq!(decoded.height(), image.height());
+    println!(
+        "HBR-VIS: {}x{} strict Canvas loom-address screenshot saved={} bytes={bytes}",
+        image.width(),
+        image.height(),
+        png.display()
+    );
+    png
+}
+
+#[test]
+fn canvas_loom_chip_screenshot() {
+    let _g = wgpu_guard();
+    let board = board_with_cards(vec![
+        placed_card("p-001", "blk-7", 40.0),
+        placed_card("p-002", "blk-8", 320.0),
+    ]);
+    let _ = save_canvas_loom_screenshot(board, "MT-032-canvas-loom-chips.png");
     assert_no_local_artifact_dir();
 }
 
@@ -738,6 +945,7 @@ const LIVE_BASE_URL: &str = "http://127.0.0.1:37501";
 #[cfg(feature = "integration")]
 fn with_rich_doc_headers(rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
     rb.header("x-hsk-actor-id", "operator")
+        .header("x-hsk-actor-kind", "operator")
         .header("x-hsk-kernel-task-run-id", "KTR-EDITOR-UI")
         .header("x-hsk-session-run-id", "MT-032-integration")
 }
@@ -777,164 +985,448 @@ fn require_loom_block_id(doc: &serde_json::Value, ac: &str, rich_document_id: &s
         .to_owned()
 }
 
-/// AC-2: creating a rich document on the live backend yields a non-empty block_id that parses as a valid
-/// LoomBlockAddr, and GET backlinks for it returns 200.
-#[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live handshake_core on 127.0.0.1:37501 (cargo test --features integration -- --ignored)"]
 #[cfg(feature = "integration")]
-fn live_pg_create_doc_block_id_is_addressable() {
-    use handshake_native::loom_address::{parse_loom_uri, LoomBlockResolver};
-
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async {
-        let client = reqwest::Client::new();
-        let workspace_id = live_workspace_id(&client).await.expect("a live workspace");
-
-        // Create a rich document via the real backend knowledge-document API.
-        let doc = create_rich_document(&client, &workspace_id, "MT-032 AC-2 doc", serde_json::json!({
-            "type": "doc",
-            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "hello" }] }]
-        })).await.expect("create rich document");
-        let rich_document_id = rich_document_id(&doc);
-        let block_id = require_loom_block_id(&doc, "AC-2", &rich_document_id);
-        assert!(!block_id.is_empty(), "AC-2: the created document has a non-empty block_id");
-
-        // The block_id forms a valid loom:// address (round-trip).
-        let addr = LoomBlockAddr::new(&workspace_id, &block_id);
-        assert!(addr.is_addressable());
-        assert_eq!(parse_loom_uri(&addr.to_uri()), Some(addr.clone()), "AC-2: block_id parses as a LoomBlockAddr");
-
-        // GET backlinks returns 200 (an empty list for a fresh doc — never an error banner).
-        let url = format!("{LIVE_BASE_URL}/knowledge/documents/{rich_document_id}/backlinks");
-        let resp = with_rich_doc_headers(client.get(&url)).send().await.expect("backlinks request");
-        assert_eq!(resp.status().as_u16(), 200, "AC-2: GET backlinks returns 200");
-
-        // The resolver reads the block (and its content_hash if the backend carries one).
-        let resolver = LoomBlockResolver::new(LIVE_BASE_URL, rt.handle().clone());
-        let _ = resolver.resolve_url(&addr); // the verified getLoomBlock URL
-        println!("AC-2(LIVE): created doc block_id={block_id} parses as {}, backlinks 200", addr.to_uri());
-    });
+fn live_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(2))
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .expect("bounded live HTTP client")
 }
 
-/// AC-3 backend-shape probe: doc A with a wikilink to B is exposed by the current backend on A's
-/// forward/source backlink route. The MT contract's target-B inbound backlink proof remains
-/// BACKEND_SHAPE_GAP_INBOUND_BACKLINK_ROUTE / NEEDS_MANAGED_RESOURCE_PROOF until the backend exposes a
-/// reverse/inbound lookup.
-#[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live handshake_core on 127.0.0.1:37501 (cargo test --features integration -- --ignored)"]
+/// Tracks the exact authority ids created by the live proof. `delete_all` is
+/// the normal deterministic path; Drop repeats it on a private one-thread
+/// runtime if an assertion unwinds before cleanup.
 #[cfg(feature = "integration")]
-fn live_pg_forward_backlink_route_exposes_wikilink_backend_shape() {
-    let rt = tokio::runtime::Runtime::new().unwrap();
+struct LiveDocumentCleanup {
+    ids: Arc<Mutex<Vec<String>>>,
+}
+
+#[cfg(feature = "integration")]
+impl LiveDocumentCleanup {
+    fn new() -> Self {
+        Self {
+            ids: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn track(&self, document_id: String) {
+        self.ids.lock().unwrap().push(document_id);
+    }
+
+    fn untrack(&self, document_id: &str) {
+        self.ids.lock().unwrap().retain(|id| id != document_id);
+    }
+
+    async fn delete_all(&self) -> Result<(), String> {
+        let ids = self.ids.lock().unwrap().clone();
+        let client = live_client();
+        for document_id in ids.iter().rev() {
+            let response = with_rich_doc_headers(
+                client.delete(format!("{LIVE_BASE_URL}/knowledge/documents/{document_id}")),
+            )
+            .send()
+            .await
+            .map_err(|err| format!("cleanup DELETE {document_id}: {err}"))?;
+            if !response.status().is_success() {
+                return Err(format!(
+                    "cleanup DELETE {document_id}: HTTP {}",
+                    response.status()
+                ));
+            }
+        }
+        self.ids.lock().unwrap().clear();
+        Ok(())
+    }
+}
+
+#[cfg(feature = "integration")]
+async fn save_rich_document(
+    client: &reqwest::Client,
+    document_id: &str,
+    expected_version: u64,
+    content_json: serde_json::Value,
+) -> serde_json::Value {
+    let response = with_rich_doc_headers(client.put(format!(
+        "{LIVE_BASE_URL}/knowledge/documents/{document_id}/save"
+    )))
+    .json(&serde_json::json!({
+        "expected_version": expected_version,
+        "content_json": content_json,
+    }))
+    .send()
+    .await
+    .unwrap_or_else(|err| panic!("save {document_id}: {err}"));
+    assert_eq!(
+        response.status().as_u16(),
+        200,
+        "save {document_id} must succeed"
+    );
+    response
+        .json()
+        .await
+        .unwrap_or_else(|err| panic!("save {document_id} JSON: {err}"))
+}
+
+#[cfg(feature = "integration")]
+async fn load_backlinks_runtime(
+    handle: tokio::runtime::Handle,
+    workspace_id: &str,
+    document_id: &str,
+) -> Arc<Mutex<WikilinkRuntime>> {
+    let backend: Arc<dyn WikilinkBackend> = Arc::new(ReqwestWikilinkBackend::new(LIVE_BASE_URL));
+    let mut runtime = WikilinkRuntime::new(workspace_id, backend, Some(handle));
+    runtime.set_context(workspace_id, document_id);
+    runtime.ensure_backlinks_loaded();
+    let runtime = Arc::new(Mutex::new(runtime));
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(8);
+    loop {
+        let state = {
+            let mut runtime_guard = runtime.lock().expect("live backlinks runtime");
+            runtime_guard.drain();
+            runtime_guard.backlinks.clone()
+        };
+        match state {
+            BacklinksState::Loaded(_) => return runtime,
+            BacklinksState::Failed(err) => {
+                panic!("production backlinks runtime failed for {document_id}: {err}")
+            }
+            BacklinksState::Idle | BacklinksState::Loading => {}
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "production backlinks runtime timed out for {document_id}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+}
+
+#[cfg(feature = "integration")]
+fn loaded_backlinks(runtime: &Arc<Mutex<WikilinkRuntime>>) -> Vec<RichDocBacklink> {
+    match &runtime.lock().expect("live backlinks runtime").backlinks {
+        BacklinksState::Loaded(rows) => rows.clone(),
+        state => panic!("expected loaded backlinks, got {state:?}"),
+    }
+}
+
+#[cfg(feature = "integration")]
+impl Drop for LiveDocumentCleanup {
+    fn drop(&mut self) {
+        let ids = self.ids.lock().unwrap().clone();
+        if ids.is_empty() {
+            return;
+        }
+        let _ = std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("cleanup runtime");
+            runtime.block_on(async move {
+                let client = live_client();
+                for document_id in ids.iter().rev() {
+                    let _ = with_rich_doc_headers(
+                        client.delete(format!("{LIVE_BASE_URL}/knowledge/documents/{document_id}")),
+                    )
+                    .send()
+                    .await;
+                }
+            });
+        })
+        .join();
+    }
+}
+
+/// AC-2/3/4/5/6/7: one self-seeded, managed-resource proof. It creates B and A, saves A -> B through
+/// the canonical save path (never the repair endpoint), loads B through the production wikilink
+/// transport/runtime, clicks the real row, proves removal/re-add/delete reactivity, renders B's live
+/// loom:// address, and refetches authority + LoomBlock hashes through fresh clients.
+#[test]
+#[cfg(feature = "integration")]
+fn live_pg_self_seeded_loom_block_backlink_hash_and_ui_proof() {
+    let rt = tokio::runtime::Runtime::new().expect("integration runtime");
+    let runtime_handle = rt.handle().clone();
     rt.block_on(async {
-        let client = reqwest::Client::new();
-        let workspace_id = live_workspace_id(&client).await.expect("a live workspace");
+        let seed_client = live_client();
+        let workspace_id = live_workspace_id(&seed_client).await.expect("a live workspace");
+        let cleanup = LiveDocumentCleanup::new();
+        let run_suffix = format!(
+            "{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock after epoch")
+                .as_nanos()
+        );
 
-        // Create B, then A with a wikilink to B (the backend persists backlinks from content_json on save).
-        let doc_b = create_rich_document(&client, &workspace_id, "MT-032 AC-3 B", serde_json::json!({
-            "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "target" }] }]
-        })).await.expect("create B");
+        let doc_b = create_rich_document(
+            &seed_client,
+            &workspace_id,
+            &format!("MT-032-{run_suffix}-B"),
+            serde_json::json!({
+                "type": "doc",
+                "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "target B" }] }]
+            }),
+        )
+        .await
+        .expect("create B");
         let b_id = rich_document_id(&doc_b);
+        cleanup.track(b_id.clone());
+        let b_block_id = require_loom_block_id(&doc_b, "AC-2 B", &b_id);
+        assert_eq!(
+            b_block_id, b_id,
+            "AC-2: the canonical RichDocument and first-class LoomBlock share identity"
+        );
+        let b_addr = LoomBlockAddr::new(&workspace_id, &b_block_id);
+        assert!(b_addr.is_addressable(), "AC-2: B has an addressable LoomBlock");
+        assert_eq!(parse_loom_uri(&b_addr.to_uri()), Some(b_addr.clone()));
 
-        // The backend backlink extractor (knowledge_document/backlink.rs) recognizes `hsLink` ONLY as an
-        // inline content NODE (it matches `obj["type"] == "hsLink"` and recurses into `content` children);
-        // it never scans a text node's `marks` array. So the wikilink to B must be an inline `hsLink` NODE
-        // in the paragraph's `content` (the canonical shape from backlink.rs's own fixture), NOT a mark on
-        // a text node — otherwise B's backlinks would be empty and AC-3 could never trigger.
-        let doc_a = create_rich_document(&client, &workspace_id, "MT-032 AC-3 A", serde_json::json!({
+        // A fresh authority load must preserve the same canonical block identity.
+        let fresh_b_response = with_rich_doc_headers(seed_client.get(format!(
+            "{LIVE_BASE_URL}/knowledge/documents/{b_id}"
+        )))
+        .send()
+        .await
+        .expect("fresh load B");
+        assert_eq!(fresh_b_response.status().as_u16(), 200);
+        let fresh_b: serde_json::Value = fresh_b_response.json().await.expect("fresh B JSON");
+        let fresh_b_doc = &fresh_b["document"];
+        assert_eq!(rich_document_id(fresh_b_doc), b_id);
+        assert_eq!(
+            require_loom_block_id(fresh_b_doc, "AC-2 fresh B", &b_id),
+            b_block_id
+        );
+
+        let empty_a_content = serde_json::json!({
+            "type": "doc",
+            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "source A" }] }]
+        });
+        let doc_a = create_rich_document(
+            &seed_client,
+            &workspace_id,
+            &format!("MT-032-{run_suffix}-A"),
+            empty_a_content.clone(),
+        )
+        .await
+        .expect("create A without a link");
+        let a_id = rich_document_id(&doc_a);
+        cleanup.track(a_id.clone());
+        let a_block_id = require_loom_block_id(&doc_a, "AC-2 A", &a_id);
+        assert_eq!(a_block_id, a_id);
+        assert_eq!(
+            parse_loom_uri(&loom_uri(&LoomBlockAddr::new(&workspace_id, &a_block_id))),
+            Some(LoomBlockAddr::new(&workspace_id, &a_block_id))
+        );
+
+        // Production mutation path: create the A -> B edge by SAVE. No backlink repair/rebuild call
+        // exists anywhere in this proof.
+        let linked_a_content = serde_json::json!({
             "type": "doc",
             "content": [{
                 "type": "paragraph",
                 "content": [
                     { "type": "text", "text": "see " },
-                    { "type": "hsLink", "attrs": { "refKind": "note", "refValue": b_id, "label": "target" } }
+                    { "type": "hsLink", "attrs": { "refKind": "note", "refValue": b_id, "label": "target B" } }
                 ]
             }]
-        })).await.expect("create A linking B");
-        let a_id = rich_document_id(&doc_a);
-
-        // Persist and read A's FORWARD backlinks. The live route is explicitly
-        // `/knowledge/documents/{source}/backlinks`; inbound/reverse lookups are not exposed here.
-        let rebuild_url = format!("{LIVE_BASE_URL}/knowledge/documents/{a_id}/backlinks");
-        let resp = with_rich_doc_headers(client.post(&rebuild_url))
-            .send()
-            .await
-            .expect("rebuild backlinks request");
-        assert_eq!(resp.status().as_u16(), 200, "AC-3 shape: rebuild source backlinks 200");
-        let parsed: BacklinksResponse = resp.json().await.expect("backlinks body");
-        assert_eq!(parsed.source_document_id, a_id, "AC-3 shape: response is keyed by source document A");
-        assert!(
-            parsed.backlinks.iter().any(|bl| {
-                bl.source_document_id == a_id && bl.link_kind == "wikilink" && bl.target == b_id
-            }),
-            "AC-3 shape: A's forward backlinks include a wikilink edge to B ({b_id})"
-        );
-
-        let list_url = format!("{LIVE_BASE_URL}/knowledge/documents/{a_id}/backlinks");
-        let resp = with_rich_doc_headers(client.get(&list_url))
-            .send()
-            .await
-            .expect("list backlinks request");
-        assert_eq!(resp.status().as_u16(), 200, "AC-3 shape: list source backlinks 200");
-        let listed: BacklinksResponse = resp.json().await.expect("listed backlinks body");
-        assert!(
-            listed.backlinks.iter().any(|bl| {
-                bl.source_document_id == a_id && bl.link_kind == "wikilink" && bl.target == b_id
-            }),
-            "AC-3 shape: GET A's forward backlinks includes the persisted wikilink edge to B ({b_id})"
-        );
-        println!(
-            "AC-3(LIVE shape): A forward backlinks include B; target-B inbound route remains BACKEND_SHAPE_GAP_INBOUND_BACKLINK_ROUTE"
-        );
-    });
-}
-
-/// AC-6: after saving a rich document, the backend's content_hash (READ via getLoomBlock) equals the
-/// local canonical SHA-256 of the saved content_json — the backend computes the hash; this layer READS
-/// it (no client PATCH).
-#[test]
-#[ignore = "NEEDS_MANAGED_RESOURCE_PROOF: live handshake_core on 127.0.0.1:37501 (cargo test --features integration -- --ignored)"]
-#[cfg(feature = "integration")]
-fn live_pg_content_hash_read_matches_canonical() {
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(async {
-        let client = reqwest::Client::new();
-        let workspace_id = live_workspace_id(&client).await.expect("a live workspace");
-        let content = serde_json::json!({
-            "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "hashable" }] }]
         });
-        let doc = create_rich_document(&client, &workspace_id, "MT-032 AC-6 doc", content.clone())
-            .await.expect("create doc");
-        let rich_document_id = rich_document_id(&doc);
-        let local = ContentHash::of_content_json(&content);
-        let rich_doc_hash = required_doc_field(&doc, "content_sha256");
-        assert_eq!(
-            rich_doc_hash,
-            local.as_str(),
-            "AC-6 setup: backend RichDocument content_sha256 matches local canonical SHA-256"
+        let link_save = save_rich_document(&seed_client, &a_id, 1, linked_a_content.clone()).await;
+        assert!(
+            link_save["backlinks_persisted"].as_u64().unwrap_or(0) >= 1,
+            "save-time indexing must persist A -> B: {link_save}"
         );
-        let block_id = require_loom_block_id(&doc, "AC-6", &rich_document_id);
+        assert!(link_save["backlinks_error"].is_null(), "{link_save}");
+        assert!(link_save["backlinks_skipped_reason"].is_null(), "{link_save}");
 
-        // READ the block (getLoomBlock) and read its backend-computed content_hash.
-        let url = format!("{LIVE_BASE_URL}/workspaces/{workspace_id}/loom/blocks/{block_id}");
-        let resp = client.get(&url).send().await.expect("getLoomBlock");
-        assert_eq!(resp.status().as_u16(), 200);
-        let v: serde_json::Value = resp.json().await.expect("loom block body");
-        let hash = v
-            .get("content_hash")
-            .and_then(|x| x.as_str())
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| {
-                panic!(
-                    "AC-6: BACKEND_SHAPE_GAP_NO_LOOM_CONTENT_HASH: getLoomBlock({block_id}) \
-                     returned no content_hash; do not mark MT-032 backend content_hash proof green"
-                )
-            });
-        assert_eq!(
-            hash,
-            local.as_str(),
-            "AC-6: backend LoomBlock content_hash matches local canonical SHA-256"
+        // End-to-end production client/runtime: Idle -> Loading -> Loaded against managed PG.
+        let panel_runtime = load_backlinks_runtime(
+            runtime_handle.clone(),
+            &workspace_id,
+            &b_id,
+        )
+        .await;
+        let inbound = loaded_backlinks(&panel_runtime);
+        assert!(
+            inbound.iter().any(|row| {
+                row.source_document_id == a_id && row.link_kind == "wikilink" && row.target == b_id
+            }),
+            "AC-3: B's inbound backlinks contain source A"
         );
-        println!("AC-6(LIVE): backend LoomBlock content_hash matches local canonical hash {hash}");
+
+        // Mount the ACTUAL live-loaded runtime and click its exact AccessKit ListItem.
+        let bus = Arc::new(Mutex::new(InteractionBus::new()));
+        bus.lock().unwrap().register_open_document_command();
+        let bus_ui = Arc::clone(&bus);
+        let runtime_ui = Arc::clone(&panel_runtime);
+        let mut panel = Harness::builder()
+            .with_size(egui::vec2(520.0, 360.0))
+            .build_ui(move |ui| {
+                let mut runtime = runtime_ui.lock().unwrap();
+                if let Some(event) = render_backlinks_panel(ui, &mut runtime, &HsTheme::Dark.palette()) {
+                    dispatch_backlink_open(ui.ctx(), &mut bus_ui.lock().unwrap(), &event);
+                }
+            });
+        panel.run();
+        let ids = author_ids(&panel);
+        assert!(ids.contains(PANEL_AUTHOR_ID));
+        let row_author_id = entry_author_id(&a_id);
+        assert!(ids.contains(&row_author_id));
+        let mut saw_list = false;
+        let mut saw_clickable_list_item = false;
+        for node in panel.root().children_recursive() {
+            let ak = node.accesskit_node();
+            if ak.author_id() == Some(PANEL_AUTHOR_ID) {
+                assert_eq!(ak.role(), egui::accesskit::Role::List);
+                saw_list = true;
+            }
+            if ak.author_id() == Some(row_author_id.as_str()) {
+                assert_eq!(ak.role(), egui::accesskit::Role::ListItem);
+                assert!(ak.data().supports_action(egui::accesskit::Action::Click));
+                saw_clickable_list_item = true;
+            }
+        }
+        assert!(saw_list && saw_clickable_list_item);
+        let row_value = format!("{a_id} (wikilink)");
+        panel
+            .get(
+                By::new()
+                    .role(egui::accesskit::Role::ListItem)
+                    .value(&row_value),
+            )
+            .click();
+        panel.run();
+        assert_eq!(bus.lock().unwrap().pending_navigation(), Some(a_id.as_str()));
+        assert!(bus
+            .lock()
+            .unwrap()
+            .commands()
+            .get(CMD_OPEN_DOCUMENT)
+            .is_some());
+
+        // Render the current LIVE B address on the real canvas card and inspect AccessKit.
+        let canvas = board_with_cards(vec![placed_card("live-B", &b_block_id, 30.0)]);
+        canvas.lock().unwrap().workspace_id = workspace_id.clone();
+        let mut canvas_harness = canvas_harness(Arc::clone(&canvas));
+        canvas_harness.run();
+        let canvas_description = description_for(&canvas_harness, &placement_author_id("live-B"))
+            .expect("live canvas placement AccessKit description");
+        assert!(canvas_description.contains(&b_addr.to_uri()));
+        drop(canvas_harness);
+        {
+            let _guard = wgpu_guard();
+            let _ = save_canvas_loom_screenshot(
+                Arc::clone(&canvas),
+                "MT-032-canvas-live-B.png",
+            );
+        }
+
+        // Remove then restore A -> B via successive canonical saves. Each fresh production runtime
+        // must observe the new projection; no cached or seeded rows are accepted.
+        let remove_save = save_rich_document(&seed_client, &a_id, 2, empty_a_content.clone()).await;
+        assert_eq!(remove_save["backlinks_persisted"].as_u64(), Some(0));
+        assert!(remove_save["backlinks_error"].is_null(), "{remove_save}");
+        assert!(remove_save["backlinks_skipped_reason"].is_null(), "{remove_save}");
+        let after_remove = load_backlinks_runtime(
+            runtime_handle.clone(),
+            &workspace_id,
+            &b_id,
+        )
+        .await;
+        assert!(loaded_backlinks(&after_remove).is_empty());
+
+        let restore_save =
+            save_rich_document(&seed_client, &a_id, 3, linked_a_content.clone()).await;
+        assert!(restore_save["backlinks_persisted"].as_u64().unwrap_or(0) >= 1);
+        assert!(restore_save["backlinks_error"].is_null(), "{restore_save}");
+        assert!(restore_save["backlinks_skipped_reason"].is_null(), "{restore_save}");
+        let after_restore = load_backlinks_runtime(
+            runtime_handle.clone(),
+            &workspace_id,
+            &b_id,
+        )
+        .await;
+        assert!(loaded_backlinks(&after_restore)
+            .iter()
+            .any(|row| row.source_document_id == a_id));
+
+        // Save B to a new canonical body. A FRESH client refetches the document and LoomBlock.
+        let saved_content = serde_json::json!({
+            "type": "doc",
+            "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": format!("saved-{run_suffix}") }] }]
+        });
+        let expected_hash = ContentHash::of_content_json(&saved_content);
+        let save_b = save_rich_document(&seed_client, &b_id, 1, saved_content.clone()).await;
+        assert!(save_b["backlinks_error"].is_null(), "{save_b}");
+        assert!(save_b["backlinks_skipped_reason"].is_null(), "{save_b}");
+
+        let refetch_client = live_client();
+        let document_response = with_rich_doc_headers(refetch_client.get(format!(
+            "{LIVE_BASE_URL}/knowledge/documents/{b_id}"
+        )))
+        .send()
+        .await
+        .expect("refetch B document");
+        assert_eq!(document_response.status().as_u16(), 200);
+        let document_body: serde_json::Value = document_response.json().await.expect("B document body");
+        let reloaded = &document_body["document"];
+        assert_eq!(reloaded["content_json"], saved_content);
+        assert_eq!(reloaded["content_sha256"].as_str(), Some(expected_hash.as_str()));
+
+        let block_response = refetch_client
+            .get(format!(
+                "{LIVE_BASE_URL}/workspaces/{workspace_id}/loom/blocks/{b_block_id}"
+            ))
+            .send()
+            .await
+            .expect("refetch B LoomBlock");
+        assert_eq!(block_response.status().as_u16(), 200);
+        let block_body: serde_json::Value = block_response.json().await.expect("B block body");
+        assert_eq!(block_body["block_id"].as_str(), Some(b_block_id.as_str()));
+        assert_eq!(block_body["workspace_id"].as_str(), Some(workspace_id.as_str()));
+        assert_eq!(block_body["content_hash"].as_str(), Some(expected_hash.as_str()));
+
+        // Delete A and prove authority, Loom projection, and B's inbound projection all clean up.
+        let delete_a = with_rich_doc_headers(seed_client.delete(format!(
+            "{LIVE_BASE_URL}/knowledge/documents/{a_id}"
+        )))
+        .send()
+        .await
+        .expect("delete A");
+        assert_eq!(delete_a.status().as_u16(), 200);
+        let delete_a_body: serde_json::Value = delete_a.json().await.expect("delete A JSON");
+        assert_eq!(delete_a_body["deleted"].as_bool(), Some(true));
+        assert_eq!(delete_a_body["loom_block_deleted"].as_bool(), Some(true));
+        assert!(delete_a_body["backlinks_deleted"].as_u64().unwrap_or(0) >= 1);
+        cleanup.untrack(&a_id);
+
+        let deleted_document = with_rich_doc_headers(seed_client.get(format!(
+            "{LIVE_BASE_URL}/knowledge/documents/{a_id}"
+        )))
+        .send()
+        .await
+        .expect("refetch deleted A");
+        assert_eq!(deleted_document.status().as_u16(), 404);
+        let deleted_block = seed_client
+            .get(format!(
+                "{LIVE_BASE_URL}/workspaces/{workspace_id}/loom/blocks/{a_block_id}"
+            ))
+            .send()
+            .await
+            .expect("refetch deleted A LoomBlock");
+        assert_eq!(deleted_block.status().as_u16(), 404);
+        let after_delete = load_backlinks_runtime(
+            runtime_handle.clone(),
+            &workspace_id,
+            &b_id,
+        )
+        .await;
+        assert!(loaded_backlinks(&after_delete).is_empty());
+
+        println!(
+            "MT-032 LIVE PROOF workspace_id={workspace_id} A_document_id={a_id} A_block_id={a_block_id} B_document_id={b_id} B_block_id={b_block_id} content_hash={} inbound_rows={} remove_restore_delete=pass",
+            expected_hash.as_str(),
+            inbound.len()
+        );
+        cleanup.delete_all().await.expect("delete exact MT-032 fixture ids");
     });
 }
 

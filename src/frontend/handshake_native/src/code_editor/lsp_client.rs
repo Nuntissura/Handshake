@@ -20,7 +20,7 @@
 //!
 //! One tokio reader task owns the server's stdout. It parses each LSP message and routes it: a message
 //! WITH an `id` and a `result`/`error` goes to the pending request future waiting on that id (via a
-//! `HashMap<RequestId, oneshot::Sender<Value>>`); a message WITHOUT an `id` (a notification, e.g.
+//! `HashMap<RequestId, oneshot::Sender<JsonRpcResponse>>`); a message WITHOUT an `id` (a notification, e.g.
 //! `textDocument/publishDiagnostics`) goes to the notification channel the editor drains for
 //! diagnostics. Malformed / non-JSON stdout lines (a server's stray debug print) are SKIPPED, never
 //! panicked on (RISK-003).
@@ -36,15 +36,15 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde_json::Value;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::runtime::Handle;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{broadcast, oneshot};
 
 use lsp_types::{
     CompletionResponse, GotoDefinitionResponse, Hover, HoverContents, Location, MarkedString,
@@ -56,9 +56,15 @@ use lsp_types::{
 /// the child (RISK-001 / MC-001). Bounded so closing the editor is never blocked on a wedged server.
 pub const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// How long a single LSP request waits for its response before giving up with `None`/empty. A server
-/// that never replies must not hang the editor's result-delivery task.
+/// End-to-end budget for one LSP request (stdin lock + framed write/flush + response) or notification
+/// (stdin lock + framed write/flush). A wedged transport must not hang the editor's delivery task.
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Hard framing limits for untrusted language-server stdout. These are checked before any response
+/// body allocation, and header lines are read through a bounded byte buffer rather than `read_line`.
+pub const MAX_LSP_HEADER_LINE_BYTES: usize = 8 * 1024;
+pub const MAX_LSP_HEADER_BYTES: usize = 32 * 1024;
+pub const MAX_LSP_CONTENT_BYTES: usize = 16 * 1024 * 1024;
 
 #[cfg(windows)]
 /// Windows `CREATE_NO_WINDOW`: keep language-server processes quiet during model/operator work.
@@ -139,8 +145,24 @@ pub struct LspDiagnostic {
 pub struct PublishedDiagnostics {
     /// The document URI the diagnostics apply to (as the server sent it).
     pub uri: String,
+    /// Document version the server associated with this complete diagnostic set. A panel uses this to
+    /// discard a delayed notification for an older buffer generation. `None` remains valid LSP.
+    pub version: Option<i64>,
     /// The diagnostics for that document (replaces the document's previous set — LSP semantics).
     pub diagnostics: Vec<LspDiagnostic>,
+}
+
+#[derive(Debug)]
+enum JsonRpcResponse {
+    Result(Value),
+    Error,
+}
+
+#[derive(Debug, Default)]
+struct DocumentSyncState {
+    applied_generation: u64,
+    version: i64,
+    open: bool,
 }
 
 // ── WP-KERNEL-012 MT-050 (E1 — VS Code parity): Format Document / Format Selection typed request/response
@@ -383,7 +405,54 @@ struct Transport {
     child_pid: Option<u32>,
     /// Pending request id -> the oneshot sender the reader task fulfills when the matching response
     /// arrives. Shared with the reader task.
-    pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>>,
+    pending: Arc<Mutex<HashMap<i64, oneshot::Sender<JsonRpcResponse>>>>,
+    /// Reader/process liveness. The stdout reader clears this on EOF or framing failure, so transport
+    /// presence is never confused with a healthy server after a crash.
+    alive: Arc<AtomicBool>,
+}
+
+struct InitializingFlag<'a>(&'a AtomicBool);
+
+impl<'a> InitializingFlag<'a> {
+    fn set(flag: &'a AtomicBool) -> Self {
+        flag.store(true, Ordering::Release);
+        Self(flag)
+    }
+}
+
+impl Drop for InitializingFlag<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Release);
+    }
+}
+
+/// Own and finish one detached transport shutdown. Both acquiring stdin and writing shutdown/exit are
+/// bounded; a wedged writer therefore cannot retain the child forever before the kill/reap path.
+async fn shutdown_transport(mut transport: Transport) {
+    let graceful_io = tokio::time::timeout(SHUTDOWN_TIMEOUT, async {
+        let shutdown =
+            serde_json::json!({"jsonrpc":"2.0","id":0,"method":"shutdown","params":null});
+        let exit = serde_json::json!({"jsonrpc":"2.0","method":"exit","params":null});
+        let mut stdin = transport.stdin.lock().await;
+        let _ = transport::write_message(&mut **stdin, &shutdown).await;
+        let _ = transport::write_message(&mut **stdin, &exit).await;
+    })
+    .await;
+
+    if let Some(child) = transport.child.as_mut() {
+        let exited_cleanly = if graceful_io.is_ok() {
+            matches!(
+                tokio::time::timeout(SHUTDOWN_TIMEOUT, child.wait()).await,
+                Ok(Ok(_))
+            )
+        } else {
+            false
+        };
+        if !exited_cleanly {
+            let _ = child.start_kill();
+            let _ = tokio::time::timeout(SHUTDOWN_TIMEOUT, child.wait()).await;
+        }
+    }
 }
 
 struct ActiveChildRequestWatch {
@@ -458,11 +527,28 @@ pub struct LspClient {
     transport: Mutex<Option<Transport>>,
     /// Monotonic JSON-RPC request id source.
     next_id: AtomicI64,
-    /// The receive half of the `publishDiagnostics` channel — taken ONCE by the editor via
-    /// [`LspClient::take_diagnostics_receiver`] so the editor drains diagnostics each frame.
-    diagnostics_rx: Mutex<Option<mpsc::UnboundedReceiver<PublishedDiagnostics>>>,
-    /// The send half, cloned into the reader task on spawn so notifications reach the editor.
-    diagnostics_tx: mpsc::UnboundedSender<PublishedDiagnostics>,
+    /// Serializes lazy spawn/initialize so concurrent first requests cannot observe a raw transport and
+    /// send ordinary LSP traffic before the initialize/initialized handshake completes.
+    initialize_guard: tokio::sync::Mutex<()>,
+    /// True only after the initialize response has been accepted and the initialized notification sent.
+    initialized: AtomicBool,
+    /// True only while the serialized initialize future is actually running. This distinguishes an
+    /// honest Initializing status from a completed spawn/handshake failure awaiting retry.
+    initializing: AtomicBool,
+    /// Permanent host teardown gate. Once set, no lazy request may spawn/install another child.
+    shutting_down: AtomicBool,
+    /// Monotonic app-issued document-sync token source. Ordering is enforced independently per URI.
+    document_sync_generation: AtomicU64,
+    /// Per-document synchronization barriers. Multiple URI entries may be open simultaneously; a
+    /// delayed task can only be stale relative to the same URI, never to another editor tab.
+    document_sync_states: Mutex<HashMap<String, Arc<tokio::sync::Mutex<DocumentSyncState>>>>,
+    /// True after the first configured spawn/initialize attempt (successful or not). The host uses this
+    /// with [`is_running`](Self::is_running) to distinguish lazy-not-started from failed/dead and schedule
+    /// a bounded restart instead of treating a stale transport as healthy forever.
+    start_attempted: AtomicBool,
+    /// Broadcast fan-out: every panel owns an independent subscription, so one panel draining a
+    /// notification cannot consume it before another panel for the same shared client sees it.
+    diagnostics_tx: broadcast::Sender<PublishedDiagnostics>,
     /// The tokio runtime handle captured at spawn, used by the [`Drop`] path to drive the bounded
     /// graceful shutdown (RISK-001). `None` until the server is spawned (a never-spawned client has no
     /// child to shut down). Behind a `Mutex` so the `&self` lazy-spawn path can set it.
@@ -483,12 +569,18 @@ impl LspClient {
     /// Build a client for `config`. No process is launched yet (it spawns lazily on the first
     /// [`did_open`](Self::did_open)). With an unconfigured `config` every method degrades gracefully.
     pub fn new(config: LspServerConfig) -> Self {
-        let (diagnostics_tx, diagnostics_rx) = mpsc::unbounded_channel();
+        let (diagnostics_tx, _) = broadcast::channel(256);
         Self {
             config,
             transport: Mutex::new(None),
             next_id: AtomicI64::new(1),
-            diagnostics_rx: Mutex::new(Some(diagnostics_rx)),
+            initialize_guard: tokio::sync::Mutex::new(()),
+            initialized: AtomicBool::new(false),
+            initializing: AtomicBool::new(false),
+            shutting_down: AtomicBool::new(false),
+            document_sync_generation: AtomicU64::new(0),
+            document_sync_states: Mutex::new(HashMap::new()),
+            start_attempted: AtomicBool::new(false),
             diagnostics_tx,
             runtime: Mutex::new(None),
             server_capabilities: Mutex::new(None),
@@ -507,24 +599,105 @@ impl LspClient {
         self.config.is_configured()
     }
 
-    /// Whether a server process is currently spawned + attached.
+    /// Whether a server transport is healthy AND the initialize/initialized handshake completed.
     pub fn is_running(&self) -> bool {
+        self.initialized.load(Ordering::Acquire)
+            && self
+                .transport
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .as_ref()
+                .map(|transport| transport.alive.load(Ordering::Acquire))
+                .unwrap_or(false)
+    }
+
+    /// OS process id for the currently installed real transport. This is a test/diagnostic seam for
+    /// bounded host-owner reclamation proofs; in-memory and not-yet-spawned transports return `None`.
+    #[doc(hidden)]
+    pub fn spawned_process_id_for_test(&self) -> Option<u32> {
         self.transport
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .is_some()
+            .as_ref()
+            .and_then(|transport| transport.child_pid)
     }
 
-    /// Take the diagnostics receiver (once) so the editor can drain `publishDiagnostics` each frame.
-    /// Returns the receiver the first time and `None` afterward (one consumer per channel). The editor
-    /// wires this to `push_diagnostics`.
-    pub fn take_diagnostics_receiver(
-        &self,
-    ) -> Option<mpsc::UnboundedReceiver<PublishedDiagnostics>> {
-        self.diagnostics_rx
+    /// Whether a configured transport start has ever been attempted. `false` means the normal lazy
+    /// pre-`didOpen` state; `true && !is_running()` means spawn/handshake failed or the server died.
+    pub fn start_attempted(&self) -> bool {
+        self.start_attempted.load(Ordering::Acquire)
+    }
+
+    /// Whether the serialized spawn/initialize future is currently in flight.
+    pub fn is_initializing(&self) -> bool {
+        self.initializing.load(Ordering::Acquire)
+    }
+
+    /// Reserve the newest document-sync generation before spawning its task.
+    pub fn reserve_document_sync_generation(&self) -> u64 {
+        self.document_sync_generation.fetch_add(1, Ordering::AcqRel) + 1
+    }
+
+    /// Seed the document barrier for an already-initialized injected transport. Production-discovered
+    /// clients are not running when installed, so this path is used by deterministic in-memory tests
+    /// and explicit host injections that already completed their own document handshake.
+    pub(crate) fn seed_injected_document_sync(&self, uri: &str) {
+        let is_injected_transport = self
+            .transport
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .take()
+            .as_ref()
+            .map(|transport| transport.child.is_none() && transport.alive.load(Ordering::Acquire))
+            .unwrap_or(false);
+        if !self.is_running() || !is_injected_transport {
+            return;
+        }
+        let generation = self.reserve_document_sync_generation();
+        let state = self.document_state(uri);
+        if let Ok(mut state) = state.try_lock() {
+            if !state.open {
+                state.applied_generation = generation;
+                state.version = 1;
+                state.open = true;
+            }
+        };
+    }
+
+    /// Detach the current transport and mark it dead before releasing the child/pending table. The
+    /// spawned command uses `kill_on_drop`, so dropping a stale transport cannot leak its process.
+    fn take_transport(&self) -> Option<Transport> {
+        self.initialized.store(false, Ordering::Release);
+        let mut guard = self.transport.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(transport) = guard.as_ref() {
+            transport.alive.store(false, Ordering::Release);
+            transport
+                .pending
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clear();
+        }
+        guard.take()
+    }
+
+    fn document_state(&self, uri: &str) -> Arc<tokio::sync::Mutex<DocumentSyncState>> {
+        Arc::clone(
+            self.document_sync_states
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .entry(uri.to_owned())
+                .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(DocumentSyncState::default()))),
+        )
+    }
+
+    /// Subscribe to the complete `publishDiagnostics` stream. Every caller gets an independent cursor.
+    pub fn subscribe_diagnostics(&self) -> broadcast::Receiver<PublishedDiagnostics> {
+        self.diagnostics_tx.subscribe()
+    }
+
+    /// Compatibility alias retained for existing consumers. Unlike the previous take-once channel,
+    /// each call returns a fresh broadcast subscription.
+    pub fn take_diagnostics_receiver(&self) -> Option<broadcast::Receiver<PublishedDiagnostics>> {
+        Some(self.subscribe_diagnostics())
     }
 
     /// Allocate the next JSON-RPC request id.
@@ -542,12 +715,22 @@ impl LspClient {
     where
         R: tokio::io::AsyncRead + Unpin + Send + 'static,
     {
-        let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>> =
+        std::mem::drop(self.spawn_reader_task_for_test(reader));
+    }
+
+    /// TEST HOOK: same production reader loop, returning its task so framing-boundary tests can prove
+    /// malformed input terminates promptly without attempting an oversized allocation.
+    #[doc(hidden)]
+    pub fn spawn_reader_task_for_test<R>(&self, reader: R) -> tokio::task::JoinHandle<()>
+    where
+        R: tokio::io::AsyncRead + Unpin + Send + 'static,
+    {
+        let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<JsonRpcResponse>>>> =
             Arc::new(Mutex::new(HashMap::new()));
         let diagnostics_tx = self.diagnostics_tx.clone();
         tokio::spawn(async move {
             transport::read_loop(reader, pending, diagnostics_tx).await;
-        });
+        })
     }
 
     /// TEST HOOK (MT-047): install a `signatureHelpProvider` capability so [`supports_signature_help`]
@@ -583,19 +766,40 @@ impl LspClient {
     /// stdin(write)/stdout(read): the test reads the client's request bytes from it and writes the
     /// response frame back.
     pub fn install_test_transport(&self) -> tokio::io::DuplexStream {
+        self.install_test_transport_with_state(true)
+    }
+
+    /// TEST HOOK: install the same in-memory transport before the initialize handshake has completed.
+    /// Paired with [`initialize_test_transport`] to prove concurrent first-initialize calls serialize.
+    #[doc(hidden)]
+    pub fn install_uninitialized_test_transport(&self) -> tokio::io::DuplexStream {
+        self.install_test_transport_with_state(false)
+    }
+
+    fn install_test_transport_with_state(&self, initialized: bool) -> tokio::io::DuplexStream {
         // client_to_server: the client writes requests here; the mock server reads them.
         // server_to_client: the mock server writes responses here; the client's reader reads them.
         let (client_write, server_read) = tokio::io::duplex(64 * 1024);
         let (server_write, client_read) = tokio::io::duplex(64 * 1024);
-        let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>> =
+        let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<JsonRpcResponse>>>> =
             Arc::new(Mutex::new(HashMap::new()));
         // Spawn the REAL reader loop on the client_read half wired to this client's pending table +
         // diagnostics channel — identical to the production reader.
         let reader_pending = Arc::clone(&pending);
+        let reader_pending_cleanup = Arc::clone(&pending);
+        let alive = Arc::new(AtomicBool::new(true));
+        let reader_alive = Arc::clone(&alive);
         let diagnostics_tx = self.diagnostics_tx.clone();
         tokio::spawn(async move {
             transport::read_loop(client_read, reader_pending, diagnostics_tx).await;
+            reader_alive.store(false, Ordering::Release);
+            reader_pending_cleanup
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clear();
         });
+        self.start_attempted.store(true, Ordering::Release);
+        self.initialized.store(initialized, Ordering::Release);
         *self.runtime.lock().unwrap_or_else(|e| e.into_inner()) = Some(Handle::current());
         *self.transport.lock().unwrap_or_else(|e| e.into_inner()) = Some(Transport {
             stdin: Arc::new(tokio::sync::Mutex::new(
@@ -604,6 +808,7 @@ impl LspClient {
             child: None, // no OS process for an in-memory transport.
             child_pid: None,
             pending,
+            alive,
         });
         // The mock server reads requests from `server_read` and writes responses to `server_write`;
         // join them into one duplex-like pair the test drives. We return the write half here and the
@@ -616,6 +821,46 @@ impl LspClient {
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = Some(server_read);
         server_write
+    }
+
+    /// TEST HOOK: run the initialize/initialized handshake over an already attached in-memory
+    /// transport. It uses the production initialization mutex and double-check, so concurrent callers
+    /// emit exactly one initialize request and all observe the completed state.
+    #[doc(hidden)]
+    pub async fn initialize_test_transport(&self) -> bool {
+        if self.is_running() {
+            return true;
+        }
+        let _initialize_guard = self.initialize_guard.lock().await;
+        if self.is_running() {
+            return true;
+        }
+        self.initializing.store(true, Ordering::Release);
+        let transport_alive = self
+            .transport
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|transport| transport.alive.load(Ordering::Acquire))
+            .unwrap_or(false);
+        if !transport_alive {
+            self.initializing.store(false, Ordering::Release);
+            return false;
+        }
+        let params = serde_json::json!({
+            "processId": std::process::id(),
+            "rootUri": null,
+            "capabilities": {},
+            "clientInfo": { "name": "handshake-native-editor" }
+        });
+        if self.request("initialize", params).await.is_none() {
+            self.initializing.store(false, Ordering::Release);
+            return false;
+        }
+        self.notify("initialized", serde_json::json!({})).await;
+        self.initialized.store(true, Ordering::Release);
+        self.initializing.store(false, Ordering::Release);
+        true
     }
 
     /// TEST HOOK (MT-047): read the next framed JSON-RPC request the client wrote over the test
@@ -636,6 +881,35 @@ impl LspClient {
         result
     }
 
+    /// TEST HOOK: report whether the installed transport's serialized stdin mutex is currently held.
+    /// This lets a non-reading mock transport prove lock-wait deadlines without timing-based sleeps.
+    #[doc(hidden)]
+    pub fn stdin_locked_for_test(&self) -> bool {
+        self.transport
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|transport| transport.stdin.try_lock().is_err())
+            .unwrap_or(false)
+    }
+
+    /// TEST HOOK: emulate an earlier writer that retains stdin beyond the normal request deadline.
+    /// The caller can pair this with [`stdin_locked_for_test`](Self::stdin_locked_for_test) before
+    /// issuing a request, making lock-acquisition timeout coverage deterministic.
+    #[doc(hidden)]
+    pub async fn hold_stdin_lock_for_test(&self, duration: Duration) -> bool {
+        let stdin = {
+            let guard = self.transport.lock().unwrap_or_else(|e| e.into_inner());
+            let Some(transport) = guard.as_ref() else {
+                return false;
+            };
+            Arc::clone(&transport.stdin)
+        };
+        let _stdin = stdin.lock().await;
+        tokio::time::sleep(duration).await;
+        true
+    }
+
     /// TEST HOOK (AC-008): frame a JSON-RPC message exactly as the production transport does
     /// (`Content-Length` header + body), so a test can write a real LSP `publishDiagnostics`
     /// notification frame into the reader's pipe.
@@ -650,12 +924,28 @@ impl LspClient {
     /// handshake. Returns `true` when a transport is live afterward, `false` when no server is
     /// configured or the spawn/handshake failed (graceful — AC-004 / RISK-003). Idempotent.
     pub async fn initialize(&self, root_uri: Option<Url>) -> bool {
-        if !self.config.is_configured() {
+        if !self.config.is_configured() || self.shutting_down.load(Ordering::Acquire) {
             return false; // AC-004: no server -> graceful no-op.
         }
         if self.is_running() {
             return true;
         }
+        let _initialize_guard = self.initialize_guard.lock().await;
+        if self.is_running() {
+            return true;
+        }
+        if self.shutting_down.load(Ordering::Acquire) {
+            return false;
+        }
+        let _initializing = InitializingFlag::set(&self.initializing);
+        self.start_attempted.store(true, Ordering::Release);
+        // A prior stdout EOF/write failure leaves a deliberately dead transport. Remove it before a
+        // restart so the new reader/pending table is the only live generation.
+        drop(self.take_transport());
+        *self
+            .server_capabilities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
         // Spawn focus-safe (RISK-001 / HBR-QUIET): piped stdio + CREATE_NO_WINDOW on Windows so the
         // server never pops a console or steals focus. A spawn failure is graceful (AC-004).
         let mut command = Command::new(&self.config.command);
@@ -681,28 +971,51 @@ impl LspClient {
         let Some(stdout) = child.stdout.take() else {
             return false;
         };
+        if self.shutting_down.load(Ordering::Acquire) {
+            return false;
+        }
 
-        let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>> =
+        let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<JsonRpcResponse>>>> =
             Arc::new(Mutex::new(HashMap::new()));
         // Spawn the reader task: it owns stdout, routes responses to `pending` + notifications to the
         // diagnostics channel, and SKIPS malformed lines (RISK-003).
         let reader_pending = Arc::clone(&pending);
+        let reader_pending_cleanup = Arc::clone(&pending);
+        let alive = Arc::new(AtomicBool::new(true));
+        let reader_alive = Arc::clone(&alive);
         let diagnostics_tx = self.diagnostics_tx.clone();
         tokio::spawn(async move {
             transport::read_loop(stdout, reader_pending, diagnostics_tx).await;
+            reader_alive.store(false, Ordering::Release);
+            // Closing the pending senders wakes every in-flight request immediately instead of making
+            // each one wait for its five-second timeout after a server crash.
+            reader_pending_cleanup
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clear();
         });
 
-        // Capture the runtime handle now (we are on a runtime in `initialize`) so the Drop path can
-        // drive the bounded graceful shutdown (RISK-001).
-        *self.runtime.lock().unwrap_or_else(|e| e.into_inner()) = Some(Handle::current());
-        *self.transport.lock().unwrap_or_else(|e| e.into_inner()) = Some(Transport {
-            stdin: Arc::new(tokio::sync::Mutex::new(
-                Box::new(stdin) as Box<dyn tokio::io::AsyncWrite + Send + Unpin>
-            )),
-            child: Some(child),
-            child_pid,
-            pending,
-        });
+        // Install atomically with the permanent shutdown gate. `shutdown_for_host` sets the flag
+        // before taking this same mutex, so it either removes this transport or this install aborts;
+        // an initializer can never publish a child after explicit host shutdown has returned.
+        {
+            let mut transport_slot = self.transport.lock().unwrap_or_else(|e| e.into_inner());
+            if self.shutting_down.load(Ordering::Acquire) {
+                return false;
+            }
+            // Capture the runtime handle now (we are on a runtime in `initialize`) so the Drop path can
+            // drive the bounded graceful shutdown (RISK-001).
+            *self.runtime.lock().unwrap_or_else(|e| e.into_inner()) = Some(Handle::current());
+            *transport_slot = Some(Transport {
+                stdin: Arc::new(tokio::sync::Mutex::new(
+                    Box::new(stdin) as Box<dyn tokio::io::AsyncWrite + Send + Unpin>
+                )),
+                child: Some(child),
+                child_pid,
+                pending,
+                alive,
+            });
+        }
 
         // The LSP `initialize` request (a minimal client capabilities object is enough for the
         // editor-facing requests). A handshake failure tears the transport back down (graceful).
@@ -728,10 +1041,11 @@ impl LspClient {
             }
             // Per the spec the client sends `initialized` after the handshake. Best-effort.
             self.notify("initialized", serde_json::json!({})).await;
+            self.initialized.store(true, Ordering::Release);
             true
         } else {
             // Handshake failed: drop the half-initialized transport so methods stay graceful.
-            *self.transport.lock().unwrap_or_else(|e| e.into_inner()) = None;
+            drop(self.take_transport());
             false
         }
     }
@@ -740,9 +1054,19 @@ impl LspClient {
     /// lazily on the first call (impl note "launched lazily on first did_open"). A graceful no-op when
     /// no server is configured / the spawn failed (AC-004).
     pub async fn did_open(&self, uri: &str, language_id: &str, text: &str) {
+        self.did_open_with_version(uri, language_id, 1, text).await;
+    }
+
+    async fn did_open_with_version(&self, uri: &str, language_id: &str, version: i64, text: &str) {
         // Lazy spawn: derive a root uri from the document's directory when possible.
         if !self.is_running() {
-            let root = Url::parse(uri).ok();
+            let root = Url::parse(uri).ok().and_then(|mut document| {
+                {
+                    let mut segments = document.path_segments_mut().ok()?;
+                    segments.pop();
+                }
+                Some(document)
+            });
             if !self.initialize(root).await {
                 return; // graceful (AC-004).
             }
@@ -751,7 +1075,7 @@ impl LspClient {
             "textDocument": {
                 "uri": uri,
                 "languageId": language_id,
-                "version": 1,
+                "version": version,
                 "text": text,
             }
         });
@@ -769,6 +1093,93 @@ impl LspClient {
             "contentChanges": [ { "text": text } ]
         });
         self.notify("textDocument/didChange", params).await;
+    }
+
+    /// Low-level `textDocument/didClose` notification. Host pane/tab lifecycle should call
+    /// [`close_document`](Self::close_document) so the per-URI ordering state is updated as well.
+    pub async fn did_close(&self, uri: &str) {
+        let Ok(uri) = Url::parse(uri) else {
+            return;
+        };
+        let params = lsp_types::DidCloseTextDocumentParams {
+            text_document: TextDocumentIdentifier { uri },
+        };
+        if let Ok(params) = serde_json::to_value(params) {
+            self.notify("textDocument/didClose", params).await;
+        }
+    }
+
+    /// Apply one app-issued full-document synchronization generation. Ordering is independent per URI:
+    /// a delayed update for one tab cannot close or supersede another tab's open document.
+    pub async fn sync_document_generation(
+        &self,
+        generation: u64,
+        uri: &str,
+        language_id: &str,
+        version: i64,
+        text: &str,
+        force_open: bool,
+    ) {
+        let state = self.document_state(uri);
+        let mut state = state.lock().await;
+        if generation <= state.applied_generation {
+            return;
+        }
+        let must_open = force_open || !state.open;
+        if must_open {
+            self.did_open_with_version(uri, language_id, version, text)
+                .await;
+            if self.is_running() {
+                state.open = true;
+            }
+        } else {
+            self.did_change(uri, version, text).await;
+        }
+        if self.is_running() {
+            state.applied_generation = generation;
+            state.version = version;
+        }
+    }
+
+    /// Close one synchronized document without affecting any other open URI. Callers that already
+    /// reserve host generations can use this API to keep close ordered with in-flight updates.
+    pub async fn close_document_generation(&self, generation: u64, uri: &str) {
+        let state = self.document_state(uri);
+        let mut state = state.lock().await;
+        if generation <= state.applied_generation {
+            return;
+        }
+        if state.open {
+            self.did_close(uri).await;
+        }
+        state.open = false;
+        state.applied_generation = generation;
+    }
+
+    /// Reserve and apply an explicit close for a host tab/pane.
+    pub async fn close_document(&self, uri: &str) {
+        let generation = self.reserve_document_sync_generation();
+        self.close_document_generation(generation, uri).await;
+    }
+
+    /// TEST HOOK: all URIs the serialized sync path records as open on the server.
+    #[doc(hidden)]
+    pub async fn open_document_uris_for_test(&self) -> Vec<String> {
+        let states: Vec<(String, Arc<tokio::sync::Mutex<DocumentSyncState>>)> = self
+            .document_sync_states
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .map(|(uri, state)| (uri.clone(), Arc::clone(state)))
+            .collect();
+        let mut open = Vec::new();
+        for (uri, state) in states {
+            if state.lock().await.open {
+                open.push(uri);
+            }
+        }
+        open.sort();
+        open
     }
 
     /// `textDocument/completion`: request completions at `position`. Returns the popup items (empty on
@@ -842,6 +1253,74 @@ impl LspClient {
             .ok()
             .flatten()
             .unwrap_or_default()
+    }
+
+    async fn document_feature_generation(&self, uri: &str) -> Option<u64> {
+        let state = self
+            .document_sync_states
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(uri)
+            .cloned()?;
+        let state = state.lock().await;
+        state.open.then_some(state.applied_generation)
+    }
+
+    /// Completion gated by the latest host document synchronization generation. The generation is
+    /// checked again after the request so a response made stale by an intervening sync is discarded.
+    pub async fn completion_after_sync(
+        &self,
+        uri: &str,
+        position: Position,
+    ) -> Vec<LspCompletionItem> {
+        let Some(generation) = self.document_feature_generation(uri).await else {
+            return Vec::new();
+        };
+        let result = self.completion(uri, position).await;
+        if self.document_feature_generation(uri).await == Some(generation) {
+            result
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Hover gated by the latest host document synchronization generation.
+    pub async fn hover_after_sync(&self, uri: &str, position: Position) -> Option<HoverResult> {
+        let generation = self.document_feature_generation(uri).await?;
+        let result = self.hover(uri, position).await;
+        if self.document_feature_generation(uri).await == Some(generation) {
+            result
+        } else {
+            None
+        }
+    }
+
+    /// Definition gated by the latest host document synchronization generation.
+    pub async fn goto_definition_after_sync(
+        &self,
+        uri: &str,
+        position: Position,
+    ) -> Option<Location> {
+        let generation = self.document_feature_generation(uri).await?;
+        let result = self.goto_definition(uri, position).await;
+        if self.document_feature_generation(uri).await == Some(generation) {
+            result
+        } else {
+            None
+        }
+    }
+
+    /// References gated by the latest host document synchronization generation.
+    pub async fn references_after_sync(&self, uri: &str, position: Position) -> Vec<Location> {
+        let Some(generation) = self.document_feature_generation(uri).await else {
+            return Vec::new();
+        };
+        let result = self.references(uri, position).await;
+        if self.document_feature_generation(uri).await == Some(generation) {
+            result
+        } else {
+            Vec::new()
+        }
     }
 
     /// WP-KERNEL-012 MT-048: request `textDocument/rename` at `position` over the EXISTING MT-008 stdio
@@ -1138,13 +1617,17 @@ impl LspClient {
         // Clone the stdin (async-locked) + pending handles out of the std transport guard, then RELEASE
         // the std guard BEFORE the await (clippy await_holding_lock — a std MutexGuard must not be held
         // across `.await`). If there is no transport, this is a graceful None.
-        let (stdin, pending, child_pid) = {
+        let (stdin, pending, child_pid, alive) = {
             let guard = self.transport.lock().unwrap_or_else(|e| e.into_inner());
             let transport = guard.as_ref()?;
+            if !transport.alive.load(Ordering::Acquire) {
+                return None;
+            }
             (
                 Arc::clone(&transport.stdin),
                 Arc::clone(&transport.pending),
                 transport.child_pid,
+                Arc::clone(&transport.alive),
             )
         };
         let mut child_watch = child_pid.and_then(|pid| ActiveChildRequestWatch::new(pid, id).ok());
@@ -1159,33 +1642,42 @@ impl LspClient {
             "method": method,
             "params": params,
         });
-        // Write under the ASYNC stdin lock (await-safe); serialized sends preserve JSON-RPC framing.
-        {
+        // One deadline covers every async transport phase: waiting for the serialized stdin lock,
+        // writing/flushing the complete frame, and waiting for the response. Separate timeouts would
+        // allow a request queued behind a wedged writer to consume multiple timeout periods.
+        let deadline = tokio::time::Instant::now() + REQUEST_TIMEOUT;
+        let outcome = tokio::time::timeout_at(deadline, async {
             let mut stdin = stdin.lock().await;
-            if transport::write_message(&mut **stdin, &message)
-                .await
-                .is_err()
-            {
-                pending
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .remove(&id);
-                if let Some(watch) = child_watch.take() {
-                    watch.complete();
-                }
+            if !alive.load(Ordering::Acquire) {
                 return None;
             }
-        }
-        // Await the response with a bound so a silent server cannot hang the editor's delivery task.
-        match tokio::time::timeout(REQUEST_TIMEOUT, rx).await {
-            Ok(Ok(value)) => {
+            transport::write_message(&mut **stdin, &message)
+                .await
+                .ok()?;
+            drop(stdin);
+            rx.await.ok()
+        })
+        .await;
+        match outcome {
+            Ok(Some(JsonRpcResponse::Result(value))) => {
                 if let Some(watch) = child_watch.take() {
                     watch.complete();
                 }
                 Some(value)
             }
+            Ok(Some(JsonRpcResponse::Error)) => {
+                // A valid JSON-RPC error is an application-level negative response, not transport
+                // corruption. Leave the transport healthy so later requests can continue.
+                if let Some(watch) = child_watch.take() {
+                    watch.cancel();
+                }
+                None
+            }
             _ => {
-                // Timeout / channel closed: drop the pending entry so it does not leak.
+                // A lock timeout, write/flush error or timeout, response timeout, or closed response
+                // channel means this transport cannot be trusted. Mark it dead so the host's existing
+                // initialize path can replace it, then remove the pending entry so it does not leak.
+                alive.store(false, Ordering::Release);
                 pending
                     .lock()
                     .unwrap_or_else(|e| e.into_inner())
@@ -1206,15 +1698,32 @@ impl LspClient {
             "params": params,
         });
         // Clone the async-locked stdin out of the std guard, release the std guard, then write.
-        let stdin = {
+        let (stdin, alive) = {
             let guard = self.transport.lock().unwrap_or_else(|e| e.into_inner());
             match guard.as_ref() {
-                Some(transport) => Arc::clone(&transport.stdin),
+                Some(transport) if transport.alive.load(Ordering::Acquire) => {
+                    (Arc::clone(&transport.stdin), Arc::clone(&transport.alive))
+                }
                 None => return, // graceful no-op.
+                Some(_) => return,
             }
         };
-        let mut stdin = stdin.lock().await;
-        let _ = transport::write_message(&mut **stdin, &message).await;
+        // Notifications have no response, but lock acquisition plus the framed write/flush must still
+        // be bounded. A timeout poisons the transport so the host can activate its restart path.
+        let deadline = tokio::time::Instant::now() + REQUEST_TIMEOUT;
+        let sent = tokio::time::timeout_at(deadline, async {
+            let mut stdin = stdin.lock().await;
+            if !alive.load(Ordering::Acquire) {
+                return false;
+            }
+            transport::write_message(&mut **stdin, &message)
+                .await
+                .is_ok()
+        })
+        .await;
+        if !matches!(sent, Ok(true)) {
+            alive.store(false, Ordering::Release);
+        }
     }
 
     /// Send `shutdown` + `exit` and wait (bounded) for the child to exit, else kill it. The drop path
@@ -1225,43 +1734,37 @@ impl LspClient {
     /// [`SHUTDOWN_TIMEOUT`] for a clean exit. Regardless of the graceful path, the child is force-killed
     /// at the end if still alive, and `kill_on_drop(true)` on the spawned `Command` is the final safety
     /// net so the OS process can never outlive the [`LspClient`] (RISK-001 — no zombie).
-    fn shutdown_now(&mut self) {
+    fn shutdown_now(&self) {
         let runtime = self
             .runtime
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone();
-        let transport = self
-            .transport
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .take();
+        let transport = self.take_transport();
         let Some(mut transport) = transport else {
             return;
         };
 
-        let graceful = |handle: &Handle, transport: &mut Transport| {
-            handle.block_on(async {
-                let shutdown =
-                    serde_json::json!({"jsonrpc":"2.0","id":0,"method":"shutdown","params":null});
-                let exit = serde_json::json!({"jsonrpc":"2.0","method":"exit","params":null});
-                {
-                    let mut stdin = transport.stdin.lock().await;
-                    let _ = transport::write_message(&mut **stdin, &shutdown).await;
-                    let _ = transport::write_message(&mut **stdin, &exit).await;
-                }
-                // Wait (bounded) for the server to exit on its own (a test transport has no child).
-                if let Some(child) = transport.child.as_mut() {
-                    let _ = tokio::time::timeout(SHUTDOWN_TIMEOUT, child.wait()).await;
-                }
-            });
-        };
-
-        // `block_on` panics if called from inside a runtime worker thread, so only take the graceful
-        // path when we hold a handle AND are not on a runtime thread.
+        // `Handle::block_on` panics on a runtime worker, and joining an OS thread that calls back into
+        // the SAME runtime can deadlock a current-thread/one-worker runtime. When Drop runs inside a
+        // runtime, transfer the owned transport to a bounded cleanup task on the client's runtime and
+        // return. If that runtime shuts down first, task cancellation drops the kill_on_drop child, so
+        // the process still cannot leak.
         if let Some(handle) = runtime {
             if Handle::try_current().is_err() {
-                graceful(&handle, &mut transport);
+                if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread {
+                    handle.block_on(shutdown_transport(transport));
+                    return;
+                }
+                // A stopped/not-current current-thread runtime cannot drive IO or timers through
+                // Handle::block_on. Prefer an immediate kill backstop over a deadlock; the normal app
+                // runtime is multi-thread and takes the graceful bounded branch above.
+                if let Some(child) = transport.child.as_mut() {
+                    let _ = child.start_kill();
+                }
+            } else {
+                handle.spawn(shutdown_transport(transport));
+                return;
             }
         }
 
@@ -1271,6 +1774,26 @@ impl LspClient {
         // A test transport has no child (nothing to kill).
         if let Some(child) = transport.child.as_mut() {
             let _ = child.start_kill();
+        }
+    }
+
+    /// Explicit host-owner shutdown while the app runtime is still alive. Idempotent; later Arc drops
+    /// see no transport. This prevents Rust field destruction order from dropping the runtime before
+    /// the editor-owned language-server process is reclaimed.
+    pub fn shutdown_for_host(&self) {
+        self.shutting_down.store(true, Ordering::Release);
+        if Handle::try_current().is_err() {
+            // First detach any already-installed transport. Clearing its pending table wakes an
+            // initializer that is awaiting the handshake instead of making app exit wait for the
+            // request timeout. Then acquire the serialized initializer and take once more, closing the
+            // race where it was between spawn and transport installation during the first take.
+            self.shutdown_now();
+            let _initialize_guard = self.initialize_guard.blocking_lock();
+            self.shutdown_now();
+        } else {
+            // A runtime-worker caller must never blocking_lock its own runtime. The permanent flag
+            // prevents new initialization; shutdown_now detaches the currently installed transport.
+            self.shutdown_now();
         }
     }
 }
@@ -1349,6 +1872,7 @@ pub fn published_diagnostics_from_lsp(params: PublishDiagnosticsParams) -> Publi
         .collect();
     PublishedDiagnostics {
         uri: params.uri.to_string(),
+        version: params.version.map(i64::from),
         diagnostics,
     }
 }
@@ -1371,27 +1895,32 @@ async fn read_one_frame<R>(reader: &mut R) -> Option<Value>
 where
     R: tokio::io::AsyncRead + Unpin,
 {
-    let mut buf = BufReader::new(reader);
-    let mut content_length: Option<usize> = None;
-    let mut header_line = String::new();
+    // Do not create a throwaway `BufReader` here: it may prefetch bytes from the next frame and lose
+    // them when dropped, making a back-to-back didClose/didOpen pair look truncated to tests. Reading
+    // the small header exactly leaves every following frame in the underlying stream.
+    let mut header = Vec::with_capacity(64);
+    let mut byte = [0u8; 1];
     loop {
-        header_line.clear();
-        match buf.read_line(&mut header_line).await {
-            Ok(0) => return None, // EOF.
-            Ok(_) => {}
-            Err(_) => return None,
-        }
-        let trimmed = header_line.trim_end_matches(['\r', '\n']);
-        if trimmed.is_empty() {
+        reader.read_exact(&mut byte).await.ok()?;
+        header.push(byte[0]);
+        if header.ends_with(b"\r\n\r\n") {
             break;
         }
-        if let Some(rest) = trimmed.strip_prefix("Content-Length:") {
-            content_length = rest.trim().parse::<usize>().ok();
+        if header.len() > MAX_LSP_HEADER_BYTES {
+            return None;
         }
     }
+    let header = std::str::from_utf8(&header).ok()?;
+    let content_length = header.split("\r\n").find_map(|line| {
+        line.strip_prefix("Content-Length:")
+            .and_then(|rest| rest.trim().parse::<usize>().ok())
+    });
     let len = content_length?;
+    if len > MAX_LSP_CONTENT_BYTES {
+        return None;
+    }
     let mut body = vec![0u8; len];
-    buf.read_exact(&mut body).await.ok()?;
+    reader.read_exact(&mut body).await.ok()?;
     serde_json::from_slice(&body).ok()
 }
 
@@ -1399,6 +1928,33 @@ where
 /// header + body) is testable in isolation from the process plumbing.
 mod transport {
     use super::*;
+
+    async fn read_header_line_bounded<R>(
+        reader: &mut R,
+        line: &mut Vec<u8>,
+    ) -> std::io::Result<usize>
+    where
+        R: tokio::io::AsyncRead + Unpin,
+    {
+        line.clear();
+        let mut byte = [0u8; 1];
+        loop {
+            let read = reader.read(&mut byte).await?;
+            if read == 0 {
+                return Ok(line.len());
+            }
+            line.push(byte[0]);
+            if line.len() > MAX_LSP_HEADER_LINE_BYTES {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "LSP header line exceeds configured limit",
+                ));
+            }
+            if byte[0] == b'\n' {
+                return Ok(line.len());
+            }
+        }
+    }
 
     /// Serialize `message` and write it to the server's stdin with the LSP `Content-Length` frame
     /// header. Async (the request/notify paths await it). Generic over the writer so the production
@@ -1420,8 +1976,8 @@ mod transport {
     /// frame / non-JSON body is SKIPPED, never panicked on (RISK-003).
     pub async fn read_loop<R>(
         stdout: R,
-        pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>>,
-        diagnostics_tx: mpsc::UnboundedSender<PublishedDiagnostics>,
+        pending: Arc<Mutex<HashMap<i64, oneshot::Sender<JsonRpcResponse>>>>,
+        diagnostics_tx: broadcast::Sender<PublishedDiagnostics>,
     ) where
         R: tokio::io::AsyncRead + Unpin,
     {
@@ -1429,15 +1985,23 @@ mod transport {
         loop {
             // Read the header block (lines until a blank line), extracting Content-Length.
             let mut content_length: Option<usize> = None;
-            let mut header_line = String::new();
+            let mut header_line = Vec::with_capacity(64);
+            let mut header_bytes = 0usize;
             loop {
-                header_line.clear();
-                match reader.read_line(&mut header_line).await {
+                match read_header_line_bounded(&mut reader, &mut header_line).await {
                     Ok(0) => return, // EOF: server closed stdout.
-                    Ok(_) => {}
+                    Ok(read) => {
+                        header_bytes = match header_bytes.checked_add(read) {
+                            Some(total) if total <= MAX_LSP_HEADER_BYTES => total,
+                            _ => return,
+                        };
+                    }
                     Err(_) => return, // unrecoverable read error.
                 }
-                let trimmed = header_line.trim_end_matches(['\r', '\n']);
+                let Ok(header_text) = std::str::from_utf8(&header_line) else {
+                    return;
+                };
+                let trimmed = header_text.trim_end_matches(['\r', '\n']);
                 if trimmed.is_empty() {
                     break; // end of headers.
                 }
@@ -1453,6 +2017,9 @@ mod transport {
                 // malformed framing).
                 continue;
             };
+            if len > MAX_LSP_CONTENT_BYTES {
+                return;
+            }
             // Read exactly `len` bytes of body.
             let mut body = vec![0u8; len];
             if reader.read_exact(&mut body).await.is_err() {
@@ -1470,8 +2037,8 @@ mod transport {
     /// Route one parsed JSON-RPC message to a pending request or a notification handler.
     fn route_message(
         value: Value,
-        pending: &Arc<Mutex<HashMap<i64, oneshot::Sender<Value>>>>,
-        diagnostics_tx: &mpsc::UnboundedSender<PublishedDiagnostics>,
+        pending: &Arc<Mutex<HashMap<i64, oneshot::Sender<JsonRpcResponse>>>>,
+        diagnostics_tx: &broadcast::Sender<PublishedDiagnostics>,
     ) {
         // A RESPONSE has an `id`. (Server-to-client REQUESTS also have an id + a `method`; we do not
         // implement server->client requests, so a message with both id+method is treated as a
@@ -1485,9 +2052,14 @@ mod transport {
                     .unwrap_or_else(|e| e.into_inner())
                     .remove(&id)
                 {
-                    // Deliver the `result` (or, on an error, a Null so the request resolves to None).
-                    let result = value.get("result").cloned().unwrap_or(Value::Null);
-                    let _ = tx.send(result);
+                    let response = if value.get("error").is_some() {
+                        JsonRpcResponse::Error
+                    } else if let Some(result) = value.get("result").cloned() {
+                        JsonRpcResponse::Result(result)
+                    } else {
+                        JsonRpcResponse::Error
+                    };
+                    let _ = tx.send(response);
                 }
                 return;
             }

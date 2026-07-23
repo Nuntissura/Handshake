@@ -19,7 +19,7 @@
 //! into a one-slot cell tagged with its generation; the egui thread drains it next frame and applies
 //! it ONLY when the generation still matches the live query (cancellation).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -154,10 +154,10 @@ impl AutocompleteState {
     }
 }
 
-/// A one-slot delivery cell for an off-thread autocomplete search, tagged with the generation it was
-/// issued for (so the egui thread drops a result whose generation no longer matches — MC-004). Mirrors
-/// the MT-014 delivery-cell pattern.
-type SearchDeliveryCell = Arc<Mutex<Option<(u64, Result<Vec<WikilinkResult>, WikilinkError>)>>>;
+/// Queue of off-thread autocomplete searches, stamped with workspace context and query generation.
+/// A queue preserves the newest result even when an older request completes before the next drain.
+type SearchDeliveryCell =
+    Arc<Mutex<VecDeque<(u64, String, u64, Result<Vec<WikilinkResult>, WikilinkError>)>>>;
 
 /// The async runtime bridge for autocomplete searches. Owns the backend transport, the tokio handle,
 /// the workspace id, and the delivery cell. The editor calls [`Self::maybe_search`] each frame (which
@@ -172,6 +172,10 @@ pub struct AutocompleteRuntime {
     pub runtime: Option<tokio::runtime::Handle>,
     /// The delivery cell the spawned search writes its (generation-tagged) result into.
     cell: SearchDeliveryCell,
+    /// Workspace epoch stamped onto every delivery.
+    context_generation: u64,
+    /// True after a workspace switch until the popup is reset for a fresh debounced search.
+    reset_popup: bool,
 }
 
 impl AutocompleteRuntime {
@@ -186,8 +190,30 @@ impl AutocompleteRuntime {
             workspace_id: workspace_id.into(),
             backend,
             runtime,
-            cell: Arc::new(Mutex::new(None)),
+            cell: Arc::new(Mutex::new(VecDeque::new())),
+            context_generation: 0,
+            reset_popup: false,
         }
+    }
+
+    /// Atomically switch autocomplete workspace. Old deliveries are rejected by the context stamp;
+    /// an open popup is reset on the next drain so it cannot remain Loading forever.
+    pub fn set_workspace(&mut self, workspace_id: impl Into<String>) {
+        let workspace_id = workspace_id.into();
+        if workspace_id == self.workspace_id {
+            return;
+        }
+        self.reset_context(workspace_id);
+    }
+
+    /// Reset the autocomplete context after either a workspace or document switch. Search rows are
+    /// workspace-scoped, but the live popup belongs to the originating document and must not survive
+    /// a same-workspace document navigation.
+    pub fn reset_context(&mut self, workspace_id: impl Into<String>) {
+        let workspace_id = workspace_id.into();
+        self.workspace_id = workspace_id;
+        self.context_generation = self.context_generation.wrapping_add(1);
+        self.reset_popup = true;
     }
 
     /// If the popup's debounce has elapsed (MC-002) and no search is in flight for the current query,
@@ -209,12 +235,13 @@ impl AutocompleteRuntime {
         let backend = Arc::clone(&self.backend);
         let cell = Arc::clone(&self.cell);
         let workspace_id = self.workspace_id.clone();
+        let context_generation = self.context_generation;
         runtime.spawn(async move {
             let result = backend
                 .search(&workspace_id, &query, AUTOCOMPLETE_LIMIT)
                 .await;
             if let Ok(mut slot) = cell.lock() {
-                *slot = Some((generation, result));
+                slot.push_back((context_generation, workspace_id, generation, result));
             }
         });
     }
@@ -223,31 +250,43 @@ impl AutocompleteRuntime {
     /// matches the live query (MC-004 cancellation: a stale result for an older query is dropped).
     /// Returns true when a result was applied (so the caller can request a repaint). A no-op when the
     /// popup has closed (`state` is `None`).
-    pub fn drain(&self, state: &mut Option<AutocompleteState>) -> bool {
-        let Ok(mut slot) = self.cell.lock() else {
-            return false;
-        };
-        let Some((generation, result)) = slot.take() else {
-            return false;
-        };
-        let Some(st) = state.as_mut() else {
-            return false; // popup closed before the result landed -> drop it.
-        };
-        if generation != st.generation {
-            // A result for a superseded query landed late -> drop it (cancellation).
-            return false;
-        }
-        st.phase = match result {
-            Ok(rows) => SearchPhase::Ready(rows),
-            Err(e) => SearchPhase::Err(e),
-        };
-        // Clamp the selection into the new row set.
-        if let SearchPhase::Ready(rows) = &st.phase {
-            if st.selected >= rows.len() {
-                st.selected = rows.len().saturating_sub(1);
+    pub fn drain(&mut self, state: &mut Option<AutocompleteState>) -> bool {
+        let mut applied = false;
+        if self.reset_popup {
+            self.reset_popup = false;
+            if let Some(st) = state.as_mut() {
+                st.generation = st.generation.wrapping_add(1);
+                st.phase = SearchPhase::Idle;
+                st.selected = 0;
+                st.last_change = Some(Instant::now());
+                applied = true;
             }
         }
-        true
+        let Ok(mut slot) = self.cell.lock() else {
+            return applied;
+        };
+        while let Some((context_generation, workspace_id, generation, result)) = slot.pop_front() {
+            if context_generation != self.context_generation || workspace_id != self.workspace_id {
+                continue;
+            }
+            let Some(st) = state.as_mut() else {
+                continue; // popup closed before the result landed -> drop it.
+            };
+            if generation != st.generation {
+                continue; // superseded query -> drop.
+            }
+            st.phase = match result {
+                Ok(rows) => SearchPhase::Ready(rows),
+                Err(e) => SearchPhase::Err(e),
+            };
+            if let SearchPhase::Ready(rows) = &st.phase {
+                if st.selected >= rows.len() {
+                    st.selected = rows.len().saturating_sub(1);
+                }
+            }
+            applied = true;
+        }
+        applied
     }
 
     /// TEST SEAM: directly stage a delivery into the cell (so a headless test can drive [`Self::drain`]
@@ -258,7 +297,12 @@ impl AutocompleteRuntime {
         generation: u64,
         result: Result<Vec<WikilinkResult>, WikilinkError>,
     ) {
-        *self.cell.lock().unwrap() = Some((generation, result));
+        self.cell.lock().unwrap().push_back((
+            self.context_generation,
+            self.workspace_id.clone(),
+            generation,
+            result,
+        ));
     }
 }
 
@@ -542,7 +586,7 @@ mod tests {
     fn drain_applies_only_matching_generation_mc004() {
         // MC-004: a delivered result whose generation no longer matches the live query is DROPPED.
         let backend: Arc<dyn WikilinkBackend> = Arc::new(CountingBackend::new());
-        let runtime = AutocompleteRuntime::new("ws", backend, None);
+        let mut runtime = AutocompleteRuntime::new("ws", backend, None);
 
         let mut state = Some(AutocompleteState::open(0, vec![0, 0], "a".into()));
         // The live query advanced to generation 2.
@@ -577,9 +621,44 @@ mod tests {
     }
 
     #[test]
+    fn workspace_swap_drops_old_autocomplete_and_resets_loading_popup() {
+        let backend: Arc<dyn WikilinkBackend> = Arc::new(CountingBackend::new());
+        let mut runtime = AutocompleteRuntime::new("workspace-old", backend, None);
+        let mut state = Some(AutocompleteState::open(0, vec![0, 0], "same".into()));
+        state.as_mut().unwrap().phase = SearchPhase::Loading;
+        runtime.stage_delivery(0, Ok(vec![result("OLD-WORKSPACE")]));
+
+        runtime.set_workspace("workspace-current");
+        assert!(runtime.drain(&mut state), "context swap resets the popup");
+        assert!(matches!(state.as_ref().unwrap().phase, SearchPhase::Idle));
+        let current_generation = state.as_ref().unwrap().generation;
+        runtime.stage_delivery(current_generation, Ok(vec![result("CURRENT-WORKSPACE")]));
+        assert!(runtime.drain(&mut state));
+        assert_eq!(
+            state.as_ref().unwrap().phase,
+            SearchPhase::Ready(vec![result("CURRENT-WORKSPACE")])
+        );
+    }
+
+    #[test]
+    fn autocomplete_queue_preserves_current_then_drops_late_stale_completion() {
+        let backend: Arc<dyn WikilinkBackend> = Arc::new(CountingBackend::new());
+        let mut runtime = AutocompleteRuntime::new("ws", backend, None);
+        let mut state = Some(AutocompleteState::open(0, vec![0, 0], "new".into()));
+        state.as_mut().unwrap().generation = 2;
+        runtime.stage_delivery(2, Ok(vec![result("CURRENT")]));
+        runtime.stage_delivery(1, Ok(vec![result("STALE")]));
+        assert!(runtime.drain(&mut state));
+        assert_eq!(
+            state.as_ref().unwrap().phase,
+            SearchPhase::Ready(vec![result("CURRENT")])
+        );
+    }
+
+    #[test]
     fn drain_drops_result_when_popup_closed() {
         let backend: Arc<dyn WikilinkBackend> = Arc::new(CountingBackend::new());
-        let runtime = AutocompleteRuntime::new("ws", backend, None);
+        let mut runtime = AutocompleteRuntime::new("ws", backend, None);
         runtime.stage_delivery(0, Ok(vec![result("x")]));
         let mut closed: Option<AutocompleteState> = None;
         assert!(
@@ -627,7 +706,7 @@ mod tests {
     #[test]
     fn err_result_becomes_err_phase() {
         let backend: Arc<dyn WikilinkBackend> = Arc::new(CountingBackend::new());
-        let runtime = AutocompleteRuntime::new("ws", backend, None);
+        let mut runtime = AutocompleteRuntime::new("ws", backend, None);
         let mut state = Some(AutocompleteState::open(0, vec![0, 0], "q".into()));
         let gen = state.as_ref().unwrap().generation;
         runtime.stage_delivery(gen, Err(WikilinkError::NetworkError("down".into())));

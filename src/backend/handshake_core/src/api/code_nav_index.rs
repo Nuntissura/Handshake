@@ -35,6 +35,7 @@ use axum::{
     routing::post,
     Json, Router,
 };
+use futures_util::stream::{self, StreamExt};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -43,13 +44,15 @@ use crate::knowledge_code_index::config_schema::detect_config_format;
 use crate::knowledge_code_index::engine::{read_and_index, CodeIndexContext, CodeIndexEngine};
 use crate::knowledge_code_index::parser::detect_code_language;
 use crate::knowledge_code_index::CodeIndexError;
-use crate::knowledge_ingestion::backpressure::IngestionLimits;
 use crate::knowledge_ingestion::engine::{
     IngestionContext, IngestionEngine, RootRegistrationRequest,
 };
+use crate::knowledge_ingestion::backpressure::IngestionLimits;
 use crate::knowledge_ingestion::IngestionError;
 use crate::storage::knowledge::KnowledgeRootKind;
+use crate::storage::knowledge::{KnowledgeIndexRunCounts, KnowledgeIndexRunOutcome};
 use crate::storage::postgres::PostgresDatabase;
+use crate::storage::configured_postgres_parallelism;
 use crate::storage::StorageError;
 use crate::AppState;
 
@@ -127,7 +130,9 @@ fn index_identity(headers: &HeaderMap) -> Result<IndexIdentity, ApiError> {
         .to_string();
     let kernel_task_run_id = header_str(headers, HSK_HEADER_KERNEL_TASK_RUN_ID)
         .ok_or_else(|| {
-            bad_request(format!("{HSK_HEADER_KERNEL_TASK_RUN_ID} header is required"))
+            bad_request(format!(
+                "{HSK_HEADER_KERNEL_TASK_RUN_ID} header is required"
+            ))
         })?
         .to_string();
     let session_run_id = header_str(headers, HSK_HEADER_SESSION_RUN_ID)
@@ -250,7 +255,7 @@ async fn index_workspace_code(
     // One shared pooled handle backs both engines (no reconnect).
     let db = Arc::new(PostgresDatabase::new(state.postgres_pool.clone()));
     let ingestion = IngestionEngine::from_database(db.clone());
-    let code_index = CodeIndexEngine::from_database(db);
+    let code_index = Arc::new(CodeIndexEngine::from_database(db));
 
     let ingest_ctx = identity.ingestion_context();
     let code_ctx = identity.code_index_context();
@@ -277,13 +282,14 @@ async fn index_workspace_code(
 
     // 2) Run the REAL ingestion pass over the anchor — the shared walker +
     //    per-root file allowlist. Every eligible file becomes a KnowledgeSource.
-    let summary = ingestion
-        .run_ingestion_pass(
-            &ingest_ctx,
-            &root.root_id,
-            &anchor,
-            &IngestionLimits::default(),
-        )
+    let (prepared, files_skipped) = ingestion
+        .prepare_code_nav_files(&root, &anchor, &IngestionLimits::default())
+        .await
+        .map_err(ingestion_error)?;
+    let files_ingested = prepared.len();
+    let ingestion_run_token = format!("KIRUN-{}", uuid::Uuid::now_v7().simple());
+    let persisted_sources = ingestion
+        .persist_code_nav_batch(&ingest_ctx, &root, &ingestion_run_token, &prepared)
         .await
         .map_err(ingestion_error)?;
 
@@ -293,53 +299,172 @@ async fn index_workspace_code(
         .await
         .map_err(code_index_error)?;
 
-    let mut symbol_count: usize = 0;
-    let mut files_indexed: usize = 0;
-    let mut files_failed: usize = 0;
-    let mut files_skipped: usize = 0;
-    for outcome in &summary.outcomes {
-        let Some(relative_path) = outcome.source.relative_path.as_deref() else {
-            files_skipped += 1;
-            continue;
-        };
-        // Only code/config files carry symbols; other ingested kinds (markdown,
-        // pdf, transcripts) are legitimately skipped by the code indexer.
-        let is_code_or_config =
-            detect_code_language(relative_path).is_some() || detect_config_format(relative_path).is_some();
-        if !is_code_or_config {
-            files_skipped += 1;
-            continue;
-        }
-        // `read_and_index` re-reads the file under the anchor and runs the AST /
-        // config indexer. MT-108: a per-file read/parse failure is captured
-        // (typed receipt) and returned as a `failed` outcome, NEVER aborting the
-        // directory run.
-        let indexed = read_and_index(
-            &code_index,
+    // The ingestion pass remains ordered so source lifecycle and stale-source
+    // detection retain their canonical semantics. Code indexing is independent
+    // per source, however, and each operation uses the shared PostgreSQL pool.
+    // Keep a small bounded fan-out so the route makes progress on the managed
+    // pool without opening an unbounded task/connection storm.
+    let index_inputs: Vec<(String, String)> = persisted_sources
+        .clone()
+        .into_iter()
+        .filter_map(|(source_id, relative_path)| {
+            if detect_code_language(&relative_path).is_none()
+                && detect_config_format(&relative_path).is_none()
+            {
+                return None;
+            }
+            Some((source_id, relative_path))
+        })
+        .collect();
+    let batch_attempt = code_index
+        .try_index_prepared_batch(
             &code_ctx,
             &workspace_id,
-            &outcome.source.source_id,
-            relative_path,
-            &anchor,
-            Some(index_run_id.as_str()),
+            &prepared,
+            &persisted_sources,
+            &index_run_id,
+        )
+        .await;
+    let indexed_results = match batch_attempt {
+        Err(error) => {
+            let mapped = code_index_error(error);
+            if let Err(finish_error) = code_index
+                .finish_run_with_retry(
+                    &code_ctx,
+                    &index_run_id,
+                    KnowledgeIndexRunOutcome::Failed {
+                        counts: KnowledgeIndexRunCounts::default(),
+                        error_capture: json!({
+                            "kind": "code_index_batch_failure",
+                            "error": format!("{mapped:?}"),
+                        }),
+                    },
+                )
+                .await
+            {
+                tracing::error!(
+                    index_run_id = %index_run_id,
+                    error = ?finish_error,
+                    "code_nav_index_batch_failure_terminalization_failed"
+                );
+            }
+            return Err(mapped);
+        }
+        Ok(Some(outcomes)) => outcomes.into_iter().map(Ok).collect::<Vec<_>>(),
+        Ok(None) => {
+            let index_engine = code_index.clone();
+            stream::iter(index_inputs)
+                .map(|(source_id, relative_path)| {
+                    let index_engine = index_engine.clone();
+                    let code_ctx = code_ctx.clone();
+                    let workspace_id = workspace_id.clone();
+                    let anchor = anchor.clone();
+                    let index_run_id = index_run_id.clone();
+                    async move {
+                        // `read_and_index` re-reads the file under the anchor and runs the
+                        // AST/config indexer. A per-file read/parse failure is captured as
+                        // a typed failed outcome and does not abort sibling work.
+                        read_and_index(
+                            &index_engine,
+                            &code_ctx,
+                            &workspace_id,
+                            &source_id,
+                            &relative_path,
+                            &anchor,
+                            Some(index_run_id.as_str()),
+                        )
+                        .await
+                        .map_err(code_index_error)
+                    }
+                })
+                .buffer_unordered(configured_postgres_parallelism())
+                .collect::<Vec<_>>()
+                .await
+        }
+    };
+
+    // Drain every in-flight file even if one operation failed. This avoids
+    // fail-fast cancellation leaving sibling writes half-completed while the
+    // index-run row is still `started`.
+    let mut indexed_outcomes = Vec::with_capacity(indexed_results.len());
+    let mut first_error = None;
+    let mut indexing_error_count = 0usize;
+    for result in indexed_results {
+        match result {
+            Ok(outcome) => indexed_outcomes.push(outcome),
+            Err(error) => {
+                indexing_error_count += 1;
+                first_error.get_or_insert(error);
+            }
+        }
+    }
+
+    let files_indexed = indexed_outcomes
+        .iter()
+        .filter(|outcome| !outcome.failed)
+        .count();
+    let files_failed = indexed_outcomes
+        .iter()
+        .filter(|outcome| outcome.failed)
+        .count();
+    let symbol_count = indexed_outcomes
+        .iter()
+        .map(|outcome| outcome.symbols_indexed)
+        .sum::<usize>();
+
+    let counts = KnowledgeIndexRunCounts {
+        sources_seen: files_ingested as i32,
+        sources_indexed: files_indexed as i32,
+        spans_extracted: indexed_outcomes
+            .iter()
+            .map(|outcome| outcome.symbols_indexed + outcome.doc_passages_indexed)
+            .sum::<usize>() as i32,
+        entities_detected: indexed_outcomes
+            .iter()
+            .map(|outcome| outcome.symbols_indexed + outcome.doc_passages_indexed)
+            .sum::<usize>() as i32,
+        edges_written: indexed_outcomes
+            .iter()
+            .map(|outcome| outcome.edges_indexed)
+            .sum::<usize>() as i32,
+        claims_written: 0,
+    };
+    if let Some(error) = first_error {
+        if let Err(finish_error) = code_index
+            .finish_run_with_retry(
+                &code_ctx,
+                &index_run_id,
+                KnowledgeIndexRunOutcome::Failed {
+                    counts,
+                    error_capture: json!({
+                        "kind": "code_index_file_failure",
+                        "files_completed": files_indexed,
+                        "files_failed": files_failed + indexing_error_count,
+                    }),
+                },
+            )
+            .await
+        {
+            return Err(code_index_error(finish_error));
+        }
+        return Err(error);
+    }
+    code_index
+        .finish_run_with_retry(
+            &code_ctx,
+            &index_run_id,
+            KnowledgeIndexRunOutcome::Completed { counts },
         )
         .await
         .map_err(code_index_error)?;
-        if indexed.failed {
-            files_failed += 1;
-        } else {
-            files_indexed += 1;
-        }
-        symbol_count += indexed.symbols_indexed;
-    }
 
     Ok(Json(json!({
         "symbol_count": symbol_count,
         "files_indexed": files_indexed,
         "files_failed": files_failed,
         "files_skipped": files_skipped,
-        "files_ingested": summary.outcomes.len(),
-        "skipped_by_allowlist": summary.skipped_by_allowlist,
+        "files_ingested": files_ingested,
+        "skipped_by_allowlist": files_skipped,
         "root_id": root.root_id,
         "index_run_id": index_run_id,
     })))

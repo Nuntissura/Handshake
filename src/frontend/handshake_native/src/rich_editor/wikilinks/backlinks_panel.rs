@@ -109,7 +109,7 @@ pub fn render_backlinks_panel(
                             emit_node_author(
                                 ui.ctx(),
                                 label.id,
-                                accesskit::Role::Link,
+                                accesskit::Role::ListItem,
                                 &entry_author_id(&link.source_document_id),
                             );
                             if label.clicked() {
@@ -135,7 +135,7 @@ pub fn render_backlinks_panel(
     emit_node_author(
         ui.ctx(),
         resp.header_response.id,
-        accesskit::Role::Group,
+        accesskit::Role::List,
         PANEL_AUTHOR_ID,
     );
 
@@ -171,7 +171,7 @@ fn emit_node_author(ctx: &egui::Context, id: egui::Id, role: accesskit::Role, au
         if !matches!(role_for_closure, accesskit::Role::Button) {
             node.set_role(role_for_closure);
         }
-        node.set_author_id(author);
+        node.set_author_id(crate::rich_editor::scoped_author_id(author));
     });
 }
 

@@ -29,11 +29,72 @@ use handshake_core::managed_postgres::{
 use handshake_core::storage::postgres::PostgresDatabase;
 use handshake_core::storage::Database;
 use sqlx::Connection;
+use std::time::Duration;
 use tokio::sync::{Mutex, OnceCell};
 use uuid::Uuid;
 
 static MANAGED_POSTGRES: OnceCell<Option<ManagedPostgres>> = OnceCell::const_new();
 static SCHEMA_SETUP_LOCK: Mutex<()> = Mutex::const_new(());
+const CLEANUP_PHASE_TIMEOUT: Duration = Duration::from_secs(3);
+pub const PANIC_CLEANUP_TIMEOUT: Duration = Duration::from_secs(15);
+
+fn drop_schema_sql(schema: &str) -> String {
+    format!(
+        "DROP SCHEMA IF EXISTS \"{}\" CASCADE",
+        schema.replace('"', "\"\"")
+    )
+}
+
+async fn drop_and_verify_schema(
+    base_url: &str,
+    schema: &str,
+    application_name: &str,
+) -> Result<(), String> {
+    let mut conn =
+        tokio::time::timeout(CLEANUP_PHASE_TIMEOUT, sqlx::PgConnection::connect(base_url))
+            .await
+            .map_err(|_| "connect for isolated schema teardown timed out".to_string())?
+            .map_err(|error| format!("connect for isolated schema teardown: {error}"))?;
+    tokio::time::timeout(
+        CLEANUP_PHASE_TIMEOUT,
+        sqlx::query(
+            "SELECT pg_terminate_backend(pid) \
+             FROM pg_stat_activity \
+             WHERE datname = current_database() \
+               AND application_name = $1 \
+               AND pid <> pg_backend_pid()",
+        )
+        .bind(application_name)
+        .execute(&mut conn),
+    )
+    .await
+    .map_err(|_| "terminate isolated schema connections timed out".to_string())?
+    .map_err(|error| format!("terminate isolated schema connections: {error}"))?;
+    tokio::time::timeout(
+        CLEANUP_PHASE_TIMEOUT,
+        sqlx::query(&drop_schema_sql(schema)).execute(&mut conn),
+    )
+    .await
+    .map_err(|_| "drop exact isolated knowledge schema timed out".to_string())?
+    .map_err(|error| format!("drop exact isolated knowledge schema: {error}"))?;
+    let remains: bool = tokio::time::timeout(
+        CLEANUP_PHASE_TIMEOUT,
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = $1)")
+            .bind(schema)
+            .fetch_one(&mut conn),
+    )
+    .await
+    .map_err(|_| "verify isolated knowledge schema teardown timed out".to_string())?
+    .map_err(|error| format!("verify isolated knowledge schema teardown: {error}"))?;
+    if remains {
+        return Err("isolated knowledge schema still exists after teardown".to_string());
+    }
+    tokio::time::timeout(CLEANUP_PHASE_TIMEOUT, conn.close())
+        .await
+        .map_err(|_| "close isolated schema teardown connection timed out".to_string())?
+        .map_err(|error| format!("close isolated schema teardown connection: {error}"))?;
+    Ok(())
+}
 
 /// Resolve the base database URL (no schema isolation yet).
 pub async fn base_database_url() -> Option<String> {
@@ -73,6 +134,9 @@ pub struct KnowledgePg {
     pub schema: String,
     /// Connection URL pinned to the isolated schema.
     pub schema_url: String,
+    base_url: String,
+    application_name: String,
+    torn_down: bool,
 }
 
 impl KnowledgePg {
@@ -98,6 +162,62 @@ impl KnowledgePg {
             .await
             .expect("create workspace for knowledge tests");
         workspace.id
+    }
+
+    /// Close every owned pool, drop the exact isolated schema, and prove it no
+    /// longer exists. Call only after loopback servers/raw connections using
+    /// this fixture have been shut down.
+    async fn teardown_inner(&mut self) {
+        if self.torn_down {
+            return;
+        }
+        let schema = self.schema.clone();
+        let base_url = self.base_url.clone();
+        let application_name = self.application_name.clone();
+        // Polling close starts graceful pool shutdown, but a leaked or
+        // outstanding PoolConnection must not make teardown wait forever.
+        let _ = tokio::time::timeout(CLEANUP_PHASE_TIMEOUT, self.db.close()).await;
+        let cleanup = drop_and_verify_schema(&base_url, &schema, &application_name).await;
+        self.torn_down = true;
+        cleanup.unwrap_or_else(|error| panic!("{error}"));
+    }
+
+    pub async fn teardown(mut self) {
+        self.teardown_inner().await;
+    }
+}
+
+impl Drop for KnowledgePg {
+    fn drop(&mut self) {
+        if self.torn_down {
+            return;
+        }
+        let schema = self.schema.clone();
+        let base_url = self.base_url.clone();
+        let application_name = self.application_name.clone();
+        let cleanup = std::thread::scope(|scope| {
+            let handle = scope.spawn(|| -> Result<(), String> {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|error| format!("build isolated schema teardown runtime: {error}"))?;
+                runtime.block_on(async {
+                    let _ = tokio::time::timeout(CLEANUP_PHASE_TIMEOUT, self.db.close()).await;
+                    drop_and_verify_schema(&base_url, &schema, &application_name).await
+                })
+            });
+            handle
+                .join()
+                .map_err(|_| "isolated schema teardown thread panicked".to_string())?
+        });
+        self.torn_down = true;
+        if let Err(error) = cleanup {
+            if std::thread::panicking() {
+                eprintln!("KnowledgePg panic-path teardown failed: {error}");
+            } else {
+                panic!("KnowledgePg drop teardown failed: {error}");
+            }
+        }
     }
 }
 
@@ -148,7 +268,9 @@ pub async fn knowledge_pg() -> Option<KnowledgePg> {
     drop(conn);
 
     let sep = if url.contains('?') { "&" } else { "?" };
-    let schema_url = format!("{url}{sep}options=-csearch_path%3D{schema}");
+    let application_name = schema.clone();
+    let schema_url =
+        format!("{url}{sep}options=-csearch_path%3D{schema}&application_name={application_name}");
 
     let db = PostgresDatabase::connect(&schema_url, 5)
         .await
@@ -161,5 +283,8 @@ pub async fn knowledge_pg() -> Option<KnowledgePg> {
         db,
         schema,
         schema_url,
+        base_url: url,
+        application_name,
+        torn_down: false,
     })
 }

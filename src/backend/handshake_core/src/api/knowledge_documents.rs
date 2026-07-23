@@ -34,9 +34,10 @@
 use axum::{
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
-    routing::{delete, get, post, put},
+    routing::{get, post, put},
     Json, Router,
 };
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -55,7 +56,7 @@ use crate::storage::knowledge::{
     NewKnowledgeSource, UpsertKnowledgeDocumentBacklink, UpsertKnowledgeDocumentEmbed,
     UpsertKnowledgeRichDocumentDraft,
 };
-use crate::storage::postgres::PostgresDatabase;
+use crate::storage::postgres::{append_kernel_event_with_executor, PostgresDatabase};
 use crate::storage::{Database, StorageError};
 use crate::AppState;
 
@@ -67,7 +68,10 @@ const HSK_HEADER_CORRELATION_ID: &str = "x-hsk-correlation-id";
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
-        .route("/knowledge/documents", post(create_document))
+        .route(
+            "/knowledge/documents",
+            get(list_documents).post(create_document),
+        )
         .route("/knowledge/documents/import", post(import_document))
         .route(
             "/knowledge/documents/:document_id",
@@ -432,6 +436,17 @@ async fn record_receipt(
     rich_document_id: &str,
     payload: Value,
 ) -> Result<String, ApiError> {
+    let event = build_receipt_event(ctx, event_type, rich_document_id, payload)?;
+    let stored = db.append_kernel_event(event).await.map_err(storage_error)?;
+    Ok(stored.event_id)
+}
+
+fn build_receipt_event(
+    ctx: &DocContext,
+    event_type: KernelEventType,
+    rich_document_id: &str,
+    payload: Value,
+) -> Result<NewKernelEvent, ApiError> {
     let mut builder = NewKernelEvent::builder(
         ctx.kernel_task_run_id.clone(),
         ctx.session_run_id.clone(),
@@ -444,14 +459,12 @@ async fn record_receipt(
     if let Some(correlation_id) = &ctx.correlation_id {
         builder = builder.correlation_id(correlation_id.clone());
     }
-    let event = builder.build().map_err(|err| {
+    builder.build().map_err(|err| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"error": "receipt_build_failed", "detail": err.to_string()})),
         )
-    })?;
-    let stored = db.append_kernel_event(event).await.map_err(storage_error)?;
-    Ok(stored.event_id)
+    })
 }
 
 /// Parse + serialize a document into the typed block-tree view used by load and
@@ -480,6 +493,10 @@ fn block_tree_view(
 struct CreateDocumentBody {
     workspace_id: String,
     title: String,
+    /// Wikilink create-note semantic: serialize concurrent callers at PostgreSQL authority and return
+    /// the single existing title match instead of creating another document.
+    #[serde(default)]
+    create_if_title_absent: bool,
     /// ProseMirror doc node JSON. Defaults to an empty doc.
     #[serde(default)]
     content_json: Option<Value>,
@@ -533,6 +550,15 @@ struct HistoryParams {
     offset: Option<i64>,
 }
 
+#[derive(Debug, Deserialize)]
+struct ListDocumentsParams {
+    workspace_id: String,
+    #[serde(default)]
+    project_ref: Option<String>,
+    #[serde(default)]
+    folder_ref: Option<String>,
+}
+
 /// History pagination bounds (MT-156): a caller can never request an
 /// unbounded page.
 const HISTORY_DEFAULT_LIMIT: i64 = 50;
@@ -553,6 +579,10 @@ struct RepairEmbedBody {
 #[derive(Debug, Deserialize)]
 struct RenameBody {
     title: String,
+    /// Optimistic-concurrency token captured when the title was presented to the operator.
+    /// Omitting it preserves the batch/API compatibility path; interactive explorer rename always sends it.
+    #[serde(default)]
+    expected_updated_at: Option<DateTime<Utc>>,
 }
 
 /// Move body with absent-vs-null semantics (adversarial-v2 MT-157): an ABSENT
@@ -631,6 +661,41 @@ const BATCH_MAX_OPERATIONS: usize = 100;
 // Handlers.
 // ---------------------------------------------------------------------------
 
+/// GET /knowledge/documents — enumerate the live RichDocument authority rows for one workspace.
+/// This is the explorer's identity source: ids and optimistic tokens come from the same rows the
+/// rename endpoint mutates, never from the legacy `documents` table.
+async fn list_documents(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(params): Query<ListDocumentsParams>,
+) -> Result<Json<Value>, ApiError> {
+    let ctx = doc_context(&headers)?;
+    ctx.require(DocumentAction::Read)?;
+    if params.workspace_id.trim().is_empty() {
+        return Err(bad_request("workspace_id query parameter is required"));
+    }
+    let db = db_for(&state);
+    let documents = db
+        .list_knowledge_rich_documents(
+            &params.workspace_id,
+            params.project_ref.as_deref(),
+            params.folder_ref.as_deref(),
+        )
+        .await
+        .map_err(storage_error)?;
+    let summaries: Vec<Value> = documents
+        .into_iter()
+        .map(|document| {
+            json!({
+                "rich_document_id": document.rich_document_id,
+                "title": document.title,
+                "updated_at": document.updated_at,
+            })
+        })
+        .collect();
+    Ok(Json(json!(summaries)))
+}
+
 /// POST /knowledge/documents — create a RichDocument (MT-145/149).
 async fn create_document(
     State(state): State<AppState>,
@@ -658,24 +723,46 @@ async fn create_document(
         bad_request(format!("embed block `{block_id}` target rejected: {err}"))
     })?;
 
-    let created = db
-        .create_knowledge_rich_document(NewKnowledgeRichDocument {
-            workspace_id: body.workspace_id,
-            document_id: None,
-            title: body.title,
-            schema_version,
-            content_json,
-            crdt_document_id: None,
-            crdt_snapshot_id: None,
-            promotion_receipt_event_id: None,
-            project_ref: body.project_ref,
-            folder_ref: body.folder_ref,
-            authority_label: Some("promoted".to_string()),
-            owner_actor_kind: Some(ctx.actor_kind.as_str().to_string()),
-            owner_actor_id: Some(actor_id_of(&ctx.actor)),
-        })
-        .await
-        .map_err(storage_error)?;
+    let new_document = NewKnowledgeRichDocument {
+        workspace_id: body.workspace_id,
+        document_id: None,
+        title: body.title,
+        schema_version,
+        content_json,
+        crdt_document_id: None,
+        crdt_snapshot_id: None,
+        promotion_receipt_event_id: None,
+        project_ref: body.project_ref,
+        folder_ref: body.folder_ref,
+        authority_label: Some("promoted".to_string()),
+        owner_actor_kind: Some(ctx.actor_kind.as_str().to_string()),
+        owner_actor_id: Some(actor_id_of(&ctx.actor)),
+    };
+    let (created, document_created) = if body.create_if_title_absent {
+        db.create_knowledge_rich_document_if_title_absent(new_document)
+            .await
+            .map_err(storage_error)?
+    } else {
+        (
+            db.create_knowledge_rich_document(new_document)
+                .await
+                .map_err(storage_error)?,
+            true,
+        )
+    };
+
+    if !document_created {
+        return Ok(Json(json!({
+            "document": created,
+            "created": false,
+            "save_receipt_event_id": Value::Null,
+            "receipt_error": Value::Null,
+            "embeds_persisted": 0,
+            "embeds_error": Value::Null,
+            "knowledge_indexed": false,
+            "knowledge_index_error": Value::Null,
+        })));
+    }
 
     // ---- post-commit (MT-149): the create above is committed; the steps
     // below are best-effort and RECORDED, never an error for a committed write.
@@ -731,6 +818,7 @@ async fn create_document(
 
     Ok(Json(json!({
         "document": created,
+        "created": true,
         "save_receipt_event_id": receipt,
         "receipt_error": receipt_error,
         "embeds_persisted": embeds_persisted,
@@ -790,69 +878,243 @@ async fn delete_document(
 ) -> Result<Json<Value>, ApiError> {
     let ctx = doc_context(&headers)?;
     ctx.require(DocumentAction::Write)?;
-    let db = db_for(&state);
 
-    let document = db
-        .get_knowledge_rich_document(&document_id)
+    // Tombstone, receipt, stale-source mark, backlink cleanup, canvas
+    // placement cleanup, and Loom projection removal are one PostgreSQL
+    // transaction. Lock/re-read the document before deriving its receipt so a
+    // concurrent save cannot leave the deletion event describing stale state.
+    let mut tx = state
+        .postgres_pool
+        .begin()
         .await
-        .map_err(storage_error)?
-        .ok_or_else(|| not_found("knowledge rich document"))?;
-
-    // Record the delete receipt FIRST so the tombstone can reference it (the
-    // deleted_receipt_event_id FK targets kernel_event_ledger).
-    let receipt = record_receipt(
-        &db,
+        .map_err(|err| storage_error(StorageError::from(err)))?;
+    // Rebuilds acquire transaction-scoped advisory locks for the source and
+    // every resolved target before taking document row locks. Delete must join
+    // that same stable lock order before tombstoning its target; otherwise a
+    // delete-first row lock can deadlock a concurrent rebuild that already
+    // owns the advisory set and is waiting to inspect this target.
+    let delete_identity: Option<(String, String)> = sqlx::query_as(
+        "SELECT workspace_id, title FROM knowledge_rich_documents \
+         WHERE rich_document_id = $1 AND deleted_at IS NULL",
+    )
+    .bind(&document_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?;
+    let (delete_workspace_id, delete_title) =
+        delete_identity.ok_or_else(|| not_found("knowledge rich document"))?;
+    let mut delete_lock_ids: Vec<String> = sqlx::query_scalar(
+        "SELECT DISTINCT source_document_id FROM knowledge_document_backlinks \
+         WHERE workspace_id = $1 AND (target = $2 OR target = $3)",
+    )
+    .bind(&delete_workspace_id)
+    .bind(&document_id)
+    .bind(&delete_title)
+    .fetch_all(&mut *tx)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?;
+    delete_lock_ids.push(document_id.clone());
+    delete_lock_ids.sort();
+    delete_lock_ids.dedup();
+    for lock_id in delete_lock_ids {
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 32032::bigint))")
+            .bind(lock_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|err| storage_error(StorageError::from(err)))?;
+    }
+    let document = PostgresDatabase::lock_live_knowledge_rich_document_tx(&mut tx, &document_id)
+        .await
+        .map_err(storage_error)?;
+    let loom_identity = sqlx::query_as::<_, (String, String)>(
+        r#"
+        SELECT workspace_id, content_type
+        FROM loom_blocks
+        WHERE block_id = $1
+        FOR UPDATE
+        "#,
+    )
+    .bind(&document.block_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?;
+    if !matches!(
+        loom_identity.as_ref(),
+        Some((workspace_id, content_type))
+            if workspace_id == &document.workspace_id && content_type == "note"
+    ) {
+        return Err(storage_error(StorageError::Conflict(
+            "rich document LoomBlock projection identity mismatch",
+        )));
+    }
+    let search_identity = sqlx::query_as::<_, (String, String)>(
+        r#"
+        SELECT workspace_id, content_type
+        FROM loom_block_search_index
+        WHERE block_id = $1
+        FOR UPDATE
+        "#,
+    )
+    .bind(&document.block_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?;
+    if matches!(
+        search_identity.as_ref(),
+        Some((workspace_id, content_type))
+            if workspace_id != &document.workspace_id || content_type != "note"
+    ) {
+        return Err(storage_error(StorageError::Conflict(
+            "rich document LoomBlock search projection identity mismatch",
+        )));
+    }
+    let event = build_receipt_event(
         &ctx,
         KernelEventType::KnowledgeRichDocumentDeleted,
         &document.rich_document_id,
         json!({
             "event": "deleted",
-            "workspace_id": document.workspace_id,
+            "workspace_id": document.workspace_id.clone(),
             "doc_version": document.doc_version,
-            "title": document.title,
+            "title": document.title.clone(),
         }),
+    )?;
+    let stored_event = append_kernel_event_with_executor(&mut *tx, event)
+        .await
+        .map_err(storage_error)?;
+    let receipt = stored_event.event_id;
+    let live_same_title_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_rich_documents \
+         WHERE workspace_id = $1 AND title = $2 AND deleted_at IS NULL",
     )
-    .await?;
-
-    // Soft-delete: mark the authority row deleted (never drop it). The
-    // append-only version history and EventLedger receipts remain intact.
-    sqlx::query(
+    .bind(&document.workspace_id)
+    .bind(&document.title)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?;
+    let tombstone = sqlx::query(
         r#"
         UPDATE knowledge_rich_documents
         SET deleted_at = NOW(),
             deleted_receipt_event_id = $2,
             updated_at = NOW()
-        WHERE rich_document_id = $1
+        WHERE rich_document_id = $1 AND deleted_at IS NULL
         "#,
     )
     .bind(&document.rich_document_id)
     .bind(&receipt)
-    .execute(&state.postgres_pool)
+    .execute(&mut *tx)
     .await
     .map_err(|err| storage_error(StorageError::from(err)))?;
-
-    // Mark the document's knowledge SOURCE stale (the content-hash-tracked index
-    // unit) so the retrieval pipeline no longer serves the deleted blocks as
-    // fresh. Best-effort: a missing source (never indexed) is not an error.
-    let mut source_marked_stale = false;
-    if let Some(source) = db
-        .get_knowledge_source_by_document_id(&document.workspace_id, &document.rich_document_id)
-        .await
-        .map_err(storage_error)?
-    {
-        if !source.stale {
-            db.mark_knowledge_source_stale(&source.source_id)
-                .await
-                .map_err(storage_error)?;
-        }
-        source_marked_stale = true;
+    if tombstone.rows_affected() != 1 {
+        return Err(not_found("knowledge rich document"));
     }
+
+    let source_marked_stale = sqlx::query(
+        r#"
+        UPDATE knowledge_sources
+        SET stale = TRUE, updated_at = NOW()
+        WHERE workspace_id = $1
+          AND source_kind = 'rich_document'
+          AND provenance->>'rich_document_id' = $2
+        "#,
+    )
+    .bind(&document.workspace_id)
+    .bind(&document.rich_document_id)
+    .execute(&mut *tx)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?
+    .rows_affected()
+        > 0;
+
+    // Backlinks and LoomBlock are projections of the tombstoned RichDocument.
+    // Remove them deterministically so integration fixtures and real deletes
+    // cannot leave an addressable ghost block or inbound/outbound rows.
+    let backlinks_deleted = sqlx::query(
+        "DELETE FROM knowledge_document_backlinks \
+         WHERE workspace_id = $1 \
+           AND (source_document_id = $2 OR target = $2 OR ($4 AND target = $3))",
+    )
+    .bind(&document.workspace_id)
+    .bind(&document.rich_document_id)
+    .bind(&document.title)
+    .bind(live_same_title_count == 1)
+    .execute(&mut *tx)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?
+    .rows_affected();
+    sqlx::query("DELETE FROM knowledge_rich_document_drafts WHERE rich_document_id = $1")
+        .bind(&document.rich_document_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|err| storage_error(StorageError::from(err)))?;
+    let affected_block_ids: Vec<String> = sqlx::query_scalar(
+        r#"
+        SELECT DISTINCT CASE
+            WHEN source_block_id = $2 THEN target_block_id
+            ELSE source_block_id
+        END
+        FROM loom_edges
+        WHERE workspace_id = $1
+          AND (source_block_id = $2 OR target_block_id = $2)
+          AND source_block_id <> target_block_id
+        "#,
+    )
+    .bind(&document.workspace_id)
+    .bind(&document.block_id)
+    .fetch_all(&mut *tx)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?;
+    sqlx::query(
+        "DELETE FROM loom_canvas_placements WHERE workspace_id = $1 AND placed_block_id = $2",
+    )
+    .bind(&document.workspace_id)
+    .bind(&document.block_id)
+    .execute(&mut *tx)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?;
+    let loom_block_deleted = sqlx::query(
+        "DELETE FROM loom_blocks \
+         WHERE workspace_id = $1 AND block_id = $2 AND content_type = 'note'",
+    )
+    .bind(&document.workspace_id)
+    .bind(&document.block_id)
+    .execute(&mut *tx)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?
+    .rows_affected();
+    if loom_block_deleted != 1 {
+        return Err(storage_error(StorageError::Conflict(
+            "rich document LoomBlock projection identity mismatch",
+        )));
+    }
+    for affected_block_id in affected_block_ids {
+        sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET mention_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'mention'),
+                tag_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND source_block_id = $2 AND edge_type = 'tag'),
+                backlink_count = (SELECT COUNT(*)::INT FROM loom_edges WHERE workspace_id = $1 AND target_block_id = $2 AND edge_type IN ('mention', 'tag'))
+            WHERE workspace_id = $1 AND block_id = $2
+            "#,
+        )
+        .bind(&document.workspace_id)
+        .bind(affected_block_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|err| storage_error(StorageError::from(err)))?;
+    }
+    tx.commit()
+        .await
+        .map_err(|err| storage_error(StorageError::from(err)))?;
 
     Ok(Json(json!({
         "deleted": true,
         "rich_document_id": document.rich_document_id,
         "deleted_receipt_event_id": receipt,
         "source_marked_stale": source_marked_stale,
+        "backlinks_deleted": backlinks_deleted,
+        "loom_block_deleted": true,
     })))
 }
 
@@ -1063,6 +1325,12 @@ async fn save_document(
     let validated_embeds = validate_block_embeds(&tree).map_err(|(block_id, err)| {
         bad_request(format!("embed block `{block_id}` target rejected: {err}"))
     })?;
+    let document_link_references = DocumentLinkReferences::extract(&tree);
+    let receipt_reference_targets: Vec<String> = document_link_references
+        .references
+        .iter()
+        .map(|reference| reference.target.clone())
+        .collect();
     let crdt_document_id =
         validated_save_crdt_document_id(&db, &document_id, body.crdt_document_id.as_deref())
             .await?;
@@ -1085,7 +1353,13 @@ async fn save_document(
         &ctx,
         KernelEventType::KnowledgeRichDocumentSaved,
         &saved.rich_document_id,
-        json!({"event": "saved", "doc_version": saved.doc_version}),
+        json!({
+            "event": "saved",
+            "doc_version": saved.doc_version,
+            "workspace_id": saved.workspace_id.clone(),
+            "content_hash": saved.content_sha256.clone(),
+            "reference_targets": receipt_reference_targets,
+        }),
     )
     .await;
 
@@ -1103,8 +1377,7 @@ async fn save_document(
     let mut knowledge_index_error: Option<String> = None;
     match ctx.require(DocumentAction::Index) {
         Ok(()) => {
-            let refs = DocumentLinkReferences::extract(&tree);
-            let upserts: Vec<UpsertKnowledgeDocumentBacklink> = refs
+            let upserts: Vec<UpsertKnowledgeDocumentBacklink> = document_link_references
                 .references
                 .iter()
                 .map(|r| UpsertKnowledgeDocumentBacklink {
@@ -1433,7 +1706,7 @@ async fn repair_embed(
     })))
 }
 
-/// GET /knowledge/documents/:document_id/backlinks — forward backlinks (MT-155).
+/// GET /knowledge/documents/:document_id/backlinks — inbound backlinks (MT-155).
 async fn list_backlinks(
     State(state): State<AppState>,
     Path(document_id): Path<String>,
@@ -1442,10 +1715,49 @@ async fn list_backlinks(
     let ctx = doc_context(&headers)?;
     ctx.require(DocumentAction::Read)?;
     let db = db_for(&state);
-    let backlinks = db
-        .list_knowledge_document_backlinks_from(&document_id)
+    let document = db
+        .get_knowledge_rich_document(&document_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| not_found("knowledge rich document"))?;
+    let mut backlinks = db
+        .list_knowledge_document_backlinks_to(
+            &document.workspace_id,
+            "wikilink",
+            &document.rich_document_id,
+        )
         .await
         .map_err(storage_error)?;
+    // Wikilinks authored as `[[Title]]` store their human title as the
+    // target, while structured hsLink nodes store the stable document id.
+    // Both forms are inbound references to this document.
+    let same_title_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM knowledge_rich_documents \
+         WHERE workspace_id = $1 AND title = $2 AND deleted_at IS NULL",
+    )
+    .bind(&document.workspace_id)
+    .bind(&document.title)
+    .fetch_one(&state.postgres_pool)
+    .await
+    .map_err(|err| storage_error(StorageError::from(err)))?;
+    if same_title_count == 1 && document.title != document.rich_document_id {
+        let title_backlinks = db
+            .list_knowledge_document_backlinks_to(
+                &document.workspace_id,
+                "wikilink",
+                &document.title,
+            )
+            .await
+            .map_err(storage_error)?;
+        for backlink in title_backlinks {
+            if !backlinks
+                .iter()
+                .any(|existing| existing.relationship_id == backlink.relationship_id)
+            {
+                backlinks.push(backlink);
+            }
+        }
+    }
     Ok(Json(json!({
         "source_document_id": document_id,
         "backlinks": backlinks,
@@ -1515,7 +1827,7 @@ async fn rename_document(
         return Err(bad_request("title must be non-empty"));
     }
     let updated = db
-        .rename_knowledge_rich_document(&document_id, &title)
+        .rename_knowledge_rich_document(&document_id, &title, body.expected_updated_at)
         .await
         .map_err(storage_error)?;
     let (receipt, receipt_error) = record_receipt_non_fatal(
@@ -1631,7 +1943,7 @@ async fn batch_documents(
                     if title.is_empty() {
                         Err(StorageError::Validation("title must be non-empty"))
                     } else {
-                        db.rename_knowledge_rich_document(&document_id, &title)
+                        db.rename_knowledge_rich_document(&document_id, &title, None)
                             .await
                     }
                 }
@@ -1681,6 +1993,7 @@ async fn batch_documents(
                 .await;
                 results.push(json!({
                     "document_id": document_id,
+                    "block_id": updated.block_id,
                     "op": op_name,
                     "ok": true,
                     "save_receipt_event_id": receipt,

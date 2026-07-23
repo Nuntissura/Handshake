@@ -4068,14 +4068,48 @@ fn require_artifact_handle_object(
     validate_artifact_handle_value(require_key(map, key)?, key)
 }
 
-fn require_artifact_handle_object_or_null(
-    map: &Map<String, Value>,
-    key: &str,
-) -> Result<(), RecorderError> {
-    match require_key(map, key)? {
-        Value::Null => Ok(()),
-        value => validate_artifact_handle_value(value, key),
+fn require_entity_ref_array(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
+    let refs = match require_key(map, key)? {
+        Value::Array(refs) => refs,
+        _ => {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {key} must be an array of EntityRef objects"
+            )))
+        }
+    };
+    for (index, value) in refs.iter().enumerate() {
+        let entity_ref = value.as_object().ok_or_else(|| {
+            RecorderError::InvalidEvent(format!(
+                "payload field {key}[{index}] must be an EntityRef object"
+            ))
+        })?;
+        require_allowed_keys(
+            entity_ref,
+            &["artefact_type", "artefact_id", "selector"],
+            &[],
+        )?;
+        require_safe_token_string(entity_ref, "artefact_type", 128)?;
+        require_safe_token_string(entity_ref, "selector", 512)?;
+        let artefact_id = match require_key(entity_ref, "artefact_id")? {
+            Value::String(value) => value,
+            _ => {
+                return Err(RecorderError::InvalidEvent(format!(
+                    "payload field {key}[{index}].artefact_id must be a UUID string"
+                )))
+            }
+        };
+        let parsed = Uuid::parse_str(artefact_id).map_err(|_| {
+            RecorderError::InvalidEvent(format!(
+                "payload field {key}[{index}].artefact_id must be a non-nil UUID"
+            ))
+        })?;
+        if parsed.is_nil() {
+            return Err(RecorderError::InvalidEvent(format!(
+                "payload field {key}[{index}].artefact_id must be a non-nil UUID"
+            )));
+        }
     }
+    Ok(())
 }
 
 fn validate_memory_write_proposed_payload(payload: &Value) -> Result<(), RecorderError> {
@@ -4084,7 +4118,7 @@ fn validate_memory_write_proposed_payload(payload: &Value) -> Result<(), Recorde
         map,
         &[
             "type",
-            "event_id",
+            "event_code",
             "proposal_id",
             "proposal_hash",
             "artifact_ref",
@@ -4096,19 +4130,13 @@ fn validate_memory_write_proposed_payload(payload: &Value) -> Result<(), Recorde
     )?;
 
     require_fixed_string(map, "type", "memory_write_proposed")?;
-    require_fixed_string(map, "event_id", "FR-EVT-MEM-001")?;
+    require_fixed_string(map, "event_code", "FR-EVT-MEM-001")?;
     require_safe_token_string(map, "proposal_id", 256)?;
     require_sha256_hex(map, "proposal_hash")?;
     require_artifact_handle_object(map, "artifact_ref")?;
-    for scope_ref in require_string_array_allow_empty(map, "scope_refs")? {
-        if !is_safe_token(scope_ref, 256) {
-            return Err(RecorderError::InvalidEvent(
-                "payload field scope_refs must contain safe reference tokens".to_string(),
-            ));
-        }
-    }
-    require_number(map, "op_count")?;
-    require_number(map, "requires_review_count")?;
+    require_entity_ref_array(map, "scope_refs")?;
+    require_non_negative_integer(map, "op_count")?;
+    require_non_negative_integer(map, "requires_review_count")?;
     Ok(())
 }
 
@@ -4118,17 +4146,16 @@ fn validate_memory_write_reviewed_payload(payload: &Value) -> Result<(), Recorde
         map,
         &[
             "type",
-            "event_id",
+            "event_code",
             "proposal_id",
             "decision",
             "reviewer_kind",
-            "commit_report_ref",
         ],
-        &[],
+        &["commit_report_ref"],
     )?;
 
     require_fixed_string(map, "type", "memory_write_reviewed")?;
-    require_fixed_string(map, "event_id", "FR-EVT-MEM-002")?;
+    require_fixed_string(map, "event_code", "FR-EVT-MEM-002")?;
     require_safe_token_string(map, "proposal_id", 256)?;
     match require_key(map, "decision")? {
         Value::String(value) if matches!(value.as_str(), "approved" | "rejected" | "partial") => {}
@@ -4146,7 +4173,9 @@ fn validate_memory_write_reviewed_payload(payload: &Value) -> Result<(), Recorde
             ));
         }
     }
-    require_artifact_handle_object_or_null(map, "commit_report_ref")?;
+    if map.contains_key("commit_report_ref") {
+        require_artifact_handle_object(map, "commit_report_ref")?;
+    }
     Ok(())
 }
 
@@ -4156,7 +4185,7 @@ fn validate_memory_write_committed_payload(payload: &Value) -> Result<(), Record
         map,
         &[
             "type",
-            "event_id",
+            "event_code",
             "commit_id",
             "proposal_id",
             "commit_report_hash",
@@ -4167,7 +4196,7 @@ fn validate_memory_write_committed_payload(payload: &Value) -> Result<(), Record
     )?;
 
     require_fixed_string(map, "type", "memory_write_committed")?;
-    require_fixed_string(map, "event_id", "FR-EVT-MEM-003")?;
+    require_fixed_string(map, "event_code", "FR-EVT-MEM-003")?;
     require_safe_token_string(map, "commit_id", 256)?;
     require_safe_token_string(map, "proposal_id", 256)?;
     require_sha256_hex(map, "commit_report_hash")?;
@@ -4182,7 +4211,7 @@ fn validate_memory_pack_built_payload(payload: &Value) -> Result<(), RecorderErr
         map,
         &[
             "type",
-            "event_id",
+            "event_code",
             "pack_id",
             "memory_pack_hash",
             "artifact_ref",
@@ -4191,14 +4220,12 @@ fn validate_memory_pack_built_payload(payload: &Value) -> Result<(), RecorderErr
             "item_count",
             "token_estimate",
             "truncation_occurred",
-            "selected_memory_ids_hash",
-            "redaction_applied",
         ],
         &[],
     )?;
 
     require_fixed_string(map, "type", "memory_pack_built")?;
-    require_fixed_string(map, "event_id", "FR-EVT-MEM-004")?;
+    require_fixed_string(map, "event_code", "FR-EVT-MEM-004")?;
     require_safe_token_string(map, "pack_id", 256)?;
     require_sha256_hex(map, "memory_pack_hash")?;
     require_artifact_handle_object(map, "artifact_ref")?;
@@ -4213,18 +4240,10 @@ fn validate_memory_pack_built_payload(payload: &Value) -> Result<(), RecorderErr
                 .to_string(),
         )),
     }
-    for scope_ref in require_string_array_allow_empty(map, "scope_refs")? {
-        if !is_safe_token(scope_ref, 256) {
-            return Err(RecorderError::InvalidEvent(
-                "payload field scope_refs must contain safe reference tokens".to_string(),
-            ));
-        }
-    }
-    require_number(map, "item_count")?;
-    require_number(map, "token_estimate")?;
+    require_entity_ref_array(map, "scope_refs")?;
+    require_non_negative_integer(map, "item_count")?;
+    require_non_negative_integer(map, "token_estimate")?;
     require_bool(map, "truncation_occurred")?;
-    require_sha256_hex(map, "selected_memory_ids_hash")?;
-    require_bool(map, "redaction_applied")?;
     Ok(())
 }
 
@@ -4234,7 +4253,7 @@ fn validate_memory_item_status_changed_payload(payload: &Value) -> Result<(), Re
         map,
         &[
             "type",
-            "event_id",
+            "event_code",
             "memory_id",
             "previous_status",
             "new_status",
@@ -4245,12 +4264,31 @@ fn validate_memory_item_status_changed_payload(payload: &Value) -> Result<(), Re
     )?;
 
     require_fixed_string(map, "type", "memory_item_status_changed")?;
-    require_fixed_string(map, "event_id", "FR-EVT-MEM-005")?;
+    require_fixed_string(map, "event_code", "FR-EVT-MEM-005")?;
     require_safe_token_string(map, "memory_id", 256)?;
     require_safe_token_string(map, "previous_status", 64)?;
     require_safe_token_string(map, "new_status", 64)?;
-    require_safe_token_string(map, "reason", 64)?;
-    require_safe_token_string(map, "actor", 64)?;
+    match require_key(map, "reason")? {
+        Value::String(value)
+            if matches!(
+                value.as_str(),
+                "pin" | "unpin" | "invalidate" | "tombstone" | "supersede" | "merge"
+            ) => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field reason must be one of: pin, unpin, invalidate, tombstone, supersede, merge"
+                    .to_string(),
+            ))
+        }
+    }
+    match require_key(map, "actor")? {
+        Value::String(value) if matches!(value.as_str(), "user" | "job" | "policy") => {}
+        _ => {
+            return Err(RecorderError::InvalidEvent(
+                "payload field actor must be one of: user, job, policy".to_string(),
+            ))
+        }
+    }
     Ok(())
 }
 
@@ -6038,12 +6076,25 @@ pub struct EventFilter {
     pub trace_id: Option<Uuid>,
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
+    /// Storage-level filters. These must be applied before the recorder's bounded result window;
+    /// filtering a globally truncated page in an API adapter can hide matching authoritative rows.
+    pub actor: Option<String>,
+    pub actor_id: Option<String>,
+    pub surface: Option<String>,
+    pub event_type: Option<String>,
+    pub wsid: Option<String>,
 }
 
 #[async_trait]
 pub trait FlightRecorder: Send + Sync {
     /// Records a canonical event. MUST validate shape against FR-EVT schemas.
     async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError>;
+
+    /// Remove every recorder row attributed to a deleted workspace. Recorders without durable
+    /// workspace-scoped storage may retain the default no-op; durable implementations override it.
+    async fn delete_workspace_events(&self, _workspace_id: &str) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
 
     /// If backed by DuckDB, returns the shared connection so subsystems can create additional tables
     /// in the existing `data/flight_recorder.db` file.
@@ -6819,14 +6870,18 @@ mod tests {
     fn test_memory_event_payload_validation_accepts_hash_only_shapes() {
         let proposed = json!({
             "type": "memory_write_proposed",
-            "event_id": "FR-EVT-MEM-001",
+            "event_code": "FR-EVT-MEM-001",
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "proposal_hash": DUMMY_SHA256,
             "artifact_ref": {
                 "artifact_id": "550e8400-e29b-41d4-a716-44665544000a",
                 "path": ".handshake/fems/proposals/550e8400-e29b-41d4-a716-446655440000.json"
             },
-            "scope_refs": ["workspace:550e8400-e29b-41d4-a716-446655440001"],
+            "scope_refs": [{
+                "artefact_type": "workspace",
+                "artefact_id": "550e8400-e29b-41d4-a716-446655440001",
+                "selector": "self"
+            }],
             "op_count": 2,
             "requires_review_count": 1
         });
@@ -6834,7 +6889,7 @@ mod tests {
 
         let reviewed = json!({
             "type": "memory_write_reviewed",
-            "event_id": "FR-EVT-MEM-002",
+            "event_code": "FR-EVT-MEM-002",
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "decision": "approved",
             "reviewer_kind": "user",
@@ -6847,7 +6902,7 @@ mod tests {
 
         let committed = json!({
             "type": "memory_write_committed",
-            "event_id": "FR-EVT-MEM-003",
+            "event_code": "FR-EVT-MEM-003",
             "commit_id": "550e8400-e29b-41d4-a716-446655440002",
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "commit_report_hash": DUMMY_SHA256,
@@ -6861,7 +6916,7 @@ mod tests {
 
         let pack_built = json!({
             "type": "memory_pack_built",
-            "event_id": "FR-EVT-MEM-004",
+            "event_code": "FR-EVT-MEM-004",
             "pack_id": "550e8400-e29b-41d4-a716-446655440003",
             "memory_pack_hash": DUMMY_SHA256,
             "artifact_ref": {
@@ -6869,18 +6924,20 @@ mod tests {
                 "path": ".handshake/fems/packs/550e8400-e29b-41d4-a716-446655440003.json"
             },
             "memory_policy": "WORKSPACE_SCOPED",
-            "scope_refs": ["workspace:550e8400-e29b-41d4-a716-446655440001"],
+            "scope_refs": [{
+                "artefact_type": "workspace",
+                "artefact_id": "550e8400-e29b-41d4-a716-446655440001",
+                "selector": "self"
+            }],
             "item_count": 4,
             "token_estimate": 128,
-            "truncation_occurred": false,
-            "selected_memory_ids_hash": DUMMY_SHA256,
-            "redaction_applied": false
+            "truncation_occurred": false
         });
         assert!(validate_memory_pack_built_payload(&pack_built).is_ok());
 
         let status_changed = json!({
             "type": "memory_item_status_changed",
-            "event_id": "FR-EVT-MEM-005",
+            "event_code": "FR-EVT-MEM-005",
             "memory_id": "mem_001",
             "previous_status": "active",
             "new_status": "superseded",
@@ -6894,7 +6951,7 @@ mod tests {
     fn test_memory_event_payload_validation_rejects_unexpected_content_fields() {
         let mut payload = json!({
             "type": "memory_write_proposed",
-            "event_id": "FR-EVT-MEM-001",
+            "event_code": "FR-EVT-MEM-001",
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "proposal_hash": DUMMY_SHA256,
             "artifact_ref": {
@@ -6915,6 +6972,54 @@ mod tests {
             validate_memory_write_proposed_payload(&payload),
             Err(RecorderError::InvalidEvent(_))
         ));
+    }
+
+    #[test]
+    fn test_memory_event_payload_validation_rejects_legacy_keys_and_invalid_enums() {
+        let legacy_event_id = json!({
+            "type": "memory_write_proposed",
+            "event_id": "FR-EVT-MEM-001",
+            "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+            "proposal_hash": DUMMY_SHA256,
+            "artifact_ref": {
+                "artifact_id": "550e8400-e29b-41d4-a716-44665544000e",
+                "path": "/workspaces/550e8400-e29b-41d4-a716-446655440001/memory/proposals/550e8400-e29b-41d4-a716-446655440000/artifact"
+            },
+            "scope_refs": [],
+            "op_count": 1,
+            "requires_review_count": 1
+        });
+        assert!(validate_memory_write_proposed_payload(&legacy_event_id).is_err());
+
+        let invalid_review = json!({
+            "type": "memory_write_reviewed",
+            "event_code": "FR-EVT-MEM-002",
+            "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+            "decision": "accepted",
+            "reviewer_kind": "operator"
+        });
+        assert!(validate_memory_write_reviewed_payload(&invalid_review).is_err());
+
+        let review_with_unknown_field = json!({
+            "type": "memory_write_reviewed",
+            "event_code": "FR-EVT-MEM-002",
+            "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+            "decision": "approved",
+            "reviewer_kind": "user",
+            "unexpected": true
+        });
+        assert!(validate_memory_write_reviewed_payload(&review_with_unknown_field).is_err());
+
+        let invalid_status = json!({
+            "type": "memory_item_status_changed",
+            "event_code": "FR-EVT-MEM-005",
+            "memory_id": "mem_001",
+            "previous_status": "active",
+            "new_status": "deleted",
+            "reason": "delete",
+            "actor": "assistant"
+        });
+        assert!(validate_memory_item_status_changed_payload(&invalid_status).is_err());
     }
 
     // -----------------------------------------------------------------------

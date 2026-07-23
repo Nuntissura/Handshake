@@ -99,6 +99,9 @@ pub const CODE_SYMBOL_SEARCH_ROLE: accesskit::Role = accesskit::Role::Dialog;
 /// real role are reconciled to `TextInput` here, the same documented-deviation pattern MT-003 used).
 pub const CODE_SYMBOL_SEARCH_INPUT_ROLE: accesskit::Role = accesskit::Role::TextInput;
 
+/// The result collection is a selectable list, not the slash-command menu that launched it.
+pub const CODE_SYMBOL_RESULT_ROLE: accesskit::Role = accesskit::Role::ListItem;
+
 /// Build the stable AccessKit author_id for a code-symbol search result row.
 pub fn code_symbol_result_author_id(symbol_entity_id: &str) -> String {
     format!("{CODE_SYMBOL_RESULT_AUTHOR_ID_PREFIX}{symbol_entity_id}")
@@ -354,7 +357,9 @@ pub fn render_code_symbol_search_dialog(
             );
             ctx.accesskit_node_builder(input.id, |node| {
                 node.set_role(CODE_SYMBOL_SEARCH_INPUT_ROLE);
-                node.set_author_id(CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID.to_owned());
+                node.set_author_id(crate::rich_editor::scoped_author_id(
+                    CODE_SYMBOL_SEARCH_INPUT_AUTHOR_ID,
+                ));
                 node.set_label("Search code symbols".to_owned());
             });
 
@@ -386,8 +391,8 @@ pub fn render_code_symbol_search_dialog(
                     let author = code_symbol_result_author_id(&sym.symbol_entity_id);
                     let name_for_node = sym.display_name.clone();
                     ctx.accesskit_node_builder(label.id, move |node| {
-                        node.set_role(SLASH_ITEM_ROLE);
-                        node.set_author_id(author.clone());
+                        node.set_role(CODE_SYMBOL_RESULT_ROLE);
+                        node.set_author_id(crate::rich_editor::scoped_author_id(author.clone()));
                         node.set_label(name_for_node.clone());
                         node.add_action(accesskit::Action::Click);
                     });
@@ -405,7 +410,9 @@ pub fn render_code_symbol_search_dialog(
     let dialog_id = egui::Id::new(CODE_SYMBOL_SEARCH_AUTHOR_ID).with("dialog-node");
     ctx.accesskit_node_builder(dialog_id, |node| {
         node.set_role(CODE_SYMBOL_SEARCH_ROLE);
-        node.set_author_id(CODE_SYMBOL_SEARCH_AUTHOR_ID.to_owned());
+        node.set_author_id(crate::rich_editor::scoped_author_id(
+            CODE_SYMBOL_SEARCH_AUTHOR_ID,
+        ));
         node.set_label("Insert code reference".to_owned());
     });
 

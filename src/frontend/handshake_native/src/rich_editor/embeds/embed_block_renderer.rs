@@ -25,6 +25,7 @@
 //! fetcher + the workspace id; a render call borrows it `&mut`.
 
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use egui::accesskit;
 
@@ -32,7 +33,7 @@ use crate::rich_editor::document_model::node::HsLinkNode;
 use crate::rich_editor::embeds::album_view::{self, AlbumViewState};
 use crate::rich_editor::embeds::asset_resolver::{
     AssetMetadataFetcher, EmbedError, EmbedResolutionCache, EmbedResolutionState, MediaEmbedKind,
-    ResolvedAsset, SequenceItem,
+    MediaTier, ResolvedAsset, SequenceItem, EMBED_OPERATION_TIMEOUT, MAX_CONCURRENT_RESOLUTIONS,
 };
 use crate::rich_editor::embeds::image_view::{self, EmbedTextureCache};
 use crate::rich_editor::embeds::slideshow_view::{self, SlideshowViewState};
@@ -41,14 +42,26 @@ use crate::rich_editor::embeds::video_view::{
 };
 use crate::theme::HsPalette;
 
-/// One-slot delivery cell for an off-thread single-asset resolution (the MT-009 delivery-cell
-/// pattern reused across the shell): the spawned task writes the terminal state here; the egui
-/// UI thread drains it next frame into the [`EmbedResolutionCache`].
-type SingleDeliveryCell = Arc<Mutex<Option<(String, EmbedResolutionState)>>>;
+type Generation = u64;
 
-/// One-slot delivery cell for an off-thread album/slideshow sequence resolution: keyed by the
+/// Generation-stamped multi-result queue for off-thread single-asset resolutions. A queue is
+/// required because several embeds may finish between two frames; a one-slot cell silently lost
+/// all but the last completion and left the overwritten assets permanently `Resolving`.
+type SingleDeliveryCell =
+    Arc<Mutex<Vec<(Generation, MediaEmbedKind, String, EmbedResolutionState)>>>;
+
+/// Multi-result delivery queue for off-thread album/slideshow sequence resolutions: keyed by the
 /// embed's ref_value, carrying the per-member items.
-type SequenceDeliveryCell = Arc<Mutex<Option<(String, Result<Vec<SequenceItem>, EmbedError>)>>>;
+type SequenceDeliveryCell = Arc<
+    Mutex<
+        Vec<(
+            Generation,
+            MediaEmbedKind,
+            String,
+            Result<Vec<SequenceItem>, EmbedError>,
+        )>,
+    >,
+>;
 
 /// Multi-slot delivery cell for off-thread image CONTENT decode results (MC-001): the spawned
 /// task fetches `GET .../content`, decodes the bytes on `tokio::spawn_blocking`, and writes the
@@ -57,7 +70,17 @@ type SequenceDeliveryCell = Arc<Mutex<Option<(String, Result<Vec<SequenceItem>, 
 /// MUST happen on the egui thread — only the platform-independent RGBA `ColorImage` crosses the
 /// thread boundary, impl note 2). A `Vec` (not a single slot) so several images in one document
 /// can deliver in the same frame without clobbering each other.
-type ContentDeliveryCell = Arc<Mutex<Vec<(String, Result<egui::ColorImage, EmbedError>)>>>;
+type ContentDeliveryCell = Arc<
+    Mutex<
+        Vec<(
+            Generation,
+            MediaEmbedKind,
+            MediaTier,
+            String,
+            Result<egui::ColorImage, EmbedError>,
+        )>,
+    >,
+>;
 
 /// A resolved (or failed) album/slideshow sequence, cached per ref_value so the sequence is
 /// resolved ONCE (AC-9 at the sequence level).
@@ -93,8 +116,11 @@ pub struct EmbedRuntime {
     /// Per-asset decoded `ColorImage` awaiting upload on the egui thread. Populated by
     /// [`Self::drain_deliveries`] from the off-thread content-fetch+decode pipeline; consumed
     /// (uploaded + removed) by [`render_resolved_image`] on the egui thread. A decode error is
-    /// folded into the resolution cache as `Err` so the typed error chip shows (MC-005).
+    /// retained under the matching kind+tier key so the typed error chip shows (MC-005).
     pub decoded_images: std::collections::HashMap<String, egui::ColorImage>,
+    /// Terminal fetch/decode failures are kept per kind+tier+asset. A failed thumbnail must not
+    /// poison the metadata cache or a poster/full-size request for the same backend asset.
+    media_errors: std::collections::HashMap<String, EmbedError>,
     /// Asset ids whose CONTENT fetch+decode has been kicked off (so the bytes pipeline runs
     /// ONCE per asset, mirroring the metadata AC-9 caching for the content fetch).
     content_in_flight: std::collections::HashSet<String>,
@@ -102,6 +128,8 @@ pub struct EmbedRuntime {
     pub slideshow_states: std::collections::HashMap<String, SlideshowViewState>,
     /// Per-ref_value album modal state.
     pub album_states: std::collections::HashMap<String, AlbumViewState>,
+    /// Single-image assets whose full-size modal is open.
+    pub image_modals: std::collections::HashSet<String>,
     /// Per-asset video reveal state.
     pub video_states: std::collections::HashMap<String, VideoViewState>,
     /// Delivery cell for off-thread single resolutions (drained at frame top).
@@ -110,9 +138,62 @@ pub struct EmbedRuntime {
     sequence_cell: SequenceDeliveryCell,
     /// Delivery cell for off-thread image-content decodes (drained at frame top).
     content_cell: ContentDeliveryCell,
+    /// Workspace snapshot used to detect direct shell rebinding through `workspace_id`.
+    context_workspace_id: String,
+    /// Monotonic identity carried by every async delivery. Results from an older workspace are
+    /// discarded even if they arrive after cancellation.
+    generation: Generation,
+    /// Owned tasks are aborted on workspace rebind and runtime teardown.
+    pending_tasks: Vec<tokio::task::JoinHandle<()>>,
+    /// Upper bound for every remote metadata/content operation. Kept on the runtime so tests can
+    /// prove timeout recovery without waiting for the production bound.
+    operation_timeout: Duration,
+    /// One shared <=6 budget across metadata, collection, body fetch, and decode work.
+    work_budget: Arc<tokio::sync::Semaphore>,
 }
 
 impl EmbedRuntime {
+    fn resolution_key(kind: MediaEmbedKind, asset_id: &str) -> String {
+        format!("{}:{asset_id}", kind.ref_kind())
+    }
+
+    fn sequence_key(kind: MediaEmbedKind, ref_value: &str) -> String {
+        format!("{}:{ref_value}", kind.ref_kind())
+    }
+
+    fn media_key(kind: MediaEmbedKind, tier: MediaTier, asset_id: &str) -> String {
+        format!("{}:{}:{asset_id}", kind.ref_kind(), tier.as_str())
+    }
+
+    fn resolution(&self, kind: MediaEmbedKind, asset_id: &str) -> Option<&EmbedResolutionState> {
+        self.resolutions.get(&Self::resolution_key(kind, asset_id))
+    }
+
+    fn sequence(&self, kind: MediaEmbedKind, ref_value: &str) -> Option<&SequenceState> {
+        self.sequences.get(&Self::sequence_key(kind, ref_value))
+    }
+
+    fn retry_asset(&mut self, kind: MediaEmbedKind, asset_id: &str) {
+        self.resolutions
+            .remove(&Self::resolution_key(kind, asset_id));
+        for tier in [
+            MediaTier::Thumbnail,
+            MediaTier::Preview,
+            MediaTier::Poster,
+            MediaTier::Full,
+        ] {
+            let key = Self::media_key(kind, tier, asset_id);
+            self.textures.remove(&key);
+            self.decoded_images.remove(&key);
+            self.content_in_flight.remove(&key);
+            self.media_errors.remove(&key);
+        }
+    }
+
+    fn retry_sequence(&mut self, kind: MediaEmbedKind, ref_value: &str) {
+        self.sequences.remove(&Self::sequence_key(kind, ref_value));
+    }
+
     /// Build a runtime over `fetcher` for `workspace_id`/`base_url`, bridging async resolution
     /// onto `runtime` (pass `None` only for headless tests that do not spawn).
     pub fn new(
@@ -121,8 +202,10 @@ impl EmbedRuntime {
         fetcher: Arc<dyn AssetMetadataFetcher>,
         runtime: Option<tokio::runtime::Handle>,
     ) -> Self {
+        let workspace_id = workspace_id.into();
         Self {
-            workspace_id: workspace_id.into(),
+            context_workspace_id: workspace_id.clone(),
+            workspace_id,
             base_url: base_url.into(),
             fetcher,
             runtime,
@@ -130,14 +213,46 @@ impl EmbedRuntime {
             sequences: std::collections::HashMap::new(),
             textures: EmbedTextureCache::new(),
             decoded_images: std::collections::HashMap::new(),
+            media_errors: std::collections::HashMap::new(),
             content_in_flight: std::collections::HashSet::new(),
             slideshow_states: std::collections::HashMap::new(),
             album_states: std::collections::HashMap::new(),
+            image_modals: std::collections::HashSet::new(),
             video_states: std::collections::HashMap::new(),
-            single_cell: Arc::new(Mutex::new(None)),
-            sequence_cell: Arc::new(Mutex::new(None)),
+            single_cell: Arc::new(Mutex::new(Vec::new())),
+            sequence_cell: Arc::new(Mutex::new(Vec::new())),
             content_cell: Arc::new(Mutex::new(Vec::new())),
+            generation: 0,
+            pending_tasks: Vec::new(),
+            operation_timeout: EMBED_OPERATION_TIMEOUT,
+            work_budget: Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_RESOLUTIONS)),
         }
+    }
+
+    /// Reconcile the public shell-bound workspace field with all workspace-local caches. The
+    /// shell currently writes `workspace_id` directly; detecting that mutation here keeps every
+    /// render path safe without requiring a second host integration point.
+    fn sync_context(&mut self) {
+        if self.context_workspace_id == self.workspace_id {
+            self.pending_tasks.retain(|task| !task.is_finished());
+            return;
+        }
+
+        self.generation = self.generation.wrapping_add(1);
+        self.context_workspace_id.clone_from(&self.workspace_id);
+        for task in self.pending_tasks.drain(..) {
+            task.abort();
+        }
+        self.resolutions.clear();
+        self.sequences.clear();
+        self.textures.clear();
+        self.decoded_images.clear();
+        self.media_errors.clear();
+        self.content_in_flight.clear();
+        self.slideshow_states.clear();
+        self.album_states.clear();
+        self.image_modals.clear();
+        self.video_states.clear();
     }
 
     /// Drain any off-thread resolution results delivered since the last frame into the caches.
@@ -145,36 +260,50 @@ impl EmbedRuntime {
     /// embed re-renders. Returns true when a result was applied (the caller can request a
     /// repaint so the new state shows immediately).
     pub fn drain_deliveries(&mut self) -> bool {
+        self.sync_context();
         let mut applied = false;
-        if let Ok(mut slot) = self.single_cell.lock() {
-            if let Some((asset_id, state)) = slot.take() {
-                self.resolutions.insert(asset_id, state);
+        if let Ok(mut deliveries) = self.single_cell.lock() {
+            for (generation, kind, asset_id, state) in deliveries.drain(..) {
+                if generation != self.generation {
+                    continue;
+                }
+                self.resolutions
+                    .insert(Self::resolution_key(kind, &asset_id), state);
                 applied = true;
             }
         }
-        if let Ok(mut slot) = self.sequence_cell.lock() {
-            if let Some((ref_value, result)) = slot.take() {
+        if let Ok(mut deliveries) = self.sequence_cell.lock() {
+            for (generation, kind, ref_value, result) in deliveries.drain(..) {
+                if generation != self.generation {
+                    continue;
+                }
                 let state = match result {
                     Ok(items) => SequenceState::Items(Arc::new(items)),
                     Err(e) => SequenceState::Err(e),
                 };
-                self.sequences.insert(ref_value, state);
+                self.sequences
+                    .insert(Self::sequence_key(kind, &ref_value), state);
                 applied = true;
             }
         }
         // Drain off-thread image-content decode results. A decoded ColorImage is parked in
         // `decoded_images` for the egui thread to upload (impl note 2: the upload must be on the
-        // egui thread). A decode/fetch FAILURE is folded into the resolution cache as Err so the
-        // typed error chip shows the failure (MC-005) instead of an eternal placeholder.
+        // egui thread). Decode/fetch failures remain tier-scoped so one failed representation
+        // cannot poison valid metadata or another media kind/tier for the same asset id.
         if let Ok(mut deliveries) = self.content_cell.lock() {
-            for (asset_id, result) in deliveries.drain(..) {
+            for (generation, kind, tier, asset_id, result) in deliveries.drain(..) {
+                if generation != self.generation {
+                    continue;
+                }
+                let media_key = Self::media_key(kind, tier, &asset_id);
+                self.content_in_flight.remove(&media_key);
                 match result {
                     Ok(image) => {
-                        self.decoded_images.insert(asset_id, image);
+                        self.media_errors.remove(&media_key);
+                        self.decoded_images.insert(media_key, image);
                     }
                     Err(e) => {
-                        self.resolutions
-                            .insert(asset_id, EmbedResolutionState::Err(e));
+                        self.media_errors.insert(media_key, e);
                     }
                 }
                 applied = true;
@@ -187,36 +316,54 @@ impl EmbedRuntime {
     /// not already in flight, mark it `Resolving` and spawn the fetch (AC-9: a terminal asset is
     /// never re-fetched). A no-op when there is no runtime (headless test path).
     fn ensure_single(&mut self, kind: MediaEmbedKind, asset_id: &str) {
-        if !self.resolutions.needs_fetch(asset_id) {
+        self.sync_context();
+        let cache_key = Self::resolution_key(kind, asset_id);
+        if self.resolution(kind, asset_id).is_some() {
             return; // already resolving / resolved / failed — do not re-spawn (AC-9).
         }
-        self.resolutions
-            .insert(asset_id.to_owned(), EmbedResolutionState::Resolving);
         let Some(runtime) = self.runtime.clone() else {
-            return; // headless: the caller seeds the cache directly in tests.
+            return; // do not strand the asset in Resolving; retry once a runtime is attached.
         };
+        self.resolutions
+            .insert(cache_key, EmbedResolutionState::Resolving);
         let fetcher = Arc::clone(&self.fetcher);
         let cell = Arc::clone(&self.single_cell);
         let workspace_id = self.workspace_id.clone();
         let base_url = self.base_url.clone();
         let asset_id = asset_id.to_owned();
-        runtime.spawn(async move {
-            let result = crate::rich_editor::embeds::asset_resolver::resolve_one(
-                kind,
-                &workspace_id,
-                &asset_id,
-                &base_url,
-                fetcher.as_ref(),
-            )
-            .await;
+        let generation = self.generation;
+        let operation_timeout = self.operation_timeout;
+        let work_budget = Arc::clone(&self.work_budget);
+        let task = runtime.spawn(async move {
+            let result = tokio::time::timeout(operation_timeout, async {
+                let _permit = work_budget
+                    .acquire_owned()
+                    .await
+                    .map_err(|_| EmbedError::ServerError("embed work budget closed".to_owned()))?;
+                crate::rich_editor::embeds::asset_resolver::resolve_one(
+                    kind,
+                    &workspace_id,
+                    &asset_id,
+                    &base_url,
+                    fetcher.as_ref(),
+                )
+                .await
+            })
+            .await
+            .unwrap_or_else(|_| {
+                Err(EmbedError::TimedOut(format!(
+                    "resolving asset '{asset_id}' exceeded {operation_timeout:?}"
+                )))
+            });
             let state = match result {
                 Ok(r) => EmbedResolutionState::Ok(r),
                 Err(e) => EmbedResolutionState::Err(e),
             };
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some((asset_id, state));
+            if let Ok(mut deliveries) = cell.lock() {
+                deliveries.push((generation, kind, asset_id, state));
             }
         });
+        self.pending_tasks.push(task);
     }
 
     /// Ensure the CONTENT bytes for a resolved image asset are being (or have been) fetched +
@@ -226,72 +373,122 @@ impl EmbedRuntime {
     /// Runs ONCE per asset (`content_in_flight` guard), mirroring the metadata AC-9 caching. A
     /// no-op when there is no runtime (headless path — a test injects the decoded image directly).
     /// This is the production path that makes [`render_resolved_image`] reach its texture branch.
-    fn ensure_image_content(&mut self, asset_id: &str) {
+    fn ensure_image_content(&mut self, kind: MediaEmbedKind, asset_id: &str, tier: MediaTier) {
+        self.sync_context();
+        let media_key = Self::media_key(kind, tier, asset_id);
         // Already uploaded, already decoded-and-waiting, or already fetching -> do not re-fetch.
-        if self.textures.contains(asset_id)
-            || self.decoded_images.contains_key(asset_id)
-            || self.content_in_flight.contains(asset_id)
+        if self.textures.contains(&media_key)
+            || self.decoded_images.contains_key(&media_key)
+            || self.content_in_flight.contains(&media_key)
+            || self.media_errors.contains_key(&media_key)
         {
             return;
         }
         let Some(runtime) = self.runtime.clone() else {
             return; // headless: the caller delivers the decoded image directly in tests.
         };
-        self.content_in_flight.insert(asset_id.to_owned());
+        self.content_in_flight.insert(media_key);
         let fetcher = Arc::clone(&self.fetcher);
         let cell = Arc::clone(&self.content_cell);
         let workspace_id = self.workspace_id.clone();
         let asset_id = asset_id.to_owned();
-        runtime.spawn(async move {
-            // 1) Fetch the raw content bytes (GET .../content).
-            let bytes = fetcher.fetch_content(&workspace_id, &asset_id).await;
-            // 2) Decode off the async/UI thread (MC-001: decode is CPU-heavy — spawn_blocking).
-            let decoded = match bytes {
-                Ok(bytes) => tokio::task::spawn_blocking(move || image_view::decode_rgba(&bytes))
+        let generation = self.generation;
+        let operation_timeout = self.operation_timeout;
+        let work_budget = Arc::clone(&self.work_budget);
+        let task = runtime.spawn(async move {
+            // The single operation deadline covers queueing for the shared six-permit budget,
+            // transport/body streaming, and off-thread decode. A saturated budget therefore
+            // becomes a typed timeout instead of a permanent spinner.
+            let decoded = tokio::time::timeout(operation_timeout, async {
+                let permit = work_budget
+                    .acquire_owned()
                     .await
-                    .unwrap_or_else(|join_err| {
-                        Err(EmbedError::MediaLoadFailed(format!(
-                            "image decode task failed: {join_err}"
-                        )))
-                    }),
-                Err(e) => Err(e),
-            };
+                    .map_err(|_| EmbedError::ServerError("embed work budget closed".to_owned()))?;
+                // 1) Fetch the raw content bytes (GET .../content).
+                let bytes = fetcher
+                    .fetch_tier(&workspace_id, &asset_id, kind, tier)
+                    .await?;
+                // 2) Decode off the async/UI thread (MC-001).
+                tokio::task::spawn_blocking(move || {
+                    // `spawn_blocking` work cannot be cancelled once it starts. Move the shared
+                    // permit into the blocking closure so a timed-out caller cannot release its
+                    // concurrency slot while the decode is still consuming CPU/memory.
+                    let _permit = permit;
+                    image_view::decode_rgba(&bytes)
+                })
+                .await
+                .unwrap_or_else(|join_err| {
+                    Err(EmbedError::MediaLoadFailed(format!(
+                        "image decode task failed: {join_err}"
+                    )))
+                })
+            })
+            .await
+            .unwrap_or_else(|_| {
+                Err(EmbedError::TimedOut(format!(
+                    "loading pixels for asset '{asset_id}' exceeded {operation_timeout:?}"
+                )))
+            });
             // 3) Deliver the decoded ColorImage (or typed error) for the egui thread to upload.
             if let Ok(mut deliveries) = cell.lock() {
-                deliveries.push((asset_id, decoded));
+                deliveries.push((generation, kind, tier, asset_id, decoded));
             }
         });
+        self.pending_tasks.push(task);
     }
 
     /// Ensure an album/slideshow sequence is being (or has been) resolved (AC-9 at sequence
     /// level). A no-op when there is no runtime (headless test path).
     fn ensure_sequence(&mut self, kind: MediaEmbedKind, ref_value: &str) {
-        if self.sequences.contains_key(ref_value) {
+        self.sync_context();
+        let sequence_key = Self::sequence_key(kind, ref_value);
+        if self.sequence(kind, ref_value).is_some() {
             return; // already resolving / resolved.
         }
-        self.sequences
-            .insert(ref_value.to_owned(), SequenceState::Resolving);
         let Some(runtime) = self.runtime.clone() else {
-            return;
+            return; // retry when the host attaches its runtime; never leave a permanent spinner.
         };
+        self.sequences
+            .insert(sequence_key, SequenceState::Resolving);
         let fetcher = Arc::clone(&self.fetcher);
         let cell = Arc::clone(&self.sequence_cell);
         let workspace_id = self.workspace_id.clone();
         let base_url = self.base_url.clone();
         let ref_value = ref_value.to_owned();
-        runtime.spawn(async move {
-            let result = crate::rich_editor::embeds::asset_resolver::resolve_sequence(
-                kind,
-                &workspace_id,
-                &ref_value,
-                &base_url,
-                fetcher,
+        let generation = self.generation;
+        let operation_timeout = self.operation_timeout;
+        let work_budget = Arc::clone(&self.work_budget);
+        let task = runtime.spawn(async move {
+            let result = tokio::time::timeout(
+                operation_timeout,
+                crate::rich_editor::embeds::asset_resolver::resolve_sequence_with_budget(
+                    kind,
+                    &workspace_id,
+                    &ref_value,
+                    &base_url,
+                    fetcher,
+                    work_budget,
+                ),
             )
-            .await;
-            if let Ok(mut slot) = cell.lock() {
-                *slot = Some((ref_value, result));
+            .await
+            .unwrap_or_else(|_| {
+                Err(EmbedError::TimedOut(format!(
+                    "resolving sequence '{ref_value}' exceeded {operation_timeout:?}"
+                )))
+            });
+            if let Ok(mut deliveries) = cell.lock() {
+                deliveries.push((generation, kind, ref_value, result));
             }
         });
+        self.pending_tasks.push(task);
+    }
+}
+
+impl Drop for EmbedRuntime {
+    fn drop(&mut self) {
+        for task in self.pending_tasks.drain(..) {
+            task.abort();
+        }
     }
 }
 
@@ -360,11 +557,66 @@ fn render_single_image(
     };
     runtime.ensure_single(kind, &asset_id);
 
-    match runtime.resolutions.get(&asset_id).cloned() {
+    match runtime.resolution(kind, &asset_id).cloned() {
         None | Some(EmbedResolutionState::Resolving) => render_spinner(ui, kind, ref_value),
-        Some(EmbedResolutionState::Err(e)) => render_error_chip(ui, ref_value, &e, palette),
+        Some(EmbedResolutionState::Err(e)) => {
+            render_retryable_error(ui, kind, &asset_id, &e, runtime, palette)
+        }
         Some(EmbedResolutionState::Ok(resolved)) => {
-            render_resolved_image(ui, &asset_id, &resolved, runtime, palette, max_width);
+            let response = render_resolved_image(
+                ui,
+                kind,
+                MediaTier::Thumbnail,
+                &asset_id,
+                &resolved,
+                runtime,
+                palette,
+                max_width,
+            );
+            if response.clicked() {
+                runtime.image_modals.insert(asset_id.clone());
+            }
+
+            if runtime.image_modals.contains(&asset_id) {
+                let mut keep_open = true;
+                let mut close_clicked = false;
+                let modal = egui::Window::new(format!("Image: {asset_id}"))
+                    .id(egui::Id::new(("image-modal", &asset_id)))
+                    .collapsible(false)
+                    .open(&mut keep_open)
+                    .show(ui.ctx(), |ui| {
+                        let close = ui.button("Close");
+                        emit_node_author(
+                            ui.ctx(),
+                            close.id,
+                            accesskit::Role::Button,
+                            &format!("embed-image-modal-close-{asset_id}"),
+                        );
+                        close_clicked = close.clicked();
+                        let available = ui.available_width().max(1.0);
+                        let _ = render_resolved_image(
+                            ui,
+                            kind,
+                            MediaTier::Full,
+                            &asset_id,
+                            &resolved,
+                            runtime,
+                            palette,
+                            available,
+                        );
+                    });
+                if let Some(modal) = modal {
+                    emit_node_author(
+                        ui.ctx(),
+                        modal.response.id,
+                        accesskit::Role::Dialog,
+                        &format!("embed-image-modal-{asset_id}"),
+                    );
+                }
+                if close_clicked || !keep_open {
+                    runtime.image_modals.remove(&asset_id);
+                }
+            }
         }
     }
 }
@@ -382,36 +634,64 @@ fn render_single_image(
 ///      (drained in step 2's sibling path), so the NEXT frame shows the typed error chip (MC-005).
 fn render_resolved_image(
     ui: &mut egui::Ui,
+    kind: MediaEmbedKind,
+    tier: MediaTier,
     asset_id: &str,
     resolved: &ResolvedAsset,
     runtime: &mut EmbedRuntime,
     palette: &HsPalette,
     max_width: f32,
-) {
-    let author = format!("embed-image-{asset_id}");
+) -> egui::Response {
+    let media_key = EmbedRuntime::media_key(kind, tier, asset_id);
+    let author = if tier == MediaTier::Full {
+        format!("embed-image-full-{asset_id}")
+    } else {
+        format!("embed-image-{asset_id}")
+    };
+
+    if let Some(error) = runtime.media_errors.get(&media_key).cloned() {
+        let response = render_error_chip(ui, asset_id, &error, palette);
+        if is_retryable(&error) {
+            let retry = ui.button("Retry");
+            emit_node_author(
+                ui.ctx(),
+                retry.id,
+                accesskit::Role::Button,
+                &format!("embed-retry-{asset_id}"),
+            );
+            if retry.clicked() {
+                runtime.media_errors.remove(&media_key);
+                runtime.content_in_flight.remove(&media_key);
+                runtime.decoded_images.remove(&media_key);
+                runtime.textures.remove(&media_key);
+                ui.ctx().request_repaint();
+            }
+        }
+        return response;
+    }
 
     // (2) Upload a freshly-decoded image (delivered off-thread) on the egui thread, before the
     // texture-branch check, so the first frame after delivery already renders the real texture.
-    if !runtime.textures.contains(asset_id) {
-        if let Some(image) = runtime.decoded_images.remove(asset_id) {
-            let _texture = runtime.textures.upload(ui.ctx(), asset_id, image);
+    if !runtime.textures.contains(&media_key) {
+        if let Some(image) = runtime.decoded_images.remove(&media_key) {
+            let _texture = runtime.textures.upload(ui.ctx(), &media_key, image);
             ui.ctx().request_repaint();
         }
     }
 
     // (1) Texture ready -> render the decoded image at aspect-correct width (AC-1).
-    if let Some(texture) = runtime.textures.get(asset_id).cloned() {
+    if let Some(texture) = runtime.textures.get(&media_key).cloned() {
         let resp = ui
             .scope(|ui| image_view::render_image(ui, &texture, resolved, max_width))
             .inner;
         emit_node_author(ui.ctx(), resp.id, accesskit::Role::Image, &author);
-        return;
+        return resp;
     }
 
     // (3) No texture yet: drive the content fetch + off-thread decode (once) and show the
     // decoding spinner while the pixels load (fail-closed, never blank). The content URL is shown
     // beneath the spinner so the operator can inspect exactly what is loading.
-    runtime.ensure_image_content(asset_id);
+    runtime.ensure_image_content(kind, asset_id, tier);
     let label = resolved
         .asset
         .original_filename
@@ -428,10 +708,17 @@ fn render_resolved_image(
                 ui.add(egui::Spinner::new());
                 ui.colored_label(palette.text, format!("Decoding {label}…"));
             });
-            ui.colored_label(palette.text_subtle, &resolved.content_url);
+            let url = match tier {
+                MediaTier::Thumbnail => &resolved.thumbnail_url,
+                MediaTier::Preview => &resolved.preview_url,
+                MediaTier::Poster => &resolved.poster_url,
+                MediaTier::Full => &resolved.content_url,
+            };
+            ui.colored_label(palette.text_subtle, url);
         })
         .response;
     emit_node_author(ui.ctx(), resp.id, accesskit::Role::Image, &author);
+    resp
 }
 
 /// Render a `video` embed: poster/placeholder + play button + filename + content URL (never an
@@ -451,19 +738,25 @@ fn render_video(
     };
     runtime.ensure_single(MediaEmbedKind::Video, &asset_id);
 
-    let resolved = match runtime.resolutions.get(&asset_id).cloned() {
+    let resolved = match runtime
+        .resolution(MediaEmbedKind::Video, &asset_id)
+        .cloned()
+    {
         None | Some(EmbedResolutionState::Resolving) => {
             render_spinner(ui, MediaEmbedKind::Video, ref_value);
             return;
         }
         Some(EmbedResolutionState::Err(e)) => {
-            render_error_chip(ui, ref_value, &e, palette);
+            render_retryable_error(ui, MediaEmbedKind::Video, &asset_id, &e, runtime, palette);
             return;
         }
         Some(EmbedResolutionState::Ok(r)) => r,
     };
 
-    let state = runtime.video_states.entry(asset_id.clone()).or_default();
+    let was_revealed = runtime
+        .video_states
+        .get(&asset_id)
+        .is_some_and(|state| state.url_revealed);
     let filename = resolved
         .asset
         .original_filename
@@ -471,6 +764,7 @@ fn render_video(
         .unwrap_or_else(|| asset_id.clone());
     let container_author = video_view::container_author_id(&asset_id);
     let play_author = video_view::play_author_id(&asset_id);
+    let mut play_clicked = false;
 
     let frame = egui::Frame::new()
         .fill(palette.surface)
@@ -479,6 +773,17 @@ fn render_video(
         .corner_radius(6.0);
     let container = frame.show(ui, |ui| {
         ui.colored_label(palette.text, format!("Video: {filename}"));
+        let poster_width = ui.available_width().max(1.0);
+        let _poster = render_resolved_image(
+            ui,
+            MediaEmbedKind::Video,
+            MediaTier::Poster,
+            &asset_id,
+            &resolved,
+            runtime,
+            palette,
+            poster_width,
+        );
         // The play button: clicking dispatches through the focus-safe handler (no OS launch).
         let play = ui.button("\u{25B6} Play");
         emit_node_author(ui.ctx(), play.id, accesskit::Role::Button, &play_author);
@@ -486,11 +791,11 @@ fn render_video(
             let handler = InlineRevealPlayHandler;
             // The handler is focus-safe: it reveals the content URL inline (HBR-QUIET).
             let _activation = handler.on_play(&resolved.content_url);
-            state.url_revealed = true;
+            play_clicked = true;
         }
         // The content URL is ALWAYS visible (red-team RISK-4 control: the operator can inspect
         // exactly what would play); after a play click it is emphasized as the revealed target.
-        let url_color = if state.url_revealed {
+        let url_color = if was_revealed || play_clicked {
             palette.text
         } else {
             palette.text_subtle
@@ -498,9 +803,16 @@ fn render_video(
         ui.colored_label(url_color, &resolved.content_url);
         ui.colored_label(
             palette.text_subtle,
-            "In-process video decode is deferred to a future MT (poster placeholder).",
+            "Poster is loaded independently; Play reveals the bounded in-process media target.",
         );
     });
+    if play_clicked {
+        runtime
+            .video_states
+            .entry(asset_id.clone())
+            .or_default()
+            .url_revealed = true;
+    }
     emit_node_author(
         ui.ctx(),
         container.response.id,
@@ -509,26 +821,32 @@ fn render_video(
     );
 }
 
-/// Render a `slideshow` embed: one member at a time with wrapping prev/next. `_max_width` is
-/// accepted for parity with the single-image path (the sequence frame currently shows the
-/// member's metadata + content URL; the per-member texture-decode is the same follow-on as the
-/// single image, exercised by the integration test).
+/// Render a `slideshow` embed: one decoded image at a time with wrapping prev/next.
 fn render_slideshow(
     ui: &mut egui::Ui,
     ref_value: &str,
     runtime: &mut EmbedRuntime,
     palette: &HsPalette,
-    _max_width: f32,
+    max_width: f32,
 ) {
     runtime.ensure_sequence(MediaEmbedKind::Slideshow, ref_value);
-    let seq = runtime.sequences.get(ref_value).cloned();
+    let seq = runtime
+        .sequence(MediaEmbedKind::Slideshow, ref_value)
+        .cloned();
     let items = match seq {
         None | Some(SequenceState::Resolving) => {
             render_spinner(ui, MediaEmbedKind::Slideshow, ref_value);
             return;
         }
         Some(SequenceState::Err(e)) => {
-            render_error_chip(ui, ref_value, &e, palette);
+            render_retryable_sequence_error(
+                ui,
+                MediaEmbedKind::Slideshow,
+                ref_value,
+                &e,
+                runtime,
+                palette,
+            );
             return;
         }
         Some(SequenceState::Items(items)) => items,
@@ -537,17 +855,19 @@ fn render_slideshow(
     let first_token = slideshow_view::first_asset_token(ref_value);
     let container_author = slideshow_view::container_author_id(ref_value);
 
-    let state = runtime
+    let idx = runtime
         .slideshow_states
         .entry(ref_value.to_owned())
-        .or_default();
-    let idx = state.clamped_index(len);
+        .or_default()
+        .clamped_index(len);
 
     let frame = egui::Frame::new()
         .fill(palette.surface)
         .stroke(egui::Stroke::new(1.0, palette.border))
         .inner_margin(8.0)
         .corner_radius(6.0);
+    let mut prev_clicked = false;
+    let mut next_clicked = false;
     let container = frame.show(ui, |ui| {
         // Current frame.
         if let Some(item) = items.get(idx) {
@@ -566,9 +886,25 @@ fn render_slideshow(
                             len
                         ),
                     );
-                    ui.colored_label(palette.text_subtle, &resolved.content_url);
+                    let _ = render_resolved_image(
+                        ui,
+                        MediaEmbedKind::Slideshow,
+                        MediaTier::Full,
+                        &item.ref_value,
+                        resolved,
+                        runtime,
+                        palette,
+                        max_width,
+                    );
                 }
-                Err(e) => render_error_chip(ui, &item.ref_value, e, palette),
+                Err(e) => render_retryable_sequence_error(
+                    ui,
+                    MediaEmbedKind::Slideshow,
+                    ref_value,
+                    e,
+                    runtime,
+                    palette,
+                ),
             }
         }
         // Prev / position / next controls.
@@ -581,7 +917,7 @@ fn render_slideshow(
                 &slideshow_view::prev_author_id(&first_token),
             );
             if prev.clicked() {
-                state.prev(len);
+                prev_clicked = true;
             }
             ui.colored_label(palette.text_subtle, format!("{}/{}", idx + 1, len));
             let next = ui.button("\u{203A}");
@@ -592,10 +928,18 @@ fn render_slideshow(
                 &slideshow_view::next_author_id(&first_token),
             );
             if next.clicked() {
-                state.next(len);
+                next_clicked = true;
             }
         });
     });
+    if let Some(state) = runtime.slideshow_states.get_mut(ref_value) {
+        if prev_clicked {
+            state.prev(len);
+        }
+        if next_clicked {
+            state.next(len);
+        }
+    }
     emit_node_author(
         ui.ctx(),
         container.response.id,
@@ -610,52 +954,80 @@ fn render_album(
     ref_value: &str,
     runtime: &mut EmbedRuntime,
     palette: &HsPalette,
-    _max_width: f32,
+    max_width: f32,
 ) {
     runtime.ensure_sequence(MediaEmbedKind::Album, ref_value);
-    let seq = runtime.sequences.get(ref_value).cloned();
+    let seq = runtime.sequence(MediaEmbedKind::Album, ref_value).cloned();
     let items = match seq {
         None | Some(SequenceState::Resolving) => {
             render_spinner(ui, MediaEmbedKind::Album, ref_value);
             return;
         }
         Some(SequenceState::Err(e)) => {
-            render_error_chip(ui, ref_value, &e, palette);
+            render_retryable_sequence_error(
+                ui,
+                MediaEmbedKind::Album,
+                ref_value,
+                &e,
+                runtime,
+                palette,
+            );
             return;
         }
         Some(SequenceState::Items(items)) => items,
     };
     let len = items.len();
     let grid_author = album_view::grid_author_id(ref_value);
-    let state = runtime
+    let open_index = runtime
         .album_states
         .entry(ref_value.to_owned())
-        .or_default();
+        .or_default()
+        .open_index;
 
     let frame = egui::Frame::new()
         .fill(palette.surface)
         .stroke(egui::Stroke::new(1.0, palette.border))
         .inner_margin(8.0)
         .corner_radius(6.0);
+    let mut clicked_index = None;
+    let cell_width = ((max_width - 12.0) / album_view::ALBUM_COLUMNS as f32).max(48.0);
     let container = frame.show(ui, |ui| {
         egui::Grid::new(("album-grid", ref_value))
             .num_columns(album_view::ALBUM_COLUMNS)
             .spacing(egui::vec2(6.0, 6.0))
             .show(ui, |ui| {
                 for (i, item) in items.iter().enumerate() {
-                    let cell_label = match &item.resolution {
-                        Ok(resolved) => resolved
-                            .asset
-                            .original_filename
-                            .clone()
-                            .unwrap_or_else(|| item.ref_value.clone()),
-                        Err(e) => format!("[{}]", e.kind_str()),
-                    };
-                    let cell = ui.button(cell_label);
-                    let cell_author = album_view::cell_author_id(&item.ref_value);
-                    emit_node_author(ui.ctx(), cell.id, accesskit::Role::Button, &cell_author);
-                    if cell.clicked() {
-                        state.open(i, len);
+                    match &item.resolution {
+                        Ok(resolved) => {
+                            let cell = render_resolved_image(
+                                ui,
+                                MediaEmbedKind::Album,
+                                MediaTier::Thumbnail,
+                                &item.ref_value,
+                                resolved,
+                                runtime,
+                                palette,
+                                cell_width,
+                            );
+                            let cell_author = album_view::cell_author_id(&item.ref_value);
+                            emit_node_author(
+                                ui.ctx(),
+                                cell.id,
+                                accesskit::Role::Button,
+                                &cell_author,
+                            );
+                            if cell.clicked() {
+                                clicked_index = Some(i);
+                            }
+                        }
+                        Err(e) => render_retryable_sequence_error(
+                            ui,
+                            MediaEmbedKind::Album,
+                            ref_value,
+                            e,
+                            runtime,
+                            palette,
+                        ),
                     }
                     if (i + 1) % album_view::ALBUM_COLUMNS == 0 {
                         ui.end_row();
@@ -669,9 +1041,17 @@ fn render_album(
         accesskit::Role::Group,
         &grid_author,
     );
+    if let Some(index) = clicked_index {
+        runtime
+            .album_states
+            .entry(ref_value.to_owned())
+            .or_default()
+            .open(index, len);
+    }
 
     // The full-size modal for the open member (egui::Window) — AC-6 click-to-enlarge.
-    if let Some(open_idx) = state.open_index {
+    let open_index = clicked_index.or(open_index);
+    if let Some(open_idx) = open_index {
         let mut keep_open = true;
         egui::Window::new("album-modal")
             .id(egui::Id::new(("album-modal", ref_value)))
@@ -689,9 +1069,26 @@ fn render_album(
                                     .clone()
                                     .unwrap_or_else(|| item.ref_value.clone()),
                             );
-                            ui.colored_label(palette.text_subtle, &resolved.content_url);
+                            let available = ui.available_width().max(1.0);
+                            let _ = render_resolved_image(
+                                ui,
+                                MediaEmbedKind::Album,
+                                MediaTier::Full,
+                                &item.ref_value,
+                                resolved,
+                                runtime,
+                                palette,
+                                available,
+                            );
                         }
-                        Err(e) => render_error_chip(ui, &item.ref_value, e, palette),
+                        Err(e) => render_retryable_sequence_error(
+                            ui,
+                            MediaEmbedKind::Album,
+                            ref_value,
+                            e,
+                            runtime,
+                            palette,
+                        ),
                     }
                 }
             });
@@ -716,7 +1113,12 @@ fn render_spinner(ui: &mut egui::Ui, kind: MediaEmbedKind, ref_value: &str) {
 /// (theme `error_bg` fill, `error_text` text) carrying the error-kind text + detail, with the
 /// AccessKit author_id `embed-error-{asset_id}` (the contract id) so an out-of-process agent
 /// reads the failure. Colors are theme tokens only (CONTROL-4: no hardcoded hex).
-fn render_error_chip(ui: &mut egui::Ui, ref_value: &str, error: &EmbedError, palette: &HsPalette) {
+fn render_error_chip(
+    ui: &mut egui::Ui,
+    ref_value: &str,
+    error: &EmbedError,
+    palette: &HsPalette,
+) -> egui::Response {
     let kind = error.kind_str();
     let author = format!("embed-error-{}", error_chip_token(ref_value));
     let frame = egui::Frame::new()
@@ -736,6 +1138,67 @@ fn render_error_chip(ui: &mut egui::Ui, ref_value: &str, error: &EmbedError, pal
     // is satisfied and an agent can read the error by id. The chip is not a control, so Label
     // is correct (an author_id on a Label is allowed; see the registry gate doc).
     emit_node_author(ui.ctx(), resp.id, accesskit::Role::Label, &author);
+    resp
+}
+
+fn is_retryable(error: &EmbedError) -> bool {
+    matches!(
+        error,
+        EmbedError::NetworkError(_)
+            | EmbedError::ServerError(_)
+            | EmbedError::TimedOut(_)
+            | EmbedError::MediaLoadFailed(_)
+            | EmbedError::NotFound(_)
+    )
+}
+
+fn render_retryable_error(
+    ui: &mut egui::Ui,
+    kind: MediaEmbedKind,
+    asset_id: &str,
+    error: &EmbedError,
+    runtime: &mut EmbedRuntime,
+    palette: &HsPalette,
+) {
+    render_error_chip(ui, asset_id, error, palette);
+    if is_retryable(error) {
+        let retry = ui.button("Retry");
+        emit_node_author(
+            ui.ctx(),
+            retry.id,
+            accesskit::Role::Button,
+            &format!("embed-retry-{asset_id}"),
+        );
+        if retry.clicked() {
+            runtime.retry_asset(kind, asset_id);
+            ui.ctx().request_repaint();
+        }
+    }
+}
+
+fn render_retryable_sequence_error(
+    ui: &mut egui::Ui,
+    kind: MediaEmbedKind,
+    ref_value: &str,
+    error: &EmbedError,
+    runtime: &mut EmbedRuntime,
+    palette: &HsPalette,
+) {
+    render_error_chip(ui, ref_value, error, palette);
+    if is_retryable(error) {
+        let token = error_chip_token(ref_value);
+        let retry = ui.button("Retry");
+        emit_node_author(
+            ui.ctx(),
+            retry.id,
+            accesskit::Role::Button,
+            &format!("embed-retry-{token}"),
+        );
+        if retry.clicked() {
+            runtime.retry_sequence(kind, ref_value);
+            ui.ctx().request_repaint();
+        }
+    }
 }
 
 /// The stable token used in an error chip's author_id. For a single ref it is the trimmed
@@ -750,29 +1213,25 @@ fn error_chip_token(ref_value: &str) -> String {
     }
 }
 
-/// Emit a stable AccessKit author_id (+ role) onto an already-rendered node, REUSING the WP-011
-/// live-emission hook. For an interactive node (a Button) egui already set its interactive
-/// role/actions; setting only the author_id keeps those intact (the
-/// [`crate::accessibility::emit_interactive_node`] contract). For a non-interactive container
-/// (Group/Image/Label) we set the role too so the node is addressable with the right semantics.
+/// Emit a stable AccessKit author_id + role onto an already-rendered node, reusing the WP-011
+/// live-emission hook. Album images intentionally become Button-role controls because the image
+/// itself is the click target that opens the modal.
 fn emit_node_author(ctx: &egui::Context, id: egui::Id, role: accesskit::Role, author_id: &str) {
     let role_for_closure = role;
     let author = author_id.to_owned();
     ctx.accesskit_node_builder(id, move |node| {
-        // Only stamp the role for non-interactive container/label/image nodes; for an
-        // interactive Button egui already chose Role::Button and we must not overwrite it with a
-        // generic role, so we leave the role as egui set it and add only the author_id.
-        if !matches!(role_for_closure, accesskit::Role::Button) {
-            node.set_role(role_for_closure);
-        }
-        node.set_author_id(author);
+        node.set_role(role_for_closure);
+        node.set_author_id(crate::rich_editor::scoped_author_id(author));
     });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rich_editor::embeds::asset_resolver::{EmbedAssetMetadata, MetadataFuture};
+    use crate::rich_editor::embeds::asset_resolver::{
+        ContentFuture, EmbedAssetMetadata, MetadataFuture,
+    };
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
     /// A fetcher that always errors (used to drive the headless Err-chip path without a backend).
     struct NeverFetcher;
@@ -780,6 +1239,103 @@ mod tests {
         fn fetch_metadata<'a>(&'a self, _ws: &'a str, _id: &'a str) -> MetadataFuture<'a> {
             Box::pin(async { Err(EmbedError::NotFound("never".to_owned())) })
         }
+    }
+
+    /// A transport that never completes, used to prove the bounded timeout terminal state.
+    struct PendingFetcher;
+    impl AssetMetadataFetcher for PendingFetcher {
+        fn fetch_metadata<'a>(&'a self, _ws: &'a str, _id: &'a str) -> MetadataFuture<'a> {
+            Box::pin(std::future::pending())
+        }
+    }
+
+    struct SharedBudgetFetcher {
+        active: AtomicUsize,
+        high_water: AtomicUsize,
+        png: Vec<u8>,
+    }
+
+    impl SharedBudgetFetcher {
+        fn enter(&self) {
+            let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+            self.high_water.fetch_max(active, Ordering::SeqCst);
+        }
+
+        fn leave(&self) {
+            self.active.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
+
+    impl AssetMetadataFetcher for SharedBudgetFetcher {
+        fn fetch_metadata<'a>(
+            &'a self,
+            workspace_id: &'a str,
+            asset_id: &'a str,
+        ) -> MetadataFuture<'a> {
+            Box::pin(async move {
+                self.enter();
+                tokio::time::sleep(Duration::from_millis(10)).await;
+                self.leave();
+                Ok(EmbedAssetMetadata {
+                    asset_id: asset_id.to_owned(),
+                    workspace_id: workspace_id.to_owned(),
+                    kind: "image".to_owned(),
+                    mime: "image/png".to_owned(),
+                    original_filename: None,
+                    content_hash: String::new(),
+                    size_bytes: self.png.len() as u64,
+                    width: Some(1),
+                    height: Some(1),
+                })
+            })
+        }
+
+        fn fetch_tier<'a>(
+            &'a self,
+            _workspace_id: &'a str,
+            _asset_id: &'a str,
+            _kind: MediaEmbedKind,
+            _tier: MediaTier,
+        ) -> ContentFuture<'a> {
+            Box::pin(async move {
+                self.enter();
+                tokio::time::sleep(Duration::from_millis(10)).await;
+                self.leave();
+                Ok(self.png.clone())
+            })
+        }
+    }
+
+    struct DropTrackedFetcher {
+        future_dropped: Arc<AtomicBool>,
+    }
+
+    impl AssetMetadataFetcher for DropTrackedFetcher {
+        fn fetch_metadata<'a>(&'a self, _ws: &'a str, _id: &'a str) -> MetadataFuture<'a> {
+            let dropped = Arc::clone(&self.future_dropped);
+            Box::pin(async move {
+                struct DropMarker(Arc<AtomicBool>);
+                impl Drop for DropMarker {
+                    fn drop(&mut self) {
+                        self.0.store(true, Ordering::SeqCst);
+                    }
+                }
+                let _marker = DropMarker(dropped);
+                std::future::pending().await
+            })
+        }
+    }
+
+    fn one_pixel_png() -> Vec<u8> {
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+            1,
+            1,
+            image::Rgba([1, 2, 3, 255]),
+        ))
+        .write_to(&mut bytes, image::ImageFormat::Png)
+        .unwrap();
+        bytes.into_inner()
     }
 
     fn headless_runtime() -> EmbedRuntime {
@@ -800,7 +1356,9 @@ mod tests {
                 height: Some(10),
             },
             content_url: format!("http://b/workspaces/ws/assets/{asset_id}/content"),
-            thumbnail_url: format!("http://b/workspaces/ws/assets/{asset_id}/thumbnail"),
+            thumbnail_url: format!("http://b/workspaces/ws/assets/{asset_id}/content?tier=thumb"),
+            preview_url: format!("http://b/workspaces/ws/assets/{asset_id}/content?tier=preview"),
+            poster_url: format!("http://b/workspaces/ws/assets/{asset_id}/content?tier=poster"),
         }
     }
 
@@ -827,13 +1385,212 @@ mod tests {
     fn drain_applies_single_delivery() {
         let mut rt = headless_runtime();
         // Simulate an off-thread delivery landing in the cell.
-        *rt.single_cell.lock().unwrap() =
-            Some(("a1".to_owned(), EmbedResolutionState::Ok(ok_resolved("a1"))));
+        rt.single_cell.lock().unwrap().push((
+            rt.generation,
+            MediaEmbedKind::Images,
+            "a1".to_owned(),
+            EmbedResolutionState::Ok(ok_resolved("a1")),
+        ));
         assert!(rt.drain_deliveries());
         assert!(matches!(
-            rt.resolutions.get("a1"),
+            rt.resolutions.get("images:a1"),
             Some(EmbedResolutionState::Ok(_))
         ));
+    }
+
+    #[test]
+    fn drain_keeps_all_concurrent_single_and_sequence_deliveries() {
+        let mut rt = headless_runtime();
+        let generation = rt.generation;
+        {
+            let mut single = rt.single_cell.lock().unwrap();
+            single.push((
+                generation,
+                MediaEmbedKind::Images,
+                "a1".to_owned(),
+                EmbedResolutionState::Ok(ok_resolved("a1")),
+            ));
+            single.push((
+                generation,
+                MediaEmbedKind::Images,
+                "a2".to_owned(),
+                EmbedResolutionState::Ok(ok_resolved("a2")),
+            ));
+        }
+        {
+            let mut sequence = rt.sequence_cell.lock().unwrap();
+            sequence.push((
+                generation,
+                MediaEmbedKind::Album,
+                "a1,a2".to_owned(),
+                Ok(Vec::new()),
+            ));
+            sequence.push((
+                generation,
+                MediaEmbedKind::Slideshow,
+                "b1,b2".to_owned(),
+                Ok(Vec::new()),
+            ));
+        }
+
+        assert!(rt.drain_deliveries());
+        assert!(matches!(
+            rt.resolutions.get("images:a1"),
+            Some(EmbedResolutionState::Ok(_))
+        ));
+        assert!(matches!(
+            rt.resolutions.get("images:a2"),
+            Some(EmbedResolutionState::Ok(_))
+        ));
+        assert!(matches!(
+            rt.sequences.get("album:a1,a2"),
+            Some(SequenceState::Items(_))
+        ));
+        assert!(matches!(
+            rt.sequences.get("slideshow:b1,b2"),
+            Some(SequenceState::Items(_))
+        ));
+    }
+
+    #[test]
+    fn runtime_absence_does_not_strand_resolving_state() {
+        let mut rt = headless_runtime();
+        rt.ensure_single(MediaEmbedKind::Images, "a1");
+        rt.ensure_sequence(MediaEmbedKind::Album, "a1,a2");
+        assert!(
+            rt.resolutions.get("a1").is_none(),
+            "a runtime attached on a later frame must still be able to start the asset fetch"
+        );
+        assert!(
+            !rt.sequences.contains_key("a1,a2"),
+            "a runtime attached on a later frame must still be able to start the sequence fetch"
+        );
+    }
+
+    #[test]
+    fn hung_resolution_becomes_typed_timeout_instead_of_permanent_spinner() {
+        let async_runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("timeout test runtime");
+        let mut rt = EmbedRuntime::new(
+            "ws",
+            "http://b",
+            Arc::new(PendingFetcher),
+            Some(async_runtime.handle().clone()),
+        );
+        rt.operation_timeout = Duration::from_millis(5);
+
+        rt.ensure_single(MediaEmbedKind::Images, "hung-asset");
+        assert!(matches!(
+            rt.resolutions.get("images:hung-asset"),
+            Some(EmbedResolutionState::Resolving)
+        ));
+        async_runtime.block_on(async {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        });
+        assert!(rt.drain_deliveries());
+        assert!(matches!(
+            rt.resolutions.get("images:hung-asset"),
+            Some(EmbedResolutionState::Err(EmbedError::TimedOut(_)))
+        ));
+    }
+
+    #[test]
+    fn saturated_work_budget_is_inside_metadata_operation_deadline() {
+        let async_runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("budget timeout test runtime");
+        let mut rt = EmbedRuntime::new(
+            "ws",
+            "http://b",
+            Arc::new(PendingFetcher),
+            Some(async_runtime.handle().clone()),
+        );
+        rt.operation_timeout = Duration::from_millis(5);
+        rt.work_budget = Arc::new(tokio::sync::Semaphore::new(0));
+
+        rt.ensure_single(MediaEmbedKind::Images, "queued-asset");
+        async_runtime.block_on(async {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        });
+        assert!(rt.drain_deliveries());
+        assert!(matches!(
+            rt.resolutions.get("images:queued-asset"),
+            Some(EmbedResolutionState::Err(EmbedError::TimedOut(_)))
+        ));
+    }
+
+    #[test]
+    fn saturated_work_budget_is_inside_pixel_operation_deadline() {
+        let async_runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("pixel budget timeout test runtime");
+        let mut rt = EmbedRuntime::new(
+            "ws",
+            "http://b",
+            Arc::new(NeverFetcher),
+            Some(async_runtime.handle().clone()),
+        );
+        rt.operation_timeout = Duration::from_millis(5);
+        rt.work_budget = Arc::new(tokio::sync::Semaphore::new(0));
+
+        rt.ensure_image_content(
+            MediaEmbedKind::Images,
+            "queued-pixels",
+            MediaTier::Thumbnail,
+        );
+        async_runtime.block_on(async {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        });
+        assert!(rt.drain_deliveries());
+        let key = EmbedRuntime::media_key(
+            MediaEmbedKind::Images,
+            MediaTier::Thumbnail,
+            "queued-pixels",
+        );
+        assert!(matches!(
+            rt.media_errors.get(&key),
+            Some(EmbedError::TimedOut(_))
+        ));
+        assert!(!rt.content_in_flight.contains(&key));
+    }
+
+    #[test]
+    fn workspace_rebind_clears_caches_and_rejects_stale_delivery() {
+        let async_runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("workspace cancellation test runtime");
+        let mut rt = EmbedRuntime::new(
+            "ws",
+            "http://b",
+            Arc::new(PendingFetcher),
+            Some(async_runtime.handle().clone()),
+        );
+        rt.ensure_single(MediaEmbedKind::Images, "hung-old-workspace");
+        assert_eq!(rt.pending_tasks.len(), 1);
+        rt.resolutions
+            .insert("same-id", EmbedResolutionState::Ok(ok_resolved("same-id")));
+        let old_generation = rt.generation;
+        rt.single_cell.lock().unwrap().push((
+            old_generation,
+            MediaEmbedKind::Images,
+            "late-old-id".to_owned(),
+            EmbedResolutionState::Ok(ok_resolved("late-old-id")),
+        ));
+
+        rt.workspace_id = "other-workspace".to_owned();
+        assert!(!rt.drain_deliveries());
+        assert!(rt.resolutions.is_empty());
+        assert!(rt.resolutions.get("late-old-id").is_none());
+        assert_ne!(rt.generation, old_generation);
+        assert!(
+            rt.pending_tasks.is_empty(),
+            "workspace rebind aborts and releases every task owned by the prior context"
+        );
     }
 
     #[test]
@@ -842,22 +1599,126 @@ mod tests {
         // must NOT downgrade it back to Resolving.
         let mut rt = headless_runtime();
         rt.resolutions
-            .insert("a1", EmbedResolutionState::Ok(ok_resolved("a1")));
+            .insert("images:a1", EmbedResolutionState::Ok(ok_resolved("a1")));
         rt.ensure_single(MediaEmbedKind::Images, "a1");
         assert!(
-            matches!(rt.resolutions.get("a1"), Some(EmbedResolutionState::Ok(_))),
+            matches!(
+                rt.resolutions.get("images:a1"),
+                Some(EmbedResolutionState::Ok(_))
+            ),
             "AC-9: ensure_single must not re-resolve a terminal asset"
+        );
+    }
+
+    #[test]
+    fn resolution_cache_is_partitioned_by_media_kind() {
+        let mut rt = headless_runtime();
+        rt.resolutions.insert(
+            "shared-id",
+            EmbedResolutionState::Ok(ok_resolved("shared-id")),
+        );
+        rt.resolutions.insert(
+            "images:shared-id",
+            EmbedResolutionState::Ok(ok_resolved("shared-id")),
+        );
+        assert!(rt.resolution(MediaEmbedKind::Images, "shared-id").is_some());
+        assert!(
+            rt.resolution(MediaEmbedKind::Video, "shared-id").is_none(),
+            "neither an image resolution nor a legacy raw key may poison a video embed"
+        );
+    }
+
+    #[test]
+    fn retry_evicts_only_selected_kind_and_asset() {
+        let mut rt = headless_runtime();
+        rt.resolutions.insert(
+            "images:failed",
+            EmbedResolutionState::Err(EmbedError::NetworkError("offline".to_owned())),
+        );
+        rt.resolutions.insert(
+            "video:failed",
+            EmbedResolutionState::Ok(ok_resolved("failed")),
+        );
+        rt.retry_asset(MediaEmbedKind::Images, "failed");
+        assert!(rt.resolutions.get("images:failed").is_none());
+        assert!(matches!(
+            rt.resolutions.get("video:failed"),
+            Some(EmbedResolutionState::Ok(_))
+        ));
+    }
+
+    #[test]
+    fn shared_budget_caps_metadata_and_tier_work_together() {
+        let async_runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(4)
+            .enable_all()
+            .build()
+            .expect("shared budget test runtime");
+        let fetcher = Arc::new(SharedBudgetFetcher {
+            active: AtomicUsize::new(0),
+            high_water: AtomicUsize::new(0),
+            png: one_pixel_png(),
+        });
+        let fetcher_dyn: Arc<dyn AssetMetadataFetcher> = fetcher.clone();
+        let mut rt = EmbedRuntime::new(
+            "ws",
+            "http://b",
+            fetcher_dyn,
+            Some(async_runtime.handle().clone()),
+        );
+        for index in 0..8 {
+            let id = format!("metadata-{index}");
+            rt.ensure_single(MediaEmbedKind::Images, &id);
+        }
+        for index in 0..8 {
+            let id = format!("pixels-{index}");
+            rt.ensure_image_content(MediaEmbedKind::Album, &id, MediaTier::Thumbnail);
+        }
+        async_runtime.block_on(async {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        });
+        rt.drain_deliveries();
+        assert!(
+            fetcher.high_water.load(Ordering::SeqCst) <= MAX_CONCURRENT_RESOLUTIONS,
+            "metadata and tier fetches must share the same six-permit budget"
+        );
+    }
+
+    #[test]
+    fn dropping_runtime_aborts_owned_pending_fetch() {
+        let async_runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime removal test");
+        let future_dropped = Arc::new(AtomicBool::new(false));
+        let mut rt = EmbedRuntime::new(
+            "ws",
+            "http://b",
+            Arc::new(DropTrackedFetcher {
+                future_dropped: Arc::clone(&future_dropped),
+            }),
+            Some(async_runtime.handle().clone()),
+        );
+        rt.ensure_single(MediaEmbedKind::Images, "removed");
+        async_runtime.block_on(tokio::task::yield_now());
+        drop(rt);
+        async_runtime.block_on(tokio::task::yield_now());
+        assert!(
+            future_dropped.load(Ordering::SeqCst),
+            "removing the owning embed runtime must cancel and drop its pending transport future"
         );
     }
 
     #[test]
     fn ensure_sequence_is_idempotent() {
         let mut rt = headless_runtime();
-        rt.sequences
-            .insert("a1,a2".to_owned(), SequenceState::Err(EmbedError::EmptyRef));
+        rt.sequences.insert(
+            "album:a1,a2".to_owned(),
+            SequenceState::Err(EmbedError::EmptyRef),
+        );
         rt.ensure_sequence(MediaEmbedKind::Album, "a1,a2");
         assert!(matches!(
-            rt.sequences.get("a1,a2"),
+            rt.sequences.get("album:a1,a2"),
             Some(SequenceState::Err(_))
         ));
     }
