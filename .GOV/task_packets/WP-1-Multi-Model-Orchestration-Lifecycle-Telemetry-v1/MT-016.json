@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-016",
   "created_at_utc": "2026-07-02T03:00:00Z",
-  "updated_at_utc": "2026-07-04T02:44:02Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-04",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-016.json",
@@ -16,27 +16,27 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-014"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PASS_V1",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER-20260704-003205",
     "claimed_at_utc": "2026-07-04T00:32:05Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260704-003205",
     "ready_for_validation_at_utc": "2026-07-04T02:44:02Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "MT-017/MT-014 materially changed shared model registration, role, boot, and routing surfaces after MT-016 PASS_V1. No fresh real embedding-model/current-source proof completed, so the dedicated embedding registration, restart recovery, dimension handling, and completion/embedding isolation cannot receive PASS_V4.",
     "missing_resource": null,
-    "proof_status": "PASS_MT016_2026-07-04_DEDICATED_EMBEDDING_MODEL_GREEN: exact proof commands 6/6 PASS (model_registry capability/env validation, model_catalog ready embedding selector, default boot distinct embedding model, LoomSearchV2 dedicated embedding route/search with real PostgreSQL, LoomSearchV2 no-model keyword degrade without chat embedding call, UserManual behavior coverage). Additional regressions PASS: default_local_runtime_client_embedding_is_supported_via_model_runtime_embed; mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search; mt264_pgvector_semantic_and_hybrid. git diff --check exit 0 with CRLF warnings only. KB_READY_CHECKLIST_RECEIPT PASS written to ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl; RC-004 recorded n/a because cross-platform CI/non-target cargo check was not run.",
+    "proof_status": "FAIL_V4: MT-017/MT-014 materially changed shared model registration, role, boot, and routing surfaces after MT-016 PASS_V1. No fresh real embedding-model/current-source proof completed, so the dedicated embedding registration, restart recovery, dimension handling, and completion/embedding isolation cannot receive PASS_V4.",
     "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL: shared ModelRegistry/ModelCatalog capability validation, embedded local-runtime dedicated embedding registration, LoomSearchV2 no-chat-fallback route with stable embedding-space persistence, PostgreSQL same-space vector filtering, and UserManual startup/recovery/evidence coverage.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_GALILEO_SINGER_EINSTEIN_FINDINGS_APPLIED_TO_CONTRACT",
     "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_DALTON_HELMHOLTZ_DEWEY_FINDINGS_APPLIED",
     "adversarial_findings_status": "POST_REVIEW_FINDINGS_APPLIED: stable embedding-space key replaces per-boot UUID persistence/search matching; router rejects runtime embedding dimension mismatch with typed error; dedicated embedding capabilities no longer overdeclare chat/LoRA/KV/steering; UserManual event family and tool-entry proof targets updated; optional bad embedding-model load remains fail-closed under existing boot contract and is not claimed as separate fail-open behavior.",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Dedicated embedding model distinct from the chat model: a second local-model registration whose ModelCapabilities declares supports_embedding + embedding dimension as an MT-016 product extension, so LoomSearchV2 embeds via the embedding-capable model resolved from the shared registry rather than via the single chat model's profile().model_id.",
@@ -150,7 +150,7 @@
     "rust_only_implementation": "Rust backend + native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real engine-free proofs; COMPLETED is validator-only."
   },
-  "validator_verdict": "PASS_V1",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -165,5 +165,27 @@
     "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
     "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
     "basis": "Dedicated embedding model distinct from chat model. ModelCapabilities supports_embedding + embedding_dimension consistency rejection; second embedding model config (HANDSHAKE_LOCAL_EMBEDDING_MODEL_*) loaded/registered distinct from chat (boot.rs); router rejects embedding on non-embedding-capable models; Loom routes to embedding-capable model. Both loom proofs use pg_required(...) (FAIL-CLOSED, panics if PG absent) - mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model + mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call query real loom_block_search_index.embedding_model column on live PG. This MT is the correct fail-closed pattern MT-014 should copy."
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "MT-017/MT-014 materially changed shared model registration, role, boot, and routing surfaces after MT-016 PASS_V1. No fresh real embedding-model/current-source proof completed, so the dedicated embedding registration, restart recovery, dimension handling, and completion/embedding isolation cannot receive PASS_V4.",
+    "remediation_plan": [
+      "Freeze the candidate and run the exact dedicated-embedding registration, registry-resolution, dimension-mismatch, reindex/search, and no-chat-fallback tests against real PostgreSQL and a real embedding-capable model.",
+      "Reconstruct the production client after restart and prove the embedding role/binding and completion default recover without cross-role selection.",
+      "Record real model identity, artifact hash, output dimension, EventLedger evidence, and current source SHA, then request V4 revalidation."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
+    ]
   }
 }

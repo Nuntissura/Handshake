@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-005",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-29T18:18:03.513Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-002",
       "MT-004"
@@ -25,15 +25,15 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": "PASS_V1",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": null,
     "claimed_at_utc": null,
     "ready_for_validation_by": "KERNEL_BUILDER-MT005",
     "ready_for_validation_at_utc": "2026-06-29T18:18:03.513Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "The current ModelLane boundary validates CRDT handoff fields syntactically but does not resolve them to authoritative persisted CRDT objects or verify update hash/state-vector ownership. A well-formed nonexistent handoff reference can therefore pass admission.",
     "missing_resource": null,
-    "proof_status": "PASS_MT005_RUST_POSTGRES_EVENTLEDGER_USERMANUAL_RUNTIME_PROOFS",
+    "proof_status": "FAIL_V4: The current ModelLane boundary validates CRDT handoff fields syntactically but does not resolve them to authoritative persisted CRDT objects or verify update hash/state-vector ownership. A well-formed nonexistent handoff reference can therefore pass admission.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT005_SCOPE_EVENTLEDGER_WIRED_FLIGHT_RECORDER_EVIDENCE_REFS_DIRECT_FR_EMIT_DEFERRED_TO_MT008",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
@@ -42,8 +42,8 @@
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
     "adversarial_findings_status": "POST_REVIEW_FINDINGS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_SPEC_AND_MT_STATUS; DIRECT_FLIGHT_RECORDER_EVENT_EMIT_RECORDED_AS_DEFERRED_TO_MT008",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Route model-to-model handoff through ContextBundle and artifact references.",
@@ -266,7 +266,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "PASS_V1",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -284,6 +284,28 @@
     "concerns": [
       "lifecycle.claimed_by=null while at READY_FOR_VALIDATION (malformed restartable-lifecycle record); audit-trail hygiene, not a Spec-Realism failure.",
       "Direct Flight-Recorder emit for this surface chain-deferred to MT-008 (Tier-1 EventLedger evidence IS wired; HBR-INT-009 DEFERRED-with-reason)."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "The current ModelLane boundary validates CRDT handoff fields syntactically but does not resolve them to authoritative persisted CRDT objects or verify update hash/state-vector ownership. A well-formed nonexistent handoff reference can therefore pass admission.",
+    "remediation_plan": [
+      "Resolve each non-null ContextBundle/CRDT handoff reference against the authoritative PostgreSQL/Yjs record before admission and recovery.",
+      "Verify stored bytes, hash, entity attribution, and derived state vector; fail closed on any mismatch or missing row.",
+      "Add real-PostgreSQL negative tests for fabricated references and rerun the complete context-bundle handoff suite on a frozen candidate."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

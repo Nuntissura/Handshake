@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-015",
   "created_at_utc": "2026-07-01T23:23:30Z",
-  "updated_at_utc": "2026-07-04T05:32:28Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-02_CLOUD_CONFIG_SECRETS_HARDENED",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-015.json",
@@ -16,27 +16,27 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-006"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PASS_V1",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T13:20:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
     "ready_for_validation_at_utc": "2026-07-02T16:35:21Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "The secrets boundary was hardened, but the changed Settings/cloud-access surface lacks production Argus proof across real panels and detached windows. Current tests use in-process widget access, while the screenshot route cannot target pop-outs, so the operator's all-panels/all-windows requirement is unmet.",
     "missing_resource": null,
-    "proof_status": "PASS_MT015_2026-07-02: operator cloud-model access config. Implementation 157b4072 + hardening 6ebc8c90. Proofs all green, independently re-proven on hardened code: cloud_byok_access_config_leak_tests 1/1 (canary BYOK key ABSENT from DialogState/settings-PUT/tracing/FR/EventLedger/cloud_invocations/Debug/enumeration; wired vault = OsKeychainSecretsVault not InMemory; round-trips only via OS keychain); access_config lib 12/12 (enumeration ProviderNotConfigured->unavailable, no-consent-on-save, Gemini excluded by construction, Debug redaction, rotate); secrets_vault lib 19/19 (get->Zeroizing, put->&str); model_access_route_tests 5/5 (HTTP ingress: store 200/no-echo, gemini 404, empty 400, keychain 503, get-providers); test_cloud_models_settings_argus 5/5 (stable author_ids, egui key buffer wiped on close + canary absent from egui memory, static rows render when backend unreachable). CLI-bridge = configured/not-configured + operator-initiated official login, NO credential capture. MT-006 consent boundary untouched. No root TraceLayer body logging.",
+    "proof_status": "FAIL_V4: The secrets boundary was hardened, but the changed Settings/cloud-access surface lacks production Argus proof across real panels and detached windows. Current tests use in-process widget access, while the screenshot route cannot target pop-outs, so the operator's all-panels/all-windows requirement is unmet.",
     "hbr_status": "PASS_HBR_VIS_INT_MAN_FOR_MT015_CLOUD_CONFIG_SECRETS_HARDENED",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_task_a0e9015f5c0ee8643",
     "post_implementation_adversarial_review_status": "DONE_2026-07-02_task_a3b979d0af985185b_NO_CRITICAL_LEAK_2_MUSTFIX_2_SHOULDFIX_ALL_ADDRESSED_6ebc8c90",
     "adversarial_findings_status": "APPLIED_F-i_F3_F10_F1_F2_FIXED_F5_VERIFIED_F6_F7_F9_DEFERRED_LOW",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Operator-facing cloud-model access configuration surface: (a) CLI-bridge / subscription-plan auth-and-login status + config for the official-CLI providers the operator uses (Claude Code, GPT/Codex), and (b) a BYOK API-key entry (Anthropic, OpenAI) stored in the existing OS-keychain secrets vault for users who bring their own keys. Gemini is explicitly excluded (CLI deprecating).",
@@ -155,7 +155,7 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real proofs (incl. the secrets-leak negative test); COMPLETED is validator-only."
   },
-  "validator_verdict": "PASS_V1",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -173,6 +173,28 @@
     "concerns": [
       "LOW hardening: fetch_byok_key returns a plain String (transient copy not zeroized on drop); vault original is wiped. Deliberate; follow-on hardening candidate (Zeroizing/SecretString return).",
       "Argus: test_cloud_models_settings_argus asserts stable author_ids + egui-memory canary absence; GUI Argus contract present."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "The secrets boundary was hardened, but the changed Settings/cloud-access surface lacks production Argus proof across real panels and detached windows. Current tests use in-process widget access, while the screenshot route cannot target pop-outs, so the operator's all-panels/all-windows requirement is unmet.",
+    "remediation_plan": [
+      "Exercise cloud access configuration through the production Argus transport with attributed inspect/set/click receipts and no secret disclosure.",
+      "Add main-window and detached Settings-window targeting/screenshot proof, including unavailable providers, login state, BYOK store/delete, and recovery messages.",
+      "Rerun cross-platform in-memory-vault leak tests plus the Windows OS-keychain proof on a frozen source revision."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

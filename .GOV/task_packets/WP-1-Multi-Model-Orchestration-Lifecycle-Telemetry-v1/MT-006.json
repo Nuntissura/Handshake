@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-006",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-29T21:26:03.058Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-006.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -25,15 +25,15 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": "PASS_V1",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": null,
     "claimed_at_utc": null,
     "ready_for_validation_by": "Codex",
     "ready_for_validation_at_utc": "2026-06-29T21:26:03.058Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "MT-017 changed the run-scoped consent and revocation security boundary after MT-006 PASS_V1. The fresh cloud_model_lane_policy_pg_tests command did not return inside the bounded current-source run, so the changed SingleRun/SingleLane authority and fan-out revocation semantics are not validator-proven.",
     "missing_resource": null,
-    "proof_status": "PASS_MT006_EXACT_RUST_POSTGRES_EVENTLEDGER_USERMANUAL_RUNTIME_PROOFS",
+    "proof_status": "FAIL_V4: MT-017 changed the run-scoped consent and revocation security boundary after MT-006 PASS_V1. The fresh cloud_model_lane_policy_pg_tests command did not return inside the bounded current-source run, so the changed SingleRun/SingleLane authority and fan-out revocation semantics are not validator-proven.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT006_SCOPE_EVENTLEDGER_WIRED_DIRECT_FR_EVT_CLOUD_EMIT_DEFERRED_TO_FOLLOW_ON_INTERNAL_DIAGNOSTICS_AND_PALMISTRY_DEFERRED_WITH_REASON",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1",
@@ -42,8 +42,8 @@
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-29",
     "adversarial_findings_status": "POST_REVIEW_FINDINGS_ADDRESSED_IN_PRODUCT_CODE_TESTS_USERMANUAL_SPEC_AND_MT_STATUS; DIRECT_FR_EVT_CLOUD_EMIT_RECORDED_AS_FOLLOW_ON_NOT_CLAIMED_WIRED",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Enforce cloud projection, consent, and authority boundaries for cloud lanes.",
@@ -232,7 +232,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "PASS_V1",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -249,6 +249,28 @@
     "basis": "Cloud consent/authority boundary enforced at runtime: coordinator.rs spawn path calls store.preflight_cloud_spawn_request BEFORE factory.create for ByokCloud; missing/expired/mismatched/revoked consent fails closed. Real EventLedger touch proven (cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence asserts consent_status=CX-MM-007, provider_call_cancelled=true). ADVERSARIAL FINDING REFUTED BY INTEGRATION VALIDATOR: a sub-agent flagged a possible consent-bypass when dexterity_launch_required=false; verified false - both production constructors SwarmCoordinator::new and ::new_with_model_lane_store pass dexterity_launch_required=true; the only false path is new_legacy_without_dexterity_for_tests, gated #[cfg(any(test, feature=\"test-utils\"))] with zero production call sites. Consent cannot be bypassed in a production build.",
     "concerns": [
       "lifecycle.claimed_by=null (audit-trail hygiene)."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "MT-017 changed the run-scoped consent and revocation security boundary after MT-006 PASS_V1. The fresh cloud_model_lane_policy_pg_tests command did not return inside the bounded current-source run, so the changed SingleRun/SingleLane authority and fan-out revocation semantics are not validator-proven.",
+    "remediation_plan": [
+      "Freeze the current source and run the complete cloud_model_lane_policy_pg_tests and run-scoped consent migration suites against real PostgreSQL.",
+      "Prove SingleLane cannot authorize a sibling lane, SingleRun authorizes only the same run, fan-out revocation terminates every covered lane, and revoke retry is idempotent.",
+      "Capture current-source receipts and request V4 revalidation."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

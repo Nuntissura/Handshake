@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-009",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-20T01:19:00Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-009.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -27,15 +27,15 @@
       "MT-010"
     ],
     "active": false,
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T02:33:02Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
     "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "Real Yjs/PostgreSQL compaction tests exist, but ModelLane admission/recovery still accepts syntactically valid fabricated CRDT references without resolving the referenced update, hash, or state vector. Historical diagnostics artifacts also do not bind the current dirty schema-v3 source.",
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: routing outputs resolve to durable PostgreSQL/Yjs updates and post-update state vectors; mixed producer/native diagnostics passed with one nonce, schema/hash/status/freshness binding, and a bounded writer drain into kernel_process_lifecycle. Cancellation, routing-policy, replay, compaction, and negative exacts pass. Independent adversarial review found no MT-009 false-green. Historical V1/V2 verdicts remain preserved; COMPLETED remains validator-only.",
+    "proof_status": "FAIL_V4: Real Yjs/PostgreSQL compaction tests exist, but ModelLane admission/recovery still accepts syntactically valid fabricated CRDT references without resolving the referenced update, hash, or state vector. Historical diagnostics artifacts also do not bind the current dirty schema-v3 source.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT009_MIXED_GREEN",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-009:2026-07-20T01:13:33.373Z",
     "product_worktree_root_resolution": "HANDSHAKE_PRODUCT_WORKTREE_ROOT:D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
@@ -44,8 +44,8 @@
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_PRODUCER_CONSUMER_AND_POSTGRES_DRAIN_REVIEW_NO_FINDINGS",
     "adversarial_findings_status": "PASS_V3_STRICT_NONCE_HASH_SCHEMA_FRESHNESS_AND_REAL_POSTGRES_LEDGER_DRAIN_PROVEN",
-    "validated_by": null,
-    "validated_at_utc": null
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Build validation harnesses and negative cases for mixed cloud/local/subagent lane runs.",
@@ -373,7 +373,7 @@
       "validator_boundary": "Historical FAIL_V1 remains immutable; COMPLETED remains validator-only."
     }
   },
-  "validator_verdict": "PENDING_V3",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -426,6 +426,28 @@
       "FAIL counterfactual: a consumer using the real Yjs replay resolver cannot materialize a routing-produced CRDT reference.",
       "FAIL proof freshness: historical backend/native diagnostics artifacts exceed the enforced 30-minute maximum.",
       "INCONCLUSIVE environment run: bounded-retry exact execution did not produce a result during shared Cargo compilation; no pass claim is made."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "Real Yjs/PostgreSQL compaction tests exist, but ModelLane admission/recovery still accepts syntactically valid fabricated CRDT references without resolving the referenced update, hash, or state vector. Historical diagnostics artifacts also do not bind the current dirty schema-v3 source.",
+    "remediation_plan": [
+      "Add authoritative CRDT-reference resolution at the ModelLane boundary and fail closed before persistence/recovery on missing rows, bad hashes, wrong entity attribution, or unrelated state vectors.",
+      "Add a fabricated-but-well-formed reference negative test plus concurrent lease/recovery and real cancellation boundary probes.",
+      "Regenerate the backend/native schema-v3 diagnostics chain with one nonce and rerun the full MT-009 real-PostgreSQL proof set on frozen source."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

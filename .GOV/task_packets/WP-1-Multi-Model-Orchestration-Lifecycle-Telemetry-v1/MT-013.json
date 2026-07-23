@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-013",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-07-20T01:19:00Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-013.json",
@@ -16,28 +16,28 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T18:12:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
     "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "Pidless embedded lifecycle code is substantial, but the broader required production reclaim path is unwired and the V3 real Candle proof/provenance files are absent for the materially changed source. Current real-resource START/STOP, artifact retention, crash recovery, and lease-release claims are therefore not bound to this candidate.",
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: reclaim durability/ABA controls and real Candle lifecycle are green. Fresh proof nonce 5cfe2c2d-2056-4230-9483-64b9ff775cbd binds schema @3, provenance @1, SHA-256 f74718c2e3d2bfba83267a3cf4dfa5de9daadd9d182cdfc67fedca259ba1e6c0, durable STOP, and lease release. Invalid nonce fails clean with neither canonical file present. Independent post-fix audit reports no findings. Historical V1/V2 verdicts remain preserved; COMPLETED remains validator-only.",
+    "proof_status": "FAIL_V4: Pidless embedded lifecycle code is substantial, but the broader required production reclaim path is unwired and the V3 real Candle proof/provenance files are absent for the materially changed source. Current real-resource START/STOP, artifact retention, crash recovery, and lease-release claims are therefore not bound to this candidate.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_REMEDIATION_V2_FINAL_SOURCE_PROOFS_GREEN",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
     "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_POST_FIX_REAUDIT_NO_FINDINGS",
     "adversarial_findings_status": "PASS_V3_STALE_CANONICAL_PROOF_AND_PUBLICATION_ORDER_FINDINGS_CLOSED_WITH_NEGATIVE_AND_POSITIVE_RUNTIME_PROOF",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-013:2026-07-20T01:13:40.778Z",
-    "validated_by": null,
-    "validated_at_utc": null
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Embedded ModelRuntime real-load conformance hardening: for the in-process Candle/llama.cpp library path, enforce artifact integrity plus ProcessOwnershipLedger START/STOP rows with honest pid-less metadata; any actual spawned model process remains SandboxAdapter-owned. Emit a Flight Recorder event on DisabledLlmClient and fail-closed error paths, validated with a REAL Candle model load.",
@@ -163,7 +163,7 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after a REAL Candle model load proves artifact integrity plus matching pid-less ProcessOwnershipLedger START/STOP rows; SandboxAdapter boxing is NOT_APPLICABLE to the no-child/no-guest in-process path, and any actual spawned model process remains SandboxAdapter-owned. COMPLETED is validator-only."
   },
-  "validator_verdict": "PENDING_V3",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -312,6 +312,28 @@
       "FAIL negative path: ProcessLedgerWriter Full/Closed returns Ok through overflow telemetry while no STOP is queued.",
       "FAIL concurrency boundary: timestamp-only 30-second claim and UUID-only release permit ABA claim erasure/double action.",
       "FAIL UserManual parity: documented group cap 32 differs from runtime cap 16."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "Pidless embedded lifecycle code is substantial, but the broader required production reclaim path is unwired and the V3 real Candle proof/provenance files are absent for the materially changed source. Current real-resource START/STOP, artifact retention, crash recovery, and lease-release claims are therefore not bound to this candidate.",
+    "remediation_plan": [
+      "Freeze the current source and regenerate the required real Candle and llama.cpp proof/provenance artifacts under the canonical external artifact root.",
+      "Prove artifact replacement/truncation cannot alter loaded bytes, START precedes artifact access, STOP is durable before lease release, and crash recovery cannot close a live runtime.",
+      "Wire and exercise the production spawned-process reclaimer separately for every actual child process, then request V4 review."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

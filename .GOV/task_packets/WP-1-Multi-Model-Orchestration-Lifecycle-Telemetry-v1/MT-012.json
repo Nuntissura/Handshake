@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-012",
   "created_at_utc": "2026-07-01T19:02:22Z",
-  "updated_at_utc": "2026-07-04T03:32:36Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "scope_status": "IMPLEMENTED_READY_FOR_VALIDATION_2026-07-04",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-012.json",
@@ -16,7 +16,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-003",
       "MT-008",
@@ -26,21 +26,21 @@
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PASS_V1",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER-20260704-030347",
     "claimed_at_utc": "2026-07-04T03:03:47Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260704-030347",
     "ready_for_validation_at_utc": "2026-07-04T03:32:36Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "Operator Chat has native controls, but its Argus tests drive in-process Harness/AccessKit state rather than the production attributed Argus route, and pop-out window capture is unsupported. The official-CLI lifecycle it launches also lacks production reclaim after kill/reap failure.",
     "missing_resource": null,
-    "proof_status": "PASS_MT012_2026-07-04_OPERATOR_CHAT_SURFACE_AND_SUBAGENT_LAUNCH_GREEN: prior local/cloud/operator-chat route and capture evidence retained from KERNEL_BUILDER-20260704-000054; current repair added operator-facing SUBAGENT inventory row, frontend selection audit, backend no-OS SwarmCoordinator launch path, ModelLane persistence, operator prompt persistence, UserManual coverage, and route regression proof. Current-session commands passed: backend subagent no-OS launch 1/1, frontend Argus selection/transcript with subagent row 1/1, backend operator-chat route regression 1/1, UserManual operator-chat launch coverage 1/1, file-scoped rustfmt checks passed, git diff --check exit 0 with CRLF warnings only. KB_READY_CHECKLIST_RECEIPT PASS refreshed at 2026-07-04T03:40:13.631Z in ../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl.",
+    "proof_status": "FAIL_V4: Operator Chat has native controls, but its Argus tests drive in-process Harness/AccessKit state rather than the production attributed Argus route, and pop-out window capture is unsupported. The official-CLI lifecycle it launches also lacks production reclaim after kill/reap failure.",
     "hbr_status": "PASS_HBR_VIS_INT_SWARM_QUIET_MAN_FOR_MT012_OPERATOR_CHAT_SURFACE: native egui/Argus surface, LOCAL/CLOUD/CLI/SUBAGENT inventory rows, SwarmCoordinator Dexterity launch route fail-closed, SUBAGENT no-OS launch records RuntimeBinding::Subagent and LaunchAuthority::SubagentManager without process ownership, ModelLaneMessage capture + Flight Recorder/EventLedger evidence for process-backed lanes, UserManual coverage, stable author_id controls, official-CLI runtime duplicate FR-EVT-AGENT producer suppressed for replay-captured Operator Chat while LLM infer telemetry remains wired.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review_BUILD_AFTER_MT014_MT015",
     "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENT_POST_REVIEW_NO_OPEN_BLOCKERS_AFTER_DUPLICATE_AGENT_EVENT_FIX",
     "adversarial_findings_status": "POST_REVIEW_BLOCKER_APPLIED: production Operator Chat official-CLI providers use replay-captured builder; runtime-level FR-EVT-AGENT emission can be suppressed independently from FR-EVT-LLM-INFER telemetry; local/cloud picker selection audit and unavailable-row disable behavior proven.",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Operator work-surface: an interactive native chat/launch pane where the operator selects a local or cloud model lane and a folder/worktree, launches a session through the Dexterity SwarmCoordinator contract, and sees the CLI-wrapper conversation, model-exposed reasoning/thought, and tool calls captured as typed ModelLaneMessage records wired to Flight Recorder.",
@@ -176,7 +176,7 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only. TypeScript/React/app-src/app-src-tauri/npm are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "PASS_V1",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -193,6 +193,28 @@
     "basis": "Operator chat/launch native pane + RUN-menu leaf. Launch resolves through real SwarmCoordinator::spawn_session with LoopbackCliSpawner (fake only at subprocess boundary), real CLI-capture parser, real ModelLaneStore::record_message, real CapturingRecorder; operator_chat_launch_route_performs_real_launch_when_wired binds a real HTTP server + asserts durable operator row + captured transcript rows; fail-closed proven by operator_chat_launch_without_model_lane_store_fails_closed. ARGUS ADEQUATE (independently verified): test_operator_chat_launch_argus.rs drives real egui_kittest::Harness over HandshakeApp::ui, reads author_id from the LIVE AccessKit tree, navigates via RUN menu leaf, before/after transcript-row observation, unique author_ids, offline error path renders ERROR_AUTHOR_ID.",
     "concerns": [
       "Could not locate an explicit assertion that launched-subprocess cwd == operator selection (P0-F10); cwd plumbing claimed in commit. Recommend confirm at whole-WP integration. Non-blocking for per-MT surface."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "Operator Chat has native controls, but its Argus tests drive in-process Harness/AccessKit state rather than the production attributed Argus route, and pop-out window capture is unsupported. The official-CLI lifecycle it launches also lacks production reclaim after kill/reap failure.",
+    "remediation_plan": [
+      "Wire Operator Chat selection, launch, cancellation, transcript capture, and recovery through the production Argus transport with attributable before/after receipts.",
+      "Add targeted screenshots and steering for both docked and detached Operator Chat windows.",
+      "Compose the real spawned-process reclaimer and run a production launch/cancel/failure/restart test proving one activity event, terminal lane state, kill/reap, and durable STOP."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

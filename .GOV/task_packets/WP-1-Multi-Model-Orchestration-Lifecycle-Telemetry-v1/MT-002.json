@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-002",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-28T23:46:43.220Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-002.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-001"
     ],
@@ -27,15 +27,15 @@
       "MT-008"
     ],
     "active": false,
-    "validator_verdict": "PASS_V1",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER-20260628-220906",
     "claimed_at_utc": "2026-06-28T22:32:08.601Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
     "ready_for_validation_at_utc": "2026-07-01T23:08:42Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "MT-017 materially changed the shared ModelLane schema/diagnostics surface after MT-002 PASS_V1. The fresh real-PostgreSQL schema regression command did not return within the bounded run, so the current dirty candidate has no validator-owned schema/replay proof and cannot be promoted to PASS_V4.",
     "missing_resource": null,
-    "proof_status": "PASS_MT002_2026-07-01: cargo test --test model_lane_schema_pg_tests --features test-utils = 4 passed / 0 failed (managed PG 127.0.0.1:5544, 351s); commit e083e0d2. Prior FALSE self-cert corrected. FIXES (spec-grounded, cloud gate NOT weakened): (A/C) schema test now seeds durable cloud ProjectionPlan+ConsentReceipt via new shared tests/model_lane_cloud_support.rs::seed_cloud_lane_authority (spec 4.3.9.2.5 confirms the fail-closed durability gate is correct); (B) CODE bug fixed - record_lane_terminal_status re-stamps the terminal EventLedger payload with the full lane record for replay authority; record_message idempotency now normalizes only per-attempt message_id/span_id while still failing closed on authority/routing divergence (spec 4.3.9.2.5 idempotent-retry); adjacent revoke_cloud_consent_receipt same re-stamp (MT-006 code in MT-002 allowed path, disclosed, prevents MT-006 revocation regression - cloud_consent_revocation test PASS). KB-reviewed the 3 model_lane.rs hunks: correct, not scaffolding. Shared cloud-seed helper reusable by MT-004/005/006/007/009.",
+    "proof_status": "FAIL_V4: MT-017 materially changed the shared ModelLane schema/diagnostics surface after MT-002 PASS_V1. The fresh real-PostgreSQL schema regression command did not return within the bounded run, so the current dirty candidate has no validator-owned schema/replay proof and cannot be promoted to PASS_V4.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT002_SCHEMA_GREEN",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
@@ -44,8 +44,8 @@
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_POST_IMPLEMENTATION_ADVERSARIAL_REVIEW_2026-06-28",
     "adversarial_findings_status": "POST_REVIEW_BLOCKERS_ADDRESSED_IN_PRODUCT_CODE_AND_TESTS",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Add backend schemas/types for ModelLaneRun, ModelLane, ModelLaneMessage, and lane status.",
@@ -251,7 +251,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "PASS_V1",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -268,6 +268,28 @@
     "basis": "ModelLaneRun/ModelLane/ModelLaneMessage typed schemas + Locus fail-closed (validate_locus) + idempotency-conflict fail-closed. Proof model_lane_schema_pg_tests uses knowledge_pg().expect() (fail-closed, panics without real PG) and asserts EventLedger evidence (event_ledger_event_id KE- prefix, event_ledger_seq>0). Negative proof model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict present. UserManual entry current.",
     "concerns": [
       "Disclosed scope note: MT-002 commit also touched revoke_cloud_consent_receipt (MT-006 behavior) inside the shared swarm_orchestration/ path; disclosed and in-scope-directory, allow-with-note."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "MT-017 materially changed the shared ModelLane schema/diagnostics surface after MT-002 PASS_V1. The fresh real-PostgreSQL schema regression command did not return within the bounded run, so the current dirty candidate has no validator-owned schema/replay proof and cannot be promoted to PASS_V4.",
+    "remediation_plan": [
+      "Freeze or commit the current product candidate so proof binds one source revision.",
+      "Run model_lane_schema_pg_tests serially against the managed PostgreSQL database with the external CARGO_TARGET_DIR; require all schema, replay, idempotency, and competing-terminal cases to pass.",
+      "Record the exact source SHA and test result, then request V4 revalidation."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

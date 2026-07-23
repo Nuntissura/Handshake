@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-003",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-07-20T01:19:00Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-003.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-002"
     ],
@@ -25,15 +25,15 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-01T19:02:22Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
     "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "Launch/runtime authority is not production-correct: SwarmCoordinator generation calls ModelRuntime directly instead of the current Master Spec HARD LlmClient boundary; official CLI accepts unresolved execution-policy references; post-resume Windows startup can wait without a final bound; and the historical real-model proof does not bind the materially changed dirty source.",
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: exact embedded-default, Official-CLI HandshakeNative/UserManual, Tauri/app-runtime, generation-fence, duplicate-loser, real Candle, and real llama.cpp gates pass. The llama proof requires successful finite embedding output at the model-derived dimension. Independent post-fix adversarial review reports no findings. Historical V1/V2 verdicts remain preserved; COMPLETED remains validator-only.",
+    "proof_status": "FAIL_V4: Launch/runtime authority is not production-correct: SwarmCoordinator generation calls ModelRuntime directly instead of the current Master Spec HARD LlmClient boundary; official CLI accepts unresolved execution-policy references; post-resume Windows startup can wait without a final bound; and the historical real-model proof does not bind the materially changed dirty source.",
     "hbr_status": "PASS_HBR_INT_SWARM_QUIET_MAN_REMEDIATION_V2_FINAL_SOURCE_GENERATION_FENCE_DUPLICATE_COMPENSATION_AND_OFFICIAL_CLI_SANDBOX_AUTHORITY_GREEN",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-003:2026-07-20T01:13:21.386Z",
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
@@ -42,8 +42,8 @@
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_INDEPENDENT_POST_FIX_REAUDIT_NO_FINDINGS",
     "adversarial_findings_status": "PASS_V3_LLAMA_EMBED_FALSE_GREEN_AND_CANDLE_STALE_PROOF_PUBLICATION_FINDINGS_CLOSED_AND_REPROVEN",
-    "validated_by": null,
-    "validated_at_utc": null
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Normalize launch adapters for local, cloud, CLI, human, subagent, and validator lanes.",
@@ -288,7 +288,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "PENDING_V3",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -492,6 +492,28 @@
       "PASS source trace: official CLI uses HandshakeNative spawn_attached_with_stdio and owns termination/reap before STOP.",
       "PASS source trace: same-ID insertion and Ready publication use generation fencing.",
       "INCONCLUSIVE environment run: the combined exact concurrency command was terminated after concurrent Cargo target contention; no pass claim is made for that run."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "Launch/runtime authority is not production-correct: SwarmCoordinator generation calls ModelRuntime directly instead of the current Master Spec HARD LlmClient boundary; official CLI accepts unresolved execution-policy references; post-resume Windows startup can wait without a final bound; and the historical real-model proof does not bind the materially changed dirty source.",
+    "remediation_plan": [
+      "Route all application generation through LlmClient, or obtain an explicit Master Spec correction without weakening requirements to manufacture PASS.",
+      "Resolve and validate requested execution-policy references before process creation, persist the effective policy, and reject missing/stale/unknown references.",
+      "Add a hard post-resume startup bound with deterministic terminate/reap recovery, then rerun real Candle, llama.cpp, official-CLI, boot-resolution, lifecycle, UserManual, and app-runtime proofs from one frozen source revision."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

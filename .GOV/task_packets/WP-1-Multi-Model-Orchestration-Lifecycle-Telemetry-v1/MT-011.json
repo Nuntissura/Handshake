@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-011",
   "created_at_utc": "2026-06-28T18:06:24.222Z",
-  "updated_at_utc": "2026-06-28T21:51:59.965Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-011.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,22 +15,22 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-009",
       "MT-010"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PASS_V1",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T12:53:00Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
     "ready_for_validation_at_utc": "2026-07-02T13:14:05Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "The behavior registry and UserManual deliberately require internal_diagnostics and Palmistry to remain DeferredWithReason because their producers are not shipped. This is truthful, but it directly fails the operator's V4 requirement that both tiers work and are wired for this WP.",
     "missing_resource": null,
-    "proof_status": "PASS_MT011_2026-07-02: user_manual_behavior_coverage_tests 1/1 PASS (79s, managed PG 5544). model_lane_behavior_coverage_matrix (15 behaviors) matches the ModelLane schema registry and the seeded UserManual pages/tools; per-behavior posture asserted (internal_diagnostics Wired, palmistry DeferredWithReason with follow_up_ref palmistry://wp1/model-lane/). UserManual covers the built ModelLane behaviors; the new MTs (012/013/014/015) add their own manual coverage as implemented.",
+    "proof_status": "FAIL_V4: The behavior registry and UserManual deliberately require internal_diagnostics and Palmistry to remain DeferredWithReason because their producers are not shipped. This is truthful, but it directly fails the operator's V4 requirement that both tiers work and are wired for this WP.",
     "hbr_status": "PASS_HBR_MAN_FOR_MT011_USERMANUAL_COVERAGE_GREEN",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
@@ -39,8 +39,8 @@
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
     "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Make the in-product internal UserManual reflect every ModelLane/cloud/local/subagent orchestration behavior this WP introduces, including Flight Recorder/EventLedger linkage and Palmistry/internal_diagnostics posture.",
@@ -255,7 +255,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "PASS_V1",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -270,5 +270,27 @@
     "method": "Committed-source review (base 6519f4e2..HEAD 9ea46427) + WP_VALIDATOR mechanical gates (Job1 /.GOV boundary CLEAN, Job4 artifact hygiene CLEAN) + Spec-Realism Gate SR1/SR2/SR3, across 4 read-only review-lens sub-agents (each read Codex v1.4 + WP_VALIDATOR_PROTOCOL, no product-code edits) plus direct Integration-Validator re-verification of every load-bearing claim against git ground truth.",
     "runtime_status": "ENVIRONMENT_BLOCKED_MANAGED_PG_NOT_PROVISIONED: fresh independent re-run of *_pg_tests panicked fail-closed with PgDatabaseError 3D000 database \"handshake\" does not exist (managed cluster boots only during test execution; its data dir lacked the app database in this session). Tests verified structurally fail-closed via knowledge_pg().expect(...) / pg_required(...), so they cannot false-green. Runtime dimension rests on (a) verified fail-closed test structure and (b) the Coder HEAD re-proof logs dated 2026-07-09 under ../Handshake_Artifacts/handshake-test/wp1-kb-logs/ (g1_swarm, g6_cloud_policy, model_lane_navigation_api_tests, operator_chat_capture_tests, embedded_model_ledger_tests, user_manual_*) which show the relevant suites green at HEAD.",
     "basis": "Internal UserManual coverage matrix generated from real ModelLaneStore::schema_registry_rows() against PG (not filename guesswork). Negative proof behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route genuinely fail-closed: tampers each column (missing manual page, DeferredWithReason diagnostic, empty runtime_surface_id, missing tool) and asserts expect_err per case. Palmistry DeferredWithReason + follow_up_ref enforced per behavior. HEAD green (Coder log 2026-07-09)."
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "The behavior registry and UserManual deliberately require internal_diagnostics and Palmistry to remain DeferredWithReason because their producers are not shipped. This is truthful, but it directly fails the operator's V4 requirement that both tiers work and are wired for this WP.",
+    "remediation_plan": [
+      "Implement real internal_diagnostics producers for panic, heartbeat, frame, resource, and open-event state, and connect their durable inspection surface.",
+      "Implement the Palmistry watcher producer/consumer path with run/lane correlation and durable evidence receipts.",
+      "Replace deferred assertions only after runtime proof, then rerun the complete behavior coverage, page/tool currency, recovery, and native UserManual tests."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
+    ]
   }
 }

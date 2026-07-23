@@ -5,33 +5,51 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-017",
   "created_at_utc": "2026-07-09T00:00:00Z",
-  "updated_at_utc": "2026-07-20T01:19:00Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
   },
-  "markdown_projection": { "path": "", "status": "SKIPPED_MINIMAL_GOVERNANCE" },
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
-    "depends_on": ["MT-003", "MT-004", "MT-006", "MT-007", "MT-008", "MT-009", "MT-010", "MT-011", "MT-012", "MT-013", "MT-014", "MT-015"],
+    "status": "FAIL_V4",
+    "depends_on": [
+      "MT-003",
+      "MT-004",
+      "MT-006",
+      "MT-007",
+      "MT-008",
+      "MT-009",
+      "MT-010",
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-014",
+      "MT-015"
+    ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER",
     "claimed_at_utc": "2026-07-16T23:03:45Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
     "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "The final hardening MT cannot close because MT-003/009/013/014 and several changed dependencies fail V4. Independently, internal_diagnostics and Palmistry are explicitly deferred, Argus cannot inspect/capture every real panel and pop-out, and the current-source PostgreSQL/app-runtime commands did not produce validator-owned proof.",
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: all V2 blockers in MT-003, MT-009, MT-013, and MT-014 are remediated and independently re-audited. Fresh diagnostics producer/native nonce ddcdd89a-a934-4d77-b01f-196480dbb38a and UserManual producer/native nonce b0aed6af-4829-4592-890c-7501374bb0c4 pass strict provenance/freshness gates; real PostgreSQL snapshot/cancellation/routing exacts pass. The 800x600 UserManual pane was directly inspected as readable with no overlap. DeferredWithReason producer posture remains truthful. Historical V2 verdict remains preserved; COMPLETED remains validator-only.",
+    "proof_status": "FAIL_V4: The final hardening MT cannot close because MT-003/009/013/014 and several changed dependencies fail V4. Independently, internal_diagnostics and Palmistry are explicitly deferred, Argus cannot inspect/capture every real panel and pop-out, and the current-source PostgreSQL/app-runtime commands did not produce validator-owned proof.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_VIS_FOR_MT017_REMEDIATION_SCOPE",
     "pre_implementation_adversarial_review_status": "CARRIED_FROM_KERNEL_BUILDER_REPROOF_2026-07-09",
     "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_FINAL_DEPENDENCY_DIAGNOSTICS_USERMANUAL_AND_RUNTIME_AUDIT_GREEN",
     "adversarial_findings_status": "PASS_V3_ALL_V2_DEPENDENCY_BLOCKERS_CLOSED_FRESH_NONCE_BOUND_PRODUCER_CONSUMER_AND_VISUAL_PROOFS_ACCEPTED",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-017:2026-07-20T01:18:29.891Z",
-    "product_worktree_root_resolution": "HANDSHAKE_PRODUCT_WORKTREE_ROOT:D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1"
+    "product_worktree_root_resolution": "HANDSHAKE_PRODUCT_WORKTREE_ROOT:D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-multi-model-orchestration-v1",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "final_audit_remediation_2026_07_18": {
     "status": "PASS_READY_FOR_VALIDATION_ONLY",
@@ -179,7 +197,10 @@
       "git diff --check"
     ],
     "risk_if_missed": "SingleRun consent scope stays dead metadata while the API surface implies run-scoped consent fan-out (a security-semantics lie). CRDT compaction/state-vector/cancellation claims stay asserted-but-unproven. The backend<->frontend diagnostics projection can drift into a runtime parse error with both test suites green. UserManual 'self_consistency verified' and 'named surface exists' claims overstate what is actually enforced.",
-    "reference_only_paths": ["app/src-tauri/", "app/src/"]
+    "reference_only_paths": [
+      "app/src-tauri/",
+      "app/src/"
+    ]
   },
   "implementation_notes": [
     "AC-1 is a security-boundary change: broadening what a ConsentReceipt authorizes. It MUST be an explicit operator/validator decision, not an incidental refactor. Prefer removing SingleRun if run-scoped consent is not a real product requirement.",
@@ -187,8 +208,21 @@
     "Already closed in-MT during the KERNEL_BUILDER re-proof and NOT part of this MT: MT-006 cross-lane consent reuse fails closed (cloud_consent_receipt_bound_to_other_lane_fails_closed); MT-009 HBR-SWARM-001 real concurrency on a shared CRDT key with a HumanOperator lane.",
     "Rust-only: Rust backend plus native egui/Argus. No TypeScript/React/app-src."
   ],
-  "required_build_rules": ["HBR-INT-003", "HBR-INT-004", "HBR-INT-009", "HBR-SWARM-002", "HBR-MAN-003", "HBR-MAN-004", "HBR-VIS-004"],
-  "hbr_obligations": ["INT", "SWARM", "MAN", "VIS"],
+  "required_build_rules": [
+    "HBR-INT-003",
+    "HBR-INT-004",
+    "HBR-INT-009",
+    "HBR-SWARM-002",
+    "HBR-MAN-003",
+    "HBR-MAN-004",
+    "HBR-VIS-004"
+  ],
+  "hbr_obligations": [
+    "INT",
+    "SWARM",
+    "MAN",
+    "VIS"
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,
@@ -226,7 +260,7 @@
     "rust_only_implementation": "Rust backend plus native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "PENDING_V3",
+  "validator_verdict": "FAIL_V4",
   "remediation_v3": {
     "status": "READY_FOR_VALIDATION_V3",
     "prepared_by": "KERNEL_BUILDER-20260717-072123",
@@ -268,6 +302,28 @@
       "FAIL current proof: diagnostics artifact provenance exceeds the native 30-minute freshness ceiling.",
       "PASS posture inspection: absent internal_diagnostics producers and Palmistry are explicitly DeferredWithReason rather than falsely marked WIRED.",
       "FAIL candidate stability: product worktree remains dirty, so historical final-source receipts do not bind a frozen candidate."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "The final hardening MT cannot close because MT-003/009/013/014 and several changed dependencies fail V4. Independently, internal_diagnostics and Palmistry are explicitly deferred, Argus cannot inspect/capture every real panel and pop-out, and the current-source PostgreSQL/app-runtime commands did not produce validator-owned proof.",
+    "remediation_plan": [
+      "Complete every dependency remediation and freeze one current product source revision before revalidation.",
+      "Ship and prove real internal_diagnostics and Palmistry producers/consumers; deferred labels do not satisfy this V4 requirement.",
+      "Ship production Argus coverage for every WP panel/window and rerun all MT-017 PostgreSQL/Yjs/cancellation/routing/diagnostics/UserManual/native proof commands serially with fresh nonce-bound artifacts."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

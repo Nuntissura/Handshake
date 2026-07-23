@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-014",
   "created_at_utc": "2026-07-01T21:15:18Z",
-  "updated_at_utc": "2026-07-20T01:19:00Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "scope_status": "READY_FOR_VALIDATION_V3",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json",
@@ -42,28 +42,28 @@
     "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs"
   ],
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V3",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-003"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "PENDING_V3",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER-20260717-072123",
     "claimed_at_utc": "2026-07-17T09:17:58.5096773Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260717-072123",
     "ready_for_validation_at_utc": "2026-07-20T01:19:00Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "Registry persistence is transactional, but the active default-model selection is only process-local and is not restored after restart. The shipped ModelRuntime panel also omits current Master Spec controls/telemetry including KV occupancy, LoRA/steering state, ProcessOwnershipLedger link, performance, unload, adapter swap, and engine internals.",
     "missing_resource": null,
-    "proof_status": "READY_FOR_VALIDATION_V3_2026-07-20: completion-default selection excludes embedding-only roles and POST remains atomic across durable projection failure. Fresh real-PostgreSQL producer/native chain nonce 4641c263-8df6-4836-a2d6-4cc3a7d98f59 passed; registry suite 7/7 and ignored PNG proof 1/1 passed. The 1440x940 panel was directly inspected as readable and coherent. Historical V1/V2 verdicts remain preserved; COMPLETED remains validator-only.",
+    "proof_status": "FAIL_V4: Registry persistence is transactional, but the active default-model selection is only process-local and is not restored after restart. The shipped ModelRuntime panel also omits current Master Spec controls/telemetry including KV occupancy, LoRA/steering state, ProcessOwnershipLedger link, performance, unload, adapter swap, and engine internals.",
     "hbr_status": "PASS_HBR_INT_MAN_FOR_MT014_REGISTRY_LOOM_RESOLVER_HARDENED",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-02_FINDINGS_IN_CONTRACT_pre_implementation_review",
     "post_implementation_adversarial_review_status": "PASS_V3_2026-07-20_ROLE_SELECTION_ATOMICITY_PROJECTION_AND_VISUAL_GATES_GREEN",
     "adversarial_findings_status": "PASS_V3_EMBEDDING_ONLY_DEFAULT_SELECTION_AND_PRE_DURABILITY_MUTATION_DEFECTS_CLOSED",
     "kb_ready_checklist_receipt_id": "KB_READY_CHECKLIST_RECEIPT:MT-014:2026-07-20T01:18:19.901Z",
-    "validated_by": null,
-    "validated_at_utc": null
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Make the default LlmClient's embedded model registry shared, enumerable, and labeled (UUIDv7 -> display_name/base_model_tag) so downstream pillars can name and list the local model, and give LoomSearchV2 a real embedding-model contract that degrades (not hard-errors) on dimension mismatch.",
@@ -334,7 +334,7 @@
     },
     "readiness_gate": "SATISFIED: durable authority is integrated into the original in-process production boot, exact proofs pass on final source, passed-MT regressions are green, post-implementation adversarial review has no unresolved blocker, and the KB readiness checklist emitted PASS."
   },
-  "validator_verdict": "PENDING_V3",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "FAIL_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -391,6 +391,28 @@
       "FAIL mutation ordering: swap_model precedes durable projection integrity construction.",
       "FAIL proof topology: production Argus test covers GET only; switch and failure cases use fakes.",
       "PASS visual inspection but FAIL freshness: existing PNG is readable and hash-valid, while its projection provenance exceeds the 30-minute limit."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "Registry persistence is transactional, but the active default-model selection is only process-local and is not restored after restart. The shipped ModelRuntime panel also omits current Master Spec controls/telemetry including KV occupancy, LoRA/steering state, ProcessOwnershipLedger link, performance, unload, adapter swap, and engine internals.",
+    "remediation_plan": [
+      "Persist the active completion default as durable authority and recover it when reconstructing the production client; add switch A-to-B, restart, and recovered-routing proof.",
+      "Implement every ModelRuntime panel field/action required by SPEC_CURRENT section 10.13, with safe unload/re-register behavior and ledger/audit click-through.",
+      "Prove the real PostgreSQL API and every panel action through production Argus, including main and detached windows, negative states, and before/after receipts."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-007",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-28T21:51:59.965Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-007.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-002",
       "MT-003",
@@ -29,15 +29,15 @@
       "MT-010"
     ],
     "active": false,
-    "validator_verdict": "PASS_V1",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T01:19:49Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
     "ready_for_validation_at_utc": "2026-07-02T09:13:35Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "Recovery code was materially changed, but production composes only the pidless embedded-runtime reconciler. The generic spawned-process Reclaim/SandboxKill path and staleness task are not wired into product boot, so official-CLI START rows can remain open after termination/reap failure without a production owner that kills and writes STOP.",
     "missing_resource": null,
-    "proof_status": "PASS_MT007_2026-07-02: RECONCILED per-kind recovery + identity-before-body diagnostics fix. model_lane_recovery_pg_tests 9/9 (1010s re-confirm) AND mixed_model_lane_integration_pg_tests 5/5 on ONE codebase (commits ba13ca74 + 4a3c8ef9), no cross-suite regression. Recovery catches up post-checkpoint forward stream (messages/recovery-events/MT-statuses), REJECTS post-checkpoint payload/CRDT repairs of checkpointed refs, EXCLUDES current-state leases (spec 4.3.9.2.5). Supersedes the earlier over-corrected checkpoint-bound fix (553e6095). KB-reviewed, no weakening. internal_diagnostics+Palmistry DEFERRED-with-reason (WP-KERNEL-012/016).",
+    "proof_status": "FAIL_V4: Recovery code was materially changed, but production composes only the pidless embedded-runtime reconciler. The generic spawned-process Reclaim/SandboxKill path and staleness task are not wired into product boot, so official-CLI START rows can remain open after termination/reap failure without a production owner that kills and writes STOP.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT007_RECOVERY_RECONCILED",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
@@ -46,8 +46,8 @@
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
     "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Add lane recovery, orphan detection, replay, and diagnostics state.",
@@ -256,7 +256,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "PASS_V1",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -273,6 +273,28 @@
     "basis": "Lane recovery / orphan detection (CX-MM-009) / missing-payload (CX-MM-006) / replay without chat history / lease scope + takeover / negative proofs (corrupt checkpoint, seq gap, dup idempotency). Proof model_lane_recovery_pg_tests replays from real PG/EventLedger checkpoints; diagnostic_tier_record_rejects_flight_recorder_only_evidence exercises FR-only rejection. claimed_by != completed_by. No live-escape variants; unreachable! sites are invariant guards.",
     "concerns": [
       "Minor taxonomy blur: CorruptCheckpoint and OrphanedSubagent both map to code CX-MM-009; behavior correct, code reuse only."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "Recovery code was materially changed, but production composes only the pidless embedded-runtime reconciler. The generic spawned-process Reclaim/SandboxKill path and staleness task are not wired into product boot, so official-CLI START rows can remain open after termination/reap failure without a production owner that kills and writes STOP.",
+    "remediation_plan": [
+      "Compose Reclaim with the real PostgreSQL store, ProcessLedgerWriter, and a production SandboxKill backed by the owning SandboxAdapter.",
+      "Wire session close, failure, staleness, operator cancel, and restart triggers; preserve generation/launch identity so PID reuse cannot kill an unrelated process.",
+      "Run real-process and real-PostgreSQL crash/restart, concurrent-reclaimer, post-checkpoint lease, and STOP durability tests from a frozen candidate."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

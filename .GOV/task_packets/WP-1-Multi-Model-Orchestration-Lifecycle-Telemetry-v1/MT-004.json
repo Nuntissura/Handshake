@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-004",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-29T15:54:16.908Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-004.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-002"
     ],
@@ -25,15 +25,15 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": "PASS_V1",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": null,
     "claimed_at_utc": null,
     "ready_for_validation_by": "KERNEL_BUILDER",
     "ready_for_validation_at_utc": "2026-06-29T15:54:16.908Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "Routing policies execute, but successful routing can emit proposal:// and crdt-update:// authority references that are not backed by a persisted kernel_crdt_updates/Yjs object. A consumer cannot dereference the claimed CRDT lineage, so advisory-to-authority promotion is not durable or fail-closed.",
     "missing_resource": null,
-    "proof_status": "PASSED",
+    "proof_status": "FAIL_V4: Routing policies execute, but successful routing can emit proposal:// and crdt-update:// authority references that are not backed by a persisted kernel_crdt_updates/Yjs object. A consumer cannot dereference the claimed CRDT lineage, so advisory-to-authority promotion is not durable or fail-closed.",
     "hbr_status": "PASSED",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "RESOLVED_TO_CURRENT_WORKTREE",
@@ -42,8 +42,8 @@
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "COMPLETED_2026-06-29",
     "adversarial_findings_status": "POST_IMPLEMENTATION_FINDINGS_ADDRESSED_IN_RUNTIME_AND_USERMANUAL",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Implement coordinator routing policies and explicit advisory-to-authority promotion.",
@@ -243,7 +243,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "PASS_V1",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -260,6 +260,28 @@
     "basis": "Promotion state machine (advisory -> promotion_requested -> pending_policy|pending_approval) + PromotionGate stale-base/schema/version denial + deterministic reordered-input hash + EventLedger-backed decision artifacts. Proof model_lane_promotion_pg_tests uses knowledge_pg().expect() (fail-closed). Negative test model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_mutation present. Code structurally sound.",
     "concerns": [
       "Lifecycle hygiene: lifecycle.claimed_by=null and claimed_at_utc=null while ready_for_validation_by=KERNEL_BUILDER; and proof_status/hbr_status are bare 'PASSED' strings with no evidence (contrast MT-002/003 which cite test counts/SHAs). Code ACs are implemented; recommend Orchestrator require a populated claim record + evidence-bearing proof_status. Not a Spec-Realism failure."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "Routing policies execute, but successful routing can emit proposal:// and crdt-update:// authority references that are not backed by a persisted kernel_crdt_updates/Yjs object. A consumer cannot dereference the claimed CRDT lineage, so advisory-to-authority promotion is not durable or fail-closed.",
+    "remediation_plan": [
+      "Classify non-shared routing results as advisory with null CRDT authority fields, or atomically persist a real Yjs proposal/update before recording the routing message.",
+      "Derive the post-update state vector from persisted bytes and validate every non-null CRDT reference by hash and object identity.",
+      "Add all-six-policy negative tests for missing rows, hash mismatch, stale vectors, duplicates, and replay order against real PostgreSQL."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }

@@ -5,7 +5,7 @@
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-008",
   "created_at_utc": "2026-06-28T17:11:31.143Z",
-  "updated_at_utc": "2026-06-28T21:51:59.965Z",
+  "updated_at_utc": "2026-07-22T13:02:07.6975131Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json",
     "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "PASS_V1",
+    "status": "FAIL_V4",
     "depends_on": [
       "MT-002",
       "MT-004",
@@ -27,15 +27,15 @@
       "MT-010"
     ],
     "active": false,
-    "validator_verdict": "PASS_V1",
+    "validator_verdict": "FAIL_V4",
     "claimed_by": "KERNEL_BUILDER-20260701-190732",
     "claimed_at_utc": "2026-07-02T09:23:40Z",
     "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
     "ready_for_validation_at_utc": "2026-07-02T09:36:23Z",
     "completed_by": null,
-    "blocker": null,
+    "blocker": "The native diagnostics pane is AccessKit-visible, but the proof bypasses the production Argus transport. The MCP screenshot implementation targets only the exact main-window title Handshake, accepts no target window, and cannot capture pop-outs titled Handshake – <pane>; therefore Argus does not work across all panels/windows as required.",
     "missing_resource": null,
-    "proof_status": "PASS_MT008_2026-07-02: backend swarm_lane_diagnostics_pg_tests 2/2 (550s, managed PG 5544) + frontend test_swarm_lane_diagnostics_argus 3/3 (headless AccessKit tree, no wgpu readback). diagnostics_projection matches EventLedger; reclaimable-lease filter correct; FlightRecorder-only HBR posture rejected; operator RUN-menu Lane Diagnostics list/filter/drilldown + mixed-run inspection verified via stable AccessKit author_ids. Also validates the identity-before-body diagnostics fix (4a3c8ef9). internal_diagnostics+Palmistry DEFERRED-with-reason (WP-KERNEL-012/016).",
+    "proof_status": "FAIL_V4: The native diagnostics pane is AccessKit-visible, but the proof bypasses the production Argus transport. The MCP screenshot implementation targets only the exact main-window title Handshake, accepts no target window, and cannot capture pop-outs titled Handshake – <pane>; therefore Argus does not work across all panels/windows as required.",
     "hbr_status": "PASS_HBR_INT_VIS_SWARM_MAN_FOR_MT008_DIAGNOSTICS_BACKEND_AND_ARGUS_GREEN",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "UNRESOLVED_UNTIL_CLAIM",
@@ -44,8 +44,8 @@
     "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
     "post_implementation_adversarial_review_status": "DONE_2026-07-05_LOCAL_ADVERSARIAL_REVIEW_NO_OPEN_BLOCKERS",
     "adversarial_findings_status": "POST_REVIEW_NO_OPEN_BLOCKERS; LOCAL_REVIEW_PROOFS_ROUTER_DIAGNOSTIC_ARGUS_NAV_MIXED_LEDGER_HBR_NEGATIVE_MT011_MANUAL",
-    "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
-    "validated_at_utc": "2026-07-10T21:19:03Z"
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
   },
   "scope": {
     "summary": "Expose readable swarm lane/message diagnostics in UI/debug surfaces.",
@@ -237,7 +237,7 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "PASS_V1",
+  "validator_verdict": "FAIL_V4",
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
@@ -254,6 +254,28 @@
     "basis": "Swarm lane diagnostics UI/debug surface. Backend swarm_lane_diagnostics_backend_projection_matches_eventledger validates projection against real EventLedger on managed PG. ARGUS ADEQUATE: test_swarm_lane_diagnostics_argus.rs drives a real egui_kittest::Harness, navigates via RUN menu -> Open Lane Diagnostics, asserts a real SwarmLaneDiagnostics pane opened, reads live AccessKit author_ids (uniqueness asserted), types filters + re-observes filtered rows (before/after), clicks payload/promotion drilldowns + re-observes selection. Negative test asserts count-mismatch/missing-author-id/schema-mismatch/missing-HBR-tier all fail. Rendered-state inspection, not object construction.",
     "concerns": [
       "Render<->real-PG loop is split (egui test feeds in-test projection; backend PG test proves projection==EventLedger); acceptable split, no single end-to-end test."
+    ]
+  },
+  "validation_v4": {
+    "verdict": "FAIL_V4",
+    "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
+    "validated_at_utc": "2026-07-22T13:02:07.6975131Z",
+    "source_state": {
+      "head_sha": "28e2e5c8be347e0fa62d09de84f4992aad931c7c",
+      "worktree": "wtc-multi-model-orchestration-v1",
+      "dirty_final_source_review": true
+    },
+    "method": "Whole-contract WP Validator review under Integration Validator role: current Master Spec and MT/WP clauses, direct source inspection, adversarial counterfactual/boundary review, artifact hygiene, and bounded current-source runtime attempts.",
+    "fail_report": "The native diagnostics pane is AccessKit-visible, but the proof bypasses the production Argus transport. The MCP screenshot implementation targets only the exact main-window title Handshake, accepts no target window, and cannot capture pop-outs titled Handshake – <pane>; therefore Argus does not work across all panels/windows as required.",
+    "remediation_plan": [
+      "Expose canonical Argus inspect/click/set_value/screenshot operations with agent attribution, leases, and action receipts over the live application state.",
+      "Add window/viewport targeting and capture every detached pop-out rather than reconstructing only a fresh egui context or exact-title main window.",
+      "Run a production binary and prove diagnostics navigation, state mutation, before/after inspection, and screenshots for main and pop-out windows."
+    ],
+    "independent_checks": [
+      "Resolved SPEC_CURRENT to master-spec-v02.201 and compared the product source with the applicable MT/WP clauses.",
+      "Performed independent adversarial source traces and boundary/counterfactual review; subreviewers read the Codex and WP Validator protocols and made no product edits.",
+      "Attempted fresh serial app-runtime and real-PostgreSQL proof against the external artifact target; bounded commands returned no successful verdict and are not credited."
     ]
   }
 }
