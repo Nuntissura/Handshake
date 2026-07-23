@@ -23,9 +23,79 @@
 //! [`encode_base64`] uses `base64::engine::general_purpose::STANDARD` (already in the locked graph) so
 //! `png_base64` decodes with any standard base64 reader an agent already has.
 
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::ArgusWindowDescriptor;
+
+// ── MT-008b: stable-identity OS-window handle registry ──────────────────────────────────────────────
+//
+// Matching an OS window by exact title + PID is ambiguous the moment two pop-out panes of the same
+// module type share a title ("Handshake – Workspace"). Each Argus window nonetheless has a STABLE
+// `window_id` (`popout-{pane_id}` / `main`). The shell records the OS window handle (HWND, stored as a
+// portable `isize`) for each registered viewport at render time; the capture path then grabs THAT exact
+// window instead of guessing which same-title HWND enumerated first. Title + PID remains the fallback
+// only when no handle has been recorded (or a recorded handle has gone stale — e.g. the window was
+// recreated), so an ambiguous-title pane becomes capturable while the existing main-window path is
+// unchanged.
+
+/// Process-global map from a stable Argus `window_id` to its recorded OS window handle (HWND as
+/// `isize`). `isize` (not the raw `HWND` pointer) is stored so the value is `Send` across the UI thread
+/// (which records) and the MCP server thread (which captures) — mirroring how the existing title-based
+/// path already captures off the UI thread.
+static WINDOW_HANDLE_REGISTRY: OnceLock<Mutex<HashMap<String, isize>>> = OnceLock::new();
+
+fn window_handle_registry() -> &'static Mutex<HashMap<String, isize>> {
+    WINDOW_HANDLE_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn lock_registry() -> std::sync::MutexGuard<'static, HashMap<String, isize>> {
+    window_handle_registry()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Record (or overwrite) the OS window handle for a stable Argus `window_id`. A zero handle is ignored
+/// (never a valid window). Called by the shell at viewport registration/render.
+pub fn record_window_handle(window_id: &str, hwnd: isize) {
+    if hwnd == 0 {
+        return;
+    }
+    lock_registry().insert(window_id.to_owned(), hwnd);
+}
+
+/// Forget a recorded handle (e.g. when a pop-out merges back and its viewport is torn down), so a
+/// later capture never grabs a dead HWND and instead falls back to title matching.
+pub fn clear_window_handle(window_id: &str) {
+    lock_registry().remove(window_id);
+}
+
+/// The recorded handle for a stable `window_id`, if any.
+pub fn recorded_window_handle(window_id: &str) -> Option<isize> {
+    lock_registry().get(window_id).copied()
+}
+
+/// The resolved source the capture path will use for a target window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CaptureTarget {
+    /// A recorded HWND (`isize`) that passed the validity gate — captured directly, no title matching.
+    RecordedHandle(isize),
+    /// No usable recorded handle — fall back to exact title + PID enumeration.
+    TitleFallback,
+}
+
+/// Pure resolution logic (OS-independent, unit-testable): prefer a recorded handle when it is present
+/// AND still valid (`is_valid` is the injected OS validity gate — `IsWindow` + owning-PID in
+/// production, a stub in tests); otherwise fall back to title matching. Keeping this a pure function of
+/// `(recorded, is_valid)` is what lets the window-handle-based resolution be proven without a live GPU
+/// or a real window.
+pub fn resolve_capture_target(recorded: Option<isize>, is_valid: impl Fn(isize) -> bool) -> CaptureTarget {
+    match recorded {
+        Some(hwnd) if is_valid(hwnd) => CaptureTarget::RecordedHandle(hwnd),
+        _ => CaptureTarget::TitleFallback,
+    }
+}
 
 /// A captured screenshot, ready to serialize to the `VisualCaptureResult`-compatible JSON shape.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -143,16 +213,25 @@ pub fn capture_handshake_window() -> Result<ScreenshotResult, ScreenshotError> {
     }
 }
 
-/// Capture one registered Argus window. The descriptor is resolved before this adapter is called,
-/// and the Win32 lookup is fenced by both its exact title and this process id. Ambiguous matches are
-/// rejected instead of capturing whichever HWND happened to enumerate first.
+/// Capture one registered Argus window. MT-008b: resolves by the STABLE `window_id` first — a recorded
+/// OS window handle (HWND) is grabbed directly, so an ambiguous-title pop-out (two panes sharing a
+/// module title) is captured unambiguously. Only when no valid handle is recorded does it fall back to
+/// the exact title + PID enumeration (which still rejects ambiguous matches rather than guessing). The
+/// main window (unique title, always registered) is unaffected either way.
 pub fn capture_handshake_window_target(
     window: &ArgusWindowDescriptor,
 ) -> Result<ScreenshotResult, ScreenshotError> {
     #[cfg(target_os = "windows")]
     {
-        windows_capture::capture_window_by_title_and_pid(&window.title, std::process::id())
-            .map(|capture| capture.with_window_metadata(window))
+        let recorded = recorded_window_handle(&window.window_id);
+        match resolve_capture_target(recorded, windows_capture::hwnd_is_capturable_for_this_process) {
+            CaptureTarget::RecordedHandle(hwnd) => windows_capture::capture_recorded_hwnd(hwnd)
+                .map(|capture| capture.with_window_metadata(window)),
+            CaptureTarget::TitleFallback => {
+                windows_capture::capture_window_by_title_and_pid(&window.title, std::process::id())
+                    .map(|capture| capture.with_window_metadata(window))
+            }
+        }
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -161,6 +240,43 @@ pub fn capture_handshake_window_target(
             "live OS-window capture is implemented for Windows; use the offscreen-render path on this OS"
                 .to_owned(),
         ))
+    }
+}
+
+/// MT-008b: correlate a just-rendered viewport to its OS window and record the handle under its stable
+/// `window_id`, so subsequent captures grab that exact window. Called by the shell inside a viewport's
+/// render pass (where the viewport's own screen `outer_rect` is known). Cheap: skips enumeration when a
+/// valid handle is already recorded. `outer_rect_px` is the viewport's outer screen rectangle in
+/// PIXELS (`egui points * pixels_per_point`), used only to disambiguate when several windows share the
+/// exact title; pass `None` when unknown (records only when the title+PID match is already unique).
+/// No-op on non-Windows. Returns the recorded handle when one is now known.
+pub fn record_viewport_window_handle(
+    window_id: &str,
+    title: &str,
+    outer_rect_px: Option<(i32, i32, i32, i32)>,
+) -> Option<isize> {
+    #[cfg(target_os = "windows")]
+    {
+        // Fast path: a still-valid recorded handle needs no enumeration.
+        if let Some(existing) = recorded_window_handle(window_id) {
+            if windows_capture::hwnd_is_capturable_for_this_process(existing) {
+                return Some(existing);
+            }
+        }
+        let resolved = windows_capture::resolve_hwnd_by_title_and_geometry(
+            title,
+            std::process::id(),
+            outer_rect_px,
+        );
+        if let Some(hwnd) = resolved {
+            record_window_handle(window_id, hwnd);
+        }
+        resolved
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (window_id, title, outer_rect_px);
+        None
     }
 }
 
@@ -181,8 +297,8 @@ mod windows_capture {
     use windows_sys::Win32::Storage::Xps::PrintWindow;
     use windows_sys::Win32::System::Threading::GetCurrentProcessId;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
-        PW_RENDERFULLCONTENT,
+        EnumWindows, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsWindow,
+        IsWindowVisible, PW_RENDERFULLCONTENT,
     };
 
     /// Find the visible top-level window matching `title` owned by `pid`, then capture it focus-safely.
@@ -192,6 +308,108 @@ mod windows_capture {
     ) -> Result<ScreenshotResult, ScreenshotError> {
         let hwnd = find_window(title, pid)?;
         capture_hwnd(hwnd)
+    }
+
+    /// MT-008b: whether a recorded handle is still a live, visible window owned by THIS process. The
+    /// capture path uses this as the validity gate before trusting a recorded HWND; a window that was
+    /// destroyed/recreated fails it and the caller falls back to title matching. Owning-PID is
+    /// re-checked so a recycled handle value belonging to another process can never be captured.
+    pub fn hwnd_is_capturable_for_this_process(hwnd_isize: isize) -> bool {
+        let hwnd = hwnd_isize as HWND;
+        // SAFETY: all three calls accept an arbitrary HWND and only READ window state; an invalid
+        // handle returns 0 rather than faulting.
+        unsafe {
+            if IsWindow(hwnd) == 0 || IsWindowVisible(hwnd) == 0 {
+                return false;
+            }
+            let mut win_pid: u32 = 0;
+            GetWindowThreadProcessId(hwnd, &mut win_pid);
+            win_pid == GetCurrentProcessId()
+        }
+    }
+
+    /// MT-008b: capture a specific recorded HWND focus-safely, after re-validating it is still a window.
+    pub fn capture_recorded_hwnd(hwnd_isize: isize) -> Result<ScreenshotResult, ScreenshotError> {
+        let hwnd = hwnd_isize as HWND;
+        // SAFETY: IsWindow only reads; an already-freed handle returns 0.
+        if unsafe { IsWindow(hwnd) } == 0 {
+            return Err(ScreenshotError(
+                "recorded window handle is no longer a valid window".to_owned(),
+            ));
+        }
+        capture_hwnd(hwnd)
+    }
+
+    /// MT-008b: resolve the OS window handle for `title` owned by `pid`. When exactly one visible
+    /// window matches, return it. When several share the exact title (the ambiguous pop-out case),
+    /// disambiguate by choosing the one whose top-left is nearest the caller-provided viewport
+    /// `outer_rect_px` (its real screen position, from egui). Returns `None` if nothing matches, or if
+    /// the match is ambiguous and no geometry hint was supplied (an honest "cannot decide" rather than
+    /// guessing). The returned value is the HWND as `isize`.
+    pub fn resolve_hwnd_by_title_and_geometry(
+        title: &str,
+        pid: u32,
+        outer_rect_px: Option<(i32, i32, i32, i32)>,
+    ) -> Option<isize> {
+        let mut ctx = CollectCtx {
+            want_title: title.encode_utf16().collect(),
+            want_pid: pid,
+            matches: Vec::new(),
+        };
+        // SAFETY: EnumWindows invokes `collect_enum_proc` synchronously with our &mut CollectCtx as the
+        // lparam; the pointer is valid for the duration of the call.
+        unsafe {
+            EnumWindows(
+                Some(collect_enum_proc),
+                &mut ctx as *mut CollectCtx as LPARAM,
+            );
+        }
+        match ctx.matches.len() {
+            0 => None,
+            1 => Some(ctx.matches[0].0 as isize),
+            _ => {
+                let (target_x, target_y) = match outer_rect_px {
+                    Some((x, y, _, _)) => (x, y),
+                    // Several same-title windows and no geometry hint: refuse to guess.
+                    None => return None,
+                };
+                ctx.matches
+                    .iter()
+                    .min_by_key(|(_, rect)| {
+                        let dx = (rect.left - target_x) as i64;
+                        let dy = (rect.top - target_y) as i64;
+                        dx * dx + dy * dy
+                    })
+                    .map(|(hwnd, _)| *hwnd as isize)
+            }
+        }
+    }
+
+    struct CollectCtx {
+        want_title: Vec<u16>,
+        want_pid: u32,
+        matches: Vec<(HWND, RECT)>,
+    }
+
+    unsafe extern "system" fn collect_enum_proc(hwnd: HWND, lparam: LPARAM) -> i32 {
+        let ctx = &mut *(lparam as *mut CollectCtx);
+        if IsWindowVisible(hwnd) == 0 {
+            return TRUE;
+        }
+        let mut win_pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, &mut win_pid);
+        if win_pid != ctx.want_pid {
+            return TRUE;
+        }
+        let mut buf = [0u16; 512];
+        let len = GetWindowTextW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
+        if len > 0 && &buf[..len as usize] == ctx.want_title.as_slice() {
+            let mut rect: RECT = std::mem::zeroed();
+            if GetWindowRect(hwnd, &mut rect) != 0 {
+                ctx.matches.push((hwnd, rect));
+            }
+        }
+        TRUE
     }
 
     struct FindCtx {

@@ -716,6 +716,9 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 let author = session_selection_author_id(&row.session_id);
                 let label = format!("SESSION  {}  [{}]", row.label, row.status);
                 if row.status == "available" && labelled_button(ui, &author, &label) {
+                    // Applied effect: the owner session is selected below (unconditional). Ack so an
+                    // out-of-process argus.click on this row resolves Applied.
+                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
                     select_session = Some(row.session_id.clone());
                 } else if row.status != "available" {
                     labelled_disabled_button(ui, &author, &label);
@@ -735,6 +738,10 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                     260.0,
                 );
                 if labelled_button(ui, REFRESH_MODELS_AUTHOR_ID, "Refresh models") {
+                    crate::mcp::argus::acknowledge_action_effect(
+                        ui.ctx(),
+                        REFRESH_MODELS_AUTHOR_ID,
+                    );
                     do_refresh = true;
                 }
             });
@@ -746,6 +753,11 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 let status = if row.ready { "ready" } else { "unavailable" };
                 let label = format!("LOCAL  {}  ({})  [{}]", row.display_name, row.runtime_binding, status);
                 if row.ready && labelled_button(ui, &author, &label) {
+                    // Ack only when the selection will actually be recorded (a selection audit is not
+                    // already in flight), matching the applied-effect guard below the render closure.
+                    if state.pending_selection.is_none() {
+                        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
+                    }
                     select_model = Some((
                         OperatorChatLaunchSelection::local(row.model_id.clone()),
                         row.model_id.clone(),
@@ -759,6 +771,9 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                     model_selection_author_id("cloud", Some(&row.provider), &row.model_id);
                 let label = format!("CLOUD  {}  [{}]", row.label, row.status);
                 if row.status == "configured" && labelled_button(ui, &author, &label) {
+                    if state.pending_selection.is_none() {
+                        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
+                    }
                     select_model = Some((
                         OperatorChatLaunchSelection::cloud(
                             row.model_id.clone(),
@@ -774,6 +789,9 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 let author = model_selection_author_id("cli", Some(&row.provider), &row.model_id);
                 let label = format!("CLI  {}  [{}]", row.label, row.status);
                 if row.status == "logged_in" && labelled_button(ui, &author, &label) {
+                    if state.pending_selection.is_none() {
+                        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
+                    }
                     select_model = Some((
                         OperatorChatLaunchSelection::cli(
                             row.model_id.clone(),
@@ -789,6 +807,9 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 let author = model_selection_author_id("subagent", Some(&row.role), &row.model_id);
                 let label = format!("SUBAGENT  {}  [{}]", row.label, row.status);
                 if row.status == "available" && labelled_button(ui, &author, &label) {
+                    if state.pending_selection.is_none() {
+                        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
+                    }
                     select_model = Some((
                         OperatorChatLaunchSelection::subagent(row.model_id.clone()),
                         format!("{} / {}", row.role, row.model_id),
@@ -833,6 +854,7 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 && !state.pending_launch;
             ui.add_enabled_ui(launch_ready, |ui| {
                 if labelled_button(ui, LAUNCH_AUTHOR_ID, "Launch session") {
+                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), LAUNCH_AUTHOR_ID);
                     do_launch = true;
                 }
             });
@@ -870,15 +892,31 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
             );
             ui.horizontal(|ui| {
                 if labelled_button(ui, ROUTING_LIFECYCLE_AUTHOR_ID, "Execute lifecycle") {
+                    crate::mcp::argus::acknowledge_action_effect(
+                        ui.ctx(),
+                        ROUTING_LIFECYCLE_AUTHOR_ID,
+                    );
                     routing_action = Some(OperatorChatRoutingAction::Lifecycle);
                 }
                 if labelled_button(ui, ROUTING_RECOVER_AUTHOR_ID, "Recover lifecycle") {
+                    crate::mcp::argus::acknowledge_action_effect(
+                        ui.ctx(),
+                        ROUTING_RECOVER_AUTHOR_ID,
+                    );
                     routing_action = Some(OperatorChatRoutingAction::Recover);
                 }
                 if labelled_button(ui, ROUTING_CANCEL_AUTHOR_ID, "Cancel execution") {
+                    crate::mcp::argus::acknowledge_action_effect(
+                        ui.ctx(),
+                        ROUTING_CANCEL_AUTHOR_ID,
+                    );
                     routing_action = Some(OperatorChatRoutingAction::Cancel);
                 }
                 if labelled_button(ui, ROUTING_AUTHORITY_AUTHOR_ID, "Complete authority") {
+                    crate::mcp::argus::acknowledge_action_effect(
+                        ui.ctx(),
+                        ROUTING_AUTHORITY_AUTHOR_ID,
+                    );
                     routing_action = Some(OperatorChatRoutingAction::Authority);
                 }
             });

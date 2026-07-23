@@ -2337,6 +2337,422 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
     );
 }
 
+/// Durable receipts persisted for one real CRDT document by
+/// [`mt009_seed_real_crdt_document`]. Everything here is a genuine
+/// PostgreSQL/EventLedger row created through `push_yjs_update` and
+/// `append_kernel_crdt_snapshot`, so a message that references these values
+/// exercises the real resolver, not a fabricated shortcut.
+struct Mt009RealCrdtReceipts {
+    /// `snapshot_bytes_ref` of a real snapshot covering `snapshot_covered_seq`.
+    snapshot_bytes_ref: String,
+    /// The snapshot's `covered_update_seq` (strictly less than the post-update
+    /// seq, so the resolver's causal-ordering guard is satisfied).
+    snapshot_covered_seq: i64,
+    /// `update_bytes_ref` of a real post-snapshot update (seq == 2) that fully
+    /// validates against its EventLedger event.
+    post_update_bytes_ref: String,
+    /// The post-snapshot update's server-derived `state_vector_after`.
+    post_update_state_vector_after: String,
+}
+
+/// Persist one real CRDT document into the isolated schema behind `db`: a
+/// pre-snapshot update (seq 1), a snapshot covering seq 1, and a post-snapshot
+/// update (seq 2). Mirrors the persistence path proven by
+/// `mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge`
+/// but trimmed to the minimum needed by the CRDT authority-binding negatives.
+async fn mt009_seed_real_crdt_document(
+    db: &(dyn Database + '_),
+    workspace_id: &str,
+    document_id: &str,
+    crdt_document_id: &str,
+    label: &str,
+) -> Mt009RealCrdtReceipts {
+    const DOCUMENT_SCHEMA_ID: &str = "hsk.doc.rich_document@1";
+    let actor = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, &format!("{label}-local"))
+        .expect("typed local model actor for real CRDT seed");
+    let site = derive_knowledge_site_id(workspace_id, crdt_document_id, &actor);
+    let session_id = format!("session-{label}");
+    let mut state_vector = KnowledgeStateVectorV1::new();
+    let canonical = Doc::new();
+
+    let pre_update_id = format!("{label}-yjs-pre");
+    let pre_bytes =
+        mt009_append_yjs_text_update(&canonical, u64::from(site.yjs_client_id), &format!("[{label}-pre]"));
+    mt009_push_yjs_update(
+        db,
+        workspace_id,
+        document_id,
+        crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        &pre_update_id,
+        &actor,
+        &site.site_id,
+        &session_id,
+        &pre_bytes,
+        &mut state_vector,
+        1,
+    )
+    .await;
+
+    let snapshot_state_vector = state_vector.encode();
+    let snapshot_bytes = canonical
+        .transact()
+        .encode_state_as_update_v1(&StateVector::default());
+    let snapshot_identity = knowledge_crdt_identity(
+        workspace_id,
+        document_id,
+        crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        &actor,
+        &format!("trace-{label}-snapshot"),
+    );
+    let snapshot_event = NewKernelEvent::builder(
+        format!("KTR-{}-SNAP", label.to_uppercase()),
+        session_id.clone(),
+        KernelEventType::KnowledgeCrdtSnapshotRecorded,
+        actor.to_kernel_actor(),
+    )
+    .aggregate("knowledge_crdt_document", crdt_document_id.to_string())
+    .idempotency_key(format!("{label}:snapshot"))
+    .source_component("mixed_model_lane_integration_pg_tests")
+    .payload(json!({
+        "covered_update_seq": 1,
+        "state_vector": &snapshot_state_vector,
+        "document_id": document_id,
+    }))
+    .build()
+    .expect("build real CRDT snapshot EventLedger event");
+    let snapshot_event = db
+        .append_kernel_event(snapshot_event)
+        .await
+        .expect("append real CRDT snapshot EventLedger event");
+    let snapshot = new_crdt_snapshot_record(CrdtSnapshotRecordInputV1 {
+        identity: &snapshot_identity,
+        snapshot_id: &format!("{label}-snapshot-1"),
+        covered_update_seq: 1,
+        snapshot_bytes: &snapshot_bytes,
+        snapshot_bytes_ref: &format!(
+            "postgres://kernel_crdt_snapshots/{crdt_document_id}/{label}-snapshot-1"
+        ),
+        state_vector: &snapshot_state_vector,
+        event_ledger_event_id: &snapshot_event.event_id,
+        promotion_evidence_update_ids: &[pre_update_id.as_str()],
+    });
+    db.append_kernel_crdt_snapshot(snapshot.clone(), snapshot_bytes.clone())
+        .await
+        .expect("persist real CRDT snapshot receipt and bytes");
+
+    let post_update_id = format!("{label}-yjs-post");
+    let post_bytes = mt009_append_yjs_text_update(
+        &canonical,
+        u64::from(site.yjs_client_id),
+        &format!("[{label}-post]"),
+    );
+    mt009_push_yjs_update(
+        db,
+        workspace_id,
+        document_id,
+        crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        &post_update_id,
+        &actor,
+        &site.site_id,
+        &session_id,
+        &post_bytes,
+        &mut state_vector,
+        2,
+    )
+    .await;
+
+    let records = db
+        .list_kernel_crdt_updates(workspace_id, document_id, crdt_document_id)
+        .await
+        .expect("list persisted real CRDT updates");
+    let post = records
+        .iter()
+        .find(|record| record.update_id == post_update_id)
+        .expect("post-snapshot update is durably persisted");
+
+    Mt009RealCrdtReceipts {
+        snapshot_bytes_ref: snapshot.snapshot_bytes_ref.clone(),
+        snapshot_covered_seq: 1,
+        post_update_bytes_ref: post.update_bytes_ref.clone(),
+        post_update_state_vector_after: post.state_vector_after.clone(),
+    }
+}
+
+/// Count MODEL_RESPONSE_RECORDED EventLedger appends for one ModelLane message
+/// aggregate. A rejected admission must leave this at zero.
+async fn mt009_model_lane_message_event_count(pool: &PgPool, message_id: &str) -> i64 {
+    sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM kernel_event_ledger
+        WHERE aggregate_type = 'model_lane_message'
+          AND aggregate_id = $1
+        "#,
+    )
+    .bind(message_id)
+    .fetch_one(pool)
+    .await
+    .expect("count model_lane_message EventLedger rows")
+}
+
+/// MT-004 remediation (c): a `kernel_crdt_updates` row whose `update_sha256`
+/// does not match `SHA-256(update_bytes)` must be rejected at the resolver's
+/// stored-bytes hash check (`model_lane.rs` ~13076) before any message row or
+/// EventLedger append. The tampered row is INSERTed directly (migration 0358
+/// forbids UPDATE/DELETE/TRUNCATE, not INSERT) as a canonical clone of a real
+/// update — same schema, storage authority, EventLedger event and valid Yjs
+/// bytes — with only `update_sha256` corrupted, so the hash mismatch is the
+/// exact and only reason admission fails.
+#[tokio::test]
+async fn mt009_crdt_update_bytes_hash_mismatch_fails_closed() {
+    const RUN_ID: &str = "run-mt009-crdt-update-hash";
+    const LANE_ID: &str = "lane-mt009-crdt-update-hash";
+    const MESSAGE_ID: &str = "msg-mt009-crdt-update-hash-mismatch";
+    const LABEL: &str = "mt009-uhash";
+
+    let Some(kpg) = knowledge_pg_support::knowledge_pg().await else {
+        eprintln!("SKIP mt009_crdt_update_bytes_hash_mismatch_fails_closed: PostgreSQL binaries absent");
+        return;
+    };
+    let schema_url = kpg.schema_url.clone();
+    let workspace_id = kpg.create_workspace().await;
+    let db = kpg.db;
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&schema_url)
+        .await
+        .expect("connect isolated schema for CRDT update hash-mismatch proof");
+    let store = ModelLaneStore::new(pool.clone());
+    let document_id = format!("doc-{LABEL}-{workspace_id}");
+    let crdt_document_id = format!("crdt-{LABEL}-{workspace_id}");
+
+    let receipts =
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_id, &crdt_document_id, LABEL).await;
+    seed_run_lane(&store, RUN_ID, LANE_ID, RuntimeBinding::Local).await;
+
+    // INSERT a canonical clone of the real post-snapshot update, corrupting only
+    // update_sha256 (and the columns that carry UNIQUE indexes so the clone can
+    // coexist with its source). update_bytes stays valid, so the resolver's
+    // recomputed hash cannot match the persisted, tampered update_sha256.
+    let tampered_update_ref =
+        format!("postgres://kernel_crdt_updates/{crdt_document_id}/{LABEL}-tampered-hash");
+    let tampered_stream = format!("knowledge-crdt-tampered:{crdt_document_id}:{LABEL}");
+    let wrong_sha = "0".repeat(64);
+    let inserted = sqlx::query(
+        r#"
+        INSERT INTO kernel_crdt_updates
+            (schema_id, workspace_id, document_id, crdt_document_id, update_id, update_seq,
+             update_sha256, update_bytes_ref, update_bytes, actor_id, actor_kind, session_id,
+             trace_id, state_vector_before, state_vector_after, replay_metadata_json,
+             event_ledger_stream_id, event_ledger_event_id, storage_authority)
+        SELECT schema_id, workspace_id, document_id, crdt_document_id,
+               $2, update_seq + 100000, $3, $4, update_bytes, actor_id, actor_kind, session_id,
+               trace_id, state_vector_before, state_vector_after, replay_metadata_json,
+               $5, event_ledger_event_id, storage_authority
+        FROM kernel_crdt_updates
+        WHERE update_bytes_ref = $1
+        "#,
+    )
+    .bind(&receipts.post_update_bytes_ref)
+    .bind(format!("{LABEL}-tampered-hash"))
+    .bind(&wrong_sha)
+    .bind(&tampered_update_ref)
+    .bind(&tampered_stream)
+    .execute(&pool)
+    .await
+    .expect("INSERT tampered kernel_crdt_updates clone (INSERT is not blocked by migration 0358)");
+    assert_eq!(
+        inserted.rows_affected(),
+        1,
+        "tampered update clone must be inserted exactly once"
+    );
+
+    let mut message = sample_message(MESSAGE_ID, RUN_ID, LANE_ID, "local", 2);
+    message.kind = ModelLaneMessageKind::Status;
+    message.crdt_update_ref = Some(tampered_update_ref);
+    message.crdt_base_snapshot_ref = Some(receipts.snapshot_bytes_ref.clone());
+    message.crdt_state_vector = Some(receipts.post_update_state_vector_after.clone());
+    let error = store
+        .record_message(message.clone())
+        .await
+        .expect_err("a CRDT update whose stored bytes hash mismatches update_sha256 must fail closed");
+    assert_error_contains(&error, "CRDT authority resolution failed");
+    assert_error_contains(&error, "does not match persisted update_sha256");
+
+    assert_no_message_row(&pool, MESSAGE_ID).await;
+    assert_eq!(
+        mt009_model_lane_message_event_count(&pool, MESSAGE_ID).await,
+        0,
+        "a hash-mismatched CRDT update must not append a ModelLane message EventLedger event"
+    );
+}
+
+/// MT-004 remediation (c), snapshot arm: a `kernel_crdt_snapshots` row whose
+/// `snapshot_sha256` does not match `SHA-256(snapshot_bytes)` must be rejected
+/// at the resolver's snapshot hash check (`model_lane.rs` ~13271). The
+/// referenced update is fully real and validates end to end; only the base
+/// snapshot is a canonical clone with a corrupted `snapshot_sha256`, proving
+/// the snapshot-bytes integrity gate fires independently of the update gate.
+#[tokio::test]
+async fn mt009_crdt_snapshot_bytes_hash_mismatch_fails_closed() {
+    const RUN_ID: &str = "run-mt009-crdt-snapshot-hash";
+    const LANE_ID: &str = "lane-mt009-crdt-snapshot-hash";
+    const MESSAGE_ID: &str = "msg-mt009-crdt-snapshot-hash-mismatch";
+    const LABEL: &str = "mt009-shash";
+
+    let Some(kpg) = knowledge_pg_support::knowledge_pg().await else {
+        eprintln!("SKIP mt009_crdt_snapshot_bytes_hash_mismatch_fails_closed: PostgreSQL binaries absent");
+        return;
+    };
+    let schema_url = kpg.schema_url.clone();
+    let workspace_id = kpg.create_workspace().await;
+    let db = kpg.db;
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&schema_url)
+        .await
+        .expect("connect isolated schema for CRDT snapshot hash-mismatch proof");
+    let store = ModelLaneStore::new(pool.clone());
+    let document_id = format!("doc-{LABEL}-{workspace_id}");
+    let crdt_document_id = format!("crdt-{LABEL}-{workspace_id}");
+
+    let receipts =
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_id, &crdt_document_id, LABEL).await;
+    seed_run_lane(&store, RUN_ID, LANE_ID, RuntimeBinding::Local).await;
+
+    // Canonical clone of the real snapshot with only snapshot_sha256 corrupted.
+    // covered_update_seq is preserved (== 1 < post-update seq 2) so the causal
+    // and entity guards pass and the hash check is the sole failure reason.
+    let tampered_snapshot_ref =
+        format!("postgres://kernel_crdt_snapshots/{crdt_document_id}/{LABEL}-tampered-hash");
+    let tampered_stream = format!("knowledge-crdt-tampered:{crdt_document_id}:{LABEL}");
+    let wrong_sha = "0".repeat(64);
+    let inserted = sqlx::query(
+        r#"
+        INSERT INTO kernel_crdt_snapshots
+            (schema_id, snapshot_id, workspace_id, document_id, crdt_document_id, covered_update_seq,
+             state_vector, snapshot_sha256, snapshot_bytes_ref, snapshot_bytes, actor_id, actor_kind,
+             event_ledger_stream_id, event_ledger_event_id, promotion_evidence_update_ids,
+             storage_authority)
+        SELECT schema_id, $2, workspace_id, document_id, crdt_document_id, covered_update_seq,
+               state_vector, $3, $4, snapshot_bytes, actor_id, actor_kind,
+               $5, event_ledger_event_id, promotion_evidence_update_ids, storage_authority
+        FROM kernel_crdt_snapshots
+        WHERE snapshot_bytes_ref = $1
+        "#,
+    )
+    .bind(&receipts.snapshot_bytes_ref)
+    .bind(format!("{LABEL}-tampered-hash"))
+    .bind(&wrong_sha)
+    .bind(&tampered_snapshot_ref)
+    .bind(&tampered_stream)
+    .execute(&pool)
+    .await
+    .expect("INSERT tampered kernel_crdt_snapshots clone");
+    assert_eq!(
+        inserted.rows_affected(),
+        1,
+        "tampered snapshot clone must be inserted exactly once"
+    );
+    assert!(
+        receipts.snapshot_covered_seq < 2,
+        "cloned snapshot must remain causally before the referenced post-update seq"
+    );
+
+    let mut message = sample_message(MESSAGE_ID, RUN_ID, LANE_ID, "local", 2);
+    message.kind = ModelLaneMessageKind::Status;
+    message.crdt_update_ref = Some(receipts.post_update_bytes_ref.clone());
+    message.crdt_base_snapshot_ref = Some(tampered_snapshot_ref);
+    message.crdt_state_vector = Some(receipts.post_update_state_vector_after.clone());
+    let error = store
+        .record_message(message.clone())
+        .await
+        .expect_err("a base snapshot whose stored bytes hash mismatches snapshot_sha256 must fail closed");
+    assert_error_contains(&error, "CRDT authority resolution failed");
+    assert_error_contains(&error, "does not match persisted snapshot_sha256");
+
+    assert_no_message_row(&pool, MESSAGE_ID).await;
+    assert_eq!(
+        mt009_model_lane_message_event_count(&pool, MESSAGE_ID).await,
+        0,
+        "a hash-mismatched CRDT snapshot must not append a ModelLane message EventLedger event"
+    );
+}
+
+/// MT-004/MT-009 hardening: a message that references a real, fully valid
+/// persisted update but supplies a `state_vector_after` belonging to a
+/// different CRDT document must fail closed at the resolver's state-vector
+/// identity check (`model_lane.rs` ~13141). This is stronger than a fabricated
+/// state-vector string: the supplied vector is itself a genuine server-derived
+/// vector, just for the wrong document, proving the binding is by identity and
+/// not merely by format.
+#[tokio::test]
+async fn mt009_crdt_unrelated_document_state_vector_fails_closed() {
+    const RUN_ID: &str = "run-mt009-crdt-foreign-sv";
+    const LANE_ID: &str = "lane-mt009-crdt-foreign-sv";
+    const MESSAGE_ID: &str = "msg-mt009-crdt-foreign-state-vector";
+    const LABEL_A: &str = "mt009-fsv-a";
+    const LABEL_B: &str = "mt009-fsv-b";
+
+    let Some(kpg) = knowledge_pg_support::knowledge_pg().await else {
+        eprintln!("SKIP mt009_crdt_unrelated_document_state_vector_fails_closed: PostgreSQL binaries absent");
+        return;
+    };
+    let schema_url = kpg.schema_url.clone();
+    let workspace_id = kpg.create_workspace().await;
+    let db = kpg.db;
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&schema_url)
+        .await
+        .expect("connect isolated schema for foreign-document state-vector proof");
+    let store = ModelLaneStore::new(pool.clone());
+
+    let document_a = format!("doc-{LABEL_A}-{workspace_id}");
+    let crdt_document_a = format!("crdt-{LABEL_A}-{workspace_id}");
+    let receipts_a =
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_a, &crdt_document_a, LABEL_A).await;
+
+    let document_b = format!("doc-{LABEL_B}-{workspace_id}");
+    let crdt_document_b = format!("crdt-{LABEL_B}-{workspace_id}");
+    let receipts_b =
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_b, &crdt_document_b, LABEL_B).await;
+
+    // Two distinct documents derive distinct site ids, so their server-derived
+    // state vectors are genuinely different -- the negative is real, not a
+    // coincidental string collision.
+    assert_ne!(
+        receipts_a.post_update_state_vector_after, receipts_b.post_update_state_vector_after,
+        "distinct CRDT documents must yield distinct state vectors for a real negative"
+    );
+
+    seed_run_lane(&store, RUN_ID, LANE_ID, RuntimeBinding::Local).await;
+
+    let mut message = sample_message(MESSAGE_ID, RUN_ID, LANE_ID, "local", 2);
+    message.kind = ModelLaneMessageKind::Status;
+    message.crdt_update_ref = Some(receipts_a.post_update_bytes_ref.clone());
+    message.crdt_base_snapshot_ref = Some(receipts_a.snapshot_bytes_ref.clone());
+    // Real, but from document B -- it does not match document A's persisted
+    // state_vector_after.
+    message.crdt_state_vector = Some(receipts_b.post_update_state_vector_after.clone());
+    let error = store
+        .record_message(message.clone())
+        .await
+        .expect_err("a real update paired with a foreign-document state vector must fail closed");
+    assert_error_contains(&error, "CRDT authority resolution failed");
+    assert_error_contains(&error, "does not match persisted state_vector_after");
+
+    assert_no_message_row(&pool, MESSAGE_ID).await;
+    assert_eq!(
+        mt009_model_lane_message_event_count(&pool, MESSAGE_ID).await,
+        0,
+        "a foreign-document state vector must not append a ModelLane message EventLedger event"
+    );
+}
+
 /// Two separately pooled PostgreSQL clients race from the same CRDT base. The
 /// database-scoped advisory lock must choose exactly one durable transition;
 /// it must never leave a committed EventLedger success receipt without the

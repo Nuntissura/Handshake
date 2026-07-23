@@ -703,7 +703,25 @@ mod tests {
             1,
             "the click is recorded in the attribution log"
         );
-        assert_eq!(entries[0].agent_id, "server-test");
+        // ADVERSARIAL FIX: production attribution records the AUTHENTICATED principal
+        // (token-derived `agent_id`, or a broker principal), NEVER the caller-supplied
+        // display label. "server-test" is the `agent_label` display metadata; it must NOT
+        // become the principal. The prior assertion (`agent_id == "server-test"`) asserted
+        // the wrong invariant — it would have masked a label-becomes-principal regression.
+        let expected_principal =
+            crate::mcp::attribution::agent_id_for_token("secret-token-1234567890");
+        assert_eq!(
+            entries[0].agent_id, expected_principal,
+            "agent_id is the token-derived authenticated principal"
+        );
+        assert_ne!(
+            entries[0].agent_id, "server-test",
+            "the display label must never become the authenticated principal"
+        );
+        assert_eq!(
+            entries[0].agent_label, "server-test",
+            "the display label is retained separately in agent_label"
+        );
         assert_eq!(entries[0].target_key, "btn");
     }
 

@@ -689,6 +689,21 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 }
 
 /// The placeholder UI-tree snapshot the MCP slot (MT-027) holds before the first frame publishes the
+/// MT-008b: the current viewport's OUTER screen rectangle in PIXELS (egui points * pixels_per_point),
+/// as `(left, top, right, bottom)`, for correlating an egui viewport to its OS window (`GetWindowRect`
+/// returns screen pixels). `None` when egui has not yet reported an outer rect (e.g. the first frame or
+/// a headless context), in which case the handle recorder only records an unambiguous title match.
+fn popout_outer_rect_px(ctx: &egui::Context) -> Option<(i32, i32, i32, i32)> {
+    let rect = ctx.input(|i| i.viewport().outer_rect)?;
+    let ppp = ctx.pixels_per_point();
+    Some((
+        (rect.min.x * ppp) as i32,
+        (rect.min.y * ppp) as i32,
+        (rect.max.x * ppp) as i32,
+        (rect.max.y * ppp) as i32,
+    ))
+}
+
 /// real live tree. A single `Window` root with `widget_count` 1, so `list_widgets` over the wire before
 /// the first frame returns a well-formed (if empty) snapshot rather than a lock on uninitialized state.
 fn empty_snapshot() -> crate::accessibility::UiTreeSnapshot {
@@ -3019,6 +3034,22 @@ impl HandshakeApp {
                 let _ = self.navigate_to_tab("problems");
                 true
             }
+            O::OpenOperatorChat => {
+                // WP-1 (a): deep-link to the Operator Chat / Launch pane, the real completion-model +
+                // lane selection surface. Settings does not duplicate that selection authority.
+                self.close_settings();
+                let _ = self.navigate_to_tab("operator-chat");
+                true
+            }
+            O::ResourceSamplingEnabledChanged(value) => {
+                // WP-1 (b): persist the flag AND immediately drive the real producer thread.
+                self.workspace_settings.resource_sampling_enabled = value;
+                if let Some(diagnostics) = &self.internal_diagnostics {
+                    diagnostics.set_resource_sampling_enabled(value);
+                }
+                self.schedule_settings_save();
+                true
+            }
             O::CloudByokKeySaveRequested { provider } => {
                 self.dispatch_cloud_byok_save(&provider);
                 true
@@ -3290,11 +3321,28 @@ impl HandshakeApp {
         }
 
         // 5. Render the dialog + apply the outcome.
+        // WP-1 (c): compute the live diagnostics status BEFORE the &mut cloud borrow. Every field is
+        // real state; the Palmistry signal is the presence of the Argus signing secret, which only
+        // exists after a durable Palmistry watcher launch + secret rotation.
+        let diagnostics_view = crate::settings_dialog::DiagnosticsSettingsView {
+            subsystem_live: self.internal_diagnostics.is_some(),
+            palmistry_signing_provisioned: self
+                .internal_diagnostics
+                .as_ref()
+                .map(|d| d.argus_signing_secret().is_some())
+                .unwrap_or(false),
+            recovered_survivor_count: self
+                .internal_diagnostics
+                .as_ref()
+                .map(|d| d.recovered_survivors().len())
+                .unwrap_or(0),
+        };
         let view = crate::settings_dialog::SettingsView {
             open_count: self.settings_open_count,
             settings: &self.workspace_settings,
             persist_error: self.settings_persist_error.as_deref(),
             cloud: &mut self.cloud_models,
+            diagnostics: diagnostics_view,
         };
         let outcome = crate::settings_dialog::show(ctx, view);
         if self.apply_settings_outcome(outcome) {
@@ -5296,10 +5344,29 @@ impl HandshakeApp {
                     active_module,
                     header_colors,
                 );
+                // MT-008b: record THIS pop-out's OS window handle under its stable Argus window_id, so a
+                // later screenshot grabs this exact window even when several panes share the same OS
+                // title. The viewport's own outer screen rect (converted to pixels) disambiguates
+                // same-title siblings. Runs inside the child viewport's render pass (the only place its
+                // outer_rect is known); cheap after the first record (see record_viewport_window_handle).
+                let label = registry
+                    .lock()
+                    .ok()
+                    .and_then(|reg| reg.get(pane_id).map(|rec| rec.pane_type.label()))
+                    .unwrap_or_else(|| pane_id.as_ref().to_owned());
+                let title = popout_title_for(&label);
+                let outer_px = popout_outer_rect_px(ctx);
+                let _ = crate::mcp::screenshot::record_viewport_window_handle(
+                    &argus_window_id(pane_id.as_ref()),
+                    &title,
+                    outer_px,
+                );
             });
         for pane_id in merged_back {
-            self.mcp_windows
-                .unregister(&argus_window_id(pane_id.as_ref()));
+            let window_id = argus_window_id(pane_id.as_ref());
+            self.mcp_windows.unregister(&window_id);
+            // MT-008b: forget the OS handle so a future capture never grabs a torn-down window.
+            crate::mcp::screenshot::clear_window_handle(&window_id);
         }
 
         // ── Command palette overlay (MT-016) ────────────────────────────────────────────────────────
@@ -5610,8 +5677,21 @@ impl eframe::App for HandshakeApp {
             }
         }
         self.ui(ctx);
+        // MT-008b: record the MAIN window's OS handle under its stable window_id so captures grab it
+        // directly. The main window has a unique title, so this only makes the existing (working) path
+        // a direct-handle grab; it never regresses it. Cheap after the first successful record.
+        let _ = crate::mcp::screenshot::record_viewport_window_handle(
+            crate::mcp::MAIN_WINDOW_ID,
+            crate::mcp::HANDSHAKE_WINDOW_TITLE,
+            popout_outer_rect_px(ctx),
+        );
         if let Some(diagnostics) = &self.internal_diagnostics {
             diagnostics.tick_frame(frame_started.elapsed());
+            // WP-1 (b): keep the real resource sampler in lockstep with the persisted setting. The
+            // setting loads asynchronously after startup (backend GET), so a one-shot apply at load
+            // could miss; a per-frame atomic store is negligible and always correct after a reload.
+            diagnostics
+                .set_resource_sampling_enabled(self.workspace_settings.resource_sampling_enabled);
         }
         // The previous pass is published by `raw_input_hook`; only keep an idle transport repaint
         // alive while a queued mutation awaits viewport consumption.

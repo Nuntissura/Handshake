@@ -4,7 +4,7 @@ use std::time::Duration;
 use super::CancellationToken;
 use super::{
     activity::RuntimeQuiesceError, error::ModelRuntimeError, Embedding, GenerateRequest,
-    KvCacheHandle, LoadSpec, LoraStackHandle, ModelCapabilities, ModelId,
+    KvCacheHandle, LoadSpec, LoraStackHandle, ModelCapabilities, ModelId, RuntimePerfSnapshot,
     RuntimeArtifactIntegrityReceipt, Score, SteeringHookHandle, TokenStream,
 };
 
@@ -73,6 +73,30 @@ pub trait ModelRuntime: Send + Sync {
     fn lora_stack(&self, id: ModelId) -> Result<LoraStackHandle, ModelRuntimeError>;
 
     fn steering_hooks(&self, id: ModelId) -> Result<SteeringHookHandle, ModelRuntimeError>;
+
+    /// Live perf telemetry for the Section 10.13 operator control panel:
+    /// tokens/sec, VRAM residency, and time-since-last-call derived from the
+    /// runtime's real recorded generation activity. The default fails closed so
+    /// an adapter that records no activity cannot silently pass off zeroes as
+    /// telemetry; adapters that record activity override this with real values.
+    fn perf_snapshot(&self, _id: ModelId) -> Result<RuntimePerfSnapshot, ModelRuntimeError> {
+        Err(ModelRuntimeError::CapabilityNotSupported {
+            capability: "runtime_perf_snapshot".to_string(),
+            adapter: self.adapter_name().to_string(),
+        })
+    }
+
+    /// Adapter-specific engine-internals drilldown for the Section 10.13.2
+    /// "Inspect engine internals" action: the real, engine-known configuration
+    /// (engine kind, quantization, device, capabilities, load timing, ...). The
+    /// default fails closed; adapters override with the internals they actually
+    /// know. No invented numbers.
+    fn engine_internals(&self, _id: ModelId) -> Result<serde_json::Value, ModelRuntimeError> {
+        Err(ModelRuntimeError::CapabilityNotSupported {
+            capability: "engine_internals".to_string(),
+            adapter: self.adapter_name().to_string(),
+        })
+    }
 
     fn cancel(&self, token: CancellationToken);
 }

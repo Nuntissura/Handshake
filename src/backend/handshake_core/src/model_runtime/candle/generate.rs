@@ -9,10 +9,13 @@ use candle_core::Tensor;
 use candle_transformers::generation::{LogitsProcessor, Sampling};
 use futures::stream;
 
+use std::sync::Arc as StdArc;
+
 use super::{hooks::CandleSteeringHooks, transformer::TransformerModel};
 use crate::model_runtime::{
     CancellationToken, FinishReason, GenerateRequest, GeneratedToken, ModelRuntimeError,
-    RuntimeActivityGuard, SamplingParams, TokenStream, MODEL_RUNTIME_TOKEN_STREAM_CAPACITY,
+    RuntimeActivityGuard, RuntimePerfCall, RuntimePerfRecorder, SamplingParams, TokenStream,
+    MODEL_RUNTIME_TOKEN_STREAM_CAPACITY,
 };
 
 pub trait CandleGenerationCodec: Send + Sync {
@@ -53,6 +56,7 @@ pub(super) fn candle_generate_stream_tracked(
     req: GenerateRequest,
     runtime_cancel: CancellationToken,
     activity_guard: RuntimeActivityGuard,
+    perf: StdArc<Mutex<RuntimePerfRecorder>>,
 ) -> TokenStream {
     let (sender, receiver) = tokio::sync::mpsc::channel::<Result<GeneratedToken, ModelRuntimeError>>(
         MODEL_RUNTIME_TOKEN_STREAM_CAPACITY,
@@ -64,10 +68,27 @@ pub(super) fn candle_generate_stream_tracked(
             let sender = sender.clone();
             move || {
                 let _activity_guard = activity_guard;
-                if let Err(error) =
-                    run_generation(model, codec, hooks, req, runtime_cancel, &sender)
-                {
-                    let _ = sender.try_send(Err(error));
+                // MT-014b: measure the real decode call so the §10.13 panel
+                // reports genuine tokens/sec and time-since-last-call.
+                let started = std::time::Instant::now();
+                match run_generation(model, codec, hooks, req, runtime_cancel, &sender) {
+                    Ok(tokens_generated) => {
+                        let gen_eval_ms =
+                            u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+                        if let Ok(mut recorder) = perf.lock() {
+                            recorder.record_call(RuntimePerfCall {
+                                tokens_generated: u64::from(tokens_generated),
+                                gen_eval_ms,
+                                // Candle does not yet query device-resident VRAM;
+                                // 0 surfaces as a typed reason in perf_snapshot.
+                                vram_resident_bytes: 0,
+                                completed_at_utc: chrono::Utc::now(),
+                            });
+                        }
+                    }
+                    Err(error) => {
+                        let _ = sender.try_send(Err(error));
+                    }
                 }
             }
         });
@@ -84,6 +105,9 @@ pub(super) fn candle_generate_stream_tracked(
     }))
 }
 
+/// Runs the Candle decode loop, returning the number of decode tokens produced
+/// so the caller can record real perf telemetry (§10.13). Pre-generation exits
+/// return `0`; loop exits return the running decode count.
 fn run_generation(
     model: Arc<Mutex<Box<dyn TransformerModel>>>,
     codec: Arc<dyn CandleGenerationCodec>,
@@ -91,7 +115,7 @@ fn run_generation(
     req: GenerateRequest,
     runtime_cancel: CancellationToken,
     sender: &tokio::sync::mpsc::Sender<Result<GeneratedToken, ModelRuntimeError>>,
-) -> Result<(), ModelRuntimeError> {
+) -> Result<u32, ModelRuntimeError> {
     if req.structured_decoding.is_some() {
         return Err(ModelRuntimeError::CapabilityNotSupported {
             capability: "structured_decoding".to_string(),

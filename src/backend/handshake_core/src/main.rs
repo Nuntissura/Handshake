@@ -9,8 +9,11 @@ use handshake_core::{
     model_runtime::ModelRegistryStore,
     models::HealthResponse,
     process_ledger::{
-        restart_resume::PostgresRestartResumeRunner, LedgerBatcher, PostgresProcessLedgerStore,
-        ProcessReclaimRuntime,
+        restart_resume::{
+            BoundedRestartResumeOutcome, PostgresRestartResumeRunner,
+            RESTART_RESUME_BOOT_TIMEOUT_DEFAULT,
+        },
+        LedgerBatcher, PostgresProcessLedgerStore, ProcessReclaimRuntime,
     },
     storage::{
         self,
@@ -29,6 +32,10 @@ use tower_http::cors::{Any, CorsLayer};
 
 const HTTP_CONNECTION_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
 const MODEL_LANE_BOOT_RECOVERY_TIMEOUT: Duration = Duration::from_secs(30);
+/// Environment override (milliseconds) for the hard restart-resume boot bound.
+/// Absent/blank/unparseable falls back to [`RESTART_RESUME_BOOT_TIMEOUT_DEFAULT`]
+/// (30s), consistent with the two sibling boot bounds above.
+const RESTART_RESUME_BOOT_TIMEOUT_MS_ENV: &str = "HANDSHAKE_RESTART_RESUME_BOOT_TIMEOUT_MS";
 
 #[tokio::main]
 async fn main() {
@@ -77,17 +84,44 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         "control-plane storage mode resolved"
     );
     let control_plane = storage::init_control_plane_storage_with_config(&storage_config).await?;
-    let restart_report = PostgresRestartResumeRunner::new(control_plane.postgres_pool.clone())
-        .run()
+    // The restart-resume boot pass is bounded by a hard outer wall clock,
+    // consistent with the sibling ModelLane boot recovery below and the
+    // process-ledger boot reconcile (`time::timeout(startup_timeout)`). A single
+    // resumable candidate whose orphan-reclaim UPDATE blocks must not stall boot
+    // forever. On timeout the pass fails closed (no candidate is falsely marked
+    // resumed), records a durable bounded-abort report, and boot continues so the
+    // staleness reclaim task started later can finish reconciling; it never
+    // panics or hangs.
+    let restart_outcome = PostgresRestartResumeRunner::new(control_plane.postgres_pool.clone())
+        .run_with_bound(restart_resume_boot_timeout())
         .await?;
-    tracing::info!(
-        target: "handshake_core::restart_resume",
-        report_id = %restart_report.report_id,
-        sessions_examined = restart_report.sessions_examined,
-        sessions_resumed = restart_report.sessions_resumed.len(),
-        sessions_recovery_failed = restart_report.sessions_recovery_failed.len(),
-        "startup restart-resume pass completed"
-    );
+    let restart_report = match restart_outcome {
+        BoundedRestartResumeOutcome::Completed(report) => {
+            tracing::info!(
+                target: "handshake_core::restart_resume",
+                report_id = %report.report_id,
+                sessions_examined = report.sessions_examined,
+                sessions_resumed = report.sessions_resumed.len(),
+                sessions_recovery_failed = report.sessions_recovery_failed.len(),
+                "startup restart-resume pass completed"
+            );
+            report
+        }
+        BoundedRestartResumeOutcome::TimedOut {
+            timeout,
+            report,
+            evidence_persisted,
+        } => {
+            tracing::error!(
+                target: "handshake_core::restart_resume",
+                report_id = %report.report_id,
+                timeout_ms = timeout.as_millis() as u64,
+                evidence_persisted,
+                "startup restart-resume pass exceeded its hard wall-clock bound; it fails closed (no session falsely resumed) and boot continues so the staleness reclaim task and the next boot pass finish reconciling the still-open resumable sessions"
+            );
+            report
+        }
+    };
     let recovered_model_lane_runs = recover_model_lanes_at_core_boot_with_timeout(
         control_plane.postgres_pool.clone(),
         MODEL_LANE_BOOT_RECOVERY_TIMEOUT,
@@ -693,6 +727,20 @@ fn startup_recovery_only_requested() -> bool {
         .ok()
         .as_deref()
         == Some("1")
+}
+
+/// Resolve the hard wall-clock bound for the startup restart-resume boot pass.
+/// A positive integer in `HANDSHAKE_RESTART_RESUME_BOOT_TIMEOUT_MS` overrides the
+/// 30s default for hosts with a large resumable backlog; any absent, blank,
+/// zero, or unparseable value falls back to the default so the pass can never be
+/// left unbounded.
+fn restart_resume_boot_timeout() -> Duration {
+    std::env::var(RESTART_RESUME_BOOT_TIMEOUT_MS_ENV)
+        .ok()
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .filter(|millis| *millis > 0)
+        .map(Duration::from_millis)
+        .unwrap_or(RESTART_RESUME_BOOT_TIMEOUT_DEFAULT)
 }
 
 /// The product-core boot owner for ModelLane recovery. This runs after managed

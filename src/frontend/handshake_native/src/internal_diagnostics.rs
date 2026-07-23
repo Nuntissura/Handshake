@@ -387,6 +387,12 @@ struct SharedDiagnostics {
     panic_latch: PanicLatch,
     state: Mutex<RuntimeState>,
     stop_sampler: AtomicBool,
+    /// WP-1: operator-controllable pause for the resource sampler ONLY. When `true`, the sampler thread
+    /// skips its `sample()` + snapshot publish for that tick but keeps looping (so it resumes without a
+    /// respawn). Deliberately independent of `stop_sampler`, the panic hook, the frame-time tick, and
+    /// Palmistry — pausing background counters must never blind the crash path or starve the Argus
+    /// signing-secret rotation the Palmistry watcher performs.
+    sampler_paused: AtomicBool,
 }
 
 struct RuntimeState {
@@ -485,6 +491,7 @@ impl InternalDiagnostics {
                     recovered_survivors,
                 }),
                 stop_sampler: AtomicBool::new(false),
+                sampler_paused: AtomicBool::new(false),
             }),
         };
         *lock_unpoisoned(ACTIVE_DIAGNOSTICS.get_or_init(|| Mutex::new(Weak::new()))) =
@@ -538,6 +545,23 @@ impl InternalDiagnostics {
         lock_unpoisoned(&self.shared.state)
             .recovered_survivors
             .clone()
+    }
+
+    /// WP-1: enable/disable the background resource sampler at runtime. `enabled == false` pauses only
+    /// the CPU/RSS/GPU counter sampling + snapshot publish; the sampler thread keeps looping so a later
+    /// re-enable resumes without a respawn. The panic hook, frame-time tick, and Palmistry maintenance
+    /// are untouched, so this can never blind the crash path or the Argus signing-secret rotation.
+    /// Idempotent; safe to call every frame from the UI thread.
+    pub fn set_resource_sampling_enabled(&self, enabled: bool) {
+        self.shared
+            .sampler_paused
+            .store(!enabled, Ordering::Release);
+    }
+
+    /// WP-1: whether background resource sampling is currently enabled (not paused). Real state for the
+    /// Settings Diagnostics status display + tests.
+    pub fn resource_sampling_enabled(&self) -> bool {
+        !self.shared.sampler_paused.load(Ordering::Acquire)
     }
 
     /// Called once per real egui frame. The heartbeat atomics are updated every
@@ -961,6 +985,12 @@ impl InternalDiagnostics {
                     let diagnostics = InternalDiagnostics { shared };
                     if diagnostics.shared.stop_sampler.load(Ordering::Acquire) {
                         break;
+                    }
+                    // WP-1: operator-paused sampling skips the sample + publish but keeps the thread
+                    // alive so a later resume needs no respawn. Panic hook / frame-time / Palmistry
+                    // are untouched.
+                    if diagnostics.shared.sampler_paused.load(Ordering::Acquire) {
+                        continue;
                     }
                     let counters = sampler.sample();
                     let unavailable =

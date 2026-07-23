@@ -84,6 +84,55 @@ pub struct RestartResumeDbBackoffEvidence {
     pub report: ResumeReport,
 }
 
+/// Default hard wall-clock bound for the startup restart-resume boot pass.
+///
+/// Chosen to sit alongside the sibling boot bounds this pass runs next to:
+/// `main::MODEL_LANE_BOOT_RECOVERY_TIMEOUT` (30s) and
+/// `ProcessReclaimRuntime`'s `startup_timeout` default (30s). The boot pass is
+/// deliberately fail-closed, not fail-open: if the pass genuinely needs longer
+/// than this on a host with a large resumable backlog, raise the bound through
+/// [`PostgresRestartResumeRunner::run_with_bound`] rather than removing it. The
+/// unfinished candidates stay in their resumable queue states, so the staleness
+/// reclaim task and the next boot's pass finish reconciling them.
+pub const RESTART_RESUME_BOOT_TIMEOUT_DEFAULT: Duration = Duration::from_secs(30);
+
+/// Outcome of a hard-bounded restart-resume boot pass.
+///
+/// A completed pass returns its full [`ResumeReport`]. A pass that exceeds its
+/// wall-clock bound returns a durably-persisted bounded-abort report instead of
+/// hanging or panicking; the caller keeps booting so the later staleness reclaim
+/// task can finish the reconciliation the aborted pass did not complete.
+#[derive(Debug)]
+pub enum BoundedRestartResumeOutcome {
+    /// The pass finished within the bound.
+    Completed(ResumeReport),
+    /// The pass exceeded `timeout`. `report` is the durable bounded-abort
+    /// evidence row (Flight Recorder `RestartResumeStarted` emitted with no
+    /// matching `RestartResumeCompleted`, marking the pass incomplete). If the
+    /// durable evidence write itself could not be persisted (e.g. PostgreSQL is
+    /// the resource that hung), `evidence_persisted` is false and the caller has
+    /// already logged the bounded abort at error level.
+    TimedOut {
+        timeout: Duration,
+        report: ResumeReport,
+        evidence_persisted: bool,
+    },
+}
+
+impl BoundedRestartResumeOutcome {
+    /// The underlying report, whether the pass completed or was bounded-aborted.
+    pub fn report(&self) -> &ResumeReport {
+        match self {
+            Self::Completed(report) => report,
+            Self::TimedOut { report, .. } => report,
+        }
+    }
+
+    pub fn timed_out(&self) -> bool {
+        matches!(self, Self::TimedOut { .. })
+    }
+}
+
 #[derive(Clone)]
 pub struct PostgresRestartResumeRunner {
     pool: PgPool,
@@ -100,6 +149,103 @@ impl PostgresRestartResumeRunner {
 
     pub async fn run(&self) -> Result<ResumeReport, RestartResumeRuntimeError> {
         self.run_with_preface_events(&[]).await
+    }
+
+    /// Run the restart-resume boot pass under a hard outer wall-clock bound.
+    ///
+    /// The unbounded [`run`]/`run_with_preface_events` loop iterates every
+    /// resumable candidate and, per candidate, awaits an orphan-reclaim UPDATE
+    /// and a global replay. A single candidate whose reclaim UPDATE blocks (for
+    /// example on a held row lock) would otherwise stall boot indefinitely. This
+    /// wrapper mirrors the sibling boot bounds — `main`'s bounded ModelLane
+    /// recovery and `ProcessReclaimRuntime`'s `time::timeout(startup_timeout)`
+    /// boot reconcile — with three guarantees:
+    ///
+    /// 1. Bounded wall clock: the whole pass is wrapped in
+    ///    [`tokio::time::timeout`]; it never hangs and never panics.
+    /// 2. Deterministic fail-closed: on timeout no candidate is falsely marked
+    ///    resumed. Unfinished candidates stay in their resumable queue states so
+    ///    the staleness reclaim task and the next boot's pass finish
+    ///    reconciling them. A genuine DB error still propagates unchanged.
+    /// 3. Durable evidence: on timeout a bounded-abort [`ResumeReport`] is
+    ///    persisted to `kernel_restart_resume_report` with the Flight Recorder
+    ///    `RestartResumeStarted` event and no `RestartResumeCompleted` event, so
+    ///    an auditor can see the pass started and did not complete. The evidence
+    ///    write is itself bounded so a hung PostgreSQL cannot re-introduce a
+    ///    hang; if it cannot be persisted the outcome records that fact.
+    pub async fn run_with_bound(
+        &self,
+        timeout: Duration,
+    ) -> Result<BoundedRestartResumeOutcome, RestartResumeRuntimeError> {
+        let started_at_utc = Utc::now();
+        let started = std::time::Instant::now();
+        match tokio::time::timeout(timeout, self.run_with_preface_events(&[])).await {
+            Ok(Ok(report)) => Ok(BoundedRestartResumeOutcome::Completed(report)),
+            Ok(Err(error)) => Err(error),
+            Err(_elapsed) => {
+                let (report, evidence_persisted) = self
+                    .persist_bounded_abort_report(timeout, started_at_utc, started)
+                    .await;
+                Ok(BoundedRestartResumeOutcome::TimedOut {
+                    timeout,
+                    report,
+                    evidence_persisted,
+                })
+            }
+        }
+    }
+
+    /// Persist durable evidence that the boot pass was bounded-aborted.
+    ///
+    /// The report emits `RestartResumeStarted` but never `RestartResumeCompleted`;
+    /// that asymmetry is the durable "incomplete pass" marker (a completed pass
+    /// always ends with `RestartResumeCompleted`). The persist is bounded so this
+    /// evidence write cannot itself hang. Returns the report plus whether the
+    /// durable row was written.
+    async fn persist_bounded_abort_report(
+        &self,
+        timeout: Duration,
+        started_at_utc: DateTime<Utc>,
+        started: std::time::Instant,
+    ) -> (ResumeReport, bool) {
+        let mut report = ResumeReport {
+            report_id: Uuid::now_v7(),
+            sessions_examined: 0,
+            sessions_resumed: Vec::new(),
+            sessions_recovery_failed: Vec::new(),
+            orphan_reclaims: Vec::new(),
+            operator_decision_requests: Vec::new(),
+            fr_events_emitted: Vec::new(),
+            total_replay_events: 0,
+            total_duration_ms: started.elapsed().as_millis() as u64,
+            started_at_utc,
+            completed_at_utc: Utc::now(),
+        };
+        // Started-without-Completed is the durable incomplete-pass signal.
+        emit_report_event(&mut report, FrEventId::RestartResumeStarted);
+        let evidence_persisted =
+            match tokio::time::timeout(timeout, self.persist_report(&report)).await {
+                Ok(Ok(())) => true,
+                Ok(Err(error)) => {
+                    tracing::error!(
+                        target: "handshake_core::restart_resume",
+                        report_id = %report.report_id,
+                        error = %error,
+                        "restart-resume bounded-abort evidence could not be persisted"
+                    );
+                    false
+                }
+                Err(_elapsed) => {
+                    tracing::error!(
+                        target: "handshake_core::restart_resume",
+                        report_id = %report.report_id,
+                        timeout_ms = timeout.as_millis() as u64,
+                        "restart-resume bounded-abort evidence write itself exceeded the bound; PostgreSQL is unavailable"
+                    );
+                    false
+                }
+            };
+        (report, evidence_persisted)
     }
 
     pub async fn run_with_db_backoff<F, Fut>(

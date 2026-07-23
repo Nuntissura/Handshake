@@ -176,6 +176,10 @@ pub struct WorkspaceSettingsState {
     pub swarm_lane_diagnostics_default_open: bool,
     /// Whether the Operator Chat launch pane is part of the operator's default Swarm toolset.
     pub operator_chat_default_open: bool,
+    /// WP-1: whether the internal_diagnostics background resource sampler (CPU/RSS/GPU counters) runs.
+    /// Persisted; the shell forwards it to `InternalDiagnostics::set_resource_sampling_enabled` each
+    /// frame so the real producer thread reflects it. Default `true` (sampling on).
+    pub resource_sampling_enabled: bool,
 }
 
 impl WorkspaceSettingsState {
@@ -224,6 +228,7 @@ impl WorkspaceSettingsState {
                 "swarm_board_default_open": self.swarm_board_default_open,
                 "swarm_lane_diagnostics_default_open": self.swarm_lane_diagnostics_default_open,
                 "operator_chat_default_open": self.operator_chat_default_open,
+                "resource_sampling_enabled": self.resource_sampling_enabled,
             },
         })
     }
@@ -247,6 +252,7 @@ pub fn default_workspace_settings_state() -> WorkspaceSettingsState {
         swarm_board_default_open: false,
         swarm_lane_diagnostics_default_open: false,
         operator_chat_default_open: false,
+        resource_sampling_enabled: true,
     }
 }
 
@@ -428,6 +434,10 @@ pub fn normalize_workspace_settings_state(
         .and_then(|m| m.get("operator_chat_default_open"))
         .and_then(Value::as_bool)
         .unwrap_or(fallback.operator_chat_default_open);
+    let resource_sampling_enabled = raw_settings
+        .and_then(|m| m.get("resource_sampling_enabled"))
+        .and_then(Value::as_bool)
+        .unwrap_or(fallback.resource_sampling_enabled);
 
     WorkspaceSettingsState {
         theme,
@@ -436,6 +446,7 @@ pub fn normalize_workspace_settings_state(
         swarm_board_default_open,
         swarm_lane_diagnostics_default_open,
         operator_chat_default_open,
+        resource_sampling_enabled,
     }
 }
 

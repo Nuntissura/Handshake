@@ -37,8 +37,8 @@ use crate::{
         CancellationToken, Embedding, FinishReason, GenerateRequest, KvCacheHandle, KvCacheOps,
         KvCachePolicy, KvQuantSupport, LoadSpec, LoraStackHandle, ModelCapabilities, ModelId,
         ModelRuntime, ModelRuntimeError, RuntimeActivityKind, RuntimeActivityTracker,
-        RuntimeArtifactIntegrityReceipt, RuntimeQuiesceError, Score, SteeringHookHandle,
-        TokenStream,
+        RuntimeArtifactIntegrityReceipt, RuntimePerfSnapshot, RuntimeQuiesceError,
+        RuntimeVramResidency, Score, SteeringHookHandle, TokenStream,
     },
 };
 
@@ -518,6 +518,41 @@ impl ModelRuntime for LlamaCppRuntime {
         Err(Self::not_implemented(
             "llama_cpp_steering_hooks_not_supported",
         ))
+    }
+
+    fn perf_snapshot(&self, id: ModelId) -> Result<RuntimePerfSnapshot, ModelRuntimeError> {
+        // Reuse the real per-model perf recorder that the generation path
+        // updates via `record_call` (see llama_cpp/generate.rs). tokens/sec and
+        // last-call reflect actual completed generations; VRAM residency is
+        // reported only when the build genuinely offloaded weights to a device
+        // that measured it, otherwise a typed engine-specific reason.
+        let stats = self.perf_stats(id)?;
+        Ok(RuntimePerfSnapshot {
+            total_calls: stats.total_prompts,
+            total_tokens_generated: stats.total_tokens_generated,
+            tokens_per_second: (stats.total_prompts > 0 && stats.tokens_per_sec_ema > 0.0)
+                .then_some(stats.tokens_per_sec_ema as f64),
+            last_call_at_utc: stats.last_call_at_utc,
+            vram_resident_bytes: RuntimeVramResidency::from_measured(
+                stats.vram_resident_bytes,
+                "this llama.cpp build reports no GPU-offloaded VRAM residency for the model; \
+                 weights are resident in system RAM",
+            ),
+        })
+    }
+
+    fn engine_internals(&self, id: ModelId) -> Result<serde_json::Value, ModelRuntimeError> {
+        let handle = self.models.get(&id).ok_or_else(|| {
+            ModelRuntimeError::LoadError(format!("llama.cpp model is not loaded: {id}"))
+        })?;
+        Ok(serde_json::json!({
+            "adapter": "llama_cpp",
+            "native_engine_enabled": cfg!(feature = "llama-cpp-runtime-engine"),
+            "kv_cache_quantization": format!("{:?}", handle.kv_cache.quantization()),
+            "load_duration_ms": handle.load_duration_ms,
+            "capabilities": handle.capabilities,
+            "steering_drilldown": "per-layer KV-cache state (Section 10.13.2)",
+        }))
     }
 
     fn cancel(&self, token: CancellationToken) {

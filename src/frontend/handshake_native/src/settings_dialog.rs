@@ -99,6 +99,18 @@ pub const RESET_LAYOUT_AUTHOR_ID: &str = "settings.reset-layout";
 pub const OPEN_MODEL_RUNTIME_AUTHOR_ID: &str = "settings.model-runtime.open";
 /// Stable author_id for opening the canonical Problems/internal-diagnostics pane.
 pub const OPEN_PROBLEMS_AUTHOR_ID: &str = "settings.model-runtime.open-problems";
+/// WP-1 (a): stable author_id for the deep-link that opens the Operator Chat / Launch pane — the real
+/// surface where the operator selects the completion model + lane before launch. Settings does not
+/// duplicate that selection logic; it deep-links to the single source of truth.
+pub const OPEN_OPERATOR_CHAT_AUTHOR_ID: &str = "settings.model-runtime.open-operator-chat";
+/// WP-1 (b): stable author_id for the background resource-sampling enable checkbox. Toggling it drives
+/// the real internal_diagnostics resource sampler (pause/resume), not a cosmetic flag.
+pub const RESOURCE_SAMPLING_CHECKBOX_AUTHOR_ID: &str =
+    "settings.diagnostics.resource-sampling-enabled";
+/// WP-1 (c): stable author_id for the Palmistry watcher status label (display backed by real state).
+pub const PALMISTRY_STATUS_AUTHOR_ID: &str = "settings.diagnostics.palmistry-status";
+/// WP-1 (c): stable author_id for the internal-diagnostics subsystem status label (real state).
+pub const DIAGNOSTICS_SUBSYSTEM_STATUS_AUTHOR_ID: &str = "settings.diagnostics.subsystem-status";
 /// Stable author_id for the Close button.
 pub const CLOSE_AUTHOR_ID: &str = "settings.close";
 /// Author_id prefix for a per-action keybinding text input (`{prefix}{action_id}`).
@@ -406,6 +418,13 @@ pub enum SettingsOutcome {
     OpenModelRuntime,
     /// Open the canonical Problems pane from the existing Model Runtime settings section.
     OpenProblems,
+    /// WP-1 (a): open the Operator Chat / Launch pane — the completion-model + lane selection surface.
+    /// Navigation only; the selection authority lives in that pane, not in Settings.
+    OpenOperatorChat,
+    /// WP-1 (b): the background resource-sampling enable checkbox was toggled. The shell forwards the
+    /// value to `InternalDiagnostics::set_resource_sampling_enabled`, which pauses/resumes the real
+    /// producer thread, and persists it via the workspace-settings path. WIRED.
+    ResourceSamplingEnabledChanged(bool),
     /// MT-015: Save clicked for a BYOK provider. The shell reads the key buffer, sends it to the vault
     /// via `PUT /model-access/byok/{provider}/key`, then zeroizes + clears the buffer.
     CloudByokKeySaveRequested { provider: String },
@@ -420,6 +439,24 @@ pub enum SettingsOutcome {
     Close,
 }
 
+/// WP-1 (c): real internal-diagnostics status the shell computes ONCE per settings-render frame and
+/// hands to the dialog for display. Every field is derived from live state (`InternalDiagnostics`
+/// presence, the Palmistry-provisioned Argus signing secret, and the recovered-crash count) — nothing
+/// here is fabricated. `Default` is the "diagnostics subsystem unavailable" posture used by the
+/// headless/test shell.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DiagnosticsSettingsView {
+    /// True when the internal_diagnostics subsystem started successfully (panic hook, frame-time tick,
+    /// resource sampler, and Palmistry maintenance are live).
+    pub subsystem_live: bool,
+    /// True when Palmistry has successfully launched and provisioned the Argus MCP signing secret — a
+    /// real, observable effect of a healthy out-of-process watcher (the secret only exists after a
+    /// durable Palmistry launch + secret rotation).
+    pub palmistry_signing_provisioned: bool,
+    /// Count of prior-run crash survivors the diagnostics subsystem recovered at startup.
+    pub recovered_survivor_count: usize,
+}
+
 /// Read-only inputs the dialog renders from (the live settings + the open generation). The dialog never
 /// borrows `&mut HandshakeApp`; the shell applies the returned [`SettingsOutcome`].
 pub struct SettingsView<'a> {
@@ -432,6 +469,8 @@ pub struct SettingsView<'a> {
     /// MT-015: mutable Cloud Models UI state (enumeration snapshot + per-provider key buffers). Held by
     /// the shell — NOT in `DialogState` or the persisted snapshot — so a BYOK key never persists.
     pub cloud: &'a mut CloudModelsSettingsState,
+    /// WP-1 (c): live internal-diagnostics status for the Diagnostics section (display-only, real state).
+    pub diagnostics: DiagnosticsSettingsView,
 }
 
 /// Transient per-open dialog UI state: the search query + the in-progress draft keybinding text per
@@ -499,6 +538,7 @@ impl DialogState {
             swarm_board_default_open: live.swarm_board_default_open,
             swarm_lane_diagnostics_default_open: live.swarm_lane_diagnostics_default_open,
             operator_chat_default_open: live.operator_chat_default_open,
+            resource_sampling_enabled: live.resource_sampling_enabled,
         }
     }
 }
@@ -627,6 +667,9 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
                     let close = ui.button("Close");
                     set_author_id(ui, close.id, CLOSE_AUTHOR_ID);
                     if close.clicked() {
+                        // Ack the applied effect (dialog dismissal is requested) so an
+                        // out-of-process argus.click on `settings.close` resolves Applied.
+                        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), CLOSE_AUTHOR_ID);
                         outcome = SettingsOutcome::Close;
                     }
                 });
@@ -671,6 +714,7 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
                             &mut state,
                             view.settings,
                             &mut *view.cloud,
+                            view.diagnostics,
                             outcome.clone(),
                         );
                     });
@@ -717,6 +761,7 @@ fn render_sections(
     state: &mut DialogState,
     settings: &WorkspaceSettingsState,
     cloud: &mut CloudModelsSettingsState,
+    diagnostics: DiagnosticsSettingsView,
     mut outcome: SettingsOutcome,
 ) -> SettingsOutcome {
     // ── [1] Appearance (theme + view mode — both WIRED) ────────────────────────────────────────────
@@ -758,7 +803,9 @@ fn render_sections(
                         // The visible "View Mode" row label (above) provides the accessible name; the
                         // combo carries only the stable author_id so there is exactly ONE node labeled
                         // "View Mode" in the tree (unambiguous for out-of-process lookup-by-label).
-                        set_author_id(ui, combo.response.id, VIEW_MODE_COMBO_AUTHOR_ID);
+                        // Ack the open/close click (always an applied effect) so argus.click on the
+                        // combo resolves Applied even when it only opens the popup.
+                        set_author_id_ack_click(ui, &combo.response, VIEW_MODE_COMBO_AUTHOR_ID);
                         if selected != current && outcome == SettingsOutcome::None {
                             outcome = SettingsOutcome::ViewModeChanged(selected);
                         }
@@ -782,16 +829,16 @@ fn render_sections(
                         // The visible "Theme / appearance" row label (above) provides the accessible
                         // name; the combo carries only the stable author_id so there is exactly ONE node
                         // labeled "Theme / appearance" in the tree (unambiguous lookup-by-label).
-                        set_author_id(ui, combo.response.id, THEME_COMBO_AUTHOR_ID);
+                        set_author_id_ack_click(ui, &combo.response, THEME_COMBO_AUTHOR_ID);
                         if selected != current && outcome == SettingsOutcome::None {
                             outcome = SettingsOutcome::ThemeChanged(selected);
                         }
                     });
                 }
             });
-        set_author_id(
+        set_author_id_ack_click(
             ui,
-            appearance_header.header_response.id,
+            &appearance_header.header_response,
             &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}appearance"),
         );
     }
@@ -847,13 +894,15 @@ fn render_sections(
                         });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             let reset = ui.button("Reset");
-                            set_author_id(
-                                ui,
-                                reset.id,
-                                &format!("{KEYBINDING_RESET_AUTHOR_ID_PREFIX}{}", action.id),
-                            );
+                            let reset_author =
+                                format!("{KEYBINDING_RESET_AUTHOR_ID_PREFIX}{}", action.id);
+                            set_author_id(ui, reset.id, &reset_author);
                             if reset.clicked() && outcome == SettingsOutcome::None {
                                 // Reflect the default in the draft immediately, then emit the reset.
+                                crate::mcp::argus::acknowledge_action_effect(
+                                    ui.ctx(),
+                                    &reset_author,
+                                );
                                 state.set_draft(action.id, action.default_chord.to_owned());
                                 outcome = SettingsOutcome::KeybindingReset {
                                     action_id: action.id.to_owned(),
@@ -907,9 +956,9 @@ fn render_sections(
                     });
                 }
             });
-        set_author_id(
+        set_author_id_ack_click(
             ui,
-            keybindings_header.header_response.id,
+            &keybindings_header.header_response,
             &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}keybindings"),
         );
     }
@@ -950,6 +999,10 @@ fn render_sections(
                     let cb = ui.checkbox(&mut checked, cb_label);
                     set_author_id(ui, cb.id, SWARM_BOARD_CHECKBOX_AUTHOR_ID);
                     if cb.changed() && outcome == SettingsOutcome::None {
+                        crate::mcp::argus::acknowledge_action_effect(
+                            ui.ctx(),
+                            SWARM_BOARD_CHECKBOX_AUTHOR_ID,
+                        );
                         outcome = SettingsOutcome::SwarmBoardDefaultOpenChanged(checked);
                     }
                 });
@@ -969,6 +1022,10 @@ fn render_sections(
                     let cb = ui.checkbox(&mut checked, cb_label);
                     set_author_id(ui, cb.id, SWARM_LANE_DIAGNOSTICS_CHECKBOX_AUTHOR_ID);
                     if cb.changed() && outcome == SettingsOutcome::None {
+                        crate::mcp::argus::acknowledge_action_effect(
+                            ui.ctx(),
+                            SWARM_LANE_DIAGNOSTICS_CHECKBOX_AUTHOR_ID,
+                        );
                         outcome =
                             SettingsOutcome::SwarmLaneDiagnosticsDefaultOpenChanged(checked);
                     }
@@ -989,13 +1046,17 @@ fn render_sections(
                     let cb = ui.checkbox(&mut checked, cb_label);
                     set_author_id(ui, cb.id, SWARM_OPERATOR_CHAT_CHECKBOX_AUTHOR_ID);
                     if cb.changed() && outcome == SettingsOutcome::None {
+                        crate::mcp::argus::acknowledge_action_effect(
+                            ui.ctx(),
+                            SWARM_OPERATOR_CHAT_CHECKBOX_AUTHOR_ID,
+                        );
                         outcome = SettingsOutcome::OperatorChatDefaultOpenChanged(checked);
                     }
                 });
             });
-        set_author_id(
+        set_author_id_ack_click(
             ui,
-            swarm_header.header_response.id,
+            &swarm_header.header_response,
             &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}swarm"),
         );
     }
@@ -1011,9 +1072,9 @@ fn render_sections(
                 not_yet_wired_row(ui, &TERMINAL_MAX_SCROLLBACK_SETTING);
                 not_yet_wired_row(ui, &TERMINAL_OUTPUT_LOGGING_SETTING);
             });
-        set_author_id(
+        set_author_id_ack_click(
             ui,
-            terminal_header.header_response.id,
+            &terminal_header.header_response,
             &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}terminal"),
         );
     }
@@ -1036,13 +1097,17 @@ fn render_sections(
                     let btn = ui.button("Reset panes & drawers");
                     set_author_id(ui, btn.id, RESET_LAYOUT_AUTHOR_ID);
                     if btn.clicked() && outcome == SettingsOutcome::None {
+                        crate::mcp::argus::acknowledge_action_effect(
+                            ui.ctx(),
+                            RESET_LAYOUT_AUTHOR_ID,
+                        );
                         outcome = SettingsOutcome::ResetLayout;
                     }
                 });
             });
-        set_author_id(
+        set_author_id_ack_click(
             ui,
-            layout_header.header_response.id,
+            &layout_header.header_response,
             &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}layout"),
         );
     }
@@ -1076,9 +1141,9 @@ fn render_sections(
             .show(ui, |ui| {
                 outcome = render_cloud_models_body(ui, cloud, outcome.clone());
             });
-        set_author_id(
+        set_author_id_ack_click(
             ui,
-            cloud_header.header_response.id,
+            &cloud_header.header_response,
             &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}cloud-models"),
         );
     }
@@ -1115,7 +1180,34 @@ fn render_sections(
                 let open = ui.button("Open Model Runtime");
                 set_author_id(ui, open.id, OPEN_MODEL_RUNTIME_AUTHOR_ID);
                 if open.clicked() && outcome == SettingsOutcome::None {
+                    crate::mcp::argus::acknowledge_action_effect(
+                        ui.ctx(),
+                        OPEN_MODEL_RUNTIME_AUTHOR_ID,
+                    );
                     outcome = SettingsOutcome::OpenModelRuntime;
+                }
+                ui.separator();
+                // WP-1 (a): completion model + lane selection entry point. Settings does NOT own the
+                // model registry or the selection logic — it deep-links to the Operator Chat / Launch
+                // pane, the single surface where the operator picks the completion model + lane before
+                // launch. Displaying a "current default" here would fabricate state the shell does not
+                // persist; the honest surface is the deep-link.
+                ui.label("Default completion model & lane");
+                ui.label(
+                    egui::RichText::new(
+                        "Pick the completion model + lane (LOCAL / CLOUD / CLI / SUBAGENT) in the Operator Chat / Launch pane. Local adapters are managed in Model Runtime above.",
+                    )
+                    .small()
+                    .weak(),
+                );
+                let open_operator_chat = ui.button("Open Operator Chat");
+                set_author_id(ui, open_operator_chat.id, OPEN_OPERATOR_CHAT_AUTHOR_ID);
+                if open_operator_chat.clicked() && outcome == SettingsOutcome::None {
+                    crate::mcp::argus::acknowledge_action_effect(
+                        ui.ctx(),
+                        OPEN_OPERATOR_CHAT_AUTHOR_ID,
+                    );
+                    outcome = SettingsOutcome::OpenOperatorChat;
                 }
                 ui.separator();
                 ui.label("Runtime diagnostics");
@@ -1129,13 +1221,97 @@ fn render_sections(
                 let open_problems = ui.button("Open Problems");
                 set_author_id(ui, open_problems.id, OPEN_PROBLEMS_AUTHOR_ID);
                 if open_problems.clicked() && outcome == SettingsOutcome::None {
+                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), OPEN_PROBLEMS_AUTHOR_ID);
                     outcome = SettingsOutcome::OpenProblems;
                 }
             });
-        set_author_id(
+        set_author_id_ack_click(
             ui,
-            model_runtime_header.header_response.id,
+            &model_runtime_header.header_response,
             &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}model-runtime"),
+        );
+    }
+
+    // ── [5d] Diagnostics (WP-1: real internal-diagnostics controls + Palmistry status) ──────────────
+    let show_diagnostics = setting_matches_query(
+        query,
+        &[
+            "diagnostics",
+            "internal",
+            "resource",
+            "sampling",
+            "cpu",
+            "memory",
+            "palmistry",
+            "watcher",
+            "flight recorder",
+        ],
+    );
+    if show_diagnostics {
+        let diagnostics_header = egui::CollapsingHeader::new("Diagnostics")
+            .default_open(true)
+            .show(ui, |ui| {
+                // WP-1 (b): a REAL producer toggle. Toggling this pauses/resumes the internal
+                // diagnostics resource sampler thread (CPU/RSS counters) via
+                // `InternalDiagnostics::set_resource_sampling_enabled`. It never touches the panic hook,
+                // the frame-time tick, or Palmistry, so disabling background sampling cannot blind the
+                // crash path or starve the Argus signing-secret rotation.
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label("Background resource sampling");
+                        ui.label(
+                            egui::RichText::new(
+                                "Persisted. Controls the internal_diagnostics CPU/RSS/GPU sampler thread. Disabling it stops periodic resource counters only; the panic hook and Palmistry watcher stay live.",
+                            )
+                            .small()
+                            .weak(),
+                        );
+                    });
+                    let mut checked = settings.resource_sampling_enabled;
+                    let cb_label = if checked { "Sampling" } else { "Paused" };
+                    let cb = ui.checkbox(&mut checked, cb_label);
+                    set_author_id(ui, cb.id, RESOURCE_SAMPLING_CHECKBOX_AUTHOR_ID);
+                    if cb.changed() && outcome == SettingsOutcome::None {
+                        crate::mcp::argus::acknowledge_action_effect(
+                            ui.ctx(),
+                            RESOURCE_SAMPLING_CHECKBOX_AUTHOR_ID,
+                        );
+                        outcome = SettingsOutcome::ResourceSamplingEnabledChanged(checked);
+                    }
+                });
+                ui.separator();
+                // WP-1 (c): Palmistry watcher STATUS display backed by real state (no disable toggle —
+                // see the module note / handoff: pausing Palmistry would starve the Argus MCP signing
+                // secret rotation and disable the Argus transport this WP delivers).
+                let subsystem_text = if diagnostics.subsystem_live {
+                    "Internal diagnostics: live (panic hook, frame-time, resource sampler, Palmistry maintenance running)"
+                } else {
+                    "Internal diagnostics: unavailable in this shell (headless/test or startup failure)"
+                };
+                let subsystem = ui.label(egui::RichText::new(subsystem_text).small());
+                set_author_id(ui, subsystem.id, DIAGNOSTICS_SUBSYSTEM_STATUS_AUTHOR_ID);
+                let palmistry_text = if !diagnostics.subsystem_live {
+                    "Palmistry watcher: not started".to_owned()
+                } else if diagnostics.palmistry_signing_provisioned {
+                    "Palmistry watcher: active — Argus signing secret provisioned by a durable watcher launch".to_owned()
+                } else {
+                    "Palmistry watcher: starting — awaiting durable launch + signing-secret provisioning".to_owned()
+                };
+                let palmistry = ui.label(egui::RichText::new(&palmistry_text).small().strong());
+                set_author_id(ui, palmistry.id, PALMISTRY_STATUS_AUTHOR_ID);
+                ui.label(
+                    egui::RichText::new(format!(
+                        "Recovered prior-run crash survivors: {}",
+                        diagnostics.recovered_survivor_count
+                    ))
+                    .small()
+                    .weak(),
+                );
+            });
+        set_author_id_ack_click(
+            ui,
+            &diagnostics_header.header_response,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}diagnostics"),
         );
     }
 
@@ -1154,9 +1330,9 @@ fn render_sections(
                     ui.label(ABOUT_VERSION);
                 });
             });
-        set_author_id(
+        set_author_id_ack_click(
             ui,
-            about_header.header_response.id,
+            &about_header.header_response,
             &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}about"),
         );
         // TODO MT-0XX: CLI Bridge config panel - see app/src/components/CliBridgeConfigPanel.tsx
@@ -1243,15 +1419,19 @@ fn render_cloud_models_body(
                 );
             }
             let save = ui.button("Save");
-            set_author_id(ui, save.id, &cloud_byok_save_author_id(&row.provider));
+            let save_author = cloud_byok_save_author_id(&row.provider);
+            set_author_id(ui, save.id, &save_author);
             if save.clicked() && outcome == SettingsOutcome::None {
+                crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &save_author);
                 outcome = SettingsOutcome::CloudByokKeySaveRequested {
                     provider: row.provider.clone(),
                 };
             }
             let remove = ui.add_enabled(row.configured, egui::Button::new("Remove"));
-            set_author_id(ui, remove.id, &cloud_byok_remove_author_id(&row.provider));
+            let remove_author = cloud_byok_remove_author_id(&row.provider);
+            set_author_id(ui, remove.id, &remove_author);
             if remove.clicked() && outcome == SettingsOutcome::None {
+                crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &remove_author);
                 outcome = SettingsOutcome::CloudByokKeyRemoveRequested {
                     provider: row.provider.clone(),
                 };
@@ -1291,8 +1471,11 @@ fn render_cloud_models_body(
                 );
             });
             let login = ui.button("Log in…");
-            set_author_id(ui, login.id, &cloud_cli_login_author_id(&row.provider));
+            let login_author = cloud_cli_login_author_id(&row.provider);
+            set_author_id(ui, login.id, &login_author);
             if login.clicked() && outcome == SettingsOutcome::None {
+                // Applied effect: the login-confirmation prompt is armed for this provider.
+                crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &login_author);
                 cloud.pending_cli_login_confirmation = Some(row.provider.clone());
             }
         });
@@ -1313,20 +1496,20 @@ fn render_cloud_models_body(
             ));
             ui.horizontal(|ui| {
                 let confirm = ui.button("Start login");
-                set_author_id(
-                    ui,
-                    confirm.id,
-                    &cloud_cli_login_confirm_author_id(&provider),
-                );
+                let confirm_author = cloud_cli_login_confirm_author_id(&provider);
+                set_author_id(ui, confirm.id, &confirm_author);
                 if confirm.clicked() && outcome == SettingsOutcome::None {
+                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &confirm_author);
                     cloud.pending_cli_login_confirmation = None;
                     outcome = SettingsOutcome::CliBridgeLoginRequested {
                         provider: provider.clone(),
                     };
                 }
                 let cancel = ui.button("Cancel");
-                set_author_id(ui, cancel.id, &cloud_cli_login_cancel_author_id(&provider));
+                let cancel_author = cloud_cli_login_cancel_author_id(&provider);
+                set_author_id(ui, cancel.id, &cancel_author);
                 if cancel.clicked() {
+                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &cancel_author);
                     cloud.pending_cli_login_confirmation = None;
                 }
             });
@@ -1373,6 +1556,22 @@ fn set_author_id(ui: &egui::Ui, widget_id: egui::Id, author_id: &str) {
     let author_id = author_id.to_owned();
     ui.ctx()
         .accesskit_node_builder(widget_id, move |node| node.set_author_id(author_id));
+}
+
+/// Attach a stable author_id to a live node AND, if the node was clicked THIS frame, acknowledge the
+/// Argus action effect for that author_id. Use ONLY for controls whose click ALWAYS applies an
+/// in-dialog effect that is independent of the shared `outcome` accumulator — a ComboBox open/close
+/// and a CollapsingHeader expand/collapse both mutate egui state on every click regardless of what
+/// else happened this frame. Without this, an out-of-process `argus.click` on those controls times out
+/// on the handler-acknowledgement gate (argus.rs `observe_postcondition`) even though the control did
+/// react. Outcome-gated controls (buttons/checkboxes that only apply when `outcome == None`) MUST ack
+/// inside their guarded block instead, so the ack stays truthful when a same-frame arbitration drops
+/// their effect.
+fn set_author_id_ack_click(ui: &egui::Ui, response: &egui::Response, author_id: &str) {
+    set_author_id(ui, response.id, author_id);
+    if response.clicked() {
+        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), author_id);
+    }
 }
 
 /// Attach a stable author_id AND an accessible label to an already-interactive live node. Used for

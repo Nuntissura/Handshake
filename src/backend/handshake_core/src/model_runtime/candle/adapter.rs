@@ -36,8 +36,9 @@ use crate::model_runtime::{
     CancellationToken, Embedding, GenerateRequest, HookPoint, KvCacheHandle, KvQuantSupport,
     LoadSpec, LoraStackHandle, ModelArtifactIntegrityReceipt, ModelCapabilities, ModelId,
     ModelRuntime, ModelRuntimeError, ProviderKind, RuntimeActivityKind, RuntimeActivityTracker,
-    RuntimeArtifactIntegrityReceipt, RuntimeKind, RuntimeQuiesceError, Score, SteeringHookHandle,
-    SteeringHookOps, SteeringVector, SteeringVectorId, SteeringVectorMeta, TokenStream,
+    RuntimeArtifactIntegrityReceipt, RuntimeKind, RuntimePerfRecorder, RuntimePerfSnapshot,
+    RuntimeQuiesceError, RuntimeVramResidency, Score, SteeringHookHandle, SteeringHookOps,
+    SteeringVector, SteeringVectorId, SteeringVectorMeta, TokenStream,
 };
 #[cfg(feature = "candle-runtime-engine")]
 use crate::model_runtime::{CaptureResult, CaptureSpec};
@@ -322,6 +323,7 @@ impl CandleRuntime {
             steering_hooks: CandleSteeringHooks::new_for_model(id, residual_width),
             state_vector,
             artifact_integrity: captured.receipt,
+            perf: Arc::new(Mutex::new(RuntimePerfRecorder::new())),
         };
 
         Ok(PreparedCandleLoad {
@@ -390,6 +392,10 @@ struct CandleModelHandle {
     steering_hooks: CandleSteeringHooks,
     state_vector: Option<StateVectorHandle>,
     artifact_integrity: ModelArtifactIntegrityReceipt,
+    /// MT-014b: real recorded decode telemetry for the Section 10.13 panel. The
+    /// generation worker folds each completed call in via `record_call`; the
+    /// object-safe `perf_snapshot` projects it. Empty until a generation runs.
+    perf: Arc<Mutex<RuntimePerfRecorder>>,
 }
 
 #[cfg(feature = "candle-runtime-engine")]
@@ -745,8 +751,74 @@ impl ModelRuntime for CandleRuntime {
         ))
     }
 
+    fn perf_snapshot(&self, id: ModelId) -> Result<RuntimePerfSnapshot, ModelRuntimeError> {
+        let handle = self
+            .models
+            .get(&id)
+            .ok_or_else(|| ModelRuntimeError::LoadError(Self::not_loaded_message(id)))?;
+        let recorder = handle.perf.lock().map_err(|error| {
+            ModelRuntimeError::GenerateError(format!("candle perf recorder lock poisoned: {error}"))
+        })?;
+        // The decode worker (candle/generate.rs) records each completed call, so
+        // tokens/sec and last-call reflect real generations. Candle does not yet
+        // query device-resident VRAM, so residency is a typed, device-specific
+        // reason rather than an invented zero.
+        Ok(recorder.snapshot(candle_vram_unavailable_reason(handle.device_selection.selected())))
+    }
+
+    fn engine_internals(&self, id: ModelId) -> Result<serde_json::Value, ModelRuntimeError> {
+        let handle = self
+            .models
+            .get(&id)
+            .ok_or_else(|| ModelRuntimeError::LoadError(Self::not_loaded_message(id)))?;
+        Ok(serde_json::json!({
+            "adapter": "candle",
+            "native_engine_enabled": cfg!(feature = "candle-runtime-engine"),
+            "device": format!("{:?}", handle.device_selection.selected()),
+            "backend_architecture": candle_backend_arch_name(&handle.backend),
+            "load_duration_ms": handle.load_duration_ms,
+            "capabilities": handle.capabilities,
+            "steering_drilldown": "hook registry + active steering hooks (Section 10.13.2)",
+        }))
+    }
+
     fn cancel(&self, token: CancellationToken) {
         token.cancel();
+    }
+}
+
+/// Device-specific reason surfaced when Candle exposes no measured device VRAM
+/// residency for a loaded model (§10.13.1 VRAM field, engine-conditional typed).
+fn candle_vram_unavailable_reason(device: super::device::CandleDeviceKind) -> String {
+    match device {
+        super::device::CandleDeviceKind::Cpu => {
+            "candle is running this model on the CPU device; weights are resident in system RAM, \
+             not device VRAM"
+                .to_string()
+        }
+        other => format!(
+            "candle device VRAM residency query is not wired for {other:?}; the decode path records \
+             no device-resident byte count for this model yet"
+        ),
+    }
+}
+
+/// Real, engine-known architecture label for the loaded backend (no invented
+/// numbers) for the §10.13.2 engine-internals drilldown.
+fn candle_backend_arch_name(backend: &CandleModelBackend) -> &'static str {
+    match backend {
+        #[cfg(feature = "candle-runtime-engine")]
+        CandleModelBackend::Transformer { .. } => "transformer",
+        #[cfg(feature = "candle-runtime-engine")]
+        CandleModelBackend::Mamba2 { .. } => "mamba2",
+        #[cfg(feature = "candle-runtime-engine")]
+        CandleModelBackend::RwkvV5 { .. } => "rwkv_v5",
+        #[cfg(feature = "candle-runtime-engine")]
+        CandleModelBackend::RwkvV6 { .. } => "rwkv_v6",
+        #[cfg(feature = "candle-runtime-engine")]
+        CandleModelBackend::RwkvV7 { .. } => "rwkv_v7",
+        #[cfg(not(feature = "candle-runtime-engine"))]
+        CandleModelBackend::TransformerScaffold => "scaffold_disabled",
     }
 }
 
@@ -1089,6 +1161,10 @@ impl SteeringHookOps for CandleRuntimeSteeringHookOps {
 
     fn list_vectors(&self) -> Vec<SteeringVectorMeta> {
         self.hooks.list_vectors()
+    }
+
+    fn list_active(&self) -> Vec<SteeringVectorMeta> {
+        self.hooks.try_list_active().unwrap_or_default()
     }
 
     async fn set_active(&self, ids: Vec<SteeringVectorId>) -> Result<(), ModelRuntimeError> {
