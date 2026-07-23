@@ -115,18 +115,22 @@ fn test_mcp_list_widgets() {
     );
     let json = response.to_json();
     let result = &json["result"];
+    let snapshot_result = &result["snapshot"];
 
-    let widget_count = result["widget_count"]
+    let widget_count = snapshot_result["widget_count"]
         .as_u64()
         .expect("widget_count present");
     assert!(
         widget_count > 0,
         "live shell has widgets; got {widget_count}"
     );
-    assert!(result["root"]["role"].is_string(), "root has a role");
+    assert!(
+        snapshot_result["root"]["role"].is_string(),
+        "root has a role"
+    );
 
     // At least one nested child with a non-empty id.
-    let first_child = result["root"]["children"]
+    let first_child = snapshot_result["root"]["children"]
         .as_array()
         .and_then(|c| c.first())
         .expect("root has children");
@@ -135,7 +139,7 @@ fn test_mcp_list_widgets() {
 
     // Proof output: first 20 lines of the response JSON showing widget_count, root.role, a child id.
     let pretty = serde_json::to_string_pretty(&json).unwrap();
-    println!("PASS test_mcp_list_widgets: widget_count={widget_count}, root.role={}, first_child.id={child_id}", result["root"]["role"]);
+    println!("PASS test_mcp_list_widgets: widget_count={widget_count}, root.role={}, first_child.id={child_id}", snapshot_result["root"]["role"]);
     println!("--- list_widgets response (first 20 lines) ---");
     for line in pretty.lines().take(20) {
         println!("{line}");
@@ -536,17 +540,20 @@ fn test_mcp_wire_list_widgets_and_binding_file() {
         let resp = rpc_roundtrip(
             &addr,
             serde_json::json!({
-                "jsonrpc": "2.0", "id": 1, "method": "list_widgets", "params": {},
-                "session_token": token_hex,
+                "jsonrpc": "2.0", "id": 1, "method": "list_widgets",
+                "params": { "window_id": "main" },
+                "session_token": token_hex, "agent_label": "wire-inspector",
             }),
         )
         .await;
-        let widget_count = resp["result"]["widget_count"].as_u64().expect("widget_count over wire");
+        let widget_count = resp["result"]["snapshot"]["widget_count"]
+            .as_u64()
+            .expect("widget_count over wire");
         assert!(widget_count > 0, "live shell has widgets over the wire; got {widget_count}");
-        assert!(resp["result"]["root"]["role"].is_string());
+        assert!(resp["result"]["snapshot"]["root"]["role"].is_string());
         println!(
             "PASS test_mcp_wire_list_widgets: over-socket widget_count={widget_count}, root.role={}",
-            resp["result"]["root"]["role"]
+            resp["result"]["snapshot"]["root"]["role"]
         );
 
         server.shutdown();
@@ -584,33 +591,71 @@ fn test_mcp_wire_click_steers_running_shell() {
             bind_server_with_shared_state(token, snapshot.clone(), channel.clone()).await;
         let addr = server.tcp_addr().to_owned();
 
-        let resp = rpc_roundtrip(
-            &addr,
-            serde_json::json!({
-                "jsonrpc": "2.0", "id": 2, "method": "click_widget",
-                "params": { "target": THEME_TOGGLE_AUTHOR_ID }, "session_token": token_hex,
-            }),
-        )
-        .await;
-        assert_eq!(resp["result"]["queued"], true, "click queued over the wire");
+        let rpc_addr = addr.clone();
+        let rpc = tokio::spawn(async move {
+            rpc_roundtrip(
+                &rpc_addr,
+                serde_json::json!({
+                    "jsonrpc": "2.0", "id": 2, "method": "click_widget",
+                    "params": {
+                        "window_id": "main",
+                        "target": THEME_TOGGLE_AUTHOR_ID,
+                        "expected_snapshot_revision": 1
+                    },
+                    "session_token": token_hex,
+                    "agent_label": "wire-clicker",
+                }),
+            )
+            .await
+        });
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        while channel.lock().unwrap().pending() == 0 {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "wire action was not queued"
+            );
+            tokio::task::yield_now().await;
+        }
+        let (batch, tracker) = {
+            let mut channel = channel.lock().unwrap();
+            let tracker = channel.receipt_tracker();
+            (
+                channel.drain_for_viewport("main", egui::ViewportId::ROOT),
+                tracker,
+            )
+        };
+        assert!(
+            !batch.events.is_empty(),
+            "wire click reached the main viewport queue"
+        );
+        for event in batch.events {
+            harness.event(event);
+        }
+        harness.run();
+        let rendered_snapshot = collect_ui_tree_snapshot(
+            harness
+                .output()
+                .platform_output
+                .accesskit_update
+                .as_ref()
+                .expect("post-action rendered AccessKit tree"),
+        );
+        let windows = server.safety().windows.clone();
+        let current = windows.get("main").expect("main registry entry");
+        let after_revision = windows.publish(current.window, rendered_snapshot.clone());
+        for action_id in batch.action_ids {
+            tracker.observe_postcondition(&action_id, after_revision, &rendered_snapshot);
+        }
+
+        let resp = rpc.await.expect("wire rpc task");
+        assert_eq!(resp["result"]["status"], "applied");
         assert_eq!(resp["result"]["action"], "Click");
+        assert_eq!(resp["result"]["agent_label"], "wire-clicker");
+        assert_eq!(resp["result"]["before_revision"], 1);
+        assert_eq!(resp["result"]["after_revision"], 2);
         server.shutdown();
     });
-
-    // The running shell drains the SAME shared channel (its `raw_input_hook` does this live; here we
-    // drive it explicitly because the kittest harness calls `ui()` directly) and runs a frame.
-    let events = {
-        let mut chan = channel.lock().unwrap();
-        chan.drain_into_events()
-    };
-    assert!(
-        !events.is_empty(),
-        "the wire click landed in the shared channel the shell drains"
-    );
-    for event in events {
-        harness.event(event);
-    }
-    harness.run();
 
     let after = harness.state().current_theme();
     assert_eq!(
@@ -709,8 +754,9 @@ fn test_mcp_wire_screenshot_returns_valid_png() {
         let resp = rpc_roundtrip(
             &addr,
             serde_json::json!({
-                "jsonrpc": "2.0", "id": 4, "method": "screenshot", "params": {},
-                "session_token": token_hex,
+                "jsonrpc": "2.0", "id": 4, "method": "screenshot",
+                "params": { "window_id": "main" },
+                "session_token": token_hex, "agent_label": "wire-screenshot",
             }),
         )
         .await;

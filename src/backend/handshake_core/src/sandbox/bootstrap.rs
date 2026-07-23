@@ -6,10 +6,10 @@ use crate::process_ledger::LedgerBatcher;
 
 use super::{
     AdapterId, CloudHypervisorAdapter, CloudHypervisorConfig, DockerAdapter, DockerConfig,
-    GvisorAdapter, GvisorConfig, LedgerDecorator, SandboxAdapter, SandboxAdapterError,
-    SandboxAdapterRegistry, SandboxSettings, Wsl2PodmanAdapter, Wsl2PodmanConfig,
-    CLOUD_HYPERVISOR_ADAPTER_ID, DOCKER_ADAPTER_ID, GVISOR_ADAPTER_ID,
-    WINDOWS_NATIVE_JAIL_ADAPTER_ID, WSL2_PODMAN_ADAPTER_ID,
+    GvisorAdapter, GvisorConfig, HandshakeNativeSandboxAdapter, LedgerDecorator, SandboxAdapter,
+    SandboxAdapterError, SandboxAdapterRegistry, SandboxSettings, Wsl2PodmanAdapter,
+    Wsl2PodmanConfig, CLOUD_HYPERVISOR_ADAPTER_ID, DOCKER_ADAPTER_ID, GVISOR_ADAPTER_ID,
+    HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID, WINDOWS_NATIVE_JAIL_ADAPTER_ID, WSL2_PODMAN_ADAPTER_ID,
 };
 
 pub const WINDOWS_NATIVE_JAIL_MT045_DECISION_RECORD: &str =
@@ -28,6 +28,12 @@ pub fn build_default_registry() -> Result<SandboxAdapterRegistry, SandboxAdapter
 
 pub async fn build_default_registry_async() -> Result<SandboxAdapterRegistry, SandboxAdapterError> {
     let mut adapters: Vec<Arc<dyn SandboxAdapter>> = Vec::new();
+
+    // Attached Official-CLI execution is a distinct capability from the
+    // detached Windows-native jail. Register the Handshake-owned attached
+    // adapter in the process-wide registry; request routing still selects it
+    // explicitly and never changes the configured default adapter.
+    adapters.push(Arc::new(HandshakeNativeSandboxAdapter::new()));
 
     match Wsl2PodmanAdapter::try_new(Wsl2PodmanConfig::default()).await {
         Ok(adapter) => adapters.push(Arc::new(adapter)),
@@ -143,18 +149,23 @@ pub fn build_registry_from_adapters_with_ledger(
         let fallback = available_adapter_ids
             .iter()
             .find(|adapter_id| implicit_default_fallback_allowed(adapter_id))
-            .ok_or_else(|| SandboxAdapterError::AdapterUnavailable {
-                adapter_id: preferred_default_adapter_id.clone(),
-                reason: format!(
-                    "no implicit default sandbox adapter available during bootstrap; {DOCKER_ADAPTER_ID} remains compat-only and {WINDOWS_NATIVE_JAIL_ADAPTER_ID} requires explicit Win32-native selection"
-                ),
-            })?
-            .clone();
-        warn!(
-            adapter_id = %fallback,
-            "preferred sandbox adapter unavailable; using first available fallback as registry default"
-        );
-        fallback
+            .cloned();
+        match fallback {
+            Some(fallback) => {
+                warn!(
+                    adapter_id = %fallback,
+                    "preferred sandbox adapter unavailable; using first available fallback as registry default"
+                );
+                fallback
+            }
+            None => {
+                warn!(
+                    adapter_id = %preferred_default_adapter_id,
+                    "only explicit-selection sandbox adapters are available; preserving the unavailable preferred default so implicit jobs fail closed"
+                );
+                preferred_default_adapter_id
+            }
+        }
     };
 
     let mut registry = SandboxAdapterRegistry::new(default_adapter_id);
@@ -177,6 +188,7 @@ fn implicit_default_fallback_allowed(adapter_id: &AdapterId) -> bool {
     !matches!(
         adapter_id.as_str(),
         DOCKER_ADAPTER_ID
+            | HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID
             | WINDOWS_NATIVE_JAIL_ADAPTER_ID
             | CLOUD_HYPERVISOR_ADAPTER_ID
             | GVISOR_ADAPTER_ID
@@ -223,5 +235,23 @@ mod tests {
             WSL2_PODMAN_ADAPTER_ID
         );
         assert!(registry.get(registry.default_adapter_id()).is_none());
+    }
+
+    #[test]
+    fn attached_native_adapter_is_registered_but_never_becomes_implicit_default() {
+        let registry = build_registry_from_adapters(
+            AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
+            vec![Arc::new(HandshakeNativeSandboxAdapter::new())],
+            false,
+        )
+        .expect("explicit-selection attached adapter should not block bootstrap");
+
+        assert!(registry
+            .get(&AdapterId::new(HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID))
+            .is_some());
+        assert_eq!(
+            registry.default_adapter_id().as_str(),
+            WSL2_PODMAN_ADAPTER_ID
+        );
     }
 }

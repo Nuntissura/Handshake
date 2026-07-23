@@ -25,6 +25,8 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use super::ArgusWindowDescriptor;
+
 /// A captured screenshot, ready to serialize to the `VisualCaptureResult`-compatible JSON shape.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScreenshotResult {
@@ -37,6 +39,17 @@ pub struct ScreenshotResult {
     /// RFC3339-ish UTC capture timestamp (`<unix_seconds>.<nanos>Z`), matching the snapshot's clock
     /// format (no chrono dependency).
     pub captured_at_utc: String,
+    /// SHA-256 of the decoded PNG bytes. This lets an agent correlate the payload with durable
+    /// evidence without persisting a second copy of the image.
+    pub sha256: String,
+    /// Stable Argus window identity, populated by the production targeted capture path.
+    pub window_id: Option<String>,
+    /// Egui viewport identity associated with the registered window.
+    pub viewport_id: Option<String>,
+    /// Exact PID-scoped OS title used for capture.
+    pub title: Option<String>,
+    /// Owning process id used to fence the OS-window lookup.
+    pub pid: Option<u32>,
 }
 
 impl ScreenshotResult {
@@ -48,7 +61,20 @@ impl ScreenshotResult {
             "width": self.width,
             "height": self.height,
             "captured_at_utc": self.captured_at_utc,
+            "sha256": self.sha256,
+            "window_id": self.window_id,
+            "viewport_id": self.viewport_id,
+            "title": self.title,
+            "pid": self.pid,
         })
+    }
+
+    fn with_window_metadata(mut self, window: &ArgusWindowDescriptor) -> Self {
+        self.window_id = Some(window.window_id.clone());
+        self.viewport_id = Some(window.viewport_id.clone());
+        self.title = Some(window.title.clone());
+        self.pid = Some(std::process::id());
+        self
     }
 }
 
@@ -71,11 +97,18 @@ impl std::error::Error for ScreenshotError {}
 /// `Harness::render()` + the `image` PNG encoder, both already available); this builds the
 /// transport-ready result so the tool layer and a future socket transport share one shape.
 pub fn screenshot_from_png(png_bytes: &[u8], width: u32, height: u32) -> ScreenshotResult {
+    use sha2::{Digest, Sha256};
+
     ScreenshotResult {
         png_base64: encode_base64(png_bytes),
         width,
         height,
         captured_at_utc: now_utc_string(),
+        sha256: format!("{:x}", Sha256::digest(png_bytes)),
+        window_id: None,
+        viewport_id: None,
+        title: None,
+        pid: None,
     }
 }
 
@@ -110,6 +143,27 @@ pub fn capture_handshake_window() -> Result<ScreenshotResult, ScreenshotError> {
     }
 }
 
+/// Capture one registered Argus window. The descriptor is resolved before this adapter is called,
+/// and the Win32 lookup is fenced by both its exact title and this process id. Ambiguous matches are
+/// rejected instead of capturing whichever HWND happened to enumerate first.
+pub fn capture_handshake_window_target(
+    window: &ArgusWindowDescriptor,
+) -> Result<ScreenshotResult, ScreenshotError> {
+    #[cfg(target_os = "windows")]
+    {
+        windows_capture::capture_window_by_title_and_pid(&window.title, std::process::id())
+            .map(|capture| capture.with_window_metadata(window))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = window;
+        Err(ScreenshotError(
+            "live OS-window capture is implemented for Windows; use the offscreen-render path on this OS"
+                .to_owned(),
+        ))
+    }
+}
+
 /// Win32 GDI window capture (focus-safe `PrintWindow`). Windows-only; gated behind `cfg(windows)` so
 /// non-Windows builds never reference the Win32 APIs.
 #[cfg(target_os = "windows")]
@@ -136,9 +190,7 @@ mod windows_capture {
         title: &str,
         pid: u32,
     ) -> Result<ScreenshotResult, ScreenshotError> {
-        let hwnd = find_window(title, pid).ok_or_else(|| {
-            ScreenshotError(format!("no visible window titled '{title}' for pid {pid}"))
-        })?;
+        let hwnd = find_window(title, pid)?;
         capture_hwnd(hwnd)
     }
 
@@ -146,24 +198,32 @@ mod windows_capture {
         want_title: Vec<u16>,
         want_pid: u32,
         found: HWND,
+        match_count: usize,
     }
 
-    /// Enumerate top-level windows, matching by exact title AND owning pid. Returns the first match.
-    fn find_window(title: &str, pid: u32) -> Option<HWND> {
+    /// Enumerate top-level windows, matching by exact title AND owning pid. Exactly one match is
+    /// required: silently selecting the first of multiple same-title pop-outs would target the
+    /// wrong viewport.
+    fn find_window(title: &str, pid: u32) -> Result<HWND, ScreenshotError> {
         let mut ctx = FindCtx {
             want_title: title.encode_utf16().collect(),
             want_pid: pid,
             found: std::ptr::null_mut(),
+            match_count: 0,
         };
         // SAFETY: EnumWindows calls `enum_proc` synchronously for each top-level window with our
         // &mut FindCtx as the lparam; the pointer is valid for the duration of the call.
         unsafe {
             EnumWindows(Some(enum_proc), &mut ctx as *mut FindCtx as LPARAM);
         }
-        if ctx.found.is_null() {
-            None
-        } else {
-            Some(ctx.found)
+        match ctx.match_count {
+            0 => Err(ScreenshotError(format!(
+                "no visible window titled '{title}' for pid {pid}"
+            ))),
+            1 => Ok(ctx.found),
+            count => Err(ScreenshotError(format!(
+                "ambiguous window target: {count} visible windows titled '{title}' for pid {pid}"
+            ))),
         }
     }
 
@@ -186,7 +246,7 @@ mod windows_capture {
             let got = &buf[..len as usize];
             if got == ctx.want_title.as_slice() {
                 ctx.found = hwnd;
-                return 0; // stop enumerating
+                ctx.match_count += 1;
             }
         }
         TRUE
@@ -231,7 +291,16 @@ mod windows_capture {
             // of the window DC if PrintWindow reports failure.
             let printed = PrintWindow(hwnd, mem_dc, PW_RENDERFULLCONTENT);
             if printed == 0 {
-                let _ = BitBlt(mem_dc, 0, 0, width, height, window_dc, 0, 0, SRCCOPY);
+                let copied = BitBlt(mem_dc, 0, 0, width, height, window_dc, 0, 0, SRCCOPY);
+                if copied == 0 {
+                    SelectObject(mem_dc, old);
+                    DeleteObject(bitmap as _);
+                    DeleteDC(mem_dc);
+                    ReleaseDC(hwnd, window_dc);
+                    return Err(ScreenshotError(
+                        "PrintWindow and BitBlt both failed".to_owned(),
+                    ));
+                }
             }
 
             // Read the bitmap bits out as top-down BGRA.

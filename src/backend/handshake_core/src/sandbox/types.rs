@@ -173,6 +173,9 @@ pub enum NetPolicy {
     DenyAll,
     LoopbackOnly,
     Allowlist(Vec<NetAllowlistEntry>),
+    /// The child inherits the host network namespace unchanged. Adapters must
+    /// explicitly support this policy; it is not equivalent to an allowlist.
+    HostInherited,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]

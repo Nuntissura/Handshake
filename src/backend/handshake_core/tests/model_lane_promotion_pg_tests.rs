@@ -210,7 +210,7 @@ async fn model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_muta
     assert_eq!(stale_record.final_state, ModelLanePromotionState::Denied);
     assert_eq!(
         stale_record.denial_reason,
-        Some(ModelLanePromotionDenialReason::StaleBase)
+        Some(ModelLanePromotionDenialReason::InputRefMismatch)
     );
     assert_eq!(
         stale_record.state_history,
@@ -222,8 +222,8 @@ async fn model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_muta
         ]
     );
     assert_eq!(
-        stale_record.current_base_snapshot_ref, "crdt-snapshot://mt004/base-v1",
-        "current CRDT base must come from the selected advisory PostgreSQL row, not caller input"
+        stale_record.current_base_snapshot_ref, "not-applicable",
+        "nonshared advisory input must not manufacture a current CRDT base from caller input"
     );
     assert!(stale_record
         .recovery_hint_ref
@@ -276,11 +276,11 @@ async fn model_lane_promotion_rejects_stale_base_schema_mismatch_and_direct_muta
         .expect("stale state-vector denial is durable");
     assert_eq!(
         stale_state_record.denial_reason,
-        Some(ModelLanePromotionDenialReason::StaleStateVector)
+        Some(ModelLanePromotionDenialReason::InputRefMismatch)
     );
     assert_eq!(
-        stale_state_record.current_state_vector, "sv:mt004:1",
-        "current CRDT state vector must come from the selected advisory PostgreSQL row"
+        stale_state_record.current_state_vector, "not-applicable",
+        "nonshared advisory input must not manufacture a current CRDT state vector"
     );
 
     let mut version_mismatch = sample_decision(
@@ -617,7 +617,6 @@ fn advisory_message(
     kind: ModelLaneMessageKind,
     summary: &str,
 ) -> NewModelLaneMessage {
-    let proposal_fields = kind == ModelLaneMessageKind::Proposal;
     NewModelLaneMessage {
         message_id: message_id.into(),
         run_id: "run-mt004".into(),
@@ -659,11 +658,11 @@ fn advisory_message(
         idempotency_key: idempotency_key.into(),
         replay_order_key: format!("00000010/{message_id}"),
         replay_after_event_ledger_seq: Some(1),
-        proposal_ref: proposal_fields.then_some(format!("proposal://mt004/{message_id}")),
-        crdt_update_ref: proposal_fields.then_some(format!("crdt-update://mt004/{message_id}")),
-        crdt_base_snapshot_ref: proposal_fields.then_some("crdt-snapshot://mt004/base-v1".into()),
-        crdt_state_vector: proposal_fields.then_some("sv:mt004:1".into()),
-        crdt_proposal_ref: proposal_fields.then_some(format!("crdt-proposal://mt004/{message_id}")),
+        proposal_ref: None,
+        crdt_update_ref: None,
+        crdt_base_snapshot_ref: None,
+        crdt_state_vector: None,
+        crdt_proposal_ref: None,
         crdt_stale_base_ref: None,
         failstate_code: None,
         reason_ref: None,
@@ -760,6 +759,7 @@ fn sample_decision(
         ],
         coordinator_session_id: "coordinator-session-mt004".into(),
         routing_policy,
+        routing_launch_plan: Vec::new(),
         input_refs: vec![
             "model-lane-message://msg-critique-001".into(),
             "model-lane-message://msg-proposal-001".into(),
@@ -771,10 +771,10 @@ fn sample_decision(
         expected_event_ledger_aggregate_type: "model_lane_message".into(),
         expected_event_ledger_aggregate_id: "msg-proposal-001".into(),
         expected_event_ledger_version,
-        base_snapshot_ref: "crdt-snapshot://mt004/base-v1".into(),
-        current_base_snapshot_ref: "crdt-snapshot://mt004/base-v1".into(),
-        state_vector: "sv:mt004:1".into(),
-        current_state_vector: "sv:mt004:1".into(),
+        base_snapshot_ref: "not-applicable".into(),
+        current_base_snapshot_ref: "not-applicable".into(),
+        state_vector: "not-applicable".into(),
+        current_state_vector: "not-applicable".into(),
         schema_id: "hsk.model_lane_message@1".into(),
         deterministic_tie_break_rule: "lexicographic_selected_ref_then_lowest_event_seq".into(),
         promotion_gate_ref: "promotion-gate://mt004/approved".into(),

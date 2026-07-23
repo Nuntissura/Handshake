@@ -281,7 +281,7 @@ impl SandboxAdapter for Wsl2PodmanAdapter {
                     Err(net_policy_failed(output.stderr_text()))
                 }
             }
-            NetPolicy::LoopbackOnly | NetPolicy::Allowlist(_) => Err(net_policy_failed(
+            NetPolicy::LoopbackOnly | NetPolicy::Allowlist(_) | NetPolicy::HostInherited => Err(net_policy_failed(
                 "post-spawn Podman net_policy changes are not supported yet; declare the network policy before spawn in ProcessSpec.net_policy",
             )),
         }

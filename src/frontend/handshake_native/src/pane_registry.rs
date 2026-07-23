@@ -366,6 +366,18 @@ impl PaneFactory for PlaceholderPaneFactory {
             ui.add_space(8.0);
             ui.label(ctx.record.pane_type.label());
             ui.small(ctx.record.pane_id.as_ref());
+            if self.pane_type == PaneType::FlightRecorder {
+                if let Some(target) = ctx.record.content_id.as_deref() {
+                    ui.label("Process ownership target");
+                    let response = ui.monospace(target);
+                    ui.ctx().accesskit_node_builder(response.id, |node| {
+                        node.set_author_id(format!(
+                            "flight-recorder.{}.process-ownership-target",
+                            ctx.record.pane_id
+                        ));
+                    });
+                }
+            }
         });
     }
 }

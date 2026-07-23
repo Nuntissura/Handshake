@@ -431,6 +431,32 @@ fn run_menu_opens_swarm_lane_diagnostics() {
 }
 
 #[test]
+fn run_menu_opens_canonical_problems_pane() {
+    let mut harness = shell_harness();
+    harness.run();
+    harness.get_by_label("RUN").click();
+    harness.run();
+    let nodes = live_author_nodes(&harness);
+    assert!(
+        nodes
+            .iter()
+            .any(|(author_id, role, _)| author_id == "menu.run.problems" && role == "MenuItem"),
+        "Run menu exposes Problems with a stable author_id: {nodes:?}"
+    );
+
+    harness.get_by_label("Open Problems").click();
+    harness.run();
+    assert!(
+        harness.state().tab_bar_states().values().any(|bar| {
+            bar.tabs
+                .iter()
+                .any(|tab| tab.pane_type == handshake_native::pane_registry::PaneType::Problems)
+        }),
+        "Run > Open Problems opens the canonical native Problems pane"
+    );
+}
+
+#[test]
 fn run_menu_opens_operator_chat_launch() {
     let mut harness = shell_harness();
     harness.run();
@@ -453,6 +479,114 @@ fn run_menu_opens_operator_chat_launch() {
             })
         }),
         "Run > Open Operator Chat opens the native operator chat launch tab"
+    );
+}
+
+#[test]
+fn run_menu_opens_real_model_runtime_pane() {
+    let mut harness = shell_harness();
+    harness.run();
+    harness.get_by_label("RUN").click();
+    harness.run();
+    let nodes = live_author_nodes(&harness);
+    assert!(
+        nodes
+            .iter()
+            .any(|(author_id, role, _)| author_id == "menu.run.model-runtime" && role == "MenuItem"),
+        "Run menu exposes Model Runtime with a stable author_id: {nodes:?}"
+    );
+    harness.get_by_label("Open Model Runtime").click();
+    harness.run();
+
+    assert_eq!(
+        harness.state().active_module(),
+        handshake_native::module_switcher::ModuleId::Studio,
+        "Run > Open Model Runtime switches through the STUDIO module workflow"
+    );
+
+    assert!(
+        harness.state().tab_bar_states().values().any(|bar| {
+            bar.tabs
+                .iter()
+                .any(|tab| tab.pane_type == handshake_native::pane_registry::PaneType::ModelRuntime)
+        }),
+        "Run > Open Model Runtime opens the native ModelRuntime tab"
+    );
+    let model_runtime_pane_id = harness
+        .state()
+        .tab_bar_states()
+        .iter()
+        .find_map(|(pane_id, bar)| {
+            bar.tabs
+                .iter()
+                .any(|tab| tab.pane_type == handshake_native::pane_registry::PaneType::ModelRuntime)
+                .then_some(pane_id.as_ref())
+        })
+        .expect("the ModelRuntime tab belongs to a live pane");
+    let status_author_id =
+        handshake_native::model_runtime_panel::status_author_id(model_runtime_pane_id);
+    assert!(
+        live_author_nodes(&harness)
+            .iter()
+            .any(|(author_id, _, _)| author_id == &status_author_id),
+        "the no-backend shell renders the real offline ModelRuntime pane status"
+    );
+}
+
+#[test]
+fn help_menu_opens_real_user_manual_pane() {
+    let mut harness = shell_harness();
+    harness.run();
+    harness.get_by_label("HELP").click();
+    harness.run();
+    harness.get_by_label("Open User Manual").click();
+    harness.run();
+
+    assert!(
+        harness.state().tab_bar_states().values().any(|bar| {
+            bar.tabs
+                .iter()
+                .any(|tab| tab.pane_type == handshake_native::pane_registry::PaneType::UserManual)
+        }),
+        "Help > Open User Manual opens the native UserManual tab"
+    );
+    assert!(
+        live_author_nodes(&harness)
+            .iter()
+            .any(|(author_id, _, _)| author_id.ends_with("user-manual.status.unavailable")),
+        "the no-backend shell renders the real offline UserManual pane"
+    );
+}
+
+#[test]
+fn run_menu_opens_real_user_manual_pane() {
+    let mut harness = shell_harness();
+    harness.run();
+    harness.get_by_label("RUN").click();
+    harness.run();
+    let nodes = live_author_nodes(&harness);
+    assert!(
+        nodes
+            .iter()
+            .any(|(author_id, role, _)| author_id == "menu.run.user-manual" && role == "MenuItem"),
+        "Run menu exposes UserManual with a stable author_id: {nodes:?}"
+    );
+    harness.get_by_label("Open User Manual").click();
+    harness.run();
+
+    assert!(
+        harness.state().tab_bar_states().values().any(|bar| {
+            bar.tabs
+                .iter()
+                .any(|tab| tab.pane_type == handshake_native::pane_registry::PaneType::UserManual)
+        }),
+        "Run > Open User Manual opens the native UserManual tab"
+    );
+    assert!(
+        live_author_nodes(&harness)
+            .iter()
+            .any(|(author_id, _, _)| author_id.ends_with("user-manual.status.unavailable")),
+        "the no-backend shell renders the real offline UserManual pane"
     );
 }
 

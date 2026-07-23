@@ -101,7 +101,7 @@ fn llama_cpp_load_config_defaults_are_operator_safe_and_context_declared() {
     assert_eq!(config.model.gpu_layers, GpuLayerOffload::CpuOnly);
     assert_eq!(config.model.main_gpu, 0);
     assert!(!config.model.vocab_only);
-    assert!(config.model.use_mmap);
+    assert!(!config.model.use_mmap);
     assert!(!config.model.use_mlock);
     assert_eq!(config.context.n_ctx, 8192);
     assert_eq!(config.context.n_batch, 512);
@@ -198,6 +198,8 @@ fn load_spec(artifact_path: &Path, sha256_expected: String) -> LoadSpec {
             supports_subquadratic: false,
             supports_speculative_draft: true,
             supports_eagle3: false,
+            supports_embedding: false,
+            embedding_dimension: None,
         },
         provider: ProviderKind::Local,
         engine_origin: None,

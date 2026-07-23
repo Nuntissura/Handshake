@@ -164,7 +164,12 @@ fn build_prompt(kind: LoomAiJobKind, block: &LoomBlock, req: &LoomAiJobRequest) 
 /// Returns `None` when the model gave nothing usable (e.g. blank, or a
 /// link target that matches no candidate) — that block simply gets no
 /// suggestion (never a fabricated one).
-fn parse_output(kind: LoomAiJobKind, block: &LoomBlock, req: &LoomAiJobRequest, raw: &str) -> Option<ParsedSuggestion> {
+fn parse_output(
+    kind: LoomAiJobKind,
+    block: &LoomBlock,
+    req: &LoomAiJobRequest,
+    raw: &str,
+) -> Option<ParsedSuggestion> {
     let cleaned = raw.trim().trim_matches('"').trim();
     if cleaned.is_empty() {
         return None;
@@ -225,7 +230,7 @@ pub async fn run_loom_ai_job(
     req: LoomAiJobRequest,
 ) -> Result<LoomAiJobResult, LoomAiJobError> {
     let job_id = new_job_id();
-    let model_id = llm.profile().model_id.clone();
+    let model_id = llm.selected_model_id();
 
     // First pass: call the model for every block and collect parsed
     // suggestions. A model decline on ANY call fails the whole job with zero

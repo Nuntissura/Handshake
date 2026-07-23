@@ -17,7 +17,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::{PgPool, Row};
+use sqlx::{PgPool, Postgres, Row, Transaction};
 use uuid::Uuid;
 
 use super::{StorageError, StorageResult};
@@ -268,6 +268,109 @@ const LEASE_COLUMNS: &str = r#"
     (expires_at_utc < NOW()) AS is_expired
 "#;
 
+const CRDT_LEASE_LOCK_NAMESPACE: i64 = 0x4352_4454_4C45_4153;
+
+fn workspace_lock_key(workspace_id: &str) -> String {
+    format!("0:workspace:{workspace_id}")
+}
+
+fn document_lock_key(crdt_document_id: &str) -> String {
+    format!("1:crdt_document:{crdt_document_id}")
+}
+
+async fn lock_crdt_lease_keys_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    mut keys: Vec<String>,
+) -> StorageResult<()> {
+    keys.sort();
+    keys.dedup();
+    for key in keys {
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, $2))")
+            .bind(key)
+            .bind(CRDT_LEASE_LOCK_NAMESPACE)
+            .execute(&mut **tx)
+            .await?;
+    }
+    Ok(())
+}
+
+/// Serialize ModelLane CRDT admission with every lease mutation that can
+/// change authority for the same workspace/document pair. All callers use
+/// the same advisory-lock namespace and deterministic key order.
+pub async fn lock_crdt_lease_authority_domain_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    workspace_id: &str,
+    crdt_document_id: &str,
+) -> StorageResult<()> {
+    lock_crdt_lease_keys_tx(
+        tx,
+        vec![
+            workspace_lock_key(workspace_id),
+            document_lock_key(crdt_document_id),
+        ],
+    )
+    .await
+}
+
+async fn workspace_for_crdt_document_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    crdt_document_id: &str,
+) -> StorageResult<Option<String>> {
+    let rows = sqlx::query_scalar::<_, String>(
+        r#"
+        SELECT workspace_id
+        FROM (
+            SELECT workspace_id
+            FROM kernel_crdt_updates
+            WHERE crdt_document_id = $1
+            UNION
+            SELECT workspace_id
+            FROM knowledge_rich_documents
+            WHERE crdt_document_id = $1
+        ) AS workspaces
+        ORDER BY workspace_id
+        LIMIT 2
+        "#,
+    )
+    .bind(crdt_document_id)
+    .fetch_all(&mut **tx)
+    .await?;
+    match rows.as_slice() {
+        [] => Ok(None),
+        [workspace_id] => Ok(Some(workspace_id.clone())),
+        _ => Err(StorageError::Validation(
+            "crdt document resolves to multiple workspaces",
+        )),
+    }
+}
+
+async fn lease_scope_lock_keys_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    scope_kind: &str,
+    scope_id: &str,
+) -> StorageResult<Vec<String>> {
+    match scope_kind {
+        "workspace" => Ok(vec![workspace_lock_key(scope_id)]),
+        "document" => {
+            let mut keys = vec![document_lock_key(scope_id)];
+            if let Some(workspace_id) = workspace_for_crdt_document_tx(tx, scope_id).await? {
+                keys.push(workspace_lock_key(&workspace_id));
+            }
+            Ok(keys)
+        }
+        _ => Ok(Vec::new()),
+    }
+}
+
+async fn lock_lease_scope_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    scope_kind: &str,
+    scope_id: &str,
+) -> StorageResult<()> {
+    let keys = lease_scope_lock_keys_tx(tx, scope_kind, scope_id).await?;
+    lock_crdt_lease_keys_tx(tx, keys).await
+}
+
 fn map_lease(row: sqlx::postgres::PgRow) -> StorageResult<AgentLaneLeaseRow> {
     Ok(AgentLaneLeaseRow {
         lease_id: row.try_get("lease_id")?,
@@ -305,6 +408,25 @@ pub async fn insert_lease(
     if lease.ttl_seconds <= 0 {
         return Err(StorageError::Validation("lease ttl must be positive"));
     }
+    let mut tx = pool.begin().await?;
+    lock_lease_scope_tx(&mut tx, &lease.scope_kind, &lease.scope_id).await?;
+    let holder = sqlx::query(&format!(
+        r#"
+        SELECT {LEASE_COLUMNS} FROM knowledge_crdt_agent_lane_leases
+        WHERE scope_kind = $1 AND scope_id = $2 AND released_at_utc IS NULL
+        "#
+    ))
+    .bind(&lease.scope_kind)
+    .bind(&lease.scope_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    if let Some(holder) = holder {
+        let holder = map_lease(holder)?;
+        tx.commit().await?;
+        return Ok(LeaseInsertOutcome::ScopeHeld {
+            holder: Box::new(holder),
+        });
+    }
     let result = sqlx::query(&format!(
         r#"
         INSERT INTO knowledge_crdt_agent_lane_leases (
@@ -327,26 +449,19 @@ pub async fn insert_lease(
     .bind(&lease.scope_id)
     .bind(lease.ttl_seconds)
     .bind(&lease.takeover_of)
-    .fetch_one(pool)
+    .fetch_one(&mut *tx)
     .await;
 
     match result {
-        Ok(row) => Ok(LeaseInsertOutcome::Inserted(Box::new(map_lease(row)?))),
+        Ok(row) => {
+            let inserted = LeaseInsertOutcome::Inserted(Box::new(map_lease(row)?));
+            tx.commit().await?;
+            Ok(inserted)
+        }
         Err(error) => {
             let message = error.to_string();
-            if message.contains("uq_knowledge_crdt_lease_active_scope") {
-                let holder =
-                    find_unreleased_lease_for_scope(pool, &lease.scope_kind, &lease.scope_id)
-                        .await?
-                        .ok_or(StorageError::Conflict(
-                            "lease scope contended but holder vanished; retry claim",
-                        ))?;
-                Ok(LeaseInsertOutcome::ScopeHeld {
-                    holder: Box::new(holder),
-                })
-            } else {
-                Err(StorageError::Database(message))
-            }
+            tx.rollback().await?;
+            Err(StorageError::Database(message))
         }
     }
 }
@@ -392,6 +507,20 @@ pub async fn renew_lease(
     if ttl_seconds <= 0 {
         return Err(StorageError::Validation("lease ttl must be positive"));
     }
+    let mut tx = pool.begin().await?;
+    let scope = sqlx::query(
+        "SELECT scope_kind, scope_id FROM knowledge_crdt_agent_lane_leases WHERE lease_id = $1",
+    )
+    .bind(lease_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(scope) = scope else {
+        tx.commit().await?;
+        return Ok(None);
+    };
+    let scope_kind: String = scope.try_get("scope_kind")?;
+    let scope_id: String = scope.try_get("scope_id")?;
+    lock_lease_scope_tx(&mut tx, &scope_kind, &scope_id).await?;
     let row = sqlx::query(&format!(
         r#"
         UPDATE knowledge_crdt_agent_lane_leases
@@ -406,9 +535,11 @@ pub async fn renew_lease(
     .bind(lease_id)
     .bind(actor_id)
     .bind(ttl_seconds)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *tx)
     .await?;
-    row.map(map_lease).transpose()
+    let renewed = row.map(map_lease).transpose()?;
+    tx.commit().await?;
+    Ok(renewed)
 }
 
 /// Release an own lease (allowed after expiry as cleanup; expiry only blocks
@@ -418,6 +549,20 @@ pub async fn release_lease(
     lease_id: &str,
     actor_id: &str,
 ) -> StorageResult<Option<AgentLaneLeaseRow>> {
+    let mut tx = pool.begin().await?;
+    let scope = sqlx::query(
+        "SELECT scope_kind, scope_id FROM knowledge_crdt_agent_lane_leases WHERE lease_id = $1",
+    )
+    .bind(lease_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(scope) = scope else {
+        tx.commit().await?;
+        return Ok(None);
+    };
+    let scope_kind: String = scope.try_get("scope_kind")?;
+    let scope_id: String = scope.try_get("scope_id")?;
+    lock_lease_scope_tx(&mut tx, &scope_kind, &scope_id).await?;
     let row = sqlx::query(&format!(
         r#"
         UPDATE knowledge_crdt_agent_lane_leases
@@ -428,15 +573,40 @@ pub async fn release_lease(
     ))
     .bind(lease_id)
     .bind(actor_id)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *tx)
     .await?;
-    row.map(map_lease).transpose()
+    let released = row.map(map_lease).transpose()?;
+    tx.commit().await?;
+    Ok(released)
 }
 
 /// Server-side expiry sweep: stamp every overdue unreleased lease exactly
 /// once (expired_at_utc) and return the stamped rows so the kernel layer
 /// can append the KNOWLEDGE_CRDT_LEASE_EXPIRED events.
 pub async fn sweep_expired_leases(pool: &PgPool) -> StorageResult<Vec<AgentLaneLeaseRow>> {
+    let mut tx = pool.begin().await?;
+    let candidates = sqlx::query(
+        r#"
+        SELECT lease_id, scope_kind, scope_id
+        FROM knowledge_crdt_agent_lane_leases
+        WHERE released_at_utc IS NULL
+          AND expired_at_utc IS NULL
+          AND expires_at_utc < NOW()
+        ORDER BY scope_kind, scope_id, lease_id
+        "#,
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    let mut lease_ids = Vec::with_capacity(candidates.len());
+    let mut lock_keys = Vec::new();
+    for candidate in candidates {
+        let lease_id: String = candidate.try_get("lease_id")?;
+        let scope_kind: String = candidate.try_get("scope_kind")?;
+        let scope_id: String = candidate.try_get("scope_id")?;
+        lease_ids.push(lease_id);
+        lock_keys.extend(lease_scope_lock_keys_tx(&mut tx, &scope_kind, &scope_id).await?);
+    }
+    lock_crdt_lease_keys_tx(&mut tx, lock_keys).await?;
     let rows = sqlx::query(&format!(
         r#"
         UPDATE knowledge_crdt_agent_lane_leases
@@ -444,12 +614,19 @@ pub async fn sweep_expired_leases(pool: &PgPool) -> StorageResult<Vec<AgentLaneL
         WHERE released_at_utc IS NULL
           AND expired_at_utc IS NULL
           AND expires_at_utc < NOW()
+          AND lease_id = ANY($1)
         RETURNING {LEASE_COLUMNS}
         "#
     ))
-    .fetch_all(pool)
+    .bind(&lease_ids)
+    .fetch_all(&mut *tx)
     .await?;
-    rows.into_iter().map(map_lease).collect()
+    let expired = rows
+        .into_iter()
+        .map(map_lease)
+        .collect::<StorageResult<Vec<_>>>()?;
+    tx.commit().await?;
+    Ok(expired)
 }
 
 /// Typed takeover failure reasons.
@@ -473,6 +650,31 @@ pub async fn takeover_lease(
         return Err(StorageError::Validation("lease ttl must be positive"));
     }
     let mut tx = pool.begin().await?;
+
+    let prior_scope = sqlx::query(
+        "SELECT scope_kind, scope_id FROM knowledge_crdt_agent_lane_leases WHERE lease_id = $1",
+    )
+    .bind(prior_lease_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(prior_scope) = prior_scope else {
+        tx.commit().await?;
+        return Ok(Err(LeaseTakeoverFailure::PriorLeaseNotFound));
+    };
+    let prior_scope_kind: String = prior_scope.try_get("scope_kind")?;
+    let prior_scope_id: String = prior_scope.try_get("scope_id")?;
+    if prior_scope_kind != new_lease.scope_kind || prior_scope_id != new_lease.scope_id {
+        tx.rollback().await?;
+        return Err(StorageError::Validation(
+            "takeover lease must preserve the prior lease scope",
+        ));
+    }
+    let mut lock_keys =
+        lease_scope_lock_keys_tx(&mut tx, &prior_scope_kind, &prior_scope_id).await?;
+    lock_keys.extend(
+        lease_scope_lock_keys_tx(&mut tx, &new_lease.scope_kind, &new_lease.scope_id).await?,
+    );
+    lock_crdt_lease_keys_tx(&mut tx, lock_keys).await?;
 
     let prior = sqlx::query(&format!(
         r#"

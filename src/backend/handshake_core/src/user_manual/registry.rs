@@ -36,7 +36,9 @@ pub enum SurfaceGroup {
     CrdtCollaboration,
     NotesLoom,
     ModelAccess,
+    ModelRuntimeRegistry,
     OperatorChat,
+    ModelLaneCloudConsent,
     ModelLaneNavigation,
     UserManual,
 }
@@ -52,7 +54,9 @@ impl SurfaceGroup {
             Self::CrdtCollaboration => "crdt_collaboration",
             Self::NotesLoom => "notes_loom",
             Self::ModelAccess => "model_access",
+            Self::ModelRuntimeRegistry => "model_runtime_registry",
             Self::OperatorChat => "operator_chat",
+            Self::ModelLaneCloudConsent => "model_lane_cloud_consent",
             Self::ModelLaneNavigation => "model_lane_navigation",
             Self::UserManual => "user_manual",
         }
@@ -68,7 +72,9 @@ impl SurfaceGroup {
             Self::CrdtCollaboration => "crdt-collaboration-surface",
             Self::NotesLoom => "notes-loom-surface",
             Self::ModelAccess => "cloud-model-access",
+            Self::ModelRuntimeRegistry => "model-runtime-registry-and-loom-degrade",
             Self::OperatorChat => "operator-chat-launch",
+            Self::ModelLaneCloudConsent => "model-lane-cloud-projection-consent",
             Self::ModelLaneNavigation => "model-lane-navigation",
             Self::UserManual => "usermanual-surface",
         }
@@ -87,7 +93,9 @@ impl SurfaceGroup {
             | Self::CrdtCollaboration => true,
             Self::NotesLoom
             | Self::ModelAccess
+            | Self::ModelRuntimeRegistry
             | Self::OperatorChat
+            | Self::ModelLaneCloudConsent
             | Self::ModelLaneNavigation
             | Self::UserManual => false,
         }
@@ -976,7 +984,44 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "provider path param.",
         "JSON non-secret provider unavailable status; 404 provider_not_offered, 503 keychain_unavailable."
     ),
+    // -- ModelRuntime registry/control surface (api/model_runtime_registry.rs)
+    surface!(
+        "model_runtime.registry.list",
+        SurfaceGroup::ModelRuntimeRegistry,
+        "GET",
+        "/model-runtime/registry",
+        "List durable model-runtime registry rows joined to current READY catalog state.",
+        "None.",
+        "JSON hsk.model_runtime_registry_projection@3 with catalog revision, stable artifact identity, canonical path availability, adapter/runtime state, PostgreSQL active purposes, KV/LoRA/steering telemetry availability, ProcessOwnershipLedger link availability, performance availability, capability/compatibility-gated action availability and reasons, audit reference, and current live state."
+    ),
+    surface!(
+        "model_runtime.selection.post",
+        SurfaceGroup::ModelRuntimeRegistry,
+        "POST",
+        "/model-runtime/selection",
+        "Switch PostgreSQL application/default to another current READY completion model through a serialized audited SwapRequest.",
+        "JSON {target_model_id, actor, reason}; all fields are bounded and control-free.",
+        "JSON hsk.model_runtime_registry_projection@3 with the new application/default row and selection_receipt_ref; stale/non-READY, embedding-role, integrity, timeout, audit, or PostgreSQL CAS failures preserve the prior durable selection."
+    ),
+    surface!(
+        "model_runtime.control.post",
+        SurfaceGroup::ModelRuntimeRegistry,
+        "POST",
+        "/model-runtime/control",
+        "Request a typed ModelRuntime lifecycle action through the runtime owner.",
+        "JSON ModelRuntimeControlRequest schema_version 1 with request_id, current model_id, tagged action, timeout_ms in 1..=30000, optional expected_catalog_revision, and optional expected_selection_revision; unload requires catalog revision and adapter swap requires both revisions.",
+        "JSON ModelRuntimeControlReceipt. Quiesce receipts prove admission closure; unload receipts report runtime unload and catalog update plus whether durable ProcessOwnershipLedger STOP committed; compatible-adapter swap requires catalog and selection CAS revisions and reports target START, source unload, durable adapter rebind, catalog replacement, selection rebound, and the source STOP verdict. A receipt with reconciliation_required=true is a truthful partial-state success: product state changed, STOP durability is unconfirmed or rejected, and the existing runtime/boot reconciliation path must close the open lifecycle without repeating the mutation."
+    ),
     // -- Operator chat launch surface (api/operator_chat.rs) ---------------
+    surface!(
+        "operator_chat.models.list",
+        SurfaceGroup::OperatorChat,
+        "GET",
+        "/operator-chat/models",
+        "List the backend-owned operator-chat picker inventory and governed owner-session choices.",
+        "None.",
+        "JSON inventory_source, sessions, local, cloud_byok, cloud_cli_bridge, subagents, and excluded rows; unavailable providers and invalid session lineage remain visible but not launchable."
+    ),
     surface!(
         "operator_chat.selection.record",
         SurfaceGroup::OperatorChat,
@@ -1003,6 +1048,61 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "Fetch captured ModelLane transcript rows for an operator chat run.",
         "run_id path param.",
         "JSON {run_id, rows}; 503 transcript_not_wired when the ModelLaneStore is unavailable."
+    ),
+    surface!(
+        "operator_chat.routing.lifecycle",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/routing/lifecycle",
+        "Execute one canonical six-policy routing graph through the production ModelLane coordinator.",
+        "JSON OperatorChatRoutingLifecycleRequest with execution_id, selecting_decision_id, authority, canonical run context, and stage launch bindings.",
+        "JSON hsk.model_lane_routing_execution@5 state and per-stage lifecycle rows; 503 routing_not_wired or a typed fail-closed launch error envelope."
+    ),
+    surface!(
+        "operator_chat.routing.recover",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/routing/recover",
+        "Recover and resume one durable routing execution from PostgreSQL/EventLedger authority.",
+        "The original OperatorChatRoutingLifecycleRequest with the same execution_id and canonical run/stage bindings.",
+        "JSON hsk.model_lane_routing_execution@5 state after fenced recovery; context or launch-plan drift fails closed."
+    ),
+    surface!(
+        "operator_chat.routing.authority",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/routing/authority",
+        "Complete an awaiting validator/operator authority stage and resume its canonical routing lifecycle.",
+        "JSON execution_id, stage_id, message_id, and the original routing_request; execution ids must match.",
+        "JSON hsk.model_lane_routing_execution@5 state; mismatched execution authority returns bad_request without mutation."
+    ),
+    surface!(
+        "operator_chat.routing.cancel",
+        SurfaceGroup::OperatorChat,
+        "POST",
+        "/operator-chat/routing/cancel",
+        "Cancel one durable routing execution and persist its operator-supplied reason.",
+        "JSON {execution_id, reason}.",
+        "JSON cancelled ModelLaneRoutingExecutionState with compensated/cancelled stage state and EventLedger authority."
+    ),
+    // -- Run-scoped cloud consent control (api/operator_chat.rs) -----------
+    surface!(
+        "model_lane.cloud_single_run.grant_launch",
+        SurfaceGroup::ModelLaneCloudConsent,
+        "POST",
+        "/operator-chat/cloud/single-run/grant-launch",
+        "Grant a governed run-scoped cloud consent receipt and launch the covered ModelLane run.",
+        "JSON run-scoped projection, consent, provider, model, retention, and fan-out authority payload.",
+        "JSON launch/consent projection with durable plan and receipt references; mismatched or partial authority fails closed."
+    ),
+    surface!(
+        "model_lane.cloud_single_run.revoke",
+        SurfaceGroup::ModelLaneCloudConsent,
+        "POST",
+        "/operator-chat/cloud/single-run/revoke",
+        "Revoke one run-scoped cloud consent receipt and cancel every covered lane through durable cleanup/finalization.",
+        "JSON canonical consent_receipt_ref plus revocation actor/reason context.",
+        "JSON revocation result covering every canonical lane; retries are idempotent and incomplete cleanup remains retryable."
     ),
     // -- Dexterity ModelLane navigation (api/model_lane_navigation.rs) -----
     surface!(
@@ -1235,7 +1335,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
 pub struct AccessPoint {
     pub access_point_id: &'static str,
     /// `editor` | `notes_loom` | `retrieval_debug` | `diagnostics` |
-    /// `command_palette`.
+    /// `command_palette` | `native_top_menu` | `native_user_manual`.
     pub host_surface: &'static str,
     /// `panel` | `command` | `deep_link`.
     pub entry_kind: &'static str,
@@ -1325,6 +1425,33 @@ const ACCESS_POINTS: &[AccessPoint] = &[
         stable_element_id: "hs-usermanual-palette-search",
         note: "Palette command 'UserManual: Search' calls /usermanual/search?q=.",
     },
+    AccessPoint {
+        access_point_id: "ap.native.run_menu.manual",
+        host_surface: "native_top_menu",
+        entry_kind: "command",
+        target_page_slug: "manual-toc",
+        ui_wiring_route: "/usermanual/pages/manual-toc",
+        stable_element_id: "menu.run.user-manual",
+        note: "Rust-native RUN > Open User Manual command opens the canonical reader.",
+    },
+    AccessPoint {
+        access_point_id: "ap.native.help_menu.manual",
+        host_surface: "native_top_menu",
+        entry_kind: "command",
+        target_page_slug: "manual-toc",
+        ui_wiring_route: "/usermanual/pages/manual-toc",
+        stable_element_id: "menu.help.user-manual",
+        note: "Rust-native HELP > User Manual command opens the canonical reader.",
+    },
+    AccessPoint {
+        access_point_id: "ap.native.reader",
+        host_surface: "native_user_manual",
+        entry_kind: "panel",
+        target_page_slug: "manual-toc",
+        ui_wiring_route: "/usermanual/pages/manual-toc",
+        stable_element_id: "user-manual.surface",
+        note: "Rust-native reader renders canonical navigation, pages, search, and read receipts.",
+    },
 ];
 
 /// Substitute `:params` in a registered route with plausible probe values so
@@ -1385,11 +1512,22 @@ mod tests {
             assert!(ids.insert(ap.access_point_id), "dup {}", ap.access_point_id);
             assert!(matches!(
                 ap.host_surface,
-                "editor" | "notes_loom" | "retrieval_debug" | "diagnostics" | "command_palette"
+                "editor"
+                    | "notes_loom"
+                    | "retrieval_debug"
+                    | "diagnostics"
+                    | "command_palette"
+                    | "native_top_menu"
+                    | "native_user_manual"
             ));
             assert!(matches!(ap.entry_kind, "panel" | "command" | "deep_link"));
             assert!(ap.ui_wiring_route.starts_with("/usermanual/"));
-            assert!(ap.stable_element_id.starts_with("hs-usermanual-"));
+            assert!(
+                ap.stable_element_id.starts_with("hs-usermanual-")
+                    || ap.stable_element_id.starts_with("menu.run.user-manual")
+                    || ap.stable_element_id.starts_with("menu.help.user-manual")
+                    || ap.stable_element_id.starts_with("user-manual.surface")
+            );
         }
         // Every host surface named by the MT-200 contract is present.
         let hosts: BTreeSet<_> = user_manual_access_points()
@@ -1402,6 +1540,8 @@ mod tests {
             "retrieval_debug",
             "diagnostics",
             "command_palette",
+            "native_top_menu",
+            "native_user_manual",
         ] {
             assert!(hosts.contains(host), "missing access point host {host}");
         }

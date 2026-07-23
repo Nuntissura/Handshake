@@ -192,8 +192,11 @@ async fn env_gated_embed_without_embedding_context_returns_capability_not_suppor
         ..LlamaCppLoadConfig::default()
     };
     let mut runtime = LlamaCppRuntime::with_load_config(KvCachePolicy::default(), load_config);
+    let mut spec = load_spec(&path, sha256_file(&path));
+    spec.declared_capabilities.supports_embedding = false;
+    spec.declared_capabilities.embedding_dimension = None;
     let model_id = runtime
-        .load(load_spec(&path, sha256_file(&path)))
+        .load(spec)
         .await
         .expect("native-enabled build loads representative GGUF");
 
@@ -263,6 +266,8 @@ fn capabilities() -> ModelCapabilities {
         supports_subquadratic: false,
         supports_speculative_draft: true,
         supports_eagle3: false,
+        supports_embedding: true,
+        embedding_dimension: None,
     }
 }
 

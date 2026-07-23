@@ -3,8 +3,8 @@
   WP-KERNEL-011 MT-031 — single-installer build + package script (PowerShell 7).
 
   WHAT IT DOES
-    1. Builds the single self-contained native binary:
-         cargo build --profile release-native --bin handshake-native
+    1. Builds the native shell and required Palmistry watcher:
+         cargo build --profile release-native --bins
        into a SHORT CARGO_TARGET_DIR (Windows MAX_PATH workaround for the release-native profile;
        see installer/windows/BUNDLED_DEPS_POLICY.md "release-native + Windows MAX_PATH").
     2. Stages the binary + all bundled assets (fonts, grammars dir, postgres binaries) into
@@ -12,7 +12,7 @@
          installer::check_bundle_integrity verifies.
     3. Produces ONE installer artifact at <out>/handshake-setup.{msi|zip}:
          - WiX 4/5 MSI  if the `wix` (or `cargo wix`) toolchain is on PATH  [GATED];
-         - else a self-contained .zip fallback (always available via Compress-Archive).
+         - else fail closed. A zip can only be requested explicitly as a DEVELOPMENT artifact.
        It NEVER fakes an .msi when WiX is absent — the zip is a real single artifact.
     4. Exports HANDSHAKE_INSTALLER_ARTIFACT (process + GITHUB_ENV when present) and prints a final
        line: "INSTALLER_ARTIFACT=<path> SIZE_BYTES=<n>".
@@ -29,7 +29,7 @@
   PREREQUISITES (see installer/windows/BUNDLED_DEPS_POLICY.md):
     - Rust stable toolchain + cargo on PATH (required).
     - PowerShell 7 (required; this script).
-    - WiX 4/5 (`dotnet tool install --global wix`) — OPTIONAL; absent => zip fallback.
+    - WiX 4/5 (`dotnet tool install --global wix`) — REQUIRED for production packaging.
     - PostgreSQL binaries to stage — OPTIONAL; absent => a documented placeholder is staged so the
       bundle layout is valid for the smoke (a real release MUST stage the real binaries).
 #>
@@ -73,10 +73,10 @@ Write-Step "Short CARGO_TARGET_DIR: $ShortTargetDir"
 
 # --- 1. Build the single self-contained binary -----------------------------------------------------
 $env:CARGO_TARGET_DIR = $ShortTargetDir
-Write-Step "cargo build --profile release-native --bin handshake-native"
+Write-Step "cargo build --profile release-native --bins"
 Push-Location $CrateRoot
 try {
-    & cargo build --profile release-native --bin handshake-native
+    & cargo build --profile release-native --bins
     if ($LASTEXITCODE -ne 0) { throw "cargo build failed (exit $LASTEXITCODE)" }
 }
 finally {
@@ -85,8 +85,13 @@ finally {
 
 $ExeName = 'handshake-native.exe'
 $ExePath = Join-Path (Join-Path $ShortTargetDir 'release-native') $ExeName
+$PalmistryExeName = 'palmistry.exe'
+$PalmistryExePath = Join-Path (Join-Path $ShortTargetDir 'release-native') $PalmistryExeName
 if (-not (Test-Path $ExePath)) {
     throw "Built binary not found at $ExePath after cargo build"
+}
+if (-not (Test-Path $PalmistryExePath)) {
+    throw "Required Palmistry watcher not found at $PalmistryExePath after cargo build --bins"
 }
 $exeSize = (Get-Item $ExePath).Length
 Write-Step "Built binary: $ExePath ($([math]::Round($exeSize/1MB,1)) MB)"
@@ -98,6 +103,13 @@ New-Item -ItemType Directory -Force -Path $StagingDir | Out-Null
 
 # 2a. the native binary
 Copy-Item $ExePath (Join-Path $StagingDir $ExeName) -Force
+Copy-Item $PalmistryExePath (Join-Path $StagingDir $PalmistryExeName) -Force
+$PalmistrySha256 = (Get-FileHash -LiteralPath $PalmistryExePath -Algorithm SHA256).Hash.ToLowerInvariant()
+$EmbeddedPalmistrySha256 = $env:HANDSHAKE_PALMISTRY_EMBEDDED_SHA256
+if ([string]::IsNullOrWhiteSpace($EmbeddedPalmistrySha256) -or
+    $EmbeddedPalmistrySha256 -cne $PalmistrySha256) {
+    throw "Palmistry release hash must match HANDSHAKE_PALMISTRY_EMBEDDED_SHA256 compiled into the launcher"
+}
 
 # 2b. fonts/  (from the crate's assets/fonts)
 $FontsSrc = Join-Path (Join-Path $CrateRoot 'assets') 'fonts'
@@ -177,12 +189,12 @@ if (-not $ForceZip -and (Test-WixAvailable)) {
 }
 else {
     if ($ForceZip) {
-        Write-Step "ForceZip set -> producing zip fallback artifact"
+        Write-Step "ForceZip set -> producing explicit DEVELOPMENT-ONLY unsigned zip"
     }
     else {
-        Write-Step "WiX toolchain NOT available on this host -> producing zip fallback (single self-contained artifact)"
+        throw "WiX is required for a production artifact; unprotected zip fallback is disabled"
     }
-    $Artifact = Join-Path $OutDir 'handshake-setup.zip'
+    $Artifact = Join-Path $OutDir 'handshake-development-unsigned.zip'
     if (Test-Path $Artifact) { Remove-Item -Force $Artifact }
     Compress-Archive -Path (Join-Path $StagingDir '*') -DestinationPath $Artifact -CompressionLevel Optimal
     if (-not (Test-Path $Artifact)) { throw "Compress-Archive did not produce $Artifact" }

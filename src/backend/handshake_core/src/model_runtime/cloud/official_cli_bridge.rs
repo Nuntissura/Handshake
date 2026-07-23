@@ -21,25 +21,44 @@
 //! a CLI bridge - all capability flags MUST be false. The bridge is
 //! a usability-not-feature lane for operator workflow flexibility.
 
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::process::{Child, Command, Output, Stdio};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fs::{File, OpenOptions};
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::process::ExitStatus;
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[cfg(windows)]
+use std::os::windows::fs::OpenOptionsExt;
+
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use thiserror::Error;
+use zeroize::Zeroize;
 
 use crate::model_runtime::{ModelCapabilities, ModelId};
 use crate::process_ledger::{
-    LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, ProcessStart, ProcessStop,
-    SpawnMeta,
+    ActiveProcessLifecycle, LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId,
+    ProcessStart, SpawnMeta, StopRecordOutcome,
+};
+use crate::sandbox::{
+    select, AdapterCapabilities, AdapterId, AttachedNetworkMode, AttachedProcessSpec,
+    AttachedSandboxProcess, AttachedStdioContract, BindMode, BindSpec,
+    HandshakeNativeSandboxAdapter, ImageRef, IsolationTier, NetPolicy, ProcessSpec,
+    RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError,
+    SandboxAdapterRegistry, TrustClass, HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID,
 };
 
-/// Default owner role recorded on the CLI bridge subprocess's
-/// ProcessOwnershipLedger row when the caller does not override it.
-const DEFAULT_CLI_BRIDGE_OWNER_ROLE: &str = "OFFICIAL_CLI_BRIDGE";
+fn paths_match_checkout_identity(left: &Path, right: &Path) -> bool {
+    if cfg!(windows) {
+        left.to_string_lossy()
+            .eq_ignore_ascii_case(right.to_string_lossy().as_ref())
+    } else {
+        left == right
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CliKind {
@@ -99,6 +118,18 @@ pub enum OfficialCliBridgeError {
     MissingPromptPlaceholder,
     #[error("timeout_seconds must be > 0")]
     InvalidTimeout,
+    #[error("official CLI command script is not a validated Codex npm shim: {0}")]
+    UnsupportedCommandScript(PathBuf),
+    #[error("official CLI executable identity could not be pinned or revalidated: {0}")]
+    ExecutableIdentity(String),
+    #[error("Codex CLI bridge configuration is not the canonical exec JSONL preset: {0}")]
+    InvalidCodexPreset(String),
+    #[error("official CLI model binding is invalid: {0}")]
+    InvalidModelBinding(String),
+    #[error("Codex CLI state root is unavailable to the attached sandbox: {0}")]
+    CodexHomeUnavailable(String),
+    #[error("official CLI environment variable is not allowed at the process boundary: {0}")]
+    UnsafeEnvironmentVariable(String),
     #[error("model_id {0} is not registered with the CLI bridge runtime")]
     ModelNotRegistered(ModelId),
     #[error("internal lock poisoned: {0}")]
@@ -118,23 +149,118 @@ pub enum OfficialCliBridgeError {
          {reason}; the subprocess was killed to avoid leaving an unattributed process"
     )]
     LedgerRegistration { pid: u32, reason: String },
+    #[error(
+        "ProcessOwnershipLedger authority unavailable before CLI bridge subprocess spawn: {reason}; no subprocess was started"
+    )]
+    LedgerPreflight { reason: String },
 }
 
-/// Abstraction over the sandboxed subprocess spawn. The production
-/// impl wraps the cluster-B SandboxAdapter; the mock impl backs
-/// unit tests. The MT-069 ProcessOwnershipLedger row with
-/// engine_kind=OfficialCliBridge is the trait impl's responsibility.
+/// Attribution and recovery identity for one concrete CLI invocation. This is
+/// deliberately supplied at the call boundary: a reusable spawner must never
+/// invent ownership from construction-time defaults.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CliInvocationContext {
+    /// Canonical registered runtime identity, injected by
+    /// `OfficialCliBridgeRuntime` immediately before dispatch.
+    pub registered_model_id: Option<ModelId>,
+    pub owner_role: String,
+    pub owner_wp: Option<String>,
+    pub role_id: Option<String>,
+    pub wp_id: Option<String>,
+    pub mt_id: Option<String>,
+    pub session_id: Option<String>,
+    pub parent_session_id: Option<String>,
+    pub parent_process_id: Option<uuid::Uuid>,
+    pub trace_id: Option<String>,
+    pub span_id: Option<String>,
+    pub cancellation_id: Option<String>,
+    pub reclaim_key: Option<String>,
+    pub model_identity: String,
+    pub requested_trust_class: Option<TrustClass>,
+    pub requested_isolation_tier: Option<IsolationTier>,
+    pub requested_sandbox_capabilities: Option<BTreeSet<RequiredCapability>>,
+    pub requested_net_policy: Option<NetPolicy>,
+    pub requested_execution_policy_ref: Option<String>,
+    pub swarm_id: Option<String>,
+    pub worktree_id: Option<String>,
+    pub working_dir: Option<String>,
+    pub checkout_lease_id: Option<uuid::Uuid>,
+    pub checkout_lease_owner_generation: Option<u64>,
+    pub checkout_lease_canonical_working_dir: Option<String>,
+}
+
+impl CliInvocationContext {
+    pub fn new(owner_role: impl Into<String>, model_identity: impl Into<String>) -> Self {
+        Self {
+            registered_model_id: None,
+            owner_role: owner_role.into(),
+            owner_wp: None,
+            role_id: None,
+            wp_id: None,
+            mt_id: None,
+            session_id: None,
+            parent_session_id: None,
+            parent_process_id: None,
+            trace_id: None,
+            span_id: None,
+            cancellation_id: None,
+            reclaim_key: None,
+            model_identity: model_identity.into(),
+            requested_trust_class: None,
+            requested_isolation_tier: None,
+            requested_sandbox_capabilities: None,
+            requested_net_policy: None,
+            requested_execution_policy_ref: None,
+            swarm_id: None,
+            worktree_id: None,
+            working_dir: None,
+            checkout_lease_id: None,
+            checkout_lease_owner_generation: None,
+            checkout_lease_canonical_working_dir: None,
+        }
+    }
+}
+
+/// Concrete cancellation inputs for one invocation. Polling these project-owned
+/// tokens is bounded and cannot execute caller callbacks on the process loop.
+#[derive(Clone, Default)]
+pub struct CliCancellationContext {
+    tokens: Vec<crate::model_runtime::CancellationToken>,
+}
+
+impl CliCancellationContext {
+    pub fn new(tokens: Vec<crate::model_runtime::CancellationToken>) -> Self {
+        Self { tokens }
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.tokens.iter().any(|token| token.is_cancelled())
+    }
+}
+
+/// Abstraction over the CLI subprocess lifecycle. Test implementations can
+/// substitute deterministic spawners; the production implementation owns the
+/// ProcessOwnershipLedger row with `engine_kind=OfficialCliBridge`.
 pub trait CliSubprocessSpawner: Send + Sync {
+    /// Pin the executable graph while a bridge is registered. Production
+    /// spawners revalidate the same graph immediately before every launch;
+    /// deterministic test spawners may keep the no-op default.
+    fn pin_config(&self, _config: &CliBridgeConfig) -> Result<(), OfficialCliBridgeError> {
+        Ok(())
+    }
+
     fn spawn(
         &self,
         config: &CliBridgeConfig,
+        invocation: &CliInvocationContext,
         model_name: &str,
         prompt: &str,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError>;
 
-    /// Spawn the CLI subprocess and stream its piped stdout LIVE: `on_chunk` is
-    /// invoked with each raw byte slice as it is read from the child's stdout
-    /// pipe DURING the run (not after completion). This is what lets the §10.1
+    /// Spawn the CLI subprocess and stream its piped stdout LIVE through a
+    /// bounded, nonblocking sender. The process polling path never invokes
+    /// caller code and therefore remains responsive to timeout/cancellation.
+    /// This is what lets the §10.1
     /// capture seam attach a real live background stream rather than a post-hoc
     /// dump. The default impl falls back to [`CliSubprocessSpawner::spawn`] and
     /// replays the captured stdout once (so mock spawners without a real pipe
@@ -143,19 +269,20 @@ pub trait CliSubprocessSpawner: Send + Sync {
     fn spawn_streaming(
         &self,
         config: &CliBridgeConfig,
+        invocation: &CliInvocationContext,
         model_name: &str,
         prompt: &str,
-        on_chunk: &mut dyn FnMut(&[u8]),
+        chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
-        let receipt = self.spawn(config, model_name, prompt)?;
+        let receipt = self.spawn(config, invocation, model_name, prompt)?;
         if !receipt.stdout.is_empty() {
-            on_chunk(receipt.stdout.as_bytes());
+            deliver_cli_chunk(chunk_sender, receipt.stdout.as_bytes())?;
         }
         Ok(receipt)
     }
 
     /// Cancellable variant of [`CliSubprocessSpawner::spawn_streaming`]: in
-    /// addition to the live `on_chunk` fan-out it consults `should_cancel`
+    /// addition to live chunk fan-out it consults the concrete cancellation set
     /// between reads and, when it observes a set cancellation, kills the child
     /// subprocess and returns a receipt with `cancelled = true` rather than
     /// running the CLI to completion. This is what lets the swarm
@@ -163,19 +290,20 @@ pub trait CliSubprocessSpawner: Send + Sync {
     /// by actually killing the backing process (poll-based token — see
     /// [`crate::model_runtime::CancellationToken`]).
     ///
-    /// The DEFAULT impl ignores `should_cancel` and delegates to
+    /// The DEFAULT impl ignores cancellation and delegates to
     /// [`CliSubprocessSpawner::spawn_streaming`], so existing mock/test spawners
     /// that do not override it keep compiling and behaving exactly as before.
     /// [`LiveCliSpawner`] overrides it with a real per-iteration kill check.
     fn spawn_streaming_cancellable(
         &self,
         config: &CliBridgeConfig,
+        invocation: &CliInvocationContext,
         model_name: &str,
         prompt: &str,
-        on_chunk: &mut dyn FnMut(&[u8]),
-        _should_cancel: &dyn Fn() -> bool,
+        chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
+        _cancellation: &CliCancellationContext,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
-        self.spawn_streaming(config, model_name, prompt, on_chunk)
+        self.spawn_streaming(config, invocation, model_name, prompt, chunk_sender)
     }
 }
 
@@ -188,6 +316,15 @@ pub struct CliInvocationReceipt {
     pub pid: Option<u32>,
     pub exit_code: Option<i32>,
     pub cancelled: bool,
+}
+
+/// Reduced output from an auxiliary provider-owned CLI command. Stderr never
+/// crosses this boundary because provider diagnostics may contain account or
+/// credential metadata. The caller must reduce stdout to a typed status and
+/// drop it immediately.
+pub(crate) struct AuxiliaryCliCommandOutput {
+    pub(crate) success: bool,
+    pub(crate) stdout: Vec<u8>,
 }
 
 pub struct OfficialCliBridgeRuntime {
@@ -231,16 +368,10 @@ impl OfficialCliBridgeRuntime {
                 config.executable_path.clone(),
             ));
         }
-        if !config
-            .args_template
-            .iter()
-            .any(|arg| arg.contains("{prompt}"))
-        {
-            return Err(OfficialCliBridgeError::MissingPromptPlaceholder);
-        }
-        if config.timeout_seconds == 0 {
-            return Err(OfficialCliBridgeError::InvalidTimeout);
-        }
+        validate_cli_executable_path(&config.executable_path)?;
+        validate_config_environment(&config.env_vars)?;
+        validate_cli_bridge_config_contract(&config)?;
+        self.spawner.pin_config(&config)?;
         let model_id = ModelId::new_v7();
         let handle = CliBridgeHandle {
             model_id,
@@ -322,6 +453,7 @@ impl OfficialCliBridgeRuntime {
         &self,
         model_id: ModelId,
         prompt: &str,
+        invocation: &CliInvocationContext,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
         let (config, handle) = {
             let bridges = self
@@ -333,7 +465,13 @@ impl OfficialCliBridgeRuntime {
                 .cloned()
                 .ok_or(OfficialCliBridgeError::ModelNotRegistered(model_id))?
         };
-        self.spawner.spawn(&config, &handle.model_name, prompt)
+        let mut effective_invocation = invocation.clone();
+        effective_invocation.registered_model_id = Some(model_id);
+        let mut receipt =
+            self.spawner
+                .spawn(&config, &effective_invocation, &handle.model_name, prompt)?;
+        receipt.model_id = model_id;
+        Ok(receipt)
     }
 
     /// Invoke the bridge AND mirror its LIVE piped stdout into the Integrated
@@ -353,6 +491,7 @@ impl OfficialCliBridgeRuntime {
         &self,
         model_id: ModelId,
         prompt: &str,
+        invocation: CliInvocationContext,
         runtime: &crate::terminal::TerminalRuntime,
         binding: crate::terminal::SessionBinding,
     ) -> Result<(CliInvocationReceipt, String), OfficialCliBridgeError> {
@@ -375,11 +514,10 @@ impl OfficialCliBridgeRuntime {
             .await;
         let session_id = info.session_id.clone();
 
-        // Bridge the SYNC streaming spawn (which calls `on_chunk` from a blocking
-        // context) to the ASYNC capture sink: each live chunk is queued on a
+        // Bridge the SYNC streaming spawn to the ASYNC capture sink: each live chunk is queued on a
         // bounded channel that an async drain task feeds into `sink.feed` in
         // order, so capture stays live without blocking the spawn thread.
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<Vec<u8>>(MAX_PENDING_STREAM_CHUNKS);
         let sink = std::sync::Arc::new(sink);
         let drain_sink = std::sync::Arc::clone(&sink);
         let drain = tokio::spawn(async move {
@@ -392,13 +530,16 @@ impl OfficialCliBridgeRuntime {
         let spawner = std::sync::Arc::clone(&self.spawner);
         let model_name = handle.model_name.clone();
         let prompt_owned = prompt.to_string();
+        let mut effective_invocation = invocation;
+        effective_invocation.registered_model_id = Some(model_id);
         let spawn_result = tokio::task::spawn_blocking(move || {
-            let mut on_chunk = |bytes: &[u8]| {
-                // If the receiver is gone the run still completes; capture simply
-                // stops fanning. Never block the subprocess.
-                let _ = tx.send(bytes.to_vec());
-            };
-            spawner.spawn_streaming(&config, &model_name, &prompt_owned, &mut on_chunk)
+            spawner.spawn_streaming(
+                &config,
+                &effective_invocation,
+                &model_name,
+                &prompt_owned,
+                &tx,
+            )
         })
         .await
         .map_err(|e| OfficialCliBridgeError::SpawnFailed {
@@ -408,11 +549,7 @@ impl OfficialCliBridgeRuntime {
 
         // Ensure all queued chunks are drained before closing the session.
         let _ = drain.await;
-        let exit = spawn_result
-            .as_ref()
-            .ok()
-            .and_then(|r| r.exit_code)
-            .unwrap_or(0);
+        let exit = terminal_capture_exit_code(&spawn_result);
         // Reclaim the sink (the drain task dropped its Arc) and close cleanly.
         match std::sync::Arc::try_unwrap(sink) {
             Ok(owned) => owned.close(exit).await,
@@ -423,17 +560,26 @@ impl OfficialCliBridgeRuntime {
             }
         }
 
-        let receipt = spawn_result?;
+        let mut receipt = spawn_result?;
+        receipt.model_id = model_id;
         Ok((receipt, session_id))
     }
 }
 
-/// Production `CliSubprocessSpawner` that drives a real subprocess
-/// via `std::process::Command`. Renders the args template, applies
-/// the configured env vars (after `env_clear` so the subprocess does
-/// not inherit the parent's environment by default), honours the
-/// configured working directory, and enforces the configured timeout
-/// by polling `try_wait` and sending `kill` on overrun.
+fn terminal_capture_exit_code(
+    spawn_result: &Result<CliInvocationReceipt, OfficialCliBridgeError>,
+) -> i32 {
+    match spawn_result {
+        Ok(receipt) => receipt.exit_code.unwrap_or(0),
+        Err(OfficialCliBridgeError::SpawnFailed { exit_code, .. }) => exit_code.unwrap_or(-1),
+        Err(_) => -1,
+    }
+}
+
+/// Production `CliSubprocessSpawner` that drives a real subprocess through an
+/// attached [`SandboxAdapter`]. The adapter owns process-tree containment,
+/// termination, and reaping; this layer owns bounded output delivery and the
+/// durable ProcessOwnershipLedger lifecycle.
 ///
 /// PID, exit_code and captured stdout are recorded on the
 /// `CliInvocationReceipt` so callers can attribute the run.
@@ -453,7 +599,38 @@ impl OfficialCliBridgeRuntime {
 #[derive(Clone)]
 pub struct LiveCliSpawner {
     process_ledger: Arc<LedgerBatcher>,
-    owner_role: String,
+    sandbox_registry: Arc<SandboxAdapterRegistry>,
+    pinned_identities: Arc<RwLock<HashMap<PathBuf, CliLaunchIdentity>>>,
+    /// Backend-owned data root used only by non-authenticating version probes.
+    /// Normal model invocations always use the operator's persisted CLI home.
+    preflight_codex_home: Option<Arc<PreflightDataRoot>>,
+}
+
+#[derive(Debug)]
+struct PreflightDataRoot {
+    path: PathBuf,
+    transferred_to_startup: std::sync::atomic::AtomicBool,
+}
+
+impl Drop for PreflightDataRoot {
+    fn drop(&mut self) {
+        if self
+            .transferred_to_startup
+            .load(std::sync::atomic::Ordering::Acquire)
+        {
+            return;
+        }
+        if let Err(error) = std::fs::remove_dir_all(&self.path) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                tracing::error!(
+                    target: "handshake_core::official_cli_bridge",
+                    path = %self.path.display(),
+                    error = %error,
+                    "isolated preflight data-root cleanup failed"
+                );
+            }
+        }
+    }
 }
 
 impl std::fmt::Debug for LiveCliSpawner {
@@ -463,7 +640,7 @@ impl std::fmt::Debug for LiveCliSpawner {
         // LiveCliSpawner stays Debug.
         f.debug_struct("LiveCliSpawner")
             .field("process_ledger", &"<attached>")
-            .field("owner_role", &self.owner_role)
+            .field("sandbox_governance_attached", &true)
             .finish()
     }
 }
@@ -475,19 +652,72 @@ impl std::fmt::Debug for LiveCliSpawner {
 /// mirroring MT-122's `distillation_spawn_meta`.
 fn cli_bridge_spawn_meta(
     pid: u32,
-    owner_role: &str,
-    model_name: &str,
-    executable_path: &std::path::Path,
+    invocation: &CliInvocationContext,
+    selected_model_name: &str,
+    identity: &CliLaunchIdentity,
 ) -> SpawnMeta {
-    let mut meta = SpawnMeta::new(pid, ProcessEngineKind::OfficialCliBridge, owner_role);
-    meta.sandbox_adapter = Some("official_cli_bridge".to_string());
-    meta.model_id = Some(model_name.to_string());
-    meta.mt_id = Some("MT-127".to_string());
+    let mut meta = SpawnMeta::new(
+        pid,
+        ProcessEngineKind::OfficialCliBridge,
+        invocation.owner_role.clone(),
+    );
+    meta.model_id = invocation
+        .registered_model_id
+        .map(|value| value.to_string());
+    meta.model_identity = Some(selected_model_name.to_string());
+    meta.owner_wp = invocation.owner_wp.clone();
+    meta.role_id = invocation.role_id.clone();
+    meta.wp_id = invocation.wp_id.clone();
+    meta.mt_id = invocation.mt_id.clone();
+    meta.session_id = invocation.session_id.clone();
+    meta.parent_session_id = invocation.parent_session_id.clone();
+    meta.parent_process_id = invocation.parent_process_id;
+    meta.trace_id = invocation.trace_id.clone();
+    meta.span_id = invocation.span_id.clone();
+    meta.cancellation_id = invocation.cancellation_id.clone();
+    meta.reclaim_key = invocation.reclaim_key.clone();
     meta.metadata_blob = json!({
         "subprocess_kind": "official_cli_bridge",
-        "mt": "MT-127",
-        "model_name": model_name,
-        "executable": executable_path.display().to_string(),
+        "selected_model_name": selected_model_name,
+        "registered_model_id": invocation.registered_model_id,
+        "model_identity": selected_model_name,
+        "requested_model_identity": invocation.model_identity,
+        "owner_role": invocation.owner_role,
+        "owner_wp": invocation.owner_wp,
+        "role_id": invocation.role_id,
+        "wp_id": invocation.wp_id,
+        "mt_id": invocation.mt_id,
+        "session_id": invocation.session_id,
+        "trace_id": invocation.trace_id,
+        "span_id": invocation.span_id,
+        "cancellation_id": invocation.cancellation_id,
+        "reclaim_key": invocation.reclaim_key,
+        "requested_trust_class": invocation.requested_trust_class,
+        "requested_isolation_tier": invocation.requested_isolation_tier,
+        "requested_sandbox_capabilities": invocation.requested_sandbox_capabilities,
+        "requested_net_policy": invocation.requested_net_policy,
+        "requested_execution_policy_ref": invocation.requested_execution_policy_ref,
+        "swarm_id": invocation.swarm_id,
+        "worktree_id": invocation.worktree_id,
+        "working_dir": invocation.working_dir,
+        "requested_swarm_id": invocation.swarm_id,
+        "requested_worktree_id": invocation.worktree_id,
+        "requested_working_dir": invocation.working_dir,
+        "checkout_lease_id": invocation.checkout_lease_id,
+        "checkout_lease_owner_generation": invocation.checkout_lease_owner_generation,
+        "checkout_lease_canonical_working_dir": invocation.checkout_lease_canonical_working_dir,
+        "requested_entrypoint": identity.requested_entrypoint.canonical_path.display().to_string(),
+        "requested_entrypoint_sha256": identity.requested_entrypoint.sha256,
+        "effective_executable": identity.effective_executable.canonical_path.display().to_string(),
+        "effective_executable_sha256": identity.effective_executable.sha256,
+        "effective_script": identity.effective_script.as_ref().map(|value| value.canonical_path.display().to_string()),
+        "effective_script_sha256": identity.effective_script.as_ref().map(|value| value.sha256.clone()),
+        "launcher_package_manifest": identity.launcher_package_manifest.as_ref().map(|value| value.canonical_path.display().to_string()),
+        "launcher_package_manifest_sha256": identity.launcher_package_manifest.as_ref().map(|value| value.sha256.clone()),
+        "platform_package_manifest": identity.platform_package_manifest.as_ref().map(|value| value.canonical_path.display().to_string()),
+        "platform_package_manifest_sha256": identity.platform_package_manifest.as_ref().map(|value| value.sha256.clone()),
+        "final_native_executable": identity.final_native_executable.as_ref().map(|value| value.canonical_path.display().to_string()),
+        "final_native_executable_sha256": identity.final_native_executable.as_ref().map(|value| value.sha256.clone()),
     });
     meta
 }
@@ -508,152 +738,1988 @@ fn cli_bridge_process_start(record_id: ProcessOwnershipRecordId, meta: SpawnMeta
     if let Some(sandbox_adapter) = meta.sandbox_adapter {
         start = start.with_sandbox_adapter_id(sandbox_adapter);
     }
+    if let Some(parent_session_id) = meta.parent_session_id {
+        start = start.with_parent_session_id(parent_session_id);
+    }
+    if let Some(parent_process_id) = meta.parent_process_id {
+        start = start.with_parent_process_id(parent_process_id);
+    }
+    if let Some(role_id) = meta.role_id {
+        start = start.with_role_id(role_id);
+    }
+    if let Some(wp_id) = meta.wp_id {
+        start = start.with_wp_id(wp_id);
+    }
     if let Some(mt_id) = meta.mt_id {
         start = start.with_mt_id(mt_id);
     }
     start
 }
 
-/// MT-127 remediation (HIGH): returns true if an inherited environment
-/// variable name looks like it carries a credential, so the CLI-bridge
-/// spawner can strip it from the child env before launch. Matches on
-/// case-insensitive secret-bearing substrings. PATH / USERPROFILE /
-/// APPDATA and other runtime vars the CLI needs are intentionally NOT
-/// matched, so the subprocess still starts.
-fn is_secret_bearing_env_name(name: &str) -> bool {
-    const SECRET_SUBSTRINGS: &[&str] = &[
-        "API_KEY",
-        "APIKEY",
-        "SECRET",
-        "TOKEN",
-        "PASSWORD",
-        "PASSWD",
-        "ANTHROPIC_",
-        "OPENAI_",
-        "GEMINI_",
-        "GOOGLE_API",
-        "AWS_SECRET",
-        "AZURE_",
-        "HF_TOKEN",
-        "HUGGINGFACE",
-        "PRIVATE_KEY",
-        "CREDENTIAL",
-        "ACCESS_KEY",
-        "BEARER",
-        "SESSION_KEY",
+/// Parent environment is projected through an explicit runtime allowlist.
+/// Provider credentials are never inherited implicitly; an operator-approved
+/// `CliBridgeConfig.env_vars` entry is the only path for additional values.
+fn is_inherited_runtime_env_name(name: &str) -> bool {
+    const ALLOWED: &[&str] = &[
+        "PATH",
+        "PATHEXT",
+        "SYSTEMROOT",
+        "WINDIR",
+        "COMSPEC",
+        "USERPROFILE",
+        "HOME",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "TEMP",
+        "TMP",
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "TERM",
+        "COLORTERM",
+        "NO_COLOR",
+        "XDG_CONFIG_HOME",
+        "XDG_CACHE_HOME",
+        "XDG_DATA_HOME",
+        "CODEX_HOME",
+    ];
+    ALLOWED
+        .iter()
+        .any(|allowed| name.eq_ignore_ascii_case(allowed))
+}
+
+/// The credential-free parent environment shared by official-CLI inference and
+/// auxiliary provider-owned commands such as auth status. API keys, auth
+/// tokens, endpoints, proxies, and interpreter controls are excluded.
+pub(crate) fn inherited_official_cli_environment() -> BTreeMap<String, String> {
+    std::env::vars()
+        .filter(|(name, _)| is_inherited_runtime_env_name(name))
+        .collect()
+}
+
+/// Even explicit config must not be able to alter interpreter startup or route
+/// credentials through executable ask-pass hooks. Provider API tokens remain
+/// allowed when deliberately supplied because they are data, not code-loading
+/// controls.
+fn is_execution_control_env_name(name: &str) -> bool {
+    const FORBIDDEN: &[&str] = &[
+        "PATH",
+        "PATHEXT",
+        "COMSPEC",
+        "SYSTEMROOT",
+        "WINDIR",
+        "NODE_OPTIONS",
+        "NODE_PATH",
+        "DOTNET_STARTUP_HOOKS",
+        "DOTNET_ADDITIONAL_DEPS",
+        "DOTNET_SHARED_STORE",
+        "COREHOST_TRACEFILE",
+        "LD_PRELOAD",
+        "LD_LIBRARY_PATH",
+        "DYLD_INSERT_LIBRARIES",
+        "DYLD_LIBRARY_PATH",
+        "PYTHONPATH",
+        "PYTHONSTARTUP",
+        "RUBYOPT",
+        "PERL5OPT",
+        "BASH_ENV",
+        "ENV",
+        "PROMPT_COMMAND",
+        "GIT_ASKPASS",
+        "SSH_ASKPASS",
+        "SUDO_ASKPASS",
+    ];
+    FORBIDDEN
+        .iter()
+        .any(|forbidden| name.eq_ignore_ascii_case(forbidden))
+}
+
+/// Explicit bridge environment is presentation-only. Official subscription
+/// authentication remains owned by the installed CLI profile; credentials,
+/// endpoints, proxies, executable resolution, loaders, and startup controls
+/// are never accepted through persisted bridge configuration.
+fn is_explicit_cli_data_env_name(name: &str) -> bool {
+    const EXACT: &[&str] = &[
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "TERM",
+        "COLORTERM",
+        "NO_COLOR",
     ];
     let upper = name.to_ascii_uppercase();
-    SECRET_SUBSTRINGS
-        .iter()
-        .any(|needle| upper.contains(needle))
+    EXACT.contains(&upper.as_str())
 }
 
-const POST_TIMEOUT_OUTPUT_GRACE: Duration = Duration::from_secs(2);
+fn validate_config_environment(
+    env: &HashMap<String, String>,
+) -> Result<(), OfficialCliBridgeError> {
+    if let Some(name) = env.keys().find(|name| is_execution_control_env_name(name)) {
+        return Err(OfficialCliBridgeError::UnsafeEnvironmentVariable(
+            name.clone(),
+        ));
+    }
+    if let Some(name) = env.keys().find(|name| !is_explicit_cli_data_env_name(name)) {
+        return Err(OfficialCliBridgeError::UnsafeEnvironmentVariable(
+            name.clone(),
+        ));
+    }
+    Ok(())
+}
 
-fn kill_process_tree(pid: u32, child: &mut Child) {
+fn is_windows_command_script(path: &std::path::Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| {
+            extension.eq_ignore_ascii_case("cmd") || extension.eq_ignore_ascii_case("bat")
+        })
+        .unwrap_or(false)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct FileIdentity {
+    canonical_path: PathBuf,
+    sha256: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct CliLaunchIdentity {
+    requested_entrypoint: FileIdentity,
+    effective_executable: FileIdentity,
+    effective_script: Option<FileIdentity>,
+    launcher_package_manifest: Option<FileIdentity>,
+    platform_package_manifest: Option<FileIdentity>,
+    final_native_executable: Option<FileIdentity>,
+}
+
+#[derive(Debug)]
+struct CliLaunchPlan {
+    executable_path: PathBuf,
+    args: Vec<String>,
+    identity: CliLaunchIdentity,
+    read_only_roots: Vec<PathBuf>,
+    /// Windows files opened without write/delete sharing. Keeping these
+    /// handles alive through the child lifecycle prevents path replacement
+    /// after identity verification and before the image/script is consumed.
+    identity_locks: Vec<File>,
+}
+
+fn attached_process_binds(
+    launch: &CliLaunchPlan,
+    config: &CliBridgeConfig,
+    env: &BTreeMap<String, String>,
+    requested_cwd: Option<&PathBuf>,
+) -> Result<Vec<BindSpec>, OfficialCliBridgeError> {
+    let mut grants = Vec::new();
+    let mut push_unique = |path: PathBuf, mode: BindMode| {
+        if !grants
+            .iter()
+            .any(|grant: &BindSpec| grant.host_path == path)
+        {
+            grants.push(BindSpec {
+                host_path: path.clone(),
+                guest_path: path,
+                mode,
+            });
+        }
+    };
+    push_unique(
+        launch.identity.effective_executable.canonical_path.clone(),
+        BindMode::ReadOnly,
+    );
+    for root in &launch.read_only_roots {
+        push_unique(root.clone(), BindMode::ReadOnly);
+    }
+    if config.cli_kind == CliKind::CodexCli {
+        push_unique(resolve_codex_home(env)?, BindMode::ReadWrite);
+    }
+    if let Some(cwd) = requested_cwd {
+        push_unique(cwd.clone(), BindMode::ReadWrite);
+    }
+    Ok(grants)
+}
+
+fn resolve_codex_home(env: &BTreeMap<String, String>) -> Result<PathBuf, OfficialCliBridgeError> {
+    let configured = env
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("CODEX_HOME"))
+        .map(|(_, value)| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from);
+    let default_home = env
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("USERPROFILE"))
+        .or_else(|| {
+            env.iter()
+                .find(|(name, _)| name.eq_ignore_ascii_case("HOME"))
+        })
+        .map(|(_, value)| PathBuf::from(value).join(".codex"));
+    let path = configured.or(default_home).ok_or_else(|| {
+        OfficialCliBridgeError::CodexHomeUnavailable(
+            "neither CODEX_HOME nor USERPROFILE/HOME is available".to_string(),
+        )
+    })?;
+    if !path.is_absolute() {
+        return Err(OfficialCliBridgeError::CodexHomeUnavailable(format!(
+            "{} is not absolute",
+            path.display()
+        )));
+    }
+    if !path.is_dir() {
+        return Err(OfficialCliBridgeError::CodexHomeUnavailable(format!(
+            "{} is not an existing directory; authenticate the official CLI before enabling the lane",
+            path.display()
+        )));
+    }
+    std::fs::canonicalize(&path).map_err(|error| {
+        OfficialCliBridgeError::CodexHomeUnavailable(format!(
+            "canonicalize {}: {error}",
+            path.display()
+        ))
+    })
+}
+
+fn validate_cli_preset(config: &CliBridgeConfig) -> Result<(), OfficialCliBridgeError> {
+    if config.cli_kind != CliKind::CodexCli {
+        return Ok(());
+    }
+    #[cfg(windows)]
+    if config
+        .executable_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_none_or(|name| !name.eq_ignore_ascii_case("codex.cmd"))
+    {
+        return Err(OfficialCliBridgeError::InvalidCodexPreset(
+            "Windows Codex lanes must use the validated official `codex.cmd` npm entrypoint"
+                .to_string(),
+        ));
+    }
+    if config.output_format != CliOutputFormat::JsonStream {
+        return Err(OfficialCliBridgeError::InvalidCodexPreset(
+            "output_format must be JsonStream for `codex exec --json`".to_string(),
+        ));
+    }
+    if config.args_template.first().map(String::as_str) != Some("exec") {
+        return Err(OfficialCliBridgeError::InvalidCodexPreset(
+            "args_template must start with `exec`".to_string(),
+        ));
+    }
+    if !config.args_template.iter().any(|arg| arg == "--json") {
+        return Err(OfficialCliBridgeError::InvalidCodexPreset(
+            "args_template must include `--json`".to_string(),
+        ));
+    }
+    let prompt_positions = config
+        .args_template
+        .iter()
+        .enumerate()
+        .filter_map(|(index, arg)| (arg == "{prompt}").then_some(index))
+        .collect::<Vec<_>>();
+    if prompt_positions.as_slice() != [config.args_template.len().saturating_sub(1)] {
+        return Err(OfficialCliBridgeError::InvalidCodexPreset(
+            "a single standalone `{prompt}` must be the final argument".to_string(),
+        ));
+    }
+    if config
+        .args_template
+        .iter()
+        .any(|arg| arg.contains("{prompt}") && arg != "{prompt}")
+    {
+        return Err(OfficialCliBridgeError::InvalidCodexPreset(
+            "`{prompt}` must not be embedded into another argument".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_model_binding(config: &CliBridgeConfig) -> Result<(), OfficialCliBridgeError> {
+    let model_positions = config
+        .args_template
+        .iter()
+        .enumerate()
+        .filter_map(|(index, arg)| (arg == "{model}").then_some(index))
+        .collect::<Vec<_>>();
+    if model_positions.len() != 1 {
+        return Err(OfficialCliBridgeError::InvalidModelBinding(
+            "args_template must contain exactly one standalone `{model}` placeholder".to_string(),
+        ));
+    }
+    if config
+        .args_template
+        .iter()
+        .any(|arg| arg.contains("{model}") && arg != "{model}")
+    {
+        return Err(OfficialCliBridgeError::InvalidModelBinding(
+            "`{model}` must not be embedded into another argument".to_string(),
+        ));
+    }
+    let position = model_positions[0];
+    let flag = position
+        .checked_sub(1)
+        .and_then(|index| config.args_template.get(index))
+        .map(String::as_str);
+    let valid_flag = match config.cli_kind {
+        CliKind::ClaudeCode | CliKind::GeminiCli | CliKind::Other => flag == Some("--model"),
+        CliKind::CodexCli => matches!(flag, Some("--model" | "-m")),
+    };
+    if !valid_flag {
+        return Err(OfficialCliBridgeError::InvalidModelBinding(format!(
+            "{} args_template must bind the standalone placeholder through {}",
+            config.cli_kind.label(),
+            if config.cli_kind == CliKind::CodexCli {
+                "`--model {model}` or `-m {model}`"
+            } else {
+                "`--model {model}`"
+            }
+        )));
+    }
+    Ok(())
+}
+
+/// Validate the portable, persisted portion of an Official-CLI bridge config.
+///
+/// This is deliberately shared by configuration producers and runtime
+/// registration so the settings UI cannot persist a document that is known to
+/// be rejected later. Executable existence, canonical identity, environment,
+/// and sandbox pinning remain runtime checks because they depend on the host.
+pub fn validate_cli_bridge_config_contract(
+    config: &CliBridgeConfig,
+) -> Result<(), OfficialCliBridgeError> {
+    if !config
+        .args_template
+        .iter()
+        .any(|arg| arg.contains("{prompt}"))
+    {
+        return Err(OfficialCliBridgeError::MissingPromptPlaceholder);
+    }
+    if config.timeout_seconds == 0 {
+        return Err(OfficialCliBridgeError::InvalidTimeout);
+    }
+    validate_model_binding(config)?;
+    validate_cli_preset(config)
+}
+
+fn locked_file_identity(
+    path: &std::path::Path,
+) -> Result<(FileIdentity, File), OfficialCliBridgeError> {
+    let canonical_path = std::fs::canonicalize(path).map_err(|error| {
+        OfficialCliBridgeError::ExecutableIdentity(format!(
+            "canonicalize {}: {error}",
+            path.display()
+        ))
+    })?;
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(windows)]
+    options.share_mode(windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ);
+    let mut file = options.open(&canonical_path).map_err(|error| {
+        OfficialCliBridgeError::ExecutableIdentity(format!(
+            "open identity lock for {}: {error}",
+            canonical_path.display()
+        ))
+    })?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes).map_err(|error| {
+        OfficialCliBridgeError::ExecutableIdentity(format!(
+            "read locked identity {}: {error}",
+            canonical_path.display()
+        ))
+    })?;
+    Ok((
+        FileIdentity {
+            canonical_path,
+            sha256: hex::encode(Sha256::digest(bytes)),
+        },
+        file,
+    ))
+}
+
+fn file_identity(path: &std::path::Path) -> Result<FileIdentity, OfficialCliBridgeError> {
+    locked_file_identity(path).map(|(identity, _lock)| identity)
+}
+
+fn reject_command_interpreter(path: &std::path::Path) -> Result<(), OfficialCliBridgeError> {
+    let name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    const INTERPRETERS: &[&str] = &[
+        "cmd",
+        "cmd.exe",
+        "powershell",
+        "powershell.exe",
+        "pwsh",
+        "pwsh.exe",
+        "sh",
+        "bash",
+        "zsh",
+        "fish",
+        "node",
+        "node.exe",
+        "python",
+        "python.exe",
+        "python3",
+        "perl",
+        "ruby",
+    ];
+    if INTERPRETERS.contains(&name.as_str()) {
+        return Err(OfficialCliBridgeError::ExecutableIdentity(format!(
+            "generic command interpreter {} is not an allowed CLI entrypoint",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+
+/// Validate discovery/registration against the same executable contract used
+/// at launch. A Windows `.cmd` is accepted only when it is the installed Codex
+/// npm shim that can be reduced to a direct interpreter argv plan.
+pub fn validate_cli_executable_path(path: &std::path::Path) -> Result<(), OfficialCliBridgeError> {
+    if !is_windows_command_script(path) {
+        return reject_command_interpreter(path);
+    }
     #[cfg(windows)]
     {
-        let pid_arg = pid.to_string();
-        let _ = Command::new("taskkill")
-            .args(["/PID", pid_arg.as_str(), "/T", "/F"])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+        resolve_codex_npm_shim(path).map(|_| ())
     }
-    let _ = child.kill();
+    #[cfg(not(windows))]
+    {
+        Err(OfficialCliBridgeError::UnsupportedCommandScript(
+            path.to_path_buf(),
+        ))
+    }
 }
 
-fn wait_with_output_bounded(child: Child, timeout: Duration) -> Option<Output> {
-    let (tx, rx) = mpsc::channel();
+fn cli_launch_plan(
+    path: &std::path::Path,
+    rendered: Vec<String>,
+) -> Result<CliLaunchPlan, OfficialCliBridgeError> {
+    let (requested_entrypoint, requested_entrypoint_lock) = locked_file_identity(path)?;
+    if !is_windows_command_script(path) {
+        reject_command_interpreter(path)?;
+        return Ok(CliLaunchPlan {
+            executable_path: requested_entrypoint.canonical_path.clone(),
+            args: rendered,
+            identity: CliLaunchIdentity {
+                effective_executable: requested_entrypoint.clone(),
+                requested_entrypoint,
+                effective_script: None,
+                launcher_package_manifest: None,
+                platform_package_manifest: None,
+                final_native_executable: None,
+            },
+            read_only_roots: Vec::new(),
+            identity_locks: vec![requested_entrypoint_lock],
+        });
+    }
+    #[cfg(windows)]
+    {
+        let resolved = resolve_codex_npm_shim(path)?;
+        let (effective_script, effective_script_lock) = locked_file_identity(&resolved.script)?;
+        let (launcher_package_manifest, launcher_package_manifest_lock) =
+            locked_file_identity(&resolved.launcher_package_manifest)?;
+        let (platform_package_manifest, platform_package_manifest_lock) =
+            match resolved.platform_package_manifest.as_ref() {
+                Some(path) => {
+                    let (identity, lock) = locked_file_identity(path)?;
+                    (Some(identity), Some(lock))
+                }
+                None => (None, None),
+            };
+        let (final_native_executable, final_native_executable_lock) =
+            locked_file_identity(&resolved.final_native_executable)?;
+        let mut identity_locks = vec![
+            requested_entrypoint_lock,
+            effective_script_lock,
+            launcher_package_manifest_lock,
+            final_native_executable_lock,
+        ];
+        if let Some(lock) = platform_package_manifest_lock {
+            identity_locks.push(lock);
+        }
+        Ok(CliLaunchPlan {
+            // Execute the pinned native Codex image directly. The npm shim and
+            // JS launcher remain verified provenance, but Node is not placed
+            // inside the runtime process tree and cannot create an untracked
+            // native descendant.
+            executable_path: final_native_executable.canonical_path.clone(),
+            args: rendered,
+            identity: CliLaunchIdentity {
+                requested_entrypoint,
+                effective_executable: final_native_executable.clone(),
+                effective_script: Some(effective_script),
+                launcher_package_manifest: Some(launcher_package_manifest),
+                platform_package_manifest,
+                final_native_executable: Some(final_native_executable),
+            },
+            read_only_roots: Vec::new(),
+            identity_locks,
+        })
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = rendered;
+        Err(OfficialCliBridgeError::UnsupportedCommandScript(
+            path.to_path_buf(),
+        ))
+    }
+}
+
+#[cfg(windows)]
+#[derive(Debug)]
+struct ResolvedCodexNpmShim {
+    node: PathBuf,
+    script: PathBuf,
+    launcher_package_manifest: PathBuf,
+    platform_package_manifest: Option<PathBuf>,
+    final_native_executable: PathBuf,
+    read_only_roots: Vec<PathBuf>,
+}
+
+#[cfg(windows)]
+fn resolve_codex_npm_shim(
+    shim: &std::path::Path,
+) -> Result<ResolvedCodexNpmShim, OfficialCliBridgeError> {
+    let is_codex_cmd = shim
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case("codex.cmd"));
+    if !is_codex_cmd {
+        return Err(OfficialCliBridgeError::UnsupportedCommandScript(
+            shim.to_path_buf(),
+        ));
+    }
+    let metadata = std::fs::metadata(shim)
+        .map_err(|_| OfficialCliBridgeError::UnsupportedCommandScript(shim.to_path_buf()))?;
+    if metadata.len() > 128 * 1024 {
+        return Err(OfficialCliBridgeError::UnsupportedCommandScript(
+            shim.to_path_buf(),
+        ));
+    }
+    let contents = std::fs::read_to_string(shim)
+        .map_err(|_| OfficialCliBridgeError::UnsupportedCommandScript(shim.to_path_buf()))?;
+    let normalized = contents.replace('/', "\\").to_ascii_lowercase();
+    if !normalized.contains("node_modules\\@openai\\codex\\bin\\codex.js")
+        || !normalized.contains("%*")
+    {
+        return Err(OfficialCliBridgeError::UnsupportedCommandScript(
+            shim.to_path_buf(),
+        ));
+    }
+    let npm_root = shim
+        .parent()
+        .ok_or_else(|| OfficialCliBridgeError::UnsupportedCommandScript(shim.to_path_buf()))?;
+    let script = npm_root
+        .join("node_modules")
+        .join("@openai")
+        .join("codex")
+        .join("bin")
+        .join("codex.js");
+    if !script.is_file() {
+        return Err(OfficialCliBridgeError::UnsupportedCommandScript(
+            shim.to_path_buf(),
+        ));
+    }
+    let local_node = npm_root.join("node.exe");
+    let node = if local_node.is_file() {
+        local_node
+    } else {
+        find_windows_executable_on_path("node.exe")
+            .ok_or_else(|| OfficialCliBridgeError::UnsupportedCommandScript(shim.to_path_buf()))?
+    };
+    let codex_root = script
+        .parent()
+        .and_then(std::path::Path::parent)
+        .ok_or_else(|| OfficialCliBridgeError::UnsupportedCommandScript(shim.to_path_buf()))?;
+    let launcher_package_manifest = codex_root.join("package.json");
+    let launcher_manifest = read_json_manifest(&launcher_package_manifest)?;
+    if launcher_manifest
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        != Some("@openai/codex")
+        || launcher_manifest
+            .pointer("/bin/codex")
+            .and_then(serde_json::Value::as_str)
+            != Some("bin/codex.js")
+    {
+        return Err(OfficialCliBridgeError::ExecutableIdentity(format!(
+            "{} is not an official @openai/codex launcher manifest",
+            launcher_package_manifest.display()
+        )));
+    }
+    let launcher_version = launcher_manifest
+        .get("version")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| {
+            OfficialCliBridgeError::ExecutableIdentity(format!(
+                "{} has no package version",
+                launcher_package_manifest.display()
+            ))
+        })?;
+    let (platform_suffix, target_triple, cpu) = windows_codex_target()?;
+    let platform_dependency = format!("@openai/codex-{platform_suffix}");
+    let expected_alias = format!("npm:@openai/codex@{launcher_version}-{platform_suffix}");
+    if launcher_manifest
+        .get("optionalDependencies")
+        .and_then(|value| value.get(&platform_dependency))
+        .and_then(serde_json::Value::as_str)
+        != Some(expected_alias.as_str())
+    {
+        return Err(OfficialCliBridgeError::ExecutableIdentity(format!(
+            "{} does not bind the expected platform package alias {expected_alias}",
+            launcher_package_manifest.display()
+        )));
+    }
+    let package_directory_name = format!("codex-{platform_suffix}");
+    let candidate_roots = [
+        codex_root
+            .join("node_modules")
+            .join("@openai")
+            .join(&package_directory_name),
+        npm_root
+            .join("node_modules")
+            .join("@openai")
+            .join(&package_directory_name),
+    ];
+    let existing_package_root = candidate_roots.iter().find(|root| root.exists());
+    let (platform_package_manifest, final_native_executable, mut read_only_roots) =
+        if let Some(platform_root) = existing_package_root {
+            let manifest_path = platform_root.join("package.json");
+            let manifest = read_json_manifest(&manifest_path)?;
+            let expected_platform_version = format!("{launcher_version}-{platform_suffix}");
+            let valid_name =
+                manifest.get("name").and_then(serde_json::Value::as_str) == Some("@openai/codex");
+            let valid_version = manifest.get("version").and_then(serde_json::Value::as_str)
+                == Some(expected_platform_version.as_str());
+            let valid_os = manifest
+                .get("os")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|values| values.iter().any(|value| value.as_str() == Some("win32")));
+            let valid_cpu = manifest
+                .get("cpu")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|values| values.iter().any(|value| value.as_str() == Some(cpu)));
+            if !(valid_name && valid_version && valid_os && valid_cpu) {
+                return Err(OfficialCliBridgeError::ExecutableIdentity(format!(
+                "{} does not match the official Codex platform package tuple name/version/os/cpu",
+                manifest_path.display()
+            )));
+            }
+            (
+                Some(manifest_path),
+                platform_root
+                    .join("vendor")
+                    .join(target_triple)
+                    .join("bin")
+                    .join("codex.exe"),
+                vec![codex_root.to_path_buf(), platform_root.to_path_buf()],
+            )
+        } else {
+            (
+                None,
+                codex_root
+                    .join("vendor")
+                    .join(target_triple)
+                    .join("bin")
+                    .join("codex.exe"),
+                vec![codex_root.to_path_buf()],
+            )
+        };
+    if !final_native_executable.is_file() {
+        return Err(OfficialCliBridgeError::ExecutableIdentity(format!(
+            "official Codex native executable is missing at {}",
+            final_native_executable.display()
+        )));
+    }
+    read_only_roots.sort();
+    read_only_roots.dedup();
+    Ok(ResolvedCodexNpmShim {
+        node,
+        script,
+        launcher_package_manifest,
+        platform_package_manifest,
+        final_native_executable,
+        read_only_roots,
+    })
+}
+
+#[cfg(windows)]
+fn read_json_manifest(path: &std::path::Path) -> Result<serde_json::Value, OfficialCliBridgeError> {
+    let bytes = std::fs::read(path).map_err(|error| {
+        OfficialCliBridgeError::ExecutableIdentity(format!(
+            "read package manifest {}: {error}",
+            path.display()
+        ))
+    })?;
+    serde_json::from_slice(&bytes).map_err(|error| {
+        OfficialCliBridgeError::ExecutableIdentity(format!(
+            "parse package manifest {}: {error}",
+            path.display()
+        ))
+    })
+}
+
+#[cfg(all(windows, target_arch = "x86_64"))]
+fn windows_codex_target(
+) -> Result<(&'static str, &'static str, &'static str), OfficialCliBridgeError> {
+    Ok(("win32-x64", "x86_64-pc-windows-msvc", "x64"))
+}
+
+#[cfg(all(windows, target_arch = "aarch64"))]
+fn windows_codex_target(
+) -> Result<(&'static str, &'static str, &'static str), OfficialCliBridgeError> {
+    Ok(("win32-arm64", "aarch64-pc-windows-msvc", "arm64"))
+}
+
+#[cfg(all(windows, not(any(target_arch = "x86_64", target_arch = "aarch64"))))]
+fn windows_codex_target(
+) -> Result<(&'static str, &'static str, &'static str), OfficialCliBridgeError> {
+    Err(OfficialCliBridgeError::ExecutableIdentity(format!(
+        "unsupported Windows architecture {} for Codex CLI",
+        std::env::consts::ARCH
+    )))
+}
+
+#[cfg(windows)]
+fn find_windows_executable_on_path(name: &str) -> Option<PathBuf> {
+    std::env::var_os("PATH")
+        .into_iter()
+        .flat_map(|paths| std::env::split_paths(&paths).collect::<Vec<_>>())
+        .map(|directory| directory.join(name))
+        .find(|candidate| candidate.is_file())
+}
+
+const CLI_START_DURABILITY_TIMEOUT: Duration = Duration::from_secs(5);
+const CLI_STOP_DURABILITY_TIMEOUT: Duration = Duration::from_secs(5);
+const CLI_ATTACHED_STARTUP_TIMEOUT_MS: u64 = 60_000;
+const CLI_PIPE_READER_CLEANUP_TIMEOUT: Duration = Duration::from_millis(500);
+const CLI_ATTACHED_RUNTIME_SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(100);
+const MAX_CLI_CAPTURE_BYTES: usize = 8 * 1024 * 1024;
+const MAX_PENDING_STREAM_CHUNKS: usize = 32;
+const MAX_STREAM_CHUNKS_PER_POLL_CYCLE: usize = 8;
+
+fn attached_child_env(config: &CliBridgeConfig) -> BTreeMap<String, String> {
+    let mut env = inherited_official_cli_environment();
+    env.extend(
+        config
+            .env_vars
+            .iter()
+            .filter(|(name, _)| is_explicit_cli_data_env_name(name))
+            .map(|(name, value)| (name.clone(), value.clone())),
+    );
+    env
+}
+
+fn spawn_attached_blocking(
+    adapter: Arc<dyn SandboxAdapter>,
+    spec: AttachedProcessSpec,
+    stdio: AttachedStdioContract,
+    preflight_root: Option<Arc<PreflightDataRoot>>,
+) -> Result<Box<dyn AttachedSandboxProcess>, SandboxAdapterError> {
+    let panic_adapter_id = adapter.capabilities().adapter_id;
+    let runtime_thread = thread::Builder::new()
+        .name("handshake-cli-attached".to_string())
+        .spawn(move || {
+            let adapter_id = adapter.capabilities().adapter_id;
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|err| SandboxAdapterError::SpawnFailed {
+                    adapter_id,
+                    reason: format!("failed to build attached-process runtime: {err}"),
+                })?;
+            if let Some(root) = preflight_root.as_ref() {
+                root.transferred_to_startup
+                    .store(true, std::sync::atomic::Ordering::Release);
+            }
+            let result = runtime.block_on(adapter.spawn_attached_with_stdio(spec, stdio));
+            // `spawn_handshake_native_attached` uses a cancellation-aware
+            // `spawn_blocking` worker for Win32/AppContainer creation. After its
+            // async startup deadline fires, dropping a Tokio runtime would normally
+            // wait indefinitely for that blocking worker and erase the bound. A
+            // bounded runtime shutdown lets the caller return immediately; the
+            // worker retains its cancellation flag and reclaims any late child
+            // before it exits.
+            runtime.shutdown_timeout(CLI_ATTACHED_RUNTIME_SHUTDOWN_TIMEOUT);
+            result
+        })
+        .map_err(|err| SandboxAdapterError::SpawnFailed {
+            adapter_id: panic_adapter_id.clone(),
+            reason: format!("failed to create attached-process runtime thread: {err}"),
+        })?;
+    runtime_thread
+        .join()
+        .map_err(|_| SandboxAdapterError::SpawnFailed {
+            adapter_id: panic_adapter_id,
+            reason: "attached-process runtime thread panicked".to_string(),
+        })?
+}
+
+fn wait_start_durability_blocking(
+    acknowledgement: crate::process_ledger::ProcessLedgerDurabilityAck,
+) -> Result<(), crate::process_ledger::ProcessLedgerError> {
     thread::spawn(move || {
-        let _ = tx.send(child.wait_with_output());
-    });
-    rx.recv_timeout(timeout).ok().and_then(Result::ok)
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|error| {
+                crate::process_ledger::ProcessLedgerError::InvalidConfig(format!(
+                    "build CLI START durability runtime: {error}"
+                ))
+            })?;
+        runtime.block_on(acknowledgement.wait(CLI_START_DURABILITY_TIMEOUT))
+    })
+    .join()
+    .map_err(|_| {
+        crate::process_ledger::ProcessLedgerError::InvalidConfig(
+            "CLI START durability thread panicked".to_string(),
+        )
+    })?
 }
 
-impl LiveCliSpawner {
-    /// Construct a spawner with a MANDATORY process ledger (MT-127,
-    /// MT-122-class). Every CLI-bridge subprocess this spawner launches is
-    /// registered as an attributable + reclaimable `ProcessOwnershipLedger`
-    /// row (`engine_kind = OfficialCliBridge`): a START row the moment the
-    /// child pid is known and a matching STOP row after it exits. There is
-    /// no unattributed construction path.
-    pub fn new(process_ledger: Arc<LedgerBatcher>) -> Self {
+fn wait_stop_durability_blocking(
+    lifecycle: Arc<ActiveProcessLifecycle>,
+    exit_code: Option<i32>,
+    reason: String,
+) -> Result<StopRecordOutcome, crate::process_ledger::ProcessLedgerError> {
+    thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|error| {
+                crate::process_ledger::ProcessLedgerError::InvalidConfig(format!(
+                    "build CLI STOP durability runtime: {error}"
+                ))
+            })?;
+        runtime.block_on(lifecycle.stop_with_durable_ack(
+            exit_code,
+            &reason,
+            CLI_STOP_DURABILITY_TIMEOUT,
+        ))
+    })
+    .join()
+    .map_err(|_| {
+        crate::process_ledger::ProcessLedgerError::InvalidConfig(
+            "CLI STOP durability thread panicked".to_string(),
+        )
+    })?
+}
+
+/// Cancellation-aware owner for a streaming stdout/stderr reader.
+///
+/// A pipe `Read` can remain blocked when a sandbox adapter fails to terminate
+/// its child. Cleanup therefore first requests cooperative cancellation and
+/// then waits only until a shared deadline. A reader still blocked in the OS
+/// pipe is detached pending EOF instead of holding the launch caller forever;
+/// the child lifecycle remains open for authoritative reconciliation.
+struct StreamingPipeReader {
+    cancel: Arc<std::sync::atomic::AtomicBool>,
+    worker: Option<thread::JoinHandle<Vec<u8>>>,
+}
+
+impl StreamingPipeReader {
+    fn spawn(
+        mut stream: Box<dyn std::io::Read + Send>,
+        chunk_sender: Option<mpsc::SyncSender<Vec<u8>>>,
+    ) -> Self {
+        let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let worker_cancel = Arc::clone(&cancel);
+        let worker = thread::spawn(move || {
+            let mut buffer = [0u8; 8192];
+            let mut bytes = Vec::new();
+            loop {
+                if worker_cancel.load(std::sync::atomic::Ordering::Acquire) {
+                    break;
+                }
+                match stream.read(&mut buffer) {
+                    Ok(0) => break,
+                    Ok(count) => {
+                        let forwarded =
+                            count.min(MAX_CLI_CAPTURE_BYTES.saturating_sub(bytes.len()));
+                        append_capped(&mut bytes, &buffer[..count]);
+                        if forwarded > 0 {
+                            if let Some(sender) = chunk_sender.as_ref() {
+                                if sender.send(buffer[..forwarded].to_vec()).is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    Err(ref error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                    Err(_) => break,
+                }
+            }
+            bytes
+        });
         Self {
-            process_ledger,
-            owner_role: DEFAULT_CLI_BRIDGE_OWNER_ROLE.to_string(),
+            cancel,
+            worker: Some(worker),
         }
     }
 
-    /// Override the owner role recorded on the ledger row (defaults to
-    /// `OFFICIAL_CLI_BRIDGE`).
-    pub fn with_owner_role(mut self, owner_role: impl Into<String>) -> Self {
-        self.owner_role = owner_role.into();
-        self
+    fn cancel(&self) {
+        self.cancel
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+
+    fn finish_until(mut self, deadline: Instant) -> PipeReaderFinish {
+        let Some(worker) = self.worker.take() else {
+            return PipeReaderFinish::default();
+        };
+        while !worker.is_finished() {
+            let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
+                // Dropping a JoinHandle detaches only the pipe reader. Its
+                // cancellation flag remains set and it exits as soon as the
+                // failed child closes the pipe or the blocked read returns.
+                drop(worker);
+                return PipeReaderFinish {
+                    bytes: Vec::new(),
+                    completed: false,
+                };
+            };
+            thread::sleep(remaining.min(Duration::from_millis(5)));
+        }
+        match worker.join() {
+            Ok(bytes) => PipeReaderFinish {
+                bytes,
+                completed: true,
+            },
+            Err(_) => PipeReaderFinish {
+                bytes: Vec::new(),
+                completed: false,
+            },
+        }
+    }
+}
+
+impl Drop for StreamingPipeReader {
+    fn drop(&mut self) {
+        self.cancel();
+    }
+}
+
+#[derive(Default)]
+struct PipeReaderFinish {
+    bytes: Vec<u8>,
+    completed: bool,
+}
+
+struct StreamingPipeReaders {
+    stdout: Option<StreamingPipeReader>,
+    stderr: Option<StreamingPipeReader>,
+}
+
+struct StreamingPipeReadersFinish {
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    completed: bool,
+}
+
+impl StreamingPipeReaders {
+    fn new(stdout: Option<StreamingPipeReader>, stderr: Option<StreamingPipeReader>) -> Self {
+        Self { stdout, stderr }
+    }
+
+    fn cancel(&self) {
+        if let Some(reader) = self.stdout.as_ref() {
+            reader.cancel();
+        }
+        if let Some(reader) = self.stderr.as_ref() {
+            reader.cancel();
+        }
+    }
+
+    fn collect_until(&mut self, deadline: Instant) -> StreamingPipeReadersFinish {
+        let stdout = self
+            .stdout
+            .take()
+            .map(|reader| reader.finish_until(deadline))
+            .unwrap_or(PipeReaderFinish {
+                bytes: Vec::new(),
+                completed: true,
+            });
+        let stderr = self
+            .stderr
+            .take()
+            .map(|reader| reader.finish_until(deadline))
+            .unwrap_or(PipeReaderFinish {
+                bytes: Vec::new(),
+                completed: true,
+            });
+        StreamingPipeReadersFinish {
+            stdout: stdout.bytes,
+            stderr: stderr.bytes,
+            completed: stdout.completed && stderr.completed,
+        }
+    }
+}
+
+impl Drop for StreamingPipeReaders {
+    fn drop(&mut self) {
+        self.cancel();
+        let _ = self.collect_until(Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT);
+    }
+}
+
+#[cfg(feature = "test-utils")]
+pub fn hostile_never_eof_reader_cleanup_probe() -> (bool, Duration) {
+    struct NeverEofReader;
+
+    impl std::io::Read for NeverEofReader {
+        fn read(&mut self, _buffer: &mut [u8]) -> std::io::Result<usize> {
+            loop {
+                thread::sleep(Duration::from_secs(60));
+            }
+        }
+    }
+
+    let mut readers = StreamingPipeReaders::new(
+        Some(StreamingPipeReader::spawn(Box::new(NeverEofReader), None)),
+        None,
+    );
+    let started = Instant::now();
+    let outcome = readers.collect_until(started + CLI_PIPE_READER_CLEANUP_TIMEOUT);
+    (outcome.completed, started.elapsed())
+}
+
+fn drain_streaming_pipe(
+    stream: Option<Box<dyn std::io::Read + Send>>,
+    chunk_sender: Option<mpsc::SyncSender<Vec<u8>>>,
+) -> Option<StreamingPipeReader> {
+    stream.map(|stream| StreamingPipeReader::spawn(stream, chunk_sender))
+}
+
+fn append_capped(target: &mut Vec<u8>, bytes: &[u8]) {
+    let remaining = MAX_CLI_CAPTURE_BYTES.saturating_sub(target.len());
+    target.extend_from_slice(&bytes[..bytes.len().min(remaining)]);
+}
+
+fn deliver_cli_chunk(
+    sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
+    chunk: &[u8],
+) -> Result<(), OfficialCliBridgeError> {
+    sender
+        .try_send(chunk.to_vec())
+        .map_err(|failure| OfficialCliBridgeError::SpawnFailed {
+            reason: format!("official CLI bounded chunk queue rejected output: {failure}"),
+            exit_code: None,
+        })
+}
+
+fn drain_chunks_until(
+    receiver: &mpsc::Receiver<Vec<u8>>,
+    chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
+    deadline: Instant,
+) -> Result<bool, OfficialCliBridgeError> {
+    while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
+        match receiver.recv_timeout(remaining) {
+            Ok(chunk) => deliver_cli_chunk(chunk_sender, &chunk)?,
+            Err(mpsc::RecvTimeoutError::Disconnected) => return Ok(true),
+            Err(mpsc::RecvTimeoutError::Timeout) => return Ok(false),
+        }
+    }
+    Ok(false)
+}
+
+fn cleanup_chunk_delivery_failure(
+    child: &mut GuardedCliChild,
+    receiver: mpsc::Receiver<Vec<u8>>,
+    mut readers: StreamingPipeReaders,
+    error: OfficialCliBridgeError,
+) -> OfficialCliBridgeError {
+    let cleanup_failed = child.child.is_some()
+        && child
+            .terminate_and_collect("official_cli_bridge_chunk_delivery_failure")
+            .is_none();
+    drop(receiver);
+    readers.cancel();
+    let reader_deadline = Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT;
+    let reader_cleanup_timed_out = !readers.collect_until(reader_deadline).completed;
+    if cleanup_failed {
+        OfficialCliBridgeError::SpawnFailed {
+            reason: format!(
+                "{error}; sandbox adapter could not prove process-tree termination/reap{}",
+                if reader_cleanup_timed_out {
+                    "; pipe-reader cleanup exceeded its bounded deadline and remains cancellation-pending until EOF"
+                } else {
+                    ""
+                }
+            ),
+            exit_code: None,
+        }
+    } else if reader_cleanup_timed_out {
+        OfficialCliBridgeError::SpawnFailed {
+            reason: format!(
+                "{error}; pipe-reader cleanup exceeded its bounded deadline and remains cancellation-pending until EOF"
+            ),
+            exit_code: None,
+        }
+    } else {
+        error
+    }
+}
+
+/// Owns the adapter-attached child and its ledger lifecycle as one drop unit.
+///
+/// Any live output delivery/cancellation failure must terminate and reap the
+/// process tree through the adapter before the reserved STOP permit is consumed. This guard covers
+/// the small post-spawn/pre-START interval: if ledger START cannot begin, the
+/// unattributed child is killed without fabricating a STOP row.
+struct GuardedCliChild {
+    pid: u32,
+    child: Option<Box<dyn AttachedSandboxProcess>>,
+    adapter_capabilities: AdapterCapabilities,
+    launch_identity: CliLaunchIdentity,
+    resolved_execution_policy: crate::sandbox::ResolvedExecutionPolicy,
+    _identity_locks: Vec<File>,
+    lifecycle: Option<Arc<ActiveProcessLifecycle>>,
+    stop_recorded: bool,
+}
+
+impl GuardedCliChild {
+    fn new(
+        child: Box<dyn AttachedSandboxProcess>,
+        adapter_capabilities: AdapterCapabilities,
+        launch_identity: CliLaunchIdentity,
+        resolved_execution_policy: crate::sandbox::ResolvedExecutionPolicy,
+        identity_locks: Vec<File>,
+    ) -> Self {
+        Self {
+            pid: child.pid(),
+            child: Some(child),
+            adapter_capabilities,
+            launch_identity,
+            resolved_execution_policy,
+            _identity_locks: identity_locks,
+            lifecycle: None,
+            stop_recorded: false,
+        }
+    }
+
+    fn pid(&self) -> u32 {
+        self.pid
+    }
+
+    fn child_mut(
+        &mut self,
+    ) -> Result<&mut (dyn AttachedSandboxProcess + '_), OfficialCliBridgeError> {
+        match self.child.as_deref_mut() {
+            Some(child) => Ok(child),
+            None => Err(OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "guarded CLI child {} no longer owns an attached process",
+                    self.pid
+                ),
+                exit_code: None,
+            }),
+        }
+    }
+
+    fn take_stdout(
+        &mut self,
+    ) -> Result<Option<Box<dyn std::io::Read + Send>>, OfficialCliBridgeError> {
+        Ok(self.child_mut()?.take_stdout())
+    }
+
+    fn take_stderr(
+        &mut self,
+    ) -> Result<Option<Box<dyn std::io::Read + Send>>, OfficialCliBridgeError> {
+        Ok(self.child_mut()?.take_stderr())
+    }
+
+    fn attach_lifecycle(&mut self, lifecycle: ActiveProcessLifecycle) {
+        self.lifecycle = Some(Arc::new(lifecycle));
+    }
+
+    fn record_stop(&mut self, exit_code: Option<i32>, reason: &str) {
+        if self.stop_recorded {
+            return;
+        }
+        let Some(lifecycle) = self.lifecycle.as_ref() else {
+            return;
+        };
+        let result =
+            wait_stop_durability_blocking(Arc::clone(lifecycle), exit_code, reason.to_string());
+        match result {
+            Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped) => {
+                self.stop_recorded = true
+            }
+            Ok(
+                StopRecordOutcome::LeftOpenForReconciliation
+                | StopRecordOutcome::DurabilityUnconfirmed,
+            ) => {
+                self.leave_open_for_reconciliation(
+                    "ledger STOP authority was left open for reconciliation",
+                );
+            }
+            Err(err) => {
+                tracing::error!(
+                    target: "handshake_core::official_cli_bridge",
+                    pid = self.pid,
+                    error = %err,
+                    "ledger STOP registration failed"
+                );
+                self.leave_open_for_reconciliation("ledger STOP registration failed");
+            }
+        }
+    }
+
+    fn leave_open_for_reconciliation(&mut self, reason: &str) {
+        if self.stop_recorded {
+            return;
+        }
+        if let Some(lifecycle) = self.lifecycle.as_ref() {
+            let _ = lifecycle.leave_open_for_reconciliation();
+        }
+        self.stop_recorded = true;
+        tracing::warn!(
+            target: "handshake_core::official_cli_bridge",
+            pid = self.pid,
+            reason,
+            "leaving ProcessOwnershipLedger START open for reconciliation"
+        );
+    }
+
+    /// Terminate, synchronously reap, then emit STOP. The child is killed before
+    /// the ledger can describe it as stopped.
+    fn terminate_and_collect(&mut self, reason: &str) -> Option<ExitStatus> {
+        let mut child = self.child.take()?;
+        match child.terminate_tree_and_wait() {
+            Ok(status) => {
+                self.record_stop(status.code(), reason);
+                Some(status)
+            }
+            Err(err) => {
+                self.leave_open_for_reconciliation(reason);
+                tracing::error!(
+                    target: "handshake_core::official_cli_bridge",
+                    pid = self.pid,
+                    error = %err,
+                    "terminated attached child could not be reaped"
+                );
+                None
+            }
+        }
+    }
+}
+
+impl Drop for GuardedCliChild {
+    fn drop(&mut self) {
+        if self.stop_recorded {
+            return;
+        }
+
+        let reaped = if let Some(mut child) = self.child.take() {
+            match child.try_wait() {
+                Ok(Some(_)) => child.terminate_tree_and_wait().map(|status| {
+                    (
+                        status.code(),
+                        "official_cli_bridge_unwind_guard_observed_exit",
+                    )
+                }),
+                Ok(None) => child
+                    .terminate_tree_and_wait()
+                    .map(|status| (status.code(), "official_cli_bridge_unwind_guard_kill")),
+                Err(_) => child.terminate_tree_and_wait().map(|status| {
+                    (
+                        status.code(),
+                        "official_cli_bridge_unwind_guard_try_wait_error",
+                    )
+                }),
+            }
+        } else {
+            self.leave_open_for_reconciliation("guard dropped without child ownership");
+            return;
+        };
+        match reaped {
+            Ok((exit_code, reason)) => self.record_stop(exit_code, reason),
+            Err(error) => self.leave_open_for_reconciliation(&format!(
+                "guard could not terminate and reap process tree: {error}"
+            )),
+        }
+    }
+}
+
+fn resolve_official_cli_execution_policy(
+    requested_ref: Option<&str>,
+) -> Result<(&str, &'static str), OfficialCliBridgeError> {
+    let requested_ref = requested_ref
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| OfficialCliBridgeError::SpawnFailed {
+            reason: "official CLI invocation missing execution-policy authority".to_string(),
+            exit_code: None,
+        })?;
+    let effective_ref = crate::sandbox::resolve_execution_policy_ref(requested_ref).ok_or_else(|| {
+        OfficialCliBridgeError::SpawnFailed {
+            reason: format!(
+                "official CLI invocation rejected unknown or stale execution-policy authority {requested_ref}"
+            ),
+            exit_code: None,
+        }
+    })?;
+    if requested_ref != crate::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF
+        || effective_ref != crate::sandbox::CLI_BRIDGE_EFFECTIVE_EXECUTION_POLICY_REF
+    {
+        return Err(OfficialCliBridgeError::SpawnFailed {
+            reason: format!(
+                "official CLI invocation execution-policy mismatch: requested {requested_ref}, resolved {effective_ref}"
+            ),
+            exit_code: None,
+        });
+    }
+    Ok((requested_ref, effective_ref))
+}
+
+impl LiveCliSpawner {
+    /// Construct a production spawner with both mandatory authorities. Making
+    /// the sandbox registry a constructor argument prevents a Tauri or backend
+    /// composition path from compiling a spawner that can only fail at launch.
+    pub fn new(
+        process_ledger: Arc<LedgerBatcher>,
+        sandbox_registry: Arc<SandboxAdapterRegistry>,
+    ) -> Self {
+        Self {
+            process_ledger,
+            sandbox_registry,
+            pinned_identities: Arc::new(RwLock::new(HashMap::new())),
+            preflight_codex_home: None,
+        }
+    }
+
+    /// Product-owned default adapter availability. Per-invocation trust, tier,
+    /// capability, network, and workspace authority remain request-scoped.
+    pub fn native_cli_registry() -> Arc<SandboxAdapterRegistry> {
+        let native_id = AdapterId::new(HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID);
+        let mut registry = SandboxAdapterRegistry::new(native_id.clone());
+        registry.register(Arc::new(HandshakeNativeSandboxAdapter::new()));
+        Arc::new(registry)
+    }
+
+    /// Run a version preflight through the exact production attached-process
+    /// boundary. The caller supplies the already validated, persisted bridge
+    /// config and the backend-owned invocation posture; raw webview executable
+    /// paths never reach this launch seam.
+    ///
+    /// Reusing [`CliSubprocessSpawner::spawn`] gives the probe the same pinned
+    /// executable graph, scrubbed environment, sandbox selection, durable
+    /// ProcessOwnershipLedger START/STOP lifecycle, bounded timeout, and
+    /// process-tree termination/reap behavior as a real Official-CLI request.
+    pub fn preflight_version(
+        &self,
+        config: &CliBridgeConfig,
+        version_arg: &str,
+        timeout: Duration,
+        invocation: &CliInvocationContext,
+    ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        let version_arg = version_arg.trim();
+        if version_arg.is_empty() {
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: "Official-CLI preflight version argument must not be empty".to_string(),
+                exit_code: None,
+            });
+        }
+        let mut preflight_config = config.clone();
+        preflight_config.args_template = vec![version_arg.to_string()];
+        preflight_config.timeout_seconds = timeout.as_secs().max(1);
+        let preflight_home = std::env::temp_dir().join(format!(
+            "handshake-official-cli-preflight-{}",
+            uuid::Uuid::now_v7().simple()
+        ));
+        std::fs::create_dir(&preflight_home).map_err(|error| {
+            OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "create isolated Official-CLI preflight data root {}: {error}",
+                    preflight_home.display()
+                ),
+                exit_code: None,
+            }
+        })?;
+        let preflight_root = Arc::new(PreflightDataRoot {
+            path: preflight_home,
+            transferred_to_startup: std::sync::atomic::AtomicBool::new(false),
+        });
+        let mut preflight_spawner = self.clone();
+        preflight_spawner.preflight_codex_home = Some(preflight_root.clone());
+        let result = preflight_spawner
+            .pin_config(&preflight_config)
+            .and_then(|_| {
+                preflight_spawner.spawn(
+                    &preflight_config,
+                    invocation,
+                    "official-cli-configuration-preflight",
+                    "",
+                )
+            });
+        drop(preflight_spawner);
+        drop(preflight_root);
+        result
+    }
+
+    /// Run a fixed auxiliary command against an already configured CLI through
+    /// the same pinned executable graph, attached sandbox, Job Object/process
+    /// tree, bounded pipe readers, and durable START/STOP lifecycle as a normal
+    /// official-CLI invocation.
+    ///
+    /// This is intentionally not a PATH-discovery API. The supplied config must
+    /// be the exact launch config already accepted by the provider builder.
+    /// Stderr is always zeroized and discarded; only capped stdout plus the
+    /// exact exit-success bit cross the boundary for typed status reduction.
+    pub(crate) fn run_auxiliary_fixed_command(
+        &self,
+        config: &CliBridgeConfig,
+        args: &[&str],
+        timeout: Duration,
+        invocation: &CliInvocationContext,
+        output_limit: usize,
+    ) -> Result<AuxiliaryCliCommandOutput, OfficialCliBridgeError> {
+        let mut auxiliary_config = config.clone();
+        auxiliary_config.args_template = args.iter().map(|arg| (*arg).to_string()).collect();
+        auxiliary_config.timeout_seconds = timeout.as_secs().max(1);
+        self.pin_config(&auxiliary_config)?;
+
+        let lifecycle_reservation = self.reserve_process_lifecycle()?;
+        let rendered = OfficialCliBridgeRuntime::render_args(
+            &auxiliary_config.args_template,
+            "official-cli-auth-status",
+            "",
+        );
+        let mut child =
+            self.spawn_attached_child(&auxiliary_config, rendered, invocation)?;
+        let record_id = ProcessOwnershipRecordId::new_v7();
+        let start = cli_bridge_process_start(
+            record_id,
+            self.attributed_spawn_meta(&child, invocation, "official-cli-auth-status")?,
+        );
+        self.attach_durable_lifecycle(&mut child, lifecycle_reservation, start)?;
+
+        let mut readers = StreamingPipeReaders::new(
+            drain_streaming_pipe(child.take_stdout()?, None),
+            drain_streaming_pipe(child.take_stderr()?, None),
+        );
+        let started = Instant::now();
+        let exit_status = loop {
+            match child.child_mut()?.try_wait() {
+                Ok(Some(status)) => {
+                    break child
+                        .terminate_and_collect("official_cli_auth_status_exit")
+                        .ok_or_else(|| OfficialCliBridgeError::SpawnFailed {
+                            reason: "sandbox adapter failed to reap auth-status process tree after leader exit"
+                                .to_string(),
+                            exit_code: status.code(),
+                        })?;
+                }
+                Ok(None) if started.elapsed() < timeout => {
+                    thread::sleep(Duration::from_millis(25));
+                }
+                Ok(None) => {
+                    let terminated = child
+                        .terminate_and_collect("official_cli_auth_status_timeout_kill")
+                        .is_some();
+                    let mut output =
+                        readers.collect_until(Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT);
+                    output.stdout.zeroize();
+                    output.stderr.zeroize();
+                    return Err(OfficialCliBridgeError::SpawnFailed {
+                        reason: if terminated {
+                            "official CLI auth-status command timed out; process tree terminated and output discarded"
+                                .to_string()
+                        } else {
+                            "official CLI auth-status command timed out and process-tree termination/reap could not be proven"
+                                .to_string()
+                        },
+                        exit_code: None,
+                    });
+                }
+                Err(_) => {
+                    let terminated = child
+                        .terminate_and_collect("official_cli_auth_status_try_wait_error")
+                        .is_some();
+                    let mut output =
+                        readers.collect_until(Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT);
+                    output.stdout.zeroize();
+                    output.stderr.zeroize();
+                    return Err(OfficialCliBridgeError::SpawnFailed {
+                        reason: if terminated {
+                            "official CLI auth-status wait failed; process tree terminated and output discarded"
+                                .to_string()
+                        } else {
+                            "official CLI auth-status wait failed and process-tree termination/reap could not be proven"
+                                .to_string()
+                        },
+                        exit_code: None,
+                    });
+                }
+            }
+        };
+
+        let mut output =
+            readers.collect_until(Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT);
+        if !output.completed {
+            output.stdout.zeroize();
+            output.stderr.zeroize();
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason:
+                    "official CLI auth-status pipe cleanup exceeded its bounded deadline; output discarded"
+                        .to_string(),
+                exit_code: exit_status.code(),
+            });
+        }
+        child.record_stop(
+            exit_status.code(),
+            if exit_status.success() {
+                "official_cli_auth_status_exit"
+            } else {
+                "official_cli_auth_status_nonzero_exit"
+            },
+        );
+        output.stderr.zeroize();
+        output.stdout.truncate(output_limit);
+        Ok(AuxiliaryCliCommandOutput {
+            success: exit_status.success(),
+            stdout: output.stdout,
+        })
+    }
+
+    fn spawn_attached_child(
+        &self,
+        config: &CliBridgeConfig,
+        rendered: Vec<String>,
+        invocation: &CliInvocationContext,
+    ) -> Result<GuardedCliChild, OfficialCliBridgeError> {
+        // Resolve the complete typed policy before executable graph inspection,
+        // pin comparison, sandbox selection, ledger START, or process spawn.
+        let requested_trust_class = invocation.requested_trust_class.ok_or_else(|| {
+            OfficialCliBridgeError::SpawnFailed {
+                reason: "official CLI invocation missing requested trust class".to_string(),
+                exit_code: None,
+            }
+        })?;
+        let requested_isolation_tier = invocation.requested_isolation_tier.ok_or_else(|| {
+            OfficialCliBridgeError::SpawnFailed {
+                reason: "official CLI invocation missing requested isolation tier".to_string(),
+                exit_code: None,
+            }
+        })?;
+        let requested_capabilities = invocation
+            .requested_sandbox_capabilities
+            .as_ref()
+            .ok_or_else(|| OfficialCliBridgeError::SpawnFailed {
+                reason: "official CLI invocation missing requested sandbox capabilities"
+                    .to_string(),
+                exit_code: None,
+            })?;
+        let requested_net_policy = invocation.requested_net_policy.as_ref().ok_or_else(|| {
+            OfficialCliBridgeError::SpawnFailed {
+                reason: "official CLI invocation missing requested network policy".to_string(),
+                exit_code: None,
+            }
+        })?;
+        let resource_limits = ResourceLimits {
+            timeout_ms: Some(config.timeout_seconds.saturating_mul(1_000)),
+            ..ResourceLimits::default()
+        };
+        let requested_execution_policy_ref = invocation
+            .requested_execution_policy_ref
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| OfficialCliBridgeError::SpawnFailed {
+                reason: "official CLI invocation missing execution-policy authority".to_string(),
+                exit_code: None,
+            })?;
+        let resolved_execution_policy =
+            crate::sandbox::ResolvedExecutionPolicy::resolve_official_cli(
+                crate::sandbox::ExecutionPolicyRequest {
+                    requested_ref: requested_execution_policy_ref.to_string(),
+                    trust_class: requested_trust_class,
+                    isolation_tier: requested_isolation_tier,
+                    required_capabilities: requested_capabilities.clone(),
+                    requested_net_policy: requested_net_policy.clone(),
+                    effective_attached_network_mode: AttachedNetworkMode::OutboundInternetClient,
+                    resource_limits: resource_limits.clone(),
+                    startup_timeout_ms: CLI_ATTACHED_STARTUP_TIMEOUT_MS,
+                },
+            )
+            .map_err(|error| OfficialCliBridgeError::SpawnFailed {
+                reason: format!("official CLI execution-policy resolution failed: {error}"),
+                exit_code: None,
+            })?;
+        let execution_policy_ref = resolved_execution_policy.requested_ref.as_str();
+        let effective_execution_policy_ref = resolved_execution_policy.effective_ref.as_str();
+
+        let launch = cli_launch_plan(&config.executable_path, rendered)?;
+        let pinned = self
+            .pinned_identities
+            .read()
+            .map_err(|error| OfficialCliBridgeError::LockPoisoned(error.to_string()))?;
+        let pinned_identity = pinned
+            .get(&launch.identity.requested_entrypoint.canonical_path)
+            .ok_or_else(|| {
+                OfficialCliBridgeError::ExecutableIdentity(format!(
+                    "{} was not pinned by bridge registration",
+                    config.executable_path.display()
+                ))
+            })?;
+        if pinned_identity != &launch.identity {
+            return Err(OfficialCliBridgeError::ExecutableIdentity(format!(
+                "executable graph changed after bridge registration for {}",
+                config.executable_path.display()
+            )));
+        }
+        drop(pinned);
+        let registry = &self.sandbox_registry;
+        let requested_cwd = invocation
+            .working_dir
+            .as_ref()
+            .map(std::path::PathBuf::from);
+        if let Some(expected_root) = invocation.checkout_lease_canonical_working_dir.as_deref() {
+            let requested =
+                requested_cwd
+                    .as_ref()
+                    .ok_or_else(|| OfficialCliBridgeError::SpawnFailed {
+                        reason: "official CLI checkout lease has no working-directory bind"
+                            .to_string(),
+                        exit_code: None,
+                    })?;
+            let effective_root =
+                crate::swarm_orchestration::checkout_lease::canonical_checkout_root(
+                    requested.to_string_lossy().as_ref(),
+                )
+                .map_err(|error| OfficialCliBridgeError::SpawnFailed {
+                    reason: format!("official CLI checkout lease validation failed: {error}"),
+                    exit_code: None,
+                })?;
+            if !paths_match_checkout_identity(&effective_root, Path::new(expected_root)) {
+                return Err(OfficialCliBridgeError::SpawnFailed {
+                    reason: format!(
+                        "official CLI checkout lease root mismatch: lease={} effective={}",
+                        expected_root,
+                        effective_root.display()
+                    ),
+                    exit_code: None,
+                });
+            }
+        }
+        if requested_cwd != config.working_dir {
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "official CLI working-directory authority mismatch: request={:?}, config={:?}",
+                    requested_cwd, config.working_dir
+                ),
+                exit_code: None,
+            });
+        }
+        let mut env = attached_child_env(config);
+        if let Some(preflight_codex_home) = self.preflight_codex_home.as_ref() {
+            env.insert(
+                "CODEX_HOME".to_string(),
+                preflight_codex_home.path.display().to_string(),
+            );
+        }
+        if config.cli_kind == CliKind::CodexCli {
+            if let Some(package_manifest) = launch.identity.launcher_package_manifest.as_ref() {
+                if let Some(package_root) = package_manifest.canonical_path.parent() {
+                    env.insert(
+                        "CODEX_MANAGED_PACKAGE_ROOT".to_string(),
+                        package_root.display().to_string(),
+                    );
+                    env.insert("CODEX_MANAGED_BY_NPM".to_string(), "1".to_string());
+                }
+            }
+        }
+        let binds = attached_process_binds(&launch, config, &env, requested_cwd.as_ref())?;
+        let selection_spec = ProcessSpec {
+            id: AdapterId::new("official_cli_bridge"),
+            image_or_root: ImageRef::new(launch.executable_path.display().to_string()),
+            cmd: std::iter::once(launch.executable_path.display().to_string())
+                .chain(launch.args.iter().cloned())
+                .collect(),
+            env: env.clone(),
+            cwd: requested_cwd.clone(),
+            binds: binds.clone(),
+            net_policy: requested_net_policy.clone(),
+            resource_limits: resource_limits.clone(),
+            idle_timeout_ms: None,
+            required_capabilities: requested_capabilities.clone(),
+            trust_class: requested_trust_class,
+            metadata: BTreeMap::from([
+                (
+                    "invocation_kind".to_string(),
+                    "official_cli_bridge".to_string(),
+                ),
+                (
+                    "execution_policy_ref".to_string(),
+                    execution_policy_ref.to_string(),
+                ),
+                (
+                    "effective_execution_policy_ref".to_string(),
+                    effective_execution_policy_ref.to_string(),
+                ),
+                (
+                    "swarm_id".to_string(),
+                    invocation.swarm_id.clone().unwrap_or_default(),
+                ),
+                (
+                    "worktree_id".to_string(),
+                    invocation.worktree_id.clone().unwrap_or_default(),
+                ),
+                (
+                    "checkout_lease_id".to_string(),
+                    invocation
+                        .checkout_lease_id
+                        .map(|value| value.to_string())
+                        .unwrap_or_default(),
+                ),
+                (
+                    "checkout_lease_owner_generation".to_string(),
+                    invocation
+                        .checkout_lease_owner_generation
+                        .map(|value| value.to_string())
+                        .unwrap_or_default(),
+                ),
+            ]),
+        };
+        let adapter_id = AdapterId::new(HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID);
+        let adapter = select(registry, &selection_spec, Some(&adapter_id)).map_err(|failure| {
+            OfficialCliBridgeError::SpawnFailed {
+                reason: format!("sandbox selection rejected official CLI launch: {failure}"),
+                exit_code: None,
+            }
+        })?;
+        if requested_net_policy != &NetPolicy::HostInherited {
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "selected attached sandbox cannot satisfy requested network policy {:?}",
+                    requested_net_policy
+                ),
+                exit_code: None,
+            });
+        }
+        adapter
+            .validate_attached_network_mode(AttachedNetworkMode::OutboundInternetClient)
+            .map_err(|failure| OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "selected sandbox cannot enforce official CLI attached networking: {failure}"
+                ),
+                exit_code: None,
+            })?;
+        let capabilities = adapter.capabilities();
+        resolved_execution_policy
+            .validate_adapter_capabilities(&capabilities)
+            .map_err(|error| OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "selected sandbox does not satisfy resolved official CLI policy: {error}"
+                ),
+                exit_code: None,
+            })?;
+        let launch_identity = launch.identity.clone();
+        let identity_locks = launch.identity_locks;
+        let spec = AttachedProcessSpec {
+            executable_path: launch.executable_path,
+            args: launch.args,
+            env,
+            cwd: requested_cwd,
+            binds,
+            network_mode: AttachedNetworkMode::OutboundInternetClient,
+            trust_class: requested_trust_class,
+            required_capabilities: requested_capabilities.clone(),
+            requested_isolation_tier,
+            requested_net_policy: requested_net_policy.clone(),
+            resource_limits,
+            // AppContainer profile/token/job creation has its own bounded
+            // startup budget. Invocation timeout starts after an attached
+            // child exists and must not collapse this boundary to one second.
+            startup_timeout_ms: CLI_ATTACHED_STARTUP_TIMEOUT_MS,
+            ephemeral_cleanup_paths: self
+                .preflight_codex_home
+                .as_ref()
+                .map(|root| vec![root.path.clone()])
+                .unwrap_or_default(),
+            execution_policy_ref: effective_execution_policy_ref.to_string(),
+            resolved_execution_policy: Some(resolved_execution_policy.clone()),
+            swarm_id: invocation.swarm_id.clone(),
+            worktree_id: invocation.worktree_id.clone(),
+            checkout_lease_id: invocation.checkout_lease_id,
+            checkout_lease_owner_generation: invocation.checkout_lease_owner_generation,
+            checkout_lease_canonical_working_dir: invocation
+                .checkout_lease_canonical_working_dir
+                .clone(),
+        };
+        resolved_execution_policy
+            .validate_attached_spec(&spec)
+            .map_err(|error| OfficialCliBridgeError::SpawnFailed {
+                reason: format!(
+                    "attached process spec drifted from resolved official CLI policy: {error}"
+                ),
+                exit_code: None,
+            })?;
+        spawn_attached_blocking(
+            adapter,
+            spec,
+            AttachedStdioContract::null_stdin_piped_output(),
+            self.preflight_codex_home.clone(),
+        )
+        .map(|child| {
+            GuardedCliChild::new(
+                child,
+                capabilities,
+                launch_identity,
+                resolved_execution_policy,
+                identity_locks,
+            )
+        })
+        .map_err(|err| OfficialCliBridgeError::SpawnFailed {
+            reason: format!(
+                "sandbox adapter rejected {}: {err}",
+                config.executable_path.display()
+            ),
+            exit_code: None,
+        })
+    }
+
+    fn attributed_spawn_meta(
+        &self,
+        child: &GuardedCliChild,
+        invocation: &CliInvocationContext,
+        selected_model_name: &str,
+    ) -> Result<SpawnMeta, OfficialCliBridgeError> {
+        let capabilities = child.adapter_capabilities.clone();
+        let mut meta = cli_bridge_spawn_meta(
+            child.pid(),
+            invocation,
+            selected_model_name,
+            &child.launch_identity,
+        );
+        meta.sandbox_adapter = serde_json::to_value(&capabilities.adapter_id)
+            .ok()
+            .and_then(|value| value.as_str().map(ToOwned::to_owned));
+        meta.sandbox_capabilities_snapshot = serde_json::to_value(&capabilities)
+            .unwrap_or_else(|_| json!({"serialization_error": true}));
+        meta.metadata_blob["sandbox_adapter"] = json!(capabilities.adapter_id.as_str());
+        meta.metadata_blob["effective_trust_class"] =
+            json!(child.resolved_execution_policy.trust_class);
+        meta.metadata_blob["effective_isolation_tier"] = json!(capabilities.isolation_tier);
+        meta.metadata_blob["effective_sandbox_capabilities"] = json!(capabilities);
+        meta.metadata_blob["effective_net_policy"] = json!("outbound_internet_client");
+        meta.metadata_blob["execution_policy_resolution"] = json!({
+            "schema_id": child.resolved_execution_policy.schema_id,
+            "schema_version": child.resolved_execution_policy.schema_version,
+            "policy_revision": child.resolved_execution_policy.policy_revision,
+            "requested_ref": child.resolved_execution_policy.requested_ref,
+            "effective_ref": child.resolved_execution_policy.effective_ref,
+            "resolution_status": "resolved",
+            "sandbox_boundary_adapter": capabilities.adapter_id.as_str(),
+            "effective_isolation_tier": capabilities.isolation_tier,
+            "effective_net_policy": child.resolved_execution_policy.effective_attached_network_mode,
+            "required_capabilities": child.resolved_execution_policy.required_capabilities,
+            "resource_limits": child.resolved_execution_policy.resource_limits,
+            "startup_timeout_ms": child.resolved_execution_policy.startup_timeout_ms
+        });
+        meta.metadata_blob["effective_swarm_id"] = json!(invocation.swarm_id);
+        meta.metadata_blob["effective_worktree_id"] = json!(invocation.worktree_id);
+        meta.metadata_blob["effective_working_dir"] = json!(invocation.working_dir);
+        meta.metadata_blob["effective_checkout_lease_id"] = json!(invocation.checkout_lease_id);
+        meta.metadata_blob["effective_checkout_lease_owner_generation"] =
+            json!(invocation.checkout_lease_owner_generation);
+        meta.metadata_blob["effective_checkout_lease_canonical_working_dir"] =
+            json!(invocation.checkout_lease_canonical_working_dir);
+        meta.metadata_blob["os_creation_time_100ns"] = json!(
+            crate::sandbox::handshake_native::process_creation_time_100ns(child.pid()).map_err(
+                |error| OfficialCliBridgeError::SpawnFailed {
+                    reason: format!(
+                        "official CLI process-generation attestation failed for pid {}: {error}",
+                        child.pid()
+                    ),
+                    exit_code: None,
+                }
+            )?
+        );
+        Ok(meta)
+    }
+
+    fn reserve_process_lifecycle(
+        &self,
+    ) -> Result<crate::process_ledger::ReservedProcessLifecycle, OfficialCliBridgeError> {
+        self.process_ledger
+            .try_reserve_lifecycles(1)
+            .and_then(|mut reservations| {
+                reservations.pop().ok_or_else(|| {
+                    crate::process_ledger::ProcessLedgerError::InvalidConfig(
+                        "single CLI lifecycle reservation was empty".to_string(),
+                    )
+                })
+            })
+            .map_err(|err| OfficialCliBridgeError::LedgerPreflight {
+                reason: err.to_string(),
+            })
+    }
+
+    fn attach_durable_lifecycle(
+        &self,
+        child: &mut GuardedCliChild,
+        reservation: crate::process_ledger::ReservedProcessLifecycle,
+        start: ProcessStart,
+    ) -> Result<(), OfficialCliBridgeError> {
+        let pid = child.pid();
+        let (lifecycle, acknowledgement) =
+            reservation.begin_with_durable_ack(start).map_err(|error| {
+                OfficialCliBridgeError::LedgerRegistration {
+                    pid,
+                    reason: error.to_string(),
+                }
+            })?;
+        child.attach_lifecycle(lifecycle);
+        if let Err(error) = wait_start_durability_blocking(acknowledgement) {
+            let cleanup = child
+                .terminate_and_collect("official_cli_bridge_start_not_durable")
+                .map(|_| "child terminated and reaped".to_string())
+                .unwrap_or_else(|| "child termination/reap could not be proven".to_string());
+            return Err(OfficialCliBridgeError::LedgerRegistration {
+                pid,
+                reason: format!("{error}; {cleanup}"),
+            });
+        }
+        Ok(())
     }
 }
 
 impl CliSubprocessSpawner for LiveCliSpawner {
+    fn pin_config(&self, config: &CliBridgeConfig) -> Result<(), OfficialCliBridgeError> {
+        validate_config_environment(&config.env_vars)?;
+        let identity = cli_launch_plan(&config.executable_path, Vec::new())?.identity;
+        let key = identity.requested_entrypoint.canonical_path.clone();
+        let mut pinned = self
+            .pinned_identities
+            .write()
+            .map_err(|error| OfficialCliBridgeError::LockPoisoned(error.to_string()))?;
+        if let Some(existing) = pinned.get(&key) {
+            if existing != &identity {
+                return Err(OfficialCliBridgeError::ExecutableIdentity(format!(
+                    "registered executable graph changed for {}",
+                    key.display()
+                )));
+            }
+        } else {
+            pinned.insert(key, identity);
+        }
+        Ok(())
+    }
+
     fn spawn(
         &self,
         config: &CliBridgeConfig,
+        invocation: &CliInvocationContext,
         model_name: &str,
         prompt: &str,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+        let lifecycle_reservation = self.reserve_process_lifecycle()?;
         let rendered =
             OfficialCliBridgeRuntime::render_args(&config.args_template, model_name, prompt);
 
-        let mut cmd = Command::new(&config.executable_path);
-        cmd.args(&rendered);
-        // MT-127 remediation (HIGH): we cannot env_clear() — Node-based
-        // CLIs (claude, codex, gemini) load runtime DLLs via PATH +
-        // USERPROFILE + APPDATA on Windows; stripping the inherited
-        // environment causes STATUS_ACCESS_VIOLATION (0xC0000005) at
-        // process startup. But a blind parent-env inherit leaks the
-        // operator's shell-exported BYOK credentials (OPENAI_API_KEY,
-        // ANTHROPIC_API_KEY, ...) into every spawned subprocess. The CLI
-        // bridge authenticates via the operator's subscription login, not
-        // via vendor API-key env vars (BYOK is operationally dormant per
-        // the MT operator clarification), so we scrub secret-bearing var
-        // names from the inherited env while preserving the runtime vars
-        // the CLI needs. config.env_vars is applied AFTER the scrub, so an
-        // explicit operator-provided value is an intentional opt-in.
-        for (key, _value) in std::env::vars_os() {
-            if let Some(name) = key.to_str() {
-                if is_secret_bearing_env_name(name) {
-                    cmd.env_remove(&key);
-                }
-            }
-        }
-        for (key, value) in &config.env_vars {
-            cmd.env(key, value);
-        }
-        if let Some(dir) = &config.working_dir {
-            cmd.current_dir(dir);
-        }
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
-        cmd.stdin(Stdio::null());
-        // HBR-QUIET: the Node-based cloud CLI (claude / codex / gemini) is
-        // backgrounded by Handshake and must not pop a console window on
-        // Windows. std::process::Command exposes creation_flags via CommandExt.
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
-
-        let mut child = cmd
-            .spawn()
-            .map_err(|err| OfficialCliBridgeError::SpawnFailed {
-                reason: format!(
-                    "failed to spawn {}: {err}",
-                    config.executable_path.display()
-                ),
-                exit_code: None,
-            })?;
-        let pid = child.id();
+        let mut child = self.spawn_attached_child(config, rendered, invocation)?;
+        let pid = child.pid();
 
         // MT-127 remediation (MT-122-class): ledger registration is
         // UNCONDITIONAL. The moment the child pid is known the spawn is
@@ -668,45 +2734,48 @@ impl CliSubprocessSpawner for LiveCliSpawner {
         let record_id = ProcessOwnershipRecordId::new_v7();
         let start = cli_bridge_process_start(
             record_id,
-            cli_bridge_spawn_meta(pid, &self.owner_role, model_name, &config.executable_path),
+            self.attributed_spawn_meta(&child, invocation, model_name)?,
         );
-        if let Err(err) = self.process_ledger.record_start(start.clone()) {
-            kill_process_tree(pid, &mut child);
-            return Err(OfficialCliBridgeError::LedgerRegistration {
-                pid,
-                reason: err.to_string(),
-            });
-        }
+        self.attach_durable_lifecycle(&mut child, lifecycle_reservation, start)?;
 
-        // Record the matching STOP row for the now-finished subprocess. Best
-        // effort: the process has already exited (or been killed) by the time
-        // this runs, so a STOP write failure must not resurrect the child; it
-        // is surfaced only as a debug log so the primary spawn outcome is
-        // preserved.
-        let record_stop = |exit_code: Option<i32>, stop_reason: &str| {
-            let stop = ProcessStop::from_start(&start, exit_code).with_stop_reason(stop_reason);
-            if let Err(err) = self.process_ledger.record_stop(stop) {
-                eprintln!(
-                    "official_cli_bridge: ledger STOP registration failed for pid {pid}: {err}"
-                );
-            }
-        };
-
+        let mut readers = StreamingPipeReaders::new(
+            drain_streaming_pipe(child.take_stdout()?, None),
+            drain_streaming_pipe(child.take_stderr()?, None),
+        );
         let timeout = Duration::from_secs(config.timeout_seconds);
         let started = Instant::now();
         let exit_status = loop {
-            match child.try_wait() {
-                Ok(Some(status)) => break status,
+            match child.child_mut()?.try_wait() {
+                Ok(Some(status)) => {
+                    break child
+                        .terminate_and_collect(if status.success() {
+                            "official_cli_bridge_exit"
+                        } else {
+                            "official_cli_bridge_nonzero_exit"
+                        })
+                        .ok_or_else(|| OfficialCliBridgeError::SpawnFailed {
+                            reason:
+                                "sandbox adapter failed to reap CLI process tree after leader exit"
+                                    .to_string(),
+                            exit_code: status.code(),
+                        })?;
+                }
                 Ok(None) => {
                     if started.elapsed() >= timeout {
-                        kill_process_tree(pid, &mut child);
                         // The child was killed on timeout; record the STOP row
                         // so the killed process is reconciled in the ledger.
-                        record_stop(None, "official_cli_bridge_timeout_kill");
-                        let partial_stdout =
-                            wait_with_output_bounded(child, POST_TIMEOUT_OUTPUT_GRACE)
-                                .map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
-                                .unwrap_or_default();
+                        let terminated = child
+                            .terminate_and_collect("official_cli_bridge_timeout_kill")
+                            .is_some();
+                        if !terminated {
+                            return Err(OfficialCliBridgeError::SpawnFailed {
+                                reason: "CLI timeout occurred and sandbox adapter could not prove process-tree termination/reap".to_string(),
+                                exit_code: None,
+                            });
+                        }
+                        let output =
+                            readers.collect_until(Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT);
+                        let partial_stdout = String::from_utf8_lossy(&output.stdout).into_owned();
                         return Err(OfficialCliBridgeError::SpawnTimeout {
                             timeout_seconds: config.timeout_seconds,
                             partial_stdout,
@@ -717,8 +2786,17 @@ impl CliSubprocessSpawner for LiveCliSpawner {
                 Err(err) => {
                     // try_wait failed: the child's fate is unknown, kill it so
                     // it is not orphaned, then record the STOP row.
-                    kill_process_tree(pid, &mut child);
-                    record_stop(None, "official_cli_bridge_try_wait_error");
+                    if child
+                        .terminate_and_collect("official_cli_bridge_try_wait_error")
+                        .is_none()
+                    {
+                        return Err(OfficialCliBridgeError::SpawnFailed {
+                            reason: format!(
+                                "try_wait failed: {err}; sandbox adapter could not prove process-tree termination/reap"
+                            ),
+                            exit_code: None,
+                        });
+                    }
                     return Err(OfficialCliBridgeError::SpawnFailed {
                         reason: format!("try_wait failed: {err}"),
                         exit_code: None,
@@ -727,38 +2805,38 @@ impl CliSubprocessSpawner for LiveCliSpawner {
             }
         };
 
-        let output = match child.wait_with_output() {
-            Ok(output) => output,
-            Err(err) => {
-                record_stop(exit_status.code(), "official_cli_bridge_wait_output_error");
-                return Err(OfficialCliBridgeError::SpawnFailed {
-                    reason: format!("wait_with_output failed: {err}"),
-                    exit_code: exit_status.code(),
-                });
-            }
-        };
-
+        let output = readers.collect_until(Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT);
+        if !output.completed {
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: "CLI exited but pipe-reader cleanup exceeded its bounded deadline"
+                    .to_string(),
+                exit_code: exit_status.code(),
+            });
+        }
         let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-        let exit_code = output.status.code();
+        let mut stderr = output.stderr;
+        let exit_code = exit_status.code();
+        child.record_stop(
+            exit_code,
+            if exit_status.success() {
+                "official_cli_bridge_exit"
+            } else {
+                "official_cli_bridge_nonzero_exit"
+            },
+        );
 
-        // The child has exited; record the matching STOP row with its real
-        // exit code on both the failure and success paths so the
-        // ProcessOwnershipLedger reflects the full lifecycle unconditionally.
-        if !output.status.success() {
-            record_stop(exit_code, "official_cli_bridge_nonzero_exit");
+        if !exit_status.success() {
+            stderr.zeroize();
             return Err(OfficialCliBridgeError::SpawnFailed {
                 reason: format!(
-                    "CLI {} exited with status {:?}; stderr={}",
+                    "CLI {} exited with status {:?}; provider stderr was discarded",
                     config.executable_path.display(),
-                    exit_code,
-                    stderr.trim()
+                    exit_code
                 ),
                 exit_code,
             });
         }
-
-        record_stop(exit_code, "official_cli_bridge_exit");
+        stderr.zeroize();
 
         Ok(CliInvocationReceipt {
             model_id: ModelId::new_v7(),
@@ -772,9 +2850,9 @@ impl CliSubprocessSpawner for LiveCliSpawner {
     /// Live-streaming spawn: identical lifecycle to [`LiveCliSpawner::spawn`]
     /// (env scrub, CREATE_NO_WINDOW, ledger START/STOP, timeout + kill), but the
     /// child's stdout pipe is read INCREMENTALLY on a dedicated reader thread and
-    /// each chunk is delivered to `on_chunk` LIVE while the subprocess is still
+    /// each chunk is delivered through the bounded sender while the subprocess is still
     /// running. This is the real cloud-CLI capture producer for §10.1: the
-    /// callback wiring (see `invoke_with_capture`) fans these live chunks into a
+    /// bounded sender wiring (see `invoke_with_capture`) fans these live chunks into a
     /// read-only AiJob capture session + the Flight Recorder, instead of dumping
     /// the post-completion stdout string. The full stdout is also accumulated so
     /// the returned [`CliInvocationReceipt`] is byte-for-byte identical to the
@@ -782,141 +2860,96 @@ impl CliSubprocessSpawner for LiveCliSpawner {
     fn spawn_streaming(
         &self,
         config: &CliBridgeConfig,
+        invocation: &CliInvocationContext,
         model_name: &str,
         prompt: &str,
-        on_chunk: &mut dyn FnMut(&[u8]),
+        chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
-        use std::io::Read;
-
+        let lifecycle_reservation = self.reserve_process_lifecycle()?;
         let rendered =
             OfficialCliBridgeRuntime::render_args(&config.args_template, model_name, prompt);
 
-        let mut cmd = Command::new(&config.executable_path);
-        cmd.args(&rendered);
-        // Mirror the env scrub of `spawn` (secret-bearing inherited vars removed).
-        for (key, _value) in std::env::vars_os() {
-            if let Some(name) = key.to_str() {
-                if is_secret_bearing_env_name(name) {
-                    cmd.env_remove(&key);
-                }
-            }
-        }
-        for (key, value) in &config.env_vars {
-            cmd.env(key, value);
-        }
-        if let Some(dir) = &config.working_dir {
-            cmd.current_dir(dir);
-        }
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
-        cmd.stdin(Stdio::null());
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
-
-        let mut child = cmd
-            .spawn()
-            .map_err(|err| OfficialCliBridgeError::SpawnFailed {
-                reason: format!(
-                    "failed to spawn {}: {err}",
-                    config.executable_path.display()
-                ),
-                exit_code: None,
-            })?;
-        let pid = child.id();
+        let mut child = self.spawn_attached_child(config, rendered, invocation)?;
+        let pid = child.pid();
 
         // Unconditional ledger START (fail-closed), identical to `spawn`.
         let record_id = ProcessOwnershipRecordId::new_v7();
         let start = cli_bridge_process_start(
             record_id,
-            cli_bridge_spawn_meta(pid, &self.owner_role, model_name, &config.executable_path),
+            self.attributed_spawn_meta(&child, invocation, model_name)?,
         );
-        if let Err(err) = self.process_ledger.record_start(start.clone()) {
-            kill_process_tree(pid, &mut child);
-            return Err(OfficialCliBridgeError::LedgerRegistration {
-                pid,
-                reason: err.to_string(),
-            });
-        }
-        let record_stop = |exit_code: Option<i32>, stop_reason: &str| {
-            let stop = ProcessStop::from_start(&start, exit_code).with_stop_reason(stop_reason);
-            if let Err(err) = self.process_ledger.record_stop(stop) {
-                eprintln!(
-                    "official_cli_bridge: ledger STOP registration failed for pid {pid}: {err}"
-                );
-            }
-        };
+        self.attach_durable_lifecycle(&mut child, lifecycle_reservation, start)?;
 
         // Take the stdout pipe and pump it on a dedicated thread, forwarding each
-        // chunk over a channel so the (non-Send) `on_chunk` callback — owned by
-        // this thread — receives live chunks while we poll try_wait for the
+        // chunk through bounded channels while this thread polls try_wait for the
         // timeout. stderr is drained on its own thread so a full stderr pipe can
         // never deadlock the child.
-        let child_stdout = child.stdout.take();
-        let child_stderr = child.stderr.take();
-        let (chunk_tx, chunk_rx) = mpsc::channel::<Vec<u8>>();
-        let stdout_reader = child_stdout.map(|mut out| {
-            let tx = chunk_tx.clone();
-            thread::spawn(move || {
-                let mut buf = [0u8; 8192];
-                let mut acc = Vec::new();
-                loop {
-                    match out.read(&mut buf) {
-                        Ok(0) => break,
-                        Ok(n) => {
-                            acc.extend_from_slice(&buf[..n]);
-                            // Forward live; if the consumer hung up, keep draining
-                            // so the pipe never blocks the child.
-                            let _ = tx.send(buf[..n].to_vec());
-                        }
-                        Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                        Err(_) => break,
-                    }
-                }
-                acc
-            })
-        });
-        let stderr_reader = child_stderr.map(|mut err| {
-            thread::spawn(move || {
-                let mut buf = [0u8; 8192];
-                let mut acc = Vec::new();
-                loop {
-                    match err.read(&mut buf) {
-                        Ok(0) => break,
-                        Ok(n) => acc.extend_from_slice(&buf[..n]),
-                        Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                        Err(_) => break,
-                    }
-                }
-                acc
-            })
-        });
+        let child_stdout = child.take_stdout()?;
+        let child_stderr = child.take_stderr()?;
+        let (chunk_tx, chunk_rx) = mpsc::sync_channel::<Vec<u8>>(MAX_PENDING_STREAM_CHUNKS);
+        let mut readers = StreamingPipeReaders::new(
+            drain_streaming_pipe(child_stdout, Some(chunk_tx.clone())),
+            drain_streaming_pipe(child_stderr, None),
+        );
         drop(chunk_tx); // only the reader thread holds a sender now.
 
         let timeout = Duration::from_secs(config.timeout_seconds);
         let started = Instant::now();
         let exit_status = loop {
-            // Drain any live chunks to the callback before checking exit.
-            while let Ok(chunk) = chunk_rx.try_recv() {
-                on_chunk(&chunk);
+            // Forward live chunks without executing caller code before checking exit.
+            for _ in 0..MAX_STREAM_CHUNKS_PER_POLL_CYCLE {
+                if started.elapsed() >= timeout {
+                    break;
+                }
+                let chunk = match chunk_rx.try_recv() {
+                    Ok(chunk) => chunk,
+                    Err(mpsc::TryRecvError::Empty | mpsc::TryRecvError::Disconnected) => break,
+                };
+                if let Err(error) = deliver_cli_chunk(chunk_sender, &chunk) {
+                    return Err(cleanup_chunk_delivery_failure(
+                        &mut child, chunk_rx, readers, error,
+                    ));
+                }
             }
-            match child.try_wait() {
-                Ok(Some(status)) => break status,
+            match child.child_mut()?.try_wait() {
+                Ok(Some(status)) => {
+                    break child
+                        .terminate_and_collect(if status.success() {
+                            "official_cli_bridge_exit"
+                        } else {
+                            "official_cli_bridge_nonzero_exit"
+                        })
+                        .ok_or_else(|| OfficialCliBridgeError::SpawnFailed {
+                            reason:
+                                "sandbox adapter failed to reap CLI process tree after leader exit"
+                                    .to_string(),
+                            exit_code: status.code(),
+                        })?;
+                }
                 Ok(None) => {
                     if started.elapsed() >= timeout {
-                        kill_process_tree(pid, &mut child);
-                        record_stop(None, "official_cli_bridge_timeout_kill");
-                        // Flush any remaining live chunks captured before the kill.
-                        while let Ok(chunk) = chunk_rx.recv_timeout(POST_TIMEOUT_OUTPUT_GRACE) {
-                            on_chunk(&chunk);
+                        if child
+                            .terminate_and_collect("official_cli_bridge_timeout_kill")
+                            .is_none()
+                        {
+                            return Err(OfficialCliBridgeError::SpawnFailed {
+                                reason: "sandbox adapter failed to reap timed-out CLI process tree"
+                                    .to_string(),
+                                exit_code: None,
+                            });
                         }
-                        let partial_stdout = stdout_reader
-                            .and_then(|h| h.join().ok())
-                            .map(|b| String::from_utf8_lossy(&b).into_owned())
-                            .unwrap_or_default();
+                        // Flush any remaining live chunks captured before the kill.
+                        let cleanup_deadline = Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT;
+                        if let Err(error) =
+                            drain_chunks_until(&chunk_rx, chunk_sender, cleanup_deadline)
+                        {
+                            return Err(cleanup_chunk_delivery_failure(
+                                &mut child, chunk_rx, readers, error,
+                            ));
+                        }
+                        drop(chunk_rx);
+                        let output = readers.collect_until(cleanup_deadline);
+                        let partial_stdout = String::from_utf8_lossy(&output.stdout).into_owned();
                         return Err(OfficialCliBridgeError::SpawnTimeout {
                             timeout_seconds: config.timeout_seconds,
                             partial_stdout,
@@ -925,8 +2958,17 @@ impl CliSubprocessSpawner for LiveCliSpawner {
                     std::thread::sleep(Duration::from_millis(15));
                 }
                 Err(err) => {
-                    kill_process_tree(pid, &mut child);
-                    record_stop(None, "official_cli_bridge_try_wait_error");
+                    if child
+                        .terminate_and_collect("official_cli_bridge_try_wait_error")
+                        .is_none()
+                    {
+                        return Err(OfficialCliBridgeError::SpawnFailed {
+                            reason: format!(
+                                "try_wait failed: {err}; sandbox adapter could not prove process-tree termination/reap"
+                            ),
+                            exit_code: None,
+                        });
+                    }
                     return Err(OfficialCliBridgeError::SpawnFailed {
                         reason: format!("try_wait failed: {err}"),
                         exit_code: None,
@@ -937,33 +2979,43 @@ impl CliSubprocessSpawner for LiveCliSpawner {
 
         // Child exited: drain any straggler chunks, then join the reader threads
         // to recover the full stdout/stderr.
-        while let Ok(chunk) = chunk_rx.recv() {
-            on_chunk(&chunk);
+        let cleanup_deadline = Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT;
+        let chunks_drained = match drain_chunks_until(&chunk_rx, chunk_sender, cleanup_deadline) {
+            Ok(completed) => completed,
+            Err(error) => {
+                return Err(cleanup_chunk_delivery_failure(
+                    &mut child, chunk_rx, readers, error,
+                ));
+            }
+        };
+        drop(chunk_rx);
+        let output = readers.collect_until(cleanup_deadline);
+        if !chunks_drained || !output.completed {
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: "CLI exited but pipe-reader cleanup exceeded its bounded deadline"
+                    .to_string(),
+                exit_code: exit_status.code(),
+            });
         }
-        let stdout_bytes = stdout_reader
-            .and_then(|h| h.join().ok())
-            .unwrap_or_default();
-        let stderr_bytes = stderr_reader
-            .and_then(|h| h.join().ok())
-            .unwrap_or_default();
-        let stdout = String::from_utf8_lossy(&stdout_bytes).into_owned();
-        let stderr = String::from_utf8_lossy(&stderr_bytes).into_owned();
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        let mut stderr = output.stderr;
         let exit_code = exit_status.code();
 
         if !exit_status.success() {
-            record_stop(exit_code, "official_cli_bridge_nonzero_exit");
+            child.record_stop(exit_code, "official_cli_bridge_nonzero_exit");
+            stderr.zeroize();
             return Err(OfficialCliBridgeError::SpawnFailed {
                 reason: format!(
-                    "CLI {} exited with status {:?}; stderr={}",
+                    "CLI {} exited with status {:?}; provider stderr was discarded",
                     config.executable_path.display(),
-                    exit_code,
-                    stderr.trim()
+                    exit_code
                 ),
                 exit_code,
             });
         }
 
-        record_stop(exit_code, "official_cli_bridge_exit");
+        stderr.zeroize();
+        child.record_stop(exit_code, "official_cli_bridge_exit");
         Ok(CliInvocationReceipt {
             model_id: ModelId::new_v7(),
             stdout,
@@ -975,9 +3027,9 @@ impl CliSubprocessSpawner for LiveCliSpawner {
 
     /// Cancellable live-streaming spawn: identical lifecycle to
     /// [`LiveCliSpawner::spawn_streaming`] (env scrub, CREATE_NO_WINDOW, ledger
-    /// START/STOP, live `on_chunk` fan-out, timeout + kill) plus ONE additional
-    /// check per poll iteration: when `should_cancel()` returns true the child
-    /// process tree is killed (`kill_process_tree`), a STOP row with reason
+    /// START/STOP, bounded live chunk fan-out, timeout + kill) plus ONE additional
+    /// check per poll iteration: when the cancellation set is marked the child
+    /// process tree is killed through the attached sandbox adapter, a STOP row with reason
     /// `official_cli_bridge_cancel_kill` is recorded, any straggler chunks are
     /// flushed, and a receipt with `cancelled = true` is returned. This is the
     /// real deterministic-cancellation backstop the swarm adapter relies on to
@@ -985,152 +3037,127 @@ impl CliSubprocessSpawner for LiveCliSpawner {
     fn spawn_streaming_cancellable(
         &self,
         config: &CliBridgeConfig,
+        invocation: &CliInvocationContext,
         model_name: &str,
         prompt: &str,
-        on_chunk: &mut dyn FnMut(&[u8]),
-        should_cancel: &dyn Fn() -> bool,
+        chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
+        cancellation: &CliCancellationContext,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
-        use std::io::Read;
-
+        let lifecycle_reservation = self.reserve_process_lifecycle()?;
         let rendered =
             OfficialCliBridgeRuntime::render_args(&config.args_template, model_name, prompt);
 
-        let mut cmd = Command::new(&config.executable_path);
-        cmd.args(&rendered);
-        for (key, _value) in std::env::vars_os() {
-            if let Some(name) = key.to_str() {
-                if is_secret_bearing_env_name(name) {
-                    cmd.env_remove(&key);
-                }
-            }
-        }
-        for (key, value) in &config.env_vars {
-            cmd.env(key, value);
-        }
-        if let Some(dir) = &config.working_dir {
-            cmd.current_dir(dir);
-        }
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
-        cmd.stdin(Stdio::null());
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
-
-        let mut child = cmd
-            .spawn()
-            .map_err(|err| OfficialCliBridgeError::SpawnFailed {
-                reason: format!(
-                    "failed to spawn {}: {err}",
-                    config.executable_path.display()
-                ),
-                exit_code: None,
-            })?;
-        let pid = child.id();
+        let mut child = self.spawn_attached_child(config, rendered, invocation)?;
+        let pid = child.pid();
 
         let record_id = ProcessOwnershipRecordId::new_v7();
         let start = cli_bridge_process_start(
             record_id,
-            cli_bridge_spawn_meta(pid, &self.owner_role, model_name, &config.executable_path),
+            self.attributed_spawn_meta(&child, invocation, model_name)?,
         );
-        if let Err(err) = self.process_ledger.record_start(start.clone()) {
-            kill_process_tree(pid, &mut child);
-            return Err(OfficialCliBridgeError::LedgerRegistration {
-                pid,
-                reason: err.to_string(),
-            });
-        }
-        let record_stop = |exit_code: Option<i32>, stop_reason: &str| {
-            let stop = ProcessStop::from_start(&start, exit_code).with_stop_reason(stop_reason);
-            if let Err(err) = self.process_ledger.record_stop(stop) {
-                eprintln!(
-                    "official_cli_bridge: ledger STOP registration failed for pid {pid}: {err}"
-                );
-            }
-        };
+        self.attach_durable_lifecycle(&mut child, lifecycle_reservation, start)?;
 
-        let child_stdout = child.stdout.take();
-        let child_stderr = child.stderr.take();
-        let (chunk_tx, chunk_rx) = mpsc::channel::<Vec<u8>>();
-        let stdout_reader = child_stdout.map(|mut out| {
-            let tx = chunk_tx.clone();
-            thread::spawn(move || {
-                let mut buf = [0u8; 8192];
-                let mut acc = Vec::new();
-                loop {
-                    match out.read(&mut buf) {
-                        Ok(0) => break,
-                        Ok(n) => {
-                            acc.extend_from_slice(&buf[..n]);
-                            let _ = tx.send(buf[..n].to_vec());
-                        }
-                        Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                        Err(_) => break,
-                    }
-                }
-                acc
-            })
-        });
-        let stderr_reader = child_stderr.map(|mut err| {
-            thread::spawn(move || {
-                let mut buf = [0u8; 8192];
-                let mut acc = Vec::new();
-                loop {
-                    match err.read(&mut buf) {
-                        Ok(0) => break,
-                        Ok(n) => acc.extend_from_slice(&buf[..n]),
-                        Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                        Err(_) => break,
-                    }
-                }
-                acc
-            })
-        });
+        let child_stdout = child.take_stdout()?;
+        let child_stderr = child.take_stderr()?;
+        let (chunk_tx, chunk_rx) = mpsc::sync_channel::<Vec<u8>>(MAX_PENDING_STREAM_CHUNKS);
+        let mut readers = StreamingPipeReaders::new(
+            drain_streaming_pipe(child_stdout, Some(chunk_tx.clone())),
+            drain_streaming_pipe(child_stderr, None),
+        );
         drop(chunk_tx);
 
         let timeout = Duration::from_secs(config.timeout_seconds);
         let started = Instant::now();
         let exit_status = loop {
-            // Drain any live chunks to the callback before checking exit/cancel.
-            while let Ok(chunk) = chunk_rx.try_recv() {
-                on_chunk(&chunk);
+            // Forward live chunks without executing caller code before checking exit/cancel.
+            for _ in 0..MAX_STREAM_CHUNKS_PER_POLL_CYCLE {
+                if cancellation.is_cancelled() || started.elapsed() >= timeout {
+                    break;
+                }
+                let chunk = match chunk_rx.try_recv() {
+                    Ok(chunk) => chunk,
+                    Err(mpsc::TryRecvError::Empty | mpsc::TryRecvError::Disconnected) => break,
+                };
+                if let Err(error) = deliver_cli_chunk(chunk_sender, &chunk) {
+                    return Err(cleanup_chunk_delivery_failure(
+                        &mut child, chunk_rx, readers, error,
+                    ));
+                }
             }
             // Deterministic cancellation: kill the child and return a cancelled
             // receipt rather than running the CLI to completion.
-            if should_cancel() {
-                kill_process_tree(pid, &mut child);
-                record_stop(None, "official_cli_bridge_cancel_kill");
-                while let Ok(chunk) = chunk_rx.recv_timeout(POST_TIMEOUT_OUTPUT_GRACE) {
-                    on_chunk(&chunk);
+            if cancellation.is_cancelled() {
+                if child
+                    .terminate_and_collect("official_cli_bridge_cancel_kill")
+                    .is_none()
+                {
+                    return Err(OfficialCliBridgeError::SpawnFailed {
+                        reason: "sandbox adapter failed to reap cancelled CLI process tree"
+                            .to_string(),
+                        exit_code: None,
+                    });
                 }
-                let stdout_bytes = stdout_reader
-                    .and_then(|h| h.join().ok())
-                    .unwrap_or_default();
-                let _ = stderr_reader.and_then(|h| h.join().ok());
+                let cleanup_deadline = Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT;
+                if let Err(error) = drain_chunks_until(&chunk_rx, chunk_sender, cleanup_deadline) {
+                    return Err(cleanup_chunk_delivery_failure(
+                        &mut child, chunk_rx, readers, error,
+                    ));
+                }
+                drop(chunk_rx);
+                let output = readers.collect_until(cleanup_deadline);
+                if !output.completed {
+                    return Err(OfficialCliBridgeError::SpawnFailed {
+                        reason: "cancelled CLI pipe-reader cleanup exceeded its bounded deadline"
+                            .to_string(),
+                        exit_code: None,
+                    });
+                }
                 return Ok(CliInvocationReceipt {
                     model_id: ModelId::new_v7(),
-                    stdout: String::from_utf8_lossy(&stdout_bytes).into_owned(),
+                    stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
                     pid: Some(pid),
                     exit_code: None,
                     cancelled: true,
                 });
             }
-            match child.try_wait() {
-                Ok(Some(status)) => break status,
+            match child.child_mut()?.try_wait() {
+                Ok(Some(status)) => {
+                    break child
+                        .terminate_and_collect(if status.success() {
+                            "official_cli_bridge_exit"
+                        } else {
+                            "official_cli_bridge_nonzero_exit"
+                        })
+                        .ok_or_else(|| OfficialCliBridgeError::SpawnFailed {
+                            reason:
+                                "sandbox adapter failed to reap CLI process tree after leader exit"
+                                    .to_string(),
+                            exit_code: status.code(),
+                        })?;
+                }
                 Ok(None) => {
                     if started.elapsed() >= timeout {
-                        kill_process_tree(pid, &mut child);
-                        record_stop(None, "official_cli_bridge_timeout_kill");
-                        while let Ok(chunk) = chunk_rx.recv_timeout(POST_TIMEOUT_OUTPUT_GRACE) {
-                            on_chunk(&chunk);
+                        if child
+                            .terminate_and_collect("official_cli_bridge_timeout_kill")
+                            .is_none()
+                        {
+                            return Err(OfficialCliBridgeError::SpawnFailed {
+                                reason: "sandbox adapter failed to reap timed-out CLI process tree"
+                                    .to_string(),
+                                exit_code: None,
+                            });
                         }
-                        let partial_stdout = stdout_reader
-                            .and_then(|h| h.join().ok())
-                            .map(|b| String::from_utf8_lossy(&b).into_owned())
-                            .unwrap_or_default();
+                        let cleanup_deadline = Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT;
+                        if let Err(error) =
+                            drain_chunks_until(&chunk_rx, chunk_sender, cleanup_deadline)
+                        {
+                            return Err(cleanup_chunk_delivery_failure(
+                                &mut child, chunk_rx, readers, error,
+                            ));
+                        }
+                        drop(chunk_rx);
+                        let output = readers.collect_until(cleanup_deadline);
+                        let partial_stdout = String::from_utf8_lossy(&output.stdout).into_owned();
                         return Err(OfficialCliBridgeError::SpawnTimeout {
                             timeout_seconds: config.timeout_seconds,
                             partial_stdout,
@@ -1139,8 +3166,17 @@ impl CliSubprocessSpawner for LiveCliSpawner {
                     std::thread::sleep(Duration::from_millis(15));
                 }
                 Err(err) => {
-                    kill_process_tree(pid, &mut child);
-                    record_stop(None, "official_cli_bridge_try_wait_error");
+                    if child
+                        .terminate_and_collect("official_cli_bridge_try_wait_error")
+                        .is_none()
+                    {
+                        return Err(OfficialCliBridgeError::SpawnFailed {
+                            reason: format!(
+                                "try_wait failed: {err}; sandbox adapter could not prove process-tree termination/reap"
+                            ),
+                            exit_code: None,
+                        });
+                    }
                     return Err(OfficialCliBridgeError::SpawnFailed {
                         reason: format!("try_wait failed: {err}"),
                         exit_code: None,
@@ -1149,33 +3185,43 @@ impl CliSubprocessSpawner for LiveCliSpawner {
             }
         };
 
-        while let Ok(chunk) = chunk_rx.recv() {
-            on_chunk(&chunk);
+        let cleanup_deadline = Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT;
+        let chunks_drained = match drain_chunks_until(&chunk_rx, chunk_sender, cleanup_deadline) {
+            Ok(completed) => completed,
+            Err(error) => {
+                return Err(cleanup_chunk_delivery_failure(
+                    &mut child, chunk_rx, readers, error,
+                ));
+            }
+        };
+        drop(chunk_rx);
+        let output = readers.collect_until(cleanup_deadline);
+        if !chunks_drained || !output.completed {
+            return Err(OfficialCliBridgeError::SpawnFailed {
+                reason: "CLI exited but pipe-reader cleanup exceeded its bounded deadline"
+                    .to_string(),
+                exit_code: exit_status.code(),
+            });
         }
-        let stdout_bytes = stdout_reader
-            .and_then(|h| h.join().ok())
-            .unwrap_or_default();
-        let stderr_bytes = stderr_reader
-            .and_then(|h| h.join().ok())
-            .unwrap_or_default();
-        let stdout = String::from_utf8_lossy(&stdout_bytes).into_owned();
-        let stderr = String::from_utf8_lossy(&stderr_bytes).into_owned();
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        let mut stderr = output.stderr;
         let exit_code = exit_status.code();
 
         if !exit_status.success() {
-            record_stop(exit_code, "official_cli_bridge_nonzero_exit");
+            child.record_stop(exit_code, "official_cli_bridge_nonzero_exit");
+            stderr.zeroize();
             return Err(OfficialCliBridgeError::SpawnFailed {
                 reason: format!(
-                    "CLI {} exited with status {:?}; stderr={}",
+                    "CLI {} exited with status {:?}; provider stderr was discarded",
                     config.executable_path.display(),
-                    exit_code,
-                    stderr.trim()
+                    exit_code
                 ),
                 exit_code,
             });
         }
 
-        record_stop(exit_code, "official_cli_bridge_exit");
+        stderr.zeroize();
+        child.record_stop(exit_code, "official_cli_bridge_exit");
         Ok(CliInvocationReceipt {
             model_id: ModelId::new_v7(),
             stdout,
@@ -1187,11 +3233,141 @@ impl CliSubprocessSpawner for LiveCliSpawner {
 }
 
 #[cfg(test)]
+mod sandbox_composition_regression_tests {
+    use super::*;
+
+    #[test]
+    fn production_launches_are_adapter_owned_and_have_no_native_fallback() {
+        let source = include_str!("official_cli_bridge.rs");
+        let production = source
+            .split("#[cfg(test)]")
+            .next()
+            .expect("production source section");
+        let windows_attached_adapter = include_str!("../../sandbox/windows_native_jail/adapter.rs");
+
+        assert_eq!(
+            production
+                .matches("self.spawn_attached_child(config, rendered, invocation)?")
+                .count(),
+            3,
+            "all live launch variants must invoke the attached sandbox adapter"
+        );
+        assert!(production.contains("select(registry, &selection_spec"));
+        assert!(production.contains("trust_class: requested_trust_class"));
+        assert!(production.contains("required_capabilities: requested_capabilities.clone()"));
+        assert!(production.contains("AttachedStdioContract::null_stdin_piped_output()"));
+        assert!(production.contains("net_policy: requested_net_policy.clone()"));
+        assert!(production.contains("requested_isolation_tier"));
+        assert!(production.contains("requested_execution_policy_ref"));
+        assert!(!production.contains("sandbox_context"));
+        assert!(production.contains("validate_attached_network_mode"));
+        assert!(production.contains("tokio::sync::mpsc::Sender<Vec<u8>>"));
+        assert!(production.contains("sandbox adapter rejected"));
+        assert!(production.contains("terminate_tree_and_wait"));
+        assert!(!production.contains("Command::new"));
+        assert!(!production.contains("cmd.exe"));
+        assert!(production.contains("args: rendered"));
+        assert!(!production.contains("taskkill"));
+        assert!(!production.contains("kill_process_tree"));
+        assert!(windows_attached_adapter
+            .contains("wait_with_timeout(Some(ATTACHED_TERMINATION_REAP_TIMEOUT))"));
+        assert!(windows_attached_adapter.contains(
+            "const ATTACHED_TERMINATION_REAP_TIMEOUT: Duration = Duration::from_secs(5)"
+        ));
+        assert!(
+            !windows_attached_adapter.contains("let wait_result = self.wait();"),
+            "timeout/cancellation/unwind cleanup must not reintroduce an infinite Windows reap"
+        );
+    }
+
+    #[test]
+    fn capture_and_chunk_backpressure_failures_are_bounded() {
+        let mut capture = vec![0u8; MAX_CLI_CAPTURE_BYTES - 1];
+        append_capped(&mut capture, &[1, 2, 3, 4]);
+        assert_eq!(capture.len(), MAX_CLI_CAPTURE_BYTES);
+
+        let (sender, _receiver) = tokio::sync::mpsc::channel(1);
+        sender.try_send(b"first".to_vec()).expect("seed queue");
+        assert!(matches!(
+            deliver_cli_chunk(&sender, b"overflow"),
+            Err(OfficialCliBridgeError::SpawnFailed { .. })
+        ));
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::HashMap;
     use std::sync::Mutex;
     use std::time::Instant;
+
+    #[test]
+    fn terminal_capture_never_reports_spawn_failure_as_exit_zero() {
+        let missing_exit = Err(OfficialCliBridgeError::SpawnFailed {
+            reason: "spawn never started".to_owned(),
+            exit_code: None,
+        });
+        assert_eq!(terminal_capture_exit_code(&missing_exit), -1);
+        let explicit_exit = Err(OfficialCliBridgeError::SpawnFailed {
+            reason: "process rejected".to_owned(),
+            exit_code: Some(127),
+        });
+        assert_eq!(terminal_capture_exit_code(&explicit_exit), 127);
+    }
+
+    struct ReapFailingAttachedProcess {
+        pid: u32,
+    }
+
+    impl AttachedSandboxProcess for ReapFailingAttachedProcess {
+        fn pid(&self) -> u32 {
+            self.pid
+        }
+
+        fn take_stdout(&mut self) -> Option<Box<dyn std::io::Read + Send>> {
+            None
+        }
+
+        fn take_stderr(&mut self) -> Option<Box<dyn std::io::Read + Send>> {
+            None
+        }
+
+        fn try_wait(&mut self) -> Result<Option<ExitStatus>, SandboxAdapterError> {
+            Ok(None)
+        }
+
+        fn wait(&mut self) -> Result<ExitStatus, SandboxAdapterError> {
+            Err(fake_reap_failure())
+        }
+
+        fn terminate_tree_and_wait(&mut self) -> Result<ExitStatus, SandboxAdapterError> {
+            Err(fake_reap_failure())
+        }
+    }
+
+    fn fake_reap_failure() -> SandboxAdapterError {
+        SandboxAdapterError::SpawnFailed {
+            adapter_id: AdapterId::new("reap_failure_test"),
+            reason: "intentional terminate/reap failure".to_string(),
+        }
+    }
+
+    #[derive(Clone, Default)]
+    struct ReconciliationLedgerStore {
+        events: Arc<Mutex<Vec<crate::process_ledger::LedgerEvent>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::process_ledger::ProcessLedgerStore for ReconciliationLedgerStore {
+        async fn write_batch(
+            &self,
+            events: Vec<crate::process_ledger::LedgerEvent>,
+        ) -> Result<(), crate::process_ledger::ProcessLedgerError> {
+            self.events.lock().unwrap().extend(events);
+            Ok(())
+        }
+    }
 
     /// Mock spawner that records the last invocation and returns a
     /// configurable canned response.
@@ -1203,6 +3379,7 @@ mod tests {
         fn spawn(
             &self,
             config: &CliBridgeConfig,
+            _invocation: &CliInvocationContext,
             model_name: &str,
             prompt: &str,
         ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
@@ -1223,6 +3400,7 @@ mod tests {
         fn spawn(
             &self,
             _config: &CliBridgeConfig,
+            _invocation: &CliInvocationContext,
             _model_name: &str,
             _prompt: &str,
         ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
@@ -1239,18 +3417,114 @@ mod tests {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml")
     }
 
+    fn test_invocation() -> CliInvocationContext {
+        let mut context = CliInvocationContext::new("TEST_ROLE", "test-model");
+        context.owner_wp = Some("WP-TEST".to_string());
+        context.role_id = Some("TEST_ROLE".to_string());
+        context.wp_id = Some("WP-TEST".to_string());
+        context.mt_id = Some("MT-003".to_string());
+        context.session_id = Some("session-test".to_string());
+        context.parent_session_id = Some("session-parent".to_string());
+        context.trace_id = Some("trace-test".to_string());
+        context.span_id = Some("span-test".to_string());
+        context.cancellation_id = Some("cancel-test".to_string());
+        context.reclaim_key = Some("reclaim-test".to_string());
+        context.requested_trust_class = Some(TrustClass::Trusted);
+        context.requested_isolation_tier = Some(IsolationTier::Tier1Container);
+        context.requested_sandbox_capabilities =
+            Some(BTreeSet::from([RequiredCapability::HighStdioThroughput]));
+        context.requested_net_policy = Some(NetPolicy::HostInherited);
+        context.requested_execution_policy_ref =
+            Some(crate::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF.to_string());
+        context.swarm_id = Some("test-swarm".to_string());
+        context.worktree_id = Some("test-worktree".to_string());
+        context
+    }
+
+    fn test_resolved_execution_policy() -> crate::sandbox::ResolvedExecutionPolicy {
+        crate::sandbox::ResolvedExecutionPolicy::resolve_official_cli(
+            crate::sandbox::ExecutionPolicyRequest {
+                requested_ref: crate::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF
+                    .to_string(),
+                trust_class: TrustClass::Trusted,
+                isolation_tier: IsolationTier::Tier1Container,
+                required_capabilities: BTreeSet::from([RequiredCapability::HighStdioThroughput]),
+                requested_net_policy: NetPolicy::HostInherited,
+                effective_attached_network_mode: AttachedNetworkMode::OutboundInternetClient,
+                resource_limits: ResourceLimits {
+                    timeout_ms: Some(1_000),
+                    ..ResourceLimits::default()
+                },
+                startup_timeout_ms: CLI_ATTACHED_STARTUP_TIMEOUT_MS,
+            },
+        )
+        .expect("canonical test execution policy resolves")
+    }
+
+    #[test]
+    fn official_cli_execution_policy_resolution_rejects_missing_unknown_and_stale_refs() {
+        for candidate in [
+            None,
+            Some(""),
+            Some("execution-policy://test/official-cli"),
+            Some("execution-policy://requested/retired-cli-v0"),
+            Some(crate::sandbox::LOCAL_REQUESTED_EXECUTION_POLICY_REF),
+        ] {
+            let error = resolve_official_cli_execution_policy(candidate)
+                .expect_err("non-authoritative policy must fail before process creation");
+            assert!(matches!(error, OfficialCliBridgeError::SpawnFailed { .. }));
+        }
+        assert_eq!(
+            resolve_official_cli_execution_policy(Some(
+                crate::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF,
+            ))
+            .expect("registered CLI policy resolves"),
+            (
+                crate::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF,
+                crate::sandbox::CLI_BRIDGE_EFFECTIVE_EXECUTION_POLICY_REF,
+            )
+        );
+    }
+
+    #[test]
+    fn official_cli_posture_mismatch_fails_before_executable_inspection() {
+        let (ledger, _drain) = test_ledger();
+        let spawner = LiveCliSpawner::new(ledger, LiveCliSpawner::native_cli_registry());
+        let mut invocation = test_invocation();
+        invocation.requested_isolation_tier = Some(IsolationTier::Tier2Syscall);
+        let config = CliBridgeConfig {
+            executable_path: PathBuf::from("definitely-missing-official-cli-executable"),
+            ..good_config()
+        };
+
+        let error = match spawner.spawn_attached_child(&config, Vec::new(), &invocation) {
+            Ok(_) => panic!("policy posture must reject before executable inspection"),
+            Err(error) => error,
+        };
+        assert!(
+            error
+                .to_string()
+                .contains("execution-policy resolution failed"),
+            "unexpected preflight ordering: {error}"
+        );
+        assert!(!error.to_string().contains("executable identity"));
+    }
+
     /// Build a real, manually-drained `LedgerBatcher` for tests. The ledger is
     /// mandatory on `LiveCliSpawner` (MT-127, MT-122-class), so every test
-    /// that constructs a live spawner attaches one. The drain side is dropped
-    /// when the caller does not inspect rows; the batcher's in-memory channel
-    /// still accepts START/STOP writes without a backing store.
-    fn test_ledger() -> Arc<crate::process_ledger::LedgerBatcher> {
-        let (batcher, _drain) = crate::process_ledger::LedgerBatcher::manual_for_tests(
+    /// that constructs a live spawner attaches one. The receiver stays alive
+    /// for the full subprocess run; dropping it is a closed-authority condition
+    /// that preflight rejects before spawn.
+    fn test_ledger() -> (
+        Arc<crate::process_ledger::LedgerBatcher>,
+        crate::process_ledger::ProcessLedgerDrain,
+    ) {
+        let (batcher, drain) = crate::process_ledger::LedgerBatcher::manual_for_tests(
             crate::process_ledger::LedgerBatcherConfig::default(),
             Arc::new(crate::process_ledger::NoopOverflowSink),
         )
         .expect("manual ledger batcher for tests");
-        Arc::new(batcher)
+        (Arc::new(batcher), drain)
     }
 
     fn good_config() -> CliBridgeConfig {
@@ -1275,12 +3549,14 @@ mod tests {
         CliBridgeConfig {
             cli_kind: CliKind::Other,
             executable_path: PathBuf::from(
-                std::env::var("ComSpec")
-                    .unwrap_or_else(|_| "C:\\Windows\\System32\\cmd.exe".to_string()),
-            ),
+                std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into()),
+            )
+            .join(r"System32\ping.exe"),
             args_template: vec![
-                "/C".to_string(),
-                "echo {model}-{prompt} && ping -n 6 127.0.0.1 > nul".to_string(),
+                "-t".to_string(),
+                "-w".to_string(),
+                "{prompt}".to_string(),
+                "127.0.0.1".to_string(),
             ],
             output_format: CliOutputFormat::RawText,
             env_vars: HashMap::new(),
@@ -1293,11 +3569,8 @@ mod tests {
     fn timeout_config() -> CliBridgeConfig {
         CliBridgeConfig {
             cli_kind: CliKind::Other,
-            executable_path: PathBuf::from("/bin/sh"),
-            args_template: vec![
-                "-c".to_string(),
-                "printf '%s-%s\\n' '{model}' '{prompt}'; sleep 6".to_string(),
-            ],
+            executable_path: PathBuf::from("/usr/bin/yes"),
+            args_template: vec!["{prompt}".to_string()],
             output_format: CliOutputFormat::RawText,
             env_vars: HashMap::new(),
             working_dir: None,
@@ -1351,6 +3624,230 @@ mod tests {
             .register_bridge(bad, "claude-3.5-sonnet", "2026-05-20T06:00:00Z")
             .expect_err("invalid timeout");
         assert!(matches!(err, OfficialCliBridgeError::InvalidTimeout));
+
+        let script_path = std::env::temp_dir().join(format!(
+            "handshake-official-cli-{}.cmd",
+            uuid::Uuid::now_v7()
+        ));
+        std::fs::write(&script_path, "@echo off\r\n").expect("write command-script fixture");
+        let mut bad = good_config();
+        bad.executable_path = script_path.clone();
+        let err = runtime
+            .register_bridge(bad, "claude-3.5-sonnet", "2026-05-20T06:00:00Z")
+            .expect_err("command scripts require an injection-safe typed launcher");
+        let _ = std::fs::remove_file(script_path);
+        assert!(matches!(
+            err,
+            OfficialCliBridgeError::UnsupportedCommandScript(_)
+        ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn codex_npm_shim_builds_direct_injection_safe_argv_for_metacharacters() {
+        let root =
+            std::env::temp_dir().join(format!("handshake-codex-shim-{}", uuid::Uuid::now_v7()));
+        let script = root
+            .join("node_modules")
+            .join("@openai")
+            .join("codex")
+            .join("bin")
+            .join("codex.js");
+        std::fs::create_dir_all(script.parent().expect("script parent")).expect("fixture dirs");
+        let node = root.join("node.exe");
+        std::fs::write(&node, b"fixture").expect("fixture node");
+        std::fs::write(&script, b"// fixture").expect("fixture script");
+        let codex_root = script.parent().unwrap().parent().unwrap();
+        let (platform_suffix, target_triple, cpu) = windows_codex_target().expect("target");
+        std::fs::write(
+            codex_root.join("package.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "name": "@openai/codex",
+                "version": "1.2.3",
+                "bin": { "codex": "bin/codex.js" },
+                "optionalDependencies": {
+                    format!("@openai/codex-{platform_suffix}"):
+                        format!("npm:@openai/codex@1.2.3-{platform_suffix}")
+                }
+            }))
+            .expect("launcher manifest"),
+        )
+        .expect("write launcher manifest");
+        let platform_root = codex_root
+            .join("node_modules")
+            .join("@openai")
+            .join(format!("codex-{platform_suffix}"));
+        let native = platform_root
+            .join("vendor")
+            .join(target_triple)
+            .join("bin")
+            .join("codex.exe");
+        std::fs::create_dir_all(native.parent().expect("native parent"))
+            .expect("platform fixture dirs");
+        std::fs::write(
+            platform_root.join("package.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "name": "@openai/codex",
+                "version": format!("1.2.3-{platform_suffix}"),
+                "os": ["win32"],
+                "cpu": [cpu]
+            }))
+            .expect("platform manifest"),
+        )
+        .expect("write platform manifest");
+        std::fs::write(&native, b"native fixture").expect("write native fixture");
+        let shim = root.join("codex.cmd");
+        std::fs::write(
+            &shim,
+            b"@echo off\r\n\"%dp0%\\node.exe\" \"%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js\" %*\r\n",
+        )
+        .expect("fixture shim");
+        let rendered = vec![
+            "exec".to_string(),
+            "--json".to_string(),
+            "space separated prompt".to_string(),
+            "& whoami".to_string(),
+            "| more".to_string(),
+            "<input >output".to_string(),
+            "^caret".to_string(),
+            "%PATH%".to_string(),
+            "!delayed!".to_string(),
+            "(parenthesized)".to_string(),
+            "quote\"inside".to_string(),
+            "semi;colon && second".to_string(),
+            "line-one\r\nline-two".to_string(),
+            "backslash\\ending\\".to_string(),
+            "equals=value".to_string(),
+        ];
+        let plan = cli_launch_plan(&shim, rendered.clone()).expect("validated direct plan");
+        let canonical_native = std::fs::canonicalize(&native).expect("canonical native");
+        assert_eq!(plan.executable_path, canonical_native);
+        assert_eq!(plan.args, rendered);
+        assert_ne!(plan.executable_path, node);
+        assert!(
+            !plan
+                .args
+                .iter()
+                .any(|arg| arg == &script.display().to_string()),
+            "verified JavaScript launcher is provenance, not runtime argv"
+        );
+        assert_eq!(
+            plan.identity
+                .final_native_executable
+                .as_ref()
+                .expect("native identity")
+                .canonical_path,
+            canonical_native
+        );
+        assert_eq!(plan.identity_locks.len(), 5);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[cfg(windows)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn installed_codex_preflight_uses_attached_sandbox_and_balanced_ledger_lifecycle() {
+        let shim = find_windows_executable_on_path("codex.cmd").expect(
+            "installed Codex npm shim is required for the Windows production preflight proof",
+        );
+        let config = CliBridgeConfig {
+            cli_kind: CliKind::CodexCli,
+            executable_path: shim,
+            args_template: vec![
+                "exec".to_string(),
+                "--json".to_string(),
+                "--skip-git-repo-check".to_string(),
+                "--model".to_string(),
+                "{model}".to_string(),
+                "{prompt}".to_string(),
+            ],
+            output_format: CliOutputFormat::JsonStream,
+            env_vars: HashMap::new(),
+            working_dir: None,
+            timeout_seconds: 30,
+        };
+        let store = ReconciliationLedgerStore::default();
+        let retained = crate::process_ledger::RetainedLedgerBatcher::spawn(
+            Arc::new(store.clone()),
+            Arc::new(crate::process_ledger::NoopOverflowSink),
+            crate::process_ledger::LedgerBatcherConfig::default(),
+        );
+        let spawner = Arc::new(LiveCliSpawner::new(
+            Arc::new(retained.ledger()),
+            LiveCliSpawner::native_cli_registry(),
+        ));
+        let invocation = test_invocation();
+        let receipt = tokio::task::spawn_blocking(move || {
+            spawner.preflight_version(&config, "--version", Duration::from_secs(10), &invocation)
+        })
+        .await
+        .expect("join real preflight")
+        .expect("installed Codex preflight succeeds");
+        assert_eq!(receipt.exit_code, Some(0));
+        assert!(receipt.pid.is_some());
+        assert!(
+            receipt.stdout.to_ascii_lowercase().contains("codex"),
+            "real version output must identify Codex: {:?}",
+            receipt.stdout
+        );
+
+        assert!(matches!(
+            retained.drain_and_join(Duration::from_secs(5)).await,
+            crate::process_ledger::LedgerDrainJoinOutcome::Flushed
+        ));
+        let events = store.events.lock().unwrap().clone();
+        assert_eq!(events.len(), 2, "one preflight must emit START then STOP");
+        let (start, stop) = match events.as_slice() {
+            [crate::process_ledger::LedgerEvent::Start(start), crate::process_ledger::LedgerEvent::Stop(stop)] => {
+                (start, stop)
+            }
+            other => panic!("unexpected preflight lifecycle: {other:?}"),
+        };
+        assert_eq!(start.process_uuid, stop.process_uuid);
+        assert_eq!(start.engine_kind, ProcessEngineKind::OfficialCliBridge);
+        assert_eq!(start.mt_id.as_deref(), Some("MT-003"));
+        assert_eq!(
+            start.sandbox_adapter_id.as_deref(),
+            Some(HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID)
+        );
+    }
+
+    #[test]
+    fn codex_exec_json_preset_is_fail_closed() {
+        let mut config = good_config();
+        config.cli_kind = CliKind::CodexCli;
+        #[cfg(windows)]
+        {
+            config.executable_path = PathBuf::from("codex.cmd");
+        }
+        config.output_format = CliOutputFormat::JsonStream;
+        config.args_template = vec![
+            "exec".to_string(),
+            "--json".to_string(),
+            "--model".to_string(),
+            "{model}".to_string(),
+            "{prompt}".to_string(),
+        ];
+        validate_cli_preset(&config).expect("canonical Codex exec JSONL preset");
+
+        config.args_template = vec!["exec".to_string(), "{prompt}".to_string()];
+        assert!(matches!(
+            validate_cli_preset(&config),
+            Err(OfficialCliBridgeError::InvalidCodexPreset(_))
+        ));
+    }
+
+    #[test]
+    fn codex_home_bind_is_canonical_and_read_write() {
+        let root =
+            std::env::temp_dir().join(format!("handshake-codex-home-{}", uuid::Uuid::now_v7()));
+        std::fs::create_dir_all(&root).expect("codex home fixture");
+        let env = BTreeMap::from([("CODEX_HOME".to_string(), root.display().to_string())]);
+        let resolved = resolve_codex_home(&env).expect("resolve Codex home");
+        assert_eq!(
+            resolved,
+            std::fs::canonicalize(&root).expect("canonical fixture")
+        );
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
@@ -1385,7 +3882,7 @@ mod tests {
             .expect("register");
 
         let receipt = runtime
-            .invoke(handle.model_id, "hello world")
+            .invoke(handle.model_id, "hello world", &test_invocation())
             .expect("invoke");
         assert_eq!(receipt.stdout, r#"{"completion":"hi"}"#);
         let captured = spawner.last_invocation.lock().unwrap().clone().unwrap();
@@ -1397,7 +3894,9 @@ mod tests {
     fn invoke_on_unregistered_model_errors() {
         let runtime = OfficialCliBridgeRuntime::new(Arc::new(FailingSpawner));
         let unknown = ModelId::new_v7();
-        let err = runtime.invoke(unknown, "x").expect_err("unknown model");
+        let err = runtime
+            .invoke(unknown, "x", &test_invocation())
+            .expect_err("unknown model");
         assert!(matches!(err, OfficialCliBridgeError::ModelNotRegistered(_)));
     }
 
@@ -1408,7 +3907,7 @@ mod tests {
             .register_bridge(good_config(), "claude-3.5-sonnet", "2026-05-20T06:00:00Z")
             .expect("register");
         let err = runtime
-            .invoke(handle.model_id, "hello")
+            .invoke(handle.model_id, "hello", &test_invocation())
             .expect_err("spawner returned failure");
         assert!(matches!(err, OfficialCliBridgeError::SpawnFailed { .. }));
     }
@@ -1425,8 +3924,11 @@ mod tests {
         }
 
         let started = Instant::now();
-        let err = LiveCliSpawner::new(test_ledger())
-            .spawn(&config, "model", "prompt")
+        let (ledger, _drain) = test_ledger();
+        let spawner = LiveCliSpawner::new(ledger, LiveCliSpawner::native_cli_registry());
+        spawner.pin_config(&config).expect("pin timeout fixture");
+        let err = spawner
+            .spawn(&config, &test_invocation(), "model", "100")
             .expect_err("timeout command must fail with SpawnTimeout");
 
         assert!(matches!(err, OfficialCliBridgeError::SpawnTimeout { .. }));
@@ -1434,6 +3936,104 @@ mod tests {
             started.elapsed() < Duration::from_secs(5),
             "timeout branch must not wait for the full child sleep"
         );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore]
+    fn auxiliary_auth_status_canary_child() {
+        println!(
+            r#"{{"loggedIn":false,"email":"operator@example.invalid","refresh_token":"oauth-refresh-token-NEVER-RETURN"}}"#
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn auxiliary_auth_status_runner_is_job_contained_bounded_and_reduces_output() {
+        let (ledger, _drain) = test_ledger();
+        let spawner = LiveCliSpawner::new(ledger, LiveCliSpawner::native_cli_registry());
+        let config = CliBridgeConfig {
+            cli_kind: CliKind::Other,
+            executable_path: std::env::current_exe().expect("current test executable"),
+            args_template: vec!["{prompt}".to_string()],
+            output_format: CliOutputFormat::RawText,
+            env_vars: HashMap::new(),
+            working_dir: None,
+            timeout_seconds: 5,
+        };
+        let mut output = spawner
+            .run_auxiliary_fixed_command(
+                &config,
+                &[
+                    "--ignored",
+                    "--exact",
+                    "model_runtime::cloud::official_cli_bridge::tests::auxiliary_auth_status_canary_child",
+                    "--nocapture",
+                ],
+                Duration::from_secs(5),
+                &test_invocation(),
+                64 * 1024,
+            )
+            .expect("attached auxiliary canary command");
+        assert!(output.success);
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .contains("oauth-refresh-token-NEVER-RETURN"),
+            "test precondition: provider output contains the credential canary"
+        );
+        output.stdout.zeroize();
+        assert!(output.stdout.iter().all(|byte| *byte == 0));
+
+        let timeout = timeout_config();
+        let started = Instant::now();
+        let error = spawner
+            .run_auxiliary_fixed_command(
+                &timeout,
+                &["-t", "127.0.0.1"],
+                Duration::from_secs(1),
+                &test_invocation(),
+                64 * 1024,
+            )
+            .expect_err("non-terminating auxiliary command must time out");
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "auxiliary timeout must include tree termination and bounded pipe cleanup"
+        );
+        let rendered = error.to_string();
+        assert!(rendered.contains("timed out"), "{rendered}");
+        assert!(!rendered.contains("oauth-refresh-token"));
+        assert!(!rendered.contains("operator@example.invalid"));
+    }
+
+    #[test]
+    fn live_spawner_registry_rejects_insufficient_trust_tier_without_fallback() {
+        let config = timeout_config();
+        let (ledger, _drain) = test_ledger();
+        let mut invocation = test_invocation();
+        invocation.requested_trust_class = Some(TrustClass::Reviewed);
+        invocation.requested_isolation_tier = Some(IsolationTier::Tier1Container);
+        let spawner = LiveCliSpawner::new(ledger, LiveCliSpawner::native_cli_registry());
+        spawner.pin_config(&config).expect("pin tier fixture");
+        let err = spawner
+            .spawn(&config, &invocation, "model", "prompt")
+            .expect_err("reviewed workload must not downgrade to Tier0 native execution");
+        assert!(matches!(err, OfficialCliBridgeError::SpawnFailed { .. }));
+    }
+
+    #[test]
+    fn live_spawner_registry_rejects_unsatisfied_capability_without_fallback() {
+        let config = timeout_config();
+        let (ledger, _drain) = test_ledger();
+        let mut invocation = test_invocation();
+        invocation.requested_sandbox_capabilities = Some(BTreeSet::from([
+            RequiredCapability::VeryStrongFilesystemIsolation,
+        ]));
+        let spawner = LiveCliSpawner::new(ledger, LiveCliSpawner::native_cli_registry());
+        spawner.pin_config(&config).expect("pin capability fixture");
+        let err = spawner
+            .spawn(&config, &invocation, "model", "prompt")
+            .expect_err("native adapter must reject unavailable isolation capability");
+        assert!(matches!(err, OfficialCliBridgeError::SpawnFailed { .. }));
     }
 
     #[test]
@@ -1446,47 +4046,154 @@ mod tests {
 
     #[test]
     fn cli_bridge_spawn_meta_is_attributable() {
-        // MT-127 HIGH remediation: the CLI bridge subprocess must be
-        // recorded as an attributable ProcessOwnershipLedger row with
-        // engine_kind=OfficialCliBridge + a clear MT-127 metadata
-        // marker, mirroring MT-122's distillation_spawn_meta test.
-        let meta = cli_bridge_spawn_meta(
-            7777,
-            DEFAULT_CLI_BRIDGE_OWNER_ROLE,
-            "claude-3.5-sonnet",
-            &PathBuf::from("/usr/local/bin/claude"),
-        );
+        let mut invocation = test_invocation();
+        let registered_model_id = ModelId::new_v7();
+        invocation.registered_model_id = Some(registered_model_id);
+        let executable = file_identity(&good_config().executable_path).expect("fixture identity");
+        let identity = CliLaunchIdentity {
+            requested_entrypoint: executable.clone(),
+            effective_executable: executable,
+            effective_script: None,
+            launcher_package_manifest: None,
+            platform_package_manifest: None,
+            final_native_executable: None,
+        };
+        let meta = cli_bridge_spawn_meta(7777, &invocation, "claude-3.5-sonnet", &identity);
         assert_eq!(meta.pid, 7777);
         assert_eq!(meta.engine_kind, ProcessEngineKind::OfficialCliBridge);
-        assert_eq!(meta.owner_role, "OFFICIAL_CLI_BRIDGE");
-        assert_eq!(meta.mt_id.as_deref(), Some("MT-127"));
-        assert_eq!(meta.sandbox_adapter.as_deref(), Some("official_cli_bridge"));
-        assert_eq!(meta.model_id.as_deref(), Some("claude-3.5-sonnet"));
+        assert_eq!(meta.owner_role, "TEST_ROLE");
+        assert_eq!(meta.owner_wp.as_deref(), Some("WP-TEST"));
+        assert_eq!(meta.role_id.as_deref(), Some("TEST_ROLE"));
+        assert_eq!(meta.wp_id.as_deref(), Some("WP-TEST"));
+        assert_eq!(meta.mt_id.as_deref(), Some("MT-003"));
+        assert_eq!(meta.session_id.as_deref(), Some("session-test"));
+        assert_eq!(meta.parent_session_id.as_deref(), Some("session-parent"));
+        assert_eq!(meta.trace_id.as_deref(), Some("trace-test"));
+        assert_eq!(meta.span_id.as_deref(), Some("span-test"));
+        assert_eq!(meta.cancellation_id.as_deref(), Some("cancel-test"));
+        assert_eq!(meta.reclaim_key.as_deref(), Some("reclaim-test"));
+        assert_eq!(meta.model_identity.as_deref(), Some("claude-3.5-sonnet"));
+        assert_eq!(
+            meta.model_id.as_deref(),
+            Some(registered_model_id.to_string().as_str())
+        );
         assert_eq!(
             meta.metadata_blob["subprocess_kind"].as_str(),
             Some("official_cli_bridge")
         );
-        assert_eq!(meta.metadata_blob["mt"].as_str(), Some("MT-127"));
         assert_eq!(
-            meta.metadata_blob["model_name"].as_str(),
+            meta.metadata_blob["selected_model_name"].as_str(),
             Some("claude-3.5-sonnet")
         );
-        assert!(meta.metadata_blob["executable"]
+        assert_eq!(
+            meta.metadata_blob["requested_model_identity"].as_str(),
+            Some("test-model")
+        );
+        assert_eq!(meta.metadata_blob["owner_wp"].as_str(), Some("WP-TEST"));
+        assert_eq!(meta.metadata_blob["mt_id"].as_str(), Some("MT-003"));
+        assert!(meta.metadata_blob["effective_executable"]
             .as_str()
             .unwrap()
-            .contains("claude"));
+            .ends_with("Cargo.toml"));
     }
 
-    #[test]
-    fn live_cli_spawner_default_owner_role_is_set() {
-        // new() must yield the canonical owner role so the ledger row is
-        // attributable even when the caller does not override it;
-        // with_owner_role overrides it. The ledger is mandatory (MT-127,
-        // MT-122-class): there is no ledger-less construction path.
-        let spawner = LiveCliSpawner::new(test_ledger());
-        assert_eq!(spawner.owner_role, "OFFICIAL_CLI_BRIDGE");
-        let custom = LiveCliSpawner::new(test_ledger()).with_owner_role("DISTILLATION_PIPELINE");
-        assert_eq!(custom.owner_role, "DISTILLATION_PIPELINE");
+    #[tokio::test]
+    async fn failed_terminate_and_reap_leaves_start_open_without_stop() {
+        let (ledger, drain) = test_ledger();
+        let reservation = ledger
+            .try_reserve_lifecycles(1)
+            .expect("reserve lifecycle")
+            .pop()
+            .expect("one lifecycle reservation");
+        let start = ProcessStart::new(
+            ProcessEngineKind::OfficialCliBridge,
+            "REAP_FAILURE_TEST",
+            Some("WP-TEST".to_string()),
+        )
+        .with_os_pid(9090)
+        .with_mt_id("MT-003");
+        let lifecycle = reservation.begin(start).expect("record START");
+        let capabilities = HandshakeNativeSandboxAdapter::new().capabilities();
+        let executable = file_identity(&good_config().executable_path).expect("fixture identity");
+        let mut child = GuardedCliChild::new(
+            Box::new(ReapFailingAttachedProcess { pid: 9090 }),
+            capabilities,
+            CliLaunchIdentity {
+                requested_entrypoint: executable.clone(),
+                effective_executable: executable,
+                effective_script: None,
+                launcher_package_manifest: None,
+                platform_package_manifest: None,
+                final_native_executable: None,
+            },
+            test_resolved_execution_policy(),
+            Vec::new(),
+        );
+        child.attach_lifecycle(lifecycle);
+        drop(child);
+
+        let store = ReconciliationLedgerStore::default();
+        drain
+            .drain_available_to(Arc::new(store.clone()))
+            .await
+            .expect("drain ledger");
+        let events = store.events.lock().unwrap().clone();
+        assert_eq!(events.len(), 1, "failed reap must not fabricate STOP");
+        assert!(matches!(
+            events.as_slice(),
+            [crate::process_ledger::LedgerEvent::Start(_)]
+        ));
+    }
+
+    #[tokio::test]
+    async fn explicit_failed_terminate_leaves_start_open_without_stop() {
+        let (ledger, drain) = test_ledger();
+        let reservation = ledger
+            .try_reserve_lifecycles(1)
+            .expect("reserve lifecycle")
+            .pop()
+            .expect("one lifecycle reservation");
+        let start = ProcessStart::new(
+            ProcessEngineKind::OfficialCliBridge,
+            "REAP_FAILURE_TEST",
+            Some("WP-TEST".to_string()),
+        )
+        .with_os_pid(9091)
+        .with_mt_id("MT-003");
+        let lifecycle = reservation.begin(start).expect("record START");
+        let capabilities = HandshakeNativeSandboxAdapter::new().capabilities();
+        let executable = file_identity(&good_config().executable_path).expect("fixture identity");
+        let mut child = GuardedCliChild::new(
+            Box::new(ReapFailingAttachedProcess { pid: 9091 }),
+            capabilities,
+            CliLaunchIdentity {
+                requested_entrypoint: executable.clone(),
+                effective_executable: executable,
+                effective_script: None,
+                launcher_package_manifest: None,
+                platform_package_manifest: None,
+                final_native_executable: None,
+            },
+            test_resolved_execution_policy(),
+            Vec::new(),
+        );
+        child.attach_lifecycle(lifecycle);
+        assert!(child
+            .terminate_and_collect("explicit_reap_failure_test")
+            .is_none());
+        drop(child);
+
+        let store = ReconciliationLedgerStore::default();
+        drain
+            .drain_available_to(Arc::new(store.clone()))
+            .await
+            .expect("drain ledger");
+        let events = store.events.lock().unwrap().clone();
+        assert_eq!(events.len(), 1, "failed reap must not fabricate STOP");
+        assert!(matches!(
+            events.as_slice(),
+            [crate::process_ledger::LedgerEvent::Start(_)]
+        ));
     }
 
     #[test]
@@ -1506,24 +4213,7 @@ mod tests {
     }
 
     #[test]
-    fn secret_bearing_env_names_are_scrubbed_runtime_vars_are_kept() {
-        // MT-127 HIGH: credential-named vars must be stripped from the
-        // inherited child env; the runtime vars Node CLIs need must pass.
-        for secret in [
-            "OPENAI_API_KEY",
-            "ANTHROPIC_API_KEY",
-            "GEMINI_API_KEY",
-            "GOOGLE_API_KEY",
-            "HF_TOKEN",
-            "AWS_SECRET_ACCESS_KEY",
-            "MY_SERVICE_TOKEN",
-            "DB_PASSWORD",
-        ] {
-            assert!(
-                is_secret_bearing_env_name(secret),
-                "{secret} must be treated as secret-bearing"
-            );
-        }
+    fn inherited_environment_is_an_explicit_runtime_allowlist() {
         for runtime_var in [
             "PATH",
             "USERPROFILE",
@@ -1535,9 +4225,41 @@ mod tests {
             "ComSpec",
         ] {
             assert!(
-                !is_secret_bearing_env_name(runtime_var),
-                "{runtime_var} is a runtime var and must NOT be scrubbed"
+                is_inherited_runtime_env_name(runtime_var),
+                "{runtime_var} is required runtime state and must be inherited"
             );
+        }
+        for untrusted in [
+            "OPENAI_API_KEY",
+            "GITHUB_PAT",
+            "DATABASE_URL",
+            "KUBECONFIG",
+            "SENTRY_DSN",
+            "NODE_OPTIONS",
+            "SCRUB_PROBE_PUBLIC_DIR",
+        ] {
+            assert!(
+                !is_inherited_runtime_env_name(untrusted),
+                "{untrusted} must not cross the boundary through parent inheritance"
+            );
+        }
+    }
+
+    #[test]
+    fn explicit_environment_rejects_execution_controls() {
+        for name in [
+            "NODE_OPTIONS",
+            "LD_PRELOAD",
+            "PYTHONPATH",
+            "GIT_ASKPASS",
+            "BASH_ENV",
+        ] {
+            let env = HashMap::from([(name.to_string(), "attacker-controlled".to_string())]);
+            assert!(matches!(
+                validate_config_environment(&env),
+                Err(OfficialCliBridgeError::UnsafeEnvironmentVariable(rejected))
+                    if rejected == name
+            ));
         }
     }
 
@@ -1551,6 +4273,7 @@ mod tests {
         fn spawn(
             &self,
             _config: &CliBridgeConfig,
+            _invocation: &CliInvocationContext,
             _model_name: &str,
             _prompt: &str,
         ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
@@ -1572,14 +4295,15 @@ mod tests {
         fn spawn_streaming(
             &self,
             _config: &CliBridgeConfig,
+            _invocation: &CliInvocationContext,
             _model_name: &str,
             _prompt: &str,
-            on_chunk: &mut dyn FnMut(&[u8]),
+            chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
         ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
             let mut full = Vec::new();
             for chunk in &self.chunks {
                 // Deliver each chunk LIVE, as if read incrementally from a pipe.
-                on_chunk(chunk);
+                deliver_cli_chunk(chunk_sender, chunk)?;
                 full.extend_from_slice(chunk);
             }
             Ok(CliInvocationReceipt {
@@ -1652,7 +4376,7 @@ mod tests {
         // Pre-attach a subscriber by opening the session id after the call: we
         // instead assert via scrollback (which retains every fed chunk) + FR.
         let (receipt, session_id) = runtime
-            .invoke_with_capture(handle.model_id, "hello", &term, binding)
+            .invoke_with_capture(handle.model_id, "hello", test_invocation(), &term, binding)
             .await
             .expect("invoke_with_capture");
 

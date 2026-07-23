@@ -27,7 +27,7 @@ use handshake_core::mex::runtime::{EngineAdapter, MexRuntime, MexRuntimeError};
 use handshake_core::mex::supply_chain::ToolRunner;
 use handshake_core::mex::{SupplyChainAllowlists, SupplyChainEngineAdapter, TerminalServiceRunner};
 use handshake_core::storage::{
-    tests::postgres_backend_from_env, AccessMode, CalendarEventWindowQuery,
+    tests::postgres_backend_with_pool_from_env, AccessMode, CalendarEventWindowQuery,
     CalendarSourceProviderType, CalendarSourceSyncState, CalendarSourceUpsert,
     CalendarSourceWritePolicy, JobKind, JobMetrics, NewAiJob, NewWorkspace, SafetyMode,
     StorageError, WriteContext,
@@ -78,8 +78,8 @@ impl LlmClient for EchoLlmClient {
 }
 
 async fn calendar_sync_test_state() -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-    let storage = match postgres_backend_from_env().await {
-        Ok(storage) => storage,
+    let backend = match postgres_backend_with_pool_from_env().await {
+        Ok(backend) => backend,
         Err(StorageError::Validation(msg)) if msg.contains("POSTGRES_TEST_URL not set") => {
             eprintln!("Skipping calendar sync storage-backed MEX test: {msg}");
             return Ok(None);
@@ -88,7 +88,8 @@ async fn calendar_sync_test_state() -> Result<Option<AppState>, Box<dyn std::err
     };
     let flight_recorder = recorder();
     Ok(Some(AppState {
-        storage,
+        storage: backend.database,
+        postgres_pool: backend.postgres_pool,
         flight_recorder: flight_recorder.clone(),
         diagnostics: flight_recorder,
         llm_client: Arc::new(EchoLlmClient::new()),

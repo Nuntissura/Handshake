@@ -249,9 +249,13 @@ impl ModelSessionFactory for ControllableFactory {
             .unwrap()
             .insert(request.instance_id, (shared.clone(), model_id));
 
-        let teardown: crate::swarm_orchestration::SessionTeardown = Box::new(move || {
+        let owned = Arc::new(tokio::sync::Mutex::new(owned));
+        let teardown: crate::swarm_orchestration::SessionTeardown = Arc::new(move || {
+            let owned = Arc::clone(&owned);
             Box::pin(async move {
                 owned
+                    .lock()
+                    .await
                     .unload(model_id)
                     .await
                     .map_err(|e| SwarmError::Internal(e.to_string()))
@@ -268,23 +272,15 @@ impl ModelSessionFactory for ControllableFactory {
     }
 }
 
-/// Resolver backed by the factory's `handed_out` map: returns exactly the
-/// runtime the coordinator registered for the session. This is a REAL resolver
-/// (it hands back the live worker the coordinator drives), standing in for the
-/// production coordinator accessor the platform gap calls for.
+/// Resolver backed by the factory's `handed_out` map: returns the model id paired
+/// with exactly the runtime the coordinator registered for the session. Runtime
+/// generation and scoring remain coordinator-managed, matching production.
 struct FactoryRuntimeResolver {
     handed_out:
         Arc<Mutex<std::collections::HashMap<ModelInstanceId, (Arc<dyn ModelRuntime>, ModelId)>>>,
 }
 
 impl SessionRuntimeResolver for FactoryRuntimeResolver {
-    fn runtime_for(&self, instance_id: ModelInstanceId) -> Option<Arc<dyn ModelRuntime>> {
-        self.handed_out
-            .lock()
-            .unwrap()
-            .get(&instance_id)
-            .map(|(rt, _)| rt.clone())
-    }
     fn model_id_for(&self, instance_id: ModelInstanceId) -> Option<ModelId> {
         self.handed_out
             .lock()

@@ -378,6 +378,8 @@ fn load_spec(artifact_path: &Path, base_tag: &str) -> LoadSpec {
             supports_subquadratic: false,
             supports_speculative_draft: true,
             supports_eagle3: false,
+            supports_embedding: false,
+            embedding_dimension: None,
         },
         provider: ProviderKind::Local,
         engine_origin: Some(base_tag.to_string()),

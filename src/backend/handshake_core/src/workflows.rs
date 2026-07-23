@@ -2030,7 +2030,7 @@ async fn record_model_swap_event_v0_4(
 }
 
 impl ModelSwapRequestV0_4 {
-    fn validate(&self) -> Result<(), String> {
+    pub(crate) fn validate(&self) -> Result<(), String> {
         if self.schema_version != MODEL_SWAP_SCHEMA_VERSION_V0_4 {
             let msg = format!(
                 "invalid model swap schema_version: expected={}, got={}",
@@ -8045,10 +8045,7 @@ async fn ensure_model_session_artifact_refs(
             // MT-142: durable session identity -- the model that runs the
             // session, acting in its declared role.
             agent: Some(format!("{}:{}", metadata.role, metadata.model_id)),
-            purpose: metadata
-                .mt_id
-                .clone()
-                .or_else(|| metadata.wp_id.clone()),
+            purpose: metadata.mt_id.clone().or_else(|| metadata.wp_id.clone()),
         })
         .await?;
     state.session_registry.upsert_session(session).await;
@@ -8798,7 +8795,7 @@ async fn run_model_run_job(
         }
 
         let resolved_model_id = if request.model_id.trim().is_empty() {
-            state.llm_client.profile().model_id.clone()
+            state.llm_client.selected_model_id()
         } else {
             request.model_id.clone()
         };
@@ -10600,7 +10597,7 @@ async fn run_job(
             let req = CompletionRequest::new(
                 job.trace_id,
                 prompt.clone(),
-                state.llm_client.profile().model_id.clone(),
+                state.llm_client.selected_model_id(),
             );
 
             let response = state.llm_client.completion(req).await?;
@@ -10612,7 +10609,7 @@ async fn run_job(
                 hex::encode(h.finalize())
             };
 
-            let model_id = state.llm_client.profile().model_id.clone();
+            let model_id = state.llm_client.selected_model_id();
             let outcome = if !violation_codes.is_empty() {
                 "poisoned"
             } else if !guards_failed.is_empty() {
@@ -28306,7 +28303,8 @@ mod tests {
         tests::{
             optional_postgres_backend_with_pool_from_env, postgres_backend_with_pool_from_env,
         },
-        AccessMode, Database, JobKind, JobMetrics, JobState, ModelSession, ModelSessionState, SafetyMode,
+        AccessMode, Database, JobKind, JobMetrics, JobState, ModelSession, ModelSessionState,
+        SafetyMode,
     };
     use serde_json::json;
     use std::sync::{Arc, Mutex};

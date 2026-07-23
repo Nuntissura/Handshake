@@ -1030,6 +1030,17 @@ pub fn read_rwkv_v7_config(path: &Path) -> Result<(Config, Vec<u32>), ModelRunti
     Ok((config, eos_token_ids(&value)))
 }
 
+pub(super) fn decode_rwkv_v7_config_value(
+    value: &Value,
+) -> Result<(Config, Vec<u32>), ModelRuntimeError> {
+    let config = config_from_value(value).map_err(|error| {
+        ModelRuntimeError::LoadError(format!(
+            "failed to decode captured Candle RWKV v7 config: {error}"
+        ))
+    })?;
+    Ok((config, eos_token_ids(value)))
+}
+
 pub fn config_from_value(value: &Value) -> Result<Config, String> {
     let hidden_size = required_usize(value, "hidden_size")?;
     let head_size = optional_usize(value, "head_size")

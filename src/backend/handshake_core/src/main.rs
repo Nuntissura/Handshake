@@ -6,10 +6,11 @@ use handshake_core::{
     flight_recorder::{duckdb::DuckDbFlightRecorder, FlightRecorder},
     llm::{boot::resolve_default_llm_client, LlmClient},
     logging,
+    model_runtime::ModelRegistryStore,
     models::HealthResponse,
     process_ledger::{
-        restart_resume::PostgresRestartResumeRunner, LedgerBatcher, LedgerBatcherConfig,
-        NoopOverflowSink, PostgresProcessLedgerStore,
+        restart_resume::PostgresRestartResumeRunner, LedgerBatcher, PostgresProcessLedgerStore,
+        ProcessReclaimRuntime,
     },
     storage::{
         self,
@@ -21,9 +22,13 @@ use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
+
+const HTTP_CONNECTION_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
+const MODEL_LANE_BOOT_RECOVERY_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[tokio::main]
 async fn main() {
@@ -83,76 +88,225 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         sessions_recovery_failed = restart_report.sessions_recovery_failed.len(),
         "startup restart-resume pass completed"
     );
-    if startup_recovery_only_requested() {
-        write_startup_recovery_report(&restart_report)?;
+    let recovered_model_lane_runs = recover_model_lanes_at_core_boot_with_timeout(
+        control_plane.postgres_pool.clone(),
+        MODEL_LANE_BOOT_RECOVERY_TIMEOUT,
+    )
+    .await?;
+    tracing::info!(
+        target: "handshake_core::model_lane_recovery",
+        recovered_runs = recovered_model_lane_runs,
+        "bounded core-owned ModelLane boot recovery completed"
+    );
+    let startup_recovery_only = startup_recovery_only_requested();
+
+    // WP-1 MT-013 hard-crash ownership: prior embedded STARTs are reconciled on
+    // every same-host boot, even after the operator switches to a cloud or
+    // unconfigured provider. Only an actually configured embedded local lane
+    // needs a new OS liveness lease. Provider/host/ledger failure keeps the
+    // backend available but with local inference disabled before artifact access.
+    let embedded_runtime_requested =
+        match handshake_core::llm::boot::embedded_runtime_boot_requested_from_env() {
+            Ok(requested) => requested,
+            Err(error) => {
+                tracing::warn!(
+                    target: "handshake_core::llm",
+                    error = %error,
+                    "embedded runtime lease preflight could not resolve provider; deferring to fail-closed LLM resolution"
+                );
+                false
+            }
+        };
+    let mut embedded_runtime_instance_lease = None;
+    let mut runtime_instance = None;
+    // Local-endpoint provenance is separate from shutdown ownership. A
+    // postmaster adopted after a Handshake crash is non-owning (`is_managed`
+    // remains false) but still carries an opaque proof token after SQL
+    // data_directory/system_identifier, pg_ctl, postmaster.pid, and port
+    // validation.
+    let proven_local_postgres_endpoint = match managed_pg.proven_local_endpoint() {
+        Some(proof) => {
+            match handshake_core::process_ledger::verify_proven_local_postgres_endpoint_pool(
+                &control_plane.postgres_pool,
+                proof,
+            )
+            .await
+            {
+                Ok(()) => Some(proof),
+                Err(error) => {
+                    tracing::error!(
+                        target: "handshake_core::process_ledger",
+                        error = %error,
+                        "control-plane PostgreSQL no longer matches the managed local-endpoint proof; automatic host scope is disabled"
+                    );
+                    None
+                }
+            }
+        }
+        None => None,
+    };
+    let explicit_host_scope =
+        std::env::var(handshake_core::process_ledger::HANDSHAKE_HOST_SCOPE_ID_ENV).ok();
+    let runtime_host_scope_id =
+        match handshake_core::process_ledger::resolve_embedded_runtime_host_scope_with_managed_local(
+            &storage_config.database_url,
+            explicit_host_scope.as_deref(),
+            proven_local_postgres_endpoint,
+        ) {
+            Ok(host_scope_id) => Some(host_scope_id),
+            Err(error) => {
+                tracing::warn!(
+                    target: "handshake_core::process_ledger",
+                    error = %error,
+                    embedded_runtime_requested,
+                    "embedded runtime host scope unavailable; orphan sweep is deferred and any configured local inference will fail closed"
+                );
+                None
+            }
+        };
+    let mut ledger_authority_healthy = false;
+    if let Some(runtime_host_scope_id) = runtime_host_scope_id.as_deref() {
+        let pool_proof_still_matches = match proven_local_postgres_endpoint {
+            Some(proof) => {
+                match handshake_core::process_ledger::verify_proven_local_postgres_endpoint_pool(
+                    &control_plane.postgres_pool,
+                    proof,
+                )
+                .await
+                {
+                    Ok(()) => true,
+                    Err(error) => {
+                        tracing::error!(
+                            target: "handshake_core::process_ledger",
+                            error = %error,
+                            "control-plane PostgreSQL changed after host-scope derivation; orphan reclaim is withheld"
+                        );
+                        false
+                    }
+                }
+            }
+            None => true,
+        };
+        let reclaim_result = if pool_proof_still_matches {
+            Some(
+                handshake_core::process_ledger::reclaim_pidless_embedded_orphans(
+                    &control_plane.postgres_pool,
+                    boot_started_at,
+                    runtime_host_scope_id,
+                )
+                .await,
+            )
+        } else {
+            None
+        };
+        match reclaim_result {
+            None => {}
+            Some(Ok(reclaim_report)) if reclaim_report.is_complete() => {
+                ledger_authority_healthy = true;
+                tracing::info!(
+                    target: "handshake_core::process_ledger",
+                    orphans_closed = reclaim_report.closed_rows,
+                    runtime_host_scope_id,
+                    "instance-aware pid-less embedded-model orphan reclaim sweep complete"
+                );
+            }
+            Some(Ok(reclaim_report)) => {
+                ledger_authority_healthy = true;
+                tracing::warn!(
+                    target: "handshake_core::process_ledger",
+                    orphans_closed = reclaim_report.closed_rows,
+                    deferred_instances = reclaim_report.deferred_instances,
+                    candidate_scan_timed_out = reclaim_report.candidate_scan_timed_out,
+                    candidate_instance_limit_reached = reclaim_report.candidate_instance_limit_reached,
+                    legacy_host_scope_open_rows = ?reclaim_report.legacy_host_scope_open_rows,
+                    runtime_host_scope_id,
+                    "instance-aware pid-less embedded-model orphan reclaim sweep is incomplete; legacy rows require operator inspection and transient deferrals retry on a later boot"
+                );
+            }
+            Some(Err(error)) => {
+                tracing::error!(
+                    target: "handshake_core::process_ledger",
+                    error = %error,
+                    runtime_host_scope_id,
+                    "embedded-model ledger authority preflight failed; prior START rows remain open and configured local inference will fail closed"
+                );
+            }
+        }
+    }
+
+    if startup_recovery_only {
+        let report_result = write_startup_recovery_report(&restart_report);
+        if let Err(err) = managed_pg.stop().await {
+            tracing::warn!(
+                target: "handshake_core::managed_postgres",
+                error = %err,
+                "managed PostgreSQL stop failed after startup recovery-only pass"
+            );
+        }
+        report_result?;
         return Ok(());
     }
 
-    // WP-1 MT-013 (F1 hard-crash reconcile): close stale pid-less, session-less
-    // in-process embedded-model orphan rows left open by a prior kill -9 /
-    // power-loss. These carry parent_session_id=NULL + os_pid=NULL, so neither
-    // the session-scoped restart-resume reclaim above nor the swarm reclaim can
-    // EVER match them. Bounded to rows started before this process booted so the
-    // START row this run is about to write (init_llm_client below) is untouched.
-    // A sweep failure is logged but never aborts startup.
-    match handshake_core::process_ledger::reclaim_pidless_embedded_orphans(
-        &control_plane.postgres_pool,
-        boot_started_at,
-    )
-    .await
-    {
-        Ok(closed) => tracing::info!(
-            target: "handshake_core::process_ledger",
-            orphans_closed = closed,
-            "pid-less embedded-model orphan reclaim sweep complete"
-        ),
-        Err(err) => tracing::warn!(
-            target: "handshake_core::process_ledger",
-            error = %err,
-            "pid-less embedded-model orphan reclaim sweep failed"
-        ),
+    if ledger_authority_healthy {
+        if let Some(proof) = proven_local_postgres_endpoint {
+            if let Err(error) =
+                handshake_core::process_ledger::verify_proven_local_postgres_endpoint_pool(
+                    &control_plane.postgres_pool,
+                    proof,
+                )
+                .await
+            {
+                ledger_authority_healthy = false;
+                tracing::error!(
+                    target: "handshake_core::process_ledger",
+                    error = %error,
+                    "control-plane PostgreSQL changed after orphan reclaim; embedded runtime lease acquisition is withheld"
+                );
+            }
+        }
+    }
+
+    match (
+        embedded_runtime_requested,
+        ledger_authority_healthy,
+        runtime_host_scope_id.as_ref(),
+    ) {
+        (true, true, Some(runtime_host_scope_id)) => {
+            match handshake_core::process_ledger::acquire_embedded_runtime_instance_lease(
+                uuid::Uuid::now_v7(),
+                runtime_host_scope_id.clone(),
+            ) {
+                Ok(lease) => {
+                    runtime_instance = Some(lease.descriptor().clone());
+                    embedded_runtime_instance_lease = Some(lease);
+                }
+                Err(error) => {
+                    tracing::error!(
+                        target: "handshake_core::process_ledger",
+                        error = %error,
+                        "embedded runtime lease unavailable; local inference will fail closed without aborting the backend"
+                    );
+                }
+            }
+        }
+        (false, _, _) => {
+            tracing::info!(
+                target: "handshake_core::process_ledger",
+                "no new embedded runtime lease required by the resolved default provider"
+            );
+        }
+        (true, _, _) => {
+            tracing::error!(
+                target: "handshake_core::process_ledger",
+                "embedded runtime lease withheld because ledger authority preflight did not succeed; local inference will fail closed"
+            );
+        }
     }
 
     let storage = control_plane.database.clone();
     let recorder = init_flight_recorder().await?;
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
     let diagnostics: Arc<dyn DiagnosticsStore> = recorder.clone();
-
-    // WP-1 MT-013: ProcessOwnershipLedger writer for the in-process embedded
-    // model-load path. When a local model is configured, the default LlmClient
-    // load path emits a pid-less START row on load (master-spec §3.6.2 clause 2 /
-    // §4.6.1) and a STOP row at app shutdown through this batcher. Backed by the
-    // shared managed-PostgreSQL pool (the same `kernel_process_lifecycle` table
-    // the swarm factory writes to). The background writer task drains rows for
-    // the process lifetime; we hold its handle so it is not dropped early.
-    let process_ledger_store = Arc::new(PostgresProcessLedgerStore::new(
-        control_plane.postgres_pool.clone(),
-    ));
-    let (process_ledger, process_ledger_writer) = LedgerBatcher::spawn(
-        process_ledger_store,
-        Arc::new(NoopOverflowSink),
-        LedgerBatcherConfig::default(),
-    );
-    // WP-1 MT-013 (F1 graceful shutdown): keep a clone of the ledger handle so
-    // the shutdown path can close+drain the background writer. `process_ledger`
-    // itself is moved into the LlmClient (which owns the embedded-model STOP
-    // seam); `LedgerBatcher::begin_close` works from any clone.
-    let process_ledger_close = process_ledger.clone();
-    let llm_client = init_llm_client(flight_recorder.clone(), Some(process_ledger)).await;
-    let capability_registry = Arc::new(CapabilityRegistry::new());
-    let session_registry = Arc::new(workflows::SessionRegistry::new(
-        workflows::SessionSchedulerConfig::from_env(),
-    ));
-
-    let state = AppState {
-        storage: storage.clone(),
-        flight_recorder: flight_recorder.clone(),
-        diagnostics,
-        llm_client,
-        capability_registry,
-        session_registry,
-        postgres_pool: control_plane.postgres_pool.clone(),
-    };
 
     // Bootstrap the WP-KERNEL-005 atelier schema (idempotent, advisory-locked)
     // on the shared pool so the atelier HTTP surface is queryable from startup.
@@ -217,12 +371,84 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // Bind the public socket before opening model artifacts. A port conflict is
+    // a normal fallible startup gate; resolving it first guarantees that bind
+    // failure cannot strand a loaded runtime or an undrained START row.
+    let listener = TcpListener::bind(addr).await?;
+
+    // Install OS-signal observation before any model artifact can be opened or
+    // any durable START acknowledgement can block. The shared START budget in
+    // `llm::boot` bounds the remaining model-init interval; once it returns,
+    // an already-received signal immediately drives the normal quiescence path.
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    let signal_task = tokio::spawn(async move {
+        shutdown_signal().await;
+        let _ = shutdown_tx.send(true);
+    });
+
+    // One process-wide composition owns lifecycle writes, sandbox reclaim,
+    // boot reconciliation, and the liveness lease for both embedded inference
+    // and operator-chat/Official-CLI work.
+    if embedded_runtime_instance_lease.is_none() {
+        let host_scope_id = runtime_host_scope_id.clone().ok_or_else(|| {
+            handshake_core::process_ledger::ProcessLedgerError::InvalidConfig(
+                "process runtime requires a verified host scope".to_string(),
+            )
+        })?;
+        embedded_runtime_instance_lease = Some(
+            handshake_core::process_ledger::acquire_embedded_runtime_instance_lease(
+                uuid::Uuid::now_v7(),
+                host_scope_id,
+            )?,
+        );
+    }
+    let process_runtime_lease = embedded_runtime_instance_lease.take().ok_or_else(|| {
+        handshake_core::process_ledger::ProcessLedgerError::InvalidConfig(
+            "process runtime liveness lease was not acquired".to_string(),
+        )
+    })?;
+    let process_ledger_store = Arc::new(PostgresProcessLedgerStore::new(
+        control_plane.postgres_pool.clone(),
+    ));
+    let process_runtime = ProcessReclaimRuntime::production_with_lease(
+        control_plane.postgres_pool.clone(),
+        process_ledger_store,
+        None,
+        handshake_core::process_ledger::production_process_sandbox_registry(),
+        process_runtime_lease,
+        Duration::from_secs(30),
+    )
+    .await?;
+    runtime_instance = Some(process_runtime.runtime_instance().clone());
+    let model_registry_store = ModelRegistryStore::new(control_plane.postgres_pool.clone());
+    let llm_client = init_llm_client(
+        flight_recorder.clone(),
+        Some(process_runtime.ledger().ledger()),
+        Some(model_registry_store),
+        runtime_instance,
+    )
+    .await;
+    let capability_registry = Arc::new(CapabilityRegistry::new());
+    let session_registry = Arc::new(workflows::SessionRegistry::new(
+        workflows::SessionSchedulerConfig::from_env(),
+    ));
+
+    let state = AppState {
+        storage: storage.clone(),
+        flight_recorder: flight_recorder.clone(),
+        diagnostics,
+        llm_client,
+        capability_registry,
+        session_registry,
+        postgres_pool: control_plane.postgres_pool.clone(),
+    };
+
     // [HSK-WF-003] Startup Recovery Loop
     // Scan for and mark 'Running' workflows > 30s old as 'Stalled'.
     // Executed non-blockingly but initiated before server start.
     workflows::enable_startup_recovery_gate();
     let recovery_state = state.clone();
-    tokio::spawn(async move {
+    let recovery_handle = tokio::spawn(async move {
         tracing::info!(target: "handshake_core::recovery", "Starting boot-time workflow recovery scan...");
         match workflows::mark_stalled_workflows(&recovery_state, 30, true).await {
             Ok(recovered) => {
@@ -248,13 +474,12 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         flight_recorder.clone(),
         janitor_config,
     ));
-    let _janitor_handle = janitor.spawn_background();
+    let janitor_handle = janitor.clone().spawn_background();
 
     let api::ApiRoutes {
         router: api_routes,
         runtime: api_runtime,
-    } = api::routes_with_runtime(state.clone());
-
+    } = api::routes_with_process_reclaim_runtime(state.clone(), process_runtime);
     let app = Router::new()
         .route("/health", get(health))
         .with_state(state.clone())
@@ -264,42 +489,90 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!(target: "handshake_core", listen_addr = %addr, "handshake_core started");
 
-    let listener = TcpListener::bind(addr).await?;
-    // WP-1 MT-013 (F1 graceful shutdown): serve WITH a graceful-shutdown signal.
-    // Without this, a Ctrl-C / SIGTERM OS-kills the process and the shutdown
-    // sequence below (embedded-model STOP emit + ledger drain) never runs. On a
-    // signal, `serve` resolves cleanly and we run the ordered teardown:
-    // shutdown seam -> bounded ledger drain -> managed PostgreSQL stop.
-    let serve_result = axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await;
-
-    // 1) Emit the embedded-model ProcessOwnershipLedger STOP row via the
-    //    LlmClient shutdown seam. No-op for non-embedded clients (the default
-    //    when no local model is configured). This enqueues the STOP into the
-    //    ledger batcher; it is NOT yet durably flushed.
-    state.llm_client.shutdown();
-
-    // 2) BOUNDED drain-and-join: close the ledger writer channel and await the
-    //    background writer's JoinHandle (with a timeout) so the just-enqueued
-    //    STOP row is flushed to PostgreSQL BEFORE the managed cluster stops.
-    //    Ordering is load-bearing: shutdown -> drain -> pg stop. If the drain
-    //    times out, the pid-less STOP is recovered by the boot-time orphan
-    //    reclaim sweep on next start (a pid-less row has no OS-kill target).
-    let drain_outcome = handshake_core::process_ledger::drain_and_join_ledger_writer(
-        &process_ledger_close,
-        process_ledger_writer,
-        std::time::Duration::from_secs(5),
-    )
-    .await;
-    tracing::info!(
-        target: "handshake_core::process_ledger",
-        outcome = ?drain_outcome,
-        "embedded-model ledger drain-and-join at shutdown"
+    // WP-1 MT-013 (F1 graceful shutdown): stop accepting after the OS signal and
+    // give already-accepted connections a bounded drain window. Dropping only
+    // Axum's outer serve future does not prove its spawned connection tasks have
+    // ended, so the timeout path still drives the model-runtime quiescence
+    // barrier below and exits the process after cleanup.
+    let server_shutdown_rx = shutdown_rx.clone();
+    let deadline_shutdown_rx = shutdown_rx;
+    let server = std::future::IntoFuture::into_future(
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .with_graceful_shutdown(async move {
+            wait_for_shutdown_request(server_shutdown_rx).await;
+        }),
     );
+    tokio::pin!(server);
+    let connection_drain_deadline = async move {
+        wait_for_shutdown_request(deadline_shutdown_rx).await;
+        tokio::time::sleep(HTTP_CONNECTION_DRAIN_TIMEOUT).await;
+    };
+    tokio::pin!(connection_drain_deadline);
+    let (serve_result, connection_drain_timed_out) = tokio::select! {
+        result = &mut server => (Some(result), false),
+        _ = &mut connection_drain_deadline => (None, true),
+    };
+    signal_task.abort();
+    let _ = signal_task.await;
 
+    // The one-shot recovery scan owns an AppState clone, and therefore an LLM
+    // runtime owner. Cancel and join it after Axum returns or reaches its
+    // bounded connection deadline. On the deadline path the still-live Axum
+    // connection owners force the explicit no-STOP process-exit branch below.
+    // Stop the janitor before managed PostgreSQL teardown as well.
+    recovery_handle.abort();
+    let _ = recovery_handle.await;
+    janitor_handle.abort();
+    let _ = janitor_handle.await;
+
+    // A timed-out Axum drain leaves spawned connection tasks alive with
+    // AppState clones. Pre-abandon STOP authority before quiescing so even a
+    // successful worker barrier cannot publish a false clean lifecycle while
+    // those accepted tasks still exist.
+    if connection_drain_timed_out {
+        tracing::error!(
+            target: "handshake_core",
+            timeout_seconds = HTTP_CONNECTION_DRAIN_TIMEOUT.as_secs(),
+            "accepted HTTP connections missed the drain deadline; embedded START will remain open until process-death reconciliation"
+        );
+        state.llm_client.leave_open_for_reconciliation();
+    }
+
+    // 1) Close runtime admission, cancel active workers, and wait for the
+    //    worker-owned quiescence guards. Only a proven idle result may emit the
+    //    embedded ProcessOwnershipLedger STOP. On failure the client releases
+    //    its reserved STOP permits without emitting rows, leaving START open
+    //    for next-boot reconciliation.
+    let runtime_shutdown = if connection_drain_timed_out {
+        Err(handshake_core::llm::LlmError::ProviderError(
+            "accepted HTTP connections still own AppState; runtime unload ownership is unproven"
+                .to_string(),
+        ))
+    } else {
+        state.llm_client.shutdown_gracefully().await
+    };
+    if let Err(err) = &runtime_shutdown {
+        tracing::error!(
+            target: "handshake_core::process_ledger",
+            error = %err,
+            "embedded runtime did not prove quiescence; STOP remains open and shutdown will exit with the OS liveness lease held"
+        );
+    }
+
+    // Retain the final runtime-owning AppState on failed quiescence or an Axum
+    // connection-drain timeout. Only the fully-drained + quiesced path can drop
+    // the final owner before lease release. The Option keeps both paths explicit
+    // without an accidental Drop during error unwinding.
+    let mut state_owner = Some(state);
+
+    // 2) Quiesce the single reclaimer before closing and draining the single
+    // process-ledger writer. The shared runtime releases its OS lease only after
+    // both boundaries are proven.
     let api_drain_report = api_runtime
-        .drain_and_join(std::time::Duration::from_secs(5))
+        .drain_and_join(std::time::Duration::from_secs(35))
         .await;
     tracing::info!(
         target: "handshake_core::process_ledger",
@@ -307,20 +580,81 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         "operator-chat process ledger drain-and-join at shutdown"
     );
 
+    let operator_chat_ledger_flushed = matches!(
+        &api_drain_report.operator_chat_process_ledger,
+        handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+            | handshake_core::process_ledger::LedgerDrainJoinOutcome::AlreadyDrained
+    );
+
+    if connection_drain_timed_out
+        || runtime_shutdown.is_err()
+        || !api_drain_report.process_reclaim_quiesced
+        || !operator_chat_ledger_flushed
+    {
+        if let Err(err) = &runtime_shutdown {
+            tracing::error!(
+                target: "handshake_core::process_ledger",
+                error = %err,
+                "runtime shutdown did not reach a graceful terminal state"
+            );
+        }
+        tracing::error!(
+            target: "handshake_core::process_ledger",
+            connection_drain_timed_out,
+            process_reclaim_quiesced = api_drain_report.process_reclaim_quiesced,
+            operator_chat_ledger_flushed,
+            "shutdown durability was not fully proven; exiting with failure after preserving truthful process-ledger state"
+        );
+        // Do not unwind `state_owner` or release the lease while a worker may
+        // or an accepted connection task does still exist. Process termination
+        // ends them and releases the OS socket atomically from another
+        // instance's point of view. The managed PostgreSQL child is a separate
+        // OS process, so stop only the cluster this handle started before the
+        // hard exit; adopted/external clusters remain untouched by stop().
+        if let Err(err) = managed_pg.stop().await {
+            tracing::warn!(
+                target: "handshake_core::managed_postgres",
+                error = %err,
+                "managed PostgreSQL stop failed before hard shutdown exit"
+            );
+        }
+        std::process::exit(1);
+    }
+
+    // Runtime quiescence and queue acceptance are not sufficient to release
+    // the final runtime owner. The process-ledger writer has now proved that
+    // every accepted START/STOP row reached PostgreSQL, so dropping AppState can
+    // no longer race durable lifecycle evidence.
+    drop(state_owner.take());
+
     // 3) Best-effort teardown: stop the cluster only if Handshake started it
     //    (adopted/external clusters are left untouched).
     if let Err(err) = managed_pg.stop().await {
         tracing::warn!(target: "handshake_core::managed_postgres", error = %err, "managed PostgreSQL stop failed at shutdown");
     }
-    serve_result?;
+    drop(janitor);
+    if let Some(serve_result) = serve_result {
+        serve_result?;
+    }
     Ok(())
+}
+
+async fn wait_for_shutdown_request(mut shutdown_rx: tokio::sync::watch::Receiver<bool>) {
+    if *shutdown_rx.borrow() {
+        return;
+    }
+    while shutdown_rx.changed().await.is_ok() {
+        if *shutdown_rx.borrow() {
+            return;
+        }
+    }
 }
 
 /// WP-1 MT-013 (F1 graceful shutdown): resolves on the first OS shutdown signal
 /// so `axum::serve(...).with_graceful_shutdown(...)` returns cleanly, letting the
-/// ordered teardown (embedded-model STOP emit + ledger drain + PostgreSQL stop)
-/// run instead of being OS-killed mid-flight. Awaits Ctrl-C on all platforms and
-/// SIGTERM additionally on Unix.
+/// ordered teardown (embedded-model STOP emit + ledger drain + lease release +
+/// PostgreSQL stop) run instead of being OS-killed mid-flight. Awaits Ctrl-C on
+/// all platforms and SIGTERM additionally on Unix.
 async fn shutdown_signal() {
     let ctrl_c = async {
         if let Err(err) = tokio::signal::ctrl_c().await {
@@ -359,6 +693,30 @@ fn startup_recovery_only_requested() -> bool {
         .ok()
         .as_deref()
         == Some("1")
+}
+
+/// The product-core boot owner for ModelLane recovery. This runs after managed
+/// PostgreSQL and migrations are ready and before any HTTP/native consumer is
+/// exposed. Keeping the bounded await here makes recovery independent of the
+/// legacy Tauri host while preserving the store's transaction/idempotency law.
+async fn recover_model_lanes_at_core_boot_with_timeout(
+    pool: sqlx::PgPool,
+    timeout: Duration,
+) -> Result<usize, std::io::Error> {
+    let store = handshake_core::swarm_orchestration::model_lane::ModelLaneStore::new(pool);
+    match tokio::time::timeout(timeout, store.recover_restartable_runs_at_boot()).await {
+        Ok(Ok(recovered)) => Ok(recovered.len()),
+        Ok(Err(error)) => Err(std::io::Error::other(format!(
+            "ModelLane startup recovery failed: {error}"
+        ))),
+        Err(_) => Err(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            format!(
+                "ModelLane startup recovery exceeded the bounded timeout of {}ms",
+                timeout.as_millis()
+            ),
+        )),
+    }
 }
 
 fn write_startup_recovery_report(
@@ -456,8 +814,16 @@ async fn init_flight_recorder() -> Result<Arc<DuckDbFlightRecorder>, Box<dyn std
 async fn init_llm_client(
     flight_recorder: Arc<dyn FlightRecorder>,
     ledger: Option<LedgerBatcher>,
+    model_registry_store: Option<ModelRegistryStore>,
+    runtime_instance: Option<handshake_core::process_ledger::EmbeddedRuntimeInstanceDescriptor>,
 ) -> Arc<dyn LlmClient> {
-    resolve_default_llm_client(flight_recorder, ledger).await
+    resolve_default_llm_client(
+        flight_recorder,
+        ledger,
+        model_registry_store,
+        runtime_instance,
+    )
+    .await
 }
 
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
@@ -501,7 +867,8 @@ fn build_health_response(db_status: &str, migration_version: Option<i64>) -> Hea
 
 #[cfg(test)]
 mod tests {
-    use super::build_health_response;
+    use super::{build_health_response, recover_model_lanes_at_core_boot_with_timeout};
+    use std::time::Duration;
 
     #[test]
     fn health_response_ok_sets_status_ok() {
@@ -510,6 +877,26 @@ mod tests {
         assert_eq!(response.component, "handshake_core");
         assert_eq!(response.db_status, "ok");
         assert_eq!(response.migration_version, Some(9));
+    }
+
+    #[tokio::test]
+    async fn core_boot_model_lane_recovery_is_bounded_and_fails_closed() {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .acquire_timeout(Duration::from_secs(5))
+            .connect_lazy("postgresql://127.0.0.1:1/handshake_core_boot_recovery_unavailable")
+            .expect("construct deterministic unavailable PostgreSQL pool");
+        let started = std::time::Instant::now();
+        let error = recover_model_lanes_at_core_boot_with_timeout(pool, Duration::from_millis(25))
+            .await
+            .expect_err("core boot must not expose the runtime after recovery timeout");
+        assert!(
+            matches!(
+                error.kind(),
+                std::io::ErrorKind::TimedOut | std::io::ErrorKind::Other
+            ),
+            "connection refusal or the explicit timeout are both fail-closed: {error}"
+        );
+        assert!(started.elapsed() < Duration::from_secs(1));
     }
 
     #[test]

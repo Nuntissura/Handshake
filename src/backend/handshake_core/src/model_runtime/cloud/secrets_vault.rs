@@ -20,7 +20,7 @@ use std::sync::{Arc, RwLock};
 use thiserror::Error;
 use zeroize::Zeroizing;
 
-use super::openai_byok::{ApiKeyProvider, OpenAiByokError};
+use super::openai_byok::{ApiKeyFetchCode, ApiKeyProvider, OpenAiByokError};
 
 #[derive(Debug, Error)]
 pub enum SecretsVaultError {
@@ -157,7 +157,15 @@ impl<V: SecretsVault + 'static> ApiKeyProvider for VaultApiKeyProvider<V> {
         self.vault
             .get(&self.lane)
             .map(|secret| secret.to_string())
-            .map_err(|err| OpenAiByokError::ApiKeyFetch(format!("{err}")))
+            .map_err(|err| OpenAiByokError::ApiKeyFetch {
+                code: match err {
+                    SecretsVaultError::EmptyLaneId => ApiKeyFetchCode::VaultEmptyLaneId,
+                    SecretsVaultError::EmptySecretValue => ApiKeyFetchCode::VaultEmptySecretValue,
+                    SecretsVaultError::NoSecretForLane(_) => ApiKeyFetchCode::VaultNoSecretForLane,
+                    SecretsVaultError::LockPoisoned(_) => ApiKeyFetchCode::VaultLockPoisoned,
+                    SecretsVaultError::KeychainBackend(_) => ApiKeyFetchCode::VaultKeychainBackend,
+                },
+            })
     }
 }
 

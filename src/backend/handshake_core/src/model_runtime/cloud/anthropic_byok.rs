@@ -45,8 +45,10 @@
 //!   do not spawn a Handshake-owned process.
 
 use std::collections::{HashMap, HashSet};
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
+use std::task::{Context, Poll};
 
 use async_trait::async_trait;
 use futures::{stream, Stream, StreamExt};
@@ -54,8 +56,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::openai_byok::{
-    ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudInvocationAuditRow,
-    CloudInvocationAuditSink, OpenAiByokError,
+    ApiKeyFetchCode, ApiKeyProvider, ByokInvocationTimeouts, CloudCallKind, CloudCallStatus,
+    CloudInvocationAuditRow, CloudInvocationAuditSink, OpenAiByokError, ProviderBodyMetadata,
+    ProviderOperation, ProviderResponseKind, SseFailureKind, TransportErrorCode,
 };
 use crate::flight_recorder::events_llm_infer::{
     infer_end_event, infer_start_event, infer_token_event, new_llm_infer_request_id,
@@ -106,6 +109,22 @@ pub const ANTHROPIC_API_KEY_HEADER: &str = "x-api-key";
 /// HTTP header carrying the [`ANTHROPIC_API_VERSION`] pin.
 pub const ANTHROPIC_VERSION_HEADER: &str = "anthropic-version";
 
+/// Provider-controlled error bodies can echo request data, including secrets,
+/// and can be arbitrarily large. ModelRuntimeError receives only this bounded,
+/// metadata-only diagnostic; raw provider body bytes are never surfaced.
+const PROVIDER_ERROR_BODY_DIAGNOSTIC_MAX_BYTES: usize = 160;
+
+fn redacted_provider_response_body(response: &reqwest::Response) -> String {
+    let diagnostic = match response.content_length() {
+        Some(declared_bytes) => {
+            format!("<redacted provider response body; declared_bytes={declared_bytes}>")
+        }
+        None => "<redacted provider response body; declared_bytes=unknown>".to_string(),
+    };
+    debug_assert!(diagnostic.len() <= PROVIDER_ERROR_BODY_DIAGNOSTIC_MAX_BYTES);
+    diagnostic
+}
+
 /// SSE event-name dispatch tags emitted by Anthropic. Tokens arrive
 /// as `content_block_delta`; the stream terminates cleanly on
 /// `message_stop`. Other events (`message_start`,
@@ -134,22 +153,31 @@ pub enum AnthropicByokError {
     EmptyModelName,
     #[error("model_id {0} is not registered with the Anthropic BYOK runtime")]
     ModelNotRegistered(ModelId),
-    #[error("API key fetch failed: {0}")]
-    ApiKeyFetch(String),
+    #[error("API key fetch failed; code={code}")]
+    ApiKeyFetch { code: ApiKeyFetchCode },
     #[error("audit row persistence failed: {0}")]
     AuditPersist(String),
     #[error("internal lock poisoned: {0}")]
     LockPoisoned(String),
     #[error("only ByokCloud provider is supported by AnthropicByokRuntime (got {0:?})")]
     ProviderKindNotSupported(ProviderKind),
-    #[error("HTTP request to {url} failed: {source}")]
-    RequestFailed { url: String, source: reqwest::Error },
-    #[error("HTTP response status {status} body {body}")]
-    HttpStatus { status: u16, body: String },
-    #[error("SSE stream parse failed: {0}")]
-    StreamParseFailed(String),
-    #[error("JSON (de)serialisation failed: {0}")]
-    JsonFailed(String),
+    #[error("provider transport failed; operation={operation}; code={code}")]
+    RequestFailed {
+        operation: ProviderOperation,
+        code: TransportErrorCode,
+    },
+    #[error("HTTP response status {status}; provider body redacted; metadata={metadata:?}")]
+    HttpStatus {
+        status: u16,
+        metadata: ProviderBodyMetadata,
+    },
+    #[error("SSE stream failed; kind={kind:?}; payload_bytes={payload_bytes:?}")]
+    StreamParseFailed {
+        kind: SseFailureKind,
+        payload_bytes: Option<usize>,
+    },
+    #[error("JSON processing failed; response_kind={response_kind:?}")]
+    JsonFailed { response_kind: ProviderResponseKind },
     #[error("call cancelled before completion")]
     Cancelled,
 }
@@ -161,10 +189,12 @@ impl From<OpenAiByokError> for AnthropicByokError {
         // the same shape on our side so the API stays Anthropic-
         // focused at the boundary.
         match value {
-            OpenAiByokError::ApiKeyFetch(msg) => AnthropicByokError::ApiKeyFetch(msg),
+            OpenAiByokError::ApiKeyFetch { code } => AnthropicByokError::ApiKeyFetch { code },
             OpenAiByokError::AuditPersist(msg) => AnthropicByokError::AuditPersist(msg),
             OpenAiByokError::LockPoisoned(msg) => AnthropicByokError::LockPoisoned(msg),
-            other => AnthropicByokError::ApiKeyFetch(format!("{other}")),
+            _ => AnthropicByokError::ApiKeyFetch {
+                code: ApiKeyFetchCode::ProviderFailure,
+            },
         }
     }
 }
@@ -239,6 +269,7 @@ pub struct AnthropicByokRuntime {
     models: RwLock<HashMap<ModelId, AnthropicModelHandle>>,
     declared_capabilities: ModelCapabilities,
     runtime_cancel: CancellationToken,
+    timeouts: ByokInvocationTimeouts,
     /// MT-126 remediation: optional shared cloud-lane observability.
     /// When `Some`, the runtime (1) consults the [`ConsentGate`]
     /// before issuing the live HTTP call and (2) emits
@@ -269,9 +300,13 @@ impl AnthropicByokRuntime {
         api_key_provider: Arc<dyn ApiKeyProvider>,
         audit_sink: Arc<dyn CloudInvocationAuditSink>,
     ) -> Self {
+        let timeouts = ByokInvocationTimeouts::default();
         Self::with_client(
             api_base,
-            reqwest::Client::new(),
+            reqwest::Client::builder()
+                .connect_timeout(timeouts.connect)
+                .build()
+                .expect("build bounded Anthropic BYOK HTTP client"),
             api_key_provider,
             audit_sink,
         )
@@ -299,8 +334,17 @@ impl AnthropicByokRuntime {
             models: RwLock::new(HashMap::new()),
             declared_capabilities: Self::cloud_capabilities(),
             runtime_cancel: CancellationToken::new(),
+            timeouts: ByokInvocationTimeouts::default(),
             lane_obs: None,
         }
+    }
+
+    pub fn with_timeouts(mut self, timeouts: ByokInvocationTimeouts) -> Self {
+        assert!(!timeouts.whole_invocation.is_zero());
+        assert!(!timeouts.connect.is_zero());
+        assert!(!timeouts.idle.is_zero());
+        self.timeouts = timeouts;
+        self
     }
 
     /// MT-126 remediation: attach a shared
@@ -421,7 +465,12 @@ impl AnthropicByokRuntime {
     pub fn fetch_api_key(&self) -> Result<String, AnthropicByokError> {
         self.api_key_provider
             .fetch_api_key()
-            .map_err(|err| AnthropicByokError::ApiKeyFetch(format!("{err}")))
+            .map_err(|err| AnthropicByokError::ApiKeyFetch {
+                code: match err {
+                    OpenAiByokError::ApiKeyFetch { code } => code,
+                    _ => ApiKeyFetchCode::ProviderFailure,
+                },
+            })
     }
 
     /// Records an audit row through the sink. Tests use this to
@@ -567,6 +616,7 @@ impl AnthropicByokRuntime {
                 request_id,
                 prompt_tokens_estimate,
             },
+            self.timeouts,
         )
     }
 }
@@ -611,11 +661,13 @@ fn async_token_stream(
     audit_sink: Arc<dyn CloudInvocationAuditSink>,
     audit_template: CloudInvocationAuditRow,
     fr_ctx: LaneFrContext,
+    timeouts: ByokInvocationTimeouts,
 ) -> Pin<Box<dyn Stream<Item = Result<GeneratedToken, ModelRuntimeError>> + Send>> {
     let (sender, receiver) =
         tokio::sync::mpsc::unbounded_channel::<Result<GeneratedToken, ModelRuntimeError>>();
 
-    tokio::spawn(run_live_stream(
+    let owner_cancel = CancellationToken::new();
+    let task = tokio::spawn(run_live_stream(
         client,
         url,
         api_key,
@@ -626,11 +678,76 @@ fn async_token_stream(
         audit_template,
         fr_ctx,
         sender,
+        owner_cancel.clone(),
+        timeouts,
     ));
+    Box::pin(OwnedCloudTokenStream {
+        receiver,
+        task: Some(task),
+        owner_cancel,
+    })
+}
 
-    Box::pin(stream::unfold(receiver, |mut receiver| async {
-        receiver.recv().await.map(|item| (item, receiver))
-    }))
+struct OwnedCloudTokenStream {
+    receiver: tokio::sync::mpsc::UnboundedReceiver<Result<GeneratedToken, ModelRuntimeError>>,
+    task: Option<tokio::task::JoinHandle<()>>,
+    owner_cancel: CancellationToken,
+}
+
+impl Stream for OwnedCloudTokenStream {
+    type Item = Result<GeneratedToken, ModelRuntimeError>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.receiver.poll_recv(cx)
+    }
+}
+
+impl Drop for OwnedCloudTokenStream {
+    fn drop(&mut self) {
+        self.owner_cancel.cancel();
+        let Some(mut task) = self.task.take() else {
+            return;
+        };
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            runtime.spawn(async move {
+                if tokio::time::timeout(std::time::Duration::from_millis(250), &mut task)
+                    .await
+                    .is_err()
+                {
+                    task.abort();
+                    let _ = task.await;
+                }
+            });
+        } else {
+            task.abort();
+        }
+    }
+}
+
+enum ProviderWaitFailure {
+    Cancelled,
+    Deadline,
+}
+
+async fn await_provider_step<F, T>(
+    future: F,
+    cancel_req: &CancellationToken,
+    cancel_runtime: &CancellationToken,
+    owner_cancel: &CancellationToken,
+    deadline: tokio::time::Instant,
+) -> Result<T, ProviderWaitFailure>
+where
+    F: Future<Output = T>,
+{
+    tokio::select! {
+        biased;
+        _ = cancel_req.cancelled() => Err(ProviderWaitFailure::Cancelled),
+        _ = cancel_runtime.cancelled() => Err(ProviderWaitFailure::Cancelled),
+        _ = owner_cancel.cancelled() => Err(ProviderWaitFailure::Cancelled),
+        result = tokio::time::timeout_at(deadline, future) => {
+            result.map_err(|_| ProviderWaitFailure::Deadline)
+        }
+    }
 }
 
 /// Async driver. Sends one `Result<GeneratedToken, _>` per
@@ -648,10 +765,13 @@ async fn run_live_stream(
     audit_template: CloudInvocationAuditRow,
     fr_ctx: LaneFrContext,
     sender: tokio::sync::mpsc::UnboundedSender<Result<GeneratedToken, ModelRuntimeError>>,
+    owner_cancel: CancellationToken,
+    timeouts: ByokInvocationTimeouts,
 ) {
     use eventsource_stream::Eventsource;
 
     let start_instant = std::time::Instant::now();
+    let invocation_deadline = tokio::time::Instant::now() + timeouts.whole_invocation;
     let mut last_token_instant = start_instant;
 
     // MT-126 remediation: emit FR-EVT-LLM-INFER-START once at the
@@ -680,22 +800,56 @@ async fn run_live_stream(
         return;
     }
 
-    let response = match client
-        .post(&url)
-        .header(ANTHROPIC_API_KEY_HEADER, &api_key)
-        .header(ANTHROPIC_VERSION_HEADER, ANTHROPIC_API_VERSION)
-        .header("Content-Type", "application/json")
-        .body(body_json)
-        .send()
-        .await
+    let connect_deadline = invocation_deadline.min(tokio::time::Instant::now() + timeouts.connect);
+    let response = match await_provider_step(
+        client
+            .post(&url)
+            .header(ANTHROPIC_API_KEY_HEADER, &api_key)
+            .header(ANTHROPIC_VERSION_HEADER, ANTHROPIC_API_VERSION)
+            .header("Content-Type", "application/json")
+            .body(body_json)
+            .send(),
+        &cancel_req,
+        &cancel_runtime,
+        &owner_cancel,
+        connect_deadline,
+    )
+    .await
     {
-        Ok(resp) => resp,
-        Err(err) => {
+        Ok(Ok(resp)) => resp,
+        Ok(Err(err)) => {
+            let code = if err.is_timeout() {
+                TransportErrorCode::Timeout
+            } else if err.is_connect() {
+                TransportErrorCode::Connect
+            } else if err.is_request() {
+                TransportErrorCode::Request
+            } else if err.is_body() {
+                TransportErrorCode::Body
+            } else if err.is_decode() {
+                TransportErrorCode::Decode
+            } else {
+                TransportErrorCode::Unknown
+            };
             record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
             emit_fr_end(&fr_ctx, 0, &start_instant, FinishReason::Error).await;
             let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
-                "Anthropic BYOK request to {url} failed: {err}"
+                "Anthropic BYOK transport failed; operation=generate; code={code}"
             ))));
+            return;
+        }
+        Err(ProviderWaitFailure::Cancelled) => {
+            record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Cancelled);
+            emit_fr_end(&fr_ctx, 0, &start_instant, FinishReason::Cancelled).await;
+            let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
+            return;
+        }
+        Err(ProviderWaitFailure::Deadline) => {
+            record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+            emit_fr_end(&fr_ctx, 0, &start_instant, FinishReason::Error).await;
+            let _ = sender.send(Err(ModelRuntimeError::GenerateError(
+                "Anthropic BYOK connect/request deadline elapsed".to_string(),
+            )));
             return;
         }
     };
@@ -707,7 +861,7 @@ async fn run_live_stream(
 
     if !response.status().is_success() {
         let status = response.status().as_u16();
-        let body = response.text().await.unwrap_or_default();
+        let body = redacted_provider_response_body(&response);
         record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
         emit_fr_end(&fr_ctx, 0, &start_instant, FinishReason::Error).await;
         let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
@@ -720,28 +874,56 @@ async fn run_live_stream(
     let mut token_index: u32 = 0;
     let mut pending_finish: Option<FinishReason> = None;
 
-    while let Some(event) = sse.next().await {
-        if cancel_req.is_cancelled() || cancel_runtime.is_cancelled() {
-            record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Cancelled);
-            emit_fr_end(
-                &fr_ctx,
-                token_index,
-                &start_instant,
-                FinishReason::Cancelled,
-            )
-            .await;
-            let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
-            return;
-        }
+    loop {
+        let idle_deadline = invocation_deadline.min(tokio::time::Instant::now() + timeouts.idle);
+        let next_event = await_provider_step(
+            sse.next(),
+            &cancel_req,
+            &cancel_runtime,
+            &owner_cancel,
+            idle_deadline,
+        )
+        .await;
+        let event = match next_event {
+            Ok(Some(event)) => event,
+            Ok(None) => break,
+            Err(ProviderWaitFailure::Cancelled) => {
+                record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Cancelled);
+                emit_fr_end(
+                    &fr_ctx,
+                    token_index,
+                    &start_instant,
+                    FinishReason::Cancelled,
+                )
+                .await;
+                let _ = sender.send(Ok(terminal_token(FinishReason::Cancelled)));
+                return;
+            }
+            Err(ProviderWaitFailure::Deadline) => {
+                let detail = if tokio::time::Instant::now() >= invocation_deadline {
+                    "whole invocation"
+                } else {
+                    "SSE idle"
+                };
+                record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+                emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error).await;
+                let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
+                    "Anthropic BYOK {detail} deadline elapsed"
+                ))));
+                return;
+            }
+        };
 
         let event = match event {
             Ok(event) => event,
             Err(err) => {
+                let _ = err;
                 record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
                 emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error).await;
-                let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
-                    "Anthropic BYOK SSE parse failure: {err}"
-                ))));
+                let _ = sender.send(Err(ModelRuntimeError::GenerateError(
+                    "Anthropic BYOK SSE framing failure; event_kind=unavailable; payload_bytes=unavailable; provider_payload=<redacted>"
+                        .to_string(),
+                )));
                 return;
             }
         };
@@ -751,12 +933,13 @@ async fn run_live_stream(
                 let payload: ContentBlockDeltaPayload = match serde_json::from_str(&event.data) {
                     Ok(p) => p,
                     Err(err) => {
+                        let _ = err;
+                        let payload_bytes = event.data.len();
                         record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
                         emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error)
                             .await;
                         let _ = sender.send(Err(ModelRuntimeError::GenerateError(format!(
-                            "Anthropic BYOK content_block_delta JSON parse failure: {err}; payload={}",
-                            event.data
+                            "Anthropic BYOK SSE JSON parse failure; event_kind=content_block_delta; payload_bytes={payload_bytes}; provider_payload=<redacted>"
                         ))));
                         return;
                     }
@@ -853,13 +1036,12 @@ async fn run_live_stream(
         }
     }
 
-    // Stream ended without an explicit `message_stop`. Treat as a
-    // clean server-side close; a truly broken response would have
-    // produced an error item above and returned.
-    let finish = pending_finish.unwrap_or(FinishReason::Stop);
-    record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Succeeded);
-    emit_fr_end(&fr_ctx, token_index, &start_instant, finish).await;
-    let _ = sender.send(Ok(terminal_token(finish)));
+    record_final_audit(&audit_sink, &audit_template, CloudCallStatus::Failed);
+    emit_fr_end(&fr_ctx, token_index, &start_instant, FinishReason::Error).await;
+    let _ = sender.send(Err(ModelRuntimeError::GenerateError(
+        "Anthropic BYOK SSE terminal missing; event_kind=message_stop; provider_payload=<redacted>"
+            .to_string(),
+    )));
 }
 
 /// MT-126 remediation: emit a single FR event through the attached
@@ -1226,6 +1408,21 @@ mod tests {
         runtime.cancel(outer.clone());
         assert!(outer.is_cancelled());
         assert!(runtime.runtime_cancel.is_cancelled());
+    }
+
+    #[test]
+    fn timeout_override_covers_connect_idle_and_whole_invocation() {
+        let runtime = fixture_runtime().with_timeouts(ByokInvocationTimeouts {
+            whole_invocation: std::time::Duration::from_secs(3),
+            connect: std::time::Duration::from_secs(1),
+            idle: std::time::Duration::from_secs(2),
+        });
+        assert_eq!(
+            runtime.timeouts.whole_invocation,
+            std::time::Duration::from_secs(3)
+        );
+        assert_eq!(runtime.timeouts.connect, std::time::Duration::from_secs(1));
+        assert_eq!(runtime.timeouts.idle, std::time::Duration::from_secs(2));
     }
 
     #[test]

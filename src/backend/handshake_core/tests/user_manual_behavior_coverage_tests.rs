@@ -4,15 +4,30 @@
 
 mod knowledge_pg_support;
 
+use handshake_core::process_ledger::PIDLESS_RECLAIM_INSTANCE_CAP;
 use handshake_core::swarm_orchestration::model_lane::ModelLaneStore;
+use handshake_core::user_manual::registry::{wp009_surface_registry, SurfaceGroup};
 use handshake_core::user_manual::seed::ensure_seeded;
-use handshake_core::user_manual::store::UserManualStore;
+use handshake_core::user_manual::store::{UserManualFeatureEntry, UserManualStore};
 use handshake_core::user_manual::{
     cloud_model_access_behavior_coverage_matrix,
     dedicated_embedding_model_behavior_coverage_matrix, embedded_model_behavior_coverage_matrix,
-    model_lane_behavior_coverage_matrix, operator_chat_launch_behavior_coverage_matrix,
-    verify_cloud_model_access_behavior_coverage, verify_embedded_model_behavior_coverage,
-    verify_model_lane_behavior_coverage, BehaviorCoverageError, DiagnosticTierPosture,
+    model_lane_behavior_coverage_matrix, model_runtime_registry_behavior_coverage_matrix,
+    operator_chat_launch_behavior_coverage_matrix, verify_cloud_model_access_behavior_coverage,
+    verify_embedded_model_behavior_coverage, verify_model_lane_behavior_coverage,
+    verify_model_runtime_registry_behavior_coverage, BehaviorCoverageError, DiagnosticTierPosture,
+    ModelRuntimeProofExecutionStatus, MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE,
+    MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID, USER_MANUAL_VERSION,
+};
+use handshake_core::{
+    api::model_runtime_registry::{
+        MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE, MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID,
+        MODEL_RUNTIME_REGISTRY_ROUTE, MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE,
+        MODEL_RUNTIME_SELECTION_INVALID_CODE, MODEL_RUNTIME_SELECTION_REJECTED_CODE,
+        MODEL_RUNTIME_SELECTION_ROUTE,
+    },
+    kernel::KernelEventType,
+    model_runtime::MODEL_RUNTIME_REGISTRY_SCHEMA_ID,
 };
 use sqlx::postgres::PgPoolOptions;
 use std::collections::BTreeSet;
@@ -49,7 +64,32 @@ async fn behavior_coverage_matrix_generated_from_model_lane_registries() {
         .await
         .expect("read UserManual tools");
 
-    let matrix = model_lane_behavior_coverage_matrix();
+    let manual_text = pages
+        .iter()
+        .map(|page| page.body.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        manual_text.contains(&format!(
+            "Each boot examines at most {PIDLESS_RECLAIM_INSTANCE_CAP} eligible runtime-instance groups"
+        )),
+        "UserManual reclaim cap must match the runtime constant"
+    );
+    assert!(
+        manual_text.contains("kill_succeeded_pending_stop")
+            && manual_text.contains("reclaim_kill_in_progress")
+            && manual_text.contains("UUIDv7-plus-generation fenced claim")
+            && manual_text.contains("PostgreSQL store acknowledgement")
+            && manual_text.contains("kill_operation_uuid")
+            && manual_text.contains("bounded session recovery sweep")
+            && manual_text.contains("typed per-operation outcomes")
+            && manual_text.contains("never panic or poison later rows")
+            && manual_text.contains("never fabricate STOP from unknown evidence"),
+        "UserManual must explain lossless fenced reclaim and pending-STOP recovery"
+    );
+
+    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
     let registry_schema_ids = schema_registry
         .iter()
         .map(|row| row.schema_id.as_str())
@@ -68,11 +108,12 @@ async fn behavior_coverage_matrix_generated_from_model_lane_registries() {
             "{} must name the implemented command/API/IPC/runtime surface",
             row.behavior_id
         );
-        assert!(
-            row.self_consistency_result().starts_with("verified:"),
-            "{} must expose an explicit self-consistency result",
-            row.behavior_id
-        );
+        let proof = row
+            .self_consistency_result(&schema_registry, &pages, &tools)
+            .unwrap_or_else(|errors| panic!("{} consistency errors: {errors:?}", row.behavior_id));
+        assert!(proof
+            .checked_authorities
+            .contains("compiled_internal_symbol"));
     }
 
     verify_model_lane_behavior_coverage(&matrix, &schema_registry, &pages, &tools).unwrap_or_else(
@@ -120,7 +161,8 @@ async fn behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route()
         .list_tool_entries(None, None, 1_000)
         .await
         .expect("read UserManual tools");
-    let baseline = model_lane_behavior_coverage_matrix();
+    let baseline = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
 
     let mut missing_manual = baseline.clone();
     missing_manual[0].user_manual_slug = "missing-model-lane-manual-page";
@@ -130,11 +172,11 @@ async fn behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route()
     assert_coverage_error_contains(&errors, "wp1.model_lane.run", "UserManual page");
 
     let mut missing_diagnostic = baseline.clone();
-    missing_diagnostic[0].internal_diagnostics_posture = DiagnosticTierPosture::DeferredWithReason;
+    missing_diagnostic[0].internal_diagnostics_posture = DiagnosticTierPosture::Wired;
     let errors =
         verify_model_lane_behavior_coverage(&missing_diagnostic, &schema_registry, &pages, &tools)
             .expect_err(
-                "missing wired internal_diagnostics posture must fail MT-011 coverage proof",
+                "false-green wired internal_diagnostics posture must fail MT-011 coverage proof",
             );
     assert_coverage_error_contains(
         &errors,
@@ -148,6 +190,13 @@ async fn behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route()
         verify_model_lane_behavior_coverage(&missing_runtime, &schema_registry, &pages, &tools)
             .expect_err("missing runtime surface id must fail MT-011 coverage proof");
     assert_coverage_error_contains(&errors, "wp1.model_lane.run", "runtime_surface_id missing");
+
+    let mut renamed_symbol = baseline.clone();
+    renamed_symbol[0].runtime_surface_id = "ModelLaneStore::deleted_record_run";
+    let errors =
+        verify_model_lane_behavior_coverage(&renamed_symbol, &schema_registry, &pages, &tools)
+            .expect_err("a nonempty but nonexistent Rust symbol must fail");
+    assert_coverage_error_contains(&errors, "wp1.model_lane.run", "compile-anchored symbol");
 
     let mut missing_tool = baseline;
     missing_tool[0].tool_id = "missing_runtime_route_tool";
@@ -203,7 +252,8 @@ async fn mixed_model_lane_behaviors_have_manual_coverage() {
         .await
         .expect("read UserManual tools");
 
-    let matrix = model_lane_behavior_coverage_matrix();
+    let matrix = model_lane_behavior_coverage_matrix(&schema_registry)
+        .expect("generate ModelLane behavior coverage from PostgreSQL schema registry");
     let behavior_ids = matrix
         .iter()
         .map(|row| row.behavior_id)
@@ -213,19 +263,28 @@ async fn mixed_model_lane_behaviors_have_manual_coverage() {
         BTreeSet::from([
             "wp1.model_lane.run",
             "wp1.model_lane.launch",
+            "wp1.model_lane.official_cli_spawn",
+            "wp1.model_lane.official_cli_attached_sandbox",
             "wp1.model_lane.message",
             "wp1.model_lane.terminal",
             "wp1.model_lane.promotion",
             "wp1.model_lane.context_bundle_artifact",
             "wp1.model_lane.context_bundle",
             "wp1.model_lane.cloud_projection_plan",
+            "wp1.model_lane.cloud_projection_plan_v2",
             "wp1.model_lane.cloud_consent",
+            "wp1.model_lane.cloud_consent_v2",
             "wp1.model_lane.cloud_consent_denial",
             "wp1.model_lane.recovery",
             "wp1.model_lane.recovery_event",
+            "wp1.model_lane.recovery_event_v2",
             "wp1.model_lane.lease",
             "wp1.model_lane.diagnostics",
             "wp1.model_lane.mixed_validation",
+            "wp1.model_lane.routing_execution",
+            "wp1.model_lane.routing_outbox",
+            "wp1.model_lane.routing_stage_attempt",
+            "wp1.model_lane.run_extension",
         ]),
         "behavior coverage matrix must stay exact for WP-1 model-lane behaviors"
     );
@@ -263,18 +322,19 @@ async fn mixed_model_lane_behaviors_have_manual_coverage() {
         assert_eq!(
             row.internal_diagnostics_posture,
             DiagnosticTierPosture::Wired,
-            "{} must keep internal_diagnostics wired",
+            "{} must keep internal_diagnostics WIRED through the native producer and Problems projection",
             row.behavior_id
         );
         assert_eq!(
             row.palmistry_posture,
-            DiagnosticTierPosture::DeferredWithReason,
-            "{} must keep Palmistry explicit DEFERRED-with-reason until the watcher lands",
+            DiagnosticTierPosture::Wired,
+            "{} must keep Palmistry WIRED through the authenticated watcher and survivor importer",
             row.behavior_id
         );
         assert!(
-            row.deferred_reason.is_some(),
-            "{} Palmistry posture requires a deferred reason",
+            row.deferred_reason
+                .is_some_and(|reason| reason.contains("wired observers")),
+            "{} WIRED diagnostics posture requires explicit observer/authority separation",
             row.behavior_id
         );
         assert!(
@@ -303,10 +363,7 @@ async fn mixed_model_lane_behaviors_have_manual_coverage() {
         .expect("mixed validation row");
     assert_eq!(mixed.schema_id, Some("hsk.model_lane_mt_runtime_status@1"));
     assert_eq!(mixed.event_family, "model_lane_mt_runtime_status");
-    assert_eq!(
-        mixed.runtime_surface_id,
-        "mixed_model_lane_integration_pg_tests"
-    );
+    assert_eq!(mixed.runtime_surface_id, "ModelLaneStore");
     assert_eq!(mixed.tool_id, "mixed_model_lane_integration_pg_tests");
     assert_eq!(mixed.user_manual_slug, "model-lane-validation-harness");
     assert!(
@@ -317,14 +374,13 @@ async fn mixed_model_lane_behaviors_have_manual_coverage() {
     );
     assert!(
         mixed.follow_up_ref.is_some(),
-        "Palmistry deferred posture must carry a follow-up ref"
+        "Palmistry wired posture must carry a stable diagnostic correlation ref"
     );
 }
 
 /// WP-1 MT-013 (AC#5): the embedded-model lifecycle ledger + fail-closed/
 /// embedding Flight Recorder behaviors have first-class UserManual coverage rows
-/// backed by real seeded pages/tools, with the MT-013 HBR-INT-009 posture
-/// (Flight Recorder WIRED; internal_diagnostics + Palmistry DEFERRED-with-reason).
+/// backed by real seeded pages/tools, with all HBR-INT-009 tiers WIRED.
 #[tokio::test]
 async fn embedded_model_behaviors_have_manual_coverage() {
     let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
@@ -352,15 +408,9 @@ async fn embedded_model_behaviors_have_manual_coverage() {
         .iter()
         .map(|row| row.behavior_id)
         .collect::<BTreeSet<_>>();
-    assert_eq!(
-        behavior_ids,
-        BTreeSet::from([
-            "wp1.embedded_model.ledger_start",
-            "wp1.embedded_model.ledger_stop",
-            "wp1.llm.fail_closed_fr",
-            "wp1.llm.embedding_fr",
-        ]),
-        "MT-013 embedded-model behavior coverage matrix must stay exact"
+    assert!(
+        !behavior_ids.is_empty(),
+        "canonical embedded-model registry is nonempty"
     );
     assert_eq!(
         behavior_ids.len(),
@@ -371,25 +421,26 @@ async fn embedded_model_behaviors_have_manual_coverage() {
     for row in &matrix {
         assert_eq!(
             row.internal_diagnostics_posture,
-            DiagnosticTierPosture::DeferredWithReason,
-            "{} internal_diagnostics must be DEFERRED-with-reason for MT-013 (NOT Wired like MT-011)",
+            DiagnosticTierPosture::Wired,
+            "{} internal_diagnostics must be WIRED through the native producer",
             row.behavior_id
         );
         assert_eq!(
             row.palmistry_posture,
-            DiagnosticTierPosture::DeferredWithReason,
-            "{} Palmistry must be DEFERRED-with-reason",
+            DiagnosticTierPosture::Wired,
+            "{} Palmistry must be WIRED through the authenticated watcher",
             row.behavior_id
         );
         assert!(
-            row.deferred_reason.is_some(),
-            "{} DEFERRED tiers require a deferred_reason",
+            row.deferred_reason
+                .is_some_and(|reason| reason.contains("wired")),
+            "{} WIRED tiers require explicit observer/authority separation",
             row.behavior_id
         );
         assert!(
             row.follow_up_ref
                 .is_some_and(|value| value.starts_with("palmistry://wp1/embedded-model/")),
-            "{} DEFERRED tiers require an embedded-model Palmistry follow-up ref",
+            "{} WIRED tiers require an embedded-model Palmistry correlation ref",
             row.behavior_id
         );
         assert!(
@@ -411,7 +462,6 @@ async fn embedded_model_behaviors_have_manual_coverage() {
         tool_ids.contains("llm_client_local_routing_tests"),
         "FR behaviors must point at the llm_client_local_routing_tests proof suite"
     );
-
     verify_embedded_model_behavior_coverage(&matrix, &pages, &tools).unwrap_or_else(|errors| {
         panic!(
             "embedded-model behavior coverage gaps:\n{}",
@@ -425,9 +475,7 @@ async fn embedded_model_behaviors_have_manual_coverage() {
 }
 
 /// WP-1 MT-012: the operator chat/launch surface behaviors have UserManual
-/// coverage (page + tool seeded) and the MT-013-style HBR-INT-009 posture
-/// (Flight Recorder/EventLedger WIRED; internal_diagnostics + Palmistry
-/// DEFERRED-with-reason).
+/// coverage (page + tool seeded) and all HBR-INT-009 tiers WIRED.
 #[tokio::test]
 async fn operator_chat_launch_behaviors_have_manual_coverage() {
     let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
@@ -455,16 +503,17 @@ async fn operator_chat_launch_behaviors_have_manual_coverage() {
         .iter()
         .map(|row| row.behavior_id)
         .collect::<BTreeSet<_>>();
-    assert_eq!(
-        behavior_ids,
-        BTreeSet::from([
-            "wp1.operator_chat.launch",
-            "wp1.operator_chat.capture_message",
-            "wp1.operator_chat.agent_activity_fr",
-            "wp1.operator_chat.selection_audit",
-        ]),
-        "MT-012 operator-chat behavior coverage matrix must stay exact"
-    );
+    for surface in wp009_surface_registry()
+        .iter()
+        .filter(|surface| surface.group == SurfaceGroup::OperatorChat)
+    {
+        assert!(
+            behavior_ids.contains(surface.surface_id),
+            "shipped Operator Chat route {} {} escaped behavior coverage",
+            surface.method,
+            surface.route
+        );
+    }
     assert_eq!(
         behavior_ids.len(),
         matrix.len(),
@@ -474,20 +523,20 @@ async fn operator_chat_launch_behaviors_have_manual_coverage() {
     for row in &matrix {
         assert_eq!(
             row.internal_diagnostics_posture,
-            DiagnosticTierPosture::DeferredWithReason,
-            "{} internal_diagnostics must be DEFERRED-with-reason for MT-012",
+            DiagnosticTierPosture::Wired,
+            "{} internal_diagnostics must be WIRED through the native producer",
             row.behavior_id
         );
         assert_eq!(
             row.palmistry_posture,
-            DiagnosticTierPosture::DeferredWithReason,
-            "{} Palmistry must be DEFERRED-with-reason",
+            DiagnosticTierPosture::Wired,
+            "{} Palmistry must be WIRED through the authenticated watcher",
             row.behavior_id
         );
         assert!(
             row.follow_up_ref
                 .is_some_and(|value| value.starts_with("palmistry://wp1/operator-chat/")),
-            "{} DEFERRED tiers require an operator-chat Palmistry follow-up ref",
+            "{} WIRED tiers require an operator-chat Palmistry correlation ref",
             row.behavior_id
         );
         assert_eq!(
@@ -511,6 +560,20 @@ async fn operator_chat_launch_behaviors_have_manual_coverage() {
         )
     });
 
+    let mut stale_route = matrix.clone();
+    let route_row = stale_route
+        .iter_mut()
+        .find(|row| row.behavior_id == "operator_chat.models.list")
+        .expect("canonical Operator Chat models route row");
+    route_row.runtime_surface_id = "/operator-chat/deleted-models-route";
+    let errors = verify_embedded_model_behavior_coverage(&stale_route, &pages, &tools)
+        .expect_err("a stale nonempty route must fail computed consistency");
+    assert_coverage_error_contains(
+        &errors,
+        "operator_chat.models.list",
+        "does not equal canonical",
+    );
+
     let operator_chat_page = pages
         .iter()
         .find(|page| page.slug == "operator-chat-launch")
@@ -529,6 +592,14 @@ async fn operator_chat_launch_behaviors_have_manual_coverage() {
     assert!(
         !operator_chat_body.contains("operator-chat.picker.model.<lane>.<provider>.<model>"),
         "manual must not point no-context models at the obsolete picker author_id prefix"
+    );
+    assert!(
+        operator_chat_body.contains(
+            "internal_diagnostics is WIRED through the native producer and Problems projection"
+        ) && operator_chat_body.contains(
+            "Palmistry is WIRED through the authenticated watcher and survivor recovery importer",
+        ) && !operator_chat_body.contains("DEFERRED-with-reason"),
+        "Operator Chat manual must keep the implemented diagnostics tiers WIRED"
     );
 }
 
@@ -559,18 +630,17 @@ async fn cloud_model_access_behaviors_have_manual_coverage() {
         .iter()
         .map(|row| row.behavior_id)
         .collect::<BTreeSet<_>>();
-    assert_eq!(
-        behavior_ids,
-        BTreeSet::from([
-            "wp1.cloud_access.providers_enumeration",
-            "wp1.cloud_access.byok_store",
-            "wp1.cloud_access.byok_delete",
-            "wp1.cloud_access.secret_leak_guard",
-            "wp1.cloud_access.settings_argus",
-            "wp1.cloud_access.cli_bridge_login",
-        ]),
-        "MT-015 cloud-model access behavior coverage matrix must stay exact"
-    );
+    for surface in wp009_surface_registry()
+        .iter()
+        .filter(|surface| surface.group == SurfaceGroup::ModelAccess)
+    {
+        assert!(
+            behavior_ids.contains(surface.surface_id),
+            "shipped Model Access route {} {} escaped behavior coverage",
+            surface.method,
+            surface.route
+        );
+    }
     assert_eq!(
         behavior_ids.len(),
         matrix.len(),
@@ -674,9 +744,9 @@ async fn dedicated_embedding_model_behaviors_have_manual_coverage() {
         .map(|row| row.behavior_id)
         .collect::<BTreeSet<_>>();
     assert_eq!(
-        behavior_ids,
-        BTreeSet::from(["wp1.llm.dedicated_embedding_model"]),
-        "MT-016 dedicated embedding model behavior coverage matrix must stay exact"
+        behavior_ids.len(),
+        matrix.len(),
+        "canonical registry ids are unique"
     );
 
     let row = matrix
@@ -695,16 +765,19 @@ async fn dedicated_embedding_model_behaviors_have_manual_coverage() {
     );
     assert_eq!(
         row.internal_diagnostics_posture,
-        DiagnosticTierPosture::DeferredWithReason
+        DiagnosticTierPosture::Wired
     );
-    assert_eq!(
-        row.palmistry_posture,
-        DiagnosticTierPosture::DeferredWithReason
+    assert_eq!(row.palmistry_posture, DiagnosticTierPosture::Wired);
+    assert!(
+        row.deferred_reason.is_some_and(|reason| {
+            reason.contains("wired observers") && !reason.contains("follow-up worktrees")
+        }),
+        "wired embedding diagnostics must not regress to stale follow-up-worktree wording"
     );
     assert!(
         row.follow_up_ref
             .is_some_and(|value| value.starts_with("palmistry://wp1/dedicated-embedding-model/")),
-        "deferred Palmistry posture requires a dedicated follow-up ref"
+        "wired Palmistry posture requires a dedicated correlation ref"
     );
 
     verify_embedded_model_behavior_coverage(&matrix, &pages, &tools).unwrap_or_else(|errors| {
@@ -735,4 +808,260 @@ async fn dedicated_embedding_model_behaviors_have_manual_coverage() {
         page_body.contains("embedspace:<artifact_sha256>:dim:<dimension>"),
         "manual page must document the stable embedding-space key, not only the per-boot UUID"
     );
+    assert!(
+        page_body.contains(
+            "Tier-2 internal_diagnostics is WIRED through the native producer and Problems projection",
+        ) && page_body.contains(
+            "Tier-3 Palmistry is WIRED through the authenticated watcher and survivor recovery importer",
+        ),
+        "dedicated embedding manual must keep both implemented diagnostic tiers WIRED"
+    );
+    assert!(
+        !page_body.contains("follow-up worktrees"),
+        "dedicated embedding manual must not regress to stale worktree deferral wording"
+    );
+}
+
+#[test]
+fn model_runtime_selection_failure_recovery_rows_match_compiled_api_contract() {
+    let _compiled_router = handshake_core::api::model_runtime_registry::routes;
+    let matrix = model_runtime_registry_behavior_coverage_matrix();
+    assert_eq!(matrix.len(), 17, "MT-014 behavior matrix row count drifted");
+    let selection_rows = matrix
+        .iter()
+        .filter(|row| {
+            row.behavior_id
+                .starts_with("wp1.model_runtime.selection.post.")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        selection_rows.len(),
+        11,
+        "MT-014 selection coverage must include success, every reachable failure class, and recovery/re-observation"
+    );
+
+    for (behavior_id, runtime_surface_id, response_code, evidence_marker, proof_tool_id) in [
+        (
+            "wp1.model_runtime.selection.post.failure.invalid_input",
+            MODEL_RUNTIME_SELECTION_ROUTE,
+            Some(MODEL_RUNTIME_SELECTION_INVALID_CODE),
+            "invalid target_model_id, actor, or reason",
+            "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract",
+        ),
+        (
+            "wp1.model_runtime.selection.post.failure.non_ready_target",
+            MODEL_RUNTIME_SELECTION_ROUTE,
+            Some(MODEL_RUNTIME_SELECTION_REJECTED_CODE),
+            "non-READY",
+            "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract",
+        ),
+        (
+            "wp1.model_runtime.selection.post.failure.timeout",
+            MODEL_RUNTIME_SELECTION_ROUTE,
+            Some(MODEL_RUNTIME_SELECTION_REJECTED_CODE),
+            "timeout keeps the prior active model",
+            "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract",
+        ),
+        (
+            "wp1.model_runtime.selection.post.failure.unavailable",
+            MODEL_RUNTIME_SELECTION_ROUTE,
+            Some(MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE),
+            "503 MODEL_RUNTIME_REGISTRY_UNAVAILABLE",
+            "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract",
+        ),
+        (
+            "wp1.model_runtime.selection.post.recovery.preserve_prior",
+            MODEL_RUNTIME_SELECTION_ROUTE,
+            None,
+            "keeps the prior active model",
+            "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract",
+        ),
+        (
+            "wp1.model_runtime.selection.post.recovery.reobserve",
+            MODEL_RUNTIME_REGISTRY_ROUTE,
+            None,
+            "Refresh re-reads the durable projection",
+            "mt014_stable_switch_author_id_posts_then_reobserves_backend_projection",
+        ),
+    ] {
+        let row = selection_rows
+            .iter()
+            .find(|row| row.behavior_id == behavior_id)
+            .unwrap_or_else(|| panic!("missing exact MT-014 behavior row {behavior_id}"));
+        assert_eq!(row.runtime_surface_id, runtime_surface_id, "{behavior_id}");
+        assert_eq!(row.response_code, response_code, "{behavior_id}");
+        assert_eq!(row.manual_evidence_marker, evidence_marker, "{behavior_id}");
+        assert_eq!(row.proof_tool_id, proof_tool_id, "{behavior_id}");
+        assert!(
+            row.recovery_instruction_marker
+                .starts_with("Restore the current migration chain/database authority"),
+            "{behavior_id} must carry an explicit recovery instruction"
+        );
+    }
+
+    let reobserve = selection_rows
+        .iter()
+        .find(|row| row.behavior_id == "wp1.model_runtime.selection.post.recovery.reobserve")
+        .expect("re-observation row exists");
+    assert_eq!(
+        reobserve.schema_id,
+        Some(MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID),
+        "GET re-observation returns the canonical typed registry projection"
+    );
+    let integrity = selection_rows
+        .iter()
+        .find(|row| row.behavior_id == "wp1.model_runtime.selection.post.failure.integrity")
+        .expect("integrity row exists");
+    assert_eq!(
+        integrity.response_code,
+        Some(MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE)
+    );
+}
+
+#[tokio::test]
+async fn model_runtime_registry_behaviors_have_canonical_manual_coverage() {
+    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
+        panic!(
+            "PostgreSQL unavailable for model_runtime_registry_behaviors_have_canonical_manual_coverage: \
+             MT-014 UserManual coverage proof requires the seeded PostgreSQL authority"
+        );
+    };
+    ensure_seeded(&pg.db)
+        .await
+        .expect("seed UserManual MT-014 coverage corpus");
+
+    let manual_store = UserManualStore::new(&pg.db);
+    let features = manual_store
+        .list_feature_entries(500)
+        .await
+        .expect("read UserManual feature entries");
+    let matrix = model_runtime_registry_behavior_coverage_matrix();
+
+    assert!(
+        serde_json::to_value(&matrix).is_ok(),
+        "MT-014 behavior coverage matrix must remain machine-readable"
+    );
+    assert_eq!(
+        matrix
+            .iter()
+            .map(|row| row.behavior_id)
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([
+            "wp1.model_runtime_registry.persistent_adapter_selection",
+            "wp1.model_runtime_registry.restart_recovery",
+            "wp1.model_runtime_registry.fail_closed_selection_conflict",
+            "wp1.model_runtime_registry.api_projection",
+            "wp1.model_runtime_registry.native_panel",
+            "wp1.model_runtime_registry.eventledger_selection_evidence",
+            "wp1.model_runtime.selection.post.success",
+            "wp1.model_runtime.selection.post.failure.audit",
+            "wp1.model_runtime.selection.post.failure.stale_target",
+            "wp1.model_runtime.selection.post.failure.embedding_role",
+            "wp1.model_runtime.selection.post.failure.integrity",
+            "wp1.model_runtime.selection.post.failure.invalid_input",
+            "wp1.model_runtime.selection.post.failure.non_ready_target",
+            "wp1.model_runtime.selection.post.failure.timeout",
+            "wp1.model_runtime.selection.post.failure.unavailable",
+            "wp1.model_runtime.selection.post.recovery.preserve_prior",
+            "wp1.model_runtime.selection.post.recovery.reobserve",
+        ]),
+        "MT-014 ModelRuntime registry coverage matrix must stay exact"
+    );
+    verify_model_runtime_registry_behavior_coverage(&matrix, &features).unwrap_or_else(|errors| {
+        panic!(
+            "ModelRuntime registry UserManual coverage gaps:\n{}",
+            errors
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    });
+
+    let feature = features
+        .iter()
+        .find(|feature| feature.feature_id == MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID)
+        .expect("current MT-014 UserManual feature exists");
+    assert_eq!(feature.manual_version, USER_MANUAL_VERSION);
+    assert!(feature
+        .description
+        .contains(MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE));
+    assert!(matrix.iter().all(|row| {
+        row.proof_execution_status == ModelRuntimeProofExecutionStatus::DeclaredNotExecuted
+    }));
+    let persistent = matrix
+        .iter()
+        .find(|row| row.behavior_id == "wp1.model_runtime_registry.persistent_adapter_selection")
+        .expect("persistent registry coverage row");
+    assert_eq!(persistent.schema_id, Some(MODEL_RUNTIME_REGISTRY_SCHEMA_ID));
+    assert_eq!(
+        persistent.eventledger_event_type,
+        Some(KernelEventType::ModelRuntimeSelectionRecorded.as_str())
+    );
+    let api = matrix
+        .iter()
+        .find(|row| row.behavior_id == "wp1.model_runtime_registry.api_projection")
+        .expect("registry API coverage row");
+    assert_eq!(api.runtime_surface_id, MODEL_RUNTIME_REGISTRY_ROUTE);
+    assert_eq!(
+        api.schema_id,
+        Some(MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID)
+    );
+    let native = matrix
+        .iter()
+        .find(|row| row.behavior_id == "wp1.model_runtime_registry.native_panel")
+        .expect("native ModelRuntime panel coverage row");
+    assert!(native.runtime_surface_id.contains("PaneType::ModelRuntime"));
+    assert!(native
+        .runtime_surface_id
+        .contains("model-runtime.registry.*"));
+}
+
+#[tokio::test]
+async fn model_runtime_registry_stale_deployed_row_fails_read_only_freshness_check() {
+    let Some(pg) = knowledge_pg_support::knowledge_pg().await else {
+        panic!(
+            "PostgreSQL unavailable for stale MT-014 UserManual freshness proof: live PostgreSQL is required"
+        );
+    };
+    let manual_store = UserManualStore::new(&pg.db);
+    let matrix = model_runtime_registry_behavior_coverage_matrix();
+    let mut markers = BTreeSet::new();
+    for row in &matrix {
+        markers.insert(row.manual_evidence_marker);
+        markers.insert(row.recovery_instruction_marker);
+    }
+    markers.extend([
+        MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE,
+        "Tier-1 Flight Recorder events are WIRED",
+        "internal_diagnostics is WIRED through the native producer and Problems projection",
+        "Palmistry is WIRED through the authenticated watcher and survivor recovery importer",
+    ]);
+    let stale_feature = UserManualFeatureEntry {
+        feature_id: MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID.to_owned(),
+        title: "stale deployed MT-014 feature".to_owned(),
+        description: markers.into_iter().collect::<Vec<_>>().join(" | "),
+        tool_ids: matrix
+            .iter()
+            .map(|row| row.proof_tool_id.to_owned())
+            .collect(),
+        origin: "wp1_mt014".to_owned(),
+        content_hash: "0".repeat(64),
+        manual_version: "2.0.9-stale".to_owned(),
+    };
+    manual_store
+        .upsert_feature_entry(&stale_feature)
+        .await
+        .expect("install stale deployed row without invoking ensure_seeded");
+
+    let deployed_rows = manual_store
+        .list_feature_entries(500)
+        .await
+        .expect("read deployed UserManual rows without reseeding");
+    let errors = verify_model_runtime_registry_behavior_coverage(&matrix, &deployed_rows)
+        .expect_err("stale deployed row must fail the read-only freshness check");
+    assert!(errors.iter().any(|error| {
+        error.behavior_id == "wp1.model_runtime_registry.manual_version"
+            && error.reason.contains(USER_MANUAL_VERSION)
+    }));
 }

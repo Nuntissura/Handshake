@@ -107,6 +107,7 @@ pub fn binding_path() -> PathBuf {
 ///
 /// Returns the path written on success so the caller can log/expose it.
 pub fn write_binding(binding: &McpBinding) -> Result<PathBuf, BindingError> {
+    let _ownership_guard = BindingOwnershipGuard::acquire()?;
     let path = binding_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
@@ -127,6 +128,97 @@ pub fn remove_binding() -> Result<(), BindingError> {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(BindingError(format!("remove {}: {e}", path.display()))),
+    }
+}
+
+/// Remove the discovery file only when it still belongs to `expected`.
+///
+/// Multiple native processes share the legacy discovery path. A server that is
+/// shutting down must not delete a newer process's binding after that newer
+/// process overwrote the file. Missing files and ownership mismatches are
+/// idempotent success; malformed files are preserved and surfaced.
+pub fn remove_binding_if_owned(expected: &McpBinding) -> Result<(), BindingError> {
+    let _ownership_guard = BindingOwnershipGuard::acquire()?;
+    let path = binding_path();
+    let body = match std::fs::read_to_string(&path) {
+        Ok(body) => body,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(BindingError(format!("read {}: {error}", path.display())));
+        }
+    };
+    let current: McpBinding = serde_json::from_str(&body)
+        .map_err(|error| BindingError(format!("parse {}: {error}", path.display())))?;
+    if current.pid != expected.pid
+        || current.tcp_addr != expected.tcp_addr
+        || current.token != expected.token
+    {
+        return Ok(());
+    }
+    std::fs::remove_file(&path)
+        .map_err(|error| BindingError(format!("remove {}: {error}", path.display())))
+}
+
+/// Cross-process serialization for the canonical discovery path. Both overwrite
+/// and compare-delete take this same lock, closing the old read/compare/remove
+/// TOCTOU where a shutting-down process could delete a newer process's binding.
+#[cfg(target_os = "windows")]
+struct BindingOwnershipGuard(windows_sys::Win32::Foundation::HANDLE);
+
+#[cfg(target_os = "windows")]
+impl BindingOwnershipGuard {
+    fn acquire() -> Result<Self, BindingError> {
+        use windows_sys::Win32::Foundation::{CloseHandle, WAIT_ABANDONED, WAIT_OBJECT_0};
+        use windows_sys::Win32::System::Threading::{
+            CreateMutexW, WaitForSingleObject, INFINITE,
+        };
+
+        let name: Vec<u16> = "Local\\HandshakeSwarmMcpBindingOwnership\0"
+            .encode_utf16()
+            .collect();
+        let handle = unsafe { CreateMutexW(std::ptr::null(), 0, name.as_ptr()) };
+        if handle.is_null() {
+            return Err(BindingError(
+                "create cross-process binding ownership mutex failed".to_owned(),
+            ));
+        }
+        let wait = unsafe { WaitForSingleObject(handle, INFINITE) };
+        if wait != WAIT_OBJECT_0 && wait != WAIT_ABANDONED {
+            unsafe {
+                CloseHandle(handle);
+            }
+            return Err(BindingError(format!(
+                "wait for cross-process binding ownership mutex failed: {wait}"
+            )));
+        }
+        Ok(Self(handle))
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for BindingOwnershipGuard {
+    fn drop(&mut self) {
+        use windows_sys::Win32::Foundation::CloseHandle;
+        use windows_sys::Win32::System::Threading::ReleaseMutex;
+        unsafe {
+            ReleaseMutex(self.0);
+            CloseHandle(self.0);
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+struct BindingOwnershipGuard(std::sync::MutexGuard<'static, ()>);
+
+#[cfg(not(target_os = "windows"))]
+impl BindingOwnershipGuard {
+    fn acquire() -> Result<Self, BindingError> {
+        static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+        Ok(Self(
+            LOCK.get_or_init(|| std::sync::Mutex::new(()))
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        ))
     }
 }
 
@@ -155,6 +247,8 @@ fn restrict_to_owner(path: &std::path::Path) {
 /// the current user full control. Non-fatal — the per-user LocalAppData ACL is the primary control.
 #[cfg(target_os = "windows")]
 fn restrict_to_owner_windows(path: &std::path::Path) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     // %USERNAME% is the current user; `icacls <file> /inheritance:r /grant:r "%USERNAME%":F`
     // removes inherited ACEs and grants only that user Full control. Best-effort + quiet (no window).
     let Some(user) = std::env::var_os("USERNAME") else {
@@ -170,6 +264,7 @@ fn restrict_to_owner_windows(path: &std::path::Path) {
         .arg(&grant)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
+        .creation_flags(CREATE_NO_WINDOW)
         .status()
     {
         Ok(status) if status.success() => {
@@ -187,6 +282,8 @@ fn restrict_to_owner_windows(path: &std::path::Path) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    static BINDING_ENV_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn binding_round_trips_through_json_with_pipe() {
@@ -231,6 +328,9 @@ mod tests {
 
     #[test]
     fn write_then_remove_is_idempotent() {
+        let _guard = BINDING_ENV_GUARD
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         // Point the resolver at a temp dir via the platform env var so the test never touches the real
         // user app-data location. We restore the var after.
         let tmp = std::env::temp_dir().join(format!("hsk_mcp_binding_test_{}", std::process::id()));
@@ -264,6 +364,53 @@ mod tests {
         // restore env + clean up
         match prev {
             Some(v) => std::env::set_var(var, v),
+            None => std::env::remove_var(var),
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn ownership_fenced_remove_preserves_a_newer_binding() {
+        let _guard = BINDING_ENV_GUARD
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let tmp =
+            std::env::temp_dir().join(format!("hsk_mcp_binding_owner_test_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).expect("mk tmp");
+
+        #[cfg(target_os = "windows")]
+        let var = "LOCALAPPDATA";
+        #[cfg(not(target_os = "windows"))]
+        let var = "XDG_DATA_HOME";
+        let prev = std::env::var_os(var);
+        std::env::set_var(var, &tmp);
+
+        let older = McpBinding {
+            tcp_addr: "127.0.0.1:10001".to_owned(),
+            pipe_name: None,
+            token: "a".repeat(64),
+            pid: 10001,
+        };
+        let newer = McpBinding {
+            tcp_addr: "127.0.0.1:10002".to_owned(),
+            pipe_name: None,
+            token: "b".repeat(64),
+            pid: 10002,
+        };
+        let path = write_binding(&older).expect("write older");
+        write_binding(&newer).expect("write newer");
+
+        remove_binding_if_owned(&older).expect("older shutdown is harmless");
+        let current: McpBinding =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(current, newer, "older server must preserve newer binding");
+
+        remove_binding_if_owned(&newer).expect("newer removes itself");
+        assert!(!path.exists());
+
+        match prev {
+            Some(value) => std::env::set_var(var, value),
             None => std::env::remove_var(var),
         }
         let _ = std::fs::remove_dir_all(&tmp);

@@ -25,8 +25,9 @@ use handshake_core::user_manual::seed::{ensure_seeded, QUICKSTART_AREAS};
 use handshake_core::user_manual::USER_MANUAL_VERSION;
 use knowledge_pg_support::KnowledgePg;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use sqlx::Connection;
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, path::PathBuf};
 use user_manual_support::{app_state_for, start_server};
 
 struct ApiFixture {
@@ -36,18 +37,23 @@ struct ApiFixture {
     http: reqwest::Client,
 }
 
-fn assert_internal_diagnostics_not_deferred(body: &str) {
-    for forbidden in [
-        "internal_diagnostics` is DEFERRED",
-        "internal_diagnostics is DEFERRED",
-        "Palmistry/internal_diagnostics",
-        "internal_diagnostics gaps",
-    ] {
-        assert!(
-            !body.contains(forbidden),
-            "UserManual must not defer wired internal_diagnostics posture: found {forbidden}"
-        );
-    }
+fn assert_internal_diagnostics_and_palmistry_wired(body: &str) {
+    assert!(
+        body.contains("internal_diagnostics is WIRED through the native producer and Problems projection")
+            || body.contains("internal_diagnostics` is WIRED through the native producer and Problems projection"),
+        "UserManual must report internal_diagnostics as WIRED through the native producer and Problems projection"
+    );
+    assert!(
+        body.contains("Palmistry is WIRED through the authenticated watcher and survivor recovery importer"),
+        "UserManual must report Palmistry as WIRED through the authenticated watcher and survivor recovery importer"
+    );
+    assert!(
+        !body.contains("internal_diagnostics is DEFERRED-with-reason")
+            && !body.contains("internal_diagnostics` is DEFERRED-with-reason")
+            && !body.contains("until the separate watcher worktree is merged")
+            && !body.contains("from follow-up worktrees"),
+        "UserManual must not regress to stale diagnostics worktree deferrals"
+    );
 }
 
 async fn fixture() -> Option<ApiFixture> {
@@ -217,6 +223,113 @@ async fn mt201_search_finds_pages_and_tools() {
     assert_eq!(empty.status(), 400);
     let body: Value = empty.json().await.expect("400 json");
     assert_eq!(body["error"], "bad_request");
+
+    if let Ok(proof_nonce) = std::env::var("HANDSHAKE_MT017_USER_MANUAL_PROOF_NONCE") {
+        let navigation: Value = fx
+            .http
+            .get(format!("{}/usermanual/pages", fx.base))
+            .send()
+            .await
+            .expect("native contract navigation")
+            .json()
+            .await
+            .expect("native contract navigation json");
+        let page: Value = fx
+            .http
+            .get(format!(
+                "{}/usermanual/pages/model-runtime-registry-and-loom-degrade",
+                fx.base
+            ))
+            .send()
+            .await
+            .expect("native contract page")
+            .json()
+            .await
+            .expect("native contract page json");
+        assert_eq!(navigation["route_namespace"], "/usermanual");
+        assert_eq!(
+            page["page"]["slug"],
+            "model-runtime-registry-and-loom-degrade"
+        );
+        assert_eq!(found["query"], "backlinks");
+
+        let artifact_root = std::env::var("HANDSHAKE_ARTIFACTS_DIR")
+            .expect("HANDSHAKE_ARTIFACTS_DIR is required when publishing MT-017 UserManual proof");
+        let artifact_root = std::fs::canonicalize(artifact_root)
+            .expect("HANDSHAKE_ARTIFACTS_DIR must resolve to an existing directory");
+        let manifest_dir = std::fs::canonicalize(env!("CARGO_MANIFEST_DIR"))
+            .expect("backend manifest directory must resolve");
+        let worktree_root = manifest_dir
+            .parent()
+            .and_then(std::path::Path::parent)
+            .and_then(std::path::Path::parent)
+            .expect("backend crate must live below the worktree src directory");
+        let expected_root = std::fs::canonicalize(
+            worktree_root
+                .parent()
+                .expect("worktree must have a parent")
+                .join("Handshake_Artifacts"),
+        )
+        .expect("canonical sibling Handshake_Artifacts directory must exist");
+        assert_eq!(
+            artifact_root, expected_root,
+            "MT-017 UserManual proof must use the canonical sibling Handshake_Artifacts root"
+        );
+        let path = artifact_root
+            .join("handshake-test")
+            .join("wp1-final-audit")
+            .join("mt017-user-manual-native-contract.json");
+        if let Ok(configured_path) = std::env::var("HANDSHAKE_MT017_USER_MANUAL_CONTRACT_ARTIFACT")
+        {
+            let configured_path = PathBuf::from(configured_path);
+            let configured_path = std::fs::canonicalize(
+                configured_path
+                    .parent()
+                    .expect("configured UserManual artifact must have a parent"),
+            )
+            .expect("configured UserManual artifact parent must resolve")
+            .join(
+                configured_path
+                    .file_name()
+                    .expect("configured UserManual artifact must have a file name"),
+            );
+            assert_eq!(
+                configured_path, path,
+                "configured MT-017 UserManual artifact must name the canonical contract"
+            );
+        }
+        let bundle = serde_json::json!({
+            "schema_id": "hsk.user_manual_native_contract_fixture@1",
+            "navigation": navigation,
+            "page": page,
+            "search": found,
+        });
+        let pretty = serde_json::to_vec_pretty(&bundle).expect("serialize UserManual contract");
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).expect("create UserManual proof parent");
+        }
+        let artifact_sha256 = format!("{:x}", Sha256::digest(&pretty));
+        std::fs::write(&path, &pretty).expect("write backend-produced UserManual contract");
+        let producer_completed_at_unix_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock must be after Unix epoch")
+            .as_millis() as u64;
+        std::fs::write(
+            path.with_extension("provenance.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "schema_id": "hsk.mt017_user_manual_contract_provenance@1",
+                "proof_nonce": proof_nonce,
+                "contract_schema_id": bundle["schema_id"],
+                "artifact_sha256": artifact_sha256,
+                "producer_test_id": "mt201_search_finds_pages_and_tools",
+                "producer_status": "passed_all_backend_assertions",
+                "producer_completed_at_unix_ms": producer_completed_at_unix_ms,
+            }))
+            .expect("serialize UserManual contract provenance"),
+        )
+        .expect("write UserManual contract provenance");
+        println!("REAL_USER_MANUAL_NATIVE_CONTRACT={}", path.display());
+    }
 }
 
 /// MT-201: the tool catalog resolves by id with failure modes + recovery
@@ -308,7 +421,11 @@ async fn model_lane_schema_user_manual_entry_is_current() {
     assert_eq!(response.status(), 200);
     let page: Value = response.json().await.expect("manual page json");
     let body = page.to_string();
-    assert_internal_diagnostics_not_deferred(&body);
+    assert_internal_diagnostics_and_palmistry_wired(&body);
+    assert_eq!(
+        page["page"]["manual_version"], USER_MANUAL_VERSION,
+        "page detail must surface the canonical manual_version on its nested page row"
+    );
 
     let legacy: Value = fx
         .http
@@ -325,13 +442,52 @@ async fn model_lane_schema_user_manual_entry_is_current() {
         .iter()
         .find(|row| row["slug"] == "model-lane-navigation")
         .expect("legacy bridge exposes model-lane-navigation");
+    let canonical_navigation_response = fx
+        .http
+        .get(format!(
+            "{}/usermanual/pages/model-lane-navigation",
+            fx.base
+        ))
+        .send()
+        .await
+        .expect("read canonical ModelLane navigation page");
+    assert_eq!(canonical_navigation_response.status(), 200);
+    let canonical_navigation: Value = canonical_navigation_response
+        .json()
+        .await
+        .expect("canonical ModelLane navigation json");
+    let canonical_navigation_page = &canonical_navigation["page"];
+    assert_eq!(canonical_navigation_page["slug"], "model-lane-navigation");
     assert_eq!(
-        legacy_navigation["manual_version"], page["manual_version"],
-        "legacy ModelManual bridge must carry canonical page manual_version"
+        canonical_navigation_page["manual_version"],
+        USER_MANUAL_VERSION
+    );
+    assert!(
+        canonical_navigation_page["content_hash"]
+            .as_str()
+            .is_some_and(|hash| !hash.trim().is_empty()),
+        "canonical same-slug detail must expose a nonempty content_hash"
+    );
+    assert_eq!(legacy_navigation["slug"], "model-lane-navigation");
+    assert!(
+        legacy_navigation["manual_version"]
+            .as_str()
+            .is_some_and(|version| !version.trim().is_empty()),
+        "legacy same-slug projection must expose a nonempty manual_version"
+    );
+    assert!(
+        legacy_navigation["content_hash"]
+            .as_str()
+            .is_some_and(|hash| !hash.trim().is_empty()),
+        "legacy same-slug projection must expose a nonempty content_hash"
     );
     assert_eq!(
-        legacy_navigation["content_hash"], page["content_hash"],
-        "legacy ModelManual bridge must carry canonical page content_hash"
+        legacy_navigation["manual_version"], canonical_navigation_page["manual_version"],
+        "legacy ModelManual bridge must carry the same-slug canonical page manual_version"
+    );
+    assert_eq!(
+        legacy_navigation["content_hash"], canonical_navigation_page["content_hash"],
+        "legacy ModelManual bridge must carry the same-slug canonical page content_hash"
     );
 
     for required in [
@@ -357,7 +513,8 @@ async fn model_lane_schema_user_manual_entry_is_current() {
         "budget_summary_ref",
         "SpawnRequest::with_dexterity_launch",
         "SwarmCoordinator::spawn_session",
-        "DEFERRED-with-reason",
+        "internal_diagnostics is WIRED through the native producer and Problems projection",
+        "Palmistry is WIRED through the authenticated watcher and survivor recovery importer",
         "dexterity_launch_records_real_swarm_spawn_session_runtime_path",
         "model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict",
         "model_lane_schema_persists_and_replays_eventledger_rows",
@@ -368,10 +525,6 @@ async fn model_lane_schema_user_manual_entry_is_current() {
             "model-lane UserManual page must mention {required}"
         );
     }
-    assert!(
-        body.contains("internal_diagnostics is WIRED"),
-        "manual must state wired internal_diagnostics posture"
-    );
 
     let tools: Value = fx
         .http
@@ -449,8 +602,12 @@ async fn model_lane_schema_user_manual_entry_is_current() {
         .join("\n");
     assert!(recovery_steps.contains("Run migrations"));
     assert!(recovery_steps.contains("Replay by event_ledger_seq"));
-    assert!(recovery_steps.contains("internal_diagnostics is WIRED"));
-    assert!(recovery_steps.contains("Palmistry is DEFERRED-with-reason"));
+    assert!(recovery_steps.contains(
+        "internal_diagnostics is WIRED through the native producer and Problems projection"
+    ));
+    assert!(recovery_steps.contains(
+        "Palmistry is WIRED through the authenticated watcher and survivor recovery importer"
+    ));
 }
 
 /// WP-1 MT-003: Dexterity launch adapter behavior must be discoverable from
@@ -470,7 +627,7 @@ async fn model_lane_launch_user_manual_entry_is_current() {
     assert_eq!(response.status(), 200);
     let page: Value = response.json().await.expect("manual page json");
     let body = page.to_string();
-    assert_internal_diagnostics_not_deferred(&body);
+    assert_internal_diagnostics_and_palmistry_wired(&body);
 
     for required in [
         "DexterityLaunchAdapterRegistry",
@@ -485,6 +642,15 @@ async fn model_lane_launch_user_manual_entry_is_current() {
         "local",
         "BYOK cloud",
         "official CLI",
+        "HandshakeNative attached-sandbox",
+        "LiveCliSpawner::spawn",
+        "HandshakeNativeSandboxAdapter::spawn_attached_with_stdio",
+        "GuardedCliChild::terminate_and_collect",
+        "ProcessOwnershipLedger START/STOP",
+        "terminate/reap-before-STOP",
+        "timeout, cancellation, or unwind",
+        "durable STOP recording fails",
+        "cleanup-pending",
         "human/operator",
         "subagent",
         "validator",
@@ -520,6 +686,10 @@ async fn model_lane_launch_user_manual_entry_is_current() {
         "model_lane_launch_rejects_ready_transition_before_persistence_commit",
         "model_lane_launch_cancel_session_records_terminal_model_lane_state",
         "model_lane_launch_reaper_records_terminal_state_before_teardown",
+        "explicit_failed_terminate_leaves_start_open_without_stop",
+        "failed_termination_with_never_eof_pipe_returns_within_cleanup_deadline",
+        "continuous_output_cannot_starve_live_timeout_polling",
+        "continuous_output_cannot_starve_live_cancellation_polling",
         "dexterity_launch_records_real_swarm_spawn_session_runtime_path",
         "model_lane_launch_user_manual_entry_is_current",
         "model_lane_schema_user_manual_entry_is_current",
@@ -562,6 +732,7 @@ async fn model_lane_launch_user_manual_entry_is_current() {
         .collect();
     assert!(tool_ids.contains("model_lane_schema_pg_tests"));
     assert!(tool_ids.contains("model_lane_launch_tests"));
+    assert!(tool_ids.contains("official_cli_attached_lifecycle_tests"));
 
     let launch_tool = tools["tools"]
         .as_array()
@@ -593,6 +764,66 @@ async fn model_lane_launch_user_manual_entry_is_current() {
             "launch tool expected_output must mention {required}"
         );
     }
+
+    let official_cli_tool = tools["tools"]
+        .as_array()
+        .expect("tools array")
+        .iter()
+        .find(|tool| tool["tool_id"] == "official_cli_attached_lifecycle_tests")
+        .expect("official CLI attached lifecycle tool entry");
+    assert_eq!(official_cli_tool["status"], "wired");
+    for required in [
+        "LiveCliSpawner::spawn",
+        "HandshakeNativeSandboxAdapter::spawn_attached_with_stdio",
+        "GuardedCliChild::terminate_and_collect",
+        "success, failure, timeout, cancellation, and unwind",
+        "STOP is recorded only after termination and reap succeed",
+        "unreaped termination leaves the durable START open with no fabricated STOP",
+    ] {
+        assert!(
+            official_cli_tool["expected_output"]
+                .as_str()
+                .expect("official CLI expected output")
+                .contains(required),
+            "official CLI lifecycle tool expected_output must mention {required}"
+        );
+    }
+    let official_cli_schema_fields = official_cli_tool["schema_fields"]
+        .as_array()
+        .expect("official CLI schema fields")
+        .iter()
+        .filter_map(|value| value.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    for required in [
+        "LiveCliSpawner::spawn",
+        "HandshakeNativeSandboxAdapter::spawn_attached_with_stdio",
+        "GuardedCliChild::terminate_and_collect",
+        "ProcessOwnershipLedger START",
+        "ProcessOwnershipLedger STOP",
+    ] {
+        assert!(
+            official_cli_schema_fields.contains(required),
+            "official CLI lifecycle tool schema_fields must contain {required}"
+        );
+    }
+    let official_cli_errors = official_cli_tool["common_errors"]
+        .as_array()
+        .expect("official CLI common errors")
+        .iter()
+        .filter_map(|value| value.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(official_cli_errors.contains("termination or reap fails"));
+    assert!(official_cli_errors.contains("STOP is fabricated"));
+    let official_cli_recovery = official_cli_tool["recovery_steps"]
+        .as_array()
+        .expect("official CLI recovery steps")
+        .iter()
+        .filter_map(|value| value.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(official_cli_recovery.contains("preserve it as cleanup-pending evidence"));
+    assert!(official_cli_recovery.contains("do not synthesize STOP"));
     let schema_fields: std::collections::BTreeSet<_> = launch_tool["schema_fields"]
         .as_array()
         .expect("schema fields")
@@ -637,8 +868,12 @@ async fn model_lane_launch_user_manual_entry_is_current() {
     assert!(recovery_steps.contains("authorize from a live Ready/Generating authority session"));
     assert!(recovery_steps.contains("live handle still exists"));
     assert!(recovery_steps.contains("terminal writes serialize by lane_id"));
-    assert!(recovery_steps.contains("internal_diagnostics is WIRED"));
-    assert!(recovery_steps.contains("Palmistry is DEFERRED-with-reason"));
+    assert!(recovery_steps.contains(
+        "internal_diagnostics is WIRED through the native producer and Problems projection"
+    ));
+    assert!(recovery_steps.contains(
+        "Palmistry is WIRED through the authenticated watcher and survivor recovery importer"
+    ));
 }
 
 /// WP-1 MT-004: Dexterity routing and promotion behavior must be discoverable
@@ -655,7 +890,7 @@ async fn model_lane_promotion_user_manual_entry_is_current() {
     assert_eq!(response.status(), 200);
     let page: Value = response.json().await.expect("manual page json");
     let body = page.to_string();
-    assert_internal_diagnostics_not_deferred(&body);
+    assert_internal_diagnostics_and_palmistry_wired(&body);
 
     for required in [
         "Dexterity",
@@ -856,8 +1091,12 @@ async fn model_lane_promotion_user_manual_entry_is_current() {
     assert!(recovery_steps.contains("kernel_event_ledger aggregate version"));
     assert!(recovery_steps.contains("model-lane-message:// ref exists"));
     assert!(recovery_steps.contains("Never write ModelLaneAuthority::Promoted directly"));
-    assert!(recovery_steps.contains("internal_diagnostics is WIRED"));
-    assert!(recovery_steps.contains("Palmistry is DEFERRED-with-reason"));
+    assert!(recovery_steps.contains(
+        "internal_diagnostics is WIRED through the native producer and Problems projection"
+    ));
+    assert!(recovery_steps.contains(
+        "Palmistry is WIRED through the authenticated watcher and survivor recovery importer"
+    ));
 }
 
 /// WP-1 MT-005: Dexterity ContextBundle handoff behavior must be
@@ -878,7 +1117,7 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
     assert_eq!(response.status(), 200);
     let page: Value = response.json().await.expect("manual page json");
     let body = page.to_string();
-    assert_internal_diagnostics_not_deferred(&body);
+    assert_internal_diagnostics_and_palmistry_wired(&body);
 
     for required in [
         "Dexterity",
@@ -931,9 +1170,39 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
         "state_vector",
         "base_snapshot_ref",
         "materialized_projection_hash",
+        "knowledge_crdt_agent_lane_leases",
+        "ModelLaneCrdtAuthorityBinding",
+        "lease_id",
+        "lease_correlation_id",
+        "lease_scope_kind",
+        "lease_scope_id",
+        "lease_claimed_at_utc",
+        "lease_expires_at_utc",
+        "lease_admitted_at_utc",
+        "released_at_utc IS NULL",
+        "claimed_at_utc <= lease_admitted_at_utc < expires_at_utc",
+        "MODEL_RESPONSE_RECORDED",
+        "multiple covering workspace/document matches",
+        "later release or natural expiry",
+        "historical replay",
+        "stored-authority validators",
+        "Old rows with a missing binding are rejected",
+        "CONTEXT_BUNDLE_RECORDED",
+        "recompute its canonical",
+        "transaction advisory-lock domain",
+        "workspace:<workspace_id>",
+        "crdt_document:<crdt_document_id>",
+        "second covering claim",
+        "mutable projection/EventLedger disagreement",
+        "replay_metadata",
+        "replay_order_key",
+        "dependency_update_ids",
+        "schema_version",
+        "forged values fail closed before any handoff row is written",
         "Yjs-compatible",
         "yjs_update_v1",
-        "yjs_update_v2",
+        "promotion-gate://model-lane-message/<source_message_id>",
+        "eventledger://<update_event_id>",
         "authority_effect = advisory_only",
         "event_ledger_evidence_ref",
         "flight_recorder_evidence_ref",
@@ -1029,7 +1298,7 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
         "hidden provider/session memory rejection including projection_ref and normalized hidden-memory URI checks",
         "memory_pack_refs exceeds bounded FEMS limit",
         "CRDT state_vector/base_snapshot_ref/update_bytes_ref validation",
-        "Yjs-compatible format yjs_update_v1 or yjs_update_v2",
+        "Yjs-compatible format yjs_update_v1 only",
         "Loom event_ledger_evidence_ref and flight_recorder_evidence_ref replay",
         "loom_refs exceeds bounded limit",
         "duplicate idempotency returning the original context_bundle_hash",
@@ -1088,8 +1357,10 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
         "base_snapshot_ref",
         "materialized_projection_hash",
         "replay_metadata",
+        "replay_order_key",
+        "dependency_update_ids",
+        "schema_version",
         "yjs_update_v1",
-        "yjs_update_v2",
         "validation_runner_ref",
         "authority_effect",
         "event_ledger_evidence_ref",
@@ -1136,7 +1407,7 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
     assert!(common_errors.contains("review_status"));
     assert!(common_errors.contains("memory_pack_refs exceeds bounded FEMS limit"));
     assert!(common_errors.contains("crdt_payload.update_bytes_ref"));
-    assert!(common_errors.contains("Yjs-compatible format yjs_update_v1 or yjs_update_v2"));
+    assert!(common_errors.contains("Yjs-compatible format yjs_update_v1"));
     assert!(common_errors.contains("advisory_only"));
     assert!(common_errors.contains("loom_refs exceeds bounded limit"));
     let recovery_steps = handoff_tool["recovery_steps"]
@@ -1164,8 +1435,12 @@ async fn model_lane_context_bundle_user_manual_entry_is_current() {
     assert!(recovery_steps.contains("update_bytes_ref, state_vector, and base_snapshot_ref"));
     assert!(recovery_steps.contains("EventLedger and Flight Recorder evidence refs"));
     assert!(recovery_steps.contains("direct Flight Recorder event emission"));
-    assert!(recovery_steps.contains("internal_diagnostics is WIRED"));
-    assert!(recovery_steps.contains("Palmistry is DEFERRED-with-reason"));
+    assert!(recovery_steps.contains(
+        "internal_diagnostics is WIRED through the native producer and Problems projection"
+    ));
+    assert!(recovery_steps.contains(
+        "Palmistry is WIRED through the authenticated watcher and survivor recovery importer"
+    ));
 }
 
 /// WP-1 MT-006: Dexterity cloud ProjectionPlan/ConsentReceipt policy must be
@@ -1186,7 +1461,7 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
     assert_eq!(response.status(), 200);
     let page: Value = response.json().await.expect("manual page json");
     let body = page.to_string();
-    assert_internal_diagnostics_not_deferred(&body);
+    assert_internal_diagnostics_and_palmistry_wired(&body);
 
     for required in [
         "Dexterity",
@@ -1201,8 +1476,8 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         "ModelLaneStore::revoke_cloud_consent_receipt",
         "SwarmCoordinator::spawn_session",
         "factory.create",
-        "hsk.model_lane_cloud_projection_plan@1",
-        "hsk.model_lane_cloud_consent_receipt@1",
+        "hsk.model_lane_cloud_projection_plan@2",
+        "hsk.model_lane_cloud_consent_receipt@2",
         "hsk.model_lane_cloud_consent_denial@1",
         "model_lane_cloud_projection_plans",
         "model_lane_cloud_consent_receipts",
@@ -1213,6 +1488,11 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         "provider_call_attempted = false",
         "partial_authority_state_created",
         "operator-chat cloud launches precompute deterministic ArtifactStore refs",
+        "/operator-chat/cloud/single-run/grant-launch",
+        "/operator-chat/cloud/single-run/revoke",
+        "checks for `single_lane` cover",
+        "Checks for `single_run` cover",
+        "reject lane-bound identity fields",
         "cloud-input.json",
         "cloud-projection-payload.json",
         "after `spawn_session` records the ModelLaneRun",
@@ -1288,11 +1568,12 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
     for required in [
         "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows",
         "model_lane_cloud_projection_plans and model_lane_cloud_consent_receipts",
-        "hsk.model_lane_cloud_projection_plan@1",
-        "hsk.model_lane_cloud_consent_receipt@1",
+        "hsk.model_lane_cloud_projection_plan@2",
+        "hsk.model_lane_cloud_consent_receipt@2",
         "hsk.model_lane_cloud_consent_denial@1",
         "ModelLaneStore::replay_cloud_consent_authority",
-        "projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets",
+        "single-lane cloud launch allowed only when",
+        "single-run launch allowed only when durable run-scoped authority matches run_id",
         "model_lane_cloud_consent_denial",
         "provider_call_attempted = false",
         "SwarmCoordinator::spawn_session preflight blocks before factory.create",
@@ -1325,8 +1606,8 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         "ModelLaneStore::replay_cloud_consent_authority",
         "ModelLaneStore::preflight_cloud_spawn_request",
         "ModelLaneStore::revoke_cloud_consent_receipt",
-        "hsk.model_lane_cloud_projection_plan@1",
-        "hsk.model_lane_cloud_consent_receipt@1",
+        "hsk.model_lane_cloud_projection_plan@2",
+        "hsk.model_lane_cloud_consent_receipt@2",
         "hsk.model_lane_cloud_consent_denial@1",
         "model_lane_cloud_projection_plans",
         "model_lane_cloud_consent_receipts",
@@ -1378,7 +1659,9 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
     assert!(recovery_steps.contains("ModelLaneStore::record_cloud_projection_plan"));
     assert!(recovery_steps.contains("kernel_event_ledger"));
     assert!(recovery_steps.contains("ModelLaneStore::record_cloud_consent_receipt"));
-    assert!(recovery_steps.contains("projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets"));
+    assert!(recovery_steps.contains("For single_lane verify projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets"));
+    assert!(recovery_steps.contains("for single_run verify projection_plan_hash/run_id/scope_hash/retention/export/fan_out_targets"));
+    assert!(recovery_steps.contains("confirm no lane-bound identity is present"));
     assert!(recovery_steps.contains("model_lane_cloud_consent_denial"));
     assert!(recovery_steps.contains("provider_call_attempted = false"));
     assert!(recovery_steps.contains("ModelLaneStore::revoke_cloud_consent_receipt"));
@@ -1390,8 +1673,12 @@ async fn cloud_model_lane_policy_user_manual_entry_is_current() {
         recovery_steps.contains("direct Flight Recorder event emission is DEFERRED-with-reason")
     );
     assert!(recovery_steps.contains("FR-EVT-CLOUD"));
-    assert!(recovery_steps.contains("internal_diagnostics is WIRED"));
-    assert!(recovery_steps.contains("Palmistry is DEFERRED-with-reason"));
+    assert!(recovery_steps.contains(
+        "internal_diagnostics is WIRED through the native producer and Problems projection"
+    ));
+    assert!(recovery_steps.contains(
+        "Palmistry is WIRED through the authenticated watcher and survivor recovery importer"
+    ));
 }
 
 /// WP-1 MT-007: Dexterity recovery must be discoverable from the in-product
@@ -1408,7 +1695,7 @@ async fn model_lane_recovery_user_manual_entry_is_current() {
     assert_eq!(response.status(), 200);
     let page: Value = response.json().await.expect("manual page json");
     let body = page.to_string();
-    assert_internal_diagnostics_not_deferred(&body);
+    assert_internal_diagnostics_and_palmistry_wired(&body);
 
     for required in [
         "Dexterity",
@@ -1433,7 +1720,8 @@ async fn model_lane_recovery_user_manual_entry_is_current() {
         "CRDT",
         "expired active lease orphans",
         "orphan_detected",
-        "checkpoint-bounded expired active leases",
+        "current lease authority",
+        "post-checkpoint lease",
         "CX-MM-006",
         "CX-MM-009",
         "Flight Recorder/EventLedger evidence alone must fail",
@@ -1441,7 +1729,7 @@ async fn model_lane_recovery_user_manual_entry_is_current() {
         "Palmistry",
         "DEFERRED-with-reason",
         "model_lane_recovery_replays_from_postgres_eventledger_checkpoint",
-        "model_lane_recovery_excludes_post_checkpoint_adjunct_state",
+        "model_lane_recovery_includes_current_leases_but_bounds_replay_adjunct_state",
         "model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap",
         "model_lane_recovery_restores_mt_runtime_status_refs_after_restart",
         "diagnostic_tier_record_rejects_flight_recorder_only_evidence",
@@ -1578,8 +1866,12 @@ async fn model_lane_recovery_user_manual_entry_is_current() {
     assert!(recovery_steps.contains("CRDT"));
     assert!(recovery_steps.contains("lease_expires_at_utc"));
     assert!(recovery_steps.contains("CX-MM-009"));
-    assert!(recovery_steps.contains("EventLedger/Flight Recorder plus wired internal_diagnostics"));
-    assert!(recovery_steps.contains("Palmistry may be DEFERRED-with-reason"));
+    assert!(recovery_steps.contains(
+        "internal_diagnostics is WIRED through the native producer and Problems projection"
+    ));
+    assert!(recovery_steps.contains(
+        "Palmistry is WIRED through the authenticated watcher and survivor recovery importer"
+    ));
 }
 
 /// WP-1 MT-008: Dexterity lane diagnostics must be discoverable from the
@@ -1599,7 +1891,7 @@ async fn model_lane_diagnostics_user_manual_entry_is_current() {
     assert_eq!(response.status(), 200);
     let page: Value = response.json().await.expect("manual page json");
     let body = page.to_string();
-    assert_internal_diagnostics_not_deferred(&body);
+    assert_internal_diagnostics_and_palmistry_wired(&body);
 
     for required in [
         "Dexterity Lane Diagnostics",
@@ -1612,6 +1904,8 @@ async fn model_lane_diagnostics_user_manual_entry_is_current() {
         "swarmdiagnostics.open",
         "settings.swarm-lane-diagnostics-default-open",
         "menu.run.swarm-lane-diagnostics",
+        "menu.run.problems",
+        "settings.model-runtime.open-problems",
         "swarm-lane-diagnostics.surface",
         "swarm-lane-diagnostics.filter.run",
         "swarm-lane-diagnostics.filter.lane",
@@ -1800,7 +2094,7 @@ async fn model_lane_navigation_user_manual_entries_are_current() {
     assert_eq!(response.status(), 200);
     let page: Value = response.json().await.expect("manual page json");
     let body = page.to_string();
-    assert_internal_diagnostics_not_deferred(&body);
+    assert_internal_diagnostics_and_palmistry_wired(&body);
 
     for required in [
         "Dexterity ModelLane Backend Navigation",
@@ -1961,7 +2255,7 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
     assert_eq!(response.status(), 200);
     let page: Value = response.json().await.expect("manual page json");
     let body = page.to_string();
-    assert_internal_diagnostics_not_deferred(&body);
+    assert_internal_diagnostics_and_palmistry_wired(&body);
     let page_body_md = page["sections"]
         .as_array()
         .expect("manual page sections")
@@ -1983,9 +2277,15 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         "mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects",
         "mixed_model_lane_negative_guards_fail_closed",
         "mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep",
+        "ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts",
         "operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity",
         "mixed_model_lane_run_is_inspectable_through_argus",
         "mixed_model_lane_behaviors_have_manual_coverage",
+        "Ordinary generated routing text is an advisory Proposal",
+        "remain null for all six routing policies",
+        "canonical PostgreSQL Yjs bytes",
+        "post-update state vector",
+        "inventing a `crdt-*://` URI",
     ] {
         assert!(
             body.contains(required),
@@ -2012,6 +2312,31 @@ async fn model_lane_validation_harness_user_manual_entry_is_current() {
         .find(|tool| tool["tool_id"] == "mixed_model_lane_integration_pg_tests")
         .expect("mixed model-lane validation tool entry");
     assert_eq!(validation_tool["status"], "wired");
+
+    for exact_test in [
+        "mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects",
+        "mixed_model_lane_negative_guards_fail_closed",
+        "mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key",
+        "mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages",
+        "mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge",
+        "mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep",
+        "ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts",
+        "operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity",
+        "coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write",
+        "coordinator_cancellation_fence_retries_after_terminal_pg_failure",
+        "mixed_model_lane_run_is_inspectable_through_argus",
+        "model_lane_validation_harness_user_manual_entry_is_current",
+        "mixed_model_lane_behaviors_have_manual_coverage",
+    ] {
+        assert!(
+            page_body_md.contains(exact_test),
+            "manual proof commands must include exact MT-009 test {exact_test}"
+        );
+        assert!(
+            validation_tool.to_string().contains(exact_test),
+            "validation tool metadata must include exact MT-009 test {exact_test}"
+        );
+    }
 
     for required in [
         "ProjectionPlan/ConsentReceipt",
@@ -2262,7 +2587,7 @@ async fn mt200_access_points_resolve() {
         .await
         .expect("access json");
     let rows = payload["access_points"].as_array().unwrap();
-    assert!(rows.len() >= 8);
+    assert!(rows.len() >= 11);
     let mut hosts = std::collections::BTreeSet::new();
     for row in rows {
         assert_eq!(
@@ -2270,10 +2595,13 @@ async fn mt200_access_points_resolve() {
             "access point {} targets a missing page {}",
             row["access_point_id"], row["target_page_slug"]
         );
-        assert!(row["stable_element_id"]
-            .as_str()
-            .unwrap()
-            .starts_with("hs-usermanual-"));
+        let stable_element_id = row["stable_element_id"].as_str().unwrap();
+        assert!(
+            stable_element_id.starts_with("hs-usermanual-")
+                || stable_element_id == "menu.run.user-manual"
+                || stable_element_id == "menu.help.user-manual"
+                || stable_element_id == "user-manual.surface"
+        );
         hosts.insert(row["host_surface"].as_str().unwrap().to_string());
     }
     for host in [
@@ -2282,6 +2610,8 @@ async fn mt200_access_points_resolve() {
         "retrieval_debug",
         "diagnostics",
         "command_palette",
+        "native_top_menu",
+        "native_user_manual",
     ] {
         assert!(hosts.contains(host), "missing host surface {host}");
     }
@@ -2457,6 +2787,142 @@ async fn mt205_projection_renders_readable_navigable_html() {
     // Visual navigation law: no stored page is orphaned from the TOC.
     let orphans = unreachable_pages(&fx.kpg.db).await.expect("nav audit");
     assert!(orphans.is_empty(), "orphan manual pages: {orphans:?}");
+}
+
+/// Metadata-only drift in the same manual version must not hide behind clean
+/// page/tool/feature rows. Governed resync rewrites the version authority row.
+#[tokio::test]
+async fn metadata_only_same_version_drift_is_stale_and_resync_heals_it() {
+    let fx = skip_if_no_pg!(fixture().await, "metadata_only_same_version_drift");
+    let mut conn = fx.kpg.raw_connection().await;
+    let original: (String, i32, i32, i32) = sqlx::query_as(
+        r#"
+        SELECT seed_content_hash, page_count, tool_count, feature_count
+        FROM user_manual_versions
+        WHERE manual_version = $1
+        "#,
+    )
+    .bind(USER_MANUAL_VERSION)
+    .fetch_one(&mut conn)
+    .await
+    .expect("read original UserManual version metadata");
+
+    sqlx::query(
+        r#"
+        UPDATE user_manual_versions
+        SET seed_content_hash = '0000000000000000000000000000000000000000000000000000000000000000'
+        WHERE manual_version = $1
+        "#,
+    )
+    .bind(USER_MANUAL_VERSION)
+    .execute(&mut conn)
+    .await
+    .expect("tamper only UserManual version hash metadata");
+
+    let stale: Value = fx
+        .http
+        .get(format!("{}/usermanual/freshness", fx.base))
+        .send()
+        .await
+        .expect("metadata freshness request")
+        .json()
+        .await
+        .expect("metadata freshness json");
+    assert_eq!(stale["report"]["fresh"], false);
+    assert!(
+        stale["report"]["verdicts"]
+            .as_array()
+            .expect("freshness verdicts")
+            .iter()
+            .any(|verdict| verdict["subject"] == USER_MANUAL_VERSION),
+        "hash-only metadata drift must identify the active UserManual version"
+    );
+
+    let resync = fx
+        .http
+        .post(format!("{}/usermanual/resync", fx.base))
+        .header("x-hsk-actor-kind", "local_model")
+        .send()
+        .await
+        .expect("governed metadata resync");
+    assert_eq!(resync.status(), 200);
+
+    let healed: Value = fx
+        .http
+        .get(format!("{}/usermanual/freshness", fx.base))
+        .send()
+        .await
+        .expect("healed metadata freshness request")
+        .json()
+        .await
+        .expect("healed metadata freshness json");
+    assert_eq!(healed["report"]["fresh"], true);
+
+    sqlx::query(
+        r#"
+        UPDATE user_manual_versions
+        SET page_count = page_count + 1,
+            tool_count = tool_count + 1,
+            feature_count = feature_count + 1
+        WHERE manual_version = $1
+        "#,
+    )
+    .bind(USER_MANUAL_VERSION)
+    .execute(&mut conn)
+    .await
+    .expect("tamper only UserManual version count metadata");
+
+    let count_stale: Value = fx
+        .http
+        .get(format!("{}/usermanual/freshness", fx.base))
+        .send()
+        .await
+        .expect("count metadata freshness request")
+        .json()
+        .await
+        .expect("count metadata freshness json");
+    assert_eq!(count_stale["report"]["fresh"], false);
+    assert!(
+        count_stale["report"]["verdicts"]
+            .as_array()
+            .expect("count freshness verdicts")
+            .iter()
+            .any(|verdict| verdict["subject"] == USER_MANUAL_VERSION),
+        "count-only metadata drift must identify the active UserManual version"
+    );
+
+    let count_resync = fx
+        .http
+        .post(format!("{}/usermanual/resync", fx.base))
+        .header("x-hsk-actor-kind", "local_model")
+        .send()
+        .await
+        .expect("governed count metadata resync");
+    assert_eq!(count_resync.status(), 200);
+
+    let count_healed: Value = fx
+        .http
+        .get(format!("{}/usermanual/freshness", fx.base))
+        .send()
+        .await
+        .expect("healed count metadata freshness request")
+        .json()
+        .await
+        .expect("healed count metadata freshness json");
+    assert_eq!(count_healed["report"]["fresh"], true);
+
+    let repaired: (String, i32, i32, i32) = sqlx::query_as(
+        r#"
+        SELECT seed_content_hash, page_count, tool_count, feature_count
+        FROM user_manual_versions
+        WHERE manual_version = $1
+        "#,
+    )
+    .bind(USER_MANUAL_VERSION)
+    .fetch_one(&mut conn)
+    .await
+    .expect("read repaired UserManual version metadata");
+    assert_eq!(repaired, original);
 }
 
 /// Resync permission gate: unauthenticated/cloud_model/validator are DENIED

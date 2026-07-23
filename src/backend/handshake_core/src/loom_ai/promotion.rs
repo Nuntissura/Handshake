@@ -155,9 +155,15 @@ pub async fn reject_loom_ai_suggestion(
         decision_reason,
     )
     .await?;
-    let Some(row) =
-        decide_loom_ai_suggestion(pool, suggestion_id, "rejected", &reviewer.canonical(), decision_reason, &event)
-            .await?
+    let Some(row) = decide_loom_ai_suggestion(
+        pool,
+        suggestion_id,
+        "rejected",
+        &reviewer.canonical(),
+        decision_reason,
+        &event,
+    )
+    .await?
     else {
         let current = get_loom_ai_suggestion(pool, suggestion_id)
             .await?

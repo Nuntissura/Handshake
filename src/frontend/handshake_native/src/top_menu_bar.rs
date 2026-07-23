@@ -54,6 +54,9 @@
 //!   Open Swarm Board        ENABLED -> OpenSwarmBoard (opens the Swarm surface on the active pane)
 //!   Open Inference Lab      ENABLED -> NavigateToTab("inference-lab")
 //!   Open Flight Recorder    ENABLED -> NavigateToTab("flight-recorder")
+//!   Open Problems           ENABLED -> NavigateToTab("problems")
+//!   Open Model Runtime      ENABLED -> NavigateToTab("model-runtime")
+//!   Open User Manual        ENABLED -> NavigateToTab("user-manual")
 //!   Open Terminal           DISABLED (no native terminal panel yet — future MT)
 //! HELP
 //!   Open User Manual        ENABLED -> NavigateToTab("user-manual")
@@ -261,7 +264,10 @@ pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     "menu.run.swarm-lane-diagnostics",
     "menu.run.inference-lab",
     "menu.run.flight-recorder",
+    "menu.run.problems",
+    "menu.run.model-runtime",
     "menu.run.operator-chat",
+    "menu.run.user-manual",
     "menu.help.user-manual",
     "menu.help.settings",
 ];
@@ -365,6 +371,9 @@ impl MenuBar {
             node.set_author_id(menu.author_id().to_owned());
             node.set_label(menu.title().to_owned());
         });
+        if response.clicked() {
+            crate::mcp::argus::acknowledge_action_effect(ui.ctx(), menu.author_id());
+        }
 
         // Standard egui menu popup, toggled by the button response (open on click, close on click of an
         // item via the default CloseOnClick behavior). This is egui's own menu primitive — the same one
@@ -646,11 +655,38 @@ impl MenuBar {
                 );
                 self.item(
                     ui,
+                    "menu.run.problems",
+                    "Open Problems",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("problems".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.run.model-runtime",
+                    "Open Model Runtime",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("model-runtime".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
                     "menu.run.operator-chat",
                     "Open Operator Chat",
                     None,
                     true,
                     MenuBarAction::NavigateToTab("operator-chat".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.run.user-manual",
+                    "Open User Manual",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("user-manual".to_owned()),
                     action,
                 );
                 self.disabled_item(
@@ -729,6 +765,7 @@ impl MenuBar {
         let response = ui.add(button.min_size(egui::vec2(ui.available_width(), 0.0)));
         Self::name_node(ui, response.id, author_id, label);
         if response.clicked() {
+            crate::mcp::argus::acknowledge_action_effect(ui.ctx(), author_id);
             *action = Some(emit);
             ui.close();
         }
@@ -763,7 +800,11 @@ impl MenuBar {
     fn check_item(&self, ui: &mut egui::Ui, author_id: &str, label: &str, checked: bool) -> bool {
         let response = ui.selectable_label(checked, label);
         Self::name_node(ui, response.id, author_id, label);
-        response.clicked()
+        let clicked = response.clicked();
+        if clicked {
+            crate::mcp::argus::acknowledge_action_effect(ui.ctx(), author_id);
+        }
+        clicked
     }
 
     /// Attach the stable author_id + `Role::MenuItem` to a leaf's live node. `widget_node_id` is the
@@ -929,9 +970,11 @@ mod tests {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.go.command-palette"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.swarm-board"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.operator-chat"));
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.problems"));
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.user-manual"));
         assert_eq!(
             SWARM_ACCESSIBLE_ACTIONS.len(),
-            9,
+            12,
             "all overlay/navigation actions listed"
         );
         // Destructive/document actions are NOT swarm-exposed.

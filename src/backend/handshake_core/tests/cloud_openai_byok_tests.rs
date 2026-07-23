@@ -19,7 +19,8 @@
 //!      (capabilities shape, Debug redaction, register_handle
 //!      allowlist, audit-row forwarding)
 
-use std::sync::{Arc, Mutex};
+use std::io::Write;
+use std::sync::{Arc, Mutex, Once, OnceLock};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -31,7 +32,7 @@ use handshake_core::model_runtime::cloud::{
     ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudConsentContext, CloudInvocationAuditRow,
     CloudInvocationAuditSink, CloudLaneObservability, ConsentDecision, ConsentGate,
     ConsentGateError, ConsentProvider, OpenAiByokError, OpenAiByokRuntime,
-    OPENAI_CHAT_COMPLETIONS_PATH,
+    OPENAI_CHAT_COMPLETIONS_PATH, OPENAI_EMBEDDINGS_PATH,
 };
 use handshake_core::model_runtime::{
     CancellationToken, GenPrompt, GenerateRequest, KvCachePolicy, LoadSpec, ModelId, ModelRuntime,
@@ -39,6 +40,7 @@ use handshake_core::model_runtime::{
 };
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 struct StaticKey {
     key: String,
@@ -268,6 +270,584 @@ async fn openai_byok_generate_streams_tokens_against_wiremock() {
             .any(|r| r.status == CloudCallStatus::Succeeded),
         "audit must include a Succeeded row after the stream completes"
     );
+}
+
+struct EchoingFailKey;
+
+impl ApiKeyProvider for EchoingFailKey {
+    fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
+        Err(OpenAiByokError::AuditPersist(API_KEY_FIXTURE.to_string()))
+    }
+}
+
+#[derive(Clone, Default)]
+struct SharedTraceBuffer(Arc<Mutex<Vec<u8>>>);
+
+impl Write for SharedTraceBuffer {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0
+            .lock()
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "trace lock poisoned"))?
+            .extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for SharedTraceBuffer {
+    type Writer = SharedTraceBuffer;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
+
+fn capture_tracing() -> SharedTraceBuffer {
+    static BUFFER: OnceLock<SharedTraceBuffer> = OnceLock::new();
+    static INIT: Once = Once::new();
+    let buffer = BUFFER.get_or_init(SharedTraceBuffer::default).clone();
+    INIT.call_once(|| {
+        tracing_subscriber::fmt()
+            .with_writer(buffer.clone())
+            .with_max_level(tracing::Level::TRACE)
+            .with_ansi(false)
+            .try_init()
+            .expect("install OpenAI BYOK test tracing capture");
+    });
+    tracing::info!(
+        target: "handshake_core::tests::openai_byok",
+        marker = "openai-byok-tracing-live",
+        "public tracing capture marker"
+    );
+    buffer
+}
+
+async fn start_truncated_sse_server(body_prefix: String) -> (String, tokio::task::JoinHandle<()>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind truncated SSE server");
+    let addr = listener.local_addr().expect("truncated SSE server addr");
+    let handle = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.expect("accept BYOK request");
+        let mut request = [0_u8; 8192];
+        let _ = socket.read(&mut request).await;
+        let declared_length = body_prefix.len() + 4096;
+        let headers = format!(
+            "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {declared_length}\r\nconnection: close\r\n\r\n"
+        );
+        socket.write_all(headers.as_bytes()).await.expect("write response headers");
+        socket.write_all(body_prefix.as_bytes()).await.expect("write truncated SSE prefix");
+        socket.shutdown().await.expect("close truncated SSE response");
+    });
+    (format!("http://{addr}"), handle)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_non_success_bodies_are_redacted_and_bounded_for_all_call_kinds() {
+    const PROVIDER_ECHO_CANARY: &str = "provider-echo-canary-MUST-NOT-ESCAPE";
+    let mock_server = MockServer::start().await;
+    let echoed_body = format!("{PROVIDER_ECHO_CANARY}{}", "x".repeat(32_768));
+
+    Mock::given(method("POST"))
+        .and(path(OPENAI_CHAT_COMPLETIONS_PATH))
+        .respond_with(ResponseTemplate::new(503).set_body_string(echoed_body.clone()))
+        .expect(2)
+        .mount(&mock_server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(OPENAI_EMBEDDINGS_PATH))
+        .respond_with(ResponseTemplate::new(503).set_body_string(echoed_body))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink);
+    let handle = runtime
+        .register_handle("gpt-4o", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+
+    let mut generate = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let generate_error = generate
+        .next()
+        .await
+        .expect("generate yields its provider-status error")
+        .expect_err("503 must fail generate")
+        .to_string();
+    let score_error = runtime
+        .score(handle.model_id, vec![1, 2, 3])
+        .await
+        .expect_err("503 must fail score")
+        .to_string();
+    let embed_error = runtime
+        .embed(handle.model_id, "echo probe")
+        .await
+        .expect_err("503 must fail embed")
+        .to_string();
+
+    for (surface, error) in [
+        ("generate", generate_error),
+        ("score", score_error),
+        ("embed", embed_error),
+    ] {
+        assert!(!error.contains(PROVIDER_ECHO_CANARY), "{surface}: {error}");
+        assert!(error.contains("<redacted provider response body"), "{surface}: {error}");
+        assert!(error.len() <= 256, "{surface} error must remain bounded: {} bytes", error.len());
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_malformed_success_sse_never_reflects_byok_canary() {
+    let trace_buffer = capture_tracing();
+    let mock_server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path(OPENAI_CHAT_COMPLETIONS_PATH))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(format!("data: {API_KEY_FIXTURE}\n\n")),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let recorder = Arc::new(CapturingFlightRecorder::default());
+    let lane_obs = Arc::new(CloudLaneObservability {
+        flight_recorder: recorder.clone(),
+        consent: None,
+    });
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone())
+        .with_lane_observability(lane_obs);
+    let handle = runtime
+        .register_handle("gpt-4o", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+    let mut stream = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let error = stream
+        .next()
+        .await
+        .expect("malformed SSE yields an error")
+        .expect_err("malformed 2xx SSE must fail")
+        .to_string();
+
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+    let audit_rows = sink.rows.lock().unwrap().clone();
+    assert!(audit_rows.iter().any(|row| row.status == CloudCallStatus::Started));
+    assert!(audit_rows.iter().any(|row| row.status == CloudCallStatus::Failed));
+    let recorder_events = recorder.events.lock().unwrap().clone();
+    assert!(recorder_events.iter().any(|event| event.payload["phase"] == "start"));
+    assert!(recorder_events.iter().any(|event| event.payload["phase"] == "end"));
+    assert!(tracing.contains("openai-byok-tracing-live"), "tracing capture must be live");
+    let audit = format!("{audit_rows:?}");
+    let recorded = format!("{recorder_events:?}");
+    for (surface, rendered) in [
+        ("returned_error", error.as_str()),
+        ("tracing", tracing.as_str()),
+        ("audit", audit.as_str()),
+        ("flight_recorder", recorded.as_str()),
+    ] {
+        assert!(!rendered.contains(API_KEY_FIXTURE), "{surface} leaked BYOK canary: {rendered}");
+    }
+    assert!(error.contains("event_kind=chat_chunk"), "{error}");
+    assert!(error.contains("payload_bytes="), "{error}");
+    assert!(error.len() <= 256, "SSE error must remain bounded: {} bytes", error.len());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_truncated_sse_stream_error_never_reflects_byok_canary() {
+    let trace_buffer = capture_tracing();
+    let (api_base, server) =
+        start_truncated_sse_server(format!("data: {API_KEY_FIXTURE}")).await;
+    let sink = Arc::new(CapturingSink::default());
+    let recorder = Arc::new(CapturingFlightRecorder::default());
+    let runtime = fixture_runtime(api_base, sink.clone()).with_lane_observability(Arc::new(
+        CloudLaneObservability {
+            flight_recorder: recorder.clone(),
+            consent: None,
+        },
+    ));
+    let handle = runtime
+        .register_handle("gpt-4o", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+    let mut stream = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let error = stream
+        .next()
+        .await
+        .expect("truncated SSE yields an error")
+        .expect_err("truncated SSE must fail")
+        .to_string();
+    server.await.expect("truncated SSE server completes");
+
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+    let audit_rows = sink.rows.lock().unwrap().clone();
+    let recorder_events = recorder.events.lock().unwrap().clone();
+    assert!(audit_rows.iter().any(|row| row.status == CloudCallStatus::Started));
+    assert!(audit_rows.iter().any(|row| row.status == CloudCallStatus::Failed));
+    assert!(recorder_events.iter().any(|event| event.payload["phase"] == "start"));
+    assert!(recorder_events.iter().any(|event| event.payload["phase"] == "end"));
+    assert!(tracing.contains("openai-byok-tracing-live"));
+    for (surface, rendered) in [
+        ("returned_error", error.clone()),
+        ("tracing", tracing),
+        ("audit", format!("{audit_rows:?}")),
+        ("flight_recorder", format!("{recorder_events:?}")),
+    ] {
+        assert!(!rendered.contains(API_KEY_FIXTURE), "{surface} leaked BYOK canary: {rendered}");
+    }
+    assert!(error.contains("SSE framing failure"), "{error}");
+    assert!(error.len() <= 256, "SSE error must remain bounded: {} bytes", error.len());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_malformed_success_dtos_never_reflect_byok_canary() {
+    let trace_buffer = capture_tracing();
+    let mock_server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path(OPENAI_CHAT_COMPLETIONS_PATH))
+        .respond_with(ResponseTemplate::new(200).set_body_string(format!(
+            "{{\"choices\":\"{API_KEY_FIXTURE}\"}}"
+        )))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(OPENAI_EMBEDDINGS_PATH))
+        .respond_with(ResponseTemplate::new(200).set_body_string(format!(
+            "{{\"data\":\"{API_KEY_FIXTURE}\"}}"
+        )))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone());
+    let handle = runtime
+        .register_handle("gpt-4o", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+    let score_error = runtime.score(handle.model_id, vec![1, 2, 3]).await
+        .expect_err("malformed score DTO must fail").to_string();
+    let embed_error = runtime.embed(handle.model_id, "dto probe").await
+        .expect_err("malformed embed DTO must fail").to_string();
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+    let audit_rows = sink.rows.lock().unwrap().clone();
+    let audit = format!("{audit_rows:?}");
+
+    assert!(audit_rows.iter().any(|row| row.call_kind == CloudCallKind::Score && row.status == CloudCallStatus::Failed));
+    assert!(audit_rows.iter().any(|row| row.call_kind == CloudCallKind::Embeddings && row.status == CloudCallStatus::Failed));
+    assert!(tracing.contains("openai-byok-tracing-live"));
+    for (surface, rendered) in [
+        ("score_error", score_error.as_str()),
+        ("embed_error", embed_error.as_str()),
+        ("tracing", tracing.as_str()),
+        ("audit", audit.as_str()),
+    ] {
+        assert!(!rendered.contains(API_KEY_FIXTURE), "{surface} leaked BYOK canary: {rendered}");
+    }
+    assert!(score_error.len() <= 256);
+    assert!(embed_error.len() <= 256);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_provider_fetch_failure_is_typed_and_never_echoes_provider_error() {
+    let trace_buffer = capture_tracing();
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = OpenAiByokRuntime::with_client(
+        "http://127.0.0.1:9",
+        reqwest::Client::new(),
+        Arc::new(EchoingFailKey),
+        sink.clone(),
+    );
+    let handle = runtime
+        .register_handle("gpt-4o", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+    let mut generate = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let generate_error = generate.next().await.expect("generate error item")
+        .expect_err("provider fetch fails generate").to_string();
+    let score_error = runtime.score(handle.model_id, vec![1]).await
+        .expect_err("provider fetch fails score").to_string();
+    let embed_error = runtime.embed(handle.model_id, "probe").await
+        .expect_err("provider fetch fails embed").to_string();
+
+    for error in [&generate_error, &score_error, &embed_error] {
+        assert!(!error.contains(API_KEY_FIXTURE), "provider error leaked: {error}");
+        assert!(error.contains("code=provider_failure"), "typed code missing: {error}");
+        assert!(error.len() <= 160, "typed provider error must be bounded: {} bytes", error.len());
+    }
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+    let audit = format!("{:?}", sink.rows.lock().unwrap());
+    assert!(tracing.contains("openai-byok-tracing-live"));
+    assert!(!tracing.contains(API_KEY_FIXTURE), "tracing leaked provider error: {tracing}");
+    assert!(!audit.contains(API_KEY_FIXTURE), "audit leaked provider error: {audit}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_clean_eof_without_done_is_failed_and_redacted() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path(OPENAI_CHAT_COMPLETIONS_PATH))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(format!(": ignored-{API_KEY_FIXTURE}\n\n")),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+    let sink = Arc::new(CapturingSink::default());
+    let recorder = Arc::new(CapturingFlightRecorder::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone()).with_lane_observability(Arc::new(
+        CloudLaneObservability { flight_recorder: recorder.clone(), consent: None },
+    ));
+    let handle = runtime.register_handle("gpt-4o", "2026-05-20T11:00:00Z").unwrap();
+    let mut stream = runtime.generate(fixture_generate_request(handle.model_id, CancellationToken::new()));
+    let error = stream.next().await.expect("missing terminal error")
+        .expect_err("clean EOF without DONE must fail").to_string();
+    let audit_rows = sink.rows.lock().unwrap().clone();
+    let recorder_events = recorder.events.lock().unwrap().clone();
+
+    assert!(error.contains("terminal missing"), "{error}");
+    assert!(audit_rows.iter().any(|row| row.status == CloudCallStatus::Failed));
+    assert!(recorder_events.iter().any(|event| event.payload["phase"] == "end"));
+    for rendered in [error, format!("{audit_rows:?}"), format!("{recorder_events:?}")] {
+        assert!(!rendered.contains(API_KEY_FIXTURE), "clean-EOF surface leaked: {rendered}");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_finish_reason_before_clean_eof_never_emits_premature_terminal() {
+    let mock_server = MockServer::start().await;
+    let body = "data: {\"choices\":[{\"delta\":{\"content\":\"tail\"},\"finish_reason\":\"stop\"}]}\n\n";
+    Mock::given(method("POST"))
+        .and(path(OPENAI_CHAT_COMPLETIONS_PATH))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(body),
+        )
+        .expect(2)
+        .mount(&mock_server)
+        .await;
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone());
+    let handle = runtime.register_handle("gpt-4o", "2026-05-20T11:00:00Z").unwrap();
+
+    let mut full_drain = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let content = full_drain.next().await.expect("content item").expect("content token");
+    assert_eq!(content.text, "tail");
+    assert!(content.finish_reason.is_none(), "provider finish_reason must remain buffered");
+    let full_drain_error = full_drain.next().await.expect("terminal-contract error")
+        .expect_err("clean EOF must fail despite provider finish_reason").to_string();
+    assert!(full_drain.next().await.is_none(), "stream ends after its error");
+
+    let mut early_stop = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let mut saw_premature_terminal = false;
+    let mut early_stop_error = None;
+    while let Some(item) = early_stop.next().await {
+        match item {
+            Ok(token) if token.finish_reason.is_some() => {
+                saw_premature_terminal = true;
+                break;
+            }
+            Ok(_) => {}
+            Err(error) => {
+                early_stop_error = Some(error.to_string());
+                break;
+            }
+        }
+    }
+
+    assert!(!saw_premature_terminal, "early-stop consumer must not observe success before DONE");
+    assert!(early_stop_error.as_deref().is_some_and(|error| error.contains("terminal missing")));
+    assert!(full_drain_error.contains("terminal missing"), "{full_drain_error}");
+    assert!(sink.rows.lock().unwrap().iter().filter(|row| row.status == CloudCallStatus::Failed).count() >= 2);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_done_without_usable_content_is_failed_redacted_and_observable() {
+    let trace_buffer = capture_tracing();
+    let mock_server = MockServer::start().await;
+    let attempt = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let attempt_for_mock = attempt.clone();
+    Mock::given(method("POST"))
+        .and(path(OPENAI_CHAT_COMPLETIONS_PATH))
+        .respond_with(move |_request: &Request| {
+            let body = if attempt_for_mock.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 {
+                format!(": ignored-{API_KEY_FIXTURE}\n\ndata: [DONE]\n\n")
+            } else {
+                format!(
+                    "data: {{\"choices\":[{{\"delta\":{{}},\"finish_reason\":\"stop\"}}],\"echo\":\"{API_KEY_FIXTURE}\"}}\n\ndata: [DONE]\n\n"
+                )
+            };
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(body)
+        })
+        .expect(2)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let recorder = Arc::new(CapturingFlightRecorder::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone()).with_lane_observability(Arc::new(
+        CloudLaneObservability {
+            flight_recorder: recorder.clone(),
+            consent: None,
+        },
+    ));
+    let handle = runtime.register_handle("gpt-4o", "2026-05-20T11:00:00Z").unwrap();
+
+    let mut done_only = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let done_only_error = done_only.next().await.expect("DONE-only error item")
+        .expect_err("DONE without content must fail").to_string();
+    assert!(done_only.next().await.is_none());
+
+    let mut contentless_choice = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let contentless_error = contentless_choice.next().await.expect("contentless-choice error item")
+        .expect_err("contentless choice followed by DONE must fail").to_string();
+    assert!(contentless_choice.next().await.is_none());
+
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+    let audit_rows = sink.rows.lock().unwrap().clone();
+    let recorder_events = recorder.events.lock().unwrap().clone();
+    assert!(tracing.contains("openai-byok-tracing-live"), "tracing proof must be live");
+    assert!(audit_rows.iter().any(|row| row.status == CloudCallStatus::Started));
+    assert!(audit_rows.iter().filter(|row| row.status == CloudCallStatus::Failed).count() >= 2);
+    assert!(recorder_events.iter().filter(|event| event.payload["phase"] == "start").count() >= 2);
+    assert!(recorder_events.iter().filter(|event| event.payload["phase"] == "end").count() >= 2);
+
+    for (surface, rendered) in [
+        ("done_only_error", done_only_error.as_str()),
+        ("contentless_error", contentless_error.as_str()),
+        ("tracing", tracing.as_str()),
+    ] {
+        assert!(!rendered.is_empty(), "{surface} proof must be non-vacuous");
+        assert!(!rendered.contains(API_KEY_FIXTURE), "{surface} leaked BYOK canary: {rendered}");
+    }
+    let audit = format!("{audit_rows:?}");
+    let recorded = format!("{recorder_events:?}");
+    assert!(!audit.is_empty() && !audit.contains(API_KEY_FIXTURE), "audit leak: {audit}");
+    assert!(!recorded.is_empty() && !recorded.contains(API_KEY_FIXTURE), "recorder leak: {recorded}");
+    for error in [done_only_error, contentless_error] {
+        assert!(error.contains("reason=no_usable_result"), "{error}");
+        assert!(error.contains("provider_payload=<redacted>"), "{error}");
+        assert!(error.len() <= 160, "unusable-result error must be bounded: {} bytes", error.len());
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_transport_errors_are_bounded_and_never_echo_canary_url() {
+    let trace_buffer = capture_tracing();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("reserve port");
+    let address = listener.local_addr().expect("reserved address");
+    drop(listener);
+    let api_base = format!("http://{address}/{API_KEY_FIXTURE}");
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(api_base, sink.clone());
+    let handle = runtime.register_handle("gpt-4o", "2026-05-20T11:00:00Z").unwrap();
+
+    let mut generate = runtime.generate(fixture_generate_request(handle.model_id, CancellationToken::new()));
+    let generate_error = generate.next().await.expect("transport error")
+        .expect_err("generate connection must fail").to_string();
+    let score_error = runtime.score(handle.model_id, vec![1]).await
+        .expect_err("score connection must fail").to_string();
+    let embed_error = runtime.embed(handle.model_id, "probe").await
+        .expect_err("embed connection must fail").to_string();
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+    let audit = format!("{:?}", sink.rows.lock().unwrap());
+
+    for (operation, error) in [
+        ("generate", generate_error),
+        ("score", score_error),
+        ("embed", embed_error),
+    ] {
+        assert!(error.contains(&format!("operation={operation}")), "{error}");
+        assert!(error.contains("code=connect"), "{error}");
+        assert!(!error.contains(API_KEY_FIXTURE), "transport error leaked URL: {error}");
+        assert!(error.len() <= 128, "transport error must be bounded: {} bytes", error.len());
+    }
+    assert!(!tracing.contains(API_KEY_FIXTURE), "tracing leaked transport URL: {tracing}");
+    assert!(!audit.contains(API_KEY_FIXTURE), "audit leaked transport URL: {audit}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn openai_byok_empty_success_payloads_are_failed_and_redacted() {
+    let mock_server = MockServer::start().await;
+    let chat_attempt = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let chat_attempt_for_mock = chat_attempt.clone();
+    Mock::given(method("POST"))
+        .and(path(OPENAI_CHAT_COMPLETIONS_PATH))
+        .respond_with(move |_request: &Request| {
+            if chat_attempt_for_mock.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 {
+                ResponseTemplate::new(200)
+                    .insert_header("content-type", "text/event-stream")
+                    .set_body_string(format!(
+                        "data: {{\"choices\":[],\"echo\":\"{API_KEY_FIXTURE}\"}}\n\n"
+                    ))
+            } else {
+                ResponseTemplate::new(200).set_body_string(format!(
+                    "{{\"choices\":[],\"echo\":\"{API_KEY_FIXTURE}\"}}"
+                ))
+            }
+        })
+        .expect(2)
+        .mount(&mock_server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(OPENAI_EMBEDDINGS_PATH))
+        .respond_with(ResponseTemplate::new(200).set_body_string(format!(
+            "{{\"data\":[],\"echo\":\"{API_KEY_FIXTURE}\"}}"
+        )))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone());
+    let handle = runtime.register_handle("gpt-4o", "2026-05-20T11:00:00Z").unwrap();
+    let mut generate = runtime.generate(fixture_generate_request(handle.model_id, CancellationToken::new()));
+    let generate_error = generate.next().await.expect("empty choices error")
+        .expect_err("empty choices must fail").to_string();
+    let score_error = runtime.score(handle.model_id, vec![1]).await
+        .expect_err("empty logprobs must fail").to_string();
+    let embed_error = runtime.embed(handle.model_id, "probe").await
+        .expect_err("empty embedding data must fail").to_string();
+    let audit_rows = sink.rows.lock().unwrap().clone();
+
+    for error in [&generate_error, &score_error, &embed_error] {
+        assert!(!error.contains(API_KEY_FIXTURE), "empty response reflected canary: {error}");
+        assert!(error.contains("provider_payload=<redacted>"), "{error}");
+    }
+    for kind in [CloudCallKind::ChatCompletion, CloudCallKind::Score, CloudCallKind::Embeddings] {
+        assert!(audit_rows.iter().any(|row| row.call_kind == kind && row.status == CloudCallStatus::Failed), "missing failed audit for {kind:?}");
+    }
+    assert!(!format!("{audit_rows:?}").contains(API_KEY_FIXTURE));
 }
 
 // ---------------------------------------------------------------------

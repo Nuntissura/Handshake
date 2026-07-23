@@ -179,6 +179,7 @@ fn seed_pages() -> Vec<NewUserManualPage> {
         page_memory_surface(),
         page_crdt_surface(),
         page_model_lane_schema(),
+        page_model_runtime_registry_and_loom_degrade(),
         page_model_lane_launch_adapters(),
         page_model_lane_promotion(),
         page_model_lane_context_bundle_handoff(),
@@ -217,6 +218,7 @@ fn page_manual_toc() -> NewUserManualPage {
         "memory-and-claims-surface",
         "crdt-collaboration-surface",
         "model-lane-schema",
+        "model-runtime-registry-and-loom-degrade",
         "model-lane-launch-adapters",
         "model-lane-promotion",
         "model-lane-context-bundle-handoff",
@@ -656,9 +658,17 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  paths exist:\n\n\
                  - SUBSCRIPTION PLAN (primary): log in with a provider's OWN official CLI (Claude Code, \
                  GPT/Codex) via the official CLI bridge. Handshake stores NO credential for this path — \
-                 the session lives in the provider's CLI. The surface shows configured / not-configured \
-                 status and an operator-initiated 'Log in…' button that launches the provider's official \
-                 login command in a visible terminal.\n\
+                 the session lives in the provider's CLI. On Windows, status runs only against the same \
+                 pinned, launchable executable graph through the attached Job-contained sandbox. Only \
+                 recognized provider grammar from a successful status command can produce `logged_in` \
+                 or `logged_out`; unsupported expiry detection, \
+                 API-key/agent auth modes, a missing/non-launchable CLI, timeout, or unrecognized output \
+                 reports `unavailable` rather than guessing. Non-Windows probing is fail-closed \
+                 `unavailable` until an equivalent process-tree-contained adapter exists. The row provides \
+                 an operator-initiated 'Log in…' button. The first click opens an in-app \
+                 confirmation that discloses the new foreground terminal; only `Start login` launches \
+                 one of the fixed `claude auth login` or `codex login` command vectors. Provider response \
+                 data is never interpolated into a shell command.\n\
                  - BYOK (available, not required): paste an Anthropic or OpenAI API key. The key is \
                  stored ONLY in the OS keychain (Windows Credential Manager / macOS Keychain / Linux \
                  Secret Service). It is NEVER written to logs, the Flight Recorder, the EventLedger, the \
@@ -671,8 +681,12 @@ fn page_cloud_model_access() -> NewUserManualPage {
                 "A model configures the same access over HTTP:\n\n\
                  - `GET /model-access/providers` — non-secret enumeration: each provider's \
                  `configured` / `unavailable` status (a missing key is `unavailable`, never an error), \
-                 the CLI-bridge login commands, and the explicit `excluded: [\"gemini\"]` list. This is \
-                 what the operator model-picker lists.\n\
+                 each CLI bridge's typed `logged_in` / `logged_out` / `expired` / `unavailable` auth \
+                 status, the CLI-bridge login commands, and the explicit `excluded: [\"gemini\"]` list. This is \
+                 what the operator model-picker lists. `expired` remains a typed presentation state for a \
+                 future exact provider signal; production never infers it from free text. The picker \
+                 enables a CLI row only when the exact same provider has both a registered launch builder \
+                 and `logged_in`; every other state remains visible but disabled.\n\
                  - `PUT /model-access/byok/{provider}/key` with body `{\"api_key\": \"…\"}` — store a \
                  BYOK key in the OS keychain. The response carries only non-secret status; the key is \
                  never echoed. `{provider}` is `anthropic` or `openai`; any other id (including \
@@ -709,11 +723,16 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  Exact backend route proof targets: `model_access_route_tests::put_store_returns_200_and_never_echoes_the_key`; \
                  `model_access_route_tests::delete_byok_key_is_idempotent_and_updates_status`; \
                  `model_access_route_tests::get_providers_reflects_configured_and_excludes_gemini`; \
+                 `model_access_route_tests::cli_bridge_typed_status_wire_mapping_excludes_account_fields_and_gemini`; \
                  `model_access_route_tests::put_empty_key_is_400`; \
                  `model_access_route_tests::put_gemini_is_404_excluded`; \
                  `model_access_route_tests::keychain_unavailable_is_503`. These cover \
                  `GET /model-access/providers`, `PUT /model-access/byok/{provider}/key`, \
-                 and `DELETE /model-access/byok/{provider}/key` without touching the host keychain.\n\n\
+                 and `DELETE /model-access/byok/{provider}/key` without touching the host keychain. \
+                 The route auth-status test proves typed wire reduction only. Production parser/process \
+                 proof is separate: `access_config::tests::official_auth_status_parsing_uses_exact_subscription_grammar_and_never_returns_output`, \
+                 `official_cli_bridge::tests::auxiliary_auth_status_runner_is_job_contained_bounded_and_zeroizes_canary_output` \
+                 (Windows), and `operator_chat_route_tests::logged_in_cli_requires_matching_registered_launch_builder`.\n\n\
                  Exact backend leak proof target: \
                  `cloud_byok_access_config_leak_tests::byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain`. \
                  It uses a real `OsKeychainSecretsVault`, proves the key round-trips only for provider \
@@ -724,10 +743,13 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  `test_cloud_models_settings_argus::typing_and_saving_a_byok_key_clears_the_ui_buffer`; \
                  `test_cloud_models_settings_argus::cloud_models_key_entry_renders_when_backend_unreachable`; \
                  `test_cloud_models_settings_argus::typed_byok_key_is_wiped_from_egui_memory_after_close`; \
+                 `test_cloud_models_settings_argus::cli_bridge_auth_status_renders_all_three_states_for_claude_and_codex`; \
                  `test_cloud_models_settings_argus::cli_bridge_login_records_the_official_command_without_stealing_focus`. \
-                 These prove stable AccessKit IDs, no Gemini row, static BYOK fallback when the backend \
-                 is unreachable, UI key-buffer wiping, and provider-owned CLI login commands without \
-                 stealing focus.",
+                 These prove stable AccessKit IDs and rendering for the three typed UI states; they do not \
+                 claim live provider expiry detection. They also prove no Gemini row, static BYOK fallback when the backend \
+                 is unreachable, UI key-buffer wiping, an addressable foreground-launch confirmation, \
+                 and fixed provider-owned CLI login command vectors without terminal launch in the \
+                 headless test shell.",
             ),
         ],
         anchors: vec![
@@ -1170,9 +1192,7 @@ fn page_model_lane_schema() -> NewUserManualPage {
                  and messages ordered by `event_ledger_seq`; inspect `recovery_state`, \
                  failstate refs, lease/reclaim fields, and Locus ownership before relaunch. \
                  HBR-INT-009 posture: Flight Recorder/EventLedger is WIRED through \
-                 `dexterity_model_lane` EventLedger rows; internal_diagnostics is WIRED \
-                 through the native diagnostics surface; Palmistry is DEFERRED-with-reason \
-                 because the external watcher is built in its separate worktree and must observe these records without becoming \
+                 `dexterity_model_lane` EventLedger rows; internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer and must observe these records without becoming \
                  Dexterity authority.",
             ),
             section(
@@ -1200,6 +1220,108 @@ fn page_model_lane_schema() -> NewUserManualPage {
     }
 }
 
+fn page_model_runtime_registry_and_loom_degrade() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "model-runtime-registry-and-loom-degrade".into(),
+        title: "Model Runtime Registry and Loom Semantic Degrade".into(),
+        page_kind: "workflow",
+        audience: "model_and_operator",
+        spec_anchors: vec!["4.2.3".into(), "4.3.9".into(), "10.13".into()],
+        sections: vec![
+            section(
+                "workflows",
+                "Inspect the durable model runtime registry",
+                "In the Rust-native app choose `RUN` then `Open Model Runtime` \
+                 (`menu.run.model-runtime`), choose `STUDIO` then `Model Runtime`, or choose \
+                 `Settings` then `Model Runtime` then `Open Model Runtime` \
+                 (`settings.model-runtime.open`). The pane reads the production \
+                 `GET /model-runtime/registry` projection off the frame thread. Refresh re-reads \
+                 PostgreSQL/EventLedger authority. A row is `LIVE / READY` only when its current \
+                 runtime UUID and label equal the atomically committed last observation; unloaded \
+                 rows remain `DORMANT` and expose no current UUID. Inspect model id, canonical artifact \
+                 path plus SHA-256, adapter/runtime state, KV bytes/cap/hit rate/quantization, ordered \
+                 LoRA ids/strengths, typed steering availability, ProcessOwnershipLedger link, tokens/s, \
+                 VRAM, last call plus computed elapsed time, and the expandable typed engine-internals \
+                 projection before launching or diagnosing a model lane. `Open in Flight Recorder` \
+                 performs in-app navigation and carries the canonical ProcessOwnershipLedger reference; \
+                 it does not hand a custom URI to the OS. `Inspect engine internals` is a read-only \
+                 native drilldown and is enabled only when the typed engine-internals projection is \
+                 available. `Quiesce model` posts schema-versioned `POST /model-runtime/control` for a \
+                 current READY runtime and accepts success only from the matching typed receipt. \
+                 Quiesce stops new admission to that model without claiming unload, process STOP, \
+                 registry mutation, or selection rebound. Unload is enabled only when the row is \
+                 READY, is not `application/default`, has matching embedded lifecycle authority, and \
+                 has no other READY model sharing its adapter; the request carries the projected \
+                 catalog revision and success requires quiesce, unload, catalog update, and durable \
+                 ProcessOwnershipLedger STOP in the typed receipt. Compatible-adapter swap is enabled \
+                 only with lifecycle, runtime-ledger, embedded-runtime, durable selection-rebind \
+                 authority, and no READY sibling sharing the source adapter. It sends the opposite \
+                 compatible adapter plus projected catalog and selection revisions; the native button \
+                 names that target explicitly as `Swap to CandleRuntime` or `Swap to LlamaCppRuntime` \
+                 and stays disabled if no compatible target exists. Success means the \
+                 target adapter loaded and durably STARTed, the source quiesced/unloaded and durably \
+                 STOPped, PostgreSQL adapter selection rebound, the catalog replacement published, \
+                 application selection rebound when applicable, and `result_model_id` names the new \
+                 boot UUID. Any capability, compatibility, CAS, lifecycle, or receipt mismatch stays \
+                 fail-closed and Refresh re-observes authority. \
+                 PostgreSQL owns `application/default` and \
+                 `embeddings/default`; boot restores both by stable artifact SHA-256 before exposing \
+                 routing. The `ACTIVE DEFAULT MODEL` row owns new application default-routed calls. \
+                 Only a READY completion-role row with `default_selectable = true` exposes `Switch to …`; \
+                 an embedding-role row may own `embeddings/default` but is not eligible for the \
+                 application/default switch, and Operator Chat omits it from its default-model picker. That action \
+                 posts `POST /model-runtime/selection`, serializes against concurrent swaps, \
+                 prevalidates projection integrity, and rejects stale, non-READY, or embedding-role \
+                 targets before mutation. It appends the active-selection EventLedger event and \
+                 PostgreSQL compare-and-set in one transaction, then publishes the committed selection \
+                 to the current router projection and cancels prior-default requests. Success returns \
+                 `selection_receipt_ref`. Invalid input, stale target, embedding-role target, integrity \
+                 failure, timeout, audit failure, or PostgreSQL revision conflict leaves the prior \
+                 durable model selected and shows typed recovery guidance. Database or authority \
+                 failure returns `503 MODEL_RUNTIME_REGISTRY_UNAVAILABLE`; restore authority, then \
+                 Refresh to re-observe the durable projection.",
+            ),
+            section(
+                "inputs_outputs",
+                "Registry and catalog contract",
+                "Inputs are the persisted artifact identity, runtime binding, declared \
+                 capabilities, explicit persisted `completion` or `embedding` runtime role, and causation-linked selection history. Outputs are stable \
+                 registry rows and `ModelCatalog` entries containing the per-boot model UUID, \
+                 display/base-model label, artifact SHA-256, runtime binding, embedding \
+                 capability/dimension, runtime role, `default_selectable`, READY state, and PostgreSQL active-purpose markers/revisions. The selector \
+                 changes only `application/default`; `embeddings/default` is restored independently. Durable artifact-to-adapter rebinding remains \
+                 a separate governed operation and is not performed by this panel. Unknown model lookup returns the explicit \
+                 `unknown model` sentinel; an empty registry returns an empty list.",
+            ),
+            section(
+                "recovery",
+                "Loom dimension mismatch and recovery",
+                "If the selected embedding output dimension is not 768, Loom reindex and search \
+                 degrade to keyword/trigram instead of returning a hard error. The response carries \
+                 `semantic_unavailable_reason = DimMismatch{expected, actual}` and the runtime emits \
+                 `FR-EVT-LOOM-SEMANTIC-DEGRADED`. Recover by configuring the dedicated embedding \
+                 model documented in [[dedicated-embedding-model-routing]] with the required \
+                 dimension, then retry. Missing migrations, PostgreSQL failure, malformed rows, \
+                 duplicate artifact hashes, adapter/role conflicts, or an invalid EventLedger selection \
+                 chain fail closed; restore the current migration/database authority and the \
+                 persisted SHA/binding rather than editing durable rows or revisions. HBR-INT-009 \
+                 posture is explicit here: PostgreSQL/EventLedger plus Tier-1 Flight Recorder are \
+                 WIRED; native `internal_diagnostics` is WIRED through its producer and Problems \
+                 projection; Palmistry is WIRED through its authenticated watcher and survivor \
+                 recovery importer.",
+            ),
+        ],
+        anchors: vec![
+            route_anchor("GET", "/model-runtime/registry"),
+            route_anchor("POST", "/model-runtime/selection"),
+            route_anchor("POST", "/model-runtime/control"),
+            route_anchor("GET", "/usermanual/features"),
+            page_link("dedicated-embedding-model-routing"),
+            page_link("model-lane-schema"),
+        ],
+    }
+}
+
 fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
     NewUserManualPage {
         slug: "embedded-model-lifecycle-ledger".into(),
@@ -1211,29 +1333,95 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
             section(
                 "purpose",
                 "What this surface is",
-                "When a local model is configured, the default LlmClient loads the model \
-                 in-process through the embedded ModelRuntime (Candle CPU baseline / llama.cpp \
-                 opt-in). This library load spawns no OS process, so master-spec §3.6.2 clause (1) \
+                "When a local model is configured, the default LlmClient loads the selected proven \
+                 Candle or opt-in llama.cpp model in-process through the embedded ModelRuntime. \
+                 The llama.cpp path captures one configured GGUF source handle into a private \
+                 retained stage, validates a GGUF-specific exact-byte integrity receipt, and gives \
+                 only that staged path to the native loader. A binding whose runtime feature or \
+                 exact-byte proof is unavailable still fails closed without READY exposure. This library load \
+                 spawns no OS process, so master-spec §3.6.2 clause (1) \
                  (child of a SandboxAdapter, no bare std::process::Command) is satisfied \
                  vacuously; the ENFORCED obligation is clause (2): a ProcessOwnershipLedger START \
-                 row on load and a matching STOP row on unload (§4.6.1), written to the same \
+                 row on load and a matching STOP row at the explicit logical-shutdown boundary \
+                 accepted by the MT-013 contract review, written to the same \
                  `kernel_process_lifecycle` table the swarm factory uses. Because there is no OS \
-                 process, the START row is honestly pid-less (`os_pid = NULL`) and keyed on the \
-                 model's minted UUIDv7 `process_uuid`; a synthetic pid is forbidden.",
+                 process, the START row is honestly pid-less (`os_pid = NULL`); on the valid path \
+                 `process_uuid` equals the model's minted UUIDv7. If a runtime returns a non-v7 or \
+                 duplicate model id, boot emits a distinct UUIDv7 quarantine START first and records \
+                 the reported id plus `identity_contract_violation` in metadata, preventing row \
+                 aliasing while keeping every successful load observable. A synthetic pid is forbidden.",
             ),
             section(
                 "workflows",
                 "Load, shutdown, and the STOP seam",
-                "On load, `EmbeddedModelProcess::record_load` emits the START row and returns an \
-                 ownership handle held by the LlmClient. The runtime is held behind \
-                 `Arc<dyn ModelRuntime>` and never has `unload(&mut self)` called on it, so the \
-                 STOP row is emitted through an explicit app-shutdown seam instead: \
-                 `LlmClient::shutdown` -> `EmbeddedModelProcess::shutdown` (idempotent; a Drop \
-                 safety-net also fires it). The binary wires `axum::serve(...).with_graceful_ \
-                 shutdown(...)` on Ctrl-C/SIGTERM, then runs an ordered teardown: emit STOP -> \
-                 bounded ledger drain-and-join (flush the STOP to PostgreSQL) -> stop the managed \
-                 cluster. Without the graceful-shutdown handler the process would be OS-killed and \
-                 the STOP would never fire.",
+                "Before any artifact access, boot validates the persistent selection authority. It then \
+                 reserves one START and one future STOP \
+                 queue permit for every configured primary/embedding runtime as an all-or-none set. \
+                 Each selected runtime must return exact-byte artifact integrity proof before its \
+                 reserved START transition or any READY exposure. \
+                 Candle opens each behavior-bearing source once: weights are copied into an unnamed \
+                 private staging file and loaded from its immutable read-only mapping, while captured \
+                 config and optional tokenizer bytes are parsed directly. The runtime computes a \
+                 path-independent canonical receipt containing bundle, weights, config, and tokenizer \
+                 SHA-256 values plus exact lengths. For llama.cpp, a bounded single-open copy creates \
+                 a private retained `model.gguf`; digest, GGUF magic, single-file/split rejection, and \
+                 tokenizer metadata are validated only from that stage. Linux/Android use a sealed \
+                 anonymous memfd and bind every later open to its `/proc/self/fd` descriptor path; \
+                 Windows retains a deny-write/delete file handle. Other Unix targets fail closed until \
+                 a fresh-offset sealed descriptor path is proven. Native model construction and \
+                 tokenizer loading use only that bound path, mmap is forced off, and the staged bytes are \
+                 re-hashed and re-parsed before publication. Its format-specific receipt contains the \
+                 canonical `model.gguf` bundle digest plus raw GGUF digest and exact length without \
+                 fabricating Candle config or tokenizer components. Boot validates either receipt \
+                 against the configured primary artifact digest. After each real load, \
+                 `EmbeddedModelProcess::record_reserved_load_with_durable_ack` \
+                 consumes its START permit; boot waits for the canonical PostgreSQL transaction to commit \
+                 with `synchronous_commit=on` before registration or READY exposure. The ownership handle \
+                 writes `model_artifact_sha256` from the verified receipt and embeds the complete \
+                 `artifact_integrity_receipt` in bounded START metadata, so the durable row names the \
+                 exact bytes the selected runtime consumed rather than merely repeating configuration. \
+                 The ownership handle is then held by the LlmClient. The runtime is held behind \
+                 `Arc<dyn ModelRuntime>`. Normal app shutdown uses the proven ordered seam below. \
+                 A ModelRuntime control unload or compatible-adapter swap may instead take unique \
+                 runtime ownership, call `unload(&mut self)`, update catalog/selection authority as \
+                 required, and emit the matching reserved STOP only after the unload is proven; a \
+                 swap durably STARTs its replacement before quiescing and unloading the source. \
+                 In the normal app-shutdown seam, \
+                 `LlmClient::shutdown_gracefully` first closes runtime admission, cancels active \
+                 work, and waits for worker-owned generate/score/embed guards; only after every \
+                 actual thread or blocking task exits does `EmbeddedModelProcess::shutdown` emit \
+                 STOP. The synchronous `shutdown` seam requests cancellation but never claims \
+                 STOP. Dropping an unquiesced client also emits no STOP and leaves START open for \
+                 liveness reconciliation. The pre-reserved STOP cannot be lost to later queue \
+                 saturation, and concurrent shutdown callers serialize on the same permit. The \
+                 binary wires `axum::serve(...).with_graceful_ \
+                 shutdown(...)` on Ctrl-C/SIGTERM, gives accepted connections at most 30 seconds \
+                 to drain, then runs an ordered teardown: cancel/join background AppState owners \
+                 -> close runtime admission and quiesce actual workers -> emit STOP only on \
+                 proven idle -> drop the final runtime-owning AppState -> bounded ledger \
+                 drain-and-join -> stop the managed cluster -> finish remaining shutdown checks \
+                 -> release the OS-owned runtime lease immediately before backend return. \
+                 The writer stops receiving \
+                 when a retained failed batch reaches capacity, applies channel backpressure, and \
+                 retries instead of discarding an already-accepted reserved STOP. Without the \
+                 graceful-shutdown handler the process would be OS-killed and the STOP would never \
+                 fire. If accepted connections exceed their drain deadline, reserved STOP permits \
+                 are relinquished before runtime quiescence is attempted; even an idle runtime \
+                 cannot emit STOP while Axum connection tasks still retain AppState. The writer \
+                 drains the open START evidence and the process exits nonzero with the AppState and \
+                 OS lease intentionally retained until process death. If any runtime worker \
+                 misses the quiescence deadline on the normally drained path, no STOP is emitted: \
+                 reserved STOP permits are \
+                 relinquished, the writer drains the open START evidence, and the process exits \
+                 nonzero without explicitly releasing the OS lease. OS process death then releases \
+                 the lease and the next boot reconciles the surviving START. The durable graceful STOP \
+                 reason is `llm-client-shutdown`; no more specific shutdown-trigger attribution is \
+                 persisted. Candle and llama.cpp token streams use a bounded 64-slot channel: \
+                 nonterminal data may occupy at most 63 slots, preserving one slot for a terminal \
+                 token or error. A saturated producer applies cancellation-aware backpressure; \
+                 cancellation inserts `FinishReason::Cancelled` into the reserved slot before the \
+                 worker exits, while a dropped consumer closes the worker path instead of letting \
+                 an unbounded queue retain generated tokens.",
             ),
             section(
                 "recovery",
@@ -1242,15 +1430,77 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                  That orphan is session-less (`parent_session_id IS NULL`) and pid-less \
                  (`os_pid IS NULL`), so neither the session-scoped restart-resume reclaim nor the \
                  swarm reclaim (both filter on `parent_session_id = $session`) can EVER match it. \
-                 On the next boot, `reclaim_pidless_embedded_orphans` closes exactly those \
-                 orphans — session-less AND pid-less AND `engine_kind IN ('llamacpp','candle')` \
-                 AND still open AND started before this process booted — setting `stopped_at`, a \
+                 Each backend that resolves an actually configured embedded local lane holds an \
+                 exclusive OS-owned loopback UDP lease and stamps the exact versioned descriptor \
+                 into every embedded START: instance UUID, host-scope id, \
+                 protocol, loopback address, and port. PostgreSQL connection loss or restart does \
+                 not release that lease. On the next boot, \
+                 `reclaim_pidless_embedded_orphans` strictly decodes each prior descriptor. It \
+                 ignores foreign-host rows, while incomplete, malformed, conflicting, ambiguous, \
+                 or internally terminal rows stay open and make the typed report deferred/incomplete. For \
+                 a same-host candidate it tries to bind the exact endpoint: address-in-use protects \
+                 a live owner (or safe port reuse), while a successful exclusive claim is held \
+                 through a short transaction-scoped PostgreSQL mutex and the exact descriptor \
+                 update. Transaction-local two-second lock and three-second statement deadlines \
+                 leave contended rows open and report them as deferred instead of hanging boot. \
+                 Each boot examines at most 16 eligible runtime-instance groups through a durable \
+                 per-host cyclic keyset cursor. The cursor advances across live/protected and \
+                 malformed-ID groups so a fixed leading page cannot starve later stale instances; \
+                 a separate bounded unsafe-row probe prevents prefilter-excluded corrupt rows from \
+                 being reported as complete. A whole-table \
+                 conflict check prevents a conflicting descriptor outside that bounded batch from \
+                 being reclaimed, and a typed report marks when another boot sweep is required. \
+                 The cutoff bounds the candidate scan but is never treated as liveness \
+                 proof. Confirmed stale rows are closed by exact descriptor, setting `stopped_at`, a \
                  sentinel `exit_code`, and `stop_reason = 'orphan_reclaim_pidless_embedded_boot'`. \
-                 The boot cutoff guarantees this boot's own live row is never swept. \
+                 Unverifiable metadata remains open rather than risking closure of a live owner. \
+                 An open row that already carries `exit_code` or `stop_reason` is also treated as \
+                 internally inconsistent and left open for operator inspection; reconciliation \
+                 never preserves or overwrites that malformed terminal metadata while claiming a \
+                 successful automatic STOP. \
+                 Session-scoped process reclaim reserves a lossless STOP queue permit before kill, \
+                 renews a UUIDv7-plus-generation fenced claim during slow termination, and reports \
+                 STOP only after PostgreSQL store acknowledgement. A post-kill write failure remains \
+                 `kill_succeeded_pending_stop`; retry persists STOP without killing again, while stale \
+                 claimant tokens cannot renew, release, or finalize a newer claim. Before kill, the \
+                 claimant durably enters `reclaim_kill_in_progress`; that phase is never lease-taken \
+                 over, so a second backend cannot double-kill a blocked process. The stable \
+                 `kill_operation_uuid` is the sandbox adapter idempotency key across retries. If the \
+                 backend crashes during that phase, run the bounded session recovery sweep: adapter \
+                 `succeeded` evidence advances to pending STOP without another kill; `failed` or \
+                 `not_started` evidence releases the claim and retries the same operation UUID; \
+                 `in_progress`, `unknown`, status-query errors, and transition errors remain truthfully \
+                 open as typed per-operation outcomes while later independent operations continue. \
+                 Malformed recovery rows likewise remain open with their raw process/operation \
+                 identity and a typed repair error; they never panic or poison later rows in the \
+                 bounded sweep. \
+                 Re-run the sweep after adapter recovery; never fabricate STOP from unknown evidence. \
+                  `HANDSHAKE_HOST_SCOPE_ID`, when set, must be stable and globally unique per OS \
+                  or network namespace and must never be copied to another host. It is mandatory \
+                  for non-loopback PostgreSQL and for a loopback URL that reaches PostgreSQL \
+                  through an SSH tunnel, port forward, container, WSL, or another network \
+                  namespace. Automatic loopback derivation is allowed only when this backend \
+                  process started the exact managed PostgreSQL endpoint; an adopted, external, \
+                  forwarded, or otherwise unproven loopback endpoint fails closed without the \
+                  explicit value. This provenance gate prevents two hosts connected through \
+                  identical localhost tunnel URLs from sharing an inferred host scope. Legacy \
+                  endpoint-only scopes are deliberately not adopted or reconciled under the new \
+                  identity because their originating host is ambiguous; inspect and close those \
+                  rows manually after confirming the original process is gone. \
+                  Duplicating the value across physical hosts can let one host mistake \
+                 another host's live row for a local orphan because their UDP loopback namespaces \
+                 are independent. If duplication is suspected, stop the affected backends, assign \
+                 a different stable value to each namespace, inspect the old open ledger rows, and \
+                 restart; do not rely on automatic reconciliation of rows stamped with the \
+                 duplicated scope. Cloud-only and unconfigured-local boots do not acquire a \
+                 model-runtime lease. For a configured local lane, an unavailable host scope or \
+                 lease disables local inference before artifact access without aborting the rest \
+                 of the backend. A successful typed reconciliation report may leave protected or \
+                 bounded deferred rows open and warns that a later sweep is required; an actual \
+                 reconciliation error is logged as an error and disables configured local inference \
+                 before artifact access for that boot. \
                  HBR-INT-009 posture: Flight Recorder / EventLedger is WIRED (ProcessOwnershipLedger \
-                 rows + per-call Flight Recorder events); internal_diagnostics is \
-                 DEFERRED-with-reason and Palmistry is DEFERRED-with-reason (both integrated from \
-                 WP-KERNEL-012/016 worktrees; they observe these records without becoming their \
+                  rows + per-call Flight Recorder events); internal_diagnostics is WIRED and Palmistry is WIRED through the native diagnostics and survivor-recovery paths; they observe these records without becoming their \
                  authority).",
             ),
             section(
@@ -1273,7 +1523,8 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                 "Proof commands",
                 "Exact Rust proof targets: \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test embedded_model_ledger_tests` \
-                  (embedded load emits pid-less START keyed on the minted UUIDv7; the graceful- \
+                  (a valid embedded load emits a pid-less START keyed on the minted UUIDv7, while \
+                   invalid/duplicate returned identities receive distinct quarantine START rows; the graceful- \
                   shutdown sequence flushes the STOP through the background writer; the hard-crash \
                   orphan-reconcile sweep closes a stale pid-less embedded START; both the primary \
                   chat model and optional dedicated embedding model get START/STOP rows; supplied \
@@ -1281,7 +1532,13 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
                   `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test llm_client_local_routing_tests` \
                   (fail-closed and embedding Flight Recorder events on every call path, including \
                   DisabledLlmClient::embedding, with `data_embedding_computed` using the validated \
-                  Flight Recorder payload shape). These are supporting deterministic proofs; MT-013 \
+                  Flight Recorder payload shape); \
+                  `cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test process_ledger_writer_tests` \
+                  (reserved STOP capacity survives retained-batch store failure/recovery and \
+                  invalid batch sizing fails closed); \
+                  `cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --lib candle_stream_reserves_terminal_slot_under_saturated_cancellation` \
+                  and `cargo test -j 1 --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,llama-cpp-runtime-engine\" --lib llama_stream_reserves_terminal_slot_under_saturated_cancellation` \
+                  prove saturated cancellation preserves the explicit terminal outcome. These are supporting deterministic proofs; MT-013 \
                   READY_FOR_VALIDATION additionally requires the live real-load proof command \
                   `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features \"test-utils,candle-runtime-engine\" --test candle_e2e_smoke mt013_real_candle_default_load_emits_process_ledger_start_stop -- --ignored --exact --nocapture` \
                   with `HANDSHAKE_TEST_CANDLE_MODEL_DIR` pointing at real Candle weights and output \
@@ -1304,6 +1561,11 @@ fn page_embedded_model_lifecycle_ledger() -> NewUserManualPage {
             NewManualAnchor {
                 anchor_kind: "test",
                 anchor_value: "llm_client_local_routing_tests".into(),
+                http_method: "",
+            },
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "process_ledger_writer_tests".into(),
                 http_method: "",
             },
             NewManualAnchor {
@@ -1387,7 +1649,9 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  no process id and use `no_os_process_reason_ref` instead. \
                  The launched conversation, the model's exposed reasoning/thought, and its tool \
                  calls are captured as typed ModelLaneMessage records under a live ModelLaneRun \
-                 and mirrored to the Flight Recorder.",
+                 and mirrored to the Flight Recorder. `GET /operator-chat/models` is the canonical \
+                 picker inventory: it returns local, BYOK, official-CLI, subagent, excluded, and \
+                 governed session rows without exposing secret key material.",
             ),
             section(
                 "workflows",
@@ -1404,19 +1668,79 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  `lane_kind`, `model_id`, `cloud_provider`, `cli_provider`, and the selected \
                  working directory when available, \
                  distinct from launch (spec 4.3.9.4.4). \
-                 3. The Settings Swarm section has a persisted Operator Chat default-open checkbox; \
+                 3. The operator selects an `owner_session_id` from the backend inventory. The \
+                 backend `SessionRegistry` requires that exact owner session to be active, derives \
+                 `parent_session_id` from its registered lineage, requires the parent to be active, \
+                 and verifies `owner.spawn_depth == parent.spawn_depth + 1`; the client cannot \
+                 supply or override the parent. Unregistered, inactive, missing, or inconsistent \
+                 lineage returns `invalid_owner_session` before launch. \
+                 4. The Settings Swarm section has a persisted Operator Chat default-open checkbox; \
                  when enabled, startup navigation opens the Operator Chat pane through the same \
                  runtime tab path as the RUN menu. \
-                 4. The operator selects a folder/worktree; that path is plumbed \
+                 5. The operator selects a folder/worktree; that path is plumbed \
                  `SpawnRequest.working_dir -> CliBridgeConfig.working_dir` so the CLI subprocess \
                  truly runs in that directory. \
-                 5. Process-backed launch resolves ONLY through `SwarmCoordinator::spawn_session` \
+                 6. Process-backed launch resolves ONLY through `SwarmCoordinator::spawn_session` \
                  (never a frontend/app-src/direct-endpoint/terminal authority). SUBAGENT launch \
                  resolves through `SwarmCoordinator::launch_operator_subagent_model_lane`, \
                  normalizes via the Dexterity registry, and persists a no-OS ModelLaneRun/ModelLane; \
                  a missing ModelLaneStore fails closed. \
                  The operator's own prompt is persisted as a HUMAN_OPERATOR ModelLane message \
                  (launch_authority=Operator, runtime_binding=HUMAN).",
+            ),
+            section_with_json(
+                "workflows",
+                "Six executable policies and durable lifecycle routes",
+                "Routing is a distinct, durable production lifecycle, not picker metadata. The six \
+                 persisted policies compile to different `hsk.model_lane_routing_graph@1` DAGs: \
+                 `local_first` runs `local-attempt` then cloud-consented `cloud-escalation` only \
+                 after failure; `cloud_review` runs `local-candidate` then cloud-consented \
+                 `cloud-review` after success; `cloud_plan_local_execute` runs cloud-consented \
+                 `cloud-plan` then `local-execute`; `parallel_debate` runs `debate-local` and \
+                 cloud-consented `debate-cloud` in parallel then `debate-join`; `validator_lane` \
+                 runs `validation-candidate` then authority-gated `validator-verdict`; and \
+                 `operator_lane` runs `operator-candidate` then authority-gated \
+                 `operator-decision`. `POST /operator-chat/routing/lifecycle` executes the graph; \
+                 `/routing/recover` reloads and resumes the durable execution; `/routing/authority` \
+                 supplies the exact execution/stage/message authority and resumes; and \
+                 `/routing/cancel` cancels with a durable reason. Each stage request binds \
+                 `stage_id`, optional `lane_id` plus model `selection`, and optional \
+                 `authority_lane_id`. The lifecycle request binds `execution_id`, \
+                 `selecting_decision_id`, three independent authority refs, canonical run context, \
+                 and the stage list. The returned `hsk.model_lane_routing_execution@5` state exposes \
+                 status (`running|awaiting_authority|succeeded|failed|cancelled`) and stage state \
+                 (`scheduled|claimed|in_flight|awaiting_authority|succeeded|failed|joined|cancelled|compensated`), \
+                 attempts, expected run/lane/model/provider, fencing lease, output refs/hashes, \
+                 authority refs, and EventLedger identity. Recovery reuses the original canonical \
+                 context and launch plan; context, graph, execution-id, or authority mismatch fails \
+                 closed rather than dispatching a changed graph.",
+                json!({
+                    "graph_schema": "hsk.model_lane_routing_graph@1",
+                    "execution_schema": "hsk.model_lane_routing_execution@5",
+                    "policies": [
+                        "local_first",
+                        "cloud_review",
+                        "cloud_plan_local_execute",
+                        "parallel_debate",
+                        "validator_lane",
+                        "operator_lane"
+                    ],
+                    "routes": [
+                        "POST /operator-chat/routing/lifecycle",
+                        "POST /operator-chat/routing/recover",
+                        "POST /operator-chat/routing/authority",
+                        "POST /operator-chat/routing/cancel"
+                    ],
+                    "context_fields": [
+                        "run_id", "trace_id", "run_span_id", "coordinator_session_id",
+                        "locus_ref", "work_packet_id", "micro_task_id", "task_board_id",
+                        "owner_session", "initial_input_ref", "initial_input_sha256"
+                    ],
+                    "authority_fields": [
+                        "cloud_consent_receipt_ref", "validator_authority_ref",
+                        "operator_authority_ref"
+                    ]
+                }),
             ),
             section(
                 "inputs_outputs",
@@ -1434,10 +1758,15 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  `GET /operator-chat/transcript/:run_id` and RENDERS them. SUBAGENT launches persist \
                  the operator prompt and a ready subagent lane, but do not fabricate model stdout. \
                  Each control carries a \
-                 stable AccessKit author_id (`operator-chat.model.<lane>.<provider>.<model>`, \
-                 `operator-chat.picker.folder`, `operator-chat.input.prompt`, \
-                 `operator-chat.action.launch`, `operator-chat.launch.status`, \
+                 stable AccessKit author_id (`operator-chat.surface`, `operator-chat.picker.model`, \
+                 `operator-chat.session.<session_id>` for each real governed session row, \
+                 `operator-chat.model.<lane>.<provider>.<model>`, `operator-chat.picker.folder`, \
+                 `operator-chat.input.prompt`, `operator-chat.action.refresh-models`, \
+                 `operator-chat.action.launch`, `operator-chat.launch.status`, `operator-chat.error`, \
                  `operator-chat.transcript`, `operator-chat.transcript.message.<message_id>`, \
+                 `operator-chat.routing.request`, `operator-chat.routing.lifecycle`, \
+                 `operator-chat.routing.recover`, `operator-chat.routing.authority`, \
+                 `operator-chat.routing.cancel`, `operator-chat.routing.status`, \
                  with `operator-chat.transcript.row.<n>` only as an index fallback). Launch status \
                  is rendered outside the transcript so it cannot masquerade as a fetched message.",
             ),
@@ -1450,7 +1779,17 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  `SwarmCoordinator` + `ModelLaneStore` from `AppState` (via \
                  `build_operator_chat_launch_service`), so a real launch runs; a deployment with no \
                  launch service wired returns `503 launch_not_wired` (and the transcript route \
-                 `503 transcript_not_wired`). The official-CLI lane selects a provider-specific \
+                 `503 transcript_not_wired`); routing without the production coordinator returns \
+                 `503 routing_not_wired`. Invalid launch inputs and routing authority/context \
+                 mismatches return `400 bad_request`; governed owner-lineage failures return \
+                 `400 invalid_owner_session` with a stable code; coordinator failures return \
+                 `500 launch_failed_closed`; ModelLane and recorder failures return \
+                 `500 model_lane_error` and `500 recorder_error`. A selection audit can fail \
+                 independently with `500 selection_audit_failed` when \
+                 `ModelCatalog::record_selection_decision_with_context` or its Flight Recorder \
+                 write fails; keep the selection unchanged, restore the catalog/recorder path, \
+                 and retry `POST /operator-chat/selection` before launch so selection evidence is \
+                 never silently skipped. The official-CLI lane selects a provider-specific \
                  `CliBridgeConfig` from `cli_provider` and fails closed with `ProviderNotConfigured` \
                  until the matching provider executable/config is available; Local lanes resolve the \
                  selected `ModelCatalog` entry to its artifact path/hash and launch through the real \
@@ -1458,9 +1797,10 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  `LaunchAuthority::SubagentManager`, and no `process_ownership_ref`; routing them \
                  through a process factory is a failure. HBR-INT-009 posture: Tier-1 Flight Recorder / \
                  EventLedger is WIRED (agent-activity events + ModelLaneMessage authority + the \
-                 selection-decision event); Tier-2 internal_diagnostics and Tier-3 Palmistry are \
-                 DEFERRED-with-reason (integrated from the WP-KERNEL-012/016 worktrees; they \
-                 observe these records without becoming their authority).",
+                 selection-decision event); Tier-2 internal_diagnostics is WIRED through the native \
+                 producer and Problems projection, and Tier-3 Palmistry is WIRED through the \
+                 authenticated watcher and survivor recovery importer; both observe these records \
+                 without becoming their authority.",
             ),
             section(
                 "run_commands",
@@ -1502,6 +1842,11 @@ fn page_operator_chat_launch() -> NewUserManualPage {
             },
             NewManualAnchor {
                 anchor_kind: "http_route",
+                anchor_value: "/operator-chat/models".into(),
+                http_method: "GET",
+            },
+            NewManualAnchor {
+                anchor_kind: "http_route",
                 anchor_value: "/operator-chat/launch".into(),
                 http_method: "POST",
             },
@@ -1513,6 +1858,26 @@ fn page_operator_chat_launch() -> NewUserManualPage {
             NewManualAnchor {
                 anchor_kind: "http_route",
                 anchor_value: "/operator-chat/selection".into(),
+                http_method: "POST",
+            },
+            NewManualAnchor {
+                anchor_kind: "http_route",
+                anchor_value: "/operator-chat/routing/lifecycle".into(),
+                http_method: "POST",
+            },
+            NewManualAnchor {
+                anchor_kind: "http_route",
+                anchor_value: "/operator-chat/routing/recover".into(),
+                http_method: "POST",
+            },
+            NewManualAnchor {
+                anchor_kind: "http_route",
+                anchor_value: "/operator-chat/routing/authority".into(),
+                http_method: "POST",
+            },
+            NewManualAnchor {
+                anchor_kind: "http_route",
+                anchor_value: "/operator-chat/routing/cancel".into(),
                 http_method: "POST",
             },
         ],
@@ -1535,7 +1900,10 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                  subagent, and validator lanes through Rust backend authority. The runtime \
                  entrypoints are `DexterityLaunchAdapterRegistry`, `DexterityNormalizedLaunch`, \
                  `SwarmCoordinator::spawn_session`, `ModelRuntime`, `CloudLane/BYOK`, \
-                 `CliBridge`, `Operator`, `SubagentManager`, and `ValidatorRunner`. Models \
+                 `CliBridge`, `Operator`, `SubagentManager`, and `ValidatorRunner`. Official CLI \
+                 process lifecycle authority is compile-anchored at `LiveCliSpawner::spawn` and \
+                 `HandshakeNativeSandboxAdapter::spawn_attached_with_stdio`; every terminal path \
+                 converges on `GuardedCliChild::terminate_and_collect`. Models \
                  propose edits and messages; Handshake performs deterministic validation, \
                  PostgreSQL storage, EventLedger append, replay, promotion, and recovery.",
             ),
@@ -1556,8 +1924,8 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                     "lanes": [
                         {"kind": "local", "authority": "ModelRuntime", "backend": "LlmClient -> ModelRuntime adapter; llama.cpp and Candle are adapter backends only"},
                         {"kind": "BYOK cloud OpenAI/Anthropic", "authority": "CloudLane/BYOK", "requires": ["projection_plan_ref", "consent_receipt_ref"]},
-                        {"kind": "official CLI", "authority": "CliBridge", "process_engine_kind": "official_cli_bridge"},
-                        {"kind": "CLI bridge", "authority": "CliBridge", "process_engine_kind": "official_cli_bridge"},
+                        {"kind": "official CLI", "authority": "HandshakeNative attached-sandbox -> CliBridge", "process_engine_kind": "official_cli_bridge", "ownership": "ProcessOwnershipLedger START/STOP", "cleanup_order": "terminate/reap-before-STOP"},
+                        {"kind": "CLI bridge", "authority": "HandshakeNative attached-sandbox -> CliBridge", "process_engine_kind": "official_cli_bridge", "ownership": "ProcessOwnershipLedger START/STOP", "cleanup_order": "terminate/reap-before-STOP"},
                         {"kind": "human/operator", "authority": "Operator", "no_os_process_reason_ref": "required"},
                         {"kind": "subagent", "authority": "SubagentManager", "no_os_process_reason_ref": "required"},
                         {"kind": "validator", "authority": "ValidatorRunner", "no_os_process_reason_ref": "required"}
@@ -1605,10 +1973,21 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                  `startup_failure_code`, `startup_failure_ref`, `reason_ref`, `recovery_state`, \
                  owner_session, trace/span, terminal status mapping, and EventLedger evidence. \
                  Terminal ModelLane/EventLedger state is written before runtime teardown so a \
-                 failed terminal write leaves the live handle retryable; terminal writes serialize \
+                 failed terminal write leaves the handle in `Cancelling` with a durable \
+                 `cleanup_pending` receipt and an already-cancelled generation token. \
+                 `SwarmCoordinator::retry_pending_session_cleanups` retries the original terminal \
+                 intent after the persistence fault clears, without double teardown or duplicate \
+                 ProcessOwnershipLedger STOP; the durable receipt advances through \
+                 `teardown_succeeded` to `completed`. Terminal writes serialize \
                  per lane before any competing completed/failed/cancelled status can append. A \
                  runtime terminal Failed state records a `terminal-failure://dexterity/<lane_id>` \
-                 failure ref instead of leaving the ModelLane failure shape incomplete.",
+                 failure ref instead of leaving the ModelLane failure shape incomplete. Official \
+                 CLI execution uses the HandshakeNative attached-sandbox contract: the sandbox \
+                 creates the ProcessOwnershipLedger START authority, owns the child for its full \
+                 lifetime, and on success, failure, timeout, cancellation, or unwind performs \
+                 terminate/reap-before-STOP. If termination, reap, or durable STOP recording fails, \
+                 recovery keeps the lifecycle open or cleanup-pending and retries reconciliation; \
+                 it never reports a terminal STOP merely because a queue accepted a row.",
             ),
             section(
                 "hooks",
@@ -1618,9 +1997,7 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                  decision refs and capability snapshots, but full cross-lane tool execution, \
                  projection fanout, and consent revocation behavior remain in later MTs. \
                  HBR-INT-009 posture: Flight Recorder/EventLedger is WIRED through \
-                 `dexterity_model_lane` rows; internal_diagnostics is WIRED through the \
-                 native diagnostics surface; Palmistry is DEFERRED-with-reason \
-                 because it is built in another worktree and observes these records without \
+                  `dexterity_model_lane` rows; internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer and observes these records without \
                  becoming launch authority.",
             ),
             section(
@@ -1635,6 +2012,10 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_rejects_ready_transition_before_persistence_commit -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_cancel_session_records_terminal_model_lane_state -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_launch_tests model_lane_launch_reaper_records_terminal_state_before_teardown -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib model_runtime::cloud::official_cli_bridge::tests::explicit_failed_terminate_leaves_start_open_without_stop -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests failed_termination_with_never_eof_pipe_returns_within_cleanup_deadline -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests continuous_output_cannot_starve_live_timeout_polling -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests continuous_output_cannot_starve_live_cancellation_polling -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_schema_pg_tests dexterity_launch_records_real_swarm_spawn_session_runtime_path -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_launch_user_manual_entry_is_current -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- --exact`. \
@@ -1657,6 +2038,11 @@ fn page_model_lane_launch_adapters() -> NewUserManualPage {
             NewManualAnchor {
                 anchor_kind: "test",
                 anchor_value: "model_lane_launch_tests".into(),
+                http_method: "",
+            },
+            NewManualAnchor {
+                anchor_kind: "test",
+                anchor_value: "official_cli_attached_lifecycle_tests".into(),
                 http_method: "",
             },
         ],
@@ -1814,9 +2200,7 @@ fn page_model_lane_promotion() -> NewUserManualPage {
                  `promoted_artifact_ref`, `promoted_artifact_sha256`, \
                  `promoted_artifact_version`, and message routing fields. \
                  HBR-INT-009 posture: Flight Recorder/EventLedger is WIRED through \
-                 `dexterity_model_lane` rows; internal_diagnostics is WIRED through the \
-                 native diagnostics surface; Palmistry is DEFERRED-with-reason to the \
-                 separate watcher worktree and must observe promotion rows without becoming \
+                  `dexterity_model_lane` rows; internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer and must observe promotion rows without becoming \
                  authority.",
             ),
             section(
@@ -1959,11 +2343,34 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                 "CRDT handoffs use `ModelLaneCrdtHandoffMetadata` with \
                  `schema_id = hsk.model_lane_crdt_payload@1`, `document_id`, `workspace_id`, \
                  `actor_id`, `actor_kind`, `lane_id`, `crdt_site_id`, positive `update_seq`, \
-                 Yjs-compatible format `yjs_update_v1` or `yjs_update_v2`, \
+                 Yjs-compatible format `yjs_update_v1` only, \
                  `update_bytes_ref`, `update_sha256`, `state_vector`, \
                  `base_snapshot_ref`, `materialized_projection_hash`, object \
                  `replay_metadata`, `promotion_gate_ref`, optional `promotion_receipt_ref`, \
-                 `validation_runner_ref`, and `authority_effect = advisory_only`. If the source \
+                 `validation_runner_ref`, and `authority_effect = advisory_only`. Canonical \
+                 CRDT authority is the append-only `kernel_crdt_snapshots` and \
+                 `kernel_crdt_updates` rows joined to their identity-, payload-, and hash-checked \
+                 `kernel_event_ledger` events. Validation locks and replays the cited snapshot \
+                 followed by the contiguous, dependency-resolved update chain, derives actor/site \
+                 attribution, the state vector, and the Yjs v1 materialization, and verifies \
+                 `materialized_projection_hash`. CRDT-bearing source-message admission also resolves \
+                 exactly one active `knowledge_crdt_agent_lane_leases` row. Its lane, actor, actor \
+                 kind, session, and `correlation_id` must match the resolved update trace; its scope \
+                 must be either `workspace:<workspace_id>` or \
+                 `document:<crdt_document_id>`; and the database admission timestamp must satisfy \
+                 `claimed_at_utc <= lease_admitted_at_utc < expires_at_utc` while \
+                 `released_at_utc IS NULL`. Zero matches and multiple covering workspace/document \
+                 matches both fail closed. The server-derived `ModelLaneCrdtAuthorityBinding` stores \
+                 `lease_id`, `lease_correlation_id`, `lease_scope_kind`, `lease_scope_id`, \
+                 `lease_claimed_at_utc`, `lease_expires_at_utc`, and \
+                 `lease_admitted_at_utc` in both the message projection and its immutable \
+                 `MODEL_RESPONSE_RECORDED` EventLedger payload. The existing `replay_metadata` object is \
+                 authoritative: its `replay_order_key`, `dependency_update_ids`, and \
+                 `schema_version` must exactly match the persisted PostgreSQL update replay \
+                 metadata. `promotion_gate_ref` must equal \
+                 `promotion-gate://model-lane-message/<source_message_id>`, \
+                 `validation_runner_ref` must equal `eventledger://<update_event_id>`, and \
+                 `promotion_receipt_ref` remains null while `authority_effect = advisory_only`. If the source \
                  message carries CRDT refs, the handoff must carry CRDT metadata and \
                  `update_bytes_ref` must match the source `crdt_update_ref`. Loom handoffs use \
                  `ModelLaneLoomHandoffRef` with workspace/block ids, optional source/target block \
@@ -1998,9 +2405,18 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  `loom_refs exceeds bounded limit`, `review_status` is not reviewed, \
                  operator_reviewed, or validator_reviewed, CRDT source messages lack \
                  `crdt_payload`, `update_bytes_ref` does not match source `crdt_update_ref`, \
-                 `replay_metadata` does not declare `yjs_compatible = true` with \
-                 `format = yjs_update_v1` or `format = yjs_update_v2`, `authority_effect` is \
-                 not `advisory_only`, Loom evidence refs are missing or use non-EventLedger / \
+                 `replay_metadata` does not declare Yjs v1 or its `replay_order_key`, \
+                 `dependency_update_ids`, or `schema_version` differs from the persisted update, \
+                 the snapshot/update rows or their \
+                 EventLedger identity/payload/hash evidence disagree, replay is non-contiguous or \
+                 has an unresolved dependency, actor/site/vector/materialization derivation fails, \
+                 `materialized_projection_hash` differs, run/lane/session/trace ownership crosses, \
+                 no exact active lease exists at admission, the lease is released or expired, its \
+                 correlation or scope differs, or both workspace and document leases ambiguously \
+                 cover the same message, \
+                 `promotion_gate_ref` or `validation_runner_ref` differs from its exact derived \
+                 value, `authority_effect` is not `advisory_only`, or \
+                 `promotion_receipt_ref` is non-null while advisory, Loom evidence refs are missing or use non-EventLedger / \
                  non-Flight Recorder prefixes, or idempotency is reused with a different \
                  `context_bundle_hash` or `artifact_binding_hash`.",
             ),
@@ -2011,22 +2427,46 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  `artifact_ref`/hash binding, then query `model_lane_context_bundle_handoffs` \
                  through `ModelLaneStore::replay_context_bundle_handoffs(run_id, \
                  context_bundle_id)` or the downstream-only \
-                 `ModelLaneStore::consume_context_bundle_for_downstream`. Compare each artifact \
-                 and handoff row with its `kernel_event_ledger` receipt. Inspect \
+                 `ModelLaneStore::consume_context_bundle_for_downstream`. Creation, idempotent \
+                 retry, downstream consume, replay, promotion, and recovery all fail closed through \
+                 the same stored-authority validators. A CRDT-bearing message projection must equal \
+                 its exact `MODEL_RESPONSE_RECORDED` EventLedger record and full \
+                 `crdt_authority_binding`; a ContextBundle projection must recompute its canonical \
+                 `context_bundle_hash` and equal its exact `CONTEXT_BUNDLE_RECORDED` EventLedger \
+                 record. Old rows with a missing binding are rejected rather than trusted. Inspect \
                  `artifact_manifest_ref`, `artifact_payload_ref`, `payload_json`, \
                  `artifact_binding_hash`, `selection_state`, `source_message_id`, \
                  `downstream_lane_id`, `artifact_ref`, `artifact_sha256`, `content_hash`, \
                  `context_bundle_hash`, `event_ledger_event_id`, `event_ledger_seq`, \
                  `work_packet_id`, `micro_task_id`, `task_board_id`, \
                  `crdt_payload.state_vector`, `crdt_payload.base_snapshot_ref`, \
-                 `crdt_payload.replay_metadata`, `loom_refs`, and `memory_pack_refs`. \
+                 `crdt_payload.materialized_projection_hash`, `crdt_payload.replay_metadata`, \
+                 `crdt_payload.promotion_gate_ref`, `crdt_payload.validation_runner_ref`, and the \
+                 source message's full `crdt_authority_binding` across run, lane, lane/model/CRDT \
+                 sessions, lane/CRDT traces, workspace/document/CRDT document, actor/kind/site, \
+                 lease id/correlation/scope/claimed/expiry/admission evidence, \
+                 update id/sequence/bytes ref, snapshot ref, vector, projection hash, proposal ref, \
+                 and update EventLedger event. Lease claim, renew, release, expiry sweep, takeover, \
+                 and ModelLane admission share one PostgreSQL transaction advisory-lock domain. \
+                 Locks are ordered deterministically by `workspace:<workspace_id>` then \
+                 `crdt_document:<crdt_document_id>`, so release, sweep, and a second covering claim \
+                 cannot appear as phantoms between admission and `MODEL_RESPONSE_RECORDED`. Re-run \
+                 the locked snapshot-to-update replay and \
+                 compare the binding, `replay_metadata` order/dependencies/schema version, derived \
+                 vector, materialized hash, and EventLedger evidence; \
+                 historical replay resolves the exact persisted `lease_id` and proves that the \
+                 lease covered the lane/update at `lease_admitted_at_utc`. A later release or natural \
+                 expiry is valid and must not invalidate the immutable admission receipt; a release \
+                 at or before admission, shortened expiry, changed identity/scope/correlation, missing \
+                 lease row, changed binding, mutable projection/EventLedger disagreement, or \
+                 recomputed ContextBundle hash disagreement fails closed. \
+                 Do not rewrite the append-only CRDT update or snapshot rows. Also inspect \
+                 `loom_refs` and `memory_pack_refs`. \
                  HBR-INT-009 posture: EventLedger is WIRED through `ARTIFACT_STORED` and \
                  `CONTEXT_BUNDLE_RECORDED` rows. Flight Recorder/EventLedger recovery for MT-005 \
                  uses those EventLedger rows plus `flight_recorder_evidence_ref` fields; direct \
                  Flight Recorder event emission is DEFERRED-with-reason until the MT-008 \
-                 diagnostics surface. internal_diagnostics is WIRED through the native \
-                 diagnostics surface; Palmistry is DEFERRED-with-reason to the separate \
-                 watcher worktree and must observe handoff rows without becoming authority.",
+                  diagnostics surface. internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer and must observe handoff rows without becoming authority.",
             ),
             section(
                 "run_commands",
@@ -2043,7 +2483,9 @@ fn page_model_lane_context_bundle_handoff() -> NewUserManualPage {
                  artifact mismatch, missing replay source, cloud-safe FEMS MemoryPack \
                  enforcement, local_only_context cloud rejection, hidden projection_ref \
                  rejection, normalized hidden-memory URI rejection, bounded Loom/FEMS refs, CRDT \
-                 state-vector and Yjs update ref validation, Loom evidence refs, Flight Recorder \
+                 state-vector and Yjs update ref validation, exact active lease admission, \
+                 released/expired/correlation/scope/ambiguity denial probes, historical replay \
+                 after lease release, Loom evidence refs, Flight Recorder \
                  refs, and manual parity. There is no SQLite, mock, \
                  app/src, app/src-tauri, TypeScript, \
                  prompt-only, or hidden-memory proof path for Dexterity ContextBundle handoffs.",
@@ -2087,11 +2529,14 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
             section_with_json(
                 "schema",
                 "Durable records",
-                "The stable machine schemas are `hsk.model_lane_cloud_projection_plan@1` and \
-                 `hsk.model_lane_cloud_consent_receipt@1`. PostgreSQL authority tables are \
+                "The stable machine schemas are `hsk.model_lane_cloud_projection_plan@2` and \
+                 `hsk.model_lane_cloud_consent_receipt@2`. PostgreSQL authority tables are \
                  `model_lane_cloud_projection_plans` and \
-                 `model_lane_cloud_consent_receipts`; each row links `run_id`, `lane_id`, \
-                 `model_session_id`, `provider_kind`, `requested_model_id`, `scope_hash`, \
+                 `model_lane_cloud_consent_receipts`. `single_lane` authority binds `run_id`, \
+                 `lane_id`, `model_session_id`, `provider_kind`, and `requested_model_id` \
+                 exactly. `single_run` authority drops those lane identity bindings and \
+                 authorizes only launches whose `run_id` matches; revocation cancels every \
+                 durable lane in that run that references the receipt. Both scopes also bind `scope_hash`, \
                  source artifact refs, payload artifact refs, hashes, retention/export \
                  posture, fan-out targets, EventLedger event id/seq, `user_manual_behavior_ref`, \
                  and Locus fields. Replay uses \
@@ -2100,7 +2545,7 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                 json!({
                     "projection_plan": {
                         "table": "model_lane_cloud_projection_plans",
-                        "schema_id": "hsk.model_lane_cloud_projection_plan@1",
+                        "schema_id": "hsk.model_lane_cloud_projection_plan@2",
                         "record": "ModelLaneCloudProjectionPlanRecord",
                         "input": "NewModelLaneCloudProjectionPlan",
                         "event_type": "ARTIFACT_STORED",
@@ -2108,7 +2553,7 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                     },
                     "consent_receipt": {
                         "table": "model_lane_cloud_consent_receipts",
-                        "schema_id": "hsk.model_lane_cloud_consent_receipt@1",
+                        "schema_id": "hsk.model_lane_cloud_consent_receipt@2",
                         "record": "ModelLaneCloudConsentReceiptRecord",
                         "input": "NewModelLaneCloudConsentReceipt",
                         "event_type": "ARTIFACT_STORED",
@@ -2142,9 +2587,13 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                  coordinator invokes `ModelLaneStore::preflight_cloud_spawn_request` before \
                  `factory.create`, so missing, expired, mismatched, or revoked consent returns \
                  `CX-MM-007` with EventLedger evidence and no provider call. Consent binding \
-                 checks cover `projection_plan_hash`, `run_id`, `lane_id`, `model_session_id`, \
-                 `provider_kind`, `requested_model_id`, `scope_hash`, retention policy, export \
-                 posture, and fan-out targets.",
+                 checks for `single_lane` cover `projection_plan_hash`, `run_id`, `lane_id`, \
+                 `model_session_id`, `provider_kind`, `requested_model_id`, `scope_hash`, retention \
+                 policy, export posture, and fan-out targets. Checks for `single_run` cover \
+                 `projection_plan_hash`, `run_id`, `scope_hash`, retention policy, export posture, \
+                 and fan-out targets, and reject lane-bound identity fields. Operator Chat exposes \
+                 the governed launch route `/operator-chat/cloud/single-run/grant-launch` and the \
+                 matching revocation route `/operator-chat/cloud/single-run/revoke`.",
             ),
             section(
                 "failure_modes",
@@ -2168,9 +2617,7 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
                 "EventLedger is WIRED through `kernel_event_ledger` rows for projection, \
                  consent, denial, advisory cloud output, and revocation terminal state. Direct \
                  Flight Recorder event emission is DEFERRED-with-reason until the FR-EVT-CLOUD \
-                 emitter is wired to these EventLedger rows. internal_diagnostics is WIRED \
-                 through the native diagnostic surface consuming these rows. Palmistry is DEFERRED-with-reason because the external watcher is being built \
-                 in another worktree; when present it should join by `run_id`, `lane_id`, \
+                  emitter is wired to these EventLedger rows. internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer; it joins by `run_id`, `lane_id`, \
                  `model_session_id`, and EventLedger refs without becoming launch authority.",
             ),
             section(
@@ -2191,6 +2638,8 @@ fn page_model_lane_cloud_projection_consent() -> NewUserManualPage {
             page_link("model-lane-launch-adapters"),
             page_link("model-lane-context-bundle-handoff"),
             page_link("model-lane-promotion"),
+            route_anchor("POST", "/operator-chat/cloud/single-run/grant-launch"),
+            route_anchor("POST", "/operator-chat/cloud/single-run/revoke"),
             NewManualAnchor {
                 anchor_kind: "test",
                 anchor_value: "cloud_model_lane_policy_pg_tests".into(),
@@ -2259,9 +2708,12 @@ fn page_model_lane_recovery() -> NewUserManualPage {
                  `model_lane_context_bundle_artifacts` plus EventLedger, verifies CRDT \
                  `base_snapshot_ref` and `state_vector` against recorded ModelLaneMessage rows, \
                  reconstructs run/lane/message state from checkpoint-bounded EventLedger \
-                 payloads, classifies checkpoint-bounded active vs expired leases, includes \
-                 checkpoint-bounded failed cloud consent denial receipts, and restores \
-                 checkpoint-bounded MT runtime status refs.",
+                 payloads, includes checkpoint-bounded failed cloud consent denial receipts, and \
+                 restores checkpoint/forward-bound MT runtime status refs. Lane leases are not \
+                 replay adjunct state: recovery separately reads the latest committed EventLedger \
+                 authority for every lease in the run, so a lease acquired after the checkpoint is \
+                 surfaced as active or reclaimed as expired without widening the deterministic \
+                 replay watermark or injecting a post-checkpoint lane into `ModelLaneReplay`.",
             ),
             section(
                 "failure_modes",
@@ -2270,19 +2722,18 @@ fn page_model_lane_recovery() -> NewUserManualPage {
                  Corrupt checkpoints, missing checkpoint high-watermarks, EventLedger sequence \
                  gaps, missing source EventLedger rows, divergent duplicate idempotency keys, \
                  stale CRDT bases, and expired active lease orphans fail closed or record typed \
-                 recovery status. Orphan recovery currently records durable CX-MM-009 \
-                 `orphan_detected` recovery events for checkpoint-bounded expired active leases \
-                 before takeover or denial.",
+                 recovery status. Orphan recovery records durable CX-MM-009 `orphan_detected` \
+                 recovery events for expired leases found through current lease authority before \
+                 takeover or denial. A post-checkpoint lease is therefore never hidden merely \
+                 because replay remains checkpoint-bounded.",
             ),
             section(
                 "navigation",
                 "Diagnostics and operators",
                 "HBR-INT-009 is represented by `ModelLaneDiagnosticTierStatusRecord` with \
                  `behavior_id`, tier, state, reason, `follow_up_ref`, and `evidence_ref`. \
-                 Flight Recorder/EventLedger evidence alone must fail. `internal_diagnostics` \
-                 must be WIRED for recovery behavior; Palmistry may be WIRED or \
-                 DEFERRED-with-reason with a follow-up ref while the separate watcher worktree \
-                 is being built. Operator-facing recovery should inspect this page, \
+                  Flight Recorder/EventLedger evidence alone must fail. `internal_diagnostics` is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer. Operator-facing recovery \
+                 should inspect this page, \
                  `model_lane_recovery_pg_tests`, and the native diagnostic surface from MT-008.",
             ),
             section(
@@ -2290,7 +2741,7 @@ fn page_model_lane_recovery() -> NewUserManualPage {
                 "Proof commands",
                 "Exact MT-007 proof commands: \
                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_replays_from_postgres_eventledger_checkpoint -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_excludes_post_checkpoint_adjunct_state -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_includes_current_leases_but_bounds_replay_adjunct_state -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact`; \
@@ -2396,9 +2847,38 @@ fn page_model_lane_diagnostics() -> NewUserManualPage {
                  missing payload refs, missing EventLedger/FlightRecorder evidence, or \
                  missing HBR-INT-009 tiers. Backend projection failures surface as a pane \
                  error with author ID `swarm-lane-diagnostics.error`. Flight Recorder-only \
-                 diagnostics are not enough: EventLedger evidence, internal_diagnostics, \
-                 and Palmistry posture must be present or explicitly DEFERRED-with-reason \
-                 when a separate watcher is not yet available.",
+                 diagnostics are not enough. Tier-2 internal_diagnostics is WIRED for typed \
+                 panic-latch, UI heartbeat, frame-time, resource, backend-route, GUI-action and \
+                 mechanical-job events. The native panic hook durably writes a bounded, content-free \
+                 crash record containing build/session/process identity, payload class only, a hashed \
+                 source location, at most 128 hashed backtrace lines, and at most 32 recent typed \
+                 mechanical events; raw panic payloads, source paths, stack text, prompts, keys, and \
+                 project content are not fields in that record. Tier-3 Palmistry is WIRED as a quiet separate process \
+                 with authenticated readiness, freeze/exit observation, durable survivor records, \
+                 idempotent recovery into Flight Recorder, and a projection in the Problems pane.",
+            ),
+            section(
+                "recovery",
+                "Palmistry crash and freeze recovery",
+                "Open the Problems pane from `RUN` then `Open Problems` \
+                 (`menu.run.problems`) or from `Settings` then `Model Runtime` then `Open Problems` \
+                 (`settings.model-runtime.open-problems`) to inspect the live internal_diagnostics heartbeat, frame \
+                 and resource counters, recent typed events, and recovered Palmistry records. \
+                 Palmistry writes only mechanical survivor metadata locally. Production startup \
+                 requires a release SHA-256 pin compiled into the launcher; the adjacent sidecar \
+                 and `HANDSHAKE_PALMISTRY_SHA256` override are accepted only by development builds. \
+                 Unsigned ZIPs are development-only and are not production installers. The backend \
+                 durably stores the watcher Ed25519 public verifier while the \
+                 private key reaches only that watcher over a one-shot inherited pipe. Handshake \
+                 processes a bounded survivor recovery page at startup and once per second, verifies \
+                 their signatures, sends a sanitized summary through \
+                 POST /internal-diagnostics/palmistry/recover, records a deterministic Diagnostic \
+                 Flight Recorder event keyed by the survivor record UUID, then writes a durable \
+                 local acknowledgement. A pending marker means the backend was unavailable or the \
+                 durable import did not complete; restart Handshake after restoring the backend. \
+                 Each recovered row exposes stable Problems-pane author IDs for hung-window probe, \
+                 minidump status, and Flight Recorder import status. Minidumps remain local and are \
+                 never part of the recovery payload.",
             ),
             section(
                 "navigation",
@@ -2406,7 +2886,16 @@ fn page_model_lane_diagnostics() -> NewUserManualPage {
                 "Dexterity Lane Diagnostics bridges the model-lane kernel to Argus, \
                  FlightRecorder/EventLedger, Locus, Loom, and FEMS. Argus observes the \
                  native AccessKit author IDs instead of a WebView DOM. FlightRecorder and \
-                 EventLedger provide durable business-event evidence; MT-008 uses the \
+                 EventLedger provide durable business-event evidence. An Argus click is applied only \
+                 after the exact target handler acknowledges that action ID and a newer render revision \
+                 is published; target removal or unrelated semantic drift is never success evidence. A \
+                 non-secret SetValue requires its exact requested value in the newer target snapshot. \
+                 The action result is independent from evidence durability: \
+                 POST `/internal-diagnostics/argus/action-receipt` appends the sanitized EventLedger \
+                 receipt and best-effort mirrors its reference into Flight Recorder, while append \
+                 failure remains visible in `durability_error` and does not rewrite an observed UI \
+                 result. Action values, errors, prompts, and content are excluded from the route's \
+                 closed request shape. MT-008 uses the \
                  EventLedger event ID as the FlightRecorder correlation alias for the lane \
                  diagnostics projection. Locus/Loom/FEMS refs \
                  keep model messages connected to workspace locality, artifact libraries, \
@@ -2534,9 +3023,9 @@ fn page_model_lane_navigation() -> NewUserManualPage {
                  `context_bundle_id`, multiple distinct artifact selector values are supplied, \
                  a shared artifact hash/MemoryPack selector spans multiple runs without \
                  `run_id`, PostgreSQL is unavailable, or diagnostics detects mutable \
-                 projection drift against EventLedger authority. Treat empty `event_ledger_refs`, missing \
-                 `internal_diagnostics`, or missing Palmistry follow-up posture as defects in \
-                 the producing lane, not as permission to infer from chat history.",
+                  projection drift against EventLedger authority. Treat empty `event_ledger_refs` \
+                  as a producing-lane defect. internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer. None of \
+                 these gaps permits inference from chat history.",
             ),
             section(
                 "recovery",
@@ -2595,19 +3084,46 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  after restart, inspect it through native_swarm_lane_diagnostics, and fail \
                  closed for direct endpoints, missing consent, stale CRDT base state, missing \
                  payload authority, and FlightRecorder-only diagnostic posture. The harness is \
-                 also the proof surface for mid-stream cancellation: coordinator-owned generation \
+                 explicit that a subagent lane is created through \
+                 `SwarmCoordinator::launch_operator_subagent_model_lane`: it is a \
+                 SubagentManager-owned no-OS lane and never invokes ModelSessionFactory. The \
+                 coordinator returns an unforgeable `OperatorSubagentManagerLane` receipt; \
+                 manager output enters only through \
+                 `record_operator_subagent_manager_output`, which rechecks run/lane/owner and \
+                 no-OS launch authority, then atomically commits the typed ModelLaneMessage and \
+                 payload binding. A cancelled terminal lane rejects both rows. The \
+                 harness is also the proof surface for mid-stream cancellation: coordinator-owned generation \
                  persists each newline-complete activity before polling the next chunk, so a \
                  captured prefix remains replayable; a cancelled terminal lane receipt is durable; \
                  and captures that reach the terminal gate cannot create later message, tool, \
                  artifact-binding, or Flight Recorder activity authority. A Flight Recorder event \
                  for a capture that was already durably accepted may be emitted after the terminal \
                  receipt as delayed diagnostic correlation, never as a standalone capture claim. \
-                 CRDT update receipts are atomically \
-                 committed with their PostgreSQL/EventLedger evidence; snapshot receipts retain \
-                 explicit EventLedger linkage and append-only compaction plans retain audit and \
-                 promotion evidence. Every accepted Yjs delta must contain the submitting \
-                 actor's deterministic client id; duplicate/stale/foreign-client updates are \
-                 denied. \
+                 CRDT update receipts are atomically committed with append-only PostgreSQL \
+                 `kernel_crdt_updates` and EventLedger evidence; append-only snapshot rows retain \
+                 explicit EventLedger linkage and promotion evidence. Canonical resolution locks \
+                 the cited snapshot and contiguous dependency-resolved update chain, validates \
+                 EventLedger identity/payload/hash parity, derives actor/site/vector state and the \
+                 Yjs v1 materialization, and verifies `materialized_projection_hash`. Existing \
+                 ContextBundle `replay_metadata.replay_order_key`, `dependency_update_ids`, and \
+                 `schema_version` must exactly equal the canonical persisted update metadata; \
+                 forged values fail closed before any handoff row is written. Each \
+                 CRDT-bearing message persists a server-derived `crdt_authority_binding` across \
+                 run/lane, lane/model/CRDT sessions, lane/CRDT traces, workspace/document/CRDT \
+                 document, actor/kind/site, update id/sequence/bytes ref, snapshot ref, vector, \
+                 materialized hash, proposal ref, and update EventLedger event; cross-run, \
+                 cross-lane, cross-session, or cross-trace attribution is rejected. ContextBundle \
+                 metadata accepts only `yjs_update_v1`; its `promotion_gate_ref` is exactly \
+                 `promotion-gate://model-lane-message/<source_message_id>`, its \
+                 `validation_runner_ref` is exactly `eventledger://<update_event_id>`, and its \
+                 `promotion_receipt_ref` is null while `authority_effect = advisory_only`. \
+                 Ordinary generated routing text is an advisory Proposal, not a CRDT \
+                 mutation: `proposal_ref`, `crdt_update_ref`, `crdt_base_snapshot_ref`, \
+                 `crdt_state_vector`, `crdt_proposal_ref`, and `crdt_stale_base_ref` remain null \
+                 for all six routing policies. Non-null CRDT posture is accepted only as a \
+                 complete set backed by canonical PostgreSQL Yjs v1 bytes, a verified update hash, \
+                 and the post-update state vector; partial, missing, hash-mismatched, stale, or \
+                 replay-reordered CRDT authority fails closed. \
                  The harness is \
                  Rust-only product validation; React, TypeScript, Tauri/WebView, npm tests, \
                  terminal scrollback, provider chat history, and chat memory are not authority.",
@@ -2619,16 +3135,24 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  machine-readable coverage matrix for this WP. It is keyed by behavior_id and \
                  carries schema/event family, runtime surface id, UserManual page/tool id, \
                  EventLedger/FlightRecorder evidence path, internal_diagnostics posture, \
-                 Palmistry posture, self-consistency result, deferred reason, and follow-up \
-                 ref. Keyword grep is only supporting evidence; the proof queries compiled \
-                 product registries and PostgreSQL UserManual rows.",
+                 Palmistry posture, computed consistency proof, deferred reason, and follow-up \
+                 ref. The consistency proof resolves the exact runtime id through a typed \
+                 compile anchor or the canonical HTTP surface registry, then checks schema, \
+                 page, tool, event-evidence, and diagnostic-posture authorities. A renamed or \
+                 deleted claimed Rust symbol fails compilation; an unknown nonempty string \
+                 fails consistency. Operator Chat and Model Access route rows are generated \
+                 from the shipped route registry rather than a duplicated expected list. Private \
+                 helper names retained in procedural detail are descriptive disclosure only; the \
+                 consistency contract anchors their public owning type, method, event, or route \
+                 boundary and does not label the private helper itself verified.",
                 json!({
                     "schema_id": "hsk.user_manual_behavior_coverage@1",
                     "matrix_function": "user_manual::model_lane_behavior_coverage_matrix",
                     "verification_function": "user_manual::verify_model_lane_behavior_coverage",
-                    "self_consistency_result": "BehaviorCoverageRow::self_consistency_result",
+                    "computed_consistency": "BehaviorCoverageRow::self_consistency_result -> Result<BehaviorConsistencyProof, Vec<BehaviorCoverageError>>",
+                    "runtime_anchor_registry": "compiled internal Rust function/type anchors plus wp009_surface_registry route anchors",
                     "required_tiers": ["flight_recorder", "internal_diagnostics", "palmistry"],
-                    "palmistry_policy": "DEFERRED-with-reason plus follow_up_ref until the separate watcher worktree is merged",
+                    "palmistry_policy": "WIRED through the authenticated watcher and survivor recovery importer; follow_up_ref remains a stable diagnostic correlation URI",
                     "authority_inputs": [
                         "ModelLaneStore::schema_registry_rows",
                         "UserManualStore::list_pages",
@@ -2658,13 +3182,23 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  authority, cloud lane launch without durable ProjectionPlan and approved \
                  ConsentReceipt, unbounded retry/backpressure posture, hidden provider \
                  payloads, missing model_lane_context_bundle_artifacts payload authority, \
-                 stale CRDT base_snapshot_ref/state_vector, corrupt recovery checkpoint or \
+                 stale CRDT base_snapshot_ref/state_vector, non-v1 encoding, missing or mismatched \
+                 EventLedger identity/payload/hash, replay gaps or unresolved dependencies, wrong \
+                 replay-metadata order/dependencies/schema version, \
+                 actor/site/vector/materialization, mismatched `materialized_projection_hash`, \
+                 cross-run/lane/session/trace binding, non-exact promotion/validation refs, or a \
+                 non-null advisory promotion receipt, corrupt recovery checkpoint or \
                  replay order gaps, Argus projection count mismatch or missing author IDs, \
                  and FlightRecorder-only diagnostics that omit internal_diagnostics or \
                  Palmistry posture. Once a lane is Completed, Failed, or Cancelled, every \
                  later source/target ModelLaneMessage (including ToolRequest) must fail closed; \
                  the terminal receipt and the prefix captured before cancellation remain the \
-                 only replayable authority.",
+                 only replayable authority. Production routing permits at most three durable \
+                 attempts for one stage. Exhaustion records `bounded_recovery_exhausted`, never \
+                 creates attempt four, and an AfterFailure fallback receives the canonical initial \
+                 input plus typed failed-predecessor state and causal message-span linkage. Never \
+                 repair an advisory routing output by inventing a `crdt-*://` URI; either keep all \
+                 CRDT fields null or commit a real Yjs v1 update and derived state vector first.",
             ),
             section(
                 "run_commands",
@@ -2676,10 +3210,16 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_retries_after_terminal_pg_failure -- --exact`; \
+                 The backend mixed-run command and native Argus command must run in the same shell \
+                 with canonical `HANDSHAKE_ARTIFACTS_DIR` and one fresh \
+                 `HANDSHAKE_MT009_DIAGNOSTICS_PROOF_NONCE`; the backend produces the typed \
+                 projection/provenance artifact before native consumes it. Then run \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact`; \
-                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact`; \
+                 `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_validation_harness_user_manual_entry_is_current -- --exact`; \
                  `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact`.",
             ),
             section(
@@ -2689,10 +3229,10 @@ fn page_model_lane_validation_harness() -> NewUserManualPage {
                  and compare backend lane/message counts to native diagnostics rows. Then \
                  inspect `ModelLaneStore::recover_run_after_restart` for checkpoint high-water \
                  mark, recovery events, active/reclaimable leases, cloud consent denials, and \
-                 MT runtime status. For stale CRDT bases, replay the cited CRDT update log \
-                 before promotion. If internal_diagnostics is absent, repair the native \
-                 diagnostics wiring; for Palmistry gaps, record explicit DEFERRED-with-reason \
-                 follow-up rows instead of silently skipping HBR-INT-009.",
+                  MT runtime status. For CRDT failures, lock and replay the cited append-only \
+                  snapshot plus contiguous dependency-resolved updates, then compare the durable \
+                  authority binding, derived vector, materialized projection hash, and EventLedger \
+                  identity/payload/hash evidence before promotion. internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer.",
             ),
         ],
         anchors: vec![
@@ -3320,6 +3860,12 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
             "503 keychain_unavailable (fail-closed when no OS keychain vault is wired)".into(),
             "500 vault_error (vault refused the write/delete without exposing key material)".into(),
         ],
+        SurfaceGroup::ModelRuntimeRegistry => vec![
+            "400 MODEL_RUNTIME_SELECTION_INVALID (missing, oversized, or control-bearing selection input)".into(),
+            "409 MODEL_RUNTIME_SELECTION_REJECTED (stale current model, non-READY target, timeout, or audit failure)".into(),
+            "500 MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR (durable/catalog identity drift)".into(),
+            "503 MODEL_RUNTIME_REGISTRY_UNAVAILABLE (PostgreSQL authority unavailable)".into(),
+        ],
         SurfaceGroup::OperatorChat => vec![
             "400 bad_request (invalid operator chat launch selection)".into(),
             "503 launch_not_wired / transcript_not_wired (live coordinator or ModelLaneStore absent)"
@@ -3327,6 +3873,11 @@ fn group_common_errors(group: SurfaceGroup) -> Vec<String> {
             "500 launch_failed_closed / model_lane_error / recorder_error (fail-closed authority path)"
                 .into(),
             "500 selection_audit_failed (model catalog selection receipt failed)".into(),
+        ],
+        SurfaceGroup::ModelLaneCloudConsent => vec![
+            "400 bad_request (invalid run-scoped authority or mismatched identity fields)".into(),
+            "409 consent/revocation conflict (stale or incompatible canonical authority)".into(),
+            "500 launch or revocation finalization failed closed with durable retry state".into(),
         ],
         SurfaceGroup::ModelLaneNavigation => vec![
             "400 bad_request / invalid input (empty lookup token or missing artifact/context query)"
@@ -3378,10 +3929,18 @@ fn group_recovery_steps(group: SurfaceGroup) -> Vec<String> {
             "DELETE /model-access/byok/:provider/key, then PUT a fresh key if the operator rotates credentials.".into(),
             "If keychain_unavailable persists, keep the provider unavailable rather than writing secrets to a fallback store.".into(),
         ],
+        SurfaceGroup::ModelRuntimeRegistry => vec![
+            "Refresh GET /model-runtime/registry and select only a current READY live_model_id.".into(),
+            "On selection rejection, keep the prior active model and inspect the returned integrity/audit detail before retrying.".into(),
+        ],
         SurfaceGroup::OperatorChat => vec![
             "If launch_not_wired appears, wire a live OperatorChatLaunchService before retrying POST /operator-chat/launch.".into(),
             "If transcript_not_wired appears, use ModelLane navigation/EventLedger refs until the ModelLaneStore-backed transcript route is wired.".into(),
             "If selection audit fails, inspect the ModelCatalog recorder path before trusting the picker state.".into(),
+        ],
+        SurfaceGroup::ModelLaneCloudConsent => vec![
+            "Reload the canonical ProjectionPlan and ConsentReceipt before retrying a failed grant-launch.".into(),
+            "Retry revocation with the same consent_receipt_ref until every covered lane has durable cleanup and terminal evidence.".into(),
         ],
         SurfaceGroup::ModelLaneNavigation => vec![
             "Use the narrowest known id first, then follow event_ledger_refs to kernel_event_ledger authority.".into(),
@@ -3518,13 +4077,13 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         http_route: Some("/model-access/providers".into()),
         http_method: String::new(),
         description:
-            "Exact Rust proof targets for MT-015 model-access HTTP behavior: non-secret provider enumeration, BYOK store without echoing the key, idempotent delete/rotate, Gemini exclusion, empty-key rejection, and keychain-unavailable fail-closed 503."
+            "Exact Rust route proof targets for MT-015 model-access HTTP behavior: non-secret provider enumeration, typed auth-status wire mapping without account fields or Gemini, BYOK store without echoing the key, idempotent delete/rotate, Gemini exclusion, empty-key rejection, and keychain-unavailable fail-closed 503. Production parser, attached-runner, and picker-launchability proofs are separate unit/integration targets documented on the Cloud Model Access page."
                 .into(),
         expected_input:
             "test-utils feature enabled; injected InMemorySecretsVault provider for 200/400/404/delete paths; injected KeychainUnavailableProvider for 503 path; loopback Axum model-access router."
                 .into(),
         expected_output:
-            "GET /model-access/providers returns non-secret configured/unavailable rows and excluded=[gemini]; PUT stores only in the injected vault and never echoes the key; DELETE removes the vault key idempotently; invalid providers and empty keys return stable errors."
+            "GET /model-access/providers returns non-secret BYOK configured/unavailable rows, typed CLI auth_status rows, and excluded=[gemini]; PUT stores only in the injected vault and never echoes the key; DELETE removes the vault key idempotently; invalid providers and empty keys return stable errors."
                 .into(),
         schema_fields: vec![
             "GET /model-access/providers".into(),
@@ -3533,23 +4092,91 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "put_store_returns_200_and_never_echoes_the_key".into(),
             "delete_byok_key_is_idempotent_and_updates_status".into(),
             "get_providers_reflects_configured_and_excludes_gemini".into(),
+            "cli_bridge_typed_status_wire_mapping_excludes_account_fields_and_gemini".into(),
             "put_empty_key_is_400".into(),
             "put_gemini_is_404_excluded".into(),
             "keychain_unavailable_is_503".into(),
         ],
         common_errors: vec![
             "key_echoed_in_response".into(),
+            "cli_auth_probe_leaked_credentials_or_inherited_api_key".into(),
             "gemini_offered".into(),
             "delete_not_idempotent".into(),
             "plaintext_fallback_on_keychain_unavailable".into(),
         ],
         recovery_steps: vec![
             "If the key appears in any HTTP response, inspect StoreKeyBody handling and response JSON before touching the vault.".into(),
+            "If CLI auth status is wrong, inspect the canonical launch-target wiring, exact provider grammar, and attached auxiliary runner; do not add PATH rediscovery or free-text expiry inference.".into(),
             "If Gemini appears, inspect ByokProvider::all and the excluded provider list.".into(),
             "If delete fails or leaves configured status, inspect CloudModelAccess::remove_byok_key and the enumeration registry status.".into(),
         ],
         origin: "wp1_mt015_cloud_model_access".into(),
         content_hash: model_access_route_tool_hash,
+        manual_version: USER_MANUAL_VERSION.into(),
+    });
+
+    let official_cli_attached_lifecycle_tool_hash = sha256_hex(
+        &serde_json::to_string(&json!({
+            "id": "official_cli_attached_lifecycle_tests",
+            "name": "Official CLI attached-sandbox lifecycle proof",
+            "status": "wired",
+            "runtime_anchors": [
+                "LiveCliSpawner::spawn",
+                "HandshakeNativeSandboxAdapter::spawn_attached_with_stdio",
+                "GuardedCliChild::terminate_and_collect"
+            ],
+            "exact_commands": [
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib model_runtime::cloud::official_cli_bridge::tests::explicit_failed_terminate_leaves_start_open_without_stop -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests failed_termination_with_never_eof_pipe_returns_within_cleanup_deadline -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests continuous_output_cannot_starve_live_timeout_polling -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test cloud_official_cli_bridge_tests continuous_output_cannot_starve_live_cancellation_polling -- --exact"
+            ],
+            "manual_version": USER_MANUAL_VERSION,
+        }))
+        .expect("official CLI attached lifecycle tool serializes"),
+    );
+    tools.push(UserManualToolEntry {
+        tool_id: "official_cli_attached_lifecycle_tests".into(),
+        page_id: None,
+        name: "Official CLI attached-sandbox lifecycle proof".into(),
+        status: "wired".into(),
+        ipc_channel: None,
+        tauri_command: None,
+        cli_flag: Some(
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --lib model_runtime::cloud::official_cli_bridge::tests::explicit_failed_terminate_leaves_start_open_without_stop -- --exact".into(),
+        ),
+        http_route: None,
+        http_method: String::new(),
+        description:
+            "Exact Rust proof for official CLI spawn through the HandshakeNative attached-sandbox and guarded process cleanup path."
+                .into(),
+        expected_input:
+            "LiveCliSpawner configuration pinned to HandshakeNativeSandboxAdapter; test-utils feature enabled."
+                .into(),
+        expected_output:
+            "LiveCliSpawner::spawn delegates OS-process creation to HandshakeNativeSandboxAdapter::spawn_attached_with_stdio. All terminal paths—success, failure, timeout, cancellation, and unwind—converge on GuardedCliChild::terminate_and_collect; ProcessOwnershipLedger STOP is recorded only after termination and reap succeed. An unreaped termination leaves the durable START open with no fabricated STOP so reconciliation can recover it."
+                .into(),
+        schema_fields: vec![
+            "LiveCliSpawner::spawn".into(),
+            "HandshakeNativeSandboxAdapter::spawn_attached_with_stdio".into(),
+            "GuardedCliChild::terminate_and_collect".into(),
+            "ProcessOwnershipLedger START".into(),
+            "ProcessOwnershipLedger STOP".into(),
+            "official_cli_bridge".into(),
+        ],
+        common_errors: vec![
+            "official CLI process spawned outside the HandshakeNative attached-sandbox".into(),
+            "timeout, cancellation, or unwind bypasses terminate-and-reap cleanup".into(),
+            "termination or reap fails while the process lifecycle START is open".into(),
+            "STOP is fabricated before successful termination and reap".into(),
+        ],
+        recovery_steps: vec![
+            "Inspect the open official_cli_bridge ProcessOwnershipLedger START and preserve it as cleanup-pending evidence.".into(),
+            "Retry process-tree termination and reap through GuardedCliChild::terminate_and_collect; do not synthesize STOP while the child remains unreaped.".into(),
+            "Record STOP only after termination and reap are proven, then reconcile the durable lifecycle row.".into(),
+        ],
+        origin: "wp1_model_lane".into(),
+        content_hash: official_cli_attached_lifecycle_tool_hash,
         manual_version: USER_MANUAL_VERSION.into(),
     });
 
@@ -3629,13 +4256,13 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         http_route: None,
         http_method: String::new(),
         description:
-            "Native Argus/AccessKit proof for Settings > Cloud Models: stable provider author IDs, no Gemini controls, static BYOK key-entry fallback when the backend is unreachable, UI key-buffer clearing on save/close, and provider-owned official CLI login commands without focus-stealing terminal launch during headless tests."
+            "Native Argus/AccessKit proof for Settings > Cloud Models: stable provider author IDs, visible logged-in/logged-out/expired states for Claude Code and Codex, no Gemini controls, static BYOK key-entry fallback when the backend is unreachable, UI key-buffer clearing on save/close, an addressable foreground-terminal confirmation, and fixed provider-owned official CLI login commands without terminal launch during headless tests."
                 .into(),
         expected_input:
             "egui_kittest harness with AccessKit enabled; seeded CloudAccessSnapshot for positive rows and empty snapshot/no client for backend-unreachable fallback."
                 .into(),
         expected_output:
-            "Addressable settings.cloud.* author IDs for Anthropic/OpenAI BYOK and Claude Code/Codex CLI rows; no gemini author IDs; typed BYOK drafts are wiped; provider CLI login command is recorded while terminal launch remains suppressed in the test shell."
+            "Addressable settings.cloud.* author IDs for Anthropic/OpenAI BYOK and Claude Code/Codex CLI rows; each CLI status target renders logged in, logged out, and session expired; no gemini author IDs; typed BYOK drafts are wiped; the first login click only opens confirmation; confirmed fixed provider CLI command is recorded while terminal launch remains suppressed in the test shell."
                 .into(),
         schema_fields: vec![
             "settings.cloud.byok.anthropic.key".into(),
@@ -3643,6 +4270,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "settings.cloud.cli.claude_code.login".into(),
             "settings.cloud.cli.codex.login".into(),
             "cloud_models_controls_are_addressable_and_gemini_is_never_offered".into(),
+            "cli_bridge_auth_status_renders_all_three_states_for_claude_and_codex".into(),
             "typing_and_saving_a_byok_key_clears_the_ui_buffer".into(),
             "cloud_models_key_entry_renders_when_backend_unreachable".into(),
             "typed_byok_key_is_wiped_from_egui_memory_after_close".into(),
@@ -3650,12 +4278,14 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ],
         common_errors: vec![
             "missing_accesskit_author_id".into(),
+            "cli_auth_status_missing_or_mislabeled".into(),
             "gemini_control_rendered".into(),
             "key_buffer_lingers_after_save_or_close".into(),
             "login_command_not_provider_owned".into(),
         ],
         recovery_steps: vec![
             "If a provider control is missing, inspect render_cloud_models_body and cloud_byok_*_author_id helpers.".into(),
+            "If CLI auth state is wrong, inspect CliBridgeAuthStatus parsing, the model-access auth probe, and CloudCliAuthStatus::from_wire.".into(),
             "If a typed key remains in UI memory, inspect CloudModelsSettingsState::clear_key_drafts and reset_cloud_key_edit_memory.".into(),
             "If login launches the wrong command, inspect CloudCliRow login_program/login_args plumbing.".into(),
         ],
@@ -3742,7 +4372,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Run migrations against the active PostgreSQL authority.".into(),
             "Replay by event_ledger_seq and compare ModelLane records to EventLedger rows.".into(),
             "Reuse the same idempotency_key only when payload_sha256 is unchanged.".into(),
-            "For HBR-INT-009, inspect Flight Recorder/EventLedger rows; internal_diagnostics is WIRED through the native diagnostics surface, and Palmistry is DEFERRED-with-reason to the separate watcher worktree.".into(),
+            "For HBR-INT-009, inspect Flight Recorder/EventLedger rows; internal_diagnostics is WIRED through the native producer and Problems projection, and Palmistry is WIRED through the authenticated watcher and survivor recovery importer.".into(),
         ],
         origin: "wp1_model_lane".into(),
         content_hash: model_lane_tool_hash,
@@ -3839,7 +4469,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "For cloud lanes, provide explicit BYOK provider, projection_plan_ref, and consent_receipt_ref.".into(),
             "For no-OS lanes, authorize from a live Ready/Generating authority session and record no_os_process_reason_ref instead of faking a process.".into(),
             "If terminal lane persistence fails, retry the terminal action while the live handle still exists; terminal writes serialize by lane_id.".into(),
-            "For HBR-INT-009, inspect Flight Recorder/EventLedger rows; internal_diagnostics is WIRED through the native diagnostics surface, and Palmistry is DEFERRED-with-reason to the separate watcher worktree.".into(),
+            "For HBR-INT-009, inspect Flight Recorder/EventLedger rows; internal_diagnostics is WIRED through the native producer and Problems projection, and Palmistry is WIRED through the authenticated watcher and survivor recovery importer.".into(),
         ],
         origin: "wp1_model_lane".into(),
         content_hash: model_lane_launch_tool_hash,
@@ -3952,7 +4582,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "For aggregate version denials, read the current kernel_event_ledger aggregate version and rebuild the decision input.".into(),
             "For input-ref denials, verify every model-lane-message:// ref exists in the same run, is advisory or promotion_candidate, and carries selected CRDT state.".into(),
             "Never write ModelLaneAuthority::Promoted directly; first record an approved ModelLanePromotionDecision with matching promotion_decision_id, promotion_gate_ref, promotion_receipt_ref, promoted_artifact_ref, promoted_artifact_sha256, and promoted_artifact_version.".into(),
-            "For HBR-INT-009, inspect Flight Recorder/EventLedger rows; internal_diagnostics is WIRED through the native diagnostics surface, and Palmistry is DEFERRED-with-reason to the separate watcher worktree.".into(),
+            "For HBR-INT-009, inspect Flight Recorder/EventLedger rows; internal_diagnostics is WIRED through the native producer and Problems projection, and Palmistry is WIRED through the authenticated watcher and survivor recovery importer.".into(),
         ],
         origin: "wp1_model_lane".into(),
         content_hash: model_lane_promotion_tool_hash,
@@ -4014,7 +4644,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; source ModelLaneMessage rows with replayable payload refs; NewModelLaneContextBundleArtifactBinding rows whose payload_json sha256 equals artifact_sha256/content_hash; downstream_lane_id; work_packet_id; micro_task_id; task_board_id; explicit reviewed MemoryPack refs for cloud lanes."
                 .into(),
         expected_output:
-            "EventLedger-backed ModelLaneContextBundleArtifactBindingRecord and ModelLaneContextBundleHandoff rows, ARTIFACT_STORED payload stamping, model_lane_context_bundle_artifacts authority rows with artifact_manifest_ref/artifact_payload_ref/payload_json/artifact_binding_hash, replay ordered by event_ledger_seq for one context_bundle_id, downstream-only ModelLaneDownstreamContextBundle consumption through ModelLaneStore::consume_context_bundle_for_downstream and SwarmCoordinator::context_bundle_for_downstream_lane, SwarmCoordinator::invoke_downstream_context_bundle adapter invocation, to_kernel_context_bundle conversion with ContextBundle V1 CTX-<hash> identity, selected/rejected/unresolved/superseded selection states, schema registry rows hsk.model_lane_context_bundle_artifact@1 and hsk.model_lane_context_bundle_handoff@1, fail-closed missing source and artifact_ref/artifact_sha256/content_hash mismatch against ArtifactStore/EventLedger authority, cloud-safe FEMS MemoryPack enforcement, local_only_context cloud rejection, review_status reviewed, operator_reviewed, or validator_reviewed, hidden provider/session memory rejection including projection_ref and normalized hidden-memory URI checks, memory_pack_refs exceeds bounded FEMS limit, CRDT state_vector/base_snapshot_ref/update_bytes_ref validation, Yjs-compatible format yjs_update_v1 or yjs_update_v2, Loom event_ledger_evidence_ref and flight_recorder_evidence_ref replay, loom_refs exceeds bounded limit, duplicate idempotency returning the original context_bundle_hash, and manual parity."
+            "EventLedger-backed ModelLaneContextBundleArtifactBindingRecord and ModelLaneContextBundleHandoff rows, ARTIFACT_STORED payload stamping, model_lane_context_bundle_artifacts authority rows with artifact_manifest_ref/artifact_payload_ref/payload_json/artifact_binding_hash, replay ordered by event_ledger_seq for one context_bundle_id, downstream-only ModelLaneDownstreamContextBundle consumption through ModelLaneStore::consume_context_bundle_for_downstream and SwarmCoordinator::context_bundle_for_downstream_lane, SwarmCoordinator::invoke_downstream_context_bundle adapter invocation, to_kernel_context_bundle conversion with ContextBundle V1 CTX-<hash> identity, selected/rejected/unresolved/superseded selection states, schema registry rows hsk.model_lane_context_bundle_artifact@1 and hsk.model_lane_context_bundle_handoff@1, fail-closed missing source and artifact_ref/artifact_sha256/content_hash mismatch against ArtifactStore/EventLedger authority, cloud-safe FEMS MemoryPack enforcement, local_only_context cloud rejection, review_status reviewed, operator_reviewed, or validator_reviewed, hidden provider/session memory rejection including projection_ref and normalized hidden-memory URI checks, memory_pack_refs exceeds bounded FEMS limit, canonical append-only PostgreSQL/EventLedger CRDT state_vector/base_snapshot_ref/update_bytes_ref validation with Yjs-compatible format yjs_update_v1 only, exact replay_metadata replay_order_key/dependency_update_ids/schema_version parity with the persisted update, forged replay metadata producing no handoff row, full crdt_authority_binding parity, exact promotion/validation refs, null advisory promotion receipt, materialized_projection_hash verification, Loom event_ledger_evidence_ref and flight_recorder_evidence_ref replay, loom_refs exceeds bounded limit, duplicate idempotency returning the original context_bundle_hash, and manual parity."
                 .into(),
         schema_fields: vec![
             "ModelLaneContextBundleArtifactBindingRecord".into(),
@@ -4065,8 +4695,10 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "base_snapshot_ref".into(),
             "materialized_projection_hash".into(),
             "replay_metadata".into(),
+            "replay_order_key".into(),
+            "dependency_update_ids".into(),
+            "schema_version".into(),
             "yjs_update_v1".into(),
-            "yjs_update_v2".into(),
             "promotion_gate_ref".into(),
             "validation_runner_ref".into(),
             "authority_effect".into(),
@@ -4106,7 +4738,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "memory_pack_refs exceeds bounded FEMS limit".into(),
             "CRDT ModelLaneMessage handoff requires crdt_payload metadata".into(),
             "crdt_payload.update_bytes_ref must match source.crdt_update_ref".into(),
-            "crdt_payload.replay_metadata must declare Yjs-compatible format yjs_update_v1 or yjs_update_v2".into(),
+            "crdt_payload.replay_metadata must declare Yjs-compatible format yjs_update_v1".into(),
+            "crdt_payload.replay_metadata must exactly match persisted replay_order_key, dependency_update_ids, and schema_version".into(),
             "crdt_payload.authority_effect must be advisory_only before promotion".into(),
             "loom_refs exceeds bounded limit".into(),
             "idempotency conflict".into(),
@@ -4121,7 +4754,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "For cloud handoff failures, use explicit reviewed MemoryPack refs with memory_pack_hash, scope_tag, classification, projection_ref, evidence_ref, cloud_safe = true, and classification other than local_only_context.".into(),
             "For CRDT failures, copy update_bytes_ref, state_vector, and base_snapshot_ref from the source ModelLaneMessage CRDT fields and keep authority_effect = advisory_only until PromotionGate approval.".into(),
             "For Loom failures, include workspace/block refs plus EventLedger and Flight Recorder evidence refs before retry.".into(),
-            "For HBR-INT-009, inspect EventLedger rows and Flight Recorder evidence refs; direct Flight Recorder event emission is DEFERRED-with-reason to MT-008, internal_diagnostics is WIRED through the native diagnostics surface, and Palmistry is DEFERRED-with-reason to the separate watcher worktree.".into(),
+            "For HBR-INT-009, inspect EventLedger rows and Flight Recorder evidence refs; direct Flight Recorder event emission is DEFERRED-with-reason to MT-008, internal_diagnostics is WIRED through the native producer and Problems projection, and Palmistry is WIRED through the authenticated watcher and survivor recovery importer.".into(),
         ],
         origin: "wp1_model_lane".into(),
         content_hash: model_lane_context_bundle_tool_hash,
@@ -4172,7 +4805,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; NewModelLaneCloudProjectionPlan rows; NewModelLaneCloudConsentReceipt rows; BYOK cloud SpawnRequest with DexterityLaunchContract; cloud ModelLane rows with projection_plan_ref and consent_receipt_ref; revoked receipt id for cancellation proof."
                 .into(),
         expected_output:
-            "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows in model_lane_cloud_projection_plans and model_lane_cloud_consent_receipts, schema registry rows hsk.model_lane_cloud_projection_plan@1, hsk.model_lane_cloud_consent_receipt@1, and hsk.model_lane_cloud_consent_denial@1, replay through ModelLaneStore::replay_cloud_consent_authority, cloud launch allowed only when durable ProjectionPlan and ConsentReceipt match projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets, missing/expired/mismatched/revoked consent rejected with CX-MM-007 and model_lane_cloud_consent_denial EventLedger payload provider_call_attempted = false, SwarmCoordinator::spawn_session preflight blocks before factory.create, cloud ModelLaneMessage diagnostic_payload carries projection/redaction metadata, ModelLaneAuthority::Promoted rejects without approved PromotionGate, ModelLaneStore::revoke_cloud_consent_receipt cancels covered lanes with failstate_code CX-MM-007 and model_lane_terminal EventLedger evidence, and manual parity."
+            "EventLedger-backed ModelLaneCloudProjectionPlanRecord and ModelLaneCloudConsentReceiptRecord rows in model_lane_cloud_projection_plans and model_lane_cloud_consent_receipts, schema registry rows hsk.model_lane_cloud_projection_plan@2, hsk.model_lane_cloud_consent_receipt@2, and hsk.model_lane_cloud_consent_denial@1, replay through ModelLaneStore::replay_cloud_consent_authority, single-lane cloud launch allowed only when durable ProjectionPlan and ConsentReceipt match projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets, single-run launch allowed only when durable run-scoped authority matches run_id plus the shared non-lane authority fields, missing/expired/mismatched/revoked consent rejected with CX-MM-007 and model_lane_cloud_consent_denial EventLedger payload provider_call_attempted = false, SwarmCoordinator::spawn_session preflight blocks before factory.create and spawn_cloud_consent_batch preflights every run-scoped request before dispatch, cloud ModelLaneMessage diagnostic_payload carries projection/redaction metadata, ModelLaneAuthority::Promoted rejects without approved PromotionGate, and ModelLaneStore::revoke_cloud_consent_receipt cancels every durable covered lane with failstate_code CX-MM-007 and per-lane model_lane_terminal EventLedger evidence."
                 .into(),
         schema_fields: vec![
             "NewModelLaneCloudProjectionPlan".into(),
@@ -4185,8 +4818,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "ModelLaneStore::replay_cloud_consent_authority".into(),
             "ModelLaneStore::preflight_cloud_spawn_request".into(),
             "ModelLaneStore::revoke_cloud_consent_receipt".into(),
-            "hsk.model_lane_cloud_projection_plan@1".into(),
-            "hsk.model_lane_cloud_consent_receipt@1".into(),
+            "hsk.model_lane_cloud_projection_plan@2".into(),
+            "hsk.model_lane_cloud_consent_receipt@2".into(),
             "hsk.model_lane_cloud_consent_denial@1".into(),
             "model_lane_cloud_projection_plans".into(),
             "model_lane_cloud_consent_receipts".into(),
@@ -4220,11 +4853,11 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ],
         recovery_steps: vec![
             "Record or replay the ProjectionPlan with ModelLaneStore::record_cloud_projection_plan, then compare projection_plan_hash and event_ledger_seq to kernel_event_ledger.".into(),
-            "Record or replay the ConsentReceipt with ModelLaneStore::record_cloud_consent_receipt and verify projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets match the ProjectionPlan.".into(),
+            "Record or replay the ConsentReceipt with ModelLaneStore::record_cloud_consent_receipt. For single_lane verify projection_plan_hash/run_id/lane_id/model_session_id/provider_kind/requested_model_id/scope_hash/retention/export/fan_out_targets; for single_run verify projection_plan_hash/run_id/scope_hash/retention/export/fan_out_targets and confirm no lane-bound identity is present.".into(),
             "For CX-MM-007 denials, inspect model_lane_cloud_consent_denial payloads and confirm provider_call_attempted = false before retrying with a new valid receipt.".into(),
             "For revocations, call ModelLaneStore::revoke_cloud_consent_receipt and replay the affected run to confirm Cancelled lanes with failstate_code CX-MM-007.".into(),
             "For cloud outputs, keep ModelLaneAuthority::Advisory until a PromotionGate decision exists; never write ModelLaneAuthority::Promoted directly.".into(),
-            "For HBR-INT-009, inspect EventLedger rows; direct Flight Recorder event emission is DEFERRED-with-reason to FR-EVT-CLOUD wiring, internal_diagnostics is WIRED through the native diagnostic surface, and Palmistry is DEFERRED-with-reason to the separate watcher worktree.".into(),
+            "For HBR-INT-009, inspect EventLedger rows; direct Flight Recorder event emission is DEFERRED-with-reason to FR-EVT-CLOUD wiring, internal_diagnostics is WIRED through the native producer and Problems projection, and Palmistry is WIRED through the authenticated watcher and survivor recovery importer.".into(),
         ],
         origin: "wp1_model_lane".into(),
         content_hash: cloud_model_lane_policy_tool_hash,
@@ -4239,7 +4872,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "cli_flag": "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests",
             "exact_commands": [
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_replays_from_postgres_eventledger_checkpoint -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_excludes_post_checkpoint_adjunct_state -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_includes_current_leases_but_bounds_replay_adjunct_state -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests model_lane_recovery_restores_mt_runtime_status_refs_after_restart -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_recovery_pg_tests diagnostic_tier_record_rejects_flight_recorder_only_evidence -- --exact",
@@ -4271,7 +4904,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; ModelLaneRun/ModelLane/ModelLaneMessage rows; ArtifactStore context-bundle artifact bindings; recovery checkpoint/event/lease/diagnostic/MT-status rows."
                 .into(),
         expected_output:
-            "EventLedger-backed ModelLaneRecoveryCheckpointRecord, ModelLaneRecoveryEventRecord, ModelLaneLeaseRecord, ModelLaneDiagnosticTierStatusRecord, and ModelLaneMtRuntimeStatusRecord rows; checkpoint-bounded replay through ModelLaneStore::recover_run_after_restart; payload refs resolved through model_lane_context_bundle_artifacts plus kernel_event_ledger; CRDT base/state-vector validation; checkpoint-bounded failed cloud consent denial receipts; active versus expired lease classification; durable CX-MM-009 orphan_detected events for expired active leases; divergent idempotency rejected; CX-MM-006 and CX-MM-009 failure paths; Flight Recorder-only HBR-INT-009 evidence rejected; manual parity."
+            "EventLedger-backed ModelLaneRecoveryCheckpointRecord, ModelLaneRecoveryEventRecord, ModelLaneLeaseRecord, ModelLaneDiagnosticTierStatusRecord, and ModelLaneMtRuntimeStatusRecord rows; checkpoint-bounded replay through ModelLaneStore::recover_run_after_restart; payload refs resolved through model_lane_context_bundle_artifacts plus kernel_event_ledger; CRDT base/state-vector validation; checkpoint-bounded failed cloud consent denial receipts; active versus expired lease classification from latest committed current lease authority without widening replay; durable CX-MM-009 orphan_detected events for expired leases including post-checkpoint leases; divergent idempotency rejected; CX-MM-006 and CX-MM-009 failure paths; Flight Recorder-only HBR-INT-009 evidence rejected; manual parity."
                 .into(),
         schema_fields: vec![
             "NewModelLaneRecoveryCheckpoint".into(),
@@ -4316,8 +4949,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Call ModelLaneStore::recover_run_after_restart(run_id) and inspect the checkpoint high-watermark plus recovery_events replay_order_seq.".into(),
             "For CX-MM-006, create or repair a model_lane_context_bundle_artifacts row whose artifact_ref/artifact_payload_ref matches the message payload ref and whose kernel_event_ledger row matches.".into(),
             "For stale CRDT, replay the advisory ModelLaneMessage CRDT base_snapshot_ref and state_vector before retrying recovery.".into(),
-            "For orphaned subagents, compare lane lease state and lease_expires_at_utc before takeover; use CX-MM-009 for unrecoverable orphan paths.".into(),
-            "For HBR-INT-009, require EventLedger/Flight Recorder plus wired internal_diagnostics; Palmistry may be DEFERRED-with-reason with a follow_up_ref until the external watcher is available.".into(),
+            "For orphaned subagents, compare the latest EventLedger-backed current lease authority and lease_expires_at_utc before takeover; do not widen checkpoint replay to discover post-checkpoint leases; use CX-MM-009 for unrecoverable orphan paths.".into(),
+            "For HBR-INT-009, require EventLedger/Flight Recorder; internal_diagnostics is WIRED through the native producer and Problems projection, and Palmistry is WIRED through the authenticated watcher and survivor recovery importer.".into(),
         ],
         origin: "wp1_model_lane".into(),
         content_hash: model_lane_recovery_tool_hash,
@@ -4416,7 +5049,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "If author IDs are missing, repair the native Rust pane row/drilldown construction before relying on Argus inspection.".into(),
             "If EventLedger or FlightRecorder refs are missing, repair the model lane event linkage instead of treating UI rows as authority.".into(),
             "If HBR posture is suspected to be FlightRecorder-only, run swarm_lane_diagnostics_rejects_flight_recorder_only_hbr_posture before trusting the diagnostics pane.".into(),
-            "If internal_diagnostics is absent, repair the native internal diagnostic tier; if Palmistry is absent, record DEFERRED-with-reason and follow-up refs until that watcher tier is available; do not silently skip HBR-INT-009.".into(),
+            "internal_diagnostics is WIRED through the native producer and Problems projection. Palmistry is WIRED through the authenticated watcher and survivor recovery importer; do not silently skip HBR-INT-009.".into(),
         ],
         origin: "wp1_model_lane".into(),
         content_hash: swarm_lane_diagnostics_tool_hash,
@@ -4558,10 +5191,12 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_retries_after_terminal_pg_failure -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_matrix_generated_from_model_lane_registries -- --exact",
-                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests behavior_coverage_fails_on_missing_manual_diagnostic_or_runtime_route -- --exact",
+                "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_validation_harness_user_manual_entry_is_current -- --exact",
                 "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact"
             ],
             "manual_version": USER_MANUAL_VERSION,
@@ -4618,6 +5253,19 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "FlightRecorder-only".into(),
         ],
         recovery_steps: vec![
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_model_lane_negative_guards_fail_closed -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mixed_concurrent_model_and_operator_lanes_converge_on_shared_crdt_key -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_midstream_cancellation_preserves_prefix_and_rejects_late_messages -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_yjs_atomic_cross_connection_race_keeps_eventledger_and_crdt_receipts_in_lockstep -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests operator_chat_launch_coordinator_cancellation_preserves_prefix_and_rejects_late_activity -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test operator_chat_capture_tests coordinator_cancellation_fence_retries_after_terminal_pg_failure -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/frontend/handshake_native/Cargo.toml --test test_swarm_lane_diagnostics_argus mixed_model_lane_run_is_inspectable_through_argus -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_api_tests model_lane_validation_harness_user_manual_entry_is_current -- --exact".into(),
+            "cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test user_manual_behavior_coverage_tests mixed_model_lane_behaviors_have_manual_coverage -- --exact".into(),
             "Replay ModelLaneStore::replay_run(run_id) before trusting UI row counts.".into(),
             "Use ModelLaneStore::recover_run_after_restart(run_id) to reconstruct checkpoint, recovery events, leases, cloud denial, and MT runtime status from PostgreSQL/EventLedger.".into(),
             "Repair missing payloads by recording model_lane_context_bundle_artifacts rows that bind payload_ref to bounded artifact refs and EventLedger evidence.".into(),
@@ -4654,20 +5302,22 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         http_route: None,
         http_method: String::new(),
         description:
-            "Exact Rust proof targets for the embedded-model ProcessOwnershipLedger obligation: pid-less START on load keyed on the minted UUIDv7, the graceful-shutdown STOP flushed through the background writer, and the boot-time hard-crash reconcile sweep that closes stale session-less/pid-less embedded orphans."
+             "Exact Rust proof targets for the embedded-model ProcessOwnershipLedger obligation: all-or-none pre-artifact START+STOP reservation, store-acknowledged pid-less START on load (normally keyed on the minted UUIDv7, with a distinct quarantine UUID for invalid/duplicate returned identities), a pre-reserved STOP emitted only after worker quiescence and offered to a bounded background-writer drain, and OS-loopback-lease-aware hard-crash reconciliation when graceful durability cannot be proven."
                 .into(),
         expected_input:
-            "test-utils feature enabled; in-process no-op ModelRuntime for the load/shutdown legs; real Handshake-managed PostgreSQL (127.0.0.1:5544) or POSTGRES_TEST_URL isolated schema for the orphan-reconcile leg."
+            "test-utils feature enabled; controlled in-process ModelRuntime barriers for the deterministic lifecycle legs; real Handshake-managed PostgreSQL (127.0.0.1:5544) or POSTGRES_TEST_URL isolated schema for the orphan-reconcile leg."
                 .into(),
         expected_output:
-            "A single pid-less ProcessOwnershipLedger START row (os_pid=NULL, process_uuid == model UUIDv7), a matching STOP row emitted via the LlmClient::shutdown seam and flushed by the background writer's drain-and-join, and an orphan-reconcile sweep that closes only session-less/pid-less/embedded/open rows started before the boot cutoff."
+             "A store-acknowledged pid-less ProcessOwnershipLedger START row (os_pid=NULL; valid path process_uuid == model UUIDv7; identity-contract failures use a distinct quarantine UUID and metadata), a matching pre-reserved STOP emitted via LlmClient::shutdown_gracefully only after the exact runtime workers exit and durably flushed on a successful drain-and-join, plus open-START reconciliation when shutdown or drain cannot prove success."
                 .into(),
         schema_fields: vec![
-            "EmbeddedModelProcess::record_load".into(),
+            "EmbeddedModelProcess::record_reserved_load_with_durable_ack".into(),
             "EmbeddedModelProcess::shutdown".into(),
-            "LlmClient::shutdown".into(),
+            "LlmClient::shutdown_gracefully".into(),
+            "LlmClient::leave_open_for_reconciliation".into(),
             "drain_and_join_ledger_writer".into(),
             "reclaim_pidless_embedded_orphans".into(),
+            "acquire_embedded_runtime_instance_lease".into(),
             "kernel_process_lifecycle".into(),
         ],
         common_errors: vec![
@@ -4675,10 +5325,17 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "missing_stop_row".into(),
             "synthetic_pid_forbidden".into(),
             "orphan_not_reconciled".into(),
+            "reserved_stop_retained_batch_loss".into(),
+            "runtime_quiescence_timeout".into(),
+            "orphan_reclaim_lock_timeout_deferred".into(),
+            "orphan_reclaim_instance_cap_deferred".into(),
+            "orphan_reclaim_unsafe_metadata_deferred".into(),
+            "token_stream_terminal_missing_under_backpressure".into(),
         ],
         recovery_steps: vec![
-            "If the STOP row is missing after shutdown, confirm axum::serve is wired with_graceful_shutdown and the drain-and-join runs before managed PostgreSQL stop.".into(),
-            "If an orphan persists, run reclaim_pidless_embedded_orphans on boot with a cutoff after the orphan's started_at and before this boot's START.".into(),
+            "If the STOP row is missing after Ctrl-C/SIGTERM, confirm Axum completed its connection drain, the exact runtime worker barriers reached idle, and the process-ledger drain completed before managed PostgreSQL stop and final OS-lease release. Connection-drain or quiescence timeout intentionally leaves START open for next-boot reconciliation rather than reporting a graceful STOP.".into(),
+            "If an orphan persists, inspect runtime_instance_schema_id, runtime_instance_id, runtime_host_scope_id, runtime_lease_protocol, runtime_lease_address, and runtime_lease_port. Reconciliation intentionally skips missing, malformed, foreign-host, conflicting, or address-in-use evidence; never force-close it from age alone.".into(),
+            "If boot reports deferred orphan reconciliation, inspect the typed lock-timeout and instance-cap fields. Leave the START open, remove the contending database transaction if appropriate, and allow a later bounded boot sweep to retry; never rewrite terminal columns by hand.".into(),
         ],
         origin: "wp1_mt013_embedded_model".into(),
         content_hash: embedded_model_ledger_tool_hash,
@@ -4710,7 +5367,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         http_route: None,
         http_method: String::new(),
         description:
-            "Non-skipping MT-013 managed-resource proof for the default embedded LlmClient path: it loads real Candle weights through build_default_local_client, drains the ProcessOwnershipLedger, calls LlmClient::shutdown, drains again, and prints [MT-013_REAL_CANDLE_LEDGER_DUMP] containing the matching pid-less START/STOP rows."
+            "Non-skipping MT-013 managed-resource proof for the default embedded LlmClient path: it loads real Candle weights through build_default_local_client, drains the ProcessOwnershipLedger, calls LlmClient::shutdown_gracefully to quiesce real workers before STOP, drains again, and prints [MT-013_REAL_CANDLE_LEDGER_DUMP] containing the matching pid-less START/STOP rows."
                 .into(),
         expected_input:
             "Features test-utils,candle-runtime-engine enabled; HANDSHAKE_TEST_CANDLE_MODEL_DIR set to a directory containing real model.safetensors and tokenizer.json; external CARGO_TARGET_DIR under ..\\Handshake_Artifacts\\handshake-cargo-target."
@@ -4721,8 +5378,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         schema_fields: vec![
             "build_default_local_client".into(),
             "CandleRuntime::load".into(),
-            "EmbeddedModelProcess::record_load".into(),
-            "LlmClient::shutdown".into(),
+            "EmbeddedModelProcess::record_reserved_load_with_durable_ack".into(),
+            "LlmClient::shutdown_gracefully".into(),
             "MT-013_REAL_CANDLE_LEDGER_DUMP".into(),
         ],
         common_errors: vec![
@@ -4734,8 +5391,8 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         ],
         recovery_steps: vec![
             "Set HANDSHAKE_TEST_CANDLE_MODEL_DIR to a real Candle model directory and rerun the exact ignored test command.".into(),
-            "If START is missing after load, inspect EmbeddedModelProcess::record_load and the supplied LedgerBatcher; the default path must fail closed rather than continue unledgered.".into(),
-            "If STOP is missing after shutdown, inspect LocalModelRuntimeLlmClient::shutdown and the manual/spawned ledger drain before moving MT-013 to READY_FOR_VALIDATION.".into(),
+            "If START is missing after load, inspect EmbeddedModelProcess::record_reserved_load_with_durable_ack and the supplied LedgerBatcher; the default path must fail closed rather than continue unledgered.".into(),
+            "If STOP is missing after shutdown, inspect LocalModelRuntimeLlmClient::shutdown_gracefully, runtime quiescence, and the manual/spawned ledger drain before moving MT-013 to READY_FOR_VALIDATION.".into(),
         ],
         origin: "wp1_mt013_embedded_model".into(),
         content_hash: candle_real_load_ledger_tool_hash,
@@ -4994,6 +5651,7 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
     let tool_ids = vec![
         "model_lane_schema_pg_tests".to_string(),
         "model_lane_launch_tests".to_string(),
+        "official_cli_attached_lifecycle_tests".to_string(),
         "model_lane_promotion_pg_tests".to_string(),
         "model_lane_context_bundle_pg_tests".to_string(),
         "cloud_model_lane_policy_pg_tests".to_string(),
@@ -5034,37 +5692,112 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         "mt014_catalog_empty_registry_is_empty_list".to_string(),
         "mt014_catalog_unknown_model_id_sentinel_label".to_string(),
         "mt014_catalog_records_selection_decision_event".to_string(),
+        "mt014_persistent_registry_survives_restart_and_reads_back_selection".to_string(),
+        "mt014_concurrent_incompatible_adapter_selection_has_one_winner".to_string(),
+        "mt014_display_name_change_preserves_selection_and_revision".to_string(),
+        "mt014_primary_and_embedding_registration_is_atomic_on_conflict".to_string(),
+        "mt014_registry_authority_shape_rejects_semantic_drift".to_string(),
+        "mt014_registry_rejects_eventledger_chain_and_immutable_row_tampering".to_string(),
+        "mt014_non_advisory_row_lock_times_out_without_registry_or_audit_mutation".to_string(),
+        "mt014_registry_api_joins_real_pg_rows_to_current_ready_catalog_by_sha256".to_string(),
+        "mt014_registry_api_rejects_ready_catalog_capability_drift".to_string(),
+        "mt014_registry_api_rejects_unloaded_catalog_row_without_durable_authority".to_string(),
+        "mt014_registry_api_rejects_duplicate_ready_and_unloaded_catalog_sha".to_string(),
+        "mt014_registry_api_rejects_unloaded_catalog_adapter_drift".to_string(),
+        "mt014_registry_api_rejects_ready_uuid_without_committed_observation".to_string(),
+        "mt014_selection_post_prevalidates_then_returns_audited_projection".to_string(),
+        "mt014_selection_post_audit_failure_preserves_prior_selection".to_string(),
+        "mt014_selection_post_rejects_stale_target_before_swap".to_string(),
+        "mt014_selection_post_rejects_embedding_role_before_swap".to_string(),
+        "mt014_selection_post_integrity_failure_occurs_before_swap".to_string(),
+        "model_runtime_selection_failure_recovery_rows_match_compiled_api_contract".to_string(),
+        "mt014_stable_switch_author_id_posts_then_reobserves_backend_projection".to_string(),
+        "mt014_embedding_role_row_has_no_default_switch_action".to_string(),
+        "mt014_argus_renders_real_pg_live_and_dormant_registry_rows".to_string(),
+        "mt014_argus_operator_menu_fetches_real_pg_projection_through_production_transport"
+            .to_string(),
+        "mt014_model_runtime_real_pg_frame_png".to_string(),
+        "run_menu_opens_real_model_runtime_pane".to_string(),
         "mt014_dim_mismatch_degrades_not_errors_on_reindex_and_search".to_string(),
         "mt014_provider_ref_migrates_ollama_to_local_runtime".to_string(),
     ];
-    let title =
-        "WP-1 MT-014 shared model catalog, Loom embedding-dim degrade, and provider_ref resolver"
-            .to_string();
+    let title = "WP-1 MT-014 durable model-runtime registry, shared catalog, Loom embedding-dim degrade, and provider_ref resolver".to_string();
     let description = concat!(
-        "PURPOSE: make the default LlmClient's embedded model registry shared, enumerable, and ",
-        "labeled, and make LoomSearchV2 degrade (not hard-error) on an embedding-dimension ",
-        "mismatch. USAGE: from AppState, `AppState::model_catalog()` returns the shared ",
-        "`ModelCatalog` when the configured client exposes one (the embedded local lane does); ",
-        "`ModelCatalog::list()` enumerates the configured local model(s) as ",
-        "`{model_id (per-boot UUIDv7), display_name/base_model_tag, artifact_sha256 (STABLE ",
-        "cross-session anchor), runtime_binding, ready}`; `label_for(model_id)` resolves a ",
-        "human label and returns the 'unknown model' sentinel for an unknown id (never a panic ",
-        "or blank); an empty registry lists nothing. INPUTS/OUTPUTS: recording a model-selection ",
-        "decision (`ModelCatalog::record_selection_decision`) emits an auditable EventLedger ",
-        "(Tier-1 Flight Recorder) event `FR-EVT-MODEL-SELECTION-RECORDED`, distinct from a ",
-        "launch/inference event, per master-spec 4.3.9.4.4. FAILURE/RECOVERY: when the ",
+        "PURPOSE: persist the selected embedded runtime adapter in PostgreSQL, then expose the ",
+        "same successfully loaded registration through one shared, enumerable, labeled live ",
+        "catalog. STARTUP: the normal handshake_core binary starts/adopts managed PostgreSQL, ",
+        "runs the migration chain (including `0348_model_runtime_registry.sql` and `0356_model_runtime_role_authority.sql`), and passes that ",
+        "pool into `ModelRegistryStore` before resolving a configured local model. No separate ",
+        "registry daemon or operator-started database is required. INPUTS: ",
+        "`HANDSHAKE_LOCAL_MODEL_PATH`, `HANDSHAKE_LOCAL_MODEL_SHA256`, ",
+        "`HANDSHAKE_LOCAL_MODEL_BINDING`, and optional `HANDSHAKE_LOCAL_MODEL_NAME`; the ",
+        "equivalent `HANDSHAKE_LOCAL_EMBEDDING_MODEL_*` variables add the MT-016 dedicated ",
+        "embedding registration. The artifact SHA-256 is the durable, relocation-safe identity; ",
+        "the path and display/base-model label are current-boot observation metadata. WORKFLOW: ",
+        "DECLARED PROOF TARGETS are not executed by UserManual coverage validation; the tool_ids ",
+        "below are exact targets to run separately, and an executed verdict requires the Cargo ",
+        "test result or its durable proof receipt. ",
+        "production boot verifies the registry schema and recovers the configured immutable ",
+        "artifact-to-adapter/capability/runtime-role selection before reading model weights. It loads through ",
+        "the existing in-process Candle/llama.cpp ModelRuntime, atomically persists and reads ",
+        "back the complete primary-plus-embedding boot set, appending ",
+        "`KernelEventType::ModelRuntimeSelectionRecorded` as the typed EventLedger evidence for ",
+        "each persistent adapter selection, and only then exposes the client and ",
+        "live `ModelCatalog`. OUTPUTS: each PostgreSQL row carries `schema_id`, stable artifact ",
+        "locator/hash, selected runtime binding, explicit runtime role/default eligibility and capabilities, selection revision, mutable ",
+        "last-observed runtime UUID/label/actor/timestamp, and the EventLedger audit reference. ",
+        "Every read validates the complete causation-linked EventLedger selection chain, canonical ",
+        "payload hashes, revisions, endpoints, and immutable-selection continuity in the same ",
+        "PostgreSQL snapshot. A normal restart or display-name/path change preserves selection ",
+        "revision; a conflicting adapter/capability choice fails closed, including any conflicting runtime-role choice. PostgreSQL separately owns `application/default` and `embeddings/default` by stable artifact SHA-256; boot restores both before routing exposure. The panel switches only ",
+        "`application/default` between current READY completion-role models; an embedding-role row may own `embeddings/default` but is not eligible for that application switch and is excluded from Operator Chat default-model inventory. It never rewrites durable artifact-to-adapter binding. A ",
+        "non-active READY row posts `POST /model-runtime/selection`. The local runtime serializes ",
+        "the SwapRequest after the API prevalidates the durable/catalog projection, current selection, and target UUIDv7/READY/default-selectable state, resolves ",
+        "the actual runtime, appends the active-selection EventLedger record and compare-and-set in one PostgreSQL transaction, then publishes the committed model to the current router projection and cancels old-default in-flight requests. Success returns `selection_receipt_ref`. Audit failure, PostgreSQL revision conflict, stale ",
+        "invalid target_model_id, actor, or reason input, stale current selection, non-READY or embedding-role target, integrity failure, or timeout keeps the prior active model. NAVIGATION: in the Rust-native app choose ",
+        "`RUN` then `Open Model Runtime`; the action switches through the existing `STUDIO` module ",
+        "workflow and activates its `Model Runtime` surface. The equivalent direct path is `STUDIO` ",
+        "then `Model Runtime`; ",
+        "the pane fetches `GET /model-runtime/registry` off the frame thread and exposes stable ",
+        "AccessKit author ids under `model-runtime.registry.*` for parallel model inspection. ",
+        "Refresh re-reads the durable `hsk.model_runtime_registry_projection@3` projection. Rows show active purposes/revision, model id, canonical artifact path plus SHA-256, selected adapter/runtime state, KV bytes/cap/hit rate/quantization, ordered LoRA ids/strengths, typed steering availability, ProcessOwnershipLedger link, tokens/s, VRAM, last call, action availability/reasons, selection ",
+        "revision, artifact SHA-256 locator, audit reference, and `LIVE / READY` versus ",
+        "`DORMANT`; a dormant row never exposes its last-observed boot UUID as currently loaded. ",
+        "The backend rejects any READY or unloaded catalog row that has no durable row, duplicates ",
+        "an artifact SHA-256, or disagrees on adapter, persisted runtime role/default eligibility, or catalog-visible embedding capabilities. A ",
+        "READY UUID and label must also equal the row's atomically committed last observation. ",
+        "Only READY rows expose `LIVE` plus a current UUID; a matching unloaded row remains ",
+        "`DORMANT` with no UUID. `AppState::model_catalog()` returns the live ",
+        "projection when the configured client exposes one; `ModelCatalog::list()` enumerates ",
+        "`{model_id (per-boot UUIDv7), display_name/base_model_tag, artifact_sha256 (stable), ",
+        "runtime_binding, runtime_role, default_selectable, embedding capability/dimension, ready}`. `label_for(model_id)` returns ",
+        "the 'unknown model' sentinel for an unknown id (never panic/blank); an empty registry ",
+        "lists nothing. `ModelCatalog::record_selection_decision` separately emits ",
+        "`FR-EVT-MODEL-SELECTION-RECORDED` for interactive picker decisions. FAILURE/RECOVERY: ",
+        "missing migration, malformed schema/constraints/nullability, PostgreSQL failure (`503 MODEL_RUNTIME_REGISTRY_UNAVAILABLE`), ",
+        "selection conflict, invalid EventLedger selection chain, or partial primary/embedding conflict blocks ",
+        "model exposure and returns a typed disabled-client reason. Restore the current migration ",
+        "chain/database authority and restore configuration to the persisted SHA/binding. Inspect ",
+        "the durable selection revision and audit reference to diagnose a conflict; never edit or ",
+        "delete database rows, event refs, or revisions to bypass it. Moving ",
+        "the project or model file needs only a valid current path with the same artifact hash. ",
+        "LOOM CONTRACT: when the ",
         "configured model returns an embedding whose dimensionality != 768, LoomSearchV2 ",
         "reindex and search DEGRADE to keyword/trigram (they do NOT hard-error or 400): they ",
         "emit `FR-EVT-LOOM-SEMANTIC-DEGRADED` and set the response's typed ",
         "`semantic_unavailable_reason = DimMismatch{expected, actual}` so the drop is never ",
-        "silent; recovery is to configure a matching embedding model (the dedicated embedding ",
-        "model is MT-016, deferred). Work Profiles `provider_ref` resolves against the canonical ",
+        "silent; recovery is to configure the MT-016 dedicated embedding model with the required ",
+        "dimension. Work Profiles `provider_ref` resolves against the canonical ",
         "provider id set (`local_runtime`, `openai_compat`); the retired `ollama` id migrates ",
         "deterministically to `local_runtime`, surfaced via an `FR-EVT-PROFILE-` event (never a ",
         "silent rewrite); an unrecognized provider_ref resolves to a typed Unknown. ",
-        "HBR-INT-009 posture: Tier-1 Flight Recorder events are WIRED for the selection ",
-        "decision, the semantic degrade, and the provider_ref migration; Tier-2 ",
-        "internal_diagnostics and Tier-3 Palmistry are DEFERRED (not shipping in this worktree)."
+        "HBR-INT-009 posture: PostgreSQL/EventLedger authority and Tier-1 Flight Recorder events ",
+        "are WIRED for durable adapter selection inspection, interactive selection, semantic ",
+        "degrade, and provider_ref migration; Tier-2 internal_diagnostics is WIRED through the native producer and Problems projection; ",
+        "Tier-3 Palmistry is WIRED through the authenticated watcher and survivor recovery importer.",
+        " The coverage validator checks this typed-event and WIRED declaration against ",
+        "compiled canonical anchors and the deployed UserManual row; it does not claim to query ",
+        "live EventLedger or diagnostic-tier rows."
     )
     .to_string();
     let content_hash = sha256_hex(
@@ -5148,29 +5881,37 @@ pub async fn ensure_seeded(db: &PostgresDatabase) -> StorageResult<SeedReport> {
 
     let anything_changed = pages_changed + tools_changed + features_changed + aliases_changed > 0;
     let existing_version = store.get_version(USER_MANUAL_VERSION).await?;
-    let version_receipt = if anything_changed || existing_version.is_none() {
-        Some(
-            store
-                .record_version_with_receipt(
-                    USER_MANUAL_VERSION,
-                    &seed_hash,
-                    corpus.pages.len() as i32,
-                    corpus.tools.len() as i32,
-                    corpus.features.len() as i32,
-                    json!({
-                        "seed_content_hash": seed_hash,
-                        "pages_changed": pages_changed,
-                        "tools_changed": tools_changed,
-                        "features_changed": features_changed,
-                        "aliases_changed": aliases_changed,
-                    }),
-                    "WP-KERNEL-009 MT-193..MT-208 built-in seed corpus",
-                )
-                .await?,
-        )
-    } else {
-        None
-    };
+    let version_metadata_changed = existing_version.as_ref().is_some_and(|row| {
+        row.seed_content_hash != seed_hash
+            || row.page_count != corpus.pages.len() as i32
+            || row.tool_count != corpus.tools.len() as i32
+            || row.feature_count != corpus.features.len() as i32
+    });
+    let version_receipt =
+        if anything_changed || existing_version.is_none() || version_metadata_changed {
+            Some(
+                store
+                    .record_version_with_receipt(
+                        USER_MANUAL_VERSION,
+                        &seed_hash,
+                        corpus.pages.len() as i32,
+                        corpus.tools.len() as i32,
+                        corpus.features.len() as i32,
+                        json!({
+                            "seed_content_hash": seed_hash,
+                            "pages_changed": pages_changed,
+                            "tools_changed": tools_changed,
+                            "features_changed": features_changed,
+                            "aliases_changed": aliases_changed,
+                            "version_metadata_changed": version_metadata_changed,
+                        }),
+                        "WP-KERNEL-009 MT-193..MT-208 built-in seed corpus",
+                    )
+                    .await?,
+            )
+        } else {
+            None
+        };
 
     Ok(SeedReport {
         manual_version: USER_MANUAL_VERSION.into(),
@@ -5201,6 +5942,25 @@ mod tests {
             assert_eq!(page.slug, page.slug.to_lowercase());
             assert!(!page.slug.contains(' '));
             assert!(!page.sections.is_empty(), "{} has no sections", page.slug);
+        }
+    }
+
+    #[test]
+    fn every_registry_surface_group_page_slug_exists_in_the_corpus() {
+        let corpus = seed_corpus();
+        let slugs = corpus
+            .pages
+            .iter()
+            .map(|page| page.slug.as_str())
+            .collect::<BTreeSet<_>>();
+
+        for surface in wp009_surface_registry() {
+            assert!(
+                slugs.contains(surface.group.page_slug()),
+                "registry surface {} maps to missing UserManual page slug {}",
+                surface.surface_id,
+                surface.group.page_slug()
+            );
         }
     }
 
@@ -5338,8 +6098,4 @@ mod tests {
             let slug = format!("quickstart-{area}");
             assert!(
                 corpus.pages.iter().any(|p| p.slug == slug),
-                "missing quickstart page {slug}"
-            );
-        }
-    }
-}
+           

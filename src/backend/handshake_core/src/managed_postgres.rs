@@ -21,8 +21,10 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::str::FromStr;
 use std::time::Duration;
 
+use sqlx::postgres::PgConnectOptions;
 use thiserror::Error;
 use tokio::process::Command;
 use tokio::time::{sleep, Instant};
@@ -41,6 +43,8 @@ pub const PGBIN_ENV: &str = "PGBIN";
 /// Default managed listen port. Chosen off the standard 5432 so a managed
 /// instance does not clash with a pre-existing operator-run PostgreSQL.
 pub const DEFAULT_MANAGED_PG_PORT: u16 = 5544;
+/// Loopback endpoint used consistently by startup, readiness, proof, and URLs.
+const MANAGED_PG_LOOPBACK_HOST: &str = "127.0.0.1";
 /// Default application database created inside the managed cluster.
 pub const DEFAULT_DATABASE: &str = "handshake";
 /// Default cluster superuser (created by `initdb -U`).
@@ -77,6 +81,14 @@ pub enum ManagedPostgresError {
     /// The required PostgreSQL binaries could not be located.
     #[error("postgres binaries not found: {0}")]
     BinariesNotFound(String),
+    /// The configured endpoint was reachable, but it could not be proven to
+    /// be the postmaster owned by the configured local data directory.
+    #[error("managed postgres local-endpoint proof failed: {0}")]
+    LocalEndpointProofFailed(String),
+    /// A destructive stop was requested without proof that the current
+    /// postmaster was launched by this lifecycle attempt.
+    #[error("managed postgres launch ownership is uncertain: {0}")]
+    LaunchOwnershipUncertain(String),
 }
 
 /// Disk-agnostic configuration for the managed PostgreSQL cluster.
@@ -179,6 +191,24 @@ impl ManagedPostgresConfig {
 
         config
     }
+
+    /// Whether `database_url` addresses this exact configured managed cluster.
+    /// This is only a cheap routing prefilter; `ensure_running` still performs
+    /// the authoritative data-directory/system-identifier/process proof.
+    pub fn matches_database_url(&self, database_url: &str) -> bool {
+        let Ok(options) = PgConnectOptions::from_str(database_url) else {
+            return false;
+        };
+        let host = options.get_host().trim();
+        let loopback = host.eq_ignore_ascii_case("localhost")
+            || host
+                .parse::<std::net::IpAddr>()
+                .ok()
+                .is_some_and(|address| address.is_loopback());
+        loopback
+            && options.get_port() == self.port
+            && options.get_database().unwrap_or("postgres") == self.database
+    }
 }
 
 /// Read an environment variable as a non-empty `PathBuf` candidate.
@@ -249,6 +279,38 @@ fn default_data_dir() -> PathBuf {
     }
 }
 
+/// Opaque evidence that a reachable loopback endpoint is the postmaster for
+/// the configured local managed-PostgreSQL data directory.
+///
+/// The fields are deliberately private and the type has no public constructor:
+/// callers can obtain only a borrowed token from a successful
+/// [`ManagedPostgres::ensure_running`] result. The token is independent of
+/// shutdown ownership; both a cluster started by this process and a surviving
+/// cluster adopted after a Handshake crash can be proven local, while only the
+/// former may be stopped by [`ManagedPostgres::stop`]. Its stable scope identity
+/// is PostgreSQL's own `system_identifier`, not a machine-local absolute path.
+#[derive(Debug)]
+pub struct ProvenLocalPostgresEndpoint {
+    database_url: String,
+    system_identifier: String,
+    port: u16,
+    postmaster_pid: u32,
+}
+
+impl ProvenLocalPostgresEndpoint {
+    pub(crate) fn database_url(&self) -> &str {
+        &self.database_url
+    }
+
+    pub(crate) fn system_identifier(&self) -> &str {
+        &self.system_identifier
+    }
+
+    pub(crate) fn port(&self) -> u16 {
+        self.port
+    }
+}
+
 /// A handle to the (possibly managed) PostgreSQL cluster.
 #[derive(Debug)]
 pub struct ManagedPostgres {
@@ -259,6 +321,115 @@ pub struct ManagedPostgres {
     /// `true` only when this instance started the cluster and therefore owns
     /// its shutdown. `false` for disabled or adopted/already-running clusters.
     started_here: bool,
+    /// Local-endpoint provenance is intentionally separate from shutdown
+    /// ownership. Adopted postmasters receive proof after their configured
+    /// data directory, pid file, and port are verified.
+    proven_local_endpoint: Option<ProvenLocalPostgresEndpoint>,
+    launch_identity: Option<ManagedPostgresLaunchIdentity>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ManagedPostgresLaunchIdentity {
+    token: String,
+    prelaunch_postmaster_pid: Option<Vec<u8>>,
+    confirmed_postmaster_pid: Option<u32>,
+}
+
+impl ManagedPostgresLaunchIdentity {
+    fn capture(data_dir: &Path) -> Self {
+        Self {
+            token: format!("hsk_{}", uuid::Uuid::now_v7().simple()),
+            prelaunch_postmaster_pid: std::fs::read(data_dir.join("postmaster.pid")).ok(),
+            confirmed_postmaster_pid: None,
+        }
+    }
+}
+
+/// Cancellation-safe ownership fence installed immediately before launching
+/// `pg_ctl start`. Until disarmed by transfer into `ManagedPostgres`, every
+/// return, panic unwind, or dropped startup future schedules an owned stop.
+/// Arming before the launch await closes the boundary where `pg_ctl` may have
+/// launched the postmaster but the awaiting startup future is cancelled before
+/// it observes the command's exit status.
+struct ManagedPostgresStartupGuard {
+    config: Option<ManagedPostgresConfig>,
+    launch_identity: ManagedPostgresLaunchIdentity,
+}
+
+impl ManagedPostgresStartupGuard {
+    fn armed(
+        config: ManagedPostgresConfig,
+        launch_identity: ManagedPostgresLaunchIdentity,
+    ) -> Self {
+        Self {
+            config: Some(config),
+            launch_identity,
+        }
+    }
+
+    async fn stop_on_error(
+        &mut self,
+        error: ManagedPostgresError,
+    ) -> Result<ManagedPostgres, ManagedPostgresError> {
+        self.stop_on_error_with(error, |config, launch_identity| async move {
+            stop_owned_cluster(&config, Some(&launch_identity)).await
+        })
+        .await
+    }
+
+    async fn stop_on_error_with<F, Fut>(
+        &mut self,
+        error: ManagedPostgresError,
+        stop: F,
+    ) -> Result<ManagedPostgres, ManagedPostgresError>
+    where
+        F: FnOnce(ManagedPostgresConfig, ManagedPostgresLaunchIdentity) -> Fut,
+        Fut: std::future::Future<Output = Result<(), ManagedPostgresError>>,
+    {
+        if let Some(config) = self.config.clone() {
+            if let Err(stop_error) = stop(config, self.launch_identity.clone()).await {
+                tracing::error!(
+                    target: "handshake_core::managed_postgres",
+                    error = %stop_error,
+                    startup_error = %error,
+                    "failed to stop PostgreSQL owned by a failed startup"
+                );
+            } else {
+                // Disarm only after exact identity-gated cleanup succeeds.
+                // Failure retains ownership so Drop schedules a second attempt.
+                self.config = None;
+            }
+            // Keep the guard armed across the cleanup await. Cancellation of
+            // that await therefore re-enters Drop and schedules the same
+            // identity-gated cleanup instead of silently losing ownership.
+        }
+        Err(error)
+    }
+
+    fn bind_confirmed_postmaster_pid(
+        &mut self,
+        postmaster_pid: u32,
+    ) -> ManagedPostgresLaunchIdentity {
+        self.launch_identity.confirmed_postmaster_pid = Some(postmaster_pid);
+        self.launch_identity.clone()
+    }
+
+    fn disarm_and_transfer(&mut self) -> ManagedPostgresLaunchIdentity {
+        self.config = None;
+        self.launch_identity.clone()
+    }
+}
+
+impl Drop for ManagedPostgresStartupGuard {
+    fn drop(&mut self) {
+        if let Some(config) = self.config.take() {
+            schedule_owned_stop(
+                config,
+                Some(self.launch_identity.clone()),
+                "cancelled or unwound managed PostgreSQL startup",
+            );
+        }
+    }
 }
 
 impl ManagedPostgres {
@@ -281,6 +452,8 @@ impl ManagedPostgres {
                 config,
                 os_pid: None,
                 started_here: false,
+                proven_local_endpoint: None,
+                launch_identity: None,
             });
         }
 
@@ -310,7 +483,16 @@ impl ManagedPostgres {
         // readiness while every product Postgres/EventLedger connection fails
         // with 3D000 because `handshake` was never created.
         if is_ready(&pg_isready, config.port).await {
+            // Readiness on localhost is not provenance: the port could be an
+            // unrelated PostgreSQL instance or a tunnel. Prove that pg_ctl and
+            // postmaster.pid identify this configured data directory before
+            // issuing any provisioning SQL, then prove it again after the SQL
+            // round trip so the returned token describes the live endpoint.
+            let _pre_provision_proof =
+                prove_local_postgres_endpoint(&pg_ctl, &pg_isready, &psql, &config).await?;
             ensure_database(&psql, &config).await?;
+            let proven_local_endpoint =
+                prove_local_postgres_endpoint(&pg_ctl, &pg_isready, &psql, &config).await?;
             tracing::info!(
                 target: "handshake_core::managed_postgres",
                 port = config.port,
@@ -321,6 +503,8 @@ impl ManagedPostgres {
                 config,
                 os_pid: None,
                 started_here: false,
+                proven_local_endpoint: Some(proven_local_endpoint),
+                launch_identity: None,
             });
         }
 
@@ -332,54 +516,106 @@ impl ManagedPostgres {
             run_initdb(&initdb, &config).await?;
         }
 
-        // 5. Start the cluster detached and poll until ready or timeout.
-        start_cluster(&pg_ctl, &config).await?;
-        wait_until_ready(&pg_isready, config.port, config.startup_timeout).await?;
+        // 5. Arm ownership BEFORE launching. `pg_ctl start` can create the
+        // postmaster before its own process exits; cancellation at that exact
+        // await boundary must therefore still drive an owned stop.
+        let launch_identity = ManagedPostgresLaunchIdentity::capture(&config.data_dir);
+        let mut startup_guard =
+            ManagedPostgresStartupGuard::armed(config.clone(), launch_identity.clone());
+        if let Err(error) = start_cluster(&pg_ctl, &config, &launch_identity.token).await {
+            return startup_guard.stop_on_error(error).await;
+        }
+        if let Err(error) = wait_until_ready(&pg_isready, config.port, config.startup_timeout).await
+        {
+            return startup_guard.stop_on_error(error).await;
+        }
 
-        let os_pid = read_postmaster_pid(&config.data_dir);
-
-        // 6. Ensure the application database exists (ignore "already exists").
-        // If provisioning fails after this invocation started the postmaster,
-        // stop that owned process before returning the original failure.  A
-        // failed bootstrap must not strand a managed cluster that later tests
-        // or product launches could accidentally adopt as healthy.
-        if let Err(error) = ensure_database(&psql, &config).await {
-            let cleanup = Self {
-                config,
-                os_pid,
-                started_here: true,
+        // 6. Prove and bind the endpoint PID before any later fallible startup
+        // work. Provisioning failure must therefore clean up with a confirmed
+        // launch identity rather than the pre-proof capture.
+        let pre_provision_endpoint =
+            match prove_local_postgres_endpoint(&pg_ctl, &pg_isready, &psql, &config).await {
+                Ok(proof) => proof,
+                Err(error) => {
+                    return startup_guard.stop_on_error(error).await;
+                }
             };
-            if let Err(stop_error) = cleanup.stop().await {
-                tracing::error!(
-                    target: "handshake_core::managed_postgres",
-                    error = %stop_error,
-                    "failed to stop owned PostgreSQL after application-database provisioning failed"
-                );
+        // Bind endpoint proof into the guard BEFORE mandatory launch-attempt
+        // authorization. From this point onward, any failure cleanup and the
+        // eventual managed handle observe the exact same confirmed identity.
+        let confirmed_launch_identity =
+            startup_guard.bind_confirmed_postmaster_pid(pre_provision_endpoint.postmaster_pid);
+        match prove_live_launch_identity(&config, &confirmed_launch_identity) {
+            Ok(postmaster_pid) if postmaster_pid == pre_provision_endpoint.postmaster_pid => {}
+            Ok(postmaster_pid) => {
+                return startup_guard
+                    .stop_on_error(ManagedPostgresError::LaunchOwnershipUncertain(format!(
+                        "launch token {} resolved pid {postmaster_pid}, endpoint proof resolved pid {}",
+                        confirmed_launch_identity.token, pre_provision_endpoint.postmaster_pid
+                    )))
+                    .await;
             }
-            return Err(error);
+            Err(error) => return startup_guard.stop_on_error(error).await,
+        }
+
+        // 7. Ensure the application database exists. The guard is already PID
+        // confirmed and launch-authorized, so this later failure path can stop
+        // only the postmaster proven to belong to this attempt.
+        if let Err(error) = ensure_database(&psql, &config).await {
+            return startup_guard.stop_on_error(error).await;
+        }
+
+        let proven_local_endpoint =
+            match prove_local_postgres_endpoint(&pg_ctl, &pg_isready, &psql, &config).await {
+                Ok(proof) => proof,
+                Err(error) => {
+                    return startup_guard.stop_on_error(error).await;
+                }
+            };
+        if proven_local_endpoint.postmaster_pid != pre_provision_endpoint.postmaster_pid {
+            return startup_guard
+                .stop_on_error(ManagedPostgresError::LaunchOwnershipUncertain(format!(
+                    "postmaster changed from pid {} to pid {} during managed startup",
+                    pre_provision_endpoint.postmaster_pid, proven_local_endpoint.postmaster_pid
+                )))
+                .await;
+        }
+        if let Err(error) = prove_live_launch_identity(&config, &confirmed_launch_identity) {
+            return startup_guard.stop_on_error(error).await;
         }
 
         tracing::info!(
             target: "handshake_core::managed_postgres",
             port = config.port,
-            os_pid = os_pid.unwrap_or(0),
+            os_pid = proven_local_endpoint.postmaster_pid,
             database = %config.database,
             "Managed PostgreSQL ready"
         );
 
+        let launch_identity = startup_guard.disarm_and_transfer();
         Ok(Self {
             config,
-            os_pid,
+            os_pid: Some(proven_local_endpoint.postmaster_pid),
             started_here: true,
+            proven_local_endpoint: Some(proven_local_endpoint),
+            launch_identity: Some(launch_identity),
         })
     }
 
     /// Connection URL: `postgres://<superuser>@127.0.0.1:<port>/<database>`.
     pub fn database_url(&self) -> String {
-        format!(
-            "postgres://{}@127.0.0.1:{}/{}",
-            self.config.superuser, self.config.port, self.config.database
-        )
+        database_url_for_config(&self.config)
+    }
+
+    /// Return opaque proof that this handle's endpoint is the postmaster for
+    /// its configured local data directory.
+    ///
+    /// Enabled handles return proof whether they started or adopted the
+    /// postmaster. Disabled/external handles return `None`. This is not a
+    /// shutdown-ownership capability; [`stop`](Self::stop) additionally
+    /// requires the private launch-attempt token and PID snapshot proof.
+    pub fn proven_local_endpoint(&self) -> Option<&ProvenLocalPostgresEndpoint> {
+        self.proven_local_endpoint.as_ref()
     }
 
     /// Postmaster OS pid, when this handle started the cluster.
@@ -412,74 +648,257 @@ impl ManagedPostgres {
             return Ok(());
         }
 
-        let pg_ctl = match resolve_bin(&self.config.bin_dir, "pg_ctl") {
-            Ok(path) => path,
-            Err(err) => {
-                // Binaries vanished after start; nothing we can do, but do not
-                // hard-fail shutdown over a missing binary.
-                tracing::warn!(
-                    target: "handshake_core::managed_postgres",
-                    error = %err,
-                    "pg_ctl not found at shutdown; skipping stop"
-                );
-                return Ok(());
-            }
-        };
+        stop_owned_cluster(&self.config, self.launch_identity.as_ref()).await
+    }
 
-        let pg_isready = resolve_bin(&self.config.bin_dir, "pg_isready")?;
-
-        // `pg_ctl stop` can retain a Windows process handle even after it has
-        // successfully asked the postmaster to shut down.  Its exit status is
-        // therefore not the lifecycle authority: the owned cluster is stopped
-        // only once `pg_isready` confirms the listening PostgreSQL endpoint is
-        // gone.  This is the shutdown counterpart to startup's readiness
-        // polling and avoids a false StopTimeout caused by pg_ctl's inherited
-        // postmaster handles.
-        if !is_ready(&pg_isready, self.config.port).await {
+    /// Stop an owned cluster synchronously and wait for the identity-gated
+    /// shutdown to finish.
+    ///
+    /// This is the process-exit counterpart to [`stop`](Self::stop). Test
+    /// harness `atexit` callbacks cannot rely on an ambient Tokio runtime or
+    /// an unjoined cleanup thread, so the exact same launch-token/PID proof is
+    /// executed on a dedicated current-thread runtime and joined before this
+    /// method returns. Disabled and adopted clusters remain no-ops.
+    pub fn stop_blocking(&self) -> Result<(), ManagedPostgresError> {
+        if !self.started_here {
             tracing::debug!(
                 target: "handshake_core::managed_postgres",
-                port = self.config.port,
-                "Managed PostgreSQL was already stopped"
+                "stop_blocking() is a no-op for unmanaged/external cluster"
             );
             return Ok(());
         }
 
-        let timeout = self.config.startup_timeout;
-        let mut child = no_window(Command::new(&pg_ctl))
+        let config = self.config.clone();
+        let launch_identity = self.launch_identity.clone();
+        std::thread::Builder::new()
+            .name("handshake-managed-pg-stop".to_string())
+            .spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()?;
+                runtime.block_on(stop_owned_cluster(&config, launch_identity.as_ref()))
+            })?
+            .join()
+            .map_err(|_| {
+                ManagedPostgresError::LaunchOwnershipUncertain(
+                    "owned PostgreSQL blocking-stop worker panicked".to_string(),
+                )
+            })?
+    }
+}
+
+impl Drop for ManagedPostgres {
+    fn drop(&mut self) {
+        if self.started_here {
+            schedule_owned_stop(
+                self.config.clone(),
+                self.launch_identity.clone(),
+                "dropped managed PostgreSQL ownership handle",
+            );
+            self.started_here = false;
+        }
+    }
+}
+
+fn schedule_owned_stop(
+    config: ManagedPostgresConfig,
+    launch_identity: Option<ManagedPostgresLaunchIdentity>,
+    reason: &'static str,
+) {
+    let stop = async move {
+        if let Err(error) = stop_owned_cluster(&config, launch_identity.as_ref()).await {
+            tracing::error!(
+                target: "handshake_core::managed_postgres",
+                %error,
+                reason,
+                "owned PostgreSQL cleanup failed"
+            );
+        }
+    };
+    if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+        runtime.spawn(stop);
+    } else {
+        std::thread::spawn(move || {
+            match tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            {
+                Ok(runtime) => runtime.block_on(stop),
+                Err(error) => tracing::error!(
+                    target: "handshake_core::managed_postgres",
+                    %error,
+                    reason,
+                    "could not construct runtime for owned PostgreSQL cleanup"
+                ),
+            }
+        });
+    }
+}
+
+/// Prove that the live postmaster belongs to one specific launch attempt.
+///
+/// The pre-launch PID-file snapshot prevents an already-running/concurrently
+/// launched postmaster from being mistaken for ours. The unique `cluster_name`
+/// token is injected into the postmaster command line and persisted by
+/// PostgreSQL in `postmaster.opts`; a matching token therefore attributes the
+/// live PID file to this exact `pg_ctl start` invocation. Any missing, stale, or
+/// conflicting evidence fails closed before `pg_ctl stop` is spawned.
+fn prove_live_launch_identity(
+    config: &ManagedPostgresConfig,
+    identity: &ManagedPostgresLaunchIdentity,
+) -> Result<u32, ManagedPostgresError> {
+    let pid_path = config.data_dir.join("postmaster.pid");
+    let current_pid_file = std::fs::read(&pid_path).map_err(|error| {
+        ManagedPostgresError::LaunchOwnershipUncertain(format!(
+            "cannot read live {} for launch token {}: {error}",
+            pid_path.display(),
+            identity.token
+        ))
+    })?;
+    if identity.prelaunch_postmaster_pid.as_deref() == Some(current_pid_file.as_slice()) {
+        return Err(ManagedPostgresError::LaunchOwnershipUncertain(format!(
+            "postmaster.pid is unchanged from the pre-launch snapshot for token {}",
+            identity.token
+        )));
+    }
+    let current_pid = String::from_utf8_lossy(&current_pid_file)
+        .lines()
+        .next()
+        .and_then(|value| value.trim().parse::<u32>().ok())
+        .filter(|pid| *pid != 0)
+        .ok_or_else(|| {
+            ManagedPostgresError::LaunchOwnershipUncertain(format!(
+                "live postmaster.pid has no valid pid for launch token {}",
+                identity.token
+            ))
+        })?;
+    let confirmed_postmaster_pid = identity.confirmed_postmaster_pid.ok_or_else(|| {
+        ManagedPostgresError::LaunchOwnershipUncertain(format!(
+            "launch token {} has no endpoint-confirmed postmaster pid",
+            identity.token
+        ))
+    })?;
+    if confirmed_postmaster_pid != current_pid {
+        return Err(ManagedPostgresError::LaunchOwnershipUncertain(format!(
+            "live postmaster pid {current_pid} differs from confirmed launch pid {confirmed_postmaster_pid} for token {}",
+            identity.token
+        )));
+    }
+
+    let opts_path = config.data_dir.join("postmaster.opts");
+    let opts = std::fs::read_to_string(&opts_path).map_err(|error| {
+        ManagedPostgresError::LaunchOwnershipUncertain(format!(
+            "cannot read live {} for launch token {}: {error}",
+            opts_path.display(),
+            identity.token
+        ))
+    })?;
+    let expected_setting = format!("cluster_name={}", identity.token);
+    let token_matches = opts
+        .split(|ch: char| ch.is_whitespace() || matches!(ch, '\'' | '"'))
+        .any(|part| part == expected_setting);
+    if !token_matches {
+        return Err(ManagedPostgresError::LaunchOwnershipUncertain(format!(
+            "live postmaster.opts does not contain exact launch token {}",
+            identity.token
+        )));
+    }
+    Ok(current_pid)
+}
+
+fn authorize_destructive_stop<T>(
+    config: &ManagedPostgresConfig,
+    identity: &ManagedPostgresLaunchIdentity,
+    invoke_pg_ctl_stop: impl FnOnce() -> Result<T, ManagedPostgresError>,
+) -> Result<T, ManagedPostgresError> {
+    prove_live_launch_identity(config, identity)?;
+    invoke_pg_ctl_stop()
+}
+
+async fn stop_owned_cluster(
+    config: &ManagedPostgresConfig,
+    launch_identity: Option<&ManagedPostgresLaunchIdentity>,
+) -> Result<(), ManagedPostgresError> {
+    let pg_ctl = match resolve_bin(&config.bin_dir, "pg_ctl") {
+        Ok(path) => path,
+        Err(err) => {
+            // An owned postmaster is still our shutdown responsibility.
+            // Missing control binaries make that responsibility
+            // unprovable; return the failure rather than reporting a
+            // successful stop while the process may still be live.
+            tracing::error!(
+                target: "handshake_core::managed_postgres",
+                error = %err,
+                "pg_ctl not found at shutdown; owned PostgreSQL stop cannot be proven"
+            );
+            return Err(err);
+        }
+    };
+
+    let pg_isready = resolve_bin(&config.bin_dir, "pg_isready")?;
+
+    // `pg_ctl stop` can retain a Windows process handle even after it has
+    // successfully asked the postmaster to shut down.  Its exit status is
+    // therefore not the lifecycle authority: the owned cluster is stopped
+    // only once `pg_isready` confirms the listening PostgreSQL endpoint is
+    // gone.  This is the shutdown counterpart to startup's readiness
+    // polling and avoids a false StopTimeout caused by pg_ctl's inherited
+    // postmaster handles.
+    if !is_ready(&pg_isready, config.port).await && read_postmaster_pid(&config.data_dir).is_none()
+    {
+        tracing::debug!(
+            target: "handshake_core::managed_postgres",
+            port = config.port,
+            "Managed PostgreSQL was already stopped"
+        );
+        return Ok(());
+    }
+
+    let launch_identity = launch_identity.ok_or_else(|| {
+        ManagedPostgresError::LaunchOwnershipUncertain(
+            "owned stop lacks a launch-attempt identity".to_string(),
+        )
+    })?;
+    let timeout = config.startup_timeout;
+    let mut child = authorize_destructive_stop(config, launch_identity, || {
+        no_window(Command::new(&pg_ctl))
             .kill_on_drop(true)
             .arg("-D")
-            .arg(&self.config.data_dir)
+            .arg(&config.data_dir)
             .arg("stop")
             .arg("-m")
             .arg("fast")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn()?;
-        let deadline = Instant::now() + timeout;
-        loop {
-            if !is_ready(&pg_isready, self.config.port).await {
-                tracing::info!(
-                    target: "handshake_core::managed_postgres",
-                    "Managed PostgreSQL stopped"
-                );
-                return Ok(());
-            }
-
-            if let Some(status) = child.try_wait()? {
-                if !status.success() {
-                    return Err(ManagedPostgresError::StopFailed(format!(
-                        "pg_ctl stop exited with {status} while PostgreSQL still accepted connections"
-                    )));
-                }
-            }
-
-            if Instant::now() >= deadline {
-                let _ = child.start_kill();
-                return Err(ManagedPostgresError::StopTimeout(timeout));
-            }
-            sleep(Duration::from_millis(250)).await;
+            .spawn()
+            .map_err(ManagedPostgresError::from)
+    })?;
+    let deadline = Instant::now() + timeout;
+    loop {
+        if !is_ready(&pg_isready, config.port).await
+            && read_postmaster_pid(&config.data_dir).is_none()
+        {
+            tracing::info!(
+                target: "handshake_core::managed_postgres",
+                "Managed PostgreSQL stopped"
+            );
+            return Ok(());
         }
+
+        if let Some(status) = child.try_wait()? {
+            if !status.success() {
+                return Err(ManagedPostgresError::StopFailed(format!(
+                    "pg_ctl stop exited with {status} while PostgreSQL still accepted connections"
+                )));
+            }
+        }
+
+        if Instant::now() >= deadline {
+            let _ = child.start_kill();
+            return Err(ManagedPostgresError::StopTimeout(timeout));
+        }
+        sleep(Duration::from_millis(250)).await;
     }
 }
 
@@ -636,7 +1055,7 @@ fn cluster_initialized(data_dir: &Path) -> bool {
 async fn is_ready(pg_isready: &Path, port: u16) -> bool {
     match no_window(Command::new(pg_isready))
         .arg("-h")
-        .arg("127.0.0.1")
+        .arg(MANAGED_PG_LOOPBACK_HOST)
         .arg("-p")
         .arg(port.to_string())
         .output()
@@ -676,12 +1095,14 @@ async fn run_initdb(
 
 /// Start the cluster detached.
 ///
-/// `pg_ctl -D <data_dir> -o "-p <port>" -l <data_dir>/postgres.log start`.
+/// `pg_ctl -D <data_dir> -o "-p <port> -h 127.0.0.1" -l
+/// <data_dir>/postgres.log start`.
 /// The blocking `-w` flag is deliberately omitted because it can hang on
 /// Windows; readiness is established afterward by polling `pg_isready`.
 async fn start_cluster(
     pg_ctl: &Path,
     config: &ManagedPostgresConfig,
+    launch_token: &str,
 ) -> Result<(), ManagedPostgresError> {
     let log_path = config.data_dir.join("postgres.log");
     tracing::info!(
@@ -698,19 +1119,29 @@ async fn start_cluster(
     // inherited, and use `.status()` — pg_ctl (started without the blocking
     // `-w`) exits promptly once the postmaster is launched. Startup diagnostics
     // are still captured in the `-l` log file.
-    let status = no_window(Command::new(pg_ctl))
+    let mut start_command = no_window(Command::new(pg_ctl));
+    start_command
+        .kill_on_drop(true)
         .arg("-D")
         .arg(&config.data_dir)
         .arg("-o")
-        .arg(format!("-p {}", config.port))
+        // Every readiness, identity-proof, provisioning, and product URL path
+        // below targets the IPv4 loopback address. PostgreSQL's platform-local
+        // `localhost` resolution can otherwise bind only `::1`, leaving a live
+        // postmaster that the authoritative IPv4 path cannot reach.
+        .arg(format!(
+            "-p {} -h {} -c cluster_name={}",
+            config.port, MANAGED_PG_LOOPBACK_HOST, launch_token
+        ))
         .arg("-l")
         .arg(&log_path)
         .arg("start")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .await?;
+        .stderr(Stdio::null());
+    let status = tokio::time::timeout(config.startup_timeout, start_command.status())
+        .await
+        .map_err(|_| ManagedPostgresError::Timeout(config.startup_timeout))??;
     if !status.success() {
         let log_hint = std::fs::read_to_string(&log_path)
             .ok()
@@ -739,6 +1170,254 @@ async fn wait_until_ready(
             return Err(ManagedPostgresError::Timeout(timeout));
         }
         sleep(poll_interval).await;
+    }
+}
+
+fn database_url_for_config(config: &ManagedPostgresConfig) -> String {
+    format!(
+        "postgres://{}@{}:{}/{}",
+        config.superuser, MANAGED_PG_LOOPBACK_HOST, config.port, config.database
+    )
+}
+
+/// Prove that the configured reachable endpoint is the postmaster associated
+/// with the configured local data directory.
+///
+/// `pg_isready` alone is insufficient because a loopback port can belong to an
+/// unrelated cluster or tunnel. This proof requires all of the following:
+/// the SQL endpoint itself reports the same canonical `data_directory`, its
+/// `pg_control_system().system_identifier` is captured, `pg_ctl -D
+/// <configured-data-dir> status` succeeds, `postmaster.pid` names that same
+/// canonical data directory, and its recorded port equals the configured
+/// endpoint. The returned token is constructed only here.
+async fn prove_local_postgres_endpoint(
+    pg_ctl: &Path,
+    pg_isready: &Path,
+    psql: &Path,
+    config: &ManagedPostgresConfig,
+) -> Result<ProvenLocalPostgresEndpoint, ManagedPostgresError> {
+    if !is_ready(pg_isready, config.port).await {
+        return Err(ManagedPostgresError::LocalEndpointProofFailed(format!(
+            "configured endpoint {}:{} is not ready",
+            MANAGED_PG_LOOPBACK_HOST, config.port
+        )));
+    }
+
+    let configured_data_dir_identity = canonical_data_dir_identity(&config.data_dir)?;
+    let sql_endpoint_identity = query_sql_endpoint_identity(psql, config).await?;
+    let sql_data_dir_identity =
+        canonical_data_dir_identity(Path::new(&sql_endpoint_identity.data_directory))?;
+    if configured_data_dir_identity != sql_data_dir_identity {
+        return Err(ManagedPostgresError::LocalEndpointProofFailed(format!(
+            "SQL endpoint data_directory {} does not match configured data directory {}",
+            sql_endpoint_identity.data_directory,
+            config.data_dir.display()
+        )));
+    }
+
+    let mut status_command = no_window(Command::new(pg_ctl));
+    status_command
+        .kill_on_drop(true)
+        .arg("-D")
+        .arg(&config.data_dir)
+        .arg("status")
+        .stdin(Stdio::null());
+    let status = tokio::time::timeout(config.startup_timeout, status_command.output())
+        .await
+        .map_err(|_| {
+            ManagedPostgresError::LocalEndpointProofFailed(format!(
+                "pg_ctl status timed out after {:?} for {}",
+                config.startup_timeout,
+                config.data_dir.display()
+            ))
+        })??;
+    if !status.status.success() {
+        return Err(ManagedPostgresError::LocalEndpointProofFailed(format!(
+            "pg_ctl status rejected configured data directory {}: {}",
+            config.data_dir.display(),
+            psql_output_text(&status)
+        )));
+    }
+
+    let pid_path = config.data_dir.join("postmaster.pid");
+    let contents = std::fs::read_to_string(&pid_path).map_err(|error| {
+        ManagedPostgresError::LocalEndpointProofFailed(format!(
+            "cannot read {}: {error}",
+            pid_path.display()
+        ))
+    })?;
+    let lines: Vec<&str> = contents.lines().collect();
+    let postmaster_pid = lines
+        .first()
+        .map(|value| value.trim())
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|pid| *pid != 0)
+        .ok_or_else(|| {
+            ManagedPostgresError::LocalEndpointProofFailed(format!(
+                "{} has no valid positive postmaster pid",
+                pid_path.display()
+            ))
+        })?;
+    let recorded_data_dir = lines
+        .get(1)
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            ManagedPostgresError::LocalEndpointProofFailed(format!(
+                "{} has no recorded data directory",
+                pid_path.display()
+            ))
+        })?;
+    let recorded_port = lines
+        .get(3)
+        .map(|value| value.trim())
+        .and_then(|value| value.parse::<u16>().ok())
+        .filter(|port| *port != 0)
+        .ok_or_else(|| {
+            ManagedPostgresError::LocalEndpointProofFailed(format!(
+                "{} has no valid recorded TCP port",
+                pid_path.display()
+            ))
+        })?;
+
+    let recorded_data_dir_identity = canonical_data_dir_identity(Path::new(recorded_data_dir))?;
+    if configured_data_dir_identity != recorded_data_dir_identity {
+        return Err(ManagedPostgresError::LocalEndpointProofFailed(format!(
+            "postmaster.pid data directory does not match configured data directory {}",
+            config.data_dir.display()
+        )));
+    }
+    if recorded_port != config.port {
+        return Err(ManagedPostgresError::LocalEndpointProofFailed(format!(
+            "postmaster.pid port {recorded_port} does not match configured port {}",
+            config.port
+        )));
+    }
+
+    Ok(ProvenLocalPostgresEndpoint {
+        database_url: database_url_for_config(config),
+        system_identifier: sql_endpoint_identity.system_identifier,
+        port: recorded_port,
+        postmaster_pid,
+    })
+}
+
+#[derive(Debug)]
+struct SqlEndpointIdentity {
+    data_directory: String,
+    system_identifier: String,
+}
+
+async fn query_sql_endpoint_identity(
+    psql: &Path,
+    config: &ManagedPostgresConfig,
+) -> Result<SqlEndpointIdentity, ManagedPostgresError> {
+    const IDENTITY_SQL: &str = r#"
+        SELECT pg_catalog.json_build_object(
+            'data_directory', pg_catalog.current_setting('data_directory'),
+            'system_identifier', control.system_identifier::pg_catalog.text
+        )::pg_catalog.text
+        FROM pg_catalog.pg_control_system() AS control
+    "#;
+
+    for maintenance_database in ["postgres", "template1"] {
+        let mut command = no_window(Command::new(psql));
+        command
+            .kill_on_drop(true)
+            .stdin(Stdio::null())
+            .arg("-X")
+            .arg("-w")
+            .arg("-A")
+            .arg("-t")
+            .arg("-q")
+            .arg("-h")
+            .arg(MANAGED_PG_LOOPBACK_HOST)
+            .arg("-p")
+            .arg(config.port.to_string())
+            .arg("-U")
+            .arg(&config.superuser)
+            .arg("-d")
+            .arg(maintenance_database)
+            .arg("-v")
+            .arg("ON_ERROR_STOP=1")
+            .arg("-c")
+            .arg(IDENTITY_SQL);
+        let output = tokio::time::timeout(config.startup_timeout, command.output())
+            .await
+            .map_err(|_| {
+                ManagedPostgresError::LocalEndpointProofFailed(format!(
+                    "SQL endpoint identity query timed out after {:?}",
+                    config.startup_timeout
+                ))
+            })??;
+        if output.status.success() {
+            let raw = String::from_utf8_lossy(&output.stdout);
+            let json = raw.trim();
+            let value: serde_json::Value = serde_json::from_str(json).map_err(|error| {
+                ManagedPostgresError::LocalEndpointProofFailed(format!(
+                    "SQL endpoint returned malformed identity JSON: {error}"
+                ))
+            })?;
+            let data_directory = value
+                .get("data_directory")
+                .and_then(serde_json::Value::as_str)
+                .filter(|value| !value.trim().is_empty())
+                .ok_or_else(|| {
+                    ManagedPostgresError::LocalEndpointProofFailed(
+                        "SQL endpoint identity omitted data_directory".to_string(),
+                    )
+                })?
+                .to_string();
+            let system_identifier = value
+                .get("system_identifier")
+                .and_then(serde_json::Value::as_str)
+                // PostgreSQL exposes the unsigned 64-bit control-system
+                // identity through its signed BIGINT type. Preserve the full
+                // bit pattern rather than rejecting high-bit identifiers that
+                // are rendered as negative i64 values.
+                .and_then(|value| value.parse::<i64>().ok())
+                .map(|value| value as u64)
+                .filter(|value| *value != 0)
+                .map(|value| value.to_string())
+                .ok_or_else(|| {
+                    ManagedPostgresError::LocalEndpointProofFailed(
+                        "SQL endpoint identity omitted a valid system_identifier".to_string(),
+                    )
+                })?;
+            return Ok(SqlEndpointIdentity {
+                data_directory,
+                system_identifier,
+            });
+        }
+
+        if maintenance_database == "postgres"
+            && output_reports_missing_database(&output, maintenance_database)
+        {
+            continue;
+        }
+        return Err(ManagedPostgresError::LocalEndpointProofFailed(format!(
+            "cannot query SQL endpoint identity through maintenance database `{maintenance_database}`: {}",
+            psql_output_text(&output)
+        )));
+    }
+
+    Err(ManagedPostgresError::LocalEndpointProofFailed(
+        "neither `postgres` nor `template1` could report SQL endpoint identity".to_string(),
+    ))
+}
+
+fn canonical_data_dir_identity(data_dir: &Path) -> Result<String, ManagedPostgresError> {
+    let canonical = std::fs::canonicalize(data_dir).map_err(|error| {
+        ManagedPostgresError::LocalEndpointProofFailed(format!(
+            "cannot canonicalize managed data directory {}: {error}",
+            data_dir.display()
+        ))
+    })?;
+    let normalized = canonical.to_string_lossy().replace('\\', "/");
+    if cfg!(windows) {
+        Ok(normalized.to_ascii_lowercase())
+    } else {
+        Ok(normalized)
     }
 }
 
@@ -868,7 +1547,7 @@ fn psql_command(psql: &Path, config: &ManagedPostgresConfig, database: &str, sql
         // `ensure_database` to report.
         .arg("-w")
         .arg("-h")
-        .arg("127.0.0.1")
+        .arg(MANAGED_PG_LOOPBACK_HOST)
         .arg("-p")
         .arg(config.port.to_string())
         .arg("-U")
@@ -934,6 +1613,8 @@ mod tests {
             },
             os_pid: Some(1234),
             started_here: true,
+            proven_local_endpoint: None,
+            launch_identity: None,
         };
         assert_eq!(
             pg.database_url(),
@@ -1033,6 +1714,362 @@ mod tests {
         pg.stop()
             .await
             .expect("stop must be a no-op when unmanaged");
+    }
+
+    #[tokio::test]
+    async fn owned_stop_fails_when_pg_ctl_is_unavailable() {
+        let pg = ManagedPostgres {
+            config: ManagedPostgresConfig {
+                enabled: true,
+                data_dir: PathBuf::from("pgdata"),
+                port: 6001,
+                bin_dir: PathBuf::from("definitely-not-a-real-pg-bin-dir-xyz"),
+                database: "handshake".to_string(),
+                superuser: "postgres".to_string(),
+                startup_timeout: Duration::from_secs(1),
+            },
+            os_pid: Some(1234),
+            started_here: true,
+            proven_local_endpoint: None,
+            launch_identity: None,
+        };
+        let error = pg
+            .stop()
+            .await
+            .expect_err("owned stop must not report success without pg_ctl");
+        assert!(matches!(error, ManagedPostgresError::BinariesNotFound(_)));
+    }
+
+    #[tokio::test]
+    async fn pg_ctl_start_boundary_is_timeout_bounded() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        #[cfg(windows)]
+        let command_path = {
+            let path = temp.path().join("pg_ctl_hang.cmd");
+            std::fs::write(&path, "@echo off\r\nping 127.0.0.1 -n 30 >NUL\r\n")
+                .expect("write hanging pg_ctl shim");
+            path
+        };
+        #[cfg(unix)]
+        let command_path = {
+            use std::os::unix::fs::PermissionsExt;
+            let path = temp.path().join("pg_ctl_hang");
+            std::fs::write(&path, "#!/bin/sh\nsleep 30\n").expect("write hanging pg_ctl shim");
+            let mut permissions = std::fs::metadata(&path)
+                .expect("shim metadata")
+                .permissions();
+            permissions.set_mode(0o700);
+            std::fs::set_permissions(&path, permissions).expect("make shim executable");
+            path
+        };
+        let config = ManagedPostgresConfig {
+            enabled: true,
+            data_dir: temp.path().join("pgdata"),
+            port: 6002,
+            bin_dir: temp.path().to_path_buf(),
+            database: "handshake".to_string(),
+            superuser: "postgres".to_string(),
+            startup_timeout: Duration::from_millis(25),
+        };
+        std::fs::create_dir_all(&config.data_dir).expect("create fake data dir");
+
+        let error = start_cluster(&command_path, &config, "hsk_timeout_boundary")
+            .await
+            .expect_err("hanging pg_ctl start must be killed at the launch boundary");
+        assert!(
+            matches!(error, ManagedPostgresError::Timeout(duration) if duration == config.startup_timeout)
+        );
+    }
+
+    #[test]
+    fn concurrent_start_identity_refuses_cancellation_cleanup() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let data_dir = temp.path().join("pgdata");
+        std::fs::create_dir_all(&data_dir).expect("create data dir");
+        let config = ManagedPostgresConfig {
+            enabled: true,
+            data_dir: data_dir.clone(),
+            port: 6003,
+            bin_dir: temp.path().to_path_buf(),
+            database: "handshake".to_string(),
+            superuser: "postgres".to_string(),
+            startup_timeout: Duration::from_secs(1),
+        };
+        let identity = ManagedPostgresLaunchIdentity {
+            token: "hsk_our_cancelled_attempt".to_string(),
+            prelaunch_postmaster_pid: None,
+            confirmed_postmaster_pid: Some(4242),
+        };
+        std::fs::write(data_dir.join("postmaster.pid"), b"4242\n/data\n0\n6003\n")
+            .expect("write concurrent pid file");
+        std::fs::write(
+            data_dir.join("postmaster.opts"),
+            "\"postgres\" \"-c\" \"cluster_name=hsk_concurrent_attempt\"\n",
+        )
+        .expect("write concurrent opts");
+
+        let error = prove_live_launch_identity(&config, &identity)
+            .expect_err("a different launch token must never authorize destructive cleanup");
+        assert!(matches!(
+            error,
+            ManagedPostgresError::LaunchOwnershipUncertain(_)
+        ));
+    }
+
+    #[test]
+    fn invalid_launch_identity_matrix_never_invokes_spy_pg_ctl_stop() {
+        use std::cell::Cell;
+
+        struct SpyPgCtl {
+            stop_invocations: Cell<u32>,
+        }
+        impl SpyPgCtl {
+            fn stop(&self) -> Result<(), ManagedPostgresError> {
+                self.stop_invocations
+                    .set(self.stop_invocations.get().saturating_add(1));
+                Ok(())
+            }
+        }
+
+        let current_pid_file = b"4242\n/data\n0\n6005\n".to_vec();
+        let cases = [
+            (
+                "missing_confirmed_pid",
+                None,
+                None,
+                Some("\"postgres\" \"-c\" \"cluster_name=hsk_matrix_owned\"\n"),
+            ),
+            (
+                "unchanged_pid_snapshot",
+                Some(current_pid_file.clone()),
+                Some(4242),
+                Some("\"postgres\" \"-c\" \"cluster_name=hsk_matrix_owned\"\n"),
+            ),
+            (
+                "confirmed_pid_mismatch",
+                None,
+                Some(9999),
+                Some("\"postgres\" \"-c\" \"cluster_name=hsk_matrix_owned\"\n"),
+            ),
+            ("missing_opts_file", None, Some(4242), None),
+            (
+                "missing_opts_token",
+                None,
+                Some(4242),
+                Some("\"postgres\" \"-D\" \"/data\"\n"),
+            ),
+            (
+                "foreign_opts_token",
+                None,
+                Some(4242),
+                Some("\"postgres\" \"-c\" \"cluster_name=hsk_foreign_attempt\"\n"),
+            ),
+        ];
+
+        for (case, prelaunch_pid, confirmed_pid, postmaster_opts) in cases {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let data_dir = temp.path().join(case);
+            std::fs::create_dir_all(&data_dir).expect("create case data dir");
+            std::fs::write(data_dir.join("postmaster.pid"), &current_pid_file)
+                .expect("write current pid file");
+            if let Some(postmaster_opts) = postmaster_opts {
+                std::fs::write(data_dir.join("postmaster.opts"), postmaster_opts)
+                    .expect("write postmaster opts");
+            }
+            let config = ManagedPostgresConfig {
+                enabled: true,
+                data_dir,
+                port: 6005,
+                bin_dir: temp.path().to_path_buf(),
+                database: "handshake".to_string(),
+                superuser: "postgres".to_string(),
+                startup_timeout: Duration::from_secs(1),
+            };
+            let identity = ManagedPostgresLaunchIdentity {
+                token: "hsk_matrix_owned".to_string(),
+                prelaunch_postmaster_pid: prelaunch_pid,
+                confirmed_postmaster_pid: confirmed_pid,
+            };
+            let spy = SpyPgCtl {
+                stop_invocations: Cell::new(0),
+            };
+
+            let error = authorize_destructive_stop(&config, &identity, || spy.stop())
+                .expect_err("invalid identity must fail before spy pg_ctl stop");
+            assert!(
+                matches!(error, ManagedPostgresError::LaunchOwnershipUncertain(_)),
+                "case {case} returned {error}"
+            );
+            assert_eq!(
+                spy.stop_invocations.get(),
+                0,
+                "case {case} must invoke zero destructive stops"
+            );
+        }
+    }
+
+    #[test]
+    fn endpoint_confirmation_precedes_authorization_and_survives_cleanup_sequencing() {
+        use std::cell::Cell;
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        let data_dir = temp.path().join("pgdata");
+        std::fs::create_dir_all(&data_dir).expect("create data dir");
+        std::fs::write(data_dir.join("postmaster.pid"), b"5151\n/data\n0\n6006\n")
+            .expect("write current pid file");
+        std::fs::write(
+            data_dir.join("postmaster.opts"),
+            "\"postgres\" \"-c\" \"cluster_name=hsk_sequence_owned\"\n",
+        )
+        .expect("write owned opts");
+        let config = ManagedPostgresConfig {
+            enabled: true,
+            data_dir,
+            port: 6006,
+            bin_dir: temp.path().to_path_buf(),
+            database: "handshake".to_string(),
+            superuser: "postgres".to_string(),
+            startup_timeout: Duration::from_secs(1),
+        };
+        let capture = ManagedPostgresLaunchIdentity {
+            token: "hsk_sequence_owned".to_string(),
+            prelaunch_postmaster_pid: None,
+            confirmed_postmaster_pid: None,
+        };
+        let mut guard = ManagedPostgresStartupGuard::armed(config.clone(), capture);
+        let stop_invocations = Cell::new(0_u32);
+
+        authorize_destructive_stop(&config, &guard.launch_identity, || {
+            stop_invocations.set(stop_invocations.get().saturating_add(1));
+            Ok(())
+        })
+        .expect_err("authorization before endpoint confirmation must fail closed");
+        assert_eq!(stop_invocations.get(), 0);
+
+        let confirmed = guard.bind_confirmed_postmaster_pid(5151);
+        assert_eq!(confirmed.confirmed_postmaster_pid, Some(5151));
+        assert_eq!(
+            guard.launch_identity.confirmed_postmaster_pid,
+            Some(5151),
+            "the identity stop_on_error reads must retain endpoint confirmation"
+        );
+        authorize_destructive_stop(&config, &guard.launch_identity, || {
+            stop_invocations.set(stop_invocations.get().saturating_add(1));
+            Ok(())
+        })
+        .expect("authorization after endpoint confirmation must reach owned cleanup");
+        assert_eq!(stop_invocations.get(), 1);
+
+        let transferred = guard.disarm_and_transfer();
+        assert_eq!(
+            transferred, confirmed,
+            "cleanup and transferred handle must share the exact confirmed identity"
+        );
+    }
+
+    #[tokio::test]
+    async fn failed_start_cleanup_retains_exact_guard_for_second_stop_attempt() {
+        use std::sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        };
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        let config = ManagedPostgresConfig {
+            enabled: true,
+            data_dir: temp.path().join("pgdata"),
+            port: 6007,
+            bin_dir: temp.path().to_path_buf(),
+            database: "handshake".to_string(),
+            superuser: "postgres".to_string(),
+            startup_timeout: Duration::from_secs(1),
+        };
+        let identity = ManagedPostgresLaunchIdentity {
+            token: "hsk_retry_owned".to_string(),
+            prelaunch_postmaster_pid: None,
+            confirmed_postmaster_pid: Some(6161),
+        };
+        let mut guard = ManagedPostgresStartupGuard::armed(config.clone(), identity.clone());
+        let attempts = Arc::new(AtomicUsize::new(0));
+
+        let first_attempts = Arc::clone(&attempts);
+        let first_config = config.clone();
+        let first_identity = identity.clone();
+        let _ = guard
+            .stop_on_error_with(
+                ManagedPostgresError::Timeout(Duration::from_secs(1)),
+                move |attempt_config, attempt_identity| async move {
+                    assert_eq!(attempt_config.data_dir, first_config.data_dir);
+                    assert_eq!(attempt_identity, first_identity);
+                    first_attempts.fetch_add(1, Ordering::SeqCst);
+                    Err(ManagedPostgresError::LaunchOwnershipUncertain(
+                        "injected first cleanup failure".to_string(),
+                    ))
+                },
+            )
+            .await;
+        assert!(
+            guard.config.is_some(),
+            "failed exact cleanup must retain the armed guard for Drop/retry"
+        );
+
+        let second_attempts = Arc::clone(&attempts);
+        let second_config = config;
+        let second_identity = identity;
+        let _ = guard
+            .stop_on_error_with(
+                ManagedPostgresError::Timeout(Duration::from_secs(1)),
+                move |attempt_config, attempt_identity| async move {
+                    assert_eq!(attempt_config.data_dir, second_config.data_dir);
+                    assert_eq!(attempt_identity, second_identity);
+                    second_attempts.fetch_add(1, Ordering::SeqCst);
+                    Ok(())
+                },
+            )
+            .await;
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+        assert!(
+            guard.config.is_none(),
+            "successful exact cleanup must disarm the startup guard"
+        );
+    }
+
+    #[test]
+    fn owned_launch_identity_authorizes_cleanup_positive_proof() {
+        use std::cell::Cell;
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        let data_dir = temp.path().join("pgdata");
+        std::fs::create_dir_all(&data_dir).expect("create data dir");
+        let config = ManagedPostgresConfig {
+            enabled: true,
+            data_dir: data_dir.clone(),
+            port: 6004,
+            bin_dir: temp.path().to_path_buf(),
+            database: "handshake".to_string(),
+            superuser: "postgres".to_string(),
+            startup_timeout: Duration::from_secs(1),
+        };
+        let identity = ManagedPostgresLaunchIdentity {
+            token: "hsk_owned_attempt".to_string(),
+            prelaunch_postmaster_pid: Some(b"3131\n/data\n0\n6004\n".to_vec()),
+            confirmed_postmaster_pid: Some(4343),
+        };
+        std::fs::write(data_dir.join("postmaster.pid"), b"4343\n/data\n0\n6004\n")
+            .expect("write owned pid file");
+        std::fs::write(
+            data_dir.join("postmaster.opts"),
+            "\"postgres\" \"-c\" \"cluster_name=hsk_owned_attempt\"\n",
+        )
+        .expect("write owned opts");
+
+        let stop_invocations = Cell::new(0_u32);
+        authorize_destructive_stop(&config, &identity, || {
+            stop_invocations.set(stop_invocations.get().saturating_add(1));
+            Ok(())
+        })
+        .expect("changed snapshot, confirmed PID, and exact token authorize owned cleanup");
+        assert_eq!(stop_invocations.get(), 1);
     }
 
     #[test]

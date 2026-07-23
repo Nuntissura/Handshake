@@ -5,14 +5,14 @@ use std::{ffi::c_void, ptr::null};
 use windows_sys::Win32::{
     Foundation::{CloseHandle, GetLastError, HANDLE},
     System::JobObjects::{
-        CreateJobObjectW, JobObjectBasicUIRestrictions, JobObjectCpuRateControlInformation,
-        JobObjectExtendedLimitInformation, SetInformationJobObject, TerminateJobObject,
-        JOBOBJECT_BASIC_UI_RESTRICTIONS, JOBOBJECT_CPU_RATE_CONTROL_INFORMATION,
-        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_CPU_RATE_CONTROL_ENABLE,
-        JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-        JOB_OBJECT_LIMIT_PROCESS_MEMORY, JOB_OBJECT_UILIMIT_DESKTOP,
-        JOB_OBJECT_UILIMIT_DISPLAYSETTINGS, JOB_OBJECT_UILIMIT_EXITWINDOWS,
-        JOB_OBJECT_UILIMIT_GLOBALATOMS, JOB_OBJECT_UILIMIT_HANDLES,
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicUIRestrictions,
+        JobObjectCpuRateControlInformation, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, TerminateJobObject, JOBOBJECT_BASIC_UI_RESTRICTIONS,
+        JOBOBJECT_CPU_RATE_CONTROL_INFORMATION, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_CPU_RATE_CONTROL_ENABLE, JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOB_OBJECT_LIMIT_PROCESS_MEMORY,
+        JOB_OBJECT_UILIMIT_DESKTOP, JOB_OBJECT_UILIMIT_DISPLAYSETTINGS,
+        JOB_OBJECT_UILIMIT_EXITWINDOWS, JOB_OBJECT_UILIMIT_GLOBALATOMS, JOB_OBJECT_UILIMIT_HANDLES,
         JOB_OBJECT_UILIMIT_READCLIPBOARD, JOB_OBJECT_UILIMIT_SYSTEMPARAMETERS,
         JOB_OBJECT_UILIMIT_WRITECLIPBOARD,
     },
@@ -44,15 +44,15 @@ const QUIET_JOB_UI_RESTRICTIONS: u32 = JOB_OBJECT_UILIMIT_HANDLES
 
 #[cfg(target_os = "windows")]
 #[derive(Debug, Clone, Copy)]
-pub(super) struct WindowsNativeJobLimits {
-    pub(super) memory_bytes: Option<usize>,
-    pub(super) cpu_rate_percent: Option<u32>,
-    pub(super) kill_on_job_close: bool,
+pub(crate) struct WindowsNativeJobLimits {
+    pub(crate) memory_bytes: Option<usize>,
+    pub(crate) cpu_rate_percent: Option<u32>,
+    pub(crate) kill_on_job_close: bool,
 }
 
 #[cfg(target_os = "windows")]
 #[derive(Debug)]
-pub(super) struct WindowsNativeJobGuard {
+pub(crate) struct WindowsNativeJobGuard {
     handle: HANDLE,
 }
 
@@ -61,7 +61,7 @@ unsafe impl Send for WindowsNativeJobGuard {}
 
 #[cfg(target_os = "windows")]
 impl WindowsNativeJobGuard {
-    pub(super) fn create(limits: WindowsNativeJobLimits) -> Result<Self, String> {
+    pub(crate) fn create(limits: WindowsNativeJobLimits) -> Result<Self, String> {
         let handle = unsafe { CreateJobObjectW(null(), null()) };
         if handle.is_null() {
             return Err(last_error("CreateJobObjectW"));
@@ -74,14 +74,22 @@ impl WindowsNativeJobGuard {
         Ok(guard)
     }
 
-    pub(super) fn raw(&self) -> HANDLE {
+    pub(crate) fn raw(&self) -> HANDLE {
         self.handle
     }
 
-    pub(super) fn terminate(&self, exit_code: u32) -> Result<(), String> {
+    pub(crate) fn terminate(&self, exit_code: u32) -> Result<(), String> {
         let ok = unsafe { TerminateJobObject(self.handle, exit_code) };
         if ok == 0 {
             return Err(last_error("TerminateJobObject"));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn assign_process(&self, process: HANDLE) -> Result<(), String> {
+        let ok = unsafe { AssignProcessToJobObject(self.handle, process) };
+        if ok == 0 {
+            return Err(last_error("AssignProcessToJobObject"));
         }
         Ok(())
     }

@@ -420,7 +420,11 @@ fn render_leaf(ui: &mut egui::Ui, item: &ContextMenuItem, is_highlighted: bool) 
             response.clone().highlight().request_focus();
         }
         name_menu_node(ui, response.id, &item.author_id(), item.label);
-        response.clicked()
+        let clicked = response.clicked();
+        if clicked {
+            crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &item.author_id());
+        }
+        clicked
     } else {
         let response = ui.add_enabled(false, button);
         let response = match item.disabled_reason {

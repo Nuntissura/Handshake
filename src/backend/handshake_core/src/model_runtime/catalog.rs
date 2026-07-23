@@ -26,12 +26,14 @@
 //!     event, distinct from a launch/inference event, per master-spec
 //!     §4.3.9.4.4 ("record the selection decision as an auditable event").
 //!
-//! Durability posture (per pre-impl review F3): this is an IN-MEMORY shared
-//! handle re-derived deterministically from env config at boot — NOT a new
-//! Postgres registry table and NOT SQLite. Only the SELECTION decision is
-//! persisted (as an EventLedger/Flight-Recorder event), not the registry itself.
+//! Durability posture: this is the live shared dispatch projection over the
+//! same `ModelRegistry` used by `LocalRouter`. The configured artifact-to-
+//! adapter selection is durably guarded by [`super::ModelRegistryStore`] in
+//! PostgreSQL before this cache is exposed. The catalog does not create a
+//! second database registry and it never treats a stale per-boot UUID as a
+//! restart identity.
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -42,7 +44,9 @@ use crate::flight_recorder::{
     RecorderError,
 };
 
-use super::{ModelId, ModelRegistration, ModelRegistry};
+use super::{
+    ModelId, ModelRegistration, ModelRegistry, ModelRuntimeAvailability, ModelRuntimeRole,
+};
 
 /// Stable sentinel label for a `model_id` that is not present in the catalog.
 /// Diagnostics render this instead of the raw opaque UUID or a blank so an
@@ -80,6 +84,11 @@ pub struct ModelCatalogEntry {
     pub artifact_path: String,
     /// Which runtime adapter hosts the model (`llama_cpp` | `candle`).
     pub runtime_binding: String,
+    /// Persisted registration role. This is the authority for completion
+    /// selection eligibility; embedding capability alone is not.
+    pub runtime_role: ModelRuntimeRole,
+    /// Whether this registration may become the default completion route.
+    pub default_selectable: bool,
     /// Whether this model is explicitly declared safe for embedding calls.
     pub supports_embedding: bool,
     /// Declared embedding dimensionality when `supports_embedding=true`.
@@ -110,12 +119,60 @@ impl ModelCatalogEntry {
 #[derive(Clone)]
 pub struct ModelCatalog {
     registry: Arc<ModelRegistry>,
+    runtime_roles: HashMap<ModelId, ModelRuntimeRole>,
+    active_embedding_model_id: Option<ModelId>,
+    runtime_availability: Arc<std::sync::RwLock<Arc<ModelRuntimeAvailability>>>,
 }
 
 impl ModelCatalog {
     /// Wraps a shared boot registry as an enumeration/label surface.
     pub fn from_registry(registry: Arc<ModelRegistry>) -> Arc<Self> {
-        Arc::new(Self { registry })
+        let runtime_roles = registry
+            .list()
+            .into_iter()
+            .map(|registration| (registration.model_id, ModelRuntimeRole::Completion))
+            .collect();
+        Arc::new(Self {
+            registry,
+            runtime_roles,
+            active_embedding_model_id: None,
+            runtime_availability: Arc::new(std::sync::RwLock::new(Arc::new(
+                ModelRuntimeAvailability::default(),
+            ))),
+        })
+    }
+
+    /// Wrap a shared boot registry with the explicit role authority recovered
+    /// from the durable registry transaction.
+    pub fn from_registry_with_roles(
+        registry: Arc<ModelRegistry>,
+        runtime_roles: HashMap<ModelId, ModelRuntimeRole>,
+    ) -> Arc<Self> {
+        Arc::new(Self {
+            registry,
+            runtime_roles,
+            active_embedding_model_id: None,
+            runtime_availability: Arc::new(std::sync::RwLock::new(Arc::new(
+                ModelRuntimeAvailability::default(),
+            ))),
+        })
+    }
+
+    /// Construct the production catalog with the PostgreSQL-restored
+    /// embeddings/default routing identity for this boot.
+    pub fn from_registry_with_roles_and_embedding_default(
+        registry: Arc<ModelRegistry>,
+        runtime_roles: HashMap<ModelId, ModelRuntimeRole>,
+        active_embedding_model_id: Option<ModelId>,
+    ) -> Arc<Self> {
+        Arc::new(Self {
+            registry,
+            runtime_roles,
+            active_embedding_model_id,
+            runtime_availability: Arc::new(std::sync::RwLock::new(Arc::new(
+                ModelRuntimeAvailability::default(),
+            ))),
+        })
     }
 
     /// An empty catalog (no configured local models). Deterministic empty-list
@@ -123,36 +180,68 @@ impl ModelCatalog {
     pub fn empty() -> Arc<Self> {
         Arc::new(Self {
             registry: Arc::new(ModelRegistry::default()),
+            runtime_roles: HashMap::new(),
+            active_embedding_model_id: None,
+            runtime_availability: Arc::new(std::sync::RwLock::new(Arc::new(
+                ModelRuntimeAvailability::default(),
+            ))),
         })
+    }
+
+    pub fn bind_runtime_availability(&self, availability: Arc<ModelRuntimeAvailability>) {
+        *self
+            .runtime_availability
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = availability;
+    }
+
+    pub fn runtime_availability_revision(&self) -> u64 {
+        self.runtime_availability
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .revision()
     }
 
     /// Enumerate every registered local model, labeled. Empty registry yields an
     /// empty `Vec` (never a panic). Ordering follows `ModelRegistry::list`
     /// (stable, model_id-sorted).
     pub fn list(&self) -> Vec<ModelCatalogEntry> {
-        self.registry
+        let availability = self
+            .runtime_availability
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        let mut entries = self.registry
             .list()
             .into_iter()
-            .map(|reg| self.to_entry(reg))
-            .collect()
+            .map(|reg| self.to_entry(reg, None))
+            .collect::<Vec<_>>();
+        entries.extend(
+            availability
+                .replacements()
+                .into_iter()
+                .map(|(reg, role)| self.to_entry(&reg, Some(role))),
+        );
+        entries.sort_by(|left, right| left.model_id.cmp(&right.model_id));
+        entries
     }
 
     /// The number of models the catalog can enumerate.
     pub fn len(&self) -> usize {
-        self.registry.list().len()
+        self.list().len()
     }
 
     /// Whether the catalog has no configured local models.
     pub fn is_empty(&self) -> bool {
-        self.registry.list().is_empty()
+        self.list().is_empty()
     }
 
     /// Resolve a `model_id` (UUIDv7 string) to a human label. An unparseable or
     /// unknown id yields the stable [`UNKNOWN_MODEL_LABEL`] sentinel — never a
     /// panic, never an empty string.
     pub fn label_for(&self, model_id: &str) -> String {
-        match self.lookup(model_id) {
-            Some(reg) => reg.base_model_tag.as_str().to_string(),
+        match self.entry(model_id) {
+            Some(entry) => entry.base_model_tag,
             None => UNKNOWN_MODEL_LABEL.to_string(),
         }
     }
@@ -161,18 +250,52 @@ impl ModelCatalog {
     /// or `None` when the id is unknown. Consumers that must correlate a model
     /// across restarts key on this, not on the per-boot UUIDv7.
     pub fn stable_anchor(&self, model_id: &str) -> Option<String> {
-        self.lookup(model_id).map(|reg| hex::encode(reg.sha256))
+        self.entry(model_id).map(|entry| entry.artifact_sha256)
+    }
+
+    /// Resolve a current catalog entry by the existing canonical cross-session
+    /// artifact SHA-256 anchor.
+    pub fn entry_for_stable_anchor(&self, artifact_sha256: &str) -> Option<ModelCatalogEntry> {
+        let anchor = artifact_sha256.trim();
+        if anchor.len() != 64
+            || !anchor
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return None;
+        }
+        self.list()
+            .into_iter()
+            .find(|entry| entry.artifact_sha256 == anchor)
     }
 
     /// The full labeled entry for a `model_id`, or `None` when unknown.
     pub fn entry(&self, model_id: &str) -> Option<ModelCatalogEntry> {
-        self.lookup(model_id).map(|reg| self.to_entry(reg))
+        let uuid = Uuid::parse_str(model_id).ok()?;
+        let id = ModelId::from(uuid);
+        let availability = self
+            .runtime_availability
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        if let Some((registration, role)) = availability.replacement(id) {
+            return Some(self.to_entry(&registration, Some(role)));
+        }
+        self.registry.lookup(id).map(|reg| self.to_entry(reg, None))
     }
 
     /// Select a READY embedding-capable model for a required vector dimension.
     /// Returns `None` when no loaded local registration explicitly declares both
     /// embedding support and the exact requested dimensionality.
     pub fn embedding_model_for_dim(&self, dim: usize) -> Option<ModelCatalogEntry> {
+        if let Some(active_model_id) = self.active_embedding_model_id {
+            let entry = self.entry(&active_model_id.to_string())?;
+            return (entry.ready
+                && entry.runtime_role == ModelRuntimeRole::Embedding
+                && entry.supports_embedding
+                && entry.embedding_dimension == Some(dim))
+            .then_some(entry);
+        }
         self.list().into_iter().find(|entry| {
             entry.ready && entry.supports_embedding && entry.embedding_dimension == Some(dim)
         })
@@ -245,13 +368,18 @@ impl ModelCatalog {
         recorder.record_event(event).await
     }
 
-    fn lookup(&self, model_id: &str) -> Option<&ModelRegistration> {
-        let uuid = Uuid::parse_str(model_id.trim()).ok()?;
-        self.registry.lookup(ModelId::from(uuid))
-    }
-
-    fn to_entry(&self, reg: &ModelRegistration) -> ModelCatalogEntry {
+    fn to_entry(
+        &self,
+        reg: &ModelRegistration,
+        replacement_role: Option<ModelRuntimeRole>,
+    ) -> ModelCatalogEntry {
         let tag = reg.base_model_tag.as_str().to_string();
+        // Production boot provides a complete role map from committed rows.
+        // The compatibility constructor assigns Completion explicitly to every
+        // registration, so a missing role is treated fail-closed here.
+        let runtime_role = replacement_role
+            .or_else(|| self.runtime_roles.get(&reg.model_id).copied())
+            .unwrap_or(ModelRuntimeRole::Embedding);
         ModelCatalogEntry {
             model_id: reg.model_id.to_string(),
             display_name: tag.clone(),
@@ -259,9 +387,16 @@ impl ModelCatalog {
             artifact_sha256: hex::encode(reg.sha256),
             artifact_path: reg.artifact_path.to_string_lossy().into_owned(),
             runtime_binding: reg.runtime_binding.adapter_id().to_string(),
+            runtime_role,
+            default_selectable: runtime_role.default_selectable(),
             supports_embedding: reg.declared_capabilities.supports_embedding,
             embedding_dimension: reg.declared_capabilities.embedding_dimension,
-            ready: self.registry.is_loaded(reg.model_id),
+            ready: (self.registry.is_loaded(reg.model_id) || replacement_role.is_some())
+                && self
+                    .runtime_availability
+                    .read()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .is_available(reg.model_id),
         }
     }
 }

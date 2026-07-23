@@ -33,7 +33,6 @@
 //! * #10 (MT-091): .env / .pem paths are denied root registration.
 
 mod knowledge_ingestion_support;
-mod knowledge_pg_support;
 
 use std::path::Path;
 

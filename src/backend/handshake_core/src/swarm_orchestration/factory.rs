@@ -13,8 +13,11 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::future::BoxFuture;
 
+use crate::llm::{LlmClient, ModelRuntimeLlmClient};
 use crate::model_runtime::{CancellationToken, ModelId, ModelRuntime, WarmVmSnapshotManifest};
-use crate::process_ledger::ProcessOwnershipRecordId;
+use crate::process_ledger::{
+    ActiveProcessLifecycle, ProcessEngineKind, ProcessOwnershipRecordId, ProcessStart,
+};
 
 use super::error::SwarmResult;
 use super::ids::SpawnRequest;
@@ -40,7 +43,16 @@ use super::ids::SpawnRequest;
 /// (complete, cancel, lease-expiry reap, and duplicate-spawn rollback), AFTER
 /// cancelling the session token and BEFORE/at the ledger STOP. A factory that
 /// returns a no-op teardown is a resource leak and violates this contract.
-pub type SessionTeardown = Box<dyn FnOnce() -> BoxFuture<'static, SwarmResult<()>> + Send>;
+pub type SessionTeardown = Arc<dyn Fn() -> BoxFuture<'static, SwarmResult<()>> + Send + Sync>;
+
+/// Idempotent, synchronous side-effect committed only after the coordinator has persisted
+/// every required launch record and transitioned the session to `Ready`.
+/// Factories may use this to publish a secondary runtime handle without
+/// leaking it when cancellation, duplicate detection, or persistence fails
+/// after resource creation. The hook executes while the coordinator holds its
+/// Ready/terminal registry fence, so it MUST NOT call back into SwarmCoordinator
+/// or block on work that does; it should only publish already-prepared state.
+pub type SessionReadyHook = Arc<dyn Fn() -> SwarmResult<()> + Send + Sync>;
 
 /// A live model session produced by a [`ModelSessionFactory`]. Owns the live
 /// runtime adapter (shared `Arc` so the coordinator and the generation path
@@ -50,6 +62,9 @@ pub struct LiveSession {
     /// The live model runtime this session drives. Real in production, a real
     /// controllable adapter in tests — never a no-op stub.
     pub runtime: Arc<dyn ModelRuntime>,
+    /// Application-facing generation boundary. This client mediates every
+    /// completion before the session runtime adapter is dispatched.
+    pub llm_client: Arc<dyn LlmClient>,
     /// The concrete `ModelId` the factory's `load` returned. The coordinator
     /// keeps it so teardown can free *this* model from a shared runtime, and so
     /// the loaded model is never silently discarded (D1).
@@ -68,10 +83,23 @@ pub struct LiveSession {
     /// OS pid (or synthetic id for an in-process worker) recorded in the
     /// ledger; carried here so the stop row matches the start row.
     pub os_pid: u32,
+    /// Exact PID value carried by the ProcessOwnershipLedger row. In-process
+    /// sessions keep the coordinator's synthetic scheduling id in `os_pid` but
+    /// set this to `None`, preventing that id from masquerading as a host PID.
+    pub ledger_os_pid: Option<u32>,
+    pub ledger_engine_kind_override: Option<ProcessEngineKind>,
+    pub ledger_start_override: Option<ProcessStart>,
+    /// Complete START/STOP capacity reserved before resource creation. Present
+    /// for pidless cloud sessions whose START was durably acknowledged before
+    /// this session could be published.
+    pub ledger_lifecycle: Option<Arc<ActiveProcessLifecycle>>,
     /// Warm-VM restore metadata captured by the factory after a successful warm
     /// local load/restore. The coordinator ignores it; app/runtime side-tables
     /// can persist it so later warm VM spawns can skip a cold in-guest load.
     pub warm_vm_restore_manifest: Option<WarmVmSnapshotManifest>,
+    /// Optional publication hook. The coordinator owns the commit point; a
+    /// factory must not publish secondary handles before this hook runs.
+    pub ready_hook: Option<SessionReadyHook>,
 }
 
 impl LiveSession {
@@ -83,19 +111,77 @@ impl LiveSession {
         process_record_id: ProcessOwnershipRecordId,
         os_pid: u32,
     ) -> Self {
+        let llm_client: Arc<dyn LlmClient> = Arc::new(
+            ModelRuntimeLlmClient::new_coordinator_delegated(runtime.clone(), model_id),
+        );
         Self {
             runtime,
+            llm_client,
             model_id,
             cancel,
             teardown,
             process_record_id,
             os_pid,
+            ledger_os_pid: Some(os_pid),
+            ledger_engine_kind_override: None,
+            ledger_start_override: None,
+            ledger_lifecycle: None,
             warm_vm_restore_manifest: None,
+            ready_hook: None,
         }
+    }
+
+    /// Replace the default runtime-backed facade with a provider-specific or
+    /// instrumented LlmClient while retaining the runtime for lifecycle work.
+    pub fn with_llm_client(mut self, llm_client: Arc<dyn LlmClient>) -> Self {
+        self.llm_client = llm_client;
+        self
+    }
+
+    pub fn with_pidless_ledger(
+        mut self,
+        engine_kind: ProcessEngineKind,
+        start: ProcessStart,
+    ) -> Self {
+        self.ledger_os_pid = None;
+        self.ledger_engine_kind_override = Some(engine_kind);
+        self.ledger_start_override = Some(start);
+        self
+    }
+
+    /// Retain the exact START identity for a session that has a real OS PID.
+    /// The coordinator must derive STOP from this record so owner/WP/MT lineage
+    /// cannot silently fall back to coordinator defaults.
+    pub fn with_ledger_start(
+        mut self,
+        engine_kind: ProcessEngineKind,
+        start: ProcessStart,
+    ) -> Self {
+        self.ledger_engine_kind_override = Some(engine_kind);
+        self.ledger_start_override = Some(start);
+        self
+    }
+
+    pub fn with_pidless_reserved_ledger(
+        mut self,
+        engine_kind: ProcessEngineKind,
+        start: ProcessStart,
+        lifecycle: Arc<ActiveProcessLifecycle>,
+    ) -> Self {
+        self.ledger_os_pid = None;
+        self.ledger_engine_kind_override = Some(engine_kind);
+        self.ledger_start_override = Some(start);
+        self.ledger_lifecycle = Some(lifecycle);
+        self
     }
 
     pub fn with_warm_vm_restore_manifest(mut self, manifest: WarmVmSnapshotManifest) -> Self {
         self.warm_vm_restore_manifest = Some(manifest);
+        self
+    }
+
+    pub fn with_ready_hook(mut self, hook: SessionReadyHook) -> Self {
+        self.ready_hook = Some(hook);
         self
     }
 }

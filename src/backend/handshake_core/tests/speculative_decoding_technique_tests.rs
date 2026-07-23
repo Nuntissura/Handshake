@@ -184,6 +184,8 @@ fn capabilities_with_spec(
         supports_subquadratic: false,
         supports_speculative_draft,
         supports_eagle3,
+        supports_embedding: false,
+        embedding_dimension: None,
     }
 }
 

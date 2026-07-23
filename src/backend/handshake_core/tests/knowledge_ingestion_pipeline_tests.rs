@@ -10,7 +10,6 @@
 //! events, and per-source rollups.
 
 mod knowledge_ingestion_support;
-mod knowledge_pg_support;
 
 use handshake_core::knowledge_ingestion::backpressure::IngestionLimits;
 use handshake_core::knowledge_ingestion::engine::FileIngestOutcome;

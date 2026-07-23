@@ -8,8 +8,8 @@
 //! `app/src/components/SettingsMenu.tsx` over the [`crate::workspace_settings`] schema + helpers, with
 //! these sections in order: Appearance (theme + view mode — both WIRED), Keybindings (editable, with
 //! live conflict detection), Swarm (wired default-open checkboxes + not-yet-wired interval rows),
-//! Terminal (not-yet-wired rows), Layout (a wired Reset panes & drawers button), and About (app name +
-//! the real Cargo version).
+//! Terminal (not-yet-wired rows), Layout (a wired Reset panes & drawers button), Cloud Models,
+//! Model Runtime (production-pane navigation), and About (app name + the real Cargo version).
 //!
 //! ## Swarm interaction contract (HBR-SWARM)
 //!
@@ -95,6 +95,10 @@ pub const SWARM_OPERATOR_CHAT_CHECKBOX_AUTHOR_ID: &str =
     "settings.swarm-operator-chat-default-open";
 /// Stable author_id for the Reset panes & drawers button.
 pub const RESET_LAYOUT_AUTHOR_ID: &str = "settings.reset-layout";
+/// Stable author_id for opening the production Model Runtime registry pane.
+pub const OPEN_MODEL_RUNTIME_AUTHOR_ID: &str = "settings.model-runtime.open";
+/// Stable author_id for opening the canonical Problems/internal-diagnostics pane.
+pub const OPEN_PROBLEMS_AUTHOR_ID: &str = "settings.model-runtime.open-problems";
 /// Stable author_id for the Close button.
 pub const CLOSE_AUTHOR_ID: &str = "settings.close";
 /// Author_id prefix for a per-action keybinding text input (`{prefix}{action_id}`).
@@ -104,7 +108,8 @@ pub const KEYBINDING_RESET_AUTHOR_ID_PREFIX: &str = "settings.keybinding-reset."
 /// Author_id prefix for a not-yet-wired row's disabled control (`{prefix}{setting_id}`).
 pub const NOT_WIRED_AUTHOR_ID_PREFIX: &str = "settings.not-wired.";
 /// Author_id prefix for a settings SECTION collapsing-header button (`{prefix}{section_key}`). Each
-/// section header (Appearance / Keybindings / Swarm / Terminal / Layout / About) renders as an
+/// section header (Appearance / Keybindings / Swarm / Terminal / Layout / Cloud Models / Model
+/// Runtime / About) renders as an
 /// interactive `Role::Button` in egui's hashed id space; tagging it gives an out-of-process model a
 /// stable handle to expand/collapse each section. Without it the header is an interactive control with
 /// no stable address — the gap the MT-029 overlay accessibility-invariant proof surfaces.
@@ -158,6 +163,12 @@ pub fn cloud_byok_status_author_id(provider: &str) -> String {
 pub fn cloud_cli_login_author_id(provider: &str) -> String {
     format!("settings.cloud.cli.{provider}.login")
 }
+pub fn cloud_cli_login_confirm_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.confirm")
+}
+pub fn cloud_cli_login_cancel_author_id(provider: &str) -> String {
+    format!("settings.cloud.cli.{provider}.login.cancel")
+}
 /// Author_id for a CLI-bridge provider's status label: `settings.cloud.cli.{provider}.status`.
 pub fn cloud_cli_status_author_id(provider: &str) -> String {
     format!("settings.cloud.cli.{provider}.status")
@@ -173,10 +184,39 @@ pub struct CloudByokRow {
 
 /// One non-secret CLI-bridge provider row from the backend enumeration, carrying the provider's OWN
 /// official login command (launched operator-initiated in a visible terminal).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CloudCliAuthStatus {
+    LoggedIn,
+    LoggedOut,
+    Expired,
+    Unavailable,
+}
+
+impl CloudCliAuthStatus {
+    pub fn from_wire(value: &str) -> Self {
+        match value {
+            "logged_in" => Self::LoggedIn,
+            "logged_out" => Self::LoggedOut,
+            "expired" => Self::Expired,
+            _ => Self::Unavailable,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::LoggedIn => "Logged in",
+            Self::LoggedOut => "Logged out",
+            Self::Expired => "Session expired",
+            Self::Unavailable => "Status unavailable",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CloudCliRow {
     pub provider: String,
     pub label: String,
+    pub auth_status: CloudCliAuthStatus,
     pub login_program: String,
     pub login_args: Vec<String>,
     pub hint: String,
@@ -206,6 +246,7 @@ pub struct CloudModelsSettingsState {
     key_drafts: Vec<(String, zeroize::Zeroizing<String>)>,
     /// Per-provider transient status message (e.g. "Saved", "Removed", an error).
     messages: Vec<(String, String)>,
+    pending_cli_login_confirmation: Option<String>,
 }
 
 impl CloudModelsSettingsState {
@@ -256,6 +297,7 @@ impl CloudModelsSettingsState {
     /// key never lingers in the shell across a reopen (MT-015 F3).
     pub fn clear_key_drafts(&mut self) {
         self.key_drafts.clear();
+        self.pending_cli_login_confirmation = None;
     }
 
     /// The BYOK rows to render: the backend enumeration snapshot when present, else the static seed rows
@@ -359,6 +401,11 @@ pub enum SettingsOutcome {
     OperatorChatDefaultOpenChanged(bool),
     /// The Reset panes & drawers button was clicked (same action as VIEW > Reset Layout). WIRED.
     ResetLayout,
+    /// Open the production Model Runtime registry pane through the same route as RUN > Open Model
+    /// Runtime. This is navigation, not a second registry authority or a mutable rebind surface.
+    OpenModelRuntime,
+    /// Open the canonical Problems pane from the existing Model Runtime settings section.
+    OpenProblems,
     /// MT-015: Save clicked for a BYOK provider. The shell reads the key buffer, sends it to the vault
     /// via `PUT /model-access/byok/{provider}/key`, then zeroizes + clears the buffer.
     CloudByokKeySaveRequested { provider: String },
@@ -1036,6 +1083,62 @@ fn render_sections(
         );
     }
 
+    // ── [5c] Model Runtime (MT-014 durable registry + production-pane navigation) ──────────────────
+    let show_model_runtime = setting_matches_query(
+        query,
+        &[
+            "model runtime",
+            "local model",
+            "registry",
+            "adapter",
+            "candle",
+            "llama cpp",
+            "embedding",
+            "artifact",
+            "diagnostics",
+            "problems",
+            "crash",
+        ],
+    );
+    if show_model_runtime {
+        let model_runtime_header = egui::CollapsingHeader::new("Model Runtime")
+            .default_open(true)
+            .show(ui, |ui| {
+                ui.label("Durable local-model registry");
+                ui.label(
+                    egui::RichText::new(
+                        "Inspect selected adapters, primary and embedding artifacts, live versus dormant state, revisions, portable locators, and audit references.",
+                    )
+                    .small()
+                    .weak(),
+                );
+                let open = ui.button("Open Model Runtime");
+                set_author_id(ui, open.id, OPEN_MODEL_RUNTIME_AUTHOR_ID);
+                if open.clicked() && outcome == SettingsOutcome::None {
+                    outcome = SettingsOutcome::OpenModelRuntime;
+                }
+                ui.separator();
+                ui.label("Runtime diagnostics");
+                ui.label(
+                    egui::RichText::new(
+                        "Inspect native problems, crash evidence, GPU state, Palmistry probes, and Flight Recorder import posture.",
+                    )
+                    .small()
+                    .weak(),
+                );
+                let open_problems = ui.button("Open Problems");
+                set_author_id(ui, open_problems.id, OPEN_PROBLEMS_AUTHOR_ID);
+                if open_problems.clicked() && outcome == SettingsOutcome::None {
+                    outcome = SettingsOutcome::OpenProblems;
+                }
+            });
+        set_author_id(
+            ui,
+            model_runtime_header.header_response.id,
+            &format!("{SECTION_HEADER_AUTHOR_ID_PREFIX}model-runtime"),
+        );
+    }
+
     // ── [6] About (app name + REAL Cargo version) ──────────────────────────────────────────────────
     let show_about = setting_matches_query(query, &["about", "app", "version"]);
     if show_about {
@@ -1172,27 +1275,62 @@ fn render_cloud_models_body(
             ui.vertical(|ui| {
                 ui.label(&row.label);
                 let status = ui.label(
+                    egui::RichText::new(row.auth_status.label())
+                        .small()
+                        .strong(),
+                );
+                set_author_id(ui, status.id, &cloud_cli_status_author_id(&row.provider));
+                ui.label(
                     egui::RichText::new(if row.hint.is_empty() {
-                        "Log in with the provider's official CLI. Handshake stores no credential."
+                        "Provider-owned CLI auth; Handshake stores no credential."
                     } else {
                         row.hint.as_str()
                     })
                     .small()
                     .weak(),
                 );
-                set_author_id(ui, status.id, &cloud_cli_status_author_id(&row.provider));
             });
             let login = ui.button("Log in…");
             set_author_id(ui, login.id, &cloud_cli_login_author_id(&row.provider));
             if login.clicked() && outcome == SettingsOutcome::None {
-                outcome = SettingsOutcome::CliBridgeLoginRequested {
-                    provider: row.provider.clone(),
-                };
+                cloud.pending_cli_login_confirmation = Some(row.provider.clone());
             }
         });
         if let Some(msg) = cloud.message_for(&row.provider) {
             ui.label(egui::RichText::new(msg).small().weak());
         }
+    }
+
+    if let Some(provider) = cloud.pending_cli_login_confirmation.clone() {
+        let label = cli_rows
+            .iter()
+            .find(|row| row.provider == provider)
+            .map(|row| row.label.as_str())
+            .unwrap_or(provider.as_str());
+        ui.group(|ui| {
+            ui.label(format!(
+                "Start {label} official CLI login in a new terminal? The terminal may take focus."
+            ));
+            ui.horizontal(|ui| {
+                let confirm = ui.button("Start login");
+                set_author_id(
+                    ui,
+                    confirm.id,
+                    &cloud_cli_login_confirm_author_id(&provider),
+                );
+                if confirm.clicked() && outcome == SettingsOutcome::None {
+                    cloud.pending_cli_login_confirmation = None;
+                    outcome = SettingsOutcome::CliBridgeLoginRequested {
+                        provider: provider.clone(),
+                    };
+                }
+                let cancel = ui.button("Cancel");
+                set_author_id(ui, cancel.id, &cloud_cli_login_cancel_author_id(&provider));
+                if cancel.clicked() {
+                    cloud.pending_cli_login_confirmation = None;
+                }
+            });
+        });
     }
 
     outcome
@@ -1346,6 +1484,14 @@ mod tests {
         assert_eq!(
             cloud_cli_status_author_id("codex"),
             "settings.cloud.cli.codex.status"
+        );
+        assert_eq!(
+            cloud_cli_login_confirm_author_id("claude_code"),
+            "settings.cloud.cli.claude_code.login.confirm"
+        );
+        assert_eq!(
+            cloud_cli_login_cancel_author_id("codex"),
+            "settings.cloud.cli.codex.login.cancel"
         );
         // Distinct per provider.
         assert_ne!(

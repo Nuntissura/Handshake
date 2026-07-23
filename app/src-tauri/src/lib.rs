@@ -95,6 +95,10 @@ macro_rules! handshake_invoke_handlers {
             commands::swarm_runtime::kernel_swarm_resource_snapshot,
             commands::swarm_runtime::kernel_swarm_board_snapshot,
             commands::swarm_runtime::kernel_swarm_chat_generate,
+            commands::swarm_runtime::kernel_swarm_execute_routing_wave,
+            commands::swarm_runtime::kernel_swarm_recover_routing_wave,
+            commands::swarm_runtime::kernel_swarm_complete_routing_authority,
+            commands::swarm_runtime::kernel_swarm_cancel_routing_execution,
             commands::swarm_runtime::kernel_swarm_chat_generate_with_cloud_escalation,
             commands::swarm_schedule::kernel_swarm_schedule_add,
             commands::swarm_schedule::kernel_swarm_schedule_list,
@@ -241,6 +245,10 @@ macro_rules! handshake_invoke_handlers {
             commands::swarm_runtime::kernel_swarm_resource_snapshot,
             commands::swarm_runtime::kernel_swarm_board_snapshot,
             commands::swarm_runtime::kernel_swarm_chat_generate,
+            commands::swarm_runtime::kernel_swarm_execute_routing_wave,
+            commands::swarm_runtime::kernel_swarm_recover_routing_wave,
+            commands::swarm_runtime::kernel_swarm_complete_routing_authority,
+            commands::swarm_runtime::kernel_swarm_cancel_routing_execution,
             commands::swarm_runtime::kernel_swarm_chat_generate_with_cloud_escalation,
             commands::swarm_schedule::kernel_swarm_schedule_add,
             commands::swarm_schedule::kernel_swarm_schedule_list,
@@ -364,6 +372,63 @@ struct OrchestratorState {
     child: Mutex<Option<Child>>,
 }
 
+struct ManagedPostgresState {
+    handle: Mutex<Option<handshake_core::managed_postgres::ManagedPostgres>>,
+}
+
+/// Setup-local ownership fence. Tauri's setup closure has multiple fallible
+/// control-plane/bootstrap steps after managed PostgreSQL starts; every early
+/// return stops the owned cluster synchronously. The guard is disarmed only
+/// when ownership is transferred into managed application state.
+struct ManagedPostgresSetupGuard {
+    handle: Option<handshake_core::managed_postgres::ManagedPostgres>,
+}
+
+impl ManagedPostgresSetupGuard {
+    fn new(handle: Option<handshake_core::managed_postgres::ManagedPostgres>) -> Self {
+        Self { handle }
+    }
+
+    fn as_ref(&self) -> Option<&handshake_core::managed_postgres::ManagedPostgres> {
+        self.handle.as_ref()
+    }
+
+    fn transfer(&mut self) -> Option<handshake_core::managed_postgres::ManagedPostgres> {
+        self.handle.take()
+    }
+}
+
+impl Drop for ManagedPostgresSetupGuard {
+    fn drop(&mut self) {
+        let Some(handle) = self.handle.take() else {
+            return;
+        };
+        if let Err(error) = tauri::async_runtime::block_on(handle.stop()) {
+            eprintln!("managed PostgreSQL setup rollback failed: {error}");
+        }
+    }
+}
+
+impl ManagedPostgresState {
+    fn new(handle: Option<handshake_core::managed_postgres::ManagedPostgres>) -> Self {
+        Self {
+            handle: Mutex::new(handle),
+        }
+    }
+
+    async fn stop(&self) -> Result<(), String> {
+        let handle = self
+            .handle
+            .lock()
+            .expect("managed PostgreSQL state mutex poisoned")
+            .take();
+        match handle {
+            Some(handle) => handle.stop().await.map_err(|error| error.to_string()),
+            None => Ok(()),
+        }
+    }
+}
+
 impl OrchestratorState {
     fn spawn(&self, workdir: PathBuf) -> std::io::Result<()> {
         let mut guard = self.child.lock().expect("orchestrator mutex poisoned");
@@ -373,9 +438,11 @@ impl OrchestratorState {
 
         // DEV-ONLY: spawns handshake_core via cargo run; later we'll replace this with a packaged binary path.
         let mut cmd = Command::new("cargo");
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://postgres:postgres@localhost:65432/handshake_test".to_string()
-        });
+        let database_url = std::env::var("DATABASE_URL").map_err(|_| {
+            std::io::Error::other(
+                "DATABASE_URL is required; implicit loopback PostgreSQL ownership is forbidden",
+            )
+        })?;
         cmd.args([
             "run",
             "--features",
@@ -1065,6 +1132,10 @@ pub fn run() {
                     }
                 }
             };
+            if let Some(recorder) = swarm_recorder.clone() {
+                handshake_core::llm::install_model_runtime_flight_recorder(recorder)
+                    .map_err(std::io::Error::other)?;
+            }
             let distillation_jobs_state =
                 distillation_jobs_state_from_app_data_root(&app_data_root).map_err(|error| {
                     std::io::Error::other(format!(
@@ -1096,6 +1167,32 @@ pub fn run() {
             // same DuckDB Flight Recorder. Clone the handle before the match below
             // consumes `swarm_recorder` into the swarm runtime constructor.
             let schedule_recorder = swarm_recorder.clone();
+            let database_url = std::env::var(handshake_core::storage::DATABASE_URL_ENV)
+                .map_err(|_| {
+                    Box::new(std::io::Error::other(
+                        "DATABASE_URL is required for the Tauri control plane",
+                    ))
+                })?;
+            let managed_pg_config =
+                handshake_core::managed_postgres::ManagedPostgresConfig::from_env();
+            let mut tauri_managed_pg = ManagedPostgresSetupGuard::new(if managed_pg_config.enabled
+                && managed_pg_config.matches_database_url(&database_url)
+            {
+                Some(
+                    tauri::async_runtime::block_on(
+                        handshake_core::managed_postgres::ManagedPostgres::ensure_running(
+                            managed_pg_config,
+                        ),
+                    )
+                    .map_err(|error| {
+                        Box::new(std::io::Error::other(format!(
+                            "managed PostgreSQL bootstrap/provenance failed: {error}"
+                        )))
+                    })?,
+                )
+            } else {
+                None
+            });
             let control_plane_storage_result = tauri::async_runtime::block_on(async {
                 handshake_core::storage::init_control_plane_storage().await
             });
@@ -1179,6 +1276,34 @@ pub fn run() {
                 .as_ref()
                 .expect("Dexterity ModelLaneStore guard already returned on control-plane failure")
                 .clone();
+            let explicit_host_scope = std::env::var(
+                handshake_core::process_ledger::HANDSHAKE_HOST_SCOPE_ID_ENV,
+            )
+            .ok();
+            let proven_local_endpoint = tauri_managed_pg
+                .as_ref()
+                .and_then(|managed| managed.proven_local_endpoint());
+            let runtime_host_scope_id = tauri::async_runtime::block_on(async {
+                if let Some(proof) = proven_local_endpoint {
+                    handshake_core::process_ledger::verify_proven_local_postgres_endpoint_pool(
+                        &control_plane_storage_for_cloud.postgres_pool,
+                        proof,
+                    )
+                    .await
+                    .map_err(|error| std::io::Error::other(error.to_string()))?;
+                }
+                handshake_core::process_ledger::resolve_embedded_runtime_host_scope_with_managed_local(
+                    &database_url,
+                    explicit_host_scope.as_deref(),
+                    proven_local_endpoint,
+                )
+                .map_err(|error| std::io::Error::other(error.to_string()))
+            })?;
+            app.manage(ManagedPostgresState::new(tauri_managed_pg.transfer()));
+            let swarm_process_ledger_store =
+                handshake_core::process_ledger::PostgresProcessLedgerStore::new(
+                    control_plane_storage_for_cloud.postgres_pool.clone(),
+                );
             let (swarm_state, board_events, scheduler_state) =
                 tauri::async_runtime::block_on(async move {
                     let cloud_assistance_recorder = Some(Arc::new(
@@ -1187,23 +1312,16 @@ pub fn run() {
                         ),
                     )
                         as Arc<dyn commands::swarm_runtime::CloudAssistanceReceiptRecorder>);
-                    let mut swarm_state = match swarm_recorder {
-                        Some(recorder) => {
-                            commands::swarm_runtime::SwarmRuntimeState::production_with_fr_recorder_and_model_lane_store(
-                                recorder,
-                                &schedule_store_root,
-                                Some(sandbox_registry_for_swarm),
-                                dexterity_model_lane_store.clone(),
-                            )
-                        }
-                        None => {
-                            commands::swarm_runtime::SwarmRuntimeState::production_with_registry_and_model_lane_store(
-                                &schedule_store_root,
-                                Some(sandbox_registry_for_swarm),
-                                dexterity_model_lane_store.clone(),
-                            )
-                        }
-                    };
+                    let mut swarm_state = commands::swarm_runtime::SwarmRuntimeState::production_bootstrap_with_model_lane_store(
+                        swarm_recorder,
+                        &schedule_store_root,
+                        Some(sandbox_registry_for_swarm),
+                        dexterity_model_lane_store.clone(),
+                        swarm_process_ledger_store,
+                        runtime_host_scope_id,
+                    )
+                    .await
+                    .map_err(std::io::Error::other)?;
                     if let Some(recorder) = cloud_assistance_recorder {
                         swarm_state = swarm_state.with_cloud_assistance_recorder(recorder);
                     }
@@ -1307,9 +1425,29 @@ pub fn run() {
     #[cfg(not(all(debug_assertions, feature = "swarm_ipc")))]
     let builder = builder.invoke_handler(handshake_invoke_handlers!());
 
-    builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+    let app = builder
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+    app.run(|app_handle, event| {
+        if matches!(event, tauri::RunEvent::Exit) {
+            if let Some(state) =
+                app_handle.try_state::<commands::swarm_runtime::SwarmRuntimeState>()
+            {
+                let outcome = tauri::async_runtime::block_on(
+                    state.shutdown_drain(std::time::Duration::from_secs(5)),
+                );
+                eprintln!("swarm coordinator/process-ledger shutdown drain: {outcome:?}");
+            }
+            if let Some(state) = app_handle.try_state::<OrchestratorState>() {
+                state.kill();
+            }
+            if let Some(managed_pg) = app_handle.try_state::<ManagedPostgresState>() {
+                if let Err(error) = tauri::async_runtime::block_on(managed_pg.stop()) {
+                    eprintln!("managed PostgreSQL shutdown failed: {error}");
+                }
+            }
+        }
+    });
 }
 
 #[cfg(test)]

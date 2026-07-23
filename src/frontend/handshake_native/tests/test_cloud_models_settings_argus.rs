@@ -20,7 +20,7 @@ use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::settings_dialog::{
-    cloud_byok_key_egui_id, CloudAccessSnapshot, CloudByokRow, CloudCliRow,
+    cloud_byok_key_egui_id, CloudAccessSnapshot, CloudByokRow, CloudCliAuthStatus, CloudCliRow,
 };
 use handshake_native::workspace_settings::{SettingsTransport, SettingsTransportError};
 use serde_json::Value;
@@ -64,13 +64,15 @@ fn seeded_snapshot() -> CloudAccessSnapshot {
             CloudCliRow {
                 provider: "claude_code".into(),
                 label: "Claude Code".into(),
+                auth_status: CloudCliAuthStatus::LoggedIn,
                 login_program: "claude".into(),
-                login_args: vec!["/login".into()],
+                login_args: vec!["auth".into(), "login".into()],
                 hint: String::new(),
             },
             CloudCliRow {
                 provider: "codex".into(),
                 label: "GPT / Codex CLI".into(),
+                auth_status: CloudCliAuthStatus::LoggedIn,
                 login_program: "codex".into(),
                 login_args: vec!["login".into()],
                 hint: String::new(),
@@ -234,6 +236,20 @@ fn cli_bridge_login_records_the_official_command_without_stealing_focus() {
     harness.run();
     harness.run();
 
+    assert!(
+        harness.state().last_cli_login_launch().is_none(),
+        "the first click only opens the foreground-window confirmation"
+    );
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| {
+            n.author_id() == Some("settings.cloud.cli.claude_code.login.confirm")
+        })
+        .next()
+        .expect("Claude Code login confirmation is addressable")
+        .click_accesskit();
+    harness.run();
+    harness.run();
+
     let launch = harness
         .state()
         .last_cli_login_launch()
@@ -243,7 +259,46 @@ fn cli_bridge_login_records_the_official_command_without_stealing_focus() {
         launch.0, "claude",
         "launched the provider's OWN official CLI"
     );
-    assert_eq!(launch.1, vec!["/login".to_string()]);
+    assert_eq!(launch.1, vec!["auth".to_string(), "login".to_string()]);
+}
+
+#[test]
+fn cli_bridge_auth_status_renders_all_three_states_for_claude_and_codex() {
+    for (auth_status, expected_label) in [
+        (CloudCliAuthStatus::LoggedIn, "Logged in"),
+        (CloudCliAuthStatus::LoggedOut, "Logged out"),
+        (CloudCliAuthStatus::Expired, "Session expired"),
+    ] {
+        let mut snapshot = seeded_snapshot();
+        for row in &mut snapshot.cli_bridge {
+            row.auth_status = auth_status;
+        }
+        let mut app = ok_app();
+        app.set_settings_transport(Arc::new(StubSettingsTransport));
+        app.set_cloud_snapshot_for_test(snapshot);
+        let mut harness =
+            Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+        harness.state_mut().open_settings();
+        harness.run();
+        harness.run();
+
+        for provider in ["claude_code", "codex"] {
+            let author_id = format!("settings.cloud.cli.{provider}.status");
+            let rendered = harness
+                .query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+                    node.author_id() == Some(author_id.as_str())
+                })
+                .next()
+                .unwrap_or_else(|| panic!("{provider} status is addressable"))
+                .accesskit_node()
+                .label();
+            assert_eq!(
+                rendered.as_deref(),
+                Some(expected_label),
+                "{provider} must render the typed {auth_status:?} state"
+            );
+        }
+    }
 }
 
 // ── F10: BYOK key entry renders even when the backend enumeration is unreachable. ────────────────────

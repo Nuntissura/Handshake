@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     fs::File,
-    io::{self, BufReader, Read},
+    io::{self, BufReader, Cursor, Read},
     path::Path,
 };
 
@@ -52,7 +52,9 @@ impl Default for LlamaCppModelLoadConfig {
             gpu_layers: GpuLayerOffload::CpuOnly,
             main_gpu: 0,
             vocab_only: false,
-            use_mmap: true,
+            // Attested llama.cpp loads retain a private staged GGUF and disable
+            // mmap so later source/stage path changes cannot become lazy reads.
+            use_mmap: false,
             use_mlock: false,
         }
     }
@@ -105,15 +107,17 @@ pub struct LlamaCppLoadConfig {
     pub context: LlamaCppContextLoadConfig,
 }
 
-pub fn load_gguf_context(
-    spec: &LoadSpec,
+pub(super) fn load_staged_gguf_context(
+    staged_path: &Path,
     config: &LlamaCppLoadConfig,
 ) -> Result<LlamaCppContext, ModelRuntimeError> {
-    validate_llama_cpp_load_spec(spec)?;
-    LlamaCppContext::load_from_file(&spec.artifact_path, config)
+    LlamaCppContext::load_from_file(staged_path, config)
 }
 
-pub fn validate_llama_cpp_load_spec(spec: &LoadSpec) -> Result<(), ModelRuntimeError> {
+/// Validate only declarative fields. Artifact bytes are intentionally not read
+/// here: the attested loader captures the configured source through one open,
+/// then performs every byte/content check against its private staged copy.
+pub fn validate_llama_cpp_load_spec_fields(spec: &LoadSpec) -> Result<(), ModelRuntimeError> {
     if spec.runtime_kind != RuntimeKind::LlamaCpp {
         return Err(ModelRuntimeError::LoadError(format!(
             "LlamaCppRuntime requires RuntimeKind::LlamaCpp, got {:?}",
@@ -134,16 +138,67 @@ pub fn validate_llama_cpp_load_spec(spec: &LoadSpec) -> Result<(), ModelRuntimeE
         ));
     }
 
-    validate_gguf_magic(&spec.artifact_path)?;
+    Ok(())
+}
 
-    let actual = sha256_file(&spec.artifact_path)?;
-    if !actual.eq_ignore_ascii_case(spec.sha256_expected.trim()) {
+/// Preserve the engine-disabled diagnostic contract without manufacturing an
+/// integrity receipt or attempting native construction. This opens the source
+/// once, validates the configured digest and GGUF header from the same stream,
+/// then the caller returns the typed feature-disabled error.
+pub(super) fn validate_disabled_backend_artifact(
+    path: &Path,
+    expected_sha256: [u8; 32],
+) -> Result<(), ModelRuntimeError> {
+    let mut file = File::open(path).map_err(|error| {
+        ModelRuntimeError::LoadError(format!(
+            "failed to open llama.cpp artifact {}: {error}",
+            path.display()
+        ))
+    })?;
+    if !file
+        .metadata()
+        .map_err(|error| {
+            ModelRuntimeError::LoadError(format!(
+                "failed to inspect llama.cpp artifact {}: {error}",
+                path.display()
+            ))
+        })?
+        .is_file()
+    {
         return Err(ModelRuntimeError::LoadError(format!(
-            "llama.cpp artifact sha256 mismatch: expected {}, got {actual}",
-            spec.sha256_expected
+            "llama.cpp artifact must be a regular file: {}",
+            path.display()
         )));
     }
 
+    let mut hasher = Sha256::new();
+    let mut header = Vec::with_capacity(8);
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer).map_err(|error| {
+            ModelRuntimeError::LoadError(format!(
+                "failed to read llama.cpp artifact {}: {error}",
+                path.display()
+            ))
+        })?;
+        if read == 0 {
+            break;
+        }
+        if header.len() < 8 {
+            let needed = 8 - header.len();
+            header.extend_from_slice(&buffer[..read.min(needed)]);
+        }
+        hasher.update(&buffer[..read]);
+    }
+    read_magic_version(&mut Cursor::new(header), path)?;
+    let actual: [u8; 32] = hasher.finalize().into();
+    if actual != expected_sha256 {
+        return Err(ModelRuntimeError::LoadError(format!(
+            "llama.cpp artifact sha256 mismatch: expected {}, got {}",
+            hex::encode(expected_sha256),
+            hex::encode(actual)
+        )));
+    }
     Ok(())
 }
 
@@ -163,6 +218,7 @@ pub(crate) fn parse_gguf_tokenizer_metadata(
     let mut tokens = None;
     let mut bos_id = None;
     let mut eos_id = None;
+    let mut split_metadata_key = None;
 
     for _ in 0..metadata_count {
         let key = read_string(&mut reader, path, "metadata key")?;
@@ -178,8 +234,23 @@ pub(crate) fn parse_gguf_tokenizer_metadata(
             "tokenizer.ggml.eos_token_id" => {
                 eos_id = Some(read_token_id(&mut reader, value_type, path, &key)?);
             }
+            // A split GGUF causes llama.cpp's path-based loader to derive and
+            // open sibling shard paths. A one-file receipt cannot truthfully
+            // attest those additional bytes, so the v1 loader rejects every
+            // split marker before native construction.
+            "split.no" | "split.count" | "split.tensors.count" => {
+                skip_value(&mut reader, value_type, path, 0)?;
+                split_metadata_key.get_or_insert_with(|| key.clone());
+            }
             _ => skip_value(&mut reader, value_type, path, 0)?,
         }
+    }
+
+    if let Some(key) = split_metadata_key {
+        return Err(ModelRuntimeError::LoadError(format!(
+            "split GGUF artifacts are not supported by the single-file integrity schema ({key} present in {})",
+            path.display()
+        )));
     }
 
     let tokens = tokens.ok_or_else(|| {
@@ -196,30 +267,6 @@ pub(crate) fn parse_gguf_tokenizer_metadata(
         eos_id,
         special_tokens,
     })
-}
-
-pub fn sha256_file(path: &Path) -> Result<String, ModelRuntimeError> {
-    let mut file = File::open(path).map_err(|error| {
-        ModelRuntimeError::LoadError(format!(
-            "failed to open llama.cpp artifact {}: {error}",
-            path.display()
-        ))
-    })?;
-    let mut hasher = Sha256::new();
-    let mut buffer = [0_u8; 64 * 1024];
-    loop {
-        let read = file.read(&mut buffer).map_err(|error| {
-            ModelRuntimeError::LoadError(format!(
-                "failed to read llama.cpp artifact {}: {error}",
-                path.display()
-            ))
-        })?;
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buffer[..read]);
-    }
-    Ok(hex::encode(hasher.finalize()))
 }
 
 fn default_n_threads() -> u32 {

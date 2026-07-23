@@ -19,7 +19,7 @@ use handshake_core::{
         RoleMailboxMessageType, TranscriptionLink, TranscriptionTargetKind,
     },
     runtime_governance::RuntimeGovernancePaths,
-    storage::{tests::optional_postgres_backend_from_env, Database},
+    storage::{tests::optional_postgres_backend_with_pool_from_env, Database},
     workflows::locus::{
         validate_structured_collaboration_record, StructuredCollaborationRecordFamily,
         StructuredCollaborationValidationCode, StructuredCollaborationValidationResult,
@@ -72,18 +72,19 @@ fn test_guard() -> std::sync::MutexGuard<'static, ()> {
 async fn setup_api_state(
     recorder: Arc<DuckDbFlightRecorder>,
 ) -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-    let Some(storage) = optional_postgres_backend_from_env().await? else {
+    let Some(postgres) = optional_postgres_backend_with_pool_from_env().await? else {
         return Ok(None);
     };
     let flight_recorder: Arc<dyn FlightRecorder> = recorder.clone();
 
     Ok(Some(AppState {
-        storage,
+        storage: postgres.database,
         flight_recorder: flight_recorder.clone(),
         diagnostics: recorder,
         llm_client: Arc::new(TestLlmClient::new()),
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        postgres_pool: postgres.postgres_pool,
     }))
 }
 

@@ -9,7 +9,13 @@ use crate::swarm_lane_diagnostics::{
     validate_projection_for_native_surface, SwarmLaneDiagnosticsCell,
     SwarmLaneDiagnosticsProjection, SwarmLaneDiagnosticsTransport,
 };
+use crate::user_manual_pane::{
+    UserManualNavigation, UserManualPageContent, UserManualResultCell, UserManualSearchResponse,
+    UserManualTransport,
+};
+use hmac::{Hmac, Mac};
 use serde_json::Value;
+use sha2::Sha256;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -17,6 +23,109 @@ use std::time::Duration;
 pub const BACKEND_BASE_URL: &str = "http://127.0.0.1:37501";
 /// Health probe (CONTROL-2). Kept as a full URL for the existing MT-002 health wiring.
 pub const HEALTH_URL: &str = "http://127.0.0.1:37501/health";
+
+#[derive(Clone)]
+pub struct UserManualClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl UserManualClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into().trim_end_matches('/').to_owned(),
+            runtime,
+        }
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    pub fn navigation_request(&self) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/usermanual/pages", self.base_url),
+            body: None,
+        }
+    }
+
+    pub fn page_request(&self, slug: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/usermanual/pages/{}", self.base_url, slug),
+            body: None,
+        }
+    }
+
+    pub fn search_request(&self, query: &str) -> RequestSpec {
+        let mut url = reqwest::Url::parse(&format!("{}/usermanual/search", self.base_url))
+            .expect("UserManual base URL was validated when configured");
+        url.query_pairs_mut()
+            .append_pair("q", query)
+            .append_pair("limit", "50");
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: url.into(),
+            body: None,
+        }
+    }
+}
+
+impl UserManualTransport for UserManualClient {
+    fn fetch_navigation(&self, cell: UserManualResultCell<UserManualNavigation>) {
+        let spec = self.navigation_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    serde_json::from_value(value)
+                        .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn fetch_page(&self, slug: &str, cell: UserManualResultCell<UserManualPageContent>) {
+        let spec = self.page_request(slug);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    serde_json::from_value(value)
+                        .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn fetch_search(&self, query: &str, cell: UserManualResultCell<UserManualSearchResponse>) {
+        let spec = self.search_request(query);
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = get_json(&client, &spec.url, &[])
+                .await
+                .and_then(|value| {
+                    serde_json::from_value(value)
+                        .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+}
 
 /// Per-request timeout for the layout endpoint. A save must not hang the UI thread; on timeout the
 /// transport returns a TRANSIENT [`LayoutError::Transport`] the persistence manager retries.
@@ -40,7 +149,7 @@ impl SwarmLaneDiagnosticsClient {
     pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
         Self {
             client: reqwest::Client::new(),
-            base_url: base_url.into(),
+            base_url: base_url.into().trim_end_matches('/').to_owned(),
             runtime,
         }
     }
@@ -106,6 +215,261 @@ impl SwarmLaneDiagnosticsTransport for SwarmLaneDiagnosticsClient {
     }
 }
 
+/// Client for the PostgreSQL-backed ModelRuntime registry projection and its
+/// explicit control receipts.
+/// Every request is spawned on the app runtime; the egui frame thread only
+/// drains the one-slot delivery cell.
+#[derive(Clone)]
+pub struct ModelRuntimeRegistryClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+}
+
+impl ModelRuntimeRegistryClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into().trim_end_matches('/').to_owned(),
+            runtime,
+        }
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    pub fn registry_request(&self) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/model-runtime/registry", self.base_url),
+            body: None,
+        }
+    }
+
+    pub fn selection_request(&self, target_model_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/model-runtime/selection", self.base_url),
+            body: Some(serde_json::json!({
+                "target_model_id": target_model_id,
+                "actor": "native-model-runtime-panel",
+                "reason": "operator selected a READY model from ModelRuntime Control Panel"
+            })),
+        }
+    }
+
+    pub fn quiesce_request(&self, model_id: &str, request_id: uuid::Uuid) -> RequestSpec {
+        self.control_request(
+            model_id,
+            request_id,
+            &crate::model_runtime_panel::ModelRuntimeControlAction::Quiesce,
+            None,
+            None,
+        )
+    }
+
+    pub fn control_request(
+        &self,
+        model_id: &str,
+        request_id: uuid::Uuid,
+        action: &crate::model_runtime_panel::ModelRuntimeControlAction,
+        expected_catalog_revision: Option<u64>,
+        expected_selection_revision: Option<u64>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/model-runtime/control", self.base_url),
+            body: Some(serde_json::json!({
+                "schema_version": 1,
+                "request_id": request_id,
+                "model_id": model_id,
+                "action": action,
+                "timeout_ms": 5_000,
+                "expected_catalog_revision": expected_catalog_revision,
+                "expected_selection_revision": expected_selection_revision
+            })),
+        }
+    }
+}
+
+impl crate::model_runtime_panel::ModelRuntimeRegistryTransport for ModelRuntimeRegistryClient {
+    fn fetch_registry(&self, cell: crate::model_runtime_panel::ModelRuntimeRegistryCell) {
+        let spec = self.registry_request();
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_model_runtime_registry(&client, &spec.url)
+                .await
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn fetch_process_ownership(
+        &self,
+        uri: String,
+        cell: crate::model_runtime_panel::ProcessOwnershipCell,
+    ) {
+        let Some(process_uuid) = uri.strip_prefix("process-ownership-ledger://process/") else {
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(Err("ProcessOwnershipLedger URI is not canonical".to_owned()));
+            }
+            return;
+        };
+        let Ok(process_uuid) = uuid::Uuid::parse_str(process_uuid) else {
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(Err(
+                    "ProcessOwnershipLedger URI has an invalid UUID".to_owned()
+                ));
+            }
+            return;
+        };
+        let url = format!(
+            "{}/model-runtime/process-ownership/{process_uuid}",
+            self.base_url
+        );
+        let client = self.client.clone();
+        self.runtime.spawn(async move {
+            let result = client
+                .get(url)
+                .timeout(Duration::from_secs(5))
+                .send()
+                .await
+                .map_err(|error| error.to_string())
+                .and_then(|response| {
+                    let status = response.status();
+                    if status.is_success() {
+                        Ok(response)
+                    } else {
+                        Err(format!(
+                            "ProcessOwnershipLedger query failed: HTTP {status}"
+                        ))
+                    }
+                });
+            let result = match result {
+                Ok(response) => response
+                    .json::<crate::model_runtime_panel::ModelRuntimeProcessOwnershipRecord>()
+                    .await
+                    .map_err(|error| error.to_string()),
+                Err(error) => Err(error),
+            };
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn select_model(
+        &self,
+        target_model_id: String,
+        cell: crate::model_runtime_panel::ModelRuntimeRegistryCell,
+    ) {
+        let spec = self.selection_request(&target_model_id);
+        let client = self.client.clone();
+        let body = spec.body.unwrap_or_default();
+        self.runtime.spawn(async move {
+            let result = post_json(&client, &spec.url, &body)
+                .await
+                .and_then(|value| {
+                    serde_json::from_value::<
+                        crate::model_runtime_panel::ModelRuntimeRegistryProjection,
+                    >(value)
+                    .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .and_then(|projection| {
+                    crate::model_runtime_panel::validate_projection_for_native_surface(&projection)
+                        .map(|()| projection)
+                        .map_err(AppError::Parse)
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn control_model(
+        &self,
+        model_id: String,
+        action: crate::model_runtime_panel::ModelRuntimeControlAction,
+        expected_catalog_revision: Option<u64>,
+        expected_selection_revision: Option<u64>,
+        cell: crate::model_runtime_panel::ModelRuntimeControlCell,
+    ) {
+        let request_id = uuid::Uuid::now_v7();
+        let spec = self.control_request(
+            &model_id,
+            request_id,
+            &action,
+            expected_catalog_revision,
+            expected_selection_revision,
+        );
+        let client = self.client.clone();
+        let body = spec.body.unwrap_or_default();
+        self.runtime.spawn(async move {
+            let result = post_json(&client, &spec.url, &body)
+                .await
+                .and_then(|value| {
+                    serde_json::from_value::<
+                            crate::model_runtime_panel::ModelRuntimeControlReceipt,
+                        >(value)
+                        .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .and_then(|receipt| {
+                    let valid = receipt.schema_version == 1
+                        && receipt.request_id == request_id
+                        && receipt.model_id == model_id
+                        && receipt.action == action;
+                    if valid {
+                        Ok(receipt)
+                    } else {
+                        Err(AppError::Parse(
+                            "ModelRuntime control receipt does not match the submitted request"
+                                .to_owned(),
+                        ))
+                    }
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+}
+
+async fn fetch_model_runtime_registry(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<crate::model_runtime_panel::ModelRuntimeRegistryProjection, AppError> {
+    let response = client
+        .get(url)
+        .timeout(Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|error| AppError::Http(error.to_string()))?;
+    let status = response.status();
+    let value = response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|error| AppError::Parse(error.to_string()))?;
+    if !status.is_success() {
+        let detail = value
+            .get("detail")
+            .and_then(serde_json::Value::as_str)
+            .or_else(|| value.get("error").and_then(serde_json::Value::as_str))
+            .unwrap_or("ModelRuntime registry request failed");
+        return Err(AppError::Http(format!("{status}: {detail}")));
+    }
+    let projection =
+        serde_json::from_value::<crate::model_runtime_panel::ModelRuntimeRegistryProjection>(value)
+            .map_err(|error| AppError::Parse(error.to_string()))?;
+    crate::model_runtime_panel::validate_projection_for_native_surface(&projection)
+        .map_err(AppError::Parse)?;
+    Ok(projection)
+}
+
 /// WP-1 MT-012: client for the native Operator Chat / Launch pane. Enumerates
 /// the picker inventory (`GET /operator-chat/models`), records a selection
 /// decision (`POST /operator-chat/selection`), and launches a session
@@ -142,6 +506,7 @@ impl OperatorChatClient {
     pub fn launch_request(
         &self,
         selection: &crate::operator_chat_pane::OperatorChatLaunchSelection,
+        owner_session_id: &str,
         working_dir: &str,
         prompt: &str,
     ) -> RequestSpec {
@@ -155,8 +520,7 @@ impl OperatorChatClient {
                 "cli_provider": &selection.cli_provider,
                 "working_dir": working_dir,
                 "prompt": prompt,
-                "owner_session": "operator-chat-native",
-                "parent_session_id": "operator-chat-native"
+                "owner_session_id": owner_session_id
             })),
         }
     }
@@ -187,6 +551,24 @@ impl OperatorChatClient {
             method: HttpMethod::Get,
             url: format!("{}/operator-chat/transcript/{}", self.base_url, run_id),
             body: None,
+        }
+    }
+
+    pub fn routing_request(
+        &self,
+        action: crate::operator_chat_pane::OperatorChatRoutingAction,
+        body: serde_json::Value,
+    ) -> RequestSpec {
+        let suffix = match action {
+            crate::operator_chat_pane::OperatorChatRoutingAction::Lifecycle => "lifecycle",
+            crate::operator_chat_pane::OperatorChatRoutingAction::Recover => "recover",
+            crate::operator_chat_pane::OperatorChatRoutingAction::Cancel => "cancel",
+            crate::operator_chat_pane::OperatorChatRoutingAction::Authority => "authority",
+        };
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/operator-chat/routing/{suffix}", self.base_url),
+            body: Some(body),
         }
     }
 }
@@ -232,18 +614,25 @@ impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
     }
 
     /// Record an operator model selection as an auditable decision (F6). Wires the
-    /// previously-dead `POST /operator-chat/selection` builder; the response is
-    /// fire-and-forget (the audit is the FR-EVT-MODEL-SELECTION-RECORDED event).
+    /// previously-dead `POST /operator-chat/selection` builder. Selection is
+    /// accepted by the pane only after this response confirms the audit record.
     fn record_selection(
         &self,
-        selection: &crate::operator_chat_pane::OperatorChatLaunchSelection,
-        working_dir: Option<&str>,
+        selection: crate::operator_chat_pane::OperatorChatLaunchSelection,
+        working_dir: Option<String>,
+        cell: crate::operator_chat_pane::SelectionCell,
     ) {
-        let spec = self.selection_request(selection, working_dir);
+        let spec = self.selection_request(&selection, working_dir.as_deref());
         let client = self.client.clone();
         let body = spec.body.unwrap_or_default();
         self.runtime.spawn(async move {
-            let _ = post_json(&client, &spec.url, &body).await;
+            let result = post_json(&client, &spec.url, &body)
+                .await
+                .map(|_| ())
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
         });
     }
 
@@ -252,11 +641,12 @@ impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
     fn launch(
         &self,
         selection: crate::operator_chat_pane::OperatorChatLaunchSelection,
+        owner_session_id: &str,
         working_dir: &str,
         prompt: &str,
         cell: crate::operator_chat_pane::LaunchCell,
     ) {
-        let spec = self.launch_request(&selection, working_dir, prompt);
+        let spec = self.launch_request(&selection, owner_session_id, working_dir, prompt);
         let client = self.client.clone();
         let body = spec.body.unwrap_or_default();
         self.runtime.spawn(async move {
@@ -296,6 +686,87 @@ impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
                         .collect::<Vec<_>>()
                 })
                 .map_err(|e| e.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn record_diagnostic_observation(&self, run_id: &str, lane_id: &str) {
+        const BEHAVIOR_ID: &str = "HBR-INT-009";
+        let Some(provenance) = crate::internal_diagnostics::emit_behavior_observation_open(
+            BEHAVIOR_ID,
+            run_id,
+            lane_id,
+        ) else {
+            return;
+        };
+        let mut mac = match Hmac::<Sha256>::new_from_slice(provenance.signing_secret.as_ref()) {
+            Ok(mac) => mac,
+            Err(_) => return,
+        };
+        for value in [
+            provenance.session_id.to_string(),
+            BEHAVIOR_ID.to_owned(),
+            run_id.to_owned(),
+            lane_id.to_owned(),
+            provenance.heartbeat_counter.to_string(),
+        ] {
+            mac.update(&(value.len() as u64).to_le_bytes());
+            mac.update(value.as_bytes());
+        }
+        let proof = mac.finalize().into_bytes();
+        let proof = proof
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        let url = format!("{}/internal-diagnostics/model-lane/observe", self.base_url);
+        let client = self.client.clone();
+        let body = serde_json::json!({
+            "diagnostics_session_id": provenance.session_id,
+            "behavior_id": BEHAVIOR_ID,
+            "run_id": run_id,
+            "lane_id": lane_id,
+            "heartbeat_counter": provenance.heartbeat_counter,
+            "proof": proof,
+        });
+        self.runtime.spawn(async move {
+            let mut last_error = None;
+            for _ in 0..10 {
+                match post_json(&client, &url, &body).await {
+                    Ok(_) => return,
+                    Err(error) => last_error = Some(error),
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            if let Some(error) = last_error {
+                tracing::warn!(error = %error, "correlated diagnostics observation was not recorded after bounded Palmistry readback retries");
+            }
+        });
+    }
+
+    fn routing_action(
+        &self,
+        action: crate::operator_chat_pane::OperatorChatRoutingAction,
+        request_json: String,
+        cell: crate::operator_chat_pane::RoutingCell,
+    ) {
+        let body = match serde_json::from_str::<serde_json::Value>(&request_json) {
+            Ok(body) => body,
+            Err(error) => {
+                if let Ok(mut slot) = cell.lock() {
+                    *slot = Some(Err(format!("routing request JSON is invalid: {error}")));
+                }
+                return;
+            }
+        };
+        let spec = self.routing_request(action, body);
+        let client = self.client.clone();
+        let body = spec.body.unwrap_or_default();
+        self.runtime.spawn(async move {
+            let result = post_json(&client, &spec.url, &body)
+                .await
+                .map_err(|error| error.to_string());
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result);
             }
@@ -1073,7 +1544,7 @@ async fn fetch_blame_text(
 // returns only non-secret status; it has no route to read a key back.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-use crate::settings_dialog::{CloudAccessSnapshot, CloudByokRow, CloudCliRow};
+use crate::settings_dialog::{CloudAccessSnapshot, CloudByokRow, CloudCliAuthStatus, CloudCliRow};
 
 /// One delivered cloud-access result, drained by the shell each frame.
 pub enum CloudAccessDelivery {
@@ -1113,15 +1584,29 @@ impl CloudAccessClient {
     /// `GET /model-access/providers` → the non-secret enumeration snapshot.
     pub async fn enumerate(&self) -> Result<CloudAccessSnapshot, AppError> {
         let url = format!("{}/model-access/providers", self.base_url);
-        let value = get_json(&self.client, &url, &[]).await?;
+        // The backend runs both provider-owned status probes concurrently, each
+        // with a five-second hard bound. Leave headroom for loaded hosts and
+        // loopback serialization without making the UI wait indefinitely.
+        let value = get_json_with_timeout(&self.client, &url, &[], Duration::from_secs(12)).await?;
         Ok(parse_cloud_access_snapshot(&value))
     }
 
     /// `PUT /model-access/byok/{provider}/key` with `{ "api_key": <key> }` → store the key in the OS
     /// keychain vault. The key travels in the body only; it is never logged by this client.
-    pub async fn store_key(&self, provider: &str, api_key: String) -> Result<(), AppError> {
+    pub async fn store_key(
+        &self,
+        provider: &str,
+        api_key: zeroize::Zeroizing<String>,
+    ) -> Result<(), AppError> {
+        #[derive(serde::Serialize)]
+        struct StoreKeyBody<'a> {
+            api_key: &'a str,
+        }
+
         let url = format!("{}/model-access/byok/{}/key", self.base_url, provider);
-        let body = serde_json::json!({ "api_key": api_key });
+        let body = StoreKeyBody {
+            api_key: api_key.as_str(),
+        };
         let resp = self
             .client
             .put(&url)
@@ -1146,11 +1631,12 @@ impl CloudAccessClient {
     }
 }
 
-/// Parse the `GET /model-access/providers` JSON into the UI snapshot. Defensive: any provider id of
-/// `gemini` / `gemini_cli` is dropped even though the backend already excludes it, so a stale/spoofed
-/// response can never surface Gemini in the operator surface.
+/// Parse the `GET /model-access/providers` JSON into the UI snapshot. Defensive:
+/// only the exact compiled provider IDs are accepted. A stale/spoofed response
+/// therefore cannot surface Gemini, case variants, or an unknown provider row.
 fn parse_cloud_access_snapshot(value: &Value) -> CloudAccessSnapshot {
-    let is_excluded = |provider: &str| provider == "gemini" || provider == "gemini_cli";
+    let is_allowed_byok = |provider: &str| matches!(provider, "anthropic" | "openai");
+    let is_allowed_cli = |provider: &str| matches!(provider, "claude_code" | "codex");
     let byok = value
         .get("byok")
         .and_then(Value::as_array)
@@ -1158,7 +1644,7 @@ fn parse_cloud_access_snapshot(value: &Value) -> CloudAccessSnapshot {
             rows.iter()
                 .filter_map(|row| {
                     let provider = row.get("provider")?.as_str()?.to_owned();
-                    if is_excluded(&provider) {
+                    if !is_allowed_byok(&provider) {
                         return None;
                     }
                     let label = row
@@ -1184,7 +1670,7 @@ fn parse_cloud_access_snapshot(value: &Value) -> CloudAccessSnapshot {
             rows.iter()
                 .filter_map(|row| {
                     let provider = row.get("provider")?.as_str()?.to_owned();
-                    if is_excluded(&provider) {
+                    if !is_allowed_cli(&provider) {
                         return None;
                     }
                     let label = row
@@ -1212,9 +1698,15 @@ fn parse_cloud_access_snapshot(value: &Value) -> CloudAccessSnapshot {
                         .and_then(Value::as_str)
                         .unwrap_or("")
                         .to_owned();
+                    let auth_status = CloudCliAuthStatus::from_wire(
+                        row.get("auth_status")
+                            .and_then(Value::as_str)
+                            .unwrap_or("unavailable"),
+                    );
                     Some(CloudCliRow {
                         provider,
                         label,
+                        auth_status,
                         login_program,
                         login_args,
                         hint,
@@ -1232,10 +1724,19 @@ async fn get_json(
     url: &str,
     query: &[(String, String)],
 ) -> Result<serde_json::Value, AppError> {
+    get_json_with_timeout(client, url, query, Duration::from_secs(5)).await
+}
+
+async fn get_json_with_timeout(
+    client: &reqwest::Client,
+    url: &str,
+    query: &[(String, String)],
+    timeout: Duration,
+) -> Result<serde_json::Value, AppError> {
     let resp = client
         .get(url)
         .query(query)
-        .timeout(Duration::from_secs(5))
+        .timeout(timeout)
         .send()
         .await
         .map_err(|e| AppError::Http(e.to_string()))?;
@@ -1832,6 +2333,53 @@ mod tests {
     }
 
     const BASE: &str = "http://test.local:1234";
+
+    #[test]
+    fn cloud_access_snapshot_accepts_only_exact_compiled_provider_ids() {
+        let snapshot = parse_cloud_access_snapshot(&serde_json::json!({
+            "byok": [
+                {"provider": "anthropic", "label": "Anthropic", "status": "configured"},
+                {"provider": "Gemini", "label": "Gemini", "status": "configured"},
+                {"provider": "unknown", "label": "Unknown", "status": "configured"}
+            ],
+            "cli_bridge": [
+                {
+                    "provider": "codex",
+                    "label": "Codex",
+                    "auth_status": "logged_in",
+                    "login": {"program": "codex", "args": ["login"], "hint": ""}
+                },
+                {
+                    "provider": "GEMINI_CLI",
+                    "label": "Gemini",
+                    "auth_status": "logged_in",
+                    "login": {"program": "gemini", "args": ["login"], "hint": ""}
+                },
+                {
+                    "provider": "other",
+                    "label": "Other",
+                    "auth_status": "logged_in",
+                    "login": {"program": "other", "args": ["login"], "hint": ""}
+                }
+            ]
+        }));
+        assert_eq!(
+            snapshot
+                .byok
+                .iter()
+                .map(|row| row.provider.as_str())
+                .collect::<Vec<_>>(),
+            vec!["anthropic"]
+        );
+        assert_eq!(
+            snapshot
+                .cli_bridge
+                .iter()
+                .map(|row| row.provider.as_str())
+                .collect::<Vec<_>>(),
+            vec!["codex"]
+        );
+    }
 
     // ── SourceControlClient: stage / unstage / discard / diff / blame ────────────────────────────────
 
@@ -2446,5 +2994,52 @@ mod tests {
             ),
             "missing blocks field defaults to 0 (CONTROL-023-D), never an error"
         );
+    }
+
+    #[test]
+    fn operator_chat_routing_action_sends_real_lifecycle_post_on_the_wire() {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("build multi-thread runtime");
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let port = listener.local_addr().unwrap().port();
+        let client =
+            OperatorChatClient::new(format!("http://127.0.0.1:{port}"), rt.handle().clone());
+        let cell: crate::operator_chat_pane::RoutingCell = Arc::new(Mutex::new(None));
+        let request = serde_json::json!({
+            "execution_id": "execution-ui-1",
+            "selecting_decision_id": "decision-1",
+            "authority": {},
+            "context": {},
+            "stages": []
+        });
+        crate::operator_chat_pane::OperatorChatBackend::routing_action(
+            &client,
+            crate::operator_chat_pane::OperatorChatRoutingAction::Lifecycle,
+            request.to_string(),
+            cell.clone(),
+        );
+
+        let captured = capture_one_request(listener);
+        assert_eq!(
+            captured.request_line,
+            "POST /operator-chat/routing/lifecycle HTTP/1.1"
+        );
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(captured.body.trim()).expect("json body"),
+            request
+        );
+
+        rt.block_on(async {
+            for _ in 0..50 {
+                if cell.lock().unwrap().is_some() {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        });
+        assert_eq!(cell.lock().unwrap().take(), Some(Ok(serde_json::json!({}))));
     }
 }

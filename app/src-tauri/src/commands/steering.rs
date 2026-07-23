@@ -23,6 +23,7 @@
 use std::sync::Arc;
 
 use futures_util::StreamExt;
+use handshake_core::llm::{LlmClient, ModelRuntimeLlmClient};
 use handshake_core::model_runtime::{
     techniques::{
         activation_steering::{
@@ -593,6 +594,7 @@ pub async fn steering_generate_ab(
 
     let model_id = preflight_capability_and_loaded(&request.model_id, state)?;
     let runtime = require_live_runtime(model_id, state, "generate_ab")?;
+    let llm_client: Arc<dyn LlmClient> = Arc::new(ModelRuntimeLlmClient::new(runtime, model_id));
 
     let max_tokens = request
         .max_tokens
@@ -603,7 +605,7 @@ pub async fn steering_generate_ab(
     for prompt in &request.prompts {
         // BEFORE / baseline: steering vectors inactive.
         let inactive_completion = generate_completion(
-            runtime.as_ref(),
+            llm_client.clone(),
             model_id,
             prompt,
             &inactive_ids,
@@ -611,9 +613,14 @@ pub async fn steering_generate_ab(
         )
         .await?;
         // AFTER / steered: the proposed steering vectors active.
-        let active_completion =
-            generate_completion(runtime.as_ref(), model_id, prompt, &active_ids, max_tokens)
-                .await?;
+        let active_completion = generate_completion(
+            llm_client.clone(),
+            model_id,
+            prompt,
+            &active_ids,
+            max_tokens,
+        )
+        .await?;
         comparisons.push(SteeringAbComparisonIpc {
             prompt: prompt.clone(),
             inactive_completion,
@@ -633,7 +640,7 @@ pub async fn steering_generate_ab(
 /// `GeneratedToken` text. `steering_overrides` is the per-request set of
 /// steering vectors to apply for this single pass (empty = unsteered).
 async fn generate_completion(
-    runtime: &dyn ModelRuntime,
+    llm_client: Arc<dyn LlmClient>,
     model_id: ModelId,
     prompt: &str,
     steering_overrides: &[SteeringVectorId],
@@ -653,7 +660,7 @@ async fn generate_completion(
         structured_decoding: None,
     };
 
-    let mut stream = runtime.generate(request);
+    let mut stream = llm_client.stream_completion(request);
     let mut text = String::new();
     while let Some(item) = stream.next().await {
         match item {
@@ -866,6 +873,18 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn steering_ab_generation_cannot_bypass_llm_client() {
+        let source = include_str!("steering.rs");
+        let forbidden_raw_dispatch = ["runtime", ".generate(request)"].concat();
+        assert!(source.contains("ModelRuntimeLlmClient::new(runtime, model_id)"));
+        assert!(source.contains("llm_client.stream_completion(request)"));
+        assert!(
+            !source.contains(&forbidden_raw_dispatch),
+            "both steering A/B passes must retain FR/budget mediation through LlmClient"
+        );
+    }
 
     fn capture_request(model_id: ModelId) -> SteeringCaptureRequestIpc {
         SteeringCaptureRequestIpc {

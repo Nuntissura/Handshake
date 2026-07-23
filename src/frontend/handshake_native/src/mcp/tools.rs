@@ -35,8 +35,11 @@
 
 use egui::accesskit;
 
-use crate::accessibility::UiTreeSnapshot;
+use crate::accessibility::{is_sensitive_author_id, UiTreeSnapshot};
 use crate::mcp::action::{ActionChannel, ActionError, UiAction};
+use crate::mcp::argus::{
+    validate_agent_label, ArgusError, ArgusWindowDescriptor, WindowSnapshotRegistry, MAIN_WINDOW_ID,
+};
 use crate::mcp::screenshot::{ScreenshotError, ScreenshotResult};
 
 /// JSON-RPC error: the `session_token` was missing or did not match (red-team: unauthorized caller).
@@ -56,6 +59,10 @@ pub const ERR_TOOL_FAILED: i64 = -32000;
 /// within the lease timeout because a concurrent agent held it. The caller should retry. The code
 /// `-32004` matches the MT-028 contract's `{error:{code:-32004,message:"Lease timeout"}}` acceptance.
 pub const ERR_LEASE_TIMEOUT: i64 = -32004;
+/// JSON-RPC error: the addressed live window/revision/target is unknown, stale, or ambiguous.
+pub const ERR_ARGUS_CONFLICT: i64 = -32005;
+const AGENT_LABEL_CONTEXT_KEY: &str = "__argus_agent_label";
+const AGENT_CREDENTIAL_CONTEXT_KEY: &str = "__argus_agent_credential";
 
 /// A per-session HMAC secret a caller must present (as 64 hex chars) in every request's
 /// `session_token` field. The secret bytes are the HMAC-SHA256 KEY; validation HMACs both the stored
@@ -193,18 +200,58 @@ impl McpRequest {
             .ok_or_else(|| McpToolError::new(ERR_INVALID_PARAMS, "missing method"))?
             .to_owned();
         let id = obj.get("id").cloned().unwrap_or(serde_json::Value::Null);
-        let params = obj.get("params").cloned().unwrap_or(serde_json::json!({}));
+        let mut params = obj.get("params").cloned().unwrap_or(serde_json::json!({}));
         let session_token = obj
             .get("session_token")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_owned();
+        let agent_label = obj
+            .get("agent_label")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_owned();
+        let agent_credential = obj
+            .get("agent_token")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_owned();
+        if !params.is_object() {
+            params = serde_json::json!({});
+        }
+        params.as_object_mut().expect("params normalized").insert(
+            AGENT_LABEL_CONTEXT_KEY.to_owned(),
+            serde_json::Value::String(agent_label),
+        );
+        params.as_object_mut().expect("params normalized").insert(
+            AGENT_CREDENTIAL_CONTEXT_KEY.to_owned(),
+            serde_json::Value::String(agent_credential),
+        );
         Ok(Self {
             id,
             method,
             params,
             session_token,
         })
+    }
+
+    /// Bounded attribution label parsed from the top-level request envelope. It is kept in a
+    /// reserved transport-context slot so the long-standing public request struct remains source
+    /// compatible with in-process callers; it is never used as authentication.
+    pub fn agent_label(&self) -> &str {
+        self.params
+            .get(AGENT_LABEL_CONTEXT_KEY)
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+    }
+
+    /// Broker-minted credential proving the stable agent principal. This is
+    /// deliberately distinct from the caller-controlled display label.
+    pub fn agent_credential(&self) -> &str {
+        self.params
+            .get(AGENT_CREDENTIAL_CONTEXT_KEY)
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
     }
 }
 
@@ -324,6 +371,33 @@ impl From<ScreenshotError> for McpError {
     }
 }
 
+impl From<ArgusError> for McpError {
+    fn from(e: ArgusError) -> Self {
+        let code = if matches!(e, ArgusError::InvalidAgentLabel) {
+            ERR_INVALID_PARAMS
+        } else {
+            ERR_ARGUS_CONFLICT
+        };
+        Self {
+            code,
+            message: e.to_string(),
+        }
+    }
+}
+
+/// Canonicalize compatibility aliases at the request boundary. All aliases execute the same code.
+pub fn canonical_method(method: &str) -> Option<&'static str> {
+    match method {
+        "argus.list_windows" => Some("argus.list_windows"),
+        "argus.inspect" | "list_widgets" => Some("argus.inspect"),
+        "argus.click" | "click_widget" => Some("argus.click"),
+        "argus.show_context_menu" => Some("argus.show_context_menu"),
+        "argus.set_value" | "set_value" => Some("argus.set_value"),
+        "argus.screenshot" | "screenshot" => Some("argus.screenshot"),
+        _ => None,
+    }
+}
+
 /// Dispatch a parsed JSON-RPC request to the right tool.
 ///
 /// - `token`: the session's secret; the request's `session_token` is checked against it FIRST (a bad
@@ -342,7 +416,61 @@ pub fn dispatch_request(
     channel: &mut ActionChannel,
     capture: impl FnOnce() -> Result<ScreenshotResult, ScreenshotError>,
 ) -> McpResponse {
-    // 1. Auth gate (constant-time). A missing/wrong token is rejected before any tool runs.
+    let windows = WindowSnapshotRegistry::new();
+    windows.publish(
+        ArgusWindowDescriptor {
+            window_id: MAIN_WINDOW_ID.to_owned(),
+            viewport_id: "ROOT".to_owned(),
+            title: crate::mcp::screenshot::HANDSHAKE_WINDOW_TITLE.to_owned(),
+        },
+        snapshot.clone(),
+    );
+    let mut compatible = request.clone();
+    if !compatible.params.is_object() {
+        compatible.params = serde_json::json!({});
+    }
+    let params = compatible
+        .params
+        .as_object_mut()
+        .expect("params normalized");
+    if params
+        .get(AGENT_LABEL_CONTEXT_KEY)
+        .and_then(|value| value.as_str())
+        .unwrap_or("")
+        .is_empty()
+    {
+        params.insert(
+            AGENT_LABEL_CONTEXT_KEY.to_owned(),
+            serde_json::Value::String("legacy-client".to_owned()),
+        );
+    }
+    params
+        .entry("window_id")
+        .or_insert_with(|| serde_json::json!(MAIN_WINDOW_ID));
+    params
+        .entry("expected_snapshot_revision")
+        .or_insert_with(|| serde_json::json!(1));
+    dispatch_windowed_request(
+        &compatible,
+        token,
+        &windows,
+        channel,
+        "legacy-in-process",
+        "legacy-authenticated-session",
+        |_| capture(),
+    )
+}
+
+/// Dispatch through the canonical window-aware Argus implementation used by the live transport.
+pub fn dispatch_windowed_request(
+    request: &McpRequest,
+    token: &SessionToken,
+    windows: &WindowSnapshotRegistry,
+    channel: &mut ActionChannel,
+    connection_id: &str,
+    authenticated_agent_id: &str,
+    capture: impl FnOnce(&ArgusWindowDescriptor) -> Result<ScreenshotResult, ScreenshotError>,
+) -> McpResponse {
     if !token.matches(&request.session_token) {
         return McpResponse::err(
             request.id.clone(),
@@ -352,75 +480,188 @@ pub fn dispatch_request(
             },
         );
     }
-
-    // 2. Method dispatch.
-    match request.method.as_str() {
-        "list_widgets" => {
-            let value = serde_json::to_value(snapshot)
-                .unwrap_or_else(|_| serde_json::json!({ "error": "snapshot serialize failed" }));
-            McpResponse::ok(request.id.clone(), value)
-        }
-        "click_widget" => match parse_target(&request.params) {
-            Ok(target) => enqueue_response(request, snapshot, channel, &target, UiAction::Click),
-            Err(e) => McpResponse::err(
-                request.id.clone(),
-                McpError {
-                    code: e.code,
-                    message: e.message,
-                },
-            ),
-        },
-        "set_value" => match parse_target_and_value(&request.params) {
-            Ok((target, value)) => enqueue_response(
-                request,
-                snapshot,
-                channel,
-                &target,
-                UiAction::SetValue { text: value },
-            ),
-            Err(e) => McpResponse::err(
-                request.id.clone(),
-                McpError {
-                    code: e.code,
-                    message: e.message,
-                },
-            ),
-        },
-        "screenshot" => match capture() {
-            Ok(shot) => McpResponse::ok(request.id.clone(), shot.to_json()),
-            Err(e) => McpResponse::err(request.id.clone(), e.into()),
-        },
-        other => McpResponse::err(
+    if let Err(error) = validate_agent_label(request.agent_label()) {
+        return McpResponse::err(request.id.clone(), error.into());
+    }
+    let Some(method) = canonical_method(&request.method) else {
+        return McpResponse::err(
             request.id.clone(),
             McpError {
                 code: ERR_METHOD_NOT_FOUND,
-                message: format!("unknown method '{other}'"),
+                message: format!("unknown method '{}'", request.method),
             },
-        ),
+        );
+    };
+    if method == "argus.list_windows" {
+        return McpResponse::ok(
+            request.id.clone(),
+            serde_json::json!({ "windows": windows.list() }),
+        );
+    }
+    let window_id = match parse_window_id(&request.params) {
+        Ok(value) => value,
+        Err(error) => return tool_error_response(request, error),
+    };
+    match method {
+        "argus.inspect" => match windows.get(&window_id) {
+            Ok(window) => McpResponse::ok(
+                request.id.clone(),
+                serde_json::to_value(window)
+                    .unwrap_or_else(|_| serde_json::json!({"error": "snapshot serialize failed"})),
+            ),
+            Err(error) => McpResponse::err(request.id.clone(), error.into()),
+        },
+        "argus.click" => {
+            let target = match parse_target(&request.params) {
+                Ok(value) => value,
+                Err(error) => return tool_error_response(request, error),
+            };
+            dispatch_argus_mutation(
+                request,
+                windows,
+                channel,
+                connection_id,
+                authenticated_agent_id,
+                &window_id,
+                &target,
+                UiAction::Click,
+            )
+        }
+        "argus.show_context_menu" => {
+            let target = match parse_target(&request.params) {
+                Ok(value) => value,
+                Err(error) => return tool_error_response(request, error),
+            };
+            dispatch_argus_mutation(
+                request,
+                windows,
+                channel,
+                connection_id,
+                authenticated_agent_id,
+                &window_id,
+                &target,
+                UiAction::ShowContextMenu,
+            )
+        }
+        "argus.set_value" => {
+            let target = match parse_target(&request.params) {
+                Ok(value) => value,
+                Err(error) => return tool_error_response(request, error),
+            };
+            // Reject before reading or cloning `params.value`: generic Argus transport and action
+            // queues are not secret-bearing boundaries. BYOK keys use the dedicated keychain route.
+            if is_sensitive_author_id(&target) {
+                return tool_error_response(
+                    request,
+                    McpToolError::new(
+                        ERR_INVALID_PARAMS,
+                        "argus.set_value is prohibited for secret-bearing inputs; use the dedicated credential workflow",
+                    ),
+                );
+            }
+            let value = match parse_value(&request.params) {
+                Ok(value) => value,
+                Err(error) => return tool_error_response(request, error),
+            };
+            dispatch_argus_mutation(
+                request,
+                windows,
+                channel,
+                connection_id,
+                authenticated_agent_id,
+                &window_id,
+                &target,
+                UiAction::SetValue { text: value },
+            )
+        }
+        "argus.screenshot" => {
+            let descriptor = match windows.descriptor(&window_id) {
+                Ok(value) => value,
+                Err(error) => return McpResponse::err(request.id.clone(), error.into()),
+            };
+            match capture(&descriptor) {
+                Ok(shot) => McpResponse::ok(request.id.clone(), shot.to_json()),
+                Err(error) => McpResponse::err(request.id.clone(), error.into()),
+            }
+        }
+        _ => unreachable!("canonical method is closed"),
     }
 }
 
-/// Resolve + enqueue an action and build the `{queued, action, node_id}` result (or the typed error).
-fn enqueue_response(
+fn dispatch_argus_mutation(
     request: &McpRequest,
-    snapshot: &UiTreeSnapshot,
+    windows: &WindowSnapshotRegistry,
     channel: &mut ActionChannel,
+    connection_id: &str,
+    authenticated_agent_id: &str,
+    window_id: &str,
     target: &str,
     action: UiAction,
 ) -> McpResponse {
+    let expected_revision = match parse_expected_revision(&request.params) {
+        Ok(value) => value,
+        Err(error) => return tool_error_response(request, error),
+    };
+    let window = match windows.validate_target(window_id, target, expected_revision) {
+        Ok(value) => value,
+        Err(error) => return McpResponse::err(request.id.clone(), error.into()),
+    };
     let action_name = format!("{:?}", action.accesskit_action());
-    match channel.enqueue(snapshot, target, action) {
-        Ok(outcome) => McpResponse::ok(
+    match channel.enqueue_argus(
+        &window.snapshot,
+        window_id,
+        target,
+        action,
+        connection_id,
+        authenticated_agent_id,
+        expected_revision,
+    ) {
+        Ok((outcome, receipt)) => McpResponse::ok(
             request.id.clone(),
             serde_json::json!({
                 "queued": true,
                 "action": action_name,
                 "node_id": node_id_u64(&outcome.request.target),
                 "target": target,
+                "author_id": target,
+                "action_id": receipt.action_id,
+                "window_id": window_id,
+                "before_revision": expected_revision,
             }),
         ),
-        Err(e) => McpResponse::err(request.id.clone(), e.into()),
+        Err(error) => McpResponse::err(request.id.clone(), error.into()),
     }
+}
+
+fn tool_error_response(request: &McpRequest, error: McpToolError) -> McpResponse {
+    McpResponse::err(
+        request.id.clone(),
+        McpError {
+            code: error.code,
+            message: error.message,
+        },
+    )
+}
+
+fn parse_window_id(params: &serde_json::Value) -> Result<String, McpToolError> {
+    params
+        .get("window_id")
+        .and_then(|value| value.as_str())
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| McpToolError::new(ERR_INVALID_PARAMS, "params.window_id required"))
+}
+
+fn parse_expected_revision(params: &serde_json::Value) -> Result<u64, McpToolError> {
+    params
+        .get("expected_snapshot_revision")
+        .and_then(|value| value.as_u64())
+        .ok_or_else(|| {
+            McpToolError::new(
+                ERR_INVALID_PARAMS,
+                "params.expected_snapshot_revision (u64) required",
+            )
+        })
 }
 
 /// AccessKit `NodeId` is a newtype over u64; pull the inner value for the JSON result.
@@ -431,27 +672,27 @@ fn node_id_u64(id: &accesskit::NodeId) -> u64 {
 /// Parse the `target` author_id from a tool's params object.
 fn parse_target(params: &serde_json::Value) -> Result<String, McpToolError> {
     params
-        .get("target")
+        .get("author_id")
+        .or_else(|| params.get("target"))
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
         .map(|s| s.to_owned())
         .ok_or_else(|| {
             McpToolError::new(
                 ERR_INVALID_PARAMS,
-                "params.target (author_id string) required",
+                "params.author_id (or legacy params.target) string required",
             )
         })
 }
 
-/// Parse `target` + `value` for `set_value`.
-fn parse_target_and_value(params: &serde_json::Value) -> Result<(String, String), McpToolError> {
-    let target = parse_target(params)?;
-    let value = params
+/// Parse the non-secret value for `set_value`. Sensitive targets are rejected before this function
+/// is called so their payload never enters the generic Argus action queue.
+fn parse_value(params: &serde_json::Value) -> Result<String, McpToolError> {
+    params
         .get("value")
         .and_then(|v| v.as_str())
         .map(|s| s.to_owned())
-        .ok_or_else(|| McpToolError::new(ERR_INVALID_PARAMS, "params.value (string) required"))?;
-    Ok((target, value))
+        .ok_or_else(|| McpToolError::new(ERR_INVALID_PARAMS, "params.value (string) required"))
 }
 
 #[cfg(test)]
@@ -469,7 +710,11 @@ mod tests {
             label: Some("Go".to_owned()),
             value: None,
             disabled: false,
-            actions: vec!["Click".to_owned(), "Focus".to_owned()],
+            actions: vec![
+                "Click".to_owned(),
+                "Focus".to_owned(),
+                "ShowContextMenu".to_owned(),
+            ],
             bounds: None,
             children: Vec::new(),
         };
@@ -552,8 +797,124 @@ mod tests {
             ok_capture,
         );
         let v = r.to_json();
-        assert_eq!(v["result"]["widget_count"], 2);
-        assert_eq!(v["result"]["root"]["role"], "Window");
+        assert_eq!(v["result"]["snapshot"]["widget_count"], 2);
+        assert_eq!(v["result"]["snapshot"]["root"]["role"], "Window");
+        assert_eq!(v["result"]["window_id"], MAIN_WINDOW_ID);
+        assert_eq!(v["result"]["revision"], 1);
+    }
+
+    #[test]
+    fn argus_list_windows_requires_auth_and_no_window_id() {
+        let token = SessionToken::from_hex("secret");
+        let windows = WindowSnapshotRegistry::new();
+        windows.publish(
+            ArgusWindowDescriptor {
+                window_id: MAIN_WINDOW_ID.to_owned(),
+                viewport_id: "ROOT".to_owned(),
+                title: "Handshake".to_owned(),
+            },
+            snap(),
+        );
+        windows.register(ArgusWindowDescriptor {
+            window_id: "popout-pane-a".to_owned(),
+            viewport_id: "PANE_A".to_owned(),
+            title: "Handshake – Workspace".to_owned(),
+        });
+        let request = McpRequest::from_json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 41,
+            "method": "argus.list_windows",
+            "params": {},
+            "session_token": "secret",
+            "agent_label": "window-list-test"
+        }))
+        .unwrap();
+        let mut channel = ActionChannel::new();
+        let response = dispatch_windowed_request(
+            &request,
+            &token,
+            &windows,
+            &mut channel,
+            "connection-test",
+            "agent-test",
+            |_| ok_capture(),
+        )
+        .to_json();
+        assert_eq!(response["result"]["windows"][0]["window_id"], "main");
+        assert_eq!(
+            response["result"]["windows"][1]["window_id"],
+            "popout-pane-a"
+        );
+        assert_eq!(
+            response["result"]["windows"][1]["snapshot_available"],
+            false
+        );
+
+        let unauthorized = McpRequest::from_json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 42,
+            "method": "argus.list_windows",
+            "params": {},
+            "session_token": "wrong",
+            "agent_label": "window-list-test"
+        }))
+        .unwrap();
+        assert!(dispatch_windowed_request(
+            &unauthorized,
+            &token,
+            &windows,
+            &mut channel,
+            "connection-test",
+            "agent-test",
+            |_| ok_capture(),
+        )
+        .is_error_code(ERR_UNAUTHORIZED));
+    }
+
+    #[test]
+    fn argus_show_context_menu_enqueues_accesskit_action() {
+        let token = SessionToken::from_hex("secret");
+        let windows = WindowSnapshotRegistry::new();
+        windows.publish(
+            ArgusWindowDescriptor {
+                window_id: MAIN_WINDOW_ID.to_owned(),
+                viewport_id: "ROOT".to_owned(),
+                title: "Handshake".to_owned(),
+            },
+            snap(),
+        );
+        let request = McpRequest::from_json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 43,
+            "method": "argus.show_context_menu",
+            "params": {
+                "window_id": "main",
+                "author_id": "btn",
+                "expected_snapshot_revision": 1
+            },
+            "session_token": "secret",
+            "agent_label": "context-menu-test"
+        }))
+        .unwrap();
+        let mut channel = ActionChannel::new();
+        let response = dispatch_windowed_request(
+            &request,
+            &token,
+            &windows,
+            &mut channel,
+            "connection-test",
+            "agent-test",
+            |_| ok_capture(),
+        )
+        .to_json();
+        assert_eq!(response["result"]["queued"], true);
+        assert_eq!(response["result"]["action"], "ShowContextMenu");
+        let events = channel.drain_for_window(MAIN_WINDOW_ID).events;
+        assert!(matches!(
+            events.as_slice(),
+            [egui::Event::AccessKitActionRequest(request)]
+                if request.action == accesskit::Action::ShowContextMenu
+        ));
     }
 
     #[test]
@@ -611,6 +972,31 @@ mod tests {
     }
 
     #[test]
+    fn set_value_rejects_secret_target_without_enqueuing_or_echoing_canary() {
+        let token = SessionToken::from_hex("secret");
+        let mut channel = ActionChannel::new();
+        let canary = "argus-set-value-secret-canary";
+        let response = dispatch_request(
+            &req(
+                "argus.set_value",
+                serde_json::json!({
+                    "author_id": "settings.cloud.byok.openai.key",
+                    "value": canary
+                }),
+                "secret",
+            ),
+            &token,
+            &snap(),
+            &mut channel,
+            ok_capture,
+        );
+
+        assert!(response.is_error_code(ERR_INVALID_PARAMS));
+        assert_eq!(channel.pending(), 0);
+        assert!(!response.to_json().to_string().contains(canary));
+    }
+
+    #[test]
     fn screenshot_returns_visual_capture_shape() {
         let token = SessionToken::from_hex("secret");
         let mut chan = ActionChannel::new();
@@ -625,6 +1011,7 @@ mod tests {
         assert_eq!(v["result"]["png_base64"], "Zm9vYmFy");
         assert_eq!(v["result"]["width"], 4);
         assert_eq!(v["result"]["height"], 3);
+        assert_eq!(v["result"]["sha256"].as_str().unwrap().len(), 64);
     }
 
     #[test]
@@ -645,12 +1032,42 @@ mod tests {
     fn request_envelope_parses_from_json() {
         let raw = serde_json::json!({
             "jsonrpc": "2.0", "id": 7, "method": "click_widget",
-            "params": {"target": "btn"}, "session_token": "secret"
+            "params": {"target": "btn"}, "session_token": "secret",
+            "agent_label": "parser-test"
         });
         let parsed = McpRequest::from_json(&raw).expect("valid envelope");
         assert_eq!(parsed.method, "click_widget");
         assert_eq!(parsed.session_token, "secret");
         assert_eq!(parsed.id, serde_json::json!(7));
+        assert_eq!(parsed.agent_label(), "parser-test");
+    }
+
+    #[test]
+    fn canonical_and_legacy_names_resolve_to_one_implementation() {
+        assert_eq!(
+            canonical_method("argus.inspect"),
+            canonical_method("list_widgets")
+        );
+        assert_eq!(
+            canonical_method("argus.click"),
+            canonical_method("click_widget")
+        );
+        assert_eq!(
+            canonical_method("argus.list_windows"),
+            Some("argus.list_windows")
+        );
+        assert_eq!(
+            canonical_method("argus.show_context_menu"),
+            Some("argus.show_context_menu")
+        );
+        assert_eq!(
+            canonical_method("argus.set_value"),
+            canonical_method("set_value")
+        );
+        assert_eq!(
+            canonical_method("argus.screenshot"),
+            canonical_method("screenshot")
+        );
     }
 
     #[test]

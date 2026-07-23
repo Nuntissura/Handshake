@@ -197,6 +197,8 @@ fn load_spec(artifact_path: &Path, sha256_expected: String, runtime_kind: Runtim
             supports_subquadratic: true,
             supports_speculative_draft: false,
             supports_eagle3: false,
+            supports_embedding: false,
+            embedding_dimension: None,
         },
         provider: ProviderKind::Local,
         engine_origin: Some(CANDLE_LOCAL_ENGINE_ORIGIN.to_string()),

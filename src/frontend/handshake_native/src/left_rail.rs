@@ -264,6 +264,7 @@ impl LeftRail {
                         && event.is_none()
                     {
                         self.state.toggle(section);
+                        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), author_id);
                     }
                 }
             });

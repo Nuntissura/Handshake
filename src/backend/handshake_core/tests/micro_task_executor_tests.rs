@@ -16,8 +16,8 @@ use handshake_core::role_mailbox::{
 };
 use handshake_core::runtime_governance::RuntimeGovernancePaths;
 use handshake_core::storage::{
-    tests::optional_postgres_backend_from_env, AccessMode, AiJobListFilter, Database, JobKind,
-    JobMetrics, JobState, NewAiJob, SafetyMode, StorageError,
+    tests::optional_postgres_backend_with_pool_from_env, AccessMode, AiJobListFilter, Database,
+    JobKind, JobMetrics, JobState, NewAiJob, SafetyMode, StorageError,
 };
 use handshake_core::workflows::locus::{
     derive_governed_action_preview, derive_governed_action_previews,
@@ -189,19 +189,20 @@ impl LlmClient for QueuedLlmClient {
 async fn setup_state(
     llm_client: Arc<dyn LlmClient>,
 ) -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-    let Some(storage) = optional_postgres_backend_from_env().await? else {
+    let Some(postgres) = optional_postgres_backend_with_pool_from_env().await? else {
         return Ok(None);
     };
 
     let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
     let state = AppState {
-        storage,
+        storage: postgres.database,
         flight_recorder: flight_recorder.clone(),
         diagnostics: flight_recorder,
         llm_client,
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        postgres_pool: postgres.postgres_pool,
     };
     seed_locus_work_packet(&state, "WP-TEST").await?;
     Ok(Some(state))
@@ -210,19 +211,20 @@ async fn setup_state(
 async fn setup_state_without_seed(
     llm_client: Arc<dyn LlmClient>,
 ) -> Result<Option<AppState>, Box<dyn std::error::Error>> {
-    let Some(storage) = optional_postgres_backend_from_env().await? else {
+    let Some(postgres) = optional_postgres_backend_with_pool_from_env().await? else {
         return Ok(None);
     };
 
     let flight_recorder = Arc::new(DuckDbFlightRecorder::new_in_memory(32)?);
 
     Ok(Some(AppState {
-        storage,
+        storage: postgres.database,
         flight_recorder: flight_recorder.clone(),
         diagnostics: flight_recorder,
         llm_client,
         capability_registry: Arc::new(CapabilityRegistry::new()),
         session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        postgres_pool: postgres.postgres_pool,
     }))
 }
 

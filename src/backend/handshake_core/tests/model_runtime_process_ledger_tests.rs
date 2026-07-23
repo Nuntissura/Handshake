@@ -273,6 +273,8 @@ fn load_spec(provider: ProviderKind, runtime_kind: RuntimeKind) -> LoadSpec {
             supports_subquadratic: false,
             supports_speculative_draft: false,
             supports_eagle3: false,
+            supports_embedding: false,
+            embedding_dimension: None,
         },
         provider,
         engine_origin: None,

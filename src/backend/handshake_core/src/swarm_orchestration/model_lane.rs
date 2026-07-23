@@ -6,10 +6,12 @@
 //! `ModelLaneMessage`.
 
 use std::{
+    cmp::Ordering,
     collections::{BTreeMap, BTreeSet},
     ops::Deref,
 };
 
+use base64::Engine;
 use chrono::{DateTime, Utc};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -17,14 +19,29 @@ use sha2::{Digest, Sha256};
 use sqlx::{PgPool, Postgres, Row, Transaction};
 use thiserror::Error;
 use uuid::Uuid;
+use yrs::{
+    updates::{decoder::Decode, encoder::Encode},
+    Doc, ReadTxn, StateVector, Transact, Update,
+};
 
 use crate::kernel::{
     context_bundle::{canonical_json_bytes, ContextBundle},
+    crdt::{
+        actor_site::{derive_knowledge_site_id, KnowledgeActorIdV1},
+        persistence::{
+            validate_crdt_update_record, CrdtReplayMetadataV1, CrdtStorageAuthorityPosture,
+            CrdtUpdateRecordV1, CRDT_UPDATE_RECORD_SCHEMA_ID,
+        },
+        snapshot::{
+            validate_crdt_snapshot_record, CrdtSnapshotRecordV1, CRDT_SNAPSHOT_RECORD_SCHEMA_ID,
+        },
+        state_vector::KnowledgeStateVectorV1,
+    },
     KernelActor, KernelEventType, NewKernelEvent,
 };
 use crate::model_runtime::ProviderKind;
 use crate::storage::postgres::append_kernel_event_with_executor;
-use crate::storage::StorageError;
+use crate::storage::{knowledge_crdt, StorageError};
 
 use super::error::SwarmError;
 use super::factory::LiveSession;
@@ -38,6 +55,8 @@ const MAX_CONTEXT_BUNDLE_MEMORY_PACK_REFS: usize = 16;
 pub enum ModelLaneError {
     #[error("invalid model lane input: {0}")]
     InvalidInput(String),
+    #[error("model lane authority denied: {0}")]
+    AuthorityDenied(String),
     #[error("model lane idempotency conflict: {0}")]
     IdempotencyConflict(String),
     #[error("model lane ambiguous lookup: {0}")]
@@ -64,6 +83,81 @@ impl ModelLaneStore {
         Self { pool }
     }
 
+    pub(crate) fn postgres_pool(&self) -> PgPool {
+        self.pool.clone()
+    }
+
+    pub(crate) async fn record_session_cleanup_receipt(
+        &self,
+        instance_id: &str,
+        status: &str,
+        terminal_state: &str,
+        reason: &str,
+        exit_code: i32,
+        last_error: Option<&str>,
+    ) -> ModelLaneResult<()> {
+        let record_json = serde_json::json!({
+            "schema_id": "hsk.swarm_session_cleanup_receipt@1",
+            "instance_id": instance_id,
+            "status": status,
+            "terminal_state": terminal_state,
+            "reason": reason,
+            "exit_code": exit_code,
+            "last_error": last_error,
+        });
+        sqlx::query(
+            r#"
+            INSERT INTO swarm_session_cleanup_receipts (
+                instance_id, revision, status, terminal_state, reason,
+                exit_code, last_error, record_json, updated_at_unix_ms
+            ) VALUES ($1, 1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (instance_id) DO UPDATE SET
+                revision = swarm_session_cleanup_receipts.revision + 1,
+                status = EXCLUDED.status,
+                terminal_state = EXCLUDED.terminal_state,
+                reason = EXCLUDED.reason,
+                exit_code = EXCLUDED.exit_code,
+                last_error = EXCLUDED.last_error,
+                record_json = EXCLUDED.record_json,
+                updated_at_unix_ms = EXCLUDED.updated_at_unix_ms
+            "#,
+        )
+        .bind(instance_id)
+        .bind(status)
+        .bind(terminal_state)
+        .bind(reason)
+        .bind(exit_code)
+        .bind(last_error)
+        .bind(record_json)
+        .bind(Utc::now().timestamp_millis())
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn session_cleanup_completed(
+        &self,
+        instance_id: &str,
+        terminal_state: &str,
+        reason: &str,
+    ) -> ModelLaneResult<bool> {
+        let completed: Option<bool> = sqlx::query_scalar(
+            r#"
+            SELECT status = 'completed'
+               AND terminal_state = $2
+               AND reason = $3
+            FROM swarm_session_cleanup_receipts
+            WHERE instance_id = $1
+            "#,
+        )
+        .bind(instance_id)
+        .bind(terminal_state)
+        .bind(reason)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(completed.unwrap_or(false))
+    }
+
     pub async fn record_successful_launch(
         &self,
         request: &SpawnRequest,
@@ -80,12 +174,58 @@ impl ModelLaneStore {
         validate_run(&records.0)?;
         validate_lane(&records.1)?;
         validate_prepared_launch_pair(&records.0, &records.1)?;
-        if is_cloud_lane(&records.1) {
-            self.preflight_cloud_launch_records(&records.0, &records.1)
-                .await?;
-        }
+        let cloud_check = is_cloud_lane(&records.1)
+            .then(|| cloud_launch_check_from_records(&records.0, &records.1));
         let mut tx = self.pool.begin().await?;
-        let stored_run = record_run_tx(&mut tx, records.0).await?;
+        if let Some(check) = cloud_check {
+            let consent_receipt_id = require_optional_token(
+                "consent_receipt_ref",
+                check.consent_receipt_ref.as_deref(),
+            )?;
+            lock_idempotency_key_tx(
+                &mut tx,
+                &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
+            )
+            .await?;
+            if let Err(error) = ensure_cloud_launch_authority_tx(&mut tx, &check).await {
+                tx.rollback().await?;
+                return self
+                    .deny_cloud_launch(
+                        check,
+                        &format!("final cloud launch insertion fence denied: {error}"),
+                    )
+                    .await;
+            }
+        }
+        let stored_run = record_or_extend_run_tx(&mut tx, records.0, &records.1).await?;
+        let stored_lane = record_lane_tx(&mut tx, records.1).await?;
+        tx.commit().await?;
+        Ok((stored_run, stored_lane))
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub async fn test_record_prepared_launch_holding_receipt_fence(
+        &self,
+        records: (NewModelLaneRun, NewModelLane),
+        entered: std::sync::Arc<tokio::sync::Notify>,
+        release: std::sync::Arc<tokio::sync::Notify>,
+    ) -> ModelLaneResult<(ModelLaneRunRecord, ModelLaneRecord)> {
+        validate_run(&records.0)?;
+        validate_lane(&records.1)?;
+        validate_prepared_launch_pair(&records.0, &records.1)?;
+        let check = cloud_launch_check_from_records(&records.0, &records.1);
+        let consent_receipt_id =
+            require_optional_token("consent_receipt_ref", check.consent_receipt_ref.as_deref())?;
+        let mut tx = self.pool.begin().await?;
+        lock_idempotency_key_tx(
+            &mut tx,
+            &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
+        )
+        .await?;
+        ensure_cloud_launch_authority_tx(&mut tx, &check).await?;
+        entered.notify_one();
+        release.notified().await;
+        let stored_run = record_or_extend_run_tx(&mut tx, records.0, &records.1).await?;
         let stored_lane = record_lane_tx(&mut tx, records.1).await?;
         tx.commit().await?;
         Ok((stored_run, stored_lane))
@@ -108,10 +248,28 @@ impl ModelLaneStore {
 
     pub async fn record_lane(&self, input: NewModelLane) -> ModelLaneResult<ModelLaneRecord> {
         validate_lane(&input)?;
-        if is_cloud_lane(&input) {
-            self.preflight_cloud_lane_record(&input).await?;
-        }
+        let cloud_check = is_cloud_lane(&input).then(|| cloud_launch_check_from_lane(&input));
         let mut tx = self.pool.begin().await?;
+        if let Some(check) = cloud_check {
+            let consent_receipt_id = require_optional_token(
+                "consent_receipt_ref",
+                check.consent_receipt_ref.as_deref(),
+            )?;
+            lock_idempotency_key_tx(
+                &mut tx,
+                &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
+            )
+            .await?;
+            if let Err(error) = ensure_cloud_launch_authority_tx(&mut tx, &check).await {
+                tx.rollback().await?;
+                return self
+                    .deny_cloud_launch(
+                        check,
+                        &format!("final cloud lane insertion fence denied: {error}"),
+                    )
+                    .await;
+            }
+        }
         let stored = record_lane_tx(&mut tx, input).await?;
         tx.commit().await?;
         Ok(stored)
@@ -128,6 +286,22 @@ impl ModelLaneStore {
         Ok(stored)
     }
 
+    #[cfg(feature = "test-utils")]
+    pub async fn test_record_message_holding_crdt_authority_lock(
+        &self,
+        input: NewModelLaneMessage,
+        entered: std::sync::Arc<tokio::sync::Notify>,
+        release: std::sync::Arc<tokio::sync::Notify>,
+    ) -> ModelLaneResult<ModelLaneMessageRecord> {
+        validate_message(&input)?;
+        let mut tx = self.pool.begin().await?;
+        let stored =
+            Self::record_message_tx_with_crdt_pause(&mut tx, input, Some((entered, release)))
+                .await?;
+        tx.commit().await?;
+        Ok(stored)
+    }
+
     /// Commit a ModelLane payload binding and its message in one PostgreSQL
     /// transaction.  The message is checked first, so a terminal lane rejects
     /// before an ArtifactStore/EventLedger binding can be left behind.  A
@@ -137,20 +311,48 @@ impl ModelLaneStore {
         message: NewModelLaneMessage,
         binding: NewModelLaneContextBundleArtifactBinding,
     ) -> ModelLaneResult<ModelLaneMessageRecord> {
+        let mut tx = self.pool.begin().await?;
+        let stored_message =
+            Self::record_message_with_payload_binding_tx(&mut tx, message, binding).await?;
+        tx.commit().await?;
+        Ok(stored_message)
+    }
+
+    pub(crate) async fn record_message_with_payload_binding_tx(
+        tx: &mut Transaction<'_, Postgres>,
+        message: NewModelLaneMessage,
+        binding: NewModelLaneContextBundleArtifactBinding,
+    ) -> ModelLaneResult<ModelLaneMessageRecord> {
         validate_message(&message)?;
         validate_context_bundle_artifact_binding(&binding)?;
         validate_message_payload_binding_pair(&message, &binding)?;
-
-        let mut tx = self.pool.begin().await?;
-        let stored_message = Self::record_message_tx(&mut tx, message).await?;
-        Self::record_context_bundle_artifact_binding_tx(&mut tx, binding).await?;
-        tx.commit().await?;
+        let stored_message = Self::record_message_tx(tx, message).await?;
+        Self::record_context_bundle_artifact_binding_tx(tx, binding).await?;
         Ok(stored_message)
+    }
+
+    pub(crate) async fn record_context_bundle_artifact_binding_with_validation_tx(
+        tx: &mut Transaction<'_, Postgres>,
+        binding: NewModelLaneContextBundleArtifactBinding,
+    ) -> ModelLaneResult<ModelLaneContextBundleArtifactBindingRecord> {
+        validate_context_bundle_artifact_binding(&binding)?;
+        Self::record_context_bundle_artifact_binding_tx(tx, binding).await
     }
 
     async fn record_message_tx(
         tx: &mut Transaction<'_, Postgres>,
         input: NewModelLaneMessage,
+    ) -> ModelLaneResult<ModelLaneMessageRecord> {
+        Self::record_message_tx_with_crdt_pause(tx, input, None).await
+    }
+
+    async fn record_message_tx_with_crdt_pause(
+        tx: &mut Transaction<'_, Postgres>,
+        input: NewModelLaneMessage,
+        crdt_pause: Option<(
+            std::sync::Arc<tokio::sync::Notify>,
+            std::sync::Arc<tokio::sync::Notify>,
+        )>,
     ) -> ModelLaneResult<ModelLaneMessageRecord> {
         lock_idempotency_key_tx(tx, &input.idempotency_key).await?;
         if let Some(existing) = message_by_idempotency_key_tx(tx, &input.idempotency_key).await? {
@@ -172,6 +374,7 @@ impl ModelLaneStore {
                     &existing.inner,
                     &retry_identity,
                 )?;
+                validate_stored_crdt_message_authority_tx(tx, &existing).await?;
                 return Ok(existing);
             }
             return Err(ModelLaneError::IdempotencyConflict(format!(
@@ -235,6 +438,32 @@ impl ModelLaneStore {
             )?;
         }
         let cloud_source = is_cloud_lane_record(&source_lane);
+        let resolved_crdt = validate_message_crdt_authority_tx(tx, &input).await?;
+        let crdt_lease_authority = if let Some(resolved) = resolved_crdt.as_ref() {
+            knowledge_crdt::lock_crdt_lease_authority_domain_tx(
+                tx,
+                &resolved.workspace_id,
+                &resolved.crdt_document_id,
+            )
+            .await?;
+            validate_crdt_lane_session_uniqueness_tx(tx, &source_lane, resolved).await?;
+            Some(resolve_active_crdt_actor_lane_lease_tx(tx, &source_lane, resolved).await?)
+        } else {
+            None
+        };
+        let crdt_authority_binding = resolved_crdt
+            .as_ref()
+            .zip(crdt_lease_authority.as_ref())
+            .map(|(resolved, lease)| {
+                bind_crdt_authority_to_lane(&input, &source_lane, resolved, lease)
+            })
+            .transpose()?;
+        if crdt_authority_binding.is_some() {
+            if let Some((entered, release)) = crdt_pause {
+                entered.notify_one();
+                release.notified().await;
+            }
+        }
         match input.authority {
             ModelLaneAuthority::Promoted => {
                 ensure_promoted_message_has_decision_tx(tx, &input).await?;
@@ -254,6 +483,7 @@ impl ModelLaneStore {
             "schema_id": "hsk.model_lane_message@1",
             "dexterity_kernel": "Dexterity",
             "record": input,
+            "crdt_authority_binding": crdt_authority_binding,
         });
         let event = model_lane_event(
             KernelEventType::ModelResponseRecorded,
@@ -272,6 +502,7 @@ impl ModelLaneStore {
             event_ledger_seq: sequence,
             event_stream_version: sequence,
             transaction_seq: sequence,
+            crdt_authority_binding,
             inner: input,
         };
 
@@ -345,12 +576,16 @@ impl ModelLaneStore {
 
     pub async fn record_cloud_projection_plan(
         &self,
-        input: NewModelLaneCloudProjectionPlan,
+        mut input: NewModelLaneCloudProjectionPlan,
     ) -> ModelLaneResult<ModelLaneCloudProjectionPlanRecord> {
+        canonicalize_cloud_consent_targets(&mut input.target_bindings);
         validate_cloud_projection_plan(&input)?;
+        let target_bindings_hash =
+            cloud_consent_target_bindings_hash(input.consent_scope, &input.target_bindings)?;
         let projection_plan_hash = cloud_projection_plan_hash(&input)?;
         let prepared = ModelLaneCloudProjectionPlanRecord {
             inner: input,
+            target_bindings_hash,
             projection_plan_hash,
             event_ledger_event_id: String::new(),
             event_ledger_seq: 0,
@@ -407,7 +642,8 @@ impl ModelLaneStore {
                 scope_hash, source_artifact_refs, payload_artifact_ref,
                 payload_sha256, redaction_policy_ref, redaction_summary,
                 retention_policy, export_posture, provider_profile_ref,
-                fan_out_targets, consent_scope, status,
+                fan_out_targets, consent_scope, target_bindings,
+                target_bindings_hash, status,
                 event_ledger_stream_id, work_packet_id, micro_task_id,
                 task_board_id, owner_session, idempotency_key,
                 created_at_utc, user_manual_behavior_ref, diagnostic_payload,
@@ -417,7 +653,7 @@ impl ModelLaneStore {
             VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
                 $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-                $31,$32,$33,$34
+                $31,$32,$33,$34,$35,$36
             )
             ON CONFLICT (idempotency_key) DO NOTHING
             RETURNING record_json
@@ -426,10 +662,10 @@ impl ModelLaneStore {
         .bind(&record.projection_plan_id)
         .bind(&record.run_id)
         .bind(&record.trace_id)
-        .bind(&record.lane_id)
-        .bind(&record.model_session_id)
-        .bind(&record.provider_kind)
-        .bind(&record.requested_model_id)
+        .bind(record.lane_id.as_deref())
+        .bind(record.model_session_id.as_deref())
+        .bind(record.provider_kind.as_deref())
+        .bind(record.requested_model_id.as_deref())
         .bind(&record.scope_hash)
         .bind(serde_json::to_value(&record.source_artifact_refs)?)
         .bind(&record.payload_artifact_ref)
@@ -441,6 +677,8 @@ impl ModelLaneStore {
         .bind(&record.provider_profile_ref)
         .bind(serde_json::to_value(&record.fan_out_targets)?)
         .bind(record.consent_scope.as_str())
+        .bind(serde_json::to_value(&record.target_bindings)?)
+        .bind(record.target_bindings_hash.as_deref())
         .bind(record.status.as_str())
         .bind(&record.event_ledger_stream_id)
         .bind(&record.work_packet_id)
@@ -489,12 +727,16 @@ impl ModelLaneStore {
 
     pub async fn record_cloud_consent_receipt(
         &self,
-        input: NewModelLaneCloudConsentReceipt,
+        mut input: NewModelLaneCloudConsentReceipt,
     ) -> ModelLaneResult<ModelLaneCloudConsentReceiptRecord> {
+        canonicalize_cloud_consent_targets(&mut input.target_bindings);
         validate_cloud_consent_receipt(&input)?;
+        let target_bindings_hash =
+            cloud_consent_target_bindings_hash(input.consent_scope, &input.target_bindings)?;
         let consent_receipt_hash = cloud_consent_receipt_hash(&input)?;
         let prepared = ModelLaneCloudConsentReceiptRecord {
             inner: input,
+            target_bindings_hash,
             consent_receipt_hash,
             event_ledger_event_id: String::new(),
             event_ledger_seq: 0,
@@ -503,6 +745,21 @@ impl ModelLaneStore {
         };
         let mut tx = self.pool.begin().await?;
         lock_idempotency_key_tx(&mut tx, &prepared.idempotency_key).await?;
+
+        let projection = cloud_projection_plan_by_id_tx(&mut tx, &prepared.projection_plan_id)
+            .await?
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(format!(
+                    "CX-MM-007 ProjectionPlan {} is not durable",
+                    prepared.projection_plan_id
+                ))
+            })?;
+        validate_cloud_projection_authority_tx(&mut tx, &projection).await?;
+        // Consent receipts are durable evidence, including evidence that does
+        // not authorize the referenced projection. Pair coherence is therefore
+        // enforced by replay and every launch/revocation gate, not by evidence
+        // ingestion; otherwise a denied launch loses the mismatched receipt
+        // that explains the CX-MM-007 decision.
 
         if let Some(existing) =
             cloud_consent_receipt_by_idempotency_key_tx(&mut tx, &prepared.idempotency_key).await?
@@ -548,10 +805,11 @@ impl ModelLaneStore {
             INSERT INTO model_lane_cloud_consent_receipts (
                 consent_receipt_id, projection_plan_id, projection_plan_hash,
                 run_id, trace_id, lane_id, model_session_id, provider_kind,
-                requested_model_id, scope_hash, consent_scope, retention_policy,
+                requested_model_id, scope_hash, consent_scope, target_bindings,
+                target_bindings_hash, retention_policy,
                 export_posture, fan_out_targets, approved, approved_by_ref,
                 approved_at_utc, valid_from_utc, valid_until_utc,
-                revoked_at_utc, revocation_ref, status, event_ledger_stream_id,
+                revoked_at_utc, revocation_ref, revocation_input_hash, status, event_ledger_stream_id,
                 work_packet_id, micro_task_id, task_board_id, owner_session,
                 idempotency_key, created_at_utc, user_manual_behavior_ref,
                 diagnostic_payload, consent_receipt_hash, event_ledger_event_id,
@@ -561,7 +819,7 @@ impl ModelLaneStore {
             VALUES (
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
                 $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-                $31,$32,$33,$34,$35,$36,$37
+                $31,$32,$33,$34,$35,$36,$37,$38,$39,$40
             )
             ON CONFLICT (idempotency_key) DO NOTHING
             RETURNING record_json
@@ -572,12 +830,14 @@ impl ModelLaneStore {
         .bind(&record.projection_plan_hash)
         .bind(&record.run_id)
         .bind(&record.trace_id)
-        .bind(&record.lane_id)
-        .bind(&record.model_session_id)
-        .bind(&record.provider_kind)
-        .bind(&record.requested_model_id)
+        .bind(record.lane_id.as_deref())
+        .bind(record.model_session_id.as_deref())
+        .bind(record.provider_kind.as_deref())
+        .bind(record.requested_model_id.as_deref())
         .bind(&record.scope_hash)
         .bind(record.consent_scope.as_str())
+        .bind(serde_json::to_value(&record.target_bindings)?)
+        .bind(record.target_bindings_hash.as_deref())
         .bind(record.retention_policy.as_str())
         .bind(record.export_posture.as_str())
         .bind(serde_json::to_value(&record.fan_out_targets)?)
@@ -588,6 +848,7 @@ impl ModelLaneStore {
         .bind(&record.valid_until_utc)
         .bind(record.revoked_at_utc.as_deref())
         .bind(record.revocation_ref.as_deref())
+        .bind(record.revocation_input_hash.as_deref())
         .bind(record.status.as_str())
         .bind(&record.event_ledger_stream_id)
         .bind(&record.work_packet_id)
@@ -639,6 +900,10 @@ impl ModelLaneStore {
         run_id: &str,
     ) -> ModelLaneResult<ModelLaneCloudConsentAuthorityReplay> {
         require_token("run_id", run_id)?;
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+            .execute(&mut *tx)
+            .await?;
         let projection_plans = sqlx::query(
             r#"
             SELECT record_json
@@ -648,7 +913,7 @@ impl ModelLaneStore {
             "#,
         )
         .bind(run_id)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await?
         .into_iter()
         .map(|row| {
@@ -666,7 +931,7 @@ impl ModelLaneStore {
             "#,
         )
         .bind(run_id)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await?
         .into_iter()
         .map(|row| {
@@ -675,6 +940,35 @@ impl ModelLaneStore {
         })
         .collect::<ModelLaneResult<Vec<ModelLaneCloudConsentReceiptRecord>>>()?;
 
+        for plan in &projection_plans {
+            validate_cloud_projection_authority_tx(&mut tx, plan)
+                .await
+                .map_err(|error| {
+                    ModelLaneError::AuthorityDenied(format!(
+                        "CX-MM-007 replay ProjectionPlan authority validation failed: {error}"
+                    ))
+                })?;
+        }
+        for receipt in &consent_receipts {
+            validate_cloud_consent_authority_tx(&mut tx, receipt)
+                .await
+                .map_err(|error| {
+                    ModelLaneError::AuthorityDenied(format!(
+                        "CX-MM-007 replay ConsentReceipt authority validation failed: {error}"
+                    ))
+                })?;
+            let plan = projection_plans
+                .iter()
+                .find(|plan| plan.projection_plan_id == receipt.projection_plan_id)
+                .ok_or_else(|| {
+                    ModelLaneError::AuthorityDenied(format!(
+                        "CX-MM-007 consent receipt {} references projection plan {} outside the replay snapshot",
+                        receipt.consent_receipt_id, receipt.projection_plan_id
+                    ))
+                })?;
+            validate_cloud_authority_pair(plan, receipt)?;
+        }
+        tx.commit().await?;
         Ok(ModelLaneCloudConsentAuthorityReplay {
             projection_plans,
             consent_receipts,
@@ -734,7 +1028,7 @@ impl ModelLaneStore {
         self.preflight_cloud_launch(check).await
     }
 
-    pub async fn revoke_cloud_consent_receipt(
+    pub(crate) async fn fence_cloud_consent_revocation(
         &self,
         consent_receipt_id: &str,
         revoked_by_ref: &str,
@@ -743,6 +1037,8 @@ impl ModelLaneStore {
         require_token("consent_receipt_id", consent_receipt_id)?;
         require_token("revoked_by_ref", revoked_by_ref)?;
         require_token("reason", reason)?;
+        let revocation_input_hash =
+            cloud_consent_revocation_input_hash(consent_receipt_id, revoked_by_ref, reason);
         let mut tx = self.pool.begin().await?;
         lock_idempotency_key_tx(
             &mut tx,
@@ -754,21 +1050,188 @@ impl ModelLaneStore {
             .ok_or_else(|| {
                 ModelLaneError::NotFound(format!("consent_receipt_id {consent_receipt_id}"))
             })?;
-        if existing.status == ModelLaneCloudConsentReceiptStatus::Revoked {
-            tx.commit().await?;
-            return Ok(Vec::new());
+        validate_cloud_consent_authority_tx(&mut tx, &existing).await?;
+        let projection = cloud_projection_plan_by_id_tx(&mut tx, &existing.projection_plan_id)
+            .await?
+            .ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(format!(
+                    "CX-MM-007 ProjectionPlan {} is missing during revocation",
+                    existing.projection_plan_id
+                ))
+            })?;
+        validate_cloud_projection_authority_tx(&mut tx, &projection).await?;
+        validate_cloud_authority_pair(&projection, &existing)?;
+        let identical_retry = existing.status == ModelLaneCloudConsentReceiptStatus::Revoked;
+        if identical_retry
+            && existing.revocation_input_hash.as_deref() != Some(revocation_input_hash.as_str())
+        {
+            tx.rollback().await?;
+            return Err(ModelLaneError::IdempotencyConflict(format!(
+                "consent_receipt_id {consent_receipt_id} was already revoked with a different actor or reason"
+            )));
         }
+
+        let mut covered_lanes = Vec::new();
+        if existing.consent_scope == ModelLaneCloudConsentScope::SingleLane {
+            let target_lane_id = existing.lane_id.as_deref().ok_or_else(|| {
+                ModelLaneError::AuthorityDenied(
+                    "CX-MM-007 single-lane consent is missing lane_id".into(),
+                )
+            })?;
+            let row = sqlx::query(
+                r#"
+                SELECT record_json
+                FROM model_lanes
+                WHERE run_id = $1 AND lane_id = $2
+                FOR UPDATE
+                "#,
+            )
+            .bind(&existing.run_id)
+            .bind(target_lane_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+            if let Some(row) = row {
+                let lane: ModelLaneRecord =
+                    serde_json::from_value(row_to_json(row, "record_json")?)?;
+                validate_model_lane_authority_tx(&mut tx, &lane).await?;
+                let core_matches = lane.run_id == existing.run_id
+                    && lane.lane_id == target_lane_id
+                    && lane.model_session_id
+                        == existing.model_session_id.clone().unwrap_or_default()
+                    && Some(lane.provider_kind.as_str()) == existing.provider_kind.as_deref()
+                    && lane.model_id.as_deref() == existing.requested_model_id.as_deref()
+                    && lane.consent_receipt_ref.as_deref() == Some(consent_receipt_id)
+                    && lane.projection_plan_ref.as_deref()
+                        == Some(existing.projection_plan_id.as_str());
+                if !core_matches {
+                    return Err(ModelLaneError::AuthorityDenied(format!(
+                        "CX-MM-007 extant lane {} differs from single-lane consent {}",
+                        lane.lane_id, consent_receipt_id
+                    )));
+                }
+                covered_lanes.push(lane);
+            } else {
+                if let Some(lane) = current_lane_for_cloud_consent_tx(
+                    &mut tx,
+                    &existing.run_id,
+                    target_lane_id,
+                    consent_receipt_id,
+                )
+                .await?
+                {
+                    validate_model_lane_authority_tx(&mut tx, &lane).await?;
+                    let core_matches = lane.run_id == existing.run_id
+                        && lane.lane_id == target_lane_id
+                        && lane.model_session_id
+                            == existing.model_session_id.clone().unwrap_or_default()
+                        && Some(lane.provider_kind.as_str()) == existing.provider_kind.as_deref()
+                        && lane.model_id.as_deref() == existing.requested_model_id.as_deref()
+                        && lane.consent_receipt_ref.as_deref() == Some(consent_receipt_id)
+                        && lane.projection_plan_ref.as_deref()
+                            == Some(existing.projection_plan_id.as_str());
+                    if !core_matches {
+                        return Err(ModelLaneError::AuthorityDenied(format!(
+                            "CX-MM-007 canonical lane {} differs from single-lane consent {}",
+                            lane.lane_id, consent_receipt_id
+                        )));
+                    }
+                    covered_lanes.push(lane);
+                }
+            }
+        } else {
+            let canonical_lane_ids: Vec<String> = sqlx::query_scalar(
+                r#"
+                SELECT DISTINCT aggregate_id
+                FROM kernel_event_ledger
+                WHERE aggregate_type IN ('model_lane', 'model_lane_terminal')
+                  AND payload->'record'->>'run_id' = $1
+                  AND payload->'record'->>'consent_receipt_ref' = $2
+                ORDER BY aggregate_id
+                "#,
+            )
+            .bind(&existing.run_id)
+            .bind(consent_receipt_id)
+            .fetch_all(&mut *tx)
+            .await?;
+            let rows = sqlx::query(
+                r#"
+                SELECT record_json
+                FROM model_lanes
+                WHERE run_id = $1
+                  AND record_json->>'consent_receipt_ref' = $2
+                ORDER BY lane_id
+                FOR UPDATE
+                "#,
+            )
+            .bind(&existing.run_id)
+            .bind(consent_receipt_id)
+            .fetch_all(&mut *tx)
+            .await?;
+            for row in rows {
+                let lane: ModelLaneRecord =
+                    serde_json::from_value(row_to_json(row, "record_json")?)?;
+                validate_model_lane_authority_tx(&mut tx, &lane).await?;
+                if lane.run_id != existing.run_id
+                    || lane.consent_receipt_ref.as_deref() != Some(consent_receipt_id)
+                    || lane.projection_plan_ref.as_deref()
+                        != Some(existing.projection_plan_id.as_str())
+                {
+                    return Err(ModelLaneError::AuthorityDenied(format!(
+                        "CX-MM-007 run-scoped lane {} differs from consent {}",
+                        lane.lane_id, consent_receipt_id
+                    )));
+                }
+                covered_lanes.push(lane);
+            }
+            let mutable_lane_ids = covered_lanes
+                .iter()
+                .map(|lane| lane.lane_id.clone())
+                .collect::<std::collections::BTreeSet<_>>();
+            let missing_lane_ids = canonical_lane_ids
+                .iter()
+                .filter(|lane_id| !mutable_lane_ids.contains(*lane_id))
+                .cloned()
+                .collect::<Vec<_>>();
+            for missing in missing_lane_ids {
+                let lane = current_lane_for_cloud_consent_tx(
+                    &mut tx,
+                    &existing.run_id,
+                    &missing,
+                    consent_receipt_id,
+                )
+                .await?
+                .ok_or_else(|| {
+                    ModelLaneError::AuthorityDenied(format!(
+                        "CX-MM-007 run-scoped lane {missing} has inconsistent canonical EventLedger authority"
+                    ))
+                })?;
+                validate_model_lane_authority_tx(&mut tx, &lane).await?;
+                if lane.projection_plan_ref.as_deref() != Some(existing.projection_plan_id.as_str())
+                {
+                    return Err(ModelLaneError::AuthorityDenied(format!(
+                        "CX-MM-007 run-scoped lane {missing} differs from consent {consent_receipt_id}"
+                    )));
+                }
+                covered_lanes.push(lane);
+            }
+        }
+
+        if identical_retry {
+            tx.commit().await?;
+            return Ok(covered_lanes);
+        }
+
         let mut receipt_inner = existing.inner.clone();
         receipt_inner.status = ModelLaneCloudConsentReceiptStatus::Revoked;
         receipt_inner.revoked_at_utc = Some(Utc::now().to_rfc3339());
         receipt_inner.revocation_ref = Some(revoked_by_ref.to_string());
+        receipt_inner.revocation_input_hash = Some(revocation_input_hash.clone());
         receipt_inner.diagnostic_payload = merge_diagnostic_payload(
             receipt_inner.diagnostic_payload,
             json!({
                 "consent_status": "CX-MM-007",
                 "revocation_reason": reason,
-                "revoked_by_ref": revoked_by_ref,
-                "provider_call_attempted": false
+                "revoked_by_ref": revoked_by_ref
             }),
         );
         let consent_receipt_hash = cloud_consent_receipt_hash(&receipt_inner)?;
@@ -780,7 +1243,7 @@ impl ModelLaneStore {
             &receipt_inner.work_packet_id,
             &receipt_inner.event_ledger_stream_id,
             json!({
-                "schema_id": "hsk.model_lane_cloud_consent_receipt@1",
+                "schema_id": "hsk.model_lane_cloud_consent_receipt@2",
                 "dexterity_kernel": "Dexterity",
                 "reason_code": "CX-MM-007",
                 "consent_status": "CX-MM-007",
@@ -794,6 +1257,7 @@ impl ModelLaneStore {
         let revoked_receipt = ModelLaneCloudConsentReceiptRecord {
             inner: receipt_inner,
             consent_receipt_hash,
+            target_bindings_hash: existing.target_bindings_hash.clone(),
             event_ledger_event_id: stored_revocation_event.event_id.clone(),
             event_ledger_seq: stored_revocation_event.event_sequence,
             event_stream_version: stored_revocation_event.event_sequence,
@@ -811,14 +1275,15 @@ impl ModelLaneStore {
             SET approved = $2,
                 revoked_at_utc = $3,
                 revocation_ref = $4,
-                status = $5,
-                diagnostic_payload = $6,
-                consent_receipt_hash = $7,
-                event_ledger_event_id = $8,
-                event_ledger_seq = $9,
-                event_stream_version = $10,
-                transaction_seq = $11,
-                record_json = $12,
+                revocation_input_hash = $5,
+                status = $6,
+                diagnostic_payload = $7,
+                consent_receipt_hash = $8,
+                event_ledger_event_id = $9,
+                event_ledger_seq = $10,
+                event_stream_version = $11,
+                transaction_seq = $12,
+                record_json = $13,
                 updated_at = NOW()
             WHERE consent_receipt_id = $1
             "#,
@@ -827,6 +1292,7 @@ impl ModelLaneStore {
         .bind(revoked_receipt.approved)
         .bind(revoked_receipt.revoked_at_utc.as_deref())
         .bind(revoked_receipt.revocation_ref.as_deref())
+        .bind(revoked_receipt.revocation_input_hash.as_deref())
         .bind(revoked_receipt.status.as_str())
         .bind(&revoked_receipt.diagnostic_payload)
         .bind(&revoked_receipt.consent_receipt_hash)
@@ -838,28 +1304,77 @@ impl ModelLaneStore {
         .execute(&mut *tx)
         .await?;
 
-        let lanes = sqlx::query(
-            r#"
-            SELECT record_json
-            FROM model_lanes
-            WHERE record_json->>'consent_receipt_ref' = $1
-              AND status NOT IN ('completed', 'failed', 'cancelled')
-            ORDER BY event_ledger_seq ASC
-            FOR UPDATE
-            "#,
-        )
-        .bind(consent_receipt_id)
-        .fetch_all(&mut *tx)
-        .await?
-        .into_iter()
-        .map(|row| {
-            row_to_json(row, "record_json")
-                .and_then(|v| serde_json::from_value(v).map_err(Into::into))
-        })
-        .collect::<ModelLaneResult<Vec<ModelLaneRecord>>>()?;
+        tx.commit().await?;
+        Ok(covered_lanes)
+    }
 
-        let mut cancelled = Vec::with_capacity(lanes.len());
-        for existing_lane in lanes {
+    pub(crate) async fn finalize_cloud_consent_revocation(
+        &self,
+        consent_receipt_id: &str,
+        revoked_by_ref: &str,
+        reason: &str,
+        provider_cancelled_lane_ids: &std::collections::BTreeSet<String>,
+    ) -> ModelLaneResult<Vec<ModelLaneRecord>> {
+        // Re-run the idempotent fence first so a crash/retry always rediscovers
+        // the canonical covered lane set while new launch persistence remains
+        // blocked by the revoked receipt.
+        let covered_lanes = self
+            .fence_cloud_consent_revocation(consent_receipt_id, revoked_by_ref, reason)
+            .await?;
+        let revocation_input_hash =
+            cloud_consent_revocation_input_hash(consent_receipt_id, revoked_by_ref, reason);
+        let mut tx = self.pool.begin().await?;
+        lock_idempotency_key_tx(
+            &mut tx,
+            &format!("model-lane-cloud-consent-revoke:{consent_receipt_id}"),
+        )
+        .await?;
+        let revoked_receipt = cloud_consent_receipt_by_id_tx(&mut tx, consent_receipt_id)
+            .await?
+            .ok_or_else(|| {
+                ModelLaneError::NotFound(format!("consent_receipt_id {consent_receipt_id}"))
+            })?;
+        validate_cloud_consent_authority_tx(&mut tx, &revoked_receipt).await?;
+        if revoked_receipt.status != ModelLaneCloudConsentReceiptStatus::Revoked
+            || revoked_receipt.revocation_input_hash.as_deref()
+                != Some(revocation_input_hash.as_str())
+        {
+            tx.rollback().await?;
+            return Err(ModelLaneError::IdempotencyConflict(format!(
+                "consent_receipt_id {consent_receipt_id} is not fenced by this actor and reason"
+            )));
+        }
+
+        let mut cancelled = Vec::with_capacity(covered_lanes.len());
+        for fenced_lane in covered_lanes {
+            let existing_lane = current_lane_for_cloud_consent_tx(
+                &mut tx,
+                &fenced_lane.run_id,
+                &fenced_lane.lane_id,
+                consent_receipt_id,
+            )
+            .await?
+            .unwrap_or(fenced_lane);
+            validate_model_lane_authority_tx(&mut tx, &existing_lane).await?;
+            if matches!(
+                existing_lane.status,
+                ModelLaneStatus::Completed | ModelLaneStatus::Failed | ModelLaneStatus::Cancelled
+            ) {
+                if existing_lane.status == ModelLaneStatus::Cancelled
+                    && existing_lane.failstate_code.as_deref() == Some("CX-MM-007")
+                {
+                    cancelled.push(existing_lane);
+                }
+                continue;
+            }
+
+            let provider_call_cancelled =
+                provider_cancelled_lane_ids.contains(&existing_lane.lane_id);
+            let provider_cancel_outcome = if provider_call_cancelled {
+                "cancelled_by_coordinator"
+            } else {
+                "not_live_at_revocation"
+            };
             let mut lane = existing_lane.inner.clone();
             lane.status = ModelLaneStatus::Cancelled;
             lane.recovery_state = ModelLaneRecoveryState::Terminal;
@@ -896,7 +1411,8 @@ impl ModelLaneStore {
                     "consent_status": "CX-MM-007",
                     "consent_receipt_id": consent_receipt_id,
                     "projection_plan_id": &revoked_receipt.projection_plan_id,
-                    "provider_call_cancelled": true,
+                    "provider_call_cancelled": provider_call_cancelled,
+                    "provider_cancel_outcome": provider_cancel_outcome,
                     "flight_recorder": "EventLedger",
                     "previous_event_ledger_event_id": &existing_lane.event_ledger_event_id,
                     "previous_event_ledger_seq": existing_lane.event_ledger_seq,
@@ -910,10 +1426,6 @@ impl ModelLaneStore {
                 event_ledger_seq: stored_terminal_event.event_sequence,
                 inner: lane,
             };
-            // Same EventLedger-authority invariant as record_lane_terminal_status:
-            // the row is repointed to this terminal event, so its payload must
-            // carry the full updated lane `record` for replay/diagnostics
-            // authority validation.
             stamp_kernel_event_payload_tx(
                 &mut tx,
                 &record.event_ledger_event_id,
@@ -928,7 +1440,8 @@ impl ModelLaneStore {
                     "consent_status": "CX-MM-007",
                     "consent_receipt_id": consent_receipt_id,
                     "projection_plan_id": &revoked_receipt.projection_plan_id,
-                    "provider_call_cancelled": true,
+                    "provider_call_cancelled": provider_call_cancelled,
+                    "provider_cancel_outcome": provider_cancel_outcome,
                     "flight_recorder": "EventLedger",
                     "previous_event_ledger_event_id": &existing_lane.event_ledger_event_id,
                     "previous_event_ledger_seq": existing_lane.event_ledger_seq,
@@ -938,20 +1451,38 @@ impl ModelLaneStore {
             .await?;
             sqlx::query(
                 r#"
-                UPDATE model_lanes
-                SET status = $2,
-                    event_ledger_event_id = $3,
-                    event_ledger_seq = $4,
-                    record_json = $5,
+                INSERT INTO model_lanes (
+                    lane_id, run_id, trace_id, lane_span_id, kind,
+                    runtime_binding, launch_authority, status, work_packet_id,
+                    micro_task_id, task_board_id, owner_session, event_ledger_stream_id,
+                    event_ledger_event_id, event_ledger_seq, record_json, model_stable_anchor
+                )
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+                ON CONFLICT (lane_id) DO UPDATE
+                SET status = EXCLUDED.status,
+                    event_ledger_event_id = EXCLUDED.event_ledger_event_id,
+                    event_ledger_seq = EXCLUDED.event_ledger_seq,
+                    record_json = EXCLUDED.record_json,
                     updated_at = NOW()
-                WHERE lane_id = $1
                 "#,
             )
             .bind(&record.lane_id)
+            .bind(&record.run_id)
+            .bind(&record.trace_id)
+            .bind(&record.lane_span_id)
+            .bind(record.kind.as_str())
+            .bind(record.runtime_binding.as_str())
+            .bind(record.launch_authority.as_str())
             .bind(record.status.as_str())
+            .bind(record.work_packet_id.as_deref())
+            .bind(record.micro_task_id.as_deref())
+            .bind(record.task_board_id.as_deref())
+            .bind(&record.owner_session)
+            .bind(&record.event_ledger_stream_id)
             .bind(&record.event_ledger_event_id)
             .bind(record.event_ledger_seq)
             .bind(serde_json::to_value(&record)?)
+            .bind(Option::<String>::None)
             .execute(&mut *tx)
             .await?;
             cancelled.push(record);
@@ -961,10 +1492,68 @@ impl ModelLaneStore {
         Ok(cancelled)
     }
 
+    #[cfg(feature = "test-utils")]
+    pub async fn test_fence_cloud_consent_revocation(
+        &self,
+        consent_receipt_id: &str,
+        revoked_by_ref: &str,
+        reason: &str,
+    ) -> ModelLaneResult<Vec<ModelLaneRecord>> {
+        self.fence_cloud_consent_revocation(consent_receipt_id, revoked_by_ref, reason)
+            .await
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub async fn test_finalize_cloud_consent_revocation(
+        &self,
+        consent_receipt_id: &str,
+        revoked_by_ref: &str,
+        reason: &str,
+        provider_cancelled_lane_ids: &std::collections::BTreeSet<String>,
+    ) -> ModelLaneResult<Vec<ModelLaneRecord>> {
+        self.finalize_cloud_consent_revocation(
+            consent_receipt_id,
+            revoked_by_ref,
+            reason,
+            provider_cancelled_lane_ids,
+        )
+        .await
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub async fn test_commit_cloud_consent_revocation(
+        &self,
+        consent_receipt_id: &str,
+        revoked_by_ref: &str,
+        reason: &str,
+    ) -> ModelLaneResult<Vec<ModelLaneRecord>> {
+        self.fence_cloud_consent_revocation(consent_receipt_id, revoked_by_ref, reason)
+            .await?;
+        self.finalize_cloud_consent_revocation(
+            consent_receipt_id,
+            revoked_by_ref,
+            reason,
+            &std::collections::BTreeSet::new(),
+        )
+        .await
+    }
+
     pub async fn record_promotion_decision(
         &self,
         input: NewModelLanePromotionDecision,
     ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
+        let mut input = input;
+        let routing_graph = super::routing::ModelLaneRoutingGraph::for_policy(input.routing_policy);
+        routing_graph
+            .validate()
+            .map_err(|error| ModelLaneError::InvalidInput(error.to_string()))?;
+        input.diagnostic_payload = merge_diagnostic_payload(
+            input.diagnostic_payload,
+            json!({
+                "routing_graph": routing_graph,
+                "routing_graph_schema_id": super::routing::ModelLaneRoutingGraph::SCHEMA_ID,
+            }),
+        );
         validate_promotion_decision(&input)?;
         let mut tx = self.pool.begin().await?;
         lock_idempotency_key_tx(&mut tx, &input.idempotency_key).await?;
@@ -1285,6 +1874,7 @@ impl ModelLaneStore {
             context_bundle_handoff_by_idempotency_key_tx(&mut tx, &prepared.idempotency_key).await?
         {
             if existing.context_bundle_hash == prepared.context_bundle_hash {
+                validate_stored_context_bundle_handoff_authority_tx(&mut tx, &existing).await?;
                 tx.commit().await?;
                 return Ok(existing);
             }
@@ -1395,6 +1985,7 @@ impl ModelLaneStore {
             }
         };
 
+        validate_stored_context_bundle_handoff_authority_tx(&mut tx, &stored).await?;
         tx.commit().await?;
         Ok(stored)
     }
@@ -1446,6 +2037,7 @@ impl ModelLaneStore {
             )));
         }
         for record in &records {
+            validate_stored_context_bundle_handoff_authority_tx(&mut tx, record).await?;
             let artifact = context_bundle_artifact_binding_by_ref_tx(
                 &mut tx,
                 &record.run_id,
@@ -1470,6 +2062,9 @@ impl ModelLaneStore {
                 "artifact_binding.content_hash",
                 &artifact.content_hash,
             )?;
+            if let Some(crdt_payload) = record.crdt_payload.as_ref() {
+                validate_crdt_handoff_authority_tx(&mut tx, crdt_payload).await?;
+            }
         }
         tx.commit().await?;
         Ok(build_downstream_context_bundle(
@@ -1487,7 +2082,8 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>> {
         require_token("run_id", run_id)?;
         require_token("context_bundle_id", context_bundle_id)?;
-        sqlx::query(
+        let mut tx = self.pool.begin().await?;
+        let records = sqlx::query(
             r#"
             SELECT record_json
             FROM model_lane_context_bundle_handoffs
@@ -1497,14 +2093,19 @@ impl ModelLaneStore {
         )
         .bind(run_id)
         .bind(context_bundle_id)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await?
         .into_iter()
         .map(|row| {
             row_to_json(row, "record_json")
                 .and_then(|v| serde_json::from_value(v).map_err(Into::into))
         })
-        .collect()
+        .collect::<ModelLaneResult<Vec<ModelLaneContextBundleHandoffRecord>>>()?;
+        for record in &records {
+            validate_stored_context_bundle_handoff_authority_tx(&mut tx, record).await?;
+        }
+        tx.commit().await?;
+        Ok(records)
     }
 
     pub async fn record_lane_terminal_status(
@@ -1655,9 +2256,10 @@ impl ModelLaneStore {
     pub async fn replay_run(&self, run_id: &str) -> ModelLaneResult<ModelLaneReplay> {
         require_token("run_id", run_id)?;
         validate_diagnostics_row_eventledger_authority(&self.pool, run_id).await?;
+        let mut tx = self.pool.begin().await?;
         let run = sqlx::query("SELECT record_json FROM model_lane_runs WHERE run_id = $1")
             .bind(run_id)
-            .fetch_optional(&self.pool)
+            .fetch_optional(&mut *tx)
             .await?
             .map(|row| row_to_json(row, "record_json"))
             .transpose()?
@@ -1667,7 +2269,7 @@ impl ModelLaneStore {
             "SELECT record_json FROM model_lanes WHERE run_id = $1 ORDER BY event_ledger_seq ASC",
         )
         .bind(run_id)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await?
         .into_iter()
         .map(|row| {
@@ -1680,11 +2282,16 @@ impl ModelLaneStore {
             "SELECT record_json FROM model_lane_messages WHERE run_id = $1 ORDER BY event_ledger_seq ASC",
         )
         .bind(run_id)
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await?
         .into_iter()
         .map(|row| row_to_json(row, "record_json").and_then(|v| serde_json::from_value(v).map_err(Into::into)))
         .collect::<ModelLaneResult<Vec<ModelLaneMessageRecord>>>()?;
+
+        for message in &messages {
+            validate_stored_crdt_message_authority_tx(&mut tx, message).await?;
+        }
+        tx.commit().await?;
 
         Ok(ModelLaneReplay {
             run: serde_json::from_value(run)?,
@@ -1703,6 +2310,25 @@ impl ModelLaneStore {
         .await?
         .ok_or_else(|| ModelLaneError::NotFound("no model lane runs recorded".into()))?;
         self.diagnostics_projection(&run_id).await
+    }
+
+    pub async fn latest_diagnostics_projection_with_model_catalog(
+        &self,
+        model_catalog: Option<&crate::model_runtime::ModelCatalog>,
+    ) -> ModelLaneResult<ModelLaneDiagnosticsProjection> {
+        let mut projection = self.latest_diagnostics_projection().await?;
+        apply_diagnostics_model_catalog_labels(&mut projection, model_catalog);
+        Ok(projection)
+    }
+
+    pub async fn diagnostics_projection_with_model_catalog(
+        &self,
+        run_id: &str,
+        model_catalog: Option<&crate::model_runtime::ModelCatalog>,
+    ) -> ModelLaneResult<ModelLaneDiagnosticsProjection> {
+        let mut projection = self.diagnostics_projection(run_id).await?;
+        apply_diagnostics_model_catalog_labels(&mut projection, model_catalog);
+        Ok(projection)
     }
 
     pub async fn diagnostics_projection(
@@ -1760,6 +2386,11 @@ impl ModelLaneStore {
             .iter()
             .map(|lease| lease.lease_id.clone())
             .collect::<Vec<_>>();
+        let routing_executions =
+            super::routing_execution::ModelLaneRoutingExecutionStore::new(self.pool.clone())
+                .diagnostics_for_run(run_id)
+                .await
+                .map_err(ModelLaneError::InvalidInput)?;
         let messages_by_lane = replay.messages.iter().fold(
             BTreeMap::<String, Vec<&ModelLaneMessageRecord>>::new(),
             |mut acc, msg| {
@@ -1767,6 +2398,19 @@ impl ModelLaneStore {
                 acc
             },
         );
+        let lane_anchors =
+            sqlx::query("SELECT lane_id, model_stable_anchor FROM model_lanes WHERE run_id = $1")
+                .bind(run_id)
+                .fetch_all(&self.pool)
+                .await?
+                .into_iter()
+                .map(|row| {
+                    Ok((
+                        row.try_get::<String, _>("lane_id")?,
+                        row.try_get::<Option<String>, _>("model_stable_anchor")?,
+                    ))
+                })
+                .collect::<Result<BTreeMap<_, _>, sqlx::Error>>()?;
         let lanes = replay
             .lanes
             .iter()
@@ -1791,6 +2435,20 @@ impl ModelLaneStore {
                     .map(|msg| msg.created_at_utc.clone())
                     .max()
                     .or_else(|| lane.heartbeat_at_utc.clone());
+                let model_stable_anchor = lane_anchors
+                    .get(&lane.lane_id)
+                    .cloned()
+                    .flatten();
+                let model_anchor_unavailable_reason = if lane.kind == ModelLaneKind::LocalModel
+                    && model_stable_anchor.is_none()
+                {
+                    Some(
+                        "legacy ModelLane row predates persisted artifact SHA-256 anchor, or its boot UUID had no durable registry observation"
+                            .to_owned(),
+                    )
+                } else {
+                    None
+                };
                 ModelLaneDiagnosticsLane {
                     lane_id: lane.lane_id.clone(),
                     kind: lane.kind.as_str().to_owned(),
@@ -1799,6 +2457,9 @@ impl ModelLaneStore {
                     status: lane.status.as_str().to_owned(),
                     recovery_state: lane.recovery_state.as_str().to_owned(),
                     model_id: lane.model_id.clone(),
+                    model_display_name: crate::model_runtime::UNKNOWN_MODEL_LABEL.to_owned(),
+                    model_stable_anchor,
+                    model_anchor_unavailable_reason,
                     session_id: lane.session_id.clone(),
                     model_session_id: lane.model_session_id.clone(),
                     adapter_id: lane.adapter_id.clone(),
@@ -1938,8 +2599,8 @@ impl ModelLaneStore {
             .collect::<Vec<_>>();
 
         Ok(ModelLaneDiagnosticsProjection {
-            schema_id: "hsk.model_lane_diagnostics_projection@1".to_owned(),
-            surface_contract_id: "native_swarm_lane_diagnostics".to_owned(),
+            schema_id: MODEL_LANE_DIAGNOSTICS_PROJECTION_SCHEMA_ID.to_owned(),
+            surface_contract_id: MODEL_LANE_DIAGNOSTICS_SURFACE_CONTRACT_ID.to_owned(),
             run: ModelLaneDiagnosticsRun {
                 run_id: replay.run.run_id.clone(),
                 trace_id: replay.run.trace_id.clone(),
@@ -1997,6 +2658,7 @@ impl ModelLaneStore {
                     event_ledger_seq: status.event_ledger_seq,
                 })
                 .collect(),
+            routing_executions,
             active_lease_count,
             orphan_state: if reclaimable_lease_ids.is_empty() {
                 "none".to_owned()
@@ -2997,7 +3659,15 @@ impl ModelLaneStore {
         if let Some(lane_id) = input.lane_id.as_deref() {
             lane_by_id_for_run_tx(&mut tx, &input.run_id, lane_id).await?;
         }
-        ensure_event_ledger_sequence_in_stream_tx(
+        // A checkpoint watermark is a statement about the exact stream state
+        // immediately before the checkpoint event is appended, not merely a
+        // reference to any older row in that stream. Checkpoints are rare, so
+        // fence ledger inserts for this short validation+append transaction and
+        // prove equality with the current stream maximum before writing.
+        sqlx::query("LOCK TABLE kernel_event_ledger IN SHARE ROW EXCLUSIVE MODE")
+            .execute(&mut *tx)
+            .await?;
+        ensure_exact_event_ledger_high_watermark_tx(
             &mut tx,
             input.last_event_ledger_seq,
             &input.event_ledger_stream_id,
@@ -3088,20 +3758,35 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<ModelLaneRecoveryEventRecord> {
         validate_recovery_event(&input)?;
         let mut tx = self.pool.begin().await?;
-        lock_idempotency_key_tx(&mut tx, &input.idempotency_key).await?;
+        lock_recovery_run_tx(&mut tx, &input.run_id).await?;
+        let record = self.record_recovery_event_tx(&mut tx, input).await?;
+        tx.commit().await?;
+        Ok(record)
+    }
+
+    async fn record_recovery_event_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        mut input: NewModelLaneRecoveryEvent,
+    ) -> ModelLaneResult<ModelLaneRecoveryEventRecord> {
+        lock_idempotency_key_tx(tx, &input.idempotency_key).await?;
         if let Some(existing) =
-            recovery_event_by_idempotency_key_tx(&mut tx, &input.idempotency_key).await?
+            recovery_event_by_idempotency_key_tx(tx, &input.idempotency_key).await?
         {
+            // replay_order_seq is allocated by this store. Normalize retries to
+            // the committed allocation before applying the semantic-idempotency
+            // check so a caller cannot reserve or rewrite the run tail.
+            input.replay_order_seq = existing.replay_order_seq;
             ensure_idempotent_input_matches(
                 "model_lane_recovery_event",
                 &input.idempotency_key,
                 &existing.inner,
                 &input,
             )?;
-            tx.commit().await?;
             return Ok(existing);
         }
-        let run = run_by_id_tx(&mut tx, &input.run_id).await?;
+        input.replay_order_seq = next_recovery_replay_order_seq_tx(tx, &input.run_id).await?;
+        let run = run_by_id_tx(tx, &input.run_id).await?;
         require_equal(
             "model_lane_recovery_event.event_ledger_stream_id",
             &input.event_ledger_stream_id,
@@ -3109,18 +3794,18 @@ impl ModelLaneStore {
             &run.event_ledger_stream_id,
         )?;
         if let Some(lane_id) = input.lane_id.as_deref() {
-            lane_by_id_for_run_tx(&mut tx, &input.run_id, lane_id).await?;
+            lane_by_id_for_run_tx(tx, &input.run_id, lane_id).await?;
         }
         if let Some(source_event_ledger_seq) = input.source_event_ledger_seq {
             ensure_event_ledger_sequence_in_stream_tx(
-                &mut tx,
+                tx,
                 source_event_ledger_seq,
                 &input.event_ledger_stream_id,
             )
             .await?;
         }
         let payload = json!({
-            "schema_id": "hsk.model_lane_recovery_event@1",
+            "schema_id": "hsk.model_lane_recovery_event@2",
             "dexterity_kernel": "Dexterity",
             "record": input,
         });
@@ -3133,7 +3818,7 @@ impl ModelLaneStore {
             &input.event_ledger_stream_id,
             payload,
         )?;
-        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+        let stored_event = append_kernel_event_with_executor(&mut **tx, event).await?;
         let sequence = stored_event.event_sequence;
         let record = ModelLaneRecoveryEventRecord {
             inner: input,
@@ -3143,7 +3828,7 @@ impl ModelLaneStore {
             transaction_seq: sequence,
         };
         stamp_kernel_event_payload_tx(
-            &mut tx,
+            tx,
             &record.event_ledger_event_id,
             recovery_event_event_payload(&record),
         )
@@ -3201,9 +3886,8 @@ impl ModelLaneStore {
         .bind(record.event_stream_version)
         .bind(record.transaction_seq)
         .bind(serde_json::to_value(&record)?)
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx)
         .await?;
-        tx.commit().await?;
         serde_json::from_value(row_to_json(row, "record_json")?).map_err(Into::into)
     }
 
@@ -3588,11 +4272,69 @@ impl ModelLaneStore {
         serde_json::from_value(row_to_json(row, "record_json")?).map_err(Into::into)
     }
 
+    /// Recover every latest checkpoint whose EventLedger authority remains
+    /// restartable/reclaimable. The production core boot path invokes this
+    /// before exposing backend routes or the managed runtime.
+    pub async fn recover_restartable_runs_at_boot(
+        &self,
+    ) -> ModelLaneResult<Vec<ModelLaneRecoveredRun>> {
+        let run_ids = sqlx::query_scalar::<_, String>(
+            r#"
+            SELECT run_id
+            FROM (
+                SELECT DISTINCT ON (payload->'record'->>'run_id')
+                       payload->'record'->>'run_id' AS run_id,
+                       payload->'record'->>'recovery_state' AS recovery_state,
+                       event_sequence
+                FROM kernel_event_ledger
+                WHERE aggregate_type = 'model_lane_recovery_checkpoint'
+                  AND COALESCE(payload->'record'->>'run_id', '') <> ''
+                ORDER BY payload->'record'->>'run_id', event_sequence DESC
+            ) AS latest_checkpoint
+            WHERE recovery_state IN ('restartable', 'reclaimable')
+            ORDER BY run_id
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        let mut recovered = Vec::with_capacity(run_ids.len());
+        for run_id in run_ids {
+            recovered.push(self.recover_run_after_restart(&run_id).await?);
+        }
+        Ok(recovered)
+    }
+
     pub async fn recover_run_after_restart(
         &self,
         run_id: &str,
     ) -> ModelLaneResult<ModelLaneRecoveredRun> {
         require_token("run_id", run_id)?;
+        // Serialize the complete read/reconcile/write cycle and every recovery
+        // event append for one run. Orphan decisions are written through this
+        // same transaction, so the advisory fence and replay-tail allocation are
+        // one atomic authority. Rollback/drop releases the fence on every path.
+        let mut recovery_fence = self.pool.begin().await?;
+        lock_recovery_run_tx(&mut recovery_fence, run_id).await?;
+        let result = self
+            .recover_run_after_restart_fenced(&mut recovery_fence, run_id)
+            .await;
+        match result {
+            Ok(recovered) => {
+                recovery_fence.commit().await?;
+                Ok(recovered)
+            }
+            Err(error) => {
+                let _ = recovery_fence.rollback().await;
+                Err(error)
+            }
+        }
+    }
+
+    async fn recover_run_after_restart_fenced(
+        &self,
+        recovery_fence: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        run_id: &str,
+    ) -> ModelLaneResult<ModelLaneRecoveredRun> {
         validate_diagnostics_row_eventledger_authority(&self.pool, run_id).await?;
         let canonical_run = canonical_run_for_recovery(&self.pool, run_id).await?;
         let checkpoint =
@@ -3617,9 +4359,11 @@ impl ModelLaneStore {
         //   authority for those NEW messages/events catch up to the current stream
         //   high-watermark. Absent real forward-message progress there is nothing to
         //   catch up and the bound stays at the checkpoint.
-        // * EXCLUDE (current-state adjunct): lane leases and cloud-consent denials are
-        //   current-state markers, never forward replay input, so they stay bounded at
-        //   the checkpoint and post-checkpoint rows are excluded.
+        // * RECONCILE (current ownership authority): lane leases are never forward
+        //   replay input, but recovery must reconcile their latest committed state even
+        //   when a lease was acquired after the checkpoint. This current-authority pass
+        //   does not move the replay watermark or make adjunct writes forward progress.
+        //   Cloud-consent denials remain checkpoint-bounded replay diagnostics.
         // * REJECT (repairs of already-checkpointed refs): a payload ref that was open
         //   AT the checkpoint, and the CRDT base a recovery event replays against, MUST
         //   have been satisfied at/before the checkpoint. A post-checkpoint artifact or
@@ -3638,7 +4382,7 @@ impl ModelLaneStore {
         } else {
             checkpoint_bound_event_ledger_seq
         };
-        let mut recovery_events = recovery_events_for_run(
+        let bounded_recovery_events = recovery_events_for_run(
             &self.pool,
             run_id,
             &checkpoint.event_ledger_stream_id,
@@ -3649,7 +4393,7 @@ impl ModelLaneStore {
             &self.pool,
             run_id,
             forward_bound_event_ledger_seq,
-            &recovery_events,
+            &bounded_recovery_events,
         )
         .await?;
         validate_recovery_payload_refs(
@@ -3658,15 +4402,15 @@ impl ModelLaneStore {
             &checkpoint,
             checkpoint_bound_event_ledger_seq,
             forward_bound_event_ledger_seq,
-            &recovery_events,
+            &bounded_recovery_events,
         )
         .await?;
         validate_recovery_crdt_posture(
-            &self.pool,
+            recovery_fence,
             run_id,
             &checkpoint,
             checkpoint_bound_event_ledger_seq,
-            &recovery_events,
+            &bounded_recovery_events,
         )
         .await?;
         let replay = replay_run_at_recovery_bound(
@@ -3684,14 +4428,21 @@ impl ModelLaneStore {
             &replay.messages,
         )
         .await?;
-        validate_replay_message_crdt_posture(&replay.messages)?;
-        let leases = lane_leases_for_run(
-            &self.pool,
+        validate_replay_message_crdt_posture(recovery_fence, &replay.messages).await?;
+        // Recovery-event appends are reconciliation authority, not forward
+        // message progress. Load the current tail under the run fence so an
+        // ordinary append that won the fence before boot recovery participates
+        // in contiguous ordering without widening the checkpoint replay bound.
+        let mut recovery_events = current_recovery_events_for_run_tx(
+            recovery_fence,
             run_id,
             &checkpoint.event_ledger_stream_id,
-            checkpoint_bound_event_ledger_seq,
         )
         .await?;
+        validate_contiguous_recovery_order(run_id, &recovery_events)?;
+        let leases =
+            current_lane_leases_for_run(&self.pool, run_id, &checkpoint.event_ledger_stream_id)
+                .await?;
         let now = Utc::now();
         let mut active_leases = Vec::new();
         let mut reclaimable_lease_ids = Vec::new();
@@ -3703,20 +4454,37 @@ impl ModelLaneStore {
             if expires > now {
                 active_leases.push(lease);
             } else {
+                let authoritative_lane = if let Some(lane_id) = lease.lane_id.as_deref() {
+                    Some(
+                        current_lane_for_recovery_tx(
+                            recovery_fence,
+                            run_id,
+                            &checkpoint.event_ledger_stream_id,
+                            lane_id,
+                        )
+                        .await?,
+                    )
+                } else {
+                    None
+                };
                 if !recovery_events.iter().any(|event| {
                     event.event_kind == ModelLaneRecoveryEventKind::OrphanDetected
                         && event.lease_id.as_deref() == Some(lease.lease_id.as_str())
                 }) {
-                    let replay_order_seq =
-                        recovery_events.len() as i64 + reclaimable_lease_ids.len() as i64 + 1;
                     let orphan_event = self
-                        .record_orphan_recovery_event(&checkpoint, &lease, replay_order_seq)
+                        .record_orphan_recovery_event_tx(
+                            recovery_fence,
+                            &checkpoint,
+                            &lease,
+                            authoritative_lane.as_ref(),
+                        )
                         .await?;
                     recovery_events.push(orphan_event);
                 }
                 reclaimable_lease_ids.push(lease.lease_id.clone());
             }
         }
+        validate_contiguous_recovery_order(run_id, &recovery_events)?;
         let cloud_consent_denials = cloud_consent_denials_for_run(
             &self.pool,
             run_id,
@@ -3742,31 +4510,43 @@ impl ModelLaneStore {
         })
     }
 
-    async fn record_orphan_recovery_event(
+    async fn record_orphan_recovery_event_tx(
         &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         checkpoint: &ModelLaneRecoveryCheckpointRecord,
         lease: &ModelLaneLeaseRecord,
-        replay_order_seq: i64,
+        authoritative_lane: Option<&ModelLaneRecord>,
     ) -> ModelLaneResult<ModelLaneRecoveryEventRecord> {
-        self.record_recovery_event(NewModelLaneRecoveryEvent {
+        self.record_recovery_event_tx(tx, NewModelLaneRecoveryEvent {
             recovery_event_id: format!(
                 "recovery-event-orphan-{}-{}",
                 checkpoint.checkpoint_id, lease.lease_id
             ),
             run_id: checkpoint.run_id.clone(),
             lane_id: lease.lane_id.clone(),
-            trace_id: format!("trace-{}", checkpoint.run_id),
+            trace_id: authoritative_lane
+                .map(|lane| lane.trace_id.clone())
+                .unwrap_or_else(|| format!("trace-{}", checkpoint.run_id)),
             span_id: format!("span-orphan-{}", lease.lease_id),
-            parent_span_id: lease.lane_id.as_ref().map(|lane| format!("span-{lane}")),
+            parent_span_id: authoritative_lane.map(|lane| lane.lane_span_id.clone()),
             linked_span_contexts: vec![format!(
                 "eventledger://{}/{}",
                 checkpoint.event_ledger_stream_id, lease.event_ledger_seq
             )],
-            session_id: Some(lease.holder_session_id.clone()),
-            model_session_id: checkpoint.lane_id.as_ref().map(|lane| format!("model-session-{lane}")),
+            session_id: Some(
+                authoritative_lane
+                    .map(|lane| lane.session_id.clone())
+                    .unwrap_or_else(|| checkpoint.session_id.clone()),
+            ),
+            model_session_id: Some(
+                authoritative_lane
+                    .map(|lane| lane.model_session_id.clone())
+                    .unwrap_or_else(|| checkpoint.model_session_id.clone()),
+            ),
             event_kind: ModelLaneRecoveryEventKind::OrphanDetected,
             recovery_status: ModelLaneRecoveryStatus::Observed,
-            replay_order_seq,
+            // The transaction-scoped tail allocator replaces this placeholder.
+            replay_order_seq: 1,
             source_event_ledger_seq: Some(lease.event_ledger_seq),
             payload_refs: Vec::new(),
             artifact_refs: vec![lease.scope_ref.clone()],
@@ -3803,51 +4583,13 @@ impl ModelLaneStore {
         run: &NewModelLaneRun,
         lane: &NewModelLane,
     ) -> ModelLaneResult<()> {
-        let check = CloudLaunchAuthorityCheck {
-            run_id: run.run_id.clone(),
-            lane_id: lane.lane_id.clone(),
-            model_session_id: lane.model_session_id.clone(),
-            provider_kind: lane.provider_kind.as_str().to_string(),
-            requested_model_id: lane.model_id.clone().unwrap_or_default(),
-            projection_plan_ref: lane.projection_plan_ref.clone(),
-            consent_receipt_ref: lane.consent_receipt_ref.clone(),
-            event_ledger_stream_id: lane.event_ledger_stream_id.clone(),
-            work_packet_id: lane
-                .work_packet_id
-                .clone()
-                .or_else(|| run.work_packet_id.clone())
-                .unwrap_or_else(|| run.run_id.clone()),
-            micro_task_id: lane
-                .micro_task_id
-                .clone()
-                .or_else(|| run.micro_task_id.clone()),
-            owner_session: lane.owner_session.clone(),
-            user_manual_behavior_ref: "usermanual://model-lane-cloud-projection-consent#launch"
-                .into(),
-        };
-        self.preflight_cloud_launch(check).await
+        self.preflight_cloud_launch(cloud_launch_check_from_records(run, lane))
+            .await
     }
 
     async fn preflight_cloud_lane_record(&self, lane: &NewModelLane) -> ModelLaneResult<()> {
-        let check = CloudLaunchAuthorityCheck {
-            run_id: lane.run_id.clone(),
-            lane_id: lane.lane_id.clone(),
-            model_session_id: lane.model_session_id.clone(),
-            provider_kind: lane.provider_kind.as_str().to_string(),
-            requested_model_id: lane.model_id.clone().unwrap_or_default(),
-            projection_plan_ref: lane.projection_plan_ref.clone(),
-            consent_receipt_ref: lane.consent_receipt_ref.clone(),
-            event_ledger_stream_id: lane.event_ledger_stream_id.clone(),
-            work_packet_id: lane
-                .work_packet_id
-                .clone()
-                .unwrap_or_else(|| lane.run_id.clone()),
-            micro_task_id: lane.micro_task_id.clone(),
-            owner_session: lane.owner_session.clone(),
-            user_manual_behavior_ref: "usermanual://model-lane-cloud-projection-consent#launch"
-                .into(),
-        };
-        self.preflight_cloud_launch(check).await
+        self.preflight_cloud_launch(cloud_launch_check_from_lane(lane))
+            .await
     }
 
     async fn preflight_cloud_launch(
@@ -3868,11 +4610,11 @@ impl ModelLaneStore {
         }
     }
 
-    async fn deny_cloud_launch(
+    async fn deny_cloud_launch<T>(
         &self,
         check: CloudLaunchAuthorityCheck,
         reason: &str,
-    ) -> ModelLaneResult<()> {
+    ) -> ModelLaneResult<T> {
         record_cloud_consent_denial(
             &self.pool,
             &check,
@@ -3907,6 +4649,203 @@ impl ModelLaneStore {
         })
         .collect()
     }
+}
+
+/// Keep the model-lane read futures used by Axum route handlers `Send`.
+/// `yrs` values are thread-affine, so this compile-time proof catches any
+/// future database suspension accidentally introduced while a Yjs value lives.
+#[allow(dead_code)]
+fn assert_model_lane_route_futures_are_send(store: &ModelLaneStore) {
+    fn assert_send<T: Send>(_: T) {}
+
+    assert_send(store.replay_run("send-proof"));
+    assert_send(store.diagnostics_projection("send-proof"));
+    assert_send(store.navigation_by_run("send-proof"));
+    assert_send(store.navigation_by_lane("send-proof"));
+    assert_send(store.navigation_by_message("send-proof"));
+    assert_send(store.navigation_by_artifact_or_context(None, Some("send-proof"), None));
+    assert_send(store.navigation_by_trace("send-proof", None));
+    assert_send(store.navigation_by_diagnostics("send-proof", None, None, None));
+    assert_send(store.navigation_by_recovery("send-proof"));
+    assert_send(store.navigation_by_lookup(ModelLaneNavigationLookup {
+        run_id: Some("send-proof".to_string()),
+        ..ModelLaneNavigationLookup::default()
+    }));
+}
+
+fn cloud_launch_check_from_records(
+    run: &NewModelLaneRun,
+    lane: &NewModelLane,
+) -> CloudLaunchAuthorityCheck {
+    CloudLaunchAuthorityCheck {
+        run_id: run.run_id.clone(),
+        lane_id: lane.lane_id.clone(),
+        model_session_id: lane.model_session_id.clone(),
+        provider_kind: lane.provider_kind.as_str().to_string(),
+        requested_model_id: lane.model_id.clone().unwrap_or_default(),
+        capability_snapshot_ref: lane
+            .effective_capability_snapshot_ref
+            .clone()
+            .unwrap_or_default(),
+        provider_endpoint_ref: lane.adapter_id.clone(),
+        projection_plan_ref: lane.projection_plan_ref.clone(),
+        consent_receipt_ref: lane.consent_receipt_ref.clone(),
+        event_ledger_stream_id: lane.event_ledger_stream_id.clone(),
+        work_packet_id: lane
+            .work_packet_id
+            .clone()
+            .or_else(|| run.work_packet_id.clone())
+            .unwrap_or_else(|| run.run_id.clone()),
+        micro_task_id: lane
+            .micro_task_id
+            .clone()
+            .or_else(|| run.micro_task_id.clone()),
+        owner_session: lane.owner_session.clone(),
+        user_manual_behavior_ref: "usermanual://model-lane-cloud-projection-consent#launch".into(),
+    }
+}
+
+fn cloud_launch_check_from_lane(lane: &NewModelLane) -> CloudLaunchAuthorityCheck {
+    CloudLaunchAuthorityCheck {
+        run_id: lane.run_id.clone(),
+        lane_id: lane.lane_id.clone(),
+        model_session_id: lane.model_session_id.clone(),
+        provider_kind: lane.provider_kind.as_str().to_string(),
+        requested_model_id: lane.model_id.clone().unwrap_or_default(),
+        capability_snapshot_ref: lane
+            .effective_capability_snapshot_ref
+            .clone()
+            .unwrap_or_default(),
+        provider_endpoint_ref: lane.adapter_id.clone(),
+        projection_plan_ref: lane.projection_plan_ref.clone(),
+        consent_receipt_ref: lane.consent_receipt_ref.clone(),
+        event_ledger_stream_id: lane.event_ledger_stream_id.clone(),
+        work_packet_id: lane
+            .work_packet_id
+            .clone()
+            .unwrap_or_else(|| lane.run_id.clone()),
+        micro_task_id: lane.micro_task_id.clone(),
+        owner_session: lane.owner_session.clone(),
+        user_manual_behavior_ref: "usermanual://model-lane-cloud-projection-consent#launch".into(),
+    }
+}
+
+async fn record_or_extend_run_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    input: NewModelLaneRun,
+    lane: &NewModelLane,
+) -> ModelLaneResult<ModelLaneRunRecord> {
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+        .bind(&input.run_id)
+        .execute(&mut **tx)
+        .await?;
+    let existing =
+        sqlx::query("SELECT record_json FROM model_lane_runs WHERE run_id = $1 FOR UPDATE")
+            .bind(&input.run_id)
+            .fetch_optional(&mut **tx)
+            .await?;
+    let Some(existing) = existing else {
+        return record_run_tx(tx, input).await;
+    };
+    let existing: ModelLaneRunRecord =
+        serde_json::from_value(row_to_json(existing, "record_json")?)?;
+    let stable_match = existing.trace_id == input.trace_id
+        && existing.run_span_id == input.run_span_id
+        && existing.coordinator_session_id == input.coordinator_session_id
+        && existing.routing_policy == input.routing_policy
+        && existing.context_bundle_id == input.context_bundle_id
+        && existing.event_ledger_stream_id == input.event_ledger_stream_id
+        && existing.artifact_namespace == input.artifact_namespace
+        && existing.work_packet_id == input.work_packet_id
+        && existing.micro_task_id == input.micro_task_id
+        && existing.task_board_id == input.task_board_id
+        && existing.owner_session == input.owner_session
+        && existing.memory_pack_ref == input.memory_pack_ref
+        && existing.memory_pack_hash == input.memory_pack_hash
+        && existing.determinism_mode == input.determinism_mode
+        && existing.budget_summary_ref == input.budget_summary_ref;
+    if !stable_match {
+        return Err(ModelLaneError::IdempotencyConflict(format!(
+            "run_id {} cannot be extended by a lane with different immutable run identity",
+            input.run_id
+        )));
+    }
+    for (name, existing_ref, incoming_ref) in [
+        (
+            "projection_plan_ref",
+            existing.projection_plan_ref.as_ref(),
+            input.projection_plan_ref.as_ref(),
+        ),
+        (
+            "consent_receipt_ref",
+            existing.consent_receipt_ref.as_ref(),
+            input.consent_receipt_ref.as_ref(),
+        ),
+    ] {
+        if existing_ref.is_some() && incoming_ref.is_some() && existing_ref != incoming_ref {
+            return Err(ModelLaneError::IdempotencyConflict(format!(
+                "run_id {} cannot change {name} while attaching lane {}",
+                input.run_id, lane.lane_id
+            )));
+        }
+    }
+    if existing
+        .lane_ids
+        .iter()
+        .any(|lane_id| lane_id == &lane.lane_id)
+    {
+        return Ok(existing);
+    }
+    let mut merged = existing.inner.clone();
+    let mut lane_ids: BTreeSet<String> = merged.lane_ids.into_iter().collect();
+    lane_ids.extend(input.lane_ids);
+    lane_ids.insert(lane.lane_id.clone());
+    merged.lane_ids = lane_ids.into_iter().collect();
+    let mut candidate_model_ids: BTreeSet<String> =
+        merged.candidate_model_ids.into_iter().collect();
+    candidate_model_ids.extend(input.candidate_model_ids);
+    if let Some(model_id) = input.selected_model_id.as_ref() {
+        candidate_model_ids.insert(model_id.clone());
+    }
+    if let Some(model_id) = lane.model_id.as_ref() {
+        candidate_model_ids.insert(model_id.clone());
+    }
+    merged.candidate_model_ids = candidate_model_ids.into_iter().collect();
+    merged.projection_plan_ref = merged.projection_plan_ref.or(input.projection_plan_ref);
+    merged.consent_receipt_ref = merged.consent_receipt_ref.or(input.consent_receipt_ref);
+    let idempotency_key = format!("model-lane-run-attach:{}:{}", merged.run_id, lane.lane_id);
+    let event = model_lane_event(
+        KernelEventType::SessionStarted,
+        "model_lane_run",
+        &merged.run_id,
+        &idempotency_key,
+        merged.work_packet_id.as_deref().unwrap_or(&merged.run_id),
+        &merged.event_ledger_stream_id,
+        json!({
+            "schema_id": "hsk.model_lane_run_extension@1",
+            "dexterity_kernel": "Dexterity",
+            "run_id": merged.run_id,
+            "attached_lane_id": lane.lane_id,
+            "record": merged,
+        }),
+    )?;
+    lock_idempotency_key_tx(tx, &idempotency_key).await?;
+    let stored_event = append_kernel_event_with_executor(&mut **tx, event).await?;
+    let record = ModelLaneRunRecord {
+        inner: merged,
+        event_ledger_event_id: stored_event.event_id,
+        event_ledger_seq: stored_event.event_sequence,
+    };
+    sqlx::query(
+        "UPDATE model_lane_runs SET event_ledger_event_id=$2, event_ledger_seq=$3, record_json=$4 WHERE run_id=$1",
+    )
+    .bind(&record.run_id)
+    .bind(&record.event_ledger_event_id)
+    .bind(record.event_ledger_seq)
+    .bind(serde_json::to_value(&record)?)
+    .execute(&mut **tx)
+    .await?;
+    Ok(record)
 }
 
 async fn record_run_tx(
@@ -3985,9 +4924,11 @@ async fn record_lane_tx(
     input: NewModelLane,
 ) -> ModelLaneResult<ModelLaneRecord> {
     let event_idempotency_key = format!("model-lane:{}:{}", input.run_id, input.lane_id);
+    let model_stable_anchor = resolve_lane_stable_anchor_tx(tx, &input).await?;
     let payload = json!({
         "schema_id": "hsk.model_lane@1",
         "dexterity_kernel": "Dexterity",
+        "model_stable_anchor": model_stable_anchor,
         "record": input,
     });
     let event = model_lane_event(
@@ -4014,9 +4955,9 @@ async fn record_lane_tx(
             lane_id, run_id, trace_id, lane_span_id, kind,
             runtime_binding, launch_authority, status, work_packet_id,
             micro_task_id, task_board_id, owner_session, event_ledger_stream_id,
-            event_ledger_event_id, event_ledger_seq, record_json
+            event_ledger_event_id, event_ledger_seq, record_json, model_stable_anchor
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
         ON CONFLICT (lane_id) DO NOTHING
         RETURNING record_json
         "#,
@@ -4037,6 +4978,7 @@ async fn record_lane_tx(
     .bind(&record.event_ledger_event_id)
     .bind(record.event_ledger_seq)
     .bind(serde_json::to_value(&record)?)
+    .bind(model_stable_anchor.as_deref())
     .fetch_optional(&mut **tx)
     .await?;
 
@@ -4053,6 +4995,30 @@ async fn record_lane_tx(
             record.lane_id, existing.run_id
         )))
     }
+}
+
+async fn resolve_lane_stable_anchor_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    input: &NewModelLane,
+) -> ModelLaneResult<Option<String>> {
+    if input.kind != ModelLaneKind::LocalModel
+        || input.runtime_binding != RuntimeBinding::Local
+        || input.provider_kind != ModelLaneProviderKind::LocalRuntime
+    {
+        return Ok(None);
+    }
+    let Some(model_id) = input.model_id.as_deref() else {
+        return Ok(None);
+    };
+    let Ok(model_uuid) = Uuid::parse_str(model_id) else {
+        return Ok(None);
+    };
+    Ok(sqlx::query_scalar::<_, String>(
+        "SELECT encode(artifact_sha256, 'hex') FROM model_runtime_registry WHERE last_observed_runtime_model_id = $1",
+    )
+    .bind(model_uuid)
+    .fetch_optional(&mut **tx)
+    .await?)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -4411,6 +5377,34 @@ impl DexterityLaunchAdapterRegistry {
         })?;
         let adapter_kind = self.adapter_kind_for_spawn_request(request)?;
         let descriptor = self.descriptor(&adapter_kind)?;
+        if adapter_kind == DexterityLaunchAdapterKind::OfficialCliBridge
+            || request.requested_execution_policy_ref.is_some()
+        {
+            let requested_policy = request
+                .requested_execution_policy_ref
+                .as_deref()
+                .ok_or_else(|| {
+                    ModelLaneError::InvalidInput(
+                        "Official-CLI Dexterity launch preflight requires requested_execution_policy_ref"
+                            .into(),
+                    )
+                })?;
+            let effective_policy = crate::sandbox::resolve_execution_policy_ref(requested_policy)
+                .ok_or_else(|| {
+                    ModelLaneError::InvalidInput(format!(
+                        "Dexterity launch preflight rejected unknown or stale execution-policy reference {requested_policy}"
+                    ))
+                })?;
+            if requested_policy != descriptor.requested_execution_policy_ref
+                || effective_policy != descriptor.effective_execution_policy_ref
+            {
+                return Err(ModelLaneError::InvalidInput(format!(
+                    "Dexterity execution-policy mismatch: requested {requested_policy}, resolved {effective_policy}, adapter requires {} -> {}",
+                    descriptor.requested_execution_policy_ref,
+                    descriptor.effective_execution_policy_ref
+                )));
+            }
+        }
         if contract.capability_token_ids.is_empty() {
             return Err(ModelLaneError::InvalidInput(
                 "Dexterity launch preflight requires capability_token_ids".into(),
@@ -6087,6 +7081,8 @@ pub struct NewModelLaneMessage {
 pub struct ModelLaneMessageRecord {
     #[serde(flatten)]
     pub inner: NewModelLaneMessage,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crdt_authority_binding: Option<ModelLaneCrdtAuthorityBinding>,
     pub event_ledger_event_id: String,
     pub event_ledger_seq: i64,
     pub event_stream_version: i64,
@@ -6099,6 +7095,46 @@ impl Deref for ModelLaneMessageRecord {
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
+}
+
+/// Server-derived, durable ownership and replay binding for a CRDT-bearing
+/// ModelLane message. The binding is persisted in both the message projection
+/// and its EventLedger payload; callers cannot supply or override it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelLaneCrdtAuthorityBinding {
+    pub run_id: String,
+    pub lane_id: String,
+    pub lane_session_id: String,
+    pub model_session_id: String,
+    pub lane_trace_id: String,
+    pub crdt_session_id: String,
+    pub crdt_trace_id: String,
+    pub workspace_id: String,
+    pub document_id: String,
+    pub crdt_document_id: String,
+    pub actor_id: String,
+    pub actor_kind: String,
+    pub lease_id: String,
+    pub lease_correlation_id: String,
+    pub lease_scope_kind: String,
+    pub lease_scope_id: String,
+    pub lease_claimed_at_utc: DateTime<Utc>,
+    pub lease_expires_at_utc: DateTime<Utc>,
+    pub lease_admitted_at_utc: DateTime<Utc>,
+    pub crdt_site_id: String,
+    pub update_id: String,
+    pub update_seq: i64,
+    pub update_bytes_ref: String,
+    pub base_snapshot_ref: String,
+    pub state_vector: String,
+    /// Canonical Yjs v1 state-vector bytes derived from the locked snapshot
+    /// and update bytes. This is distinct from `state_vector`, which is the
+    /// kernel's site-indexed receipt clock.
+    #[serde(default)]
+    pub yjs_state_vector_b64: String,
+    pub materialized_projection_hash: String,
+    pub update_event_ledger_event_id: String,
+    pub crdt_proposal_ref: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -6342,6 +7378,10 @@ pub struct ModelLaneRecoveredRun {
     pub mt_runtime_statuses: Vec<ModelLaneMtRuntimeStatusRecord>,
 }
 
+pub const MODEL_LANE_DIAGNOSTICS_PROJECTION_SCHEMA_ID: &str =
+    "hsk.model_lane_diagnostics_projection@3";
+pub const MODEL_LANE_DIAGNOSTICS_SURFACE_CONTRACT_ID: &str = "native_swarm_lane_diagnostics";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelLaneDiagnosticsProjection {
     pub schema_id: String,
@@ -6351,6 +7391,7 @@ pub struct ModelLaneDiagnosticsProjection {
     pub messages: Vec<ModelLaneDiagnosticsMessage>,
     pub diagnostic_tiers: Vec<ModelLaneDiagnosticsTier>,
     pub mt_runtime_statuses: Vec<ModelLaneDiagnosticsMtStatus>,
+    pub routing_executions: Vec<super::routing_execution::ModelLaneRoutingExecutionDiagnostics>,
     pub active_lease_count: usize,
     pub reclaimable_lease_ids: Vec<String>,
     pub orphan_state: String,
@@ -6396,6 +7437,9 @@ pub struct ModelLaneDiagnosticsLane {
     pub status: String,
     pub recovery_state: String,
     pub model_id: Option<String>,
+    pub model_display_name: String,
+    pub model_stable_anchor: Option<String>,
+    pub model_anchor_unavailable_reason: Option<String>,
     pub session_id: String,
     pub model_session_id: String,
     pub adapter_id: String,
@@ -6436,6 +7480,70 @@ pub struct ModelLaneDiagnosticsLane {
     pub task_board_id: Option<String>,
     pub owner_session: String,
     pub locus_ref: Option<String>,
+}
+
+fn apply_diagnostics_model_catalog_labels(
+    projection: &mut ModelLaneDiagnosticsProjection,
+    model_catalog: Option<&crate::model_runtime::ModelCatalog>,
+) {
+    for lane in &mut projection.lanes {
+        let (label, reason) = diagnostics_model_identity_label(
+            &lane.kind,
+            &lane.runtime_binding,
+            &lane.provider_kind,
+            lane.model_id.as_deref(),
+            lane.model_stable_anchor.as_deref(),
+            model_catalog,
+        );
+        lane.model_display_name = label;
+        if reason.is_some() {
+            lane.model_anchor_unavailable_reason = reason;
+        }
+    }
+}
+
+pub fn diagnostics_model_identity_label(
+    kind: &str,
+    runtime_binding: &str,
+    provider_kind: &str,
+    model_id: Option<&str>,
+    stable_anchor: Option<&str>,
+    model_catalog: Option<&crate::model_runtime::ModelCatalog>,
+) -> (String, Option<String>) {
+    let is_local_runtime = kind == ModelLaneKind::LocalModel.as_str()
+        && runtime_binding == RuntimeBinding::Local.as_str()
+        && provider_kind == ModelLaneProviderKind::LocalRuntime.as_str();
+    if !is_local_runtime {
+        return (
+            model_id
+                .map(|id| format!("{provider_kind} / {id}"))
+                .unwrap_or_else(|| format!("{provider_kind} lane")),
+            None,
+        );
+    }
+    let Some(anchor) = stable_anchor else {
+        return (
+            crate::model_runtime::UNKNOWN_MODEL_LABEL.to_owned(),
+            Some("legacy local lane has no persisted artifact SHA-256 anchor".to_owned()),
+        );
+    };
+    let Some(catalog) = model_catalog else {
+        return (
+            crate::model_runtime::UNKNOWN_MODEL_LABEL.to_owned(),
+            Some(format!(
+                "live model catalog unavailable for stable anchor {anchor}"
+            )),
+        );
+    };
+    match catalog.entry_for_stable_anchor(anchor) {
+        Some(entry) => (entry.display_name, None),
+        None => (
+            crate::model_runtime::UNKNOWN_MODEL_LABEL.to_owned(),
+            Some(format!(
+                "stable anchor {anchor} is not loaded in the current model catalog"
+            )),
+        ),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -6866,6 +7974,16 @@ pub enum ModelLaneCloudExportPosture {
     NoExport,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelLaneCloudConsentTargetBinding {
+    pub lane_id: String,
+    pub model_session_id: String,
+    pub provider_kind: String,
+    pub requested_model_id: String,
+    pub capability_snapshot_ref: String,
+    pub provider_endpoint_ref: String,
+}
+
 impl ModelLaneCloudExportPosture {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -6880,10 +7998,14 @@ pub struct NewModelLaneCloudProjectionPlan {
     pub projection_plan_id: String,
     pub run_id: String,
     pub trace_id: String,
-    pub lane_id: String,
-    pub model_session_id: String,
-    pub provider_kind: String,
-    pub requested_model_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lane_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_model_id: Option<String>,
     pub scope_hash: String,
     pub source_artifact_refs: Vec<String>,
     pub payload_artifact_ref: String,
@@ -6895,6 +8017,8 @@ pub struct NewModelLaneCloudProjectionPlan {
     pub provider_profile_ref: String,
     pub fan_out_targets: Vec<String>,
     pub consent_scope: ModelLaneCloudConsentScope,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub target_bindings: Vec<ModelLaneCloudConsentTargetBinding>,
     pub status: ModelLaneCloudProjectionPlanStatus,
     pub event_ledger_stream_id: String,
     pub work_packet_id: String,
@@ -6911,6 +8035,8 @@ pub struct NewModelLaneCloudProjectionPlan {
 pub struct ModelLaneCloudProjectionPlanRecord {
     #[serde(flatten)]
     pub inner: NewModelLaneCloudProjectionPlan,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_bindings_hash: Option<String>,
     pub projection_plan_hash: String,
     pub event_ledger_event_id: String,
     pub event_ledger_seq: i64,
@@ -6933,12 +8059,18 @@ pub struct NewModelLaneCloudConsentReceipt {
     pub projection_plan_hash: String,
     pub run_id: String,
     pub trace_id: String,
-    pub lane_id: String,
-    pub model_session_id: String,
-    pub provider_kind: String,
-    pub requested_model_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lane_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requested_model_id: Option<String>,
     pub scope_hash: String,
     pub consent_scope: ModelLaneCloudConsentScope,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub target_bindings: Vec<ModelLaneCloudConsentTargetBinding>,
     pub retention_policy: ModelLaneCloudRetentionPolicy,
     pub export_posture: ModelLaneCloudExportPosture,
     pub fan_out_targets: Vec<String>,
@@ -6949,6 +8081,8 @@ pub struct NewModelLaneCloudConsentReceipt {
     pub valid_until_utc: String,
     pub revoked_at_utc: Option<String>,
     pub revocation_ref: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revocation_input_hash: Option<String>,
     pub status: ModelLaneCloudConsentReceiptStatus,
     pub event_ledger_stream_id: String,
     pub work_packet_id: String,
@@ -6965,6 +8099,8 @@ pub struct NewModelLaneCloudConsentReceipt {
 pub struct ModelLaneCloudConsentReceiptRecord {
     #[serde(flatten)]
     pub inner: NewModelLaneCloudConsentReceipt,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_bindings_hash: Option<String>,
     pub consent_receipt_hash: String,
     pub event_ledger_event_id: String,
     pub event_ledger_seq: i64,
@@ -7168,6 +8304,8 @@ pub struct NewModelLanePromotionDecision {
     pub linked_span_contexts: Vec<String>,
     pub coordinator_session_id: String,
     pub routing_policy: ModelLaneRoutingPolicy,
+    #[serde(default)]
+    pub routing_launch_plan: Vec<super::routing::ModelLaneRoutingStageLaunchPlan>,
     pub input_refs: Vec<String>,
     pub selected_input_refs: Vec<String>,
     pub rejected_input_refs: Vec<String>,
@@ -7381,6 +8519,53 @@ pub fn dexterity_spawn_model_session_id(request: &SpawnRequest) -> String {
     format!("swarm-session:{}", request.instance_id)
 }
 
+async fn validate_model_lane_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    lane: &ModelLaneRecord,
+) -> ModelLaneResult<()> {
+    let row = sqlx::query(
+        r#"
+        SELECT aggregate_type, aggregate_id, event_sequence, session_run_id, payload
+        FROM kernel_event_ledger
+        WHERE event_id = $1
+        "#,
+    )
+    .bind(&lane.event_ledger_event_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        ModelLaneError::AuthorityDenied(format!(
+            "CX-MM-007 lane {} references missing EventLedger event {}",
+            lane.lane_id, lane.event_ledger_event_id
+        ))
+    })?;
+    let aggregate_type: String = row.try_get("aggregate_type")?;
+    let aggregate_id: String = row.try_get("aggregate_id")?;
+    let event_sequence: i64 = row.try_get("event_sequence")?;
+    let session_run_id: String = row.try_get("session_run_id")?;
+    let payload: Value = row.try_get("payload")?;
+    let ledger_lane = payload.get("record").ok_or_else(|| {
+        ModelLaneError::AuthorityDenied(format!(
+            "CX-MM-007 lane {} EventLedger event has no canonical record",
+            lane.lane_id
+        ))
+    })?;
+    if !matches!(
+        aggregate_type.as_str(),
+        "model_lane" | "model_lane_terminal"
+    ) || aggregate_id != lane.lane_id
+        || event_sequence != lane.event_ledger_seq
+        || session_run_id != lane.event_ledger_stream_id
+        || ledger_lane != &serde_json::to_value(&lane.inner)?
+    {
+        return Err(ModelLaneError::AuthorityDenied(format!(
+            "CX-MM-007 lane {} mutable row differs from EventLedger authority",
+            lane.lane_id
+        )));
+    }
+    Ok(())
+}
+
 fn runtime_session_id(request: &SpawnRequest) -> String {
     dexterity_spawn_model_session_id(request)
 }
@@ -7428,6 +8613,8 @@ struct CloudLaunchAuthorityCheck {
     model_session_id: String,
     provider_kind: String,
     requested_model_id: String,
+    capability_snapshot_ref: String,
+    provider_endpoint_ref: String,
     projection_plan_ref: Option<String>,
     consent_receipt_ref: Option<String>,
     event_ledger_stream_id: String,
@@ -7453,6 +8640,8 @@ impl CloudLaunchAuthorityCheck {
             model_session_id,
             provider_kind: provider_kind.to_string(),
             requested_model_id: requested_model_id.to_string(),
+            capability_snapshot_ref: contract.effective_capability_snapshot_ref.clone(),
+            provider_endpoint_ref: contract.adapter_id.clone(),
             projection_plan_ref: contract.projection_plan_ref.clone(),
             consent_receipt_ref: contract.consent_receipt_ref.clone(),
             event_ledger_stream_id: contract.event_ledger_stream_id.clone(),
@@ -7465,6 +8654,39 @@ impl CloudLaunchAuthorityCheck {
     }
 }
 
+fn validate_cloud_authority_pair(
+    projection: &ModelLaneCloudProjectionPlanRecord,
+    consent: &ModelLaneCloudConsentReceiptRecord,
+) -> ModelLaneResult<()> {
+    let coherent = consent.projection_plan_id == projection.projection_plan_id
+        && consent.projection_plan_hash == projection.projection_plan_hash
+        && consent.run_id == projection.run_id
+        && consent.trace_id == projection.trace_id
+        && consent.lane_id == projection.lane_id
+        && consent.model_session_id == projection.model_session_id
+        && consent.provider_kind == projection.provider_kind
+        && consent.requested_model_id == projection.requested_model_id
+        && consent.scope_hash == projection.scope_hash
+        && consent.consent_scope == projection.consent_scope
+        && consent.target_bindings == projection.target_bindings
+        && consent.target_bindings_hash == projection.target_bindings_hash
+        && consent.retention_policy == projection.retention_policy
+        && consent.export_posture == projection.export_posture
+        && consent.fan_out_targets == projection.fan_out_targets
+        && consent.event_ledger_stream_id == projection.event_ledger_stream_id
+        && consent.work_packet_id == projection.work_packet_id
+        && consent.micro_task_id == projection.micro_task_id
+        && consent.task_board_id == projection.task_board_id
+        && consent.owner_session == projection.owner_session;
+    if !coherent {
+        return Err(ModelLaneError::AuthorityDenied(format!(
+            "CX-MM-007 ConsentReceipt {} is not fully coherent with ProjectionPlan {}",
+            consent.consent_receipt_id, projection.projection_plan_id
+        )));
+    }
+    Ok(())
+}
+
 async fn ensure_cloud_launch_authority_tx(
     tx: &mut Transaction<'_, Postgres>,
     check: &CloudLaunchAuthorityCheck,
@@ -7474,6 +8696,11 @@ async fn ensure_cloud_launch_authority_tx(
     require_token("cloud.model_session_id", &check.model_session_id)?;
     require_token("cloud.provider_kind", &check.provider_kind)?;
     require_token("cloud.requested_model_id", &check.requested_model_id)?;
+    require_token(
+        "cloud.capability_snapshot_ref",
+        &check.capability_snapshot_ref,
+    )?;
+    require_token("cloud.provider_endpoint_ref", &check.provider_endpoint_ref)?;
     let projection_plan_id =
         require_optional_token("projection_plan_ref", check.projection_plan_ref.as_deref())?;
     let consent_receipt_id =
@@ -7493,6 +8720,10 @@ async fn ensure_cloud_launch_authority_tx(
             ))
         })?;
 
+    validate_cloud_projection_authority_tx(tx, &projection).await?;
+    validate_cloud_consent_authority_tx(tx, &consent).await?;
+    validate_cloud_authority_pair(&projection, &consent)?;
+
     if projection.status != ModelLaneCloudProjectionPlanStatus::Active {
         return Err(ModelLaneError::InvalidInput(
             "ProjectionPlan is not active".into(),
@@ -7504,30 +8735,7 @@ async fn ensure_cloud_launch_authority_tx(
         "lane.run_id",
         &check.run_id,
     )?;
-    require_equal(
-        "ProjectionPlan.lane_id",
-        &projection.lane_id,
-        "lane.lane_id",
-        &check.lane_id,
-    )?;
-    require_equal(
-        "ProjectionPlan.model_session_id",
-        &projection.model_session_id,
-        "lane.model_session_id",
-        &check.model_session_id,
-    )?;
-    require_equal(
-        "ProjectionPlan.provider_kind",
-        &projection.provider_kind,
-        "lane.provider_kind",
-        &check.provider_kind,
-    )?;
-    require_equal(
-        "ProjectionPlan.requested_model_id",
-        &projection.requested_model_id,
-        "lane.model_id",
-        &check.requested_model_id,
-    )?;
+    ensure_cloud_authority_target("ProjectionPlan", &projection.inner, check)?;
     if consent.status != ModelLaneCloudConsentReceiptStatus::Approved || !consent.approved {
         return Err(ModelLaneError::InvalidInput(
             "ConsentReceipt is not approved".into(),
@@ -7539,63 +8747,12 @@ async fn ensure_cloud_launch_authority_tx(
         ));
     }
     require_equal(
-        "ConsentReceipt.projection_plan_id",
-        &consent.projection_plan_id,
-        "ProjectionPlan.projection_plan_id",
-        &projection.projection_plan_id,
-    )?;
-    require_equal(
-        "ConsentReceipt.projection_plan_hash",
-        &consent.projection_plan_hash,
-        "ProjectionPlan.projection_plan_hash",
-        &projection.projection_plan_hash,
-    )?;
-    require_equal(
         "ConsentReceipt.run_id",
         &consent.run_id,
         "lane.run_id",
         &check.run_id,
     )?;
-    require_equal(
-        "ConsentReceipt.lane_id",
-        &consent.lane_id,
-        "lane.lane_id",
-        &check.lane_id,
-    )?;
-    require_equal(
-        "ConsentReceipt.model_session_id",
-        &consent.model_session_id,
-        "lane.model_session_id",
-        &check.model_session_id,
-    )?;
-    require_equal(
-        "ConsentReceipt.provider_kind",
-        &consent.provider_kind,
-        "lane.provider_kind",
-        &check.provider_kind,
-    )?;
-    require_equal(
-        "ConsentReceipt.requested_model_id",
-        &consent.requested_model_id,
-        "lane.model_id",
-        &check.requested_model_id,
-    )?;
-    require_equal(
-        "ConsentReceipt.scope_hash",
-        &consent.scope_hash,
-        "ProjectionPlan.scope_hash",
-        &projection.scope_hash,
-    )?;
-    if consent.consent_scope != projection.consent_scope
-        || consent.retention_policy != projection.retention_policy
-        || consent.export_posture != projection.export_posture
-        || consent.fan_out_targets != projection.fan_out_targets
-    {
-        return Err(ModelLaneError::InvalidInput(
-            "ConsentReceipt policy fields must match ProjectionPlan scope, retention, export, and fan-out"
-                .into(),
-        ));
-    }
+    ensure_cloud_consent_receipt_target("ConsentReceipt", &consent.inner, check)?;
     let now = Utc::now();
     let valid_from = parse_utc("ConsentReceipt.valid_from_utc", &consent.valid_from_utc)?;
     let valid_until = parse_utc("ConsentReceipt.valid_until_utc", &consent.valid_until_utc)?;
@@ -7605,6 +8762,213 @@ async fn ensure_cloud_launch_authority_tx(
         ));
     }
     Ok(())
+}
+
+fn ensure_cloud_authority_target(
+    label: &str,
+    authority: &NewModelLaneCloudProjectionPlan,
+    check: &CloudLaunchAuthorityCheck,
+) -> ModelLaneResult<()> {
+    ensure_cloud_target_binding(
+        label,
+        authority.consent_scope,
+        authority.lane_id.as_deref(),
+        authority.model_session_id.as_deref(),
+        authority.provider_kind.as_deref(),
+        authority.requested_model_id.as_deref(),
+        &authority.target_bindings,
+        check,
+    )
+}
+
+fn ensure_cloud_consent_receipt_target(
+    label: &str,
+    authority: &NewModelLaneCloudConsentReceipt,
+    check: &CloudLaunchAuthorityCheck,
+) -> ModelLaneResult<()> {
+    ensure_cloud_target_binding(
+        label,
+        authority.consent_scope,
+        authority.lane_id.as_deref(),
+        authority.model_session_id.as_deref(),
+        authority.provider_kind.as_deref(),
+        authority.requested_model_id.as_deref(),
+        &authority.target_bindings,
+        check,
+    )
+}
+
+fn ensure_cloud_target_binding(
+    label: &str,
+    scope: ModelLaneCloudConsentScope,
+    lane_id: Option<&str>,
+    model_session_id: Option<&str>,
+    provider_kind: Option<&str>,
+    requested_model_id: Option<&str>,
+    target_bindings: &[ModelLaneCloudConsentTargetBinding],
+    check: &CloudLaunchAuthorityCheck,
+) -> ModelLaneResult<()> {
+    if scope == ModelLaneCloudConsentScope::SingleRun {
+        return Ok(());
+    }
+    if scope == ModelLaneCloudConsentScope::SingleLane {
+        require_equal(
+            &format!("{label}.lane_id"),
+            lane_id.unwrap_or_default(),
+            "lane.lane_id",
+            &check.lane_id,
+        )?;
+        require_equal(
+            &format!("{label}.model_session_id"),
+            model_session_id.unwrap_or_default(),
+            "lane.model_session_id",
+            &check.model_session_id,
+        )?;
+        require_equal(
+            &format!("{label}.provider_kind"),
+            provider_kind.unwrap_or_default(),
+            "lane.provider_kind",
+            &check.provider_kind,
+        )?;
+        return require_equal(
+            &format!("{label}.requested_model_id"),
+            requested_model_id.unwrap_or_default(),
+            "lane.model_id",
+            &check.requested_model_id,
+        );
+    }
+
+    let _ = target_bindings;
+    Ok(())
+}
+
+async fn validate_cloud_projection_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    record: &ModelLaneCloudProjectionPlanRecord,
+) -> ModelLaneResult<()> {
+    validate_cloud_projection_plan(&record.inner)?;
+    let expected_targets =
+        cloud_consent_target_bindings_hash(record.consent_scope, &record.target_bindings)?;
+    if record.target_bindings_hash != expected_targets {
+        return Err(ModelLaneError::InvalidInput(format!(
+            "ProjectionPlan {} target_bindings_hash mismatch",
+            record.projection_plan_id
+        )));
+    }
+    let expected_record_hash = cloud_projection_plan_hash(&record.inner)?;
+    require_equal(
+        "ProjectionPlan.projection_plan_hash",
+        &record.projection_plan_hash,
+        "canonical ProjectionPlan hash",
+        &expected_record_hash,
+    )?;
+    let ledger = cloud_authority_ledger_record_tx::<ModelLaneCloudProjectionPlanRecord>(
+        tx,
+        &record.event_ledger_event_id,
+        "model_lane_cloud_projection_plan",
+        &record.projection_plan_id,
+        record.event_ledger_seq,
+        &record.event_ledger_stream_id,
+    )
+    .await?;
+    if &ledger != record {
+        return Err(ModelLaneError::InvalidInput(format!(
+            "ProjectionPlan {} mutable/EventLedger authority mismatch",
+            record.projection_plan_id
+        )));
+    }
+    Ok(())
+}
+
+async fn validate_cloud_consent_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    record: &ModelLaneCloudConsentReceiptRecord,
+) -> ModelLaneResult<()> {
+    validate_cloud_consent_receipt(&record.inner)?;
+    let expected_targets =
+        cloud_consent_target_bindings_hash(record.consent_scope, &record.target_bindings)?;
+    if record.target_bindings_hash != expected_targets {
+        return Err(ModelLaneError::InvalidInput(format!(
+            "ConsentReceipt {} target_bindings_hash mismatch",
+            record.consent_receipt_id
+        )));
+    }
+    let expected_record_hash = cloud_consent_receipt_hash(&record.inner)?;
+    require_equal(
+        "ConsentReceipt.consent_receipt_hash",
+        &record.consent_receipt_hash,
+        "canonical ConsentReceipt hash",
+        &expected_record_hash,
+    )?;
+    let ledger = cloud_authority_ledger_record_tx::<ModelLaneCloudConsentReceiptRecord>(
+        tx,
+        &record.event_ledger_event_id,
+        "model_lane_cloud_consent_receipt",
+        &record.consent_receipt_id,
+        record.event_ledger_seq,
+        &record.event_ledger_stream_id,
+    )
+    .await?;
+    if &ledger != record {
+        return Err(ModelLaneError::InvalidInput(format!(
+            "ConsentReceipt {} mutable/EventLedger authority mismatch",
+            record.consent_receipt_id
+        )));
+    }
+    Ok(())
+}
+
+async fn cloud_authority_ledger_record_tx<T>(
+    tx: &mut Transaction<'_, Postgres>,
+    event_id: &str,
+    aggregate_type: &str,
+    aggregate_id: &str,
+    expected_event_sequence: i64,
+    expected_session_run_id: &str,
+) -> ModelLaneResult<T>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let row = sqlx::query(
+        r#"
+        SELECT aggregate_type, aggregate_id, event_sequence, session_run_id, payload
+        FROM kernel_event_ledger
+        WHERE event_id = $1
+        "#,
+    )
+    .bind(event_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        ModelLaneError::InvalidInput(format!(
+            "{aggregate_type} {aggregate_id} EventLedger row is missing"
+        ))
+    })?;
+    let ledger_type: String = row.try_get("aggregate_type")?;
+    let ledger_id: String = row.try_get("aggregate_id")?;
+    let ledger_sequence: i64 = row.try_get("event_sequence")?;
+    let ledger_session_run_id: String = row.try_get("session_run_id")?;
+    require_equal(
+        "EventLedger.aggregate_type",
+        &ledger_type,
+        "expected aggregate_type",
+        aggregate_type,
+    )?;
+    require_equal(
+        "EventLedger.aggregate_id",
+        &ledger_id,
+        "expected aggregate_id",
+        aggregate_id,
+    )?;
+    if ledger_sequence != expected_event_sequence
+        || ledger_session_run_id != expected_session_run_id
+    {
+        return Err(ModelLaneError::AuthorityDenied(format!(
+            "CX-MM-007 {aggregate_type} {aggregate_id} EventLedger envelope mismatch"
+        )));
+    }
+    let payload: Value = row.try_get("payload")?;
+    event_payload_record(&payload, aggregate_type, aggregate_id)
 }
 
 async fn record_cloud_consent_denial(
@@ -7858,9 +9222,9 @@ async fn recovery_stream_high_watermark(
 /// checkpoint (a NEW `model_lane_message` was committed after
 /// `checkpoint_bound_event_ledger_seq`). Only real forward-message progress triggers
 /// catch-up. Current-state adjunct writes recorded after a checkpoint with no new
-/// message (post-checkpoint leases, MT status, cloud denials) are NOT forward progress
-/// and stay excluded; this is what distinguishes a legitimate post-checkpoint catch-up
-/// from stale adjunct state.
+/// message (post-checkpoint leases, MT status, cloud denials) are NOT forward progress.
+/// Leases are reconciled separately from current ownership authority; they never widen
+/// this replay bound. This distinguishes legitimate message catch-up from adjunct state.
 async fn has_post_checkpoint_forward_messages(
     pool: &PgPool,
     run_id: &str,
@@ -7918,26 +9282,174 @@ async fn recovery_events_for_run(
     .collect()
 }
 
-async fn lane_leases_for_run(
-    pool: &PgPool,
+async fn lock_recovery_run_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    run_id: &str,
+) -> ModelLaneResult<()> {
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 5569896166133588818))")
+        .bind(run_id)
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
+}
+
+async fn next_recovery_replay_order_seq_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    run_id: &str,
+) -> ModelLaneResult<i64> {
+    let next: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COALESCE(MAX(replay_order_seq), 0) + 1
+        FROM model_lane_recovery_events
+        WHERE run_id = $1
+        "#,
+    )
+    .bind(run_id)
+    .fetch_one(&mut **tx)
+    .await?;
+    Ok(next)
+}
+
+async fn current_recovery_events_for_run_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     run_id: &str,
     event_ledger_stream_id: &str,
-    recovery_bound_event_ledger_seq: i64,
-) -> ModelLaneResult<Vec<ModelLaneLeaseRecord>> {
+) -> ModelLaneResult<Vec<ModelLaneRecoveryEventRecord>> {
     sqlx::query(
         r#"
         SELECT aggregate_id, payload
         FROM kernel_event_ledger
-        WHERE aggregate_type = 'model_lane_lease'
+        WHERE aggregate_type = 'model_lane_recovery_event'
           AND session_run_id = $2
           AND payload->'record'->>'run_id' = $1
-          AND event_sequence <= $3
+        ORDER BY (payload->'record'->>'replay_order_seq')::bigint ASC
+        "#,
+    )
+    .bind(run_id)
+    .bind(event_ledger_stream_id)
+    .fetch_all(&mut **tx)
+    .await?
+    .into_iter()
+    .map(|row| {
+        let aggregate_id: String = row.try_get("aggregate_id")?;
+        let payload: Value = row.try_get("payload")?;
+        event_payload_record(&payload, "model_lane_recovery_event", &aggregate_id)
+    })
+    .collect()
+}
+
+/// Resolve the latest committed lane authority independently of checkpoint replay.
+/// This is used only to attribute current lease reconciliation and never changes the
+/// replay watermark or injects a post-checkpoint lane into `ModelLaneReplay`.
+async fn current_lane_for_recovery_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    run_id: &str,
+    event_ledger_stream_id: &str,
+    lane_id: &str,
+) -> ModelLaneResult<ModelLaneRecord> {
+    let row = sqlx::query(
+        r#"
+        SELECT event_id, event_sequence, aggregate_id, payload
+        FROM kernel_event_ledger
+        WHERE aggregate_type = 'model_lane'
+          AND aggregate_id = $3
+          AND session_run_id = $2
+          AND payload->'record'->>'run_id' = $1
+        ORDER BY event_sequence DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(run_id)
+    .bind(event_ledger_stream_id)
+    .bind(lane_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        ModelLaneError::InvalidInput(format!(
+            "current lease authority references lane {lane_id} absent from kernel_event_ledger for run {run_id}"
+        ))
+    })?;
+    let event_id: String = row.try_get("event_id")?;
+    let event_ledger_seq: i64 = row.try_get("event_sequence")?;
+    let aggregate_id: String = row.try_get("aggregate_id")?;
+    let payload: Value = row.try_get("payload")?;
+    let inner: NewModelLane = event_payload_record(&payload, "model_lane", &aggregate_id)?;
+    Ok(ModelLaneRecord {
+        inner,
+        event_ledger_event_id: event_id,
+        event_ledger_seq,
+    })
+}
+
+/// Resolve the latest canonical lane covered by a consent receipt even when
+/// the mutable `model_lanes` projection was lost. Revocation uses this to
+/// cancel from EventLedger authority and then rebuild the terminal projection.
+async fn current_lane_for_cloud_consent_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    run_id: &str,
+    lane_id: &str,
+    consent_receipt_id: &str,
+) -> ModelLaneResult<Option<ModelLaneRecord>> {
+    let row = sqlx::query(
+        r#"
+        SELECT event_id, event_sequence, payload
+        FROM kernel_event_ledger
+        WHERE aggregate_id = $1
+          AND aggregate_type IN ('model_lane', 'model_lane_terminal')
+          AND payload->'record'->>'run_id' = $2
+          AND payload->'record'->>'consent_receipt_ref' = $3
+        ORDER BY event_sequence DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(lane_id)
+    .bind(run_id)
+    .bind(consent_receipt_id)
+    .fetch_optional(&mut **tx)
+    .await?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let event_id: String = row.try_get("event_id")?;
+    let event_ledger_seq: i64 = row.try_get("event_sequence")?;
+    let payload: Value = row.try_get("payload")?;
+    let inner: NewModelLane = event_payload_record(&payload, "model_lane", lane_id)?;
+    Ok(Some(ModelLaneRecord {
+        inner,
+        event_ledger_event_id: event_id,
+        event_ledger_seq,
+    }))
+}
+
+/// Read the latest committed EventLedger authority for every lease in the run.
+///
+/// This query is intentionally NOT checkpoint-bounded. A lease acquired after the
+/// latest checkpoint represents current process ownership that restart recovery must
+/// surface or reclaim. Keeping this separate from `recovery_events_for_run` and
+/// `replay_run_at_recovery_bound` preserves deterministic checkpoint replay while
+/// preventing live or expired post-checkpoint work from becoming invisible.
+async fn current_lane_leases_for_run(
+    pool: &PgPool,
+    run_id: &str,
+    event_ledger_stream_id: &str,
+) -> ModelLaneResult<Vec<ModelLaneLeaseRecord>> {
+    sqlx::query(
+        r#"
+        SELECT aggregate_id, payload
+        FROM (
+            SELECT DISTINCT ON (payload->'record'->>'lease_id')
+                   aggregate_id, payload, event_sequence
+            FROM kernel_event_ledger
+            WHERE aggregate_type = 'model_lane_lease'
+              AND session_run_id = $2
+              AND payload->'record'->>'run_id' = $1
+            ORDER BY payload->'record'->>'lease_id', event_sequence DESC
+        ) AS current_lease_authority
         ORDER BY event_sequence ASC
         "#,
     )
     .bind(run_id)
     .bind(event_ledger_stream_id)
-    .bind(recovery_bound_event_ledger_seq)
     .fetch_all(pool)
     .await?
     .into_iter()
@@ -8133,12 +9645,19 @@ async fn replay_run_at_recovery_bound(
         let payload: Value = row.try_get("payload")?;
         let message: NewModelLaneMessage =
             event_payload_record(&payload, "model_lane_message", &aggregate_id)?;
+        let crdt_authority_binding = payload
+            .get("crdt_authority_binding")
+            .filter(|value| !value.is_null())
+            .cloned()
+            .map(serde_json::from_value)
+            .transpose()?;
         Ok(ModelLaneMessageRecord {
             inner: message,
             event_ledger_event_id: event_id,
             event_ledger_seq: event_seq,
             event_stream_version: event_seq,
             transaction_seq: event_seq,
+            crdt_authority_binding,
         })
     })
     .collect::<ModelLaneResult<Vec<ModelLaneMessageRecord>>>()?;
@@ -8212,7 +9731,11 @@ where
             "model_lane_run" => record.get("run_id"),
             "model_lane" => record.get("lane_id"),
             "model_lane_message" => record.get("message_id"),
+            "model_lane_cloud_projection_plan" => record.get("projection_plan_id"),
+            "model_lane_cloud_consent_receipt" => record.get("consent_receipt_id"),
+            "model_lane_promotion_decision" => record.get("decision_id"),
             "model_lane_context_bundle_artifact" => record.get("artifact_binding_id"),
+            "model_lane_context_bundle_handoff" => record.get("handoff_id"),
             "model_lane_recovery_checkpoint" => record.get("checkpoint_id"),
             "model_lane_recovery_event" => record.get("recovery_event_id"),
             "model_lane_lease" => record.get("lease_id"),
@@ -8253,6 +9776,7 @@ async fn validate_diagnostics_row_eventledger_authority(
         "run_id",
     )
     .await?;
+    validate_model_lane_stable_anchor_authority(pool, run_id).await?;
     validate_diagnostics_row_eventledger_authority_for::<
         ModelLaneMessageRecord,
         NewModelLaneMessage,
@@ -8298,6 +9822,58 @@ async fn validate_diagnostics_row_eventledger_authority(
         "run_id",
     )
     .await
+}
+
+/// Prove the mutable ModelLane projection column against the immutable anchor
+/// captured by the initial lane EventLedger event. The current lane event
+/// reference can advance to terminal/status events, so this lookup deliberately
+/// resolves the original `hsk.model_lane@1` event by aggregate identity instead
+/// of trusting the row's latest event pointer.
+async fn validate_model_lane_stable_anchor_authority(
+    pool: &PgPool,
+    run_id: &str,
+) -> ModelLaneResult<()> {
+    let rows = sqlx::query(
+        r#"
+        SELECT lanes.lane_id,
+               lanes.model_stable_anchor AS row_model_stable_anchor,
+               initial.event_id AS initial_event_id,
+               initial.payload ->> 'model_stable_anchor' AS ledger_model_stable_anchor
+        FROM model_lanes lanes
+        LEFT JOIN LATERAL (
+            SELECT ledger.event_id, ledger.payload
+            FROM kernel_event_ledger ledger
+            WHERE ledger.aggregate_type = 'model_lane'
+              AND ledger.aggregate_id = lanes.lane_id
+              AND ledger.payload ->> 'schema_id' = 'hsk.model_lane@1'
+            ORDER BY ledger.event_sequence ASC
+            LIMIT 1
+        ) initial ON TRUE
+        WHERE lanes.run_id = $1
+        ORDER BY lanes.event_ledger_seq ASC
+        "#,
+    )
+    .bind(run_id)
+    .fetch_all(pool)
+    .await?;
+
+    for row in rows {
+        let lane_id: String = row.try_get("lane_id")?;
+        let row_anchor: Option<String> = row.try_get("row_model_stable_anchor")?;
+        let initial_event_id: Option<String> = row.try_get("initial_event_id")?;
+        let ledger_anchor: Option<String> = row.try_get("ledger_model_stable_anchor")?;
+        if initial_event_id.is_none() {
+            return Err(ModelLaneError::InvalidInput(format!(
+                "model_lane {lane_id} diagnostics projection row drift: initial hsk.model_lane@1 EventLedger event missing"
+            )));
+        }
+        if row_anchor != ledger_anchor {
+            return Err(ModelLaneError::InvalidInput(format!(
+                "model_lane {lane_id} diagnostics projection row drift: model_stable_anchor does not match initial EventLedger payload"
+            )));
+        }
+    }
+    Ok(())
 }
 
 async fn validate_diagnostics_row_eventledger_authority_for<R, I>(
@@ -8399,6 +9975,21 @@ where
             return Err(ModelLaneError::InvalidInput(format!(
                 "{aggregate_type} {row_id} diagnostics projection row drift: mutable row does not match kernel_event_ledger payload"
             )));
+        }
+        if aggregate_type == "model_lane_message" {
+            let row_binding = record_json
+                .get("crdt_authority_binding")
+                .cloned()
+                .unwrap_or(Value::Null);
+            let ledger_binding = payload
+                .get("crdt_authority_binding")
+                .cloned()
+                .unwrap_or(Value::Null);
+            if row_binding != ledger_binding {
+                return Err(ModelLaneError::InvalidInput(format!(
+                    "{aggregate_type} {row_id} diagnostics projection row drift: mutable crdt_authority_binding does not match kernel_event_ledger payload"
+                )));
+            }
         }
     }
     Ok(())
@@ -8860,6 +10451,25 @@ async fn validate_recovery_event_stream(
     Ok(())
 }
 
+fn validate_contiguous_recovery_order(
+    run_id: &str,
+    events: &[ModelLaneRecoveryEventRecord],
+) -> ModelLaneResult<()> {
+    for (index, event) in events.iter().enumerate() {
+        let expected = index as i64 + 1;
+        if event.replay_order_seq != expected {
+            let failure = ModelLaneRecoveryFailureKind::EventLedgerSequenceGap;
+            return Err(ModelLaneError::InvalidInput(format!(
+                "{} {} fenced recovery ordering gap for run_id {run_id}: expected replay_order_seq {expected}, got {}",
+                failure.code(),
+                failure.as_str(),
+                event.replay_order_seq
+            )));
+        }
+    }
+    Ok(())
+}
+
 async fn validate_recovery_payload_refs(
     pool: &PgPool,
     run_id: &str,
@@ -9064,15 +10674,129 @@ async fn validate_payload_authority_hashes(
     Ok(())
 }
 
-fn validate_replay_message_crdt_posture(
+fn model_lane_message_has_crdt_authority(message: &NewModelLaneMessage) -> bool {
+    message.crdt_update_ref.is_some()
+        || message.crdt_base_snapshot_ref.is_some()
+        || message.crdt_state_vector.is_some()
+        || message.crdt_proposal_ref.is_some()
+        || message.crdt_stale_base_ref.is_some()
+}
+
+/// Validate one stored CRDT-bearing message from all three immutable roots:
+/// the current projection row, its exact MODEL_RESPONSE_RECORDED EventLedger
+/// payload, and the historical lease authority captured at admission.
+async fn validate_stored_crdt_message_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    message: &ModelLaneMessageRecord,
+) -> ModelLaneResult<Option<ResolvedModelLaneCrdtAuthority>> {
+    if !model_lane_message_has_crdt_authority(&message.inner) {
+        if message.crdt_authority_binding.is_some() {
+            return Err(crdt_authority_denied(format!(
+                "non-CRDT message {} carries a CRDT authority binding",
+                message.message_id
+            )));
+        }
+        return Ok(None);
+    }
+
+    let resolved = validate_message_crdt_authority_tx(tx, &message.inner)
+        .await?
+        .ok_or_else(|| {
+            crdt_authority_denied(format!(
+                "stored CRDT-bearing message {} resolved no authority",
+                message.message_id
+            ))
+        })?;
+    knowledge_crdt::lock_crdt_lease_authority_domain_tx(
+        tx,
+        &resolved.workspace_id,
+        &resolved.crdt_document_id,
+    )
+    .await?;
+    let lane = lane_by_id_for_run_tx(tx, &message.run_id, &message.from_lane_id).await?;
+    validate_model_lane_authority_tx(tx, &lane).await?;
+    validate_crdt_lane_session_uniqueness_tx(tx, &lane, &resolved).await?;
+    let stored_binding = message.crdt_authority_binding.as_ref().ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "stored CRDT-bearing message {} has no persisted lease authority binding",
+            message.message_id
+        ))
+    })?;
+    let lease =
+        validate_historical_crdt_actor_lane_lease_tx(tx, &lane, &resolved, stored_binding).await?;
+    let recomputed_binding = bind_crdt_authority_to_lane(&message.inner, &lane, &resolved, &lease)?;
+    if stored_binding != &recomputed_binding {
+        return Err(crdt_authority_denied(format!(
+            "stored message {} crdt_authority_binding does not match recomputed PostgreSQL authority",
+            message.message_id
+        )));
+    }
+
+    let row = sqlx::query(
+        r#"
+        SELECT event_type, aggregate_type, aggregate_id, event_sequence,
+               session_run_id, payload
+        FROM kernel_event_ledger
+        WHERE event_id = $1
+        "#,
+    )
+    .bind(&message.event_ledger_event_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "stored CRDT message {} references missing EventLedger event {}",
+            message.message_id, message.event_ledger_event_id
+        ))
+    })?;
+    let event_type: String = row.try_get("event_type")?;
+    let aggregate_type: String = row.try_get("aggregate_type")?;
+    let aggregate_id: String = row.try_get("aggregate_id")?;
+    let event_sequence: i64 = row.try_get("event_sequence")?;
+    let session_run_id: String = row.try_get("session_run_id")?;
+    let payload: Value = row.try_get("payload")?;
+    let ledger_message: NewModelLaneMessage = payload
+        .get("record")
+        .cloned()
+        .ok_or_else(|| {
+            crdt_authority_denied(format!(
+                "MODEL_RESPONSE_RECORDED EventLedger payload for {} has no record",
+                message.message_id
+            ))
+        })
+        .and_then(|record| serde_json::from_value(record).map_err(ModelLaneError::from))?;
+    let ledger_binding: ModelLaneCrdtAuthorityBinding = payload
+        .get("crdt_authority_binding")
+        .cloned()
+        .ok_or_else(|| {
+            crdt_authority_denied(format!(
+                "MODEL_RESPONSE_RECORDED EventLedger payload for {} has no crdt_authority_binding",
+                message.message_id
+            ))
+        })
+        .and_then(|binding| serde_json::from_value(binding).map_err(ModelLaneError::from))?;
+    if event_type != "MODEL_RESPONSE_RECORDED"
+        || aggregate_type != "model_lane_message"
+        || aggregate_id != message.message_id
+        || event_sequence != message.event_ledger_seq
+        || session_run_id != message.event_ledger_stream_id
+        || ledger_message != message.inner
+        || &ledger_binding != stored_binding
+    {
+        return Err(crdt_authority_denied(format!(
+            "stored CRDT message {} projection does not equal its MODEL_RESPONSE_RECORDED EventLedger authority",
+            message.message_id
+        )));
+    }
+    Ok(Some(resolved))
+}
+
+async fn validate_replay_message_crdt_posture(
+    tx: &mut Transaction<'_, Postgres>,
     messages: &[ModelLaneMessageRecord],
 ) -> ModelLaneResult<()> {
     for message in messages {
-        let has_crdt_ref = message.crdt_update_ref.is_some()
-            || message.crdt_base_snapshot_ref.is_some()
-            || message.crdt_state_vector.is_some()
-            || message.crdt_proposal_ref.is_some()
-            || message.crdt_stale_base_ref.is_some();
+        let has_crdt_ref = model_lane_message_has_crdt_authority(&message.inner);
         if !has_crdt_ref {
             continue;
         }
@@ -9088,12 +10812,13 @@ fn validate_replay_message_crdt_posture(
                 message.message_id
             )));
         }
+        validate_stored_crdt_message_authority_tx(tx, message).await?;
     }
     Ok(())
 }
 
 async fn validate_recovery_crdt_posture(
-    pool: &PgPool,
+    tx: &mut Transaction<'_, Postgres>,
     run_id: &str,
     checkpoint: &ModelLaneRecoveryCheckpointRecord,
     recovery_bound_event_ledger_seq: i64,
@@ -9140,7 +10865,7 @@ async fn validate_recovery_crdt_posture(
             .bind(event.crdt_state_vector.as_deref())
             .bind(&checkpoint.event_ledger_stream_id)
             .bind(recovery_bound_event_ledger_seq)
-            .fetch_optional(pool)
+            .fetch_optional(&mut **tx)
             .await?;
             let Some(row) = row else {
                 let failure = ModelLaneRecoveryFailureKind::StaleCrdtBase;
@@ -9154,21 +10879,8 @@ async fn validate_recovery_crdt_posture(
             let message_record_json: Value = row.try_get("message_record_json")?;
             let message_record: ModelLaneMessageRecord =
                 serde_json::from_value(message_record_json)?;
-            let ledger_payload: Value = row.try_get("ledger_payload")?;
-            let ledger_message: NewModelLaneMessage = event_payload_record(
-                &ledger_payload,
-                "model_lane_message",
-                &message_record.message_id,
-            )?;
-            if ledger_message != message_record.inner {
-                let failure = ModelLaneRecoveryFailureKind::StaleCrdtBase;
-                return Err(ModelLaneError::InvalidInput(format!(
-                    "{} {} recovery_event_id {} CRDT message row differs from EventLedger payload",
-                    failure.code(),
-                    failure.as_str(),
-                    event.recovery_event_id
-                )));
-            }
+            let _: Value = row.try_get("ledger_payload")?;
+            validate_stored_crdt_message_authority_tx(tx, &message_record).await?;
         }
     }
     Ok(())
@@ -9342,6 +11054,32 @@ async fn ensure_event_ledger_sequence_in_stream_tx(
         "record.event_ledger_stream_id",
         event_ledger_stream_id,
     )
+}
+
+async fn ensure_exact_event_ledger_high_watermark_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    event_ledger_seq: i64,
+    event_ledger_stream_id: &str,
+) -> ModelLaneResult<()> {
+    let exact_high_watermark: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COALESCE(MAX(event_sequence), 0)
+        FROM kernel_event_ledger
+        WHERE session_run_id = $1
+        "#,
+    )
+    .bind(event_ledger_stream_id)
+    .fetch_one(&mut **tx)
+    .await?;
+    if event_ledger_seq != exact_high_watermark {
+        let failure = ModelLaneRecoveryFailureKind::CorruptCheckpoint;
+        return Err(ModelLaneError::InvalidInput(format!(
+            "{} {} last_event_ledger_seq {event_ledger_seq} is not the exact pre-write stream high-watermark {exact_high_watermark} for {event_ledger_stream_id}",
+            failure.code(),
+            failure.as_str()
+        )));
+    }
+    ensure_event_ledger_sequence_in_stream_tx(tx, event_ledger_seq, event_ledger_stream_id).await
 }
 
 async fn lane_by_id_tx(
@@ -9782,6 +11520,7 @@ async fn prepare_context_bundle_handoff_tx(
                 input.source_message_id
             ))
         })?;
+    validate_stored_crdt_message_authority_tx(tx, &source).await?;
     require_equal(
         "handoff.run_id",
         &input.run_id,
@@ -9845,17 +11584,145 @@ async fn prepare_context_bundle_handoff_tx(
         "source.authority",
         source.authority.as_str(),
     )?;
-    if source.crdt_proposal_ref.is_some() || source.crdt_update_ref.is_some() {
+    let source_has_crdt = source.crdt_proposal_ref.is_some() || source.crdt_update_ref.is_some();
+    if !source_has_crdt && input.crdt_payload.is_some() {
+        return Err(crdt_authority_denied(
+            "non-CRDT ContextBundle source message cannot acquire CRDT authority in handoff metadata",
+        ));
+    }
+    if source_has_crdt {
         let crdt = input.crdt_payload.as_ref().ok_or_else(|| {
             ModelLaneError::InvalidInput(
                 "CRDT ModelLaneMessage handoff requires crdt_payload metadata".into(),
             )
         })?;
+        let source_authority = validate_message_crdt_authority_tx(tx, &source.inner)
+            .await?
+            .ok_or_else(|| {
+                crdt_authority_denied(
+                    "CRDT ContextBundle source message has no canonical update authority",
+                )
+            })?;
+        let handoff_authority = validate_crdt_handoff_authority_tx(tx, crdt).await?;
+        if source_authority.update_bytes_ref != handoff_authority.update_bytes_ref
+            || source_authority.snapshot_bytes_ref != handoff_authority.snapshot_bytes_ref
+            || source_authority.state_vector_after != handoff_authority.state_vector_after
+            || source_authority.materialized_projection_hash
+                != handoff_authority.materialized_projection_hash
+        {
+            return Err(crdt_authority_denied(
+                "ContextBundle CRDT payload does not resolve to the source message authority",
+            ));
+        }
         require_equal(
             "crdt_payload.lane_id",
             &crdt.lane_id,
             "handoff.source_lane_id",
             &input.source_lane_id,
+        )?;
+        let source_binding = source.crdt_authority_binding.as_ref().ok_or_else(|| {
+            crdt_authority_denied(
+                "CRDT ContextBundle source message is missing its durable lane authority binding",
+            )
+        })?;
+        for (field, actual, expected) in [
+            (
+                "source binding run_id",
+                source_binding.run_id.as_str(),
+                input.run_id.as_str(),
+            ),
+            (
+                "source binding lane_id",
+                source_binding.lane_id.as_str(),
+                input.source_lane_id.as_str(),
+            ),
+            (
+                "source binding update_id",
+                source_binding.update_id.as_str(),
+                handoff_authority.update_id.as_str(),
+            ),
+            (
+                "source binding CRDT document",
+                source_binding.crdt_document_id.as_str(),
+                handoff_authority.crdt_document_id.as_str(),
+            ),
+            (
+                "source binding workspace",
+                source_binding.workspace_id.as_str(),
+                handoff_authority.workspace_id.as_str(),
+            ),
+            (
+                "source binding document",
+                source_binding.document_id.as_str(),
+                handoff_authority.document_id.as_str(),
+            ),
+            (
+                "source binding actor_id",
+                source_binding.actor_id.as_str(),
+                handoff_authority.actor_id.as_str(),
+            ),
+            (
+                "source binding actor_kind",
+                source_binding.actor_kind.as_str(),
+                handoff_authority.actor_kind.as_str(),
+            ),
+            (
+                "source binding CRDT site",
+                source_binding.crdt_site_id.as_str(),
+                handoff_authority.site_id.as_str(),
+            ),
+            (
+                "source binding CRDT session",
+                source_binding.crdt_session_id.as_str(),
+                handoff_authority.session_id.as_str(),
+            ),
+            (
+                "source binding CRDT trace",
+                source_binding.crdt_trace_id.as_str(),
+                handoff_authority.trace_id.as_str(),
+            ),
+            (
+                "source binding update ref",
+                source_binding.update_bytes_ref.as_str(),
+                handoff_authority.update_bytes_ref.as_str(),
+            ),
+            (
+                "source binding base snapshot ref",
+                source_binding.base_snapshot_ref.as_str(),
+                handoff_authority.snapshot_bytes_ref.as_str(),
+            ),
+            (
+                "source binding state vector",
+                source_binding.state_vector.as_str(),
+                handoff_authority.state_vector_after.as_str(),
+            ),
+            (
+                "source binding update EventLedger id",
+                source_binding.update_event_ledger_event_id.as_str(),
+                handoff_authority.event_ledger_event_id.as_str(),
+            ),
+            (
+                "source binding projection hash",
+                source_binding.materialized_projection_hash.as_str(),
+                handoff_authority.materialized_projection_hash.as_str(),
+            ),
+        ] {
+            require_equal(field, actual, "resolved CRDT handoff authority", expected)?;
+        }
+        if source_binding.update_seq != handoff_authority.update_seq {
+            return Err(crdt_authority_denied(
+                "source binding update_seq does not match resolved CRDT handoff authority",
+            ));
+        }
+        let expected_promotion_gate_ref = format!(
+            "promotion-gate://model-lane-message/{}",
+            input.source_message_id
+        );
+        require_equal(
+            "crdt_payload.promotion_gate_ref",
+            &crdt.promotion_gate_ref,
+            "source message promotion gate",
+            &expected_promotion_gate_ref,
         )?;
         if let Some(source_state_vector) = source.crdt_state_vector.as_deref() {
             require_equal(
@@ -9923,6 +11790,70 @@ async fn prepare_context_bundle_handoff_tx(
     })
 }
 
+/// Rebuild and compare a stored ContextBundle handoff against its source
+/// message/lease authority and exact CONTEXT_BUNDLE_RECORDED ledger event.
+async fn validate_stored_context_bundle_handoff_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    record: &ModelLaneContextBundleHandoffRecord,
+) -> ModelLaneResult<()> {
+    let prepared = prepare_context_bundle_handoff_tx(tx, record.inner.clone()).await?;
+    if prepared.context_bundle_hash != record.context_bundle_hash
+        || context_bundle_handoff_hash(&record.inner)? != record.context_bundle_hash
+    {
+        return Err(crdt_authority_denied(format!(
+            "ContextBundle handoff {} context_bundle_hash does not match its canonical payload",
+            record.handoff_id
+        )));
+    }
+
+    let row = sqlx::query(
+        r#"
+        SELECT event_type, aggregate_type, aggregate_id, event_sequence,
+               session_run_id, payload
+        FROM kernel_event_ledger
+        WHERE event_id = $1
+        "#,
+    )
+    .bind(&record.event_ledger_event_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "ContextBundle handoff {} references missing EventLedger event {}",
+            record.handoff_id, record.event_ledger_event_id
+        ))
+    })?;
+    let event_type: String = row.try_get("event_type")?;
+    let aggregate_type: String = row.try_get("aggregate_type")?;
+    let aggregate_id: String = row.try_get("aggregate_id")?;
+    let event_sequence: i64 = row.try_get("event_sequence")?;
+    let session_run_id: String = row.try_get("session_run_id")?;
+    let payload: Value = row.try_get("payload")?;
+    let ledger_record: ModelLaneContextBundleHandoffRecord = payload
+        .get("record")
+        .cloned()
+        .ok_or_else(|| {
+            crdt_authority_denied(format!(
+                "CONTEXT_BUNDLE_RECORDED EventLedger payload for {} has no record",
+                record.handoff_id
+            ))
+        })
+        .and_then(|value| serde_json::from_value(value).map_err(ModelLaneError::from))?;
+    if event_type != "CONTEXT_BUNDLE_RECORDED"
+        || aggregate_type != "model_lane_context_bundle_handoff"
+        || aggregate_id != record.handoff_id
+        || event_sequence != record.event_ledger_seq
+        || session_run_id != record.event_ledger_stream_id
+        || &ledger_record != record
+    {
+        return Err(crdt_authority_denied(format!(
+            "ContextBundle handoff {} projection does not equal its CONTEXT_BUNDLE_RECORDED EventLedger authority",
+            record.handoff_id
+        )));
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone)]
 struct PromotionInputResolution {
     denial_reason: Option<ModelLanePromotionDenialReason>,
@@ -9972,9 +11903,13 @@ async fn prepare_promotion_decision_tx(
     input.rejected_input_refs = rejected_input_refs;
     if let Some(current_base_snapshot_ref) = resolution.current_base_snapshot_ref.clone() {
         input.current_base_snapshot_ref = current_base_snapshot_ref;
+    } else {
+        input.current_base_snapshot_ref = "not-applicable".into();
     }
     if let Some(current_state_vector) = resolution.current_state_vector.clone() {
         input.current_state_vector = current_state_vector;
+    } else {
+        input.current_state_vector = "not-applicable".into();
     }
 
     let current_event_ledger_version = latest_event_ledger_version_tx(
@@ -9993,6 +11928,10 @@ async fn prepare_promotion_decision_tx(
             .any(|id| id == &input.expected_event_ledger_aggregate_id);
     let denial_reason = if let Some(reason) = resolution.denial_reason {
         Some(reason)
+    } else if resolution.current_base_snapshot_ref.is_none()
+        && (input.base_snapshot_ref != "not-applicable" || input.state_vector != "not-applicable")
+    {
+        Some(ModelLanePromotionDenialReason::InputRefMismatch)
     } else if !expected_aggregate_matches_selected {
         Some(ModelLanePromotionDenialReason::AggregateVersionMismatch)
     } else if current_event_ledger_version != Some(input.expected_event_ledger_version) {
@@ -10348,10 +12287,14 @@ fn validate_cloud_projection_plan(input: &NewModelLaneCloudProjectionPlan) -> Mo
     require_token("projection_plan_id", &input.projection_plan_id)?;
     require_token("run_id", &input.run_id)?;
     require_token("trace_id", &input.trace_id)?;
-    require_token("lane_id", &input.lane_id)?;
-    require_token("model_session_id", &input.model_session_id)?;
-    validate_cloud_provider_kind(&input.provider_kind)?;
-    require_token("requested_model_id", &input.requested_model_id)?;
+    validate_cloud_consent_scope_bindings(
+        input.consent_scope,
+        input.lane_id.as_deref(),
+        input.model_session_id.as_deref(),
+        input.provider_kind.as_deref(),
+        input.requested_model_id.as_deref(),
+        &input.target_bindings,
+    )?;
     validate_sha256("scope_hash", &input.scope_hash)?;
     validate_sha256("payload_sha256", &input.payload_sha256)?;
     if input.source_artifact_refs.is_empty() {
@@ -10393,10 +12336,14 @@ fn validate_cloud_consent_receipt(input: &NewModelLaneCloudConsentReceipt) -> Mo
     validate_sha256("projection_plan_hash", &input.projection_plan_hash)?;
     require_token("run_id", &input.run_id)?;
     require_token("trace_id", &input.trace_id)?;
-    require_token("lane_id", &input.lane_id)?;
-    require_token("model_session_id", &input.model_session_id)?;
-    validate_cloud_provider_kind(&input.provider_kind)?;
-    require_token("requested_model_id", &input.requested_model_id)?;
+    validate_cloud_consent_scope_bindings(
+        input.consent_scope,
+        input.lane_id.as_deref(),
+        input.model_session_id.as_deref(),
+        input.provider_kind.as_deref(),
+        input.requested_model_id.as_deref(),
+        &input.target_bindings,
+    )?;
     validate_sha256("scope_hash", &input.scope_hash)?;
     if input.fan_out_targets.is_empty() {
         return Err(ModelLaneError::InvalidInput(
@@ -10420,6 +12367,16 @@ fn validate_cloud_consent_receipt(input: &NewModelLaneCloudConsentReceipt) -> Mo
     }
     if input.status == ModelLaneCloudConsentReceiptStatus::Revoked {
         require_optional_token("revocation_ref", input.revocation_ref.as_deref())?;
+        let hash = input.revocation_input_hash.as_deref().ok_or_else(|| {
+            ModelLaneError::InvalidInput(
+                "revoked ConsentReceipt requires revocation_input_hash".into(),
+            )
+        })?;
+        validate_sha256("revocation_input_hash", hash)?;
+    } else if input.revocation_input_hash.is_some() {
+        return Err(ModelLaneError::InvalidInput(
+            "approved ConsentReceipt must not carry revocation_input_hash".into(),
+        ));
     }
     require_token("event_ledger_stream_id", &input.event_ledger_stream_id)?;
     require_token("work_packet_id", &input.work_packet_id)?;
@@ -10442,6 +12399,112 @@ fn validate_cloud_provider_kind(provider_kind: &str) -> ModelLaneResult<()> {
     }
 }
 
+fn canonicalize_cloud_consent_targets(targets: &mut Vec<ModelLaneCloudConsentTargetBinding>) {
+    targets.sort_by(|left, right| {
+        (
+            &left.lane_id,
+            &left.model_session_id,
+            &left.provider_kind,
+            &left.requested_model_id,
+            &left.capability_snapshot_ref,
+            &left.provider_endpoint_ref,
+        )
+            .cmp(&(
+                &right.lane_id,
+                &right.model_session_id,
+                &right.provider_kind,
+                &right.requested_model_id,
+                &right.capability_snapshot_ref,
+                &right.provider_endpoint_ref,
+            ))
+    });
+}
+
+fn validate_cloud_consent_scope_bindings(
+    scope: ModelLaneCloudConsentScope,
+    lane_id: Option<&str>,
+    model_session_id: Option<&str>,
+    provider_kind: Option<&str>,
+    requested_model_id: Option<&str>,
+    target_bindings: &[ModelLaneCloudConsentTargetBinding],
+) -> ModelLaneResult<()> {
+    match scope {
+        ModelLaneCloudConsentScope::SingleLane => {
+            require_optional_token("lane_id", lane_id)?;
+            require_optional_token("model_session_id", model_session_id)?;
+            let provider_kind = require_optional_token("provider_kind", provider_kind)?;
+            validate_cloud_provider_kind(&provider_kind)?;
+            require_optional_token("requested_model_id", requested_model_id)?;
+            if !target_bindings.is_empty() {
+                return Err(ModelLaneError::InvalidInput(
+                    "single_lane cloud consent must not carry broadcast target_bindings".into(),
+                ));
+            }
+        }
+        ModelLaneCloudConsentScope::SingleRun => {
+            if lane_id.is_some()
+                || model_session_id.is_some()
+                || provider_kind.is_some()
+                || requested_model_id.is_some()
+            {
+                return Err(ModelLaneError::InvalidInput(
+                    "single_run cloud consent must not carry lane-bound identity".into(),
+                ));
+            }
+            if !target_bindings.is_empty() {
+                return Err(ModelLaneError::InvalidInput(
+                    "single_run cloud consent must not carry lane-bound target_bindings".into(),
+                ));
+            }
+        }
+    }
+
+    let mut canonical = target_bindings.to_vec();
+    canonicalize_cloud_consent_targets(&mut canonical);
+    if canonical != target_bindings {
+        return Err(ModelLaneError::InvalidInput(
+            "cloud consent target_bindings must be in canonical order".into(),
+        ));
+    }
+    let mut lane_ids = std::collections::BTreeSet::new();
+    let mut model_session_ids = std::collections::BTreeSet::new();
+    for target in target_bindings {
+        require_token("target_bindings[].lane_id", &target.lane_id)?;
+        require_token(
+            "target_bindings[].model_session_id",
+            &target.model_session_id,
+        )?;
+        validate_cloud_provider_kind(&target.provider_kind)?;
+        require_token(
+            "target_bindings[].requested_model_id",
+            &target.requested_model_id,
+        )?;
+        require_token(
+            "target_bindings[].capability_snapshot_ref",
+            &target.capability_snapshot_ref,
+        )?;
+        require_token(
+            "target_bindings[].provider_endpoint_ref",
+            &target.provider_endpoint_ref,
+        )?;
+        if !lane_ids.insert(target.lane_id.as_str())
+            || !model_session_ids.insert(target.model_session_id.as_str())
+        {
+            return Err(ModelLaneError::InvalidInput(
+                "cloud consent target_bindings require unique lane_id and model_session_id".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn cloud_consent_target_bindings_hash(
+    _scope: ModelLaneCloudConsentScope,
+    _target_bindings: &[ModelLaneCloudConsentTargetBinding],
+) -> ModelLaneResult<Option<String>> {
+    Ok(None)
+}
+
 fn cloud_projection_plan_hash(input: &NewModelLaneCloudProjectionPlan) -> ModelLaneResult<String> {
     Ok(dexterity_sha256_hex(canonical_json_bytes(
         &serde_json::to_value(input)?,
@@ -10454,9 +12517,21 @@ fn cloud_consent_receipt_hash(input: &NewModelLaneCloudConsentReceipt) -> ModelL
     )))
 }
 
+fn cloud_consent_revocation_input_hash(
+    consent_receipt_id: &str,
+    revoked_by_ref: &str,
+    reason: &str,
+) -> String {
+    dexterity_sha256_hex(canonical_json_bytes(&json!({
+        "consent_receipt_id": consent_receipt_id,
+        "revoked_by_ref": revoked_by_ref,
+        "reason": reason,
+    })))
+}
+
 fn cloud_projection_plan_event_payload(record: &ModelLaneCloudProjectionPlanRecord) -> Value {
     json!({
-        "schema_id": "hsk.model_lane_cloud_projection_plan@1",
+        "schema_id": "hsk.model_lane_cloud_projection_plan@2",
         "dexterity_kernel": "Dexterity",
         "flight_recorder": "EventLedger",
         "user_manual_behavior_ref": &record.user_manual_behavior_ref,
@@ -10466,7 +12541,7 @@ fn cloud_projection_plan_event_payload(record: &ModelLaneCloudProjectionPlanReco
 
 fn cloud_consent_receipt_event_payload(record: &ModelLaneCloudConsentReceiptRecord) -> Value {
     let mut payload = json!({
-        "schema_id": "hsk.model_lane_cloud_consent_receipt@1",
+        "schema_id": "hsk.model_lane_cloud_consent_receipt@2",
         "dexterity_kernel": "Dexterity",
         "flight_recorder": "EventLedger",
         "user_manual_behavior_ref": &record.user_manual_behavior_ref,
@@ -10480,7 +12555,6 @@ fn cloud_consent_receipt_event_payload(record: &ModelLaneCloudConsentReceiptReco
                 "revocation_ref".into(),
                 json!(record.revocation_ref.as_deref()),
             );
-            object.insert("provider_call_attempted".into(), json!(false));
         }
     }
     payload
@@ -10497,7 +12571,7 @@ fn recovery_checkpoint_event_payload(record: &ModelLaneRecoveryCheckpointRecord)
 
 fn recovery_event_event_payload(record: &ModelLaneRecoveryEventRecord) -> Value {
     json!({
-        "schema_id": "hsk.model_lane_recovery_event@1",
+        "schema_id": "hsk.model_lane_recovery_event@2",
         "dexterity_kernel": "Dexterity",
         "flight_recorder": "EventLedger",
         "record": record,
@@ -10605,6 +12679,1257 @@ fn reject_hidden_provider_ref(field: &str, reference: &str) -> ModelLaneResult<(
     Ok(())
 }
 
+#[derive(Debug, Clone)]
+struct ResolvedModelLaneCrdtAuthority {
+    workspace_id: String,
+    document_id: String,
+    crdt_document_id: String,
+    update_id: String,
+    update_seq: i64,
+    update_sha256: String,
+    update_bytes_ref: String,
+    actor_id: String,
+    actor_kind: String,
+    session_id: String,
+    trace_id: String,
+    state_vector_after: String,
+    yjs_state_vector_b64: String,
+    replay_metadata: Value,
+    snapshot_bytes_ref: String,
+    site_id: String,
+    materialized_projection_hash: String,
+    event_ledger_event_id: String,
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedModelLaneCrdtLeaseAuthority {
+    lease_id: String,
+    correlation_id: String,
+    scope_kind: String,
+    scope_id: String,
+    claimed_at_utc: DateTime<Utc>,
+    expires_at_utc: DateTime<Utc>,
+    admitted_at_utc: DateTime<Utc>,
+}
+
+fn crdt_authority_denied(detail: impl Into<String>) -> ModelLaneError {
+    ModelLaneError::AuthorityDenied(format!(
+        "CX-MM-006 ModelLane CRDT authority resolution failed: {}",
+        detail.into()
+    ))
+}
+
+fn expected_crdt_actor_kind_for_lane(kind: &ModelLaneKind) -> &'static str {
+    match kind {
+        ModelLaneKind::LocalModel | ModelLaneKind::CliModel | ModelLaneKind::Subagent => {
+            "local_model"
+        }
+        ModelLaneKind::CloudModel => "cloud_model",
+        ModelLaneKind::HumanOperator => "operator",
+        ModelLaneKind::Validator => "validator",
+    }
+}
+
+async fn validate_crdt_lane_session_uniqueness_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    lane: &ModelLaneRecord,
+    resolved: &ResolvedModelLaneCrdtAuthority,
+) -> ModelLaneResult<()> {
+    let matching_lanes = sqlx::query(
+        r#"
+        SELECT lane_id, run_id
+        FROM model_lanes
+        WHERE record_json->>'session_id' = $1
+           OR record_json->>'model_session_id' = $1
+        ORDER BY run_id, lane_id
+        FOR SHARE
+        "#,
+    )
+    .bind(&resolved.session_id)
+    .fetch_all(&mut **tx)
+    .await?;
+    if matching_lanes.len() != 1 {
+        return Err(crdt_authority_denied(format!(
+            "crdt session {} is not uniquely owned by one ModelLane",
+            resolved.session_id
+        )));
+    }
+    let owner_lane_id: String = matching_lanes[0].try_get("lane_id")?;
+    let owner_run_id: String = matching_lanes[0].try_get("run_id")?;
+    if owner_lane_id != lane.lane_id || owner_run_id != lane.run_id {
+        return Err(crdt_authority_denied(format!(
+            "crdt session {} belongs to run {} lane {}, not source run {} lane {}",
+            resolved.session_id, owner_run_id, owner_lane_id, lane.run_id, lane.lane_id
+        )));
+    }
+    Ok(())
+}
+
+fn crdt_lease_scope_covers_resolved_authority(
+    scope_kind: &str,
+    scope_id: &str,
+    resolved: &ResolvedModelLaneCrdtAuthority,
+) -> bool {
+    match scope_kind {
+        "workspace" => scope_id == resolved.workspace_id,
+        // Knowledge rich-document write authority uses the CRDT document ID
+        // as its typed document lease scope (see guard_lease_for_write).
+        "document" => scope_id == resolved.crdt_document_id,
+        _ => false,
+    }
+}
+
+async fn resolve_active_crdt_actor_lane_lease_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    lane: &ModelLaneRecord,
+    resolved: &ResolvedModelLaneCrdtAuthority,
+) -> ModelLaneResult<ResolvedModelLaneCrdtLeaseAuthority> {
+    let admitted_at_utc: DateTime<Utc> = sqlx::query_scalar("SELECT statement_timestamp()")
+        .fetch_one(&mut **tx)
+        .await?;
+    let leases = sqlx::query(
+        r#"
+        SELECT lease_id, correlation_id, scope_kind, scope_id,
+               claimed_at_utc, expires_at_utc
+        FROM knowledge_crdt_agent_lane_leases
+        WHERE lane_id = $1
+          AND actor_id = $2
+          AND actor_kind = $3
+          AND session_id = $4
+          AND correlation_id = $5
+          AND claimed_at_utc <= $6
+          AND expires_at_utc > $6
+          AND released_at_utc IS NULL
+          AND (
+                (scope_kind = 'workspace' AND scope_id = $7)
+             OR (scope_kind = 'document' AND scope_id = $8)
+          )
+        ORDER BY claimed_at_utc, lease_id
+        FOR SHARE
+        "#,
+    )
+    .bind(&lane.lane_id)
+    .bind(&resolved.actor_id)
+    .bind(&resolved.actor_kind)
+    .bind(&resolved.session_id)
+    .bind(&resolved.trace_id)
+    .bind(admitted_at_utc.clone())
+    .bind(&resolved.workspace_id)
+    .bind(&resolved.crdt_document_id)
+    .fetch_all(&mut **tx)
+    .await?;
+    if leases.is_empty() {
+        return Err(crdt_authority_denied(format!(
+            "crdt actor {} session {} has no persisted knowledge-agent lease binding that is exact and active for source lane {}, trace {}, and CRDT document {}",
+            resolved.actor_id,
+            resolved.session_id,
+            lane.lane_id,
+            resolved.trace_id,
+            resolved.crdt_document_id
+        )));
+    }
+    if leases.len() != 1 {
+        let lease_ids = leases
+            .iter()
+            .map(|row| row.try_get::<String, _>("lease_id"))
+            .collect::<Result<Vec<_>, _>>()?;
+        return Err(crdt_authority_denied(format!(
+            "crdt actor {} session {} has ambiguous active knowledge-agent lease bindings {:?} to source lane {} for trace {} and CRDT document {}",
+            resolved.actor_id,
+            resolved.session_id,
+            lease_ids,
+            lane.lane_id,
+            resolved.trace_id,
+            resolved.crdt_document_id
+        )));
+    }
+    let lease = &leases[0];
+    Ok(ResolvedModelLaneCrdtLeaseAuthority {
+        lease_id: lease.try_get("lease_id")?,
+        correlation_id: lease.try_get("correlation_id")?,
+        scope_kind: lease.try_get("scope_kind")?,
+        scope_id: lease.try_get("scope_id")?,
+        claimed_at_utc: lease.try_get("claimed_at_utc")?,
+        expires_at_utc: lease.try_get("expires_at_utc")?,
+        admitted_at_utc,
+    })
+}
+
+async fn validate_historical_crdt_actor_lane_lease_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    lane: &ModelLaneRecord,
+    resolved: &ResolvedModelLaneCrdtAuthority,
+    binding: &ModelLaneCrdtAuthorityBinding,
+) -> ModelLaneResult<ResolvedModelLaneCrdtLeaseAuthority> {
+    let lease = sqlx::query(
+        r#"
+        SELECT lane_id, actor_id, actor_kind, session_id, correlation_id,
+               scope_kind, scope_id, claimed_at_utc, expires_at_utc,
+               released_at_utc
+        FROM knowledge_crdt_agent_lane_leases
+        WHERE lease_id = $1
+        FOR SHARE
+        "#,
+    )
+    .bind(&binding.lease_id)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "replayed CRDT lease {} no longer resolves to persisted authority",
+            binding.lease_id
+        ))
+    })?;
+
+    let lease_lane_id: String = lease.try_get("lane_id")?;
+    let lease_actor_id: String = lease.try_get("actor_id")?;
+    let lease_actor_kind: String = lease.try_get("actor_kind")?;
+    let lease_session_id: String = lease.try_get("session_id")?;
+    let lease_correlation_id: String = lease.try_get("correlation_id")?;
+    let lease_scope_kind: String = lease.try_get("scope_kind")?;
+    let lease_scope_id: String = lease.try_get("scope_id")?;
+    let lease_claimed_at_utc: DateTime<Utc> = lease.try_get("claimed_at_utc")?;
+    let current_lease_expires_at_utc: DateTime<Utc> = lease.try_get("expires_at_utc")?;
+    let released_at_utc: Option<DateTime<Utc>> = lease.try_get("released_at_utc")?;
+
+    let identity_matches = lease_lane_id == lane.lane_id
+        && lease_actor_id == resolved.actor_id
+        && lease_actor_kind == resolved.actor_kind
+        && lease_session_id == resolved.session_id
+        && lease_correlation_id == resolved.trace_id
+        && lease_correlation_id == binding.lease_correlation_id
+        && lease_scope_kind == binding.lease_scope_kind
+        && lease_scope_id == binding.lease_scope_id
+        && lease_claimed_at_utc == binding.lease_claimed_at_utc
+        && current_lease_expires_at_utc >= binding.lease_expires_at_utc
+        && crdt_lease_scope_covers_resolved_authority(&lease_scope_kind, &lease_scope_id, resolved);
+    let historically_active = binding.lease_admitted_at_utc >= binding.lease_claimed_at_utc
+        && binding.lease_admitted_at_utc < binding.lease_expires_at_utc
+        && released_at_utc
+            .map(|released| released > binding.lease_admitted_at_utc)
+            .unwrap_or(true);
+    if !identity_matches || !historically_active {
+        return Err(crdt_authority_denied(format!(
+            "replayed CRDT lease {} does not prove exact lane, actor, session, trace, scope, and active-at-admission authority",
+            binding.lease_id
+        )));
+    }
+
+    Ok(ResolvedModelLaneCrdtLeaseAuthority {
+        lease_id: binding.lease_id.clone(),
+        correlation_id: binding.lease_correlation_id.clone(),
+        scope_kind: binding.lease_scope_kind.clone(),
+        scope_id: binding.lease_scope_id.clone(),
+        claimed_at_utc: binding.lease_claimed_at_utc.clone(),
+        expires_at_utc: binding.lease_expires_at_utc.clone(),
+        admitted_at_utc: binding.lease_admitted_at_utc.clone(),
+    })
+}
+
+fn bind_crdt_authority_to_lane(
+    message: &NewModelLaneMessage,
+    lane: &ModelLaneRecord,
+    resolved: &ResolvedModelLaneCrdtAuthority,
+    lease: &ResolvedModelLaneCrdtLeaseAuthority,
+) -> ModelLaneResult<ModelLaneCrdtAuthorityBinding> {
+    let expected_actor_kind = expected_crdt_actor_kind_for_lane(&lane.kind);
+    if resolved.actor_kind != expected_actor_kind {
+        return Err(crdt_authority_denied(format!(
+            "crdt actor_kind {} cannot be attributed to {} lane {}",
+            resolved.actor_kind,
+            lane.kind.as_str(),
+            lane.lane_id
+        )));
+    }
+    if resolved.session_id != lane.session_id && resolved.session_id != lane.model_session_id {
+        return Err(crdt_authority_denied(format!(
+            "crdt session {} is not owned by source lane {}",
+            resolved.session_id, lane.lane_id
+        )));
+    }
+    if !message
+        .linked_span_contexts
+        .iter()
+        .any(|link| link == &resolved.trace_id)
+    {
+        return Err(crdt_authority_denied(format!(
+            "message {} does not link the CRDT trace {}",
+            message.message_id, resolved.trace_id
+        )));
+    }
+
+    Ok(ModelLaneCrdtAuthorityBinding {
+        run_id: message.run_id.clone(),
+        lane_id: lane.lane_id.clone(),
+        lane_session_id: lane.session_id.clone(),
+        model_session_id: lane.model_session_id.clone(),
+        lane_trace_id: lane.trace_id.clone(),
+        crdt_session_id: resolved.session_id.clone(),
+        crdt_trace_id: resolved.trace_id.clone(),
+        workspace_id: resolved.workspace_id.clone(),
+        document_id: resolved.document_id.clone(),
+        crdt_document_id: resolved.crdt_document_id.clone(),
+        actor_id: resolved.actor_id.clone(),
+        actor_kind: resolved.actor_kind.clone(),
+        lease_id: lease.lease_id.clone(),
+        lease_correlation_id: lease.correlation_id.clone(),
+        lease_scope_kind: lease.scope_kind.clone(),
+        lease_scope_id: lease.scope_id.clone(),
+        lease_claimed_at_utc: lease.claimed_at_utc.clone(),
+        lease_expires_at_utc: lease.expires_at_utc.clone(),
+        lease_admitted_at_utc: lease.admitted_at_utc.clone(),
+        crdt_site_id: resolved.site_id.clone(),
+        update_id: resolved.update_id.clone(),
+        update_seq: resolved.update_seq,
+        update_bytes_ref: resolved.update_bytes_ref.clone(),
+        base_snapshot_ref: resolved.snapshot_bytes_ref.clone(),
+        state_vector: resolved.state_vector_after.clone(),
+        yjs_state_vector_b64: resolved.yjs_state_vector_b64.clone(),
+        materialized_projection_hash: resolved.materialized_projection_hash.clone(),
+        update_event_ledger_event_id: resolved.event_ledger_event_id.clone(),
+        crdt_proposal_ref: message.crdt_proposal_ref.clone(),
+    })
+}
+
+fn required_event_payload_string(
+    payload: &Value,
+    field: &str,
+    authority_ref: &str,
+) -> ModelLaneResult<String> {
+    payload
+        .get(field)
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| {
+            crdt_authority_denied(format!(
+                "EventLedger payload for {authority_ref} is missing {field}"
+            ))
+        })
+}
+
+async fn resolve_model_lane_crdt_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    update_bytes_ref: &str,
+    base_snapshot_ref: &str,
+    state_vector: &str,
+) -> ModelLaneResult<ResolvedModelLaneCrdtAuthority> {
+    let update_row = sqlx::query(
+        r#"
+        SELECT updates.schema_id,
+               updates.workspace_id,
+               updates.document_id,
+               updates.crdt_document_id,
+               updates.update_id,
+               updates.update_seq,
+               updates.update_sha256,
+               updates.update_bytes_ref,
+               updates.update_bytes,
+               updates.actor_id,
+               updates.actor_kind,
+               updates.session_id,
+               updates.trace_id,
+               updates.state_vector_before,
+               updates.state_vector_after,
+               updates.replay_metadata_json,
+               updates.event_ledger_stream_id,
+               updates.event_ledger_event_id,
+               updates.storage_authority,
+               ledger.session_run_id AS ledger_session_run_id,
+               ledger.event_type AS ledger_event_type,
+               ledger.aggregate_type AS ledger_aggregate_type,
+               ledger.aggregate_id AS ledger_aggregate_id,
+               ledger.actor_kind AS ledger_actor_kind,
+               ledger.actor_id AS ledger_actor_id,
+               ledger.correlation_id AS ledger_correlation_id,
+               ledger.payload_hash AS ledger_payload_hash,
+               ledger.payload AS ledger_payload
+        FROM kernel_crdt_updates updates
+        JOIN kernel_event_ledger ledger
+          ON ledger.event_id = updates.event_ledger_event_id
+        WHERE updates.update_bytes_ref = $1
+        FOR SHARE OF updates, ledger
+        "#,
+    )
+    .bind(update_bytes_ref)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} does not resolve to kernel_crdt_updates"
+        ))
+    })?;
+
+    let update_schema_id: String = update_row.try_get("schema_id")?;
+    let update_storage_authority: String = update_row.try_get("storage_authority")?;
+    if update_schema_id != CRDT_UPDATE_RECORD_SCHEMA_ID
+        || update_storage_authority != "postgres_event_ledger"
+        || !update_bytes_ref.starts_with("postgres://")
+    {
+        return Err(crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} has non-canonical schema/storage authority"
+        )));
+    }
+    let update_bytes: Vec<u8> = update_row.try_get("update_bytes")?;
+    let update_sha256: String = update_row.try_get("update_sha256")?;
+    let computed_update_sha256 = dexterity_sha256_hex(&update_bytes);
+    if computed_update_sha256 != update_sha256 {
+        return Err(crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} stored bytes hash {computed_update_sha256} does not match persisted update_sha256 {update_sha256}"
+        )));
+    }
+    Update::decode_v1(&update_bytes).map_err(|error| {
+        crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} does not decode as a Yjs v1 update: {error}"
+        ))
+    })?;
+
+    let workspace_id: String = update_row.try_get("workspace_id")?;
+    let document_id: String = update_row.try_get("document_id")?;
+    let crdt_document_id: String = update_row.try_get("crdt_document_id")?;
+    let update_id: String = update_row.try_get("update_id")?;
+    let update_seq: i64 = update_row.try_get("update_seq")?;
+    let actor_id: String = update_row.try_get("actor_id")?;
+    let actor_kind: String = update_row.try_get("actor_kind")?;
+    let session_id: String = update_row.try_get("session_id")?;
+    let trace_id: String = update_row.try_get("trace_id")?;
+    let state_vector_before: String = update_row.try_get("state_vector_before")?;
+    let state_vector_after: String = update_row.try_get("state_vector_after")?;
+    let replay_metadata: Value = update_row.try_get("replay_metadata_json")?;
+    let typed_replay_metadata: CrdtReplayMetadataV1 =
+        serde_json::from_value(replay_metadata.clone()).map_err(|error| {
+            crdt_authority_denied(format!(
+                "crdt_update_ref {update_bytes_ref} has invalid replay metadata: {error}"
+            ))
+        })?;
+    if typed_replay_metadata.encoding != "yjs-update-v1"
+        || typed_replay_metadata.schema_version != "kernel-crdt-update-v1"
+    {
+        return Err(crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} replay metadata is not canonical Yjs v1"
+        )));
+    }
+    let target_record = CrdtUpdateRecordV1 {
+        schema_id: update_schema_id.clone(),
+        workspace_id: workspace_id.clone(),
+        document_id: document_id.clone(),
+        crdt_document_id: crdt_document_id.clone(),
+        update_id: update_id.clone(),
+        update_seq: u64::try_from(update_seq).map_err(|_| {
+            crdt_authority_denied(format!(
+                "crdt_update_ref {update_bytes_ref} has invalid update_seq {update_seq}"
+            ))
+        })?,
+        update_sha256: update_sha256.clone(),
+        update_bytes_ref: update_bytes_ref.to_string(),
+        actor_id: actor_id.clone(),
+        actor_kind: actor_kind.clone(),
+        session_id: session_id.clone(),
+        trace_id: trace_id.clone(),
+        state_vector_before: state_vector_before.clone(),
+        state_vector_after: state_vector_after.clone(),
+        replay_metadata: typed_replay_metadata,
+        event_ledger_stream_id: update_row.try_get("event_ledger_stream_id")?,
+        event_ledger_event_id: update_row.try_get("event_ledger_event_id")?,
+        storage_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+    };
+    if let Err(errors) = validate_crdt_update_record(&target_record) {
+        return Err(crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} fails canonical update validation: {errors:?}"
+        )));
+    }
+    if state_vector != state_vector_after {
+        return Err(crdt_authority_denied(format!(
+            "crdt_state_vector {state_vector} does not match persisted state_vector_after {state_vector_after} for {update_bytes_ref}"
+        )));
+    }
+
+    let event_ledger_stream_id: String = update_row.try_get("event_ledger_stream_id")?;
+    let event_ledger_event_id: String = update_row.try_get("event_ledger_event_id")?;
+    let ledger_session_run_id: String = update_row.try_get("ledger_session_run_id")?;
+    let ledger_event_type: String = update_row.try_get("ledger_event_type")?;
+    let ledger_aggregate_type: String = update_row.try_get("ledger_aggregate_type")?;
+    let ledger_aggregate_id: String = update_row.try_get("ledger_aggregate_id")?;
+    let ledger_actor_kind: String = update_row.try_get("ledger_actor_kind")?;
+    let ledger_actor_id: String = update_row.try_get("ledger_actor_id")?;
+    let ledger_correlation_id: Option<String> = update_row.try_get("ledger_correlation_id")?;
+    let ledger_payload_hash: String = update_row.try_get("ledger_payload_hash")?;
+    let ledger_payload: Value = update_row.try_get("ledger_payload")?;
+    let computed_payload_hash = dexterity_sha256_hex(&canonical_json_bytes(&ledger_payload));
+    let expected_crdt_stream_id = format!("knowledge-crdt:{crdt_document_id}");
+    if event_ledger_stream_id != expected_crdt_stream_id
+        || session_id != ledger_session_run_id
+        || ledger_event_type != "KNOWLEDGE_CRDT_UPDATE_RECORDED"
+        || ledger_aggregate_type != "knowledge_crdt_document"
+        || ledger_aggregate_id != crdt_document_id
+        || ledger_actor_kind != actor_kind
+        || ledger_actor_id != actor_id
+        || ledger_correlation_id.as_deref() != Some(trace_id.as_str())
+        || ledger_payload_hash != computed_payload_hash
+    {
+        return Err(crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} disagrees with EventLedger event {event_ledger_event_id} identity or payload hash"
+        )));
+    }
+    for (field, expected) in [
+        ("update_id", update_id.as_str()),
+        ("actor_id", actor_id.as_str()),
+        ("update_sha256", update_sha256.as_str()),
+        ("state_vector_before", state_vector_before.as_str()),
+        ("state_vector_after", state_vector_after.as_str()),
+    ] {
+        let actual = required_event_payload_string(&ledger_payload, field, update_bytes_ref)?;
+        if actual != expected {
+            return Err(crdt_authority_denied(format!(
+                "crdt_update_ref {update_bytes_ref} EventLedger payload {field}={actual} does not match persisted value {expected}"
+            )));
+        }
+    }
+    let ledger_update_seq = ledger_payload
+        .get("update_seq")
+        .and_then(Value::as_i64)
+        .ok_or_else(|| {
+            crdt_authority_denied(format!(
+                "crdt_update_ref {update_bytes_ref} EventLedger payload is missing update_seq"
+            ))
+        })?;
+    if ledger_update_seq != update_seq {
+        return Err(crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} EventLedger update_seq {ledger_update_seq} does not match persisted update_seq {update_seq}"
+        )));
+    }
+    let site_id = required_event_payload_string(&ledger_payload, "site_id", update_bytes_ref)?;
+
+    let snapshot_row = sqlx::query(
+        r#"
+        SELECT snapshots.schema_id,
+               snapshots.snapshot_id,
+               snapshots.workspace_id,
+               snapshots.document_id,
+               snapshots.crdt_document_id,
+               snapshots.covered_update_seq,
+               snapshots.state_vector,
+               snapshots.snapshot_sha256,
+               snapshots.snapshot_bytes_ref,
+               snapshots.snapshot_bytes,
+               snapshots.actor_id,
+               snapshots.actor_kind,
+               snapshots.event_ledger_stream_id,
+               snapshots.event_ledger_event_id,
+               snapshots.promotion_evidence_update_ids,
+               snapshots.storage_authority,
+               ledger.event_type AS ledger_event_type,
+               ledger.aggregate_type AS ledger_aggregate_type,
+               ledger.aggregate_id AS ledger_aggregate_id,
+               ledger.actor_kind AS ledger_actor_kind,
+               ledger.actor_id AS ledger_actor_id,
+               ledger.payload_hash AS ledger_payload_hash,
+               ledger.payload AS ledger_payload
+        FROM kernel_crdt_snapshots snapshots
+        JOIN kernel_event_ledger ledger
+          ON ledger.event_id = snapshots.event_ledger_event_id
+        WHERE snapshots.snapshot_bytes_ref = $1
+        FOR SHARE OF snapshots, ledger
+        "#,
+    )
+    .bind(base_snapshot_ref)
+    .fetch_optional(&mut **tx)
+    .await?
+    .ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "crdt_base_snapshot_ref {base_snapshot_ref} does not resolve to kernel_crdt_snapshots"
+        ))
+    })?;
+    let snapshot_schema_id: String = snapshot_row.try_get("schema_id")?;
+    let snapshot_id: String = snapshot_row.try_get("snapshot_id")?;
+    let snapshot_storage_authority: String = snapshot_row.try_get("storage_authority")?;
+    let snapshot_workspace_id: String = snapshot_row.try_get("workspace_id")?;
+    let snapshot_document_id: String = snapshot_row.try_get("document_id")?;
+    let snapshot_crdt_document_id: String = snapshot_row.try_get("crdt_document_id")?;
+    let covered_update_seq: i64 = snapshot_row.try_get("covered_update_seq")?;
+    let snapshot_state_vector: String = snapshot_row.try_get("state_vector")?;
+    let snapshot_sha256: String = snapshot_row.try_get("snapshot_sha256")?;
+    let snapshot_bytes_ref: String = snapshot_row.try_get("snapshot_bytes_ref")?;
+    let snapshot_bytes: Vec<u8> = snapshot_row.try_get("snapshot_bytes")?;
+    if workspace_id != snapshot_workspace_id
+        || document_id != snapshot_document_id
+        || crdt_document_id != snapshot_crdt_document_id
+        || covered_update_seq >= update_seq
+    {
+        return Err(crdt_authority_denied(format!(
+            "crdt_base_snapshot_ref {base_snapshot_ref} does not belong to the update entity or is not causally before update_seq {update_seq}"
+        )));
+    }
+    if snapshot_schema_id != CRDT_SNAPSHOT_RECORD_SCHEMA_ID
+        || snapshot_storage_authority != "postgres_event_ledger"
+        || !snapshot_bytes_ref.starts_with("postgres://")
+    {
+        return Err(crdt_authority_denied(format!(
+            "crdt_base_snapshot_ref {base_snapshot_ref} has non-canonical schema/storage authority"
+        )));
+    }
+    let computed_snapshot_sha256 = dexterity_sha256_hex(&snapshot_bytes);
+    if computed_snapshot_sha256 != snapshot_sha256 {
+        return Err(crdt_authority_denied(format!(
+            "crdt_base_snapshot_ref {base_snapshot_ref} stored bytes hash {computed_snapshot_sha256} does not match persisted snapshot_sha256 {snapshot_sha256}"
+        )));
+    }
+    Update::decode_v1(&snapshot_bytes).map_err(|error| {
+        crdt_authority_denied(format!(
+            "crdt_base_snapshot_ref {base_snapshot_ref} does not decode as a Yjs v1 update: {error}"
+        ))
+    })?;
+
+    let snapshot_actor_id: String = snapshot_row.try_get("actor_id")?;
+    let snapshot_actor_kind: String = snapshot_row.try_get("actor_kind")?;
+    let snapshot_event_stream_id: String = snapshot_row.try_get("event_ledger_stream_id")?;
+    let snapshot_event_id: String = snapshot_row.try_get("event_ledger_event_id")?;
+    let snapshot_promotion_evidence: Vec<String> =
+        serde_json::from_value(snapshot_row.try_get::<Value, _>("promotion_evidence_update_ids")?)
+            .map_err(|error| {
+                crdt_authority_denied(format!(
+            "crdt_base_snapshot_ref {base_snapshot_ref} has invalid promotion evidence: {error}"
+        ))
+            })?;
+    let snapshot_record = CrdtSnapshotRecordV1 {
+        schema_id: snapshot_schema_id.clone(),
+        snapshot_id,
+        workspace_id: snapshot_workspace_id.clone(),
+        document_id: snapshot_document_id.clone(),
+        crdt_document_id: snapshot_crdt_document_id.clone(),
+        covered_update_seq: u64::try_from(covered_update_seq).map_err(|_| {
+            crdt_authority_denied(format!(
+                "crdt_base_snapshot_ref {base_snapshot_ref} has invalid covered_update_seq {covered_update_seq}"
+            ))
+        })?,
+        state_vector: snapshot_state_vector.clone(),
+        snapshot_sha256: snapshot_sha256.clone(),
+        snapshot_bytes_ref: snapshot_bytes_ref.clone(),
+        actor_id: snapshot_actor_id.clone(),
+        actor_kind: snapshot_actor_kind.clone(),
+        event_ledger_stream_id: snapshot_event_stream_id.clone(),
+        event_ledger_event_id: snapshot_event_id.clone(),
+        promotion_evidence_update_ids: snapshot_promotion_evidence,
+        storage_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+    };
+    if let Err(errors) = validate_crdt_snapshot_record(&snapshot_record) {
+        return Err(crdt_authority_denied(format!(
+            "crdt_base_snapshot_ref {base_snapshot_ref} fails canonical snapshot validation: {errors:?}"
+        )));
+    }
+    let snapshot_aggregate_type: String = snapshot_row.try_get("ledger_aggregate_type")?;
+    let snapshot_event_type: String = snapshot_row.try_get("ledger_event_type")?;
+    let snapshot_aggregate_id: String = snapshot_row.try_get("ledger_aggregate_id")?;
+    let snapshot_ledger_actor_kind: String = snapshot_row.try_get("ledger_actor_kind")?;
+    let snapshot_ledger_actor_id: String = snapshot_row.try_get("ledger_actor_id")?;
+    let snapshot_ledger_payload_hash: String = snapshot_row.try_get("ledger_payload_hash")?;
+    let snapshot_ledger_payload: Value = snapshot_row.try_get("ledger_payload")?;
+    let computed_snapshot_payload_hash =
+        dexterity_sha256_hex(&canonical_json_bytes(&snapshot_ledger_payload));
+    if snapshot_event_stream_id != expected_crdt_stream_id
+        || snapshot_event_type != "KNOWLEDGE_CRDT_SNAPSHOT_RECORDED"
+        || snapshot_aggregate_type != "knowledge_crdt_document"
+        || snapshot_aggregate_id != crdt_document_id
+        || snapshot_actor_kind != snapshot_ledger_actor_kind
+        || snapshot_actor_id != snapshot_ledger_actor_id
+        || snapshot_ledger_payload_hash != computed_snapshot_payload_hash
+    {
+        return Err(crdt_authority_denied(format!(
+            "crdt_base_snapshot_ref {base_snapshot_ref} disagrees with EventLedger event {snapshot_event_id} identity or payload hash"
+        )));
+    }
+    for (field, expected) in [
+        ("document_id", document_id.as_str()),
+        ("state_vector", snapshot_state_vector.as_str()),
+    ] {
+        let actual =
+            required_event_payload_string(&snapshot_ledger_payload, field, base_snapshot_ref)?;
+        if actual != expected {
+            return Err(crdt_authority_denied(format!(
+                "crdt_base_snapshot_ref {base_snapshot_ref} EventLedger payload {field}={actual} does not match persisted value {expected}"
+            )));
+        }
+    }
+    let ledger_covered_update_seq = snapshot_ledger_payload
+        .get("covered_update_seq")
+        .and_then(Value::as_i64)
+        .ok_or_else(|| {
+            crdt_authority_denied(format!(
+                "crdt_base_snapshot_ref {base_snapshot_ref} EventLedger payload is missing covered_update_seq"
+            ))
+        })?;
+    if ledger_covered_update_seq != covered_update_seq {
+        return Err(crdt_authority_denied(format!(
+            "crdt_base_snapshot_ref {base_snapshot_ref} EventLedger covered_update_seq {ledger_covered_update_seq} does not match persisted covered_update_seq {covered_update_seq}"
+        )));
+    }
+
+    let chain_rows = sqlx::query(
+        r#"
+        SELECT updates.schema_id,
+               updates.workspace_id,
+               updates.document_id,
+               updates.crdt_document_id,
+               updates.update_id,
+               updates.update_seq,
+               updates.update_sha256,
+               updates.update_bytes_ref,
+               updates.update_bytes,
+               updates.actor_id,
+               updates.actor_kind,
+               updates.session_id,
+               updates.trace_id,
+               updates.state_vector_before,
+               updates.state_vector_after,
+               updates.replay_metadata_json,
+               updates.event_ledger_stream_id,
+               updates.event_ledger_event_id,
+               updates.storage_authority,
+               ledger.session_run_id AS ledger_session_run_id,
+               ledger.event_type AS ledger_event_type,
+               ledger.aggregate_type AS ledger_aggregate_type,
+               ledger.aggregate_id AS ledger_aggregate_id,
+               ledger.actor_kind AS ledger_actor_kind,
+               ledger.actor_id AS ledger_actor_id,
+               ledger.correlation_id AS ledger_correlation_id,
+               ledger.payload_hash AS ledger_payload_hash,
+               ledger.payload AS ledger_payload
+        FROM kernel_crdt_updates updates
+        JOIN kernel_event_ledger ledger
+          ON ledger.event_id = updates.event_ledger_event_id
+        WHERE updates.workspace_id = $1
+          AND updates.document_id = $2
+          AND updates.crdt_document_id = $3
+          AND updates.update_seq > $4
+          AND updates.update_seq <= $5
+        ORDER BY updates.update_seq ASC
+        FOR SHARE OF updates, ledger
+        "#,
+    )
+    .bind(&workspace_id)
+    .bind(&document_id)
+    .bind(&crdt_document_id)
+    .bind(covered_update_seq)
+    .bind(update_seq)
+    .fetch_all(&mut **tx)
+    .await?;
+
+    let replay_count = update_seq.checked_sub(covered_update_seq).ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "invalid replay bounds snapshot={covered_update_seq} update={update_seq}"
+        ))
+    })?;
+    let expected_chain_len = usize::try_from(replay_count).map_err(|_| {
+        crdt_authority_denied(format!(
+            "invalid replay bounds snapshot={covered_update_seq} update={update_seq}"
+        ))
+    })?;
+    if chain_rows.len() != expected_chain_len {
+        return Err(crdt_authority_denied(format!(
+            "CRDT replay chain is not contiguous from snapshot seq {covered_update_seq} through update seq {update_seq}"
+        )));
+    }
+
+    let mut derived_vector =
+        KnowledgeStateVectorV1::parse(&snapshot_state_vector).map_err(|error| {
+            crdt_authority_denied(format!(
+                "crdt_base_snapshot_ref {base_snapshot_ref} has invalid state vector: {error}"
+            ))
+        })?;
+
+    let mut seen_update_ids: BTreeSet<String> = sqlx::query_scalar(
+        r#"
+        SELECT update_id
+        FROM kernel_crdt_updates
+        WHERE workspace_id = $1
+          AND document_id = $2
+          AND crdt_document_id = $3
+          AND update_seq <= $4
+        ORDER BY update_seq ASC
+        FOR SHARE
+        "#,
+    )
+    .bind(&workspace_id)
+    .bind(&document_id)
+    .bind(&crdt_document_id)
+    .bind(covered_update_seq)
+    .fetch_all(&mut **tx)
+    .await?
+    .into_iter()
+    .collect();
+
+    // `yrs::Doc` and its transactions are intentionally thread-affine. Keep
+    // every database suspension above this boundary so ModelLaneStore futures
+    // remain Send and can be used directly by Axum handlers.
+    let materialized = Doc::new();
+    let decoded_snapshot = Update::decode_v1(&snapshot_bytes).map_err(|error| {
+        crdt_authority_denied(format!(
+            "cannot decode locked base snapshot {base_snapshot_ref}: {error}"
+        ))
+    })?;
+    let decoded_snapshot_vector = decoded_snapshot.state_vector();
+    materialized
+        .transact_mut()
+        .apply_update(decoded_snapshot)
+        .map_err(|error| {
+            crdt_authority_denied(format!(
+                "cannot materialize locked base snapshot {base_snapshot_ref}: {error}"
+            ))
+        })?;
+    let materialized_snapshot_vector = materialized.transact().state_vector();
+    if materialized_snapshot_vector != decoded_snapshot_vector {
+        return Err(crdt_authority_denied(format!(
+            "crdt_base_snapshot_ref {base_snapshot_ref} decoded Yjs state vector does not match the materialized snapshot bytes"
+        )));
+    }
+
+    for (offset, row) in chain_rows.into_iter().enumerate() {
+        let chain_ref: String = row.try_get("update_bytes_ref")?;
+        let chain_seq: i64 = row.try_get("update_seq")?;
+        let expected_seq = covered_update_seq
+            .checked_add(
+                i64::try_from(offset)
+                    .map_err(|_| crdt_authority_denied("CRDT replay chain offset exceeds i64"))?,
+            )
+            .and_then(|sequence| sequence.checked_add(1))
+            .ok_or_else(|| crdt_authority_denied("CRDT replay sequence overflows i64"))?;
+        if chain_seq != expected_seq {
+            return Err(crdt_authority_denied(format!(
+                "CRDT replay sequence gap: expected {expected_seq}, found {chain_seq}"
+            )));
+        }
+        let chain_schema_id: String = row.try_get("schema_id")?;
+        let chain_storage_authority: String = row.try_get("storage_authority")?;
+        let chain_workspace_id: String = row.try_get("workspace_id")?;
+        let chain_document_id: String = row.try_get("document_id")?;
+        let chain_crdt_document_id: String = row.try_get("crdt_document_id")?;
+        let chain_update_id: String = row.try_get("update_id")?;
+        let chain_update_sha256: String = row.try_get("update_sha256")?;
+        let chain_bytes: Vec<u8> = row.try_get("update_bytes")?;
+        let chain_actor_id: String = row.try_get("actor_id")?;
+        let chain_actor_kind: String = row.try_get("actor_kind")?;
+        let chain_session_id: String = row.try_get("session_id")?;
+        let chain_trace_id: String = row.try_get("trace_id")?;
+        let chain_before: String = row.try_get("state_vector_before")?;
+        let chain_after: String = row.try_get("state_vector_after")?;
+        let chain_replay_json: Value = row.try_get("replay_metadata_json")?;
+        let chain_replay: CrdtReplayMetadataV1 = serde_json::from_value(chain_replay_json)
+            .map_err(|error| {
+                crdt_authority_denied(format!(
+                    "crdt_update_ref {chain_ref} has invalid replay metadata: {error}"
+                ))
+            })?;
+        let chain_stream_id: String = row.try_get("event_ledger_stream_id")?;
+        let chain_event_id: String = row.try_get("event_ledger_event_id")?;
+        let chain_record = CrdtUpdateRecordV1 {
+            schema_id: chain_schema_id,
+            workspace_id: chain_workspace_id.clone(),
+            document_id: chain_document_id.clone(),
+            crdt_document_id: chain_crdt_document_id.clone(),
+            update_id: chain_update_id.clone(),
+            update_seq: u64::try_from(chain_seq).map_err(|_| {
+                crdt_authority_denied(format!(
+                    "crdt_update_ref {chain_ref} has invalid update_seq {chain_seq}"
+                ))
+            })?,
+            update_sha256: chain_update_sha256.clone(),
+            update_bytes_ref: chain_ref.clone(),
+            actor_id: chain_actor_id.clone(),
+            actor_kind: chain_actor_kind.clone(),
+            session_id: chain_session_id.clone(),
+            trace_id: chain_trace_id.clone(),
+            state_vector_before: chain_before.clone(),
+            state_vector_after: chain_after.clone(),
+            replay_metadata: chain_replay.clone(),
+            event_ledger_stream_id: chain_stream_id.clone(),
+            event_ledger_event_id: chain_event_id.clone(),
+            storage_authority: CrdtStorageAuthorityPosture::PostgresEventLedger,
+        };
+        if let Err(errors) = validate_crdt_update_record(&chain_record) {
+            return Err(crdt_authority_denied(format!(
+                "crdt_update_ref {chain_ref} fails canonical update validation: {errors:?}"
+            )));
+        }
+        if chain_storage_authority != "postgres_event_ledger"
+            || chain_record.schema_id != CRDT_UPDATE_RECORD_SCHEMA_ID
+            || chain_replay.encoding != "yjs-update-v1"
+            || chain_replay.schema_version != "kernel-crdt-update-v1"
+            || chain_workspace_id != workspace_id
+            || chain_document_id != document_id
+            || chain_crdt_document_id != crdt_document_id
+            || chain_stream_id != expected_crdt_stream_id
+            || !chain_ref.starts_with("postgres://")
+            || dexterity_sha256_hex(&chain_bytes) != chain_update_sha256
+        {
+            return Err(crdt_authority_denied(format!(
+                "crdt_update_ref {chain_ref} has invalid schema, storage, entity, encoding, or bytes hash"
+            )));
+        }
+        if chain_replay
+            .dependency_update_ids
+            .iter()
+            .any(|dependency| !seen_update_ids.contains(dependency))
+        {
+            return Err(crdt_authority_denied(format!(
+                "crdt_update_ref {chain_ref} has an unresolved causal dependency"
+            )));
+        }
+
+        let ledger_session: String = row.try_get("ledger_session_run_id")?;
+        let ledger_event_type: String = row.try_get("ledger_event_type")?;
+        let ledger_aggregate_type: String = row.try_get("ledger_aggregate_type")?;
+        let ledger_aggregate_id: String = row.try_get("ledger_aggregate_id")?;
+        let ledger_actor_kind: String = row.try_get("ledger_actor_kind")?;
+        let ledger_actor_id: String = row.try_get("ledger_actor_id")?;
+        let ledger_correlation_id: Option<String> = row.try_get("ledger_correlation_id")?;
+        let ledger_payload_hash: String = row.try_get("ledger_payload_hash")?;
+        let ledger_payload: Value = row.try_get("ledger_payload")?;
+        if ledger_session != chain_session_id
+            || ledger_event_type != "KNOWLEDGE_CRDT_UPDATE_RECORDED"
+            || ledger_aggregate_type != "knowledge_crdt_document"
+            || ledger_aggregate_id != crdt_document_id
+            || ledger_actor_kind != chain_actor_kind
+            || ledger_actor_id != chain_actor_id
+            || ledger_correlation_id.as_deref() != Some(chain_trace_id.as_str())
+            || ledger_payload_hash != dexterity_sha256_hex(&canonical_json_bytes(&ledger_payload))
+        {
+            return Err(crdt_authority_denied(format!(
+                "crdt_update_ref {chain_ref} disagrees with EventLedger event {chain_event_id}"
+            )));
+        }
+        for (field, expected) in [
+            ("update_id", chain_update_id.as_str()),
+            ("actor_id", chain_actor_id.as_str()),
+            ("update_sha256", chain_update_sha256.as_str()),
+            ("state_vector_before", chain_before.as_str()),
+            ("state_vector_after", chain_after.as_str()),
+        ] {
+            let actual = required_event_payload_string(&ledger_payload, field, &chain_ref)?;
+            if actual != expected {
+                return Err(crdt_authority_denied(format!(
+                    "crdt_update_ref {chain_ref} EventLedger {field} mismatch"
+                )));
+            }
+        }
+        if ledger_payload.get("update_seq").and_then(Value::as_i64) != Some(chain_seq) {
+            return Err(crdt_authority_denied(format!(
+                "crdt_update_ref {chain_ref} EventLedger update_seq mismatch"
+            )));
+        }
+        let chain_site_id = required_event_payload_string(&ledger_payload, "site_id", &chain_ref)?;
+        let actor = KnowledgeActorIdV1::parse(&chain_actor_id).map_err(|error| {
+            crdt_authority_denied(format!(
+                "crdt_update_ref {chain_ref} actor_id is invalid: {error}"
+            ))
+        })?;
+        let derived_site = derive_knowledge_site_id(&workspace_id, &crdt_document_id, &actor);
+        if derived_site.site_id != chain_site_id || derived_vector.encode() != chain_before {
+            return Err(crdt_authority_denied(format!(
+                "crdt_update_ref {chain_ref} has wrong site attribution or stale state_vector_before"
+            )));
+        }
+        derived_vector.increment(&chain_site_id);
+        if derived_vector.encode() != chain_after {
+            return Err(crdt_authority_denied(format!(
+                "crdt_update_ref {chain_ref} state_vector_after is not server-derived"
+            )));
+        }
+        let decoded_update = Update::decode_v1(&chain_bytes).map_err(|error| {
+            crdt_authority_denied(format!(
+                "crdt_update_ref {chain_ref} does not decode as Yjs v1: {error}"
+            ))
+        })?;
+        let yjs_before = materialized.transact().state_vector();
+        let decoded_update_vector = decoded_update.state_vector();
+        if !decoded_update.extends(&yjs_before) {
+            return Err(crdt_authority_denied(format!(
+                "crdt_update_ref {chain_ref} does not advance the Yjs state vector derived from persisted bytes"
+            )));
+        }
+        materialized
+            .transact_mut()
+            .apply_update(decoded_update)
+            .map_err(|error| {
+                crdt_authority_denied(format!(
+                    "crdt_update_ref {chain_ref} cannot be materialized: {error}"
+                ))
+            })?;
+        let yjs_after = materialized.transact().state_vector();
+        if yjs_after.partial_cmp(&yjs_before) != Some(Ordering::Greater)
+            || !matches!(
+                yjs_after.partial_cmp(&decoded_update_vector),
+                Some(Ordering::Equal | Ordering::Greater)
+            )
+        {
+            return Err(crdt_authority_denied(format!(
+                "crdt_update_ref {chain_ref} materialized Yjs state vector does not contain the decoded update clocks"
+            )));
+        }
+        seen_update_ids.insert(chain_update_id);
+    }
+
+    if derived_vector.encode() != state_vector_after {
+        return Err(crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} final state vector is not derived from the locked replay chain"
+        )));
+    }
+    let materialized_projection = materialized
+        .transact()
+        .encode_state_as_update_v1(&StateVector::default());
+    let materialized_projection_hash = dexterity_sha256_hex(&materialized_projection);
+    let yjs_state_vector_b64 = base64::engine::general_purpose::STANDARD
+        .encode(materialized.transact().state_vector().encode_v1());
+
+    Ok(ResolvedModelLaneCrdtAuthority {
+        workspace_id,
+        document_id,
+        crdt_document_id,
+        update_id,
+        update_seq,
+        update_sha256,
+        update_bytes_ref: update_bytes_ref.to_string(),
+        actor_id,
+        actor_kind,
+        session_id,
+        trace_id,
+        state_vector_after,
+        yjs_state_vector_b64,
+        replay_metadata,
+        snapshot_bytes_ref,
+        site_id,
+        materialized_projection_hash,
+        event_ledger_event_id,
+    })
+}
+
+async fn validate_message_crdt_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    message: &NewModelLaneMessage,
+) -> ModelLaneResult<Option<ResolvedModelLaneCrdtAuthority>> {
+    let has_any_crdt_metadata = message.crdt_update_ref.is_some()
+        || message.crdt_base_snapshot_ref.is_some()
+        || message.crdt_state_vector.is_some()
+        || message.crdt_proposal_ref.is_some()
+        || message.crdt_stale_base_ref.is_some();
+    let Some(update_bytes_ref) = message.crdt_update_ref.as_deref() else {
+        if has_any_crdt_metadata {
+            return Err(crdt_authority_denied(
+                "partial CRDT metadata cannot be admitted without crdt_update_ref",
+            ));
+        }
+        return Ok(None);
+    };
+    let base_snapshot_ref = message.crdt_base_snapshot_ref.as_deref().ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} requires crdt_base_snapshot_ref"
+        ))
+    })?;
+    let state_vector = message.crdt_state_vector.as_deref().ok_or_else(|| {
+        crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} requires crdt_state_vector"
+        ))
+    })?;
+    if message.crdt_stale_base_ref.is_some() {
+        return Err(crdt_authority_denied(format!(
+            "crdt_update_ref {update_bytes_ref} cannot be admitted with crdt_stale_base_ref"
+        )));
+    }
+    if message.kind == ModelLaneMessageKind::Proposal && message.crdt_proposal_ref.is_none() {
+        return Err(crdt_authority_denied(format!(
+            "Proposal message {} carrying crdt_update_ref requires a persisted crdt_proposal_ref",
+            message.message_id
+        )));
+    }
+    let resolved =
+        resolve_model_lane_crdt_authority_tx(tx, update_bytes_ref, base_snapshot_ref, state_vector)
+            .await?;
+
+    if let Some(proposal_ref) = message.crdt_proposal_ref.as_deref() {
+        let proposal_id = proposal_ref
+            .strip_prefix("crdt-proposal://")
+            .filter(|proposal_id| !proposal_id.is_empty() && !proposal_id.contains('/'))
+            .ok_or_else(|| {
+                crdt_authority_denied(format!(
+                    "crdt_proposal_ref {proposal_ref} must use crdt-proposal://<proposal_id>"
+                ))
+            })?;
+        let proposal = sqlx::query(
+            r#"
+            SELECT workspace_id, document_id, crdt_document_id,
+                   actor_id, actor_kind, session_id, correlation_id,
+                   review_state, applied_update_id, applied_update_sha256
+            FROM knowledge_crdt_ai_edit_proposals
+            WHERE proposal_id = $1
+            FOR SHARE
+            "#,
+        )
+        .bind(proposal_id)
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or_else(|| {
+            crdt_authority_denied(format!(
+                "crdt_proposal_ref {proposal_ref} does not resolve to a persisted AI edit proposal"
+            ))
+        })?;
+        let proposal_workspace_id: String = proposal.try_get("workspace_id")?;
+        let proposal_document_id: String = proposal.try_get("document_id")?;
+        let proposal_crdt_document_id: String = proposal.try_get("crdt_document_id")?;
+        let proposal_actor_id: String = proposal.try_get("actor_id")?;
+        let proposal_actor_kind: String = proposal.try_get("actor_kind")?;
+        let proposal_session_id: String = proposal.try_get("session_id")?;
+        let proposal_correlation_id: String = proposal.try_get("correlation_id")?;
+        let review_state: String = proposal.try_get("review_state")?;
+        let applied_update_id: Option<String> = proposal.try_get("applied_update_id")?;
+        let applied_update_sha256: Option<String> = proposal.try_get("applied_update_sha256")?;
+        if proposal_workspace_id != resolved.workspace_id
+            || proposal_document_id != resolved.document_id
+            || proposal_crdt_document_id != resolved.crdt_document_id
+            || proposal_actor_id != resolved.actor_id
+            || proposal_actor_kind != resolved.actor_kind
+            || proposal_session_id != resolved.session_id
+            || proposal_correlation_id != resolved.trace_id
+            || !matches!(review_state.as_str(), "approved" | "promoted")
+            || applied_update_id.as_deref() != Some(resolved.update_id.as_str())
+            || applied_update_sha256.as_deref() != Some(resolved.update_sha256.as_str())
+        {
+            return Err(crdt_authority_denied(format!(
+                "crdt_proposal_ref {proposal_ref} is not an approved applied proposal for update {}",
+                resolved.update_id
+            )));
+        }
+    }
+
+    Ok(Some(resolved))
+}
+
+async fn validate_crdt_handoff_authority_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    crdt: &ModelLaneCrdtHandoffMetadata,
+) -> ModelLaneResult<ResolvedModelLaneCrdtAuthority> {
+    let resolved = resolve_model_lane_crdt_authority_tx(
+        tx,
+        &crdt.update_bytes_ref,
+        &crdt.base_snapshot_ref,
+        &crdt.state_vector,
+    )
+    .await?;
+    for (field, actual, expected) in [
+        (
+            "crdt_payload.workspace_id",
+            crdt.workspace_id.as_str(),
+            resolved.workspace_id.as_str(),
+        ),
+        (
+            "crdt_payload.document_id",
+            crdt.document_id.as_str(),
+            resolved.document_id.as_str(),
+        ),
+        (
+            "crdt_payload.actor_id",
+            crdt.actor_id.as_str(),
+            resolved.actor_id.as_str(),
+        ),
+        (
+            "crdt_payload.actor_kind",
+            crdt.actor_kind.as_str(),
+            resolved.actor_kind.as_str(),
+        ),
+        (
+            "crdt_payload.crdt_site_id",
+            crdt.crdt_site_id.as_str(),
+            resolved.site_id.as_str(),
+        ),
+        (
+            "crdt_payload.update_sha256",
+            crdt.update_sha256.as_str(),
+            resolved.update_sha256.as_str(),
+        ),
+        (
+            "crdt_payload.materialized_projection_hash",
+            crdt.materialized_projection_hash.as_str(),
+            resolved.materialized_projection_hash.as_str(),
+        ),
+    ] {
+        if actual != expected {
+            return Err(crdt_authority_denied(format!(
+                "{field}={actual} does not match persisted CRDT authority {expected}"
+            )));
+        }
+    }
+    if crdt.update_seq != resolved.update_seq {
+        return Err(crdt_authority_denied(format!(
+            "crdt_payload.update_seq={} does not match persisted update_seq {}",
+            crdt.update_seq, resolved.update_seq
+        )));
+    }
+    let declared_format = crdt
+        .replay_metadata
+        .get("format")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    if declared_format != "yjs_update_v1"
+        || resolved
+            .replay_metadata
+            .get("encoding")
+            .and_then(Value::as_str)
+            != Some("yjs-update-v1")
+    {
+        return Err(crdt_authority_denied(
+            "crdt_payload replay metadata disagrees with persisted Yjs v1 encoding",
+        ));
+    }
+    for (field, actual, expected) in [
+        (
+            "crdt_payload.replay_metadata.replay_order_key",
+            crdt.replay_metadata
+                .get("replay_order_key")
+                .and_then(Value::as_str),
+            resolved
+                .replay_metadata
+                .get("replay_order_key")
+                .and_then(Value::as_str),
+        ),
+        (
+            "crdt_payload.replay_metadata.schema_version",
+            crdt.replay_metadata
+                .get("schema_version")
+                .and_then(Value::as_str),
+            resolved
+                .replay_metadata
+                .get("schema_version")
+                .and_then(Value::as_str),
+        ),
+    ] {
+        if actual.is_none() || actual != expected {
+            return Err(crdt_authority_denied(format!(
+                "{field} does not match persisted replay authority"
+            )));
+        }
+    }
+    let declared_dependencies = crdt
+        .replay_metadata
+        .get("dependency_update_ids")
+        .and_then(Value::as_array);
+    let persisted_dependencies = resolved
+        .replay_metadata
+        .get("dependency_update_ids")
+        .and_then(Value::as_array);
+    if declared_dependencies.is_none() || declared_dependencies != persisted_dependencies {
+        return Err(crdt_authority_denied(
+            "crdt_payload.replay_metadata.dependency_update_ids does not match persisted replay authority",
+        ));
+    }
+    let expected_validation_runner_ref =
+        format!("eventledger://{}", resolved.event_ledger_event_id);
+    if crdt.validation_runner_ref != expected_validation_runner_ref {
+        return Err(crdt_authority_denied(format!(
+            "crdt_payload.validation_runner_ref={} does not resolve to persisted validation evidence {}",
+            crdt.validation_runner_ref, expected_validation_runner_ref
+        )));
+    }
+    Ok(resolved)
+}
+
 async fn resolve_promotion_input_refs_tx(
     tx: &mut Transaction<'_, Postgres>,
     run_id: &str,
@@ -10649,31 +13974,34 @@ async fn resolve_promotion_input_refs_tx(
     let mut current_base_snapshot_ref: Option<String> = None;
     let mut current_state_vector: Option<String> = None;
     for record in &selected_records {
-        match (
-            record.crdt_base_snapshot_ref.as_deref(),
-            record.crdt_state_vector.as_deref(),
-        ) {
-            (Some(base_snapshot_ref), Some(state_vector)) => {
-                require_token("selected.crdt_base_snapshot_ref", base_snapshot_ref)?;
-                require_token("selected.crdt_state_vector", state_vector)?;
-                if current_base_snapshot_ref
-                    .as_deref()
-                    .is_some_and(|current| current != base_snapshot_ref)
-                    || current_state_vector
-                        .as_deref()
-                        .is_some_and(|current| current != state_vector)
-                {
-                    denial_reason =
-                        denial_reason.or(Some(ModelLanePromotionDenialReason::InputRefMismatch));
-                }
-                current_base_snapshot_ref.get_or_insert_with(|| base_snapshot_ref.to_string());
-                current_state_vector.get_or_insert_with(|| state_vector.to_string());
-            }
-            _ => {
+        let resolved = match validate_stored_crdt_message_authority_tx(tx, record).await {
+            Ok(resolved) => resolved,
+            Err(ModelLaneError::AuthorityDenied(_)) | Err(ModelLaneError::InvalidInput(_)) => {
                 denial_reason =
                     denial_reason.or(Some(ModelLanePromotionDenialReason::InputRefMismatch));
+                continue;
             }
+            Err(error) => return Err(error),
+        };
+        let Some(resolved) = resolved else {
+            // Nonshared advisory output is promotable as an artifact/decision,
+            // but it must not manufacture CRDT snapshot or vector lineage.
+            continue;
+        };
+        let base_snapshot_ref = resolved.snapshot_bytes_ref;
+        let state_vector = resolved.state_vector_after;
+        if current_base_snapshot_ref
+            .as_deref()
+            .is_some_and(|current| current != base_snapshot_ref)
+            || current_state_vector
+                .as_deref()
+                .is_some_and(|current| current != state_vector)
+        {
+            denial_reason =
+                denial_reason.or(Some(ModelLanePromotionDenialReason::InputRefMismatch));
         }
+        current_base_snapshot_ref.get_or_insert(base_snapshot_ref);
+        current_state_vector.get_or_insert(state_vector);
     }
 
     selected_records.sort_by(|left, right| {
@@ -11014,6 +14342,18 @@ fn validate_promotion_decision(input: &NewModelLanePromotionDecision) -> ModelLa
     if let Some(operator_ref) = input.operator_authority_ref.as_deref() {
         require_token("operator_authority_ref", operator_ref)?;
     }
+    let routing_authority = super::routing::ModelLaneRoutingAuthority {
+        cloud_consent_receipt_ref: input
+            .diagnostic_payload
+            .get("cloud_consent_receipt_ref")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        validator_authority_ref: input.validator_authority_ref.clone(),
+        operator_authority_ref: input.operator_authority_ref.clone(),
+    };
+    super::routing::ModelLaneRoutingGraph::for_policy(input.routing_policy)
+        .require_authority_contract(&routing_authority)
+        .map_err(|error| ModelLaneError::InvalidInput(error.to_string()))?;
     let parent_span_id = require_optional_token("parent_span_id", input.parent_span_id.as_deref())?;
     if parent_span_id == input.decision_span_id {
         return Err(ModelLaneError::InvalidInput(
@@ -11247,9 +14587,9 @@ fn validate_crdt_handoff_metadata(crdt: &ModelLaneCrdtHandoffMetadata) -> ModelL
         .get("yjs_compatible")
         .and_then(Value::as_bool)
         == Some(true);
-    if !yjs_compatible || !matches!(format, "yjs_update_v1" | "yjs_update_v2") {
+    if !yjs_compatible || format != "yjs_update_v1" {
         return Err(ModelLaneError::InvalidInput(
-            "crdt_payload.replay_metadata must declare Yjs-compatible format yjs_update_v1 or yjs_update_v2".into(),
+            "crdt_payload.replay_metadata must declare Yjs-compatible format yjs_update_v1".into(),
         ));
     }
     require_token("crdt_payload.promotion_gate_ref", &crdt.promotion_gate_ref)?;
@@ -11264,6 +14604,12 @@ fn validate_crdt_handoff_metadata(crdt: &ModelLaneCrdtHandoffMetadata) -> ModelL
     if crdt.authority_effect != "advisory_only" {
         return Err(ModelLaneError::InvalidInput(
             "crdt_payload.authority_effect must be advisory_only before promotion".into(),
+        ));
+    }
+    if crdt.promotion_receipt_ref.is_some() {
+        return Err(ModelLaneError::InvalidInput(
+            "crdt_payload.promotion_receipt_ref must remain null while authority_effect is advisory_only"
+                .into(),
         ));
     }
     Ok(())
@@ -11789,7 +15135,12 @@ fn validate_message_routing(input: &NewModelLaneMessage) -> ModelLaneResult<()> 
 }
 
 fn validate_message_authority(input: &NewModelLaneMessage) -> ModelLaneResult<()> {
-    if input.kind == ModelLaneMessageKind::Proposal {
+    let targets_crdt = input.crdt_update_ref.is_some()
+        || input.crdt_base_snapshot_ref.is_some()
+        || input.crdt_state_vector.is_some()
+        || input.crdt_proposal_ref.is_some()
+        || input.crdt_stale_base_ref.is_some();
+    if targets_crdt {
         require_optional_token("proposal_ref", input.proposal_ref.as_deref())?;
         require_optional_token("crdt_update_ref", input.crdt_update_ref.as_deref())?;
         require_optional_token(

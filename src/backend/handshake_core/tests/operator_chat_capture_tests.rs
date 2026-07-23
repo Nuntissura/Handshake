@@ -9,6 +9,7 @@
 
 mod knowledge_pg_support;
 
+use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -25,8 +26,9 @@ use handshake_core::flight_recorder::{
 };
 use handshake_core::model_runtime::catalog::ModelCatalog;
 use handshake_core::model_runtime::cloud::{
-    CliBridgeConfig, CliBridgeModelRuntime, CliInvocationReceipt, CliKind, CliOutputFormat,
-    CliSubprocessSpawner, LiveCliSpawner, OfficialCliBridgeError,
+    AllowlistedCliBridgeConfig, CliBridgeConfig, CliBridgeModelRuntime, CliCancellationContext,
+    CliInvocationContext, CliInvocationReceipt, CliKind, CliModelAllowlist, CliOutputFormat,
+    CliSubprocessSpawner, CloudLaneObservability, LiveCliSpawner, OfficialCliBridgeError,
 };
 use handshake_core::model_runtime::registry::RuntimeBinding as RuntimeAdapterBinding;
 use handshake_core::model_runtime::{
@@ -36,8 +38,9 @@ use handshake_core::model_runtime::{
     RuntimeKind, SamplingParams, Score, SteeringHookHandle, TokenStream,
 };
 use handshake_core::process_ledger::{
-    LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink, PostgresProcessLedgerStore,
-    ProcessEngineKind, ProcessLedgerDrain, ProcessOwnershipRecordId, ProcessStart,
+    drain_and_join_ledger_writer, LedgerBatcher, LedgerBatcherConfig, LedgerDrainJoinOutcome,
+    NoopOverflowSink, PostgresProcessLedgerStore, ProcessEngineKind, ProcessLedgerDrain,
+    ProcessOwnershipRecordId, ProcessStart,
 };
 use handshake_core::swarm_orchestration::model_lane::{
     DexterityLaunchAdapterKind, DexterityLaunchAdapterRequest, LaunchAuthority, ModelLaneKind,
@@ -45,11 +48,12 @@ use handshake_core::swarm_orchestration::model_lane::{
 };
 use handshake_core::swarm_orchestration::operator_chat::{
     build_spawn_request, ModelLaneCaptureRecorder, OperatorChatLaneKind, OperatorChatLaunchService,
-    OperatorChatLaunched, OperatorChatSelection,
+    OperatorChatLaunched, OperatorChatSelection, OPERATOR_CHAT_CLI_ADAPTER,
 };
 use handshake_core::swarm_orchestration::{
-    LiveSession, ModelInstanceId, ModelSessionFactory, RecordingSwarmSink, RunBudget,
-    SessionTeardown, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
+    CloudLaneFactoryConfig, LiveSession, ModelInstanceId, ModelSessionFactory,
+    ProductionModelSessionFactory, RecordingSwarmSink, RunBudget, SessionTeardown, SpawnRequest,
+    SwarmConfig, SwarmCoordinator, SwarmError,
 };
 
 // ---------------------------------------------------------------------------
@@ -59,6 +63,43 @@ use handshake_core::swarm_orchestration::{
 #[derive(Default)]
 struct CapturingRecorder {
     events: Mutex<Vec<FlightRecorderEvent>>,
+}
+
+fn operator_chat_registry_session(
+    session_id: &str,
+    parent_session_id: Option<&str>,
+    spawn_depth: i32,
+) -> handshake_core::storage::ModelSession {
+    handshake_core::storage::ModelSession {
+        session_id: session_id.to_string(),
+        parent_session_id: parent_session_id.map(str::to_string),
+        spawn_depth,
+        state: handshake_core::storage::ModelSessionState::Active,
+        model_id: "gpt-test".to_string(),
+        backend: "codex".to_string(),
+        parameter_class: "standard".to_string(),
+        role: "CODER".to_string(),
+        wp_id: Some("WP-1".to_string()),
+        mt_id: Some("MT-017".to_string()),
+        work_profile_id: None,
+        execution_mode: "delegated".to_string(),
+        memory_policy: "SESSION_SCOPED".to_string(),
+        consent_receipt_id: None,
+        capability_grants: Vec::new(),
+        capability_token_ids: None,
+        job_id: None,
+        checkpoint_artifact_id: None,
+        last_checkpoint_at: None,
+        checkpoint_count: 0,
+        merge_back_artifact: None,
+        agent: None,
+        purpose: None,
+        close_reason: None,
+        closed_by_actor: None,
+        closed_at: None,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+    }
 }
 
 #[async_trait]
@@ -141,14 +182,17 @@ impl ModelSessionFactory for OperatorChatProofFactory {
             .record_start(start)
             .map_err(|err| SwarmError::LedgerFailed(err.to_string()))?;
 
-        let mut owned = ProofRuntime::new(self.loads.clone(), self.unloads.clone());
-        let model_id = owned
+        let mut owned_runtime = ProofRuntime::new(self.loads.clone(), self.unloads.clone());
+        let model_id = owned_runtime
             .load(load_spec(request))
             .await
             .map_err(|err| SwarmError::FactoryFailed(err.to_string()))?;
+        let owned = Arc::new(tokio::sync::Mutex::new(owned_runtime));
         let shared = ProofRuntime::new(self.loads.clone(), self.unloads.clone());
-        let teardown: SessionTeardown = Box::new(move || {
+        let teardown: SessionTeardown = Arc::new(move || {
+            let owned = Arc::clone(&owned);
             Box::pin(async move {
+                let mut owned = owned.lock().await;
                 owned
                     .unload(model_id)
                     .await
@@ -392,7 +436,7 @@ impl CancellationLaunchProbe {
 }
 
 /// Deterministic subprocess adapter fixture for the live CLI bridge: it emits
-/// one complete activity, waits for the bridge's real `should_cancel` callback,
+/// one complete activity, waits for the bridge's concrete cancellation state,
 /// then flushes one already-buffered late tool activity. That exercises the
 /// production bridge/coordinator/capture boundary without a live cloud account.
 struct CancelAfterPrefixCliSpawner {
@@ -419,6 +463,7 @@ impl CliSubprocessSpawner for CancelAfterPrefixCliSpawner {
     fn spawn(
         &self,
         _config: &CliBridgeConfig,
+        _invocation: &CliInvocationContext,
         _model_name: &str,
         _prompt: &str,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
@@ -431,16 +476,22 @@ impl CliSubprocessSpawner for CancelAfterPrefixCliSpawner {
     fn spawn_streaming_cancellable(
         &self,
         _config: &CliBridgeConfig,
+        _invocation: &CliInvocationContext,
         _model_name: &str,
         _prompt: &str,
-        on_chunk: &mut dyn FnMut(&[u8]),
-        should_cancel: &dyn Fn() -> bool,
+        chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
+        cancellation: &CliCancellationContext,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
-        on_chunk(&self.prefix_chunk);
+        chunk_sender
+            .try_send(self.prefix_chunk.clone())
+            .map_err(|failure| OfficialCliBridgeError::SpawnFailed {
+                reason: failure.to_string(),
+                exit_code: None,
+            })?;
         self.probe.prefix_emitted.store(true, Ordering::SeqCst);
 
         let deadline = Instant::now() + Duration::from_secs(10);
-        while !should_cancel() {
+        while !cancellation.is_cancelled() {
             if Instant::now() >= deadline {
                 return Err(OfficialCliBridgeError::SpawnFailed {
                     reason: "coordinator cancellation was not propagated to CLI bridge".to_string(),
@@ -456,7 +507,12 @@ impl CliSubprocessSpawner for CancelAfterPrefixCliSpawner {
         // Model an already-buffered completed line that arrives after the
         // coordinator committed the lane terminal state. The capture path must
         // reject it without emitting a phantom Flight Recorder activity.
-        on_chunk(&self.late_chunk);
+        chunk_sender
+            .try_send(self.late_chunk.clone())
+            .map_err(|failure| OfficialCliBridgeError::SpawnFailed {
+                reason: failure.to_string(),
+                exit_code: None,
+            })?;
         Ok(CliInvocationReceipt {
             model_id: ModelId::new_v7(),
             stdout: format!(
@@ -486,6 +542,7 @@ impl CliSubprocessSpawner for FailingAfterChunkCliSpawner {
     fn spawn(
         &self,
         _config: &CliBridgeConfig,
+        _invocation: &CliInvocationContext,
         _model_name: &str,
         _prompt: &str,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
@@ -498,12 +555,18 @@ impl CliSubprocessSpawner for FailingAfterChunkCliSpawner {
     fn spawn_streaming(
         &self,
         _config: &CliBridgeConfig,
+        _invocation: &CliInvocationContext,
         _model_name: &str,
         _prompt: &str,
-        on_chunk: &mut dyn FnMut(&[u8]),
+        chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
         for chunk in &self.chunks {
-            on_chunk(chunk);
+            chunk_sender.try_send(chunk.clone()).map_err(|failure| {
+                OfficialCliBridgeError::SpawnFailed {
+                    reason: failure.to_string(),
+                    exit_code: None,
+                }
+            })?;
         }
         Err(OfficialCliBridgeError::SpawnFailed {
             reason: "operator-chat test stream failure".to_string(),
@@ -516,6 +579,7 @@ impl CliSubprocessSpawner for LoopbackCliSpawner {
     fn spawn(
         &self,
         _config: &CliBridgeConfig,
+        _invocation: &CliInvocationContext,
         _model_name: &str,
         _prompt: &str,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
@@ -536,13 +600,19 @@ impl CliSubprocessSpawner for LoopbackCliSpawner {
     fn spawn_streaming(
         &self,
         _config: &CliBridgeConfig,
+        _invocation: &CliInvocationContext,
         _model_name: &str,
         _prompt: &str,
-        on_chunk: &mut dyn FnMut(&[u8]),
+        chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
         let mut full = Vec::new();
         for chunk in &self.chunks {
-            on_chunk(chunk);
+            chunk_sender.try_send(chunk.clone()).map_err(|failure| {
+                OfficialCliBridgeError::SpawnFailed {
+                    reason: failure.to_string(),
+                    exit_code: None,
+                }
+            })?;
             full.extend_from_slice(chunk);
         }
         Ok(CliInvocationReceipt {
@@ -561,11 +631,34 @@ fn loopback_cli_exe() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml")
 }
 
+fn loopback_cli_exe_for_kind(cli_kind: CliKind) -> std::path::PathBuf {
+    #[cfg(windows)]
+    if cli_kind == CliKind::CodexCli {
+        return std::env::var_os("PATH")
+            .into_iter()
+            .flat_map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
+            .map(|directory| directory.join("codex.cmd"))
+            .find(|candidate| candidate.is_file())
+            .expect("canonical codex.cmd must be installed on PATH for the Codex CLI lane proof");
+    }
+    loopback_cli_exe()
+}
+
 fn loopback_cli_config() -> CliBridgeConfig {
+    loopback_cli_config_for_kind(CliKind::CodexCli)
+}
+
+fn loopback_cli_config_for_kind(cli_kind: CliKind) -> CliBridgeConfig {
     CliBridgeConfig {
-        cli_kind: CliKind::CodexCli,
-        executable_path: loopback_cli_exe(),
-        args_template: vec!["-p".into(), "{prompt}".into()],
+        cli_kind,
+        executable_path: loopback_cli_exe_for_kind(cli_kind),
+        args_template: vec![
+            "exec".into(),
+            "--json".into(),
+            "--model".into(),
+            "{model}".into(),
+            "{prompt}".into(),
+        ],
         // JSON-stream so the launched runtime's stdout is TYPED codex activity.
         output_format: CliOutputFormat::JsonStream,
         env_vars: std::collections::HashMap::new(),
@@ -601,6 +694,7 @@ struct CliLoopbackFactory {
     ledger: LedgerBatcher,
     lines: Vec<String>,
     mode: CliLoopbackMode,
+    cli_kind: CliKind,
 }
 
 #[async_trait]
@@ -619,7 +713,7 @@ impl ModelSessionFactory for CliLoopbackFactory {
         .with_wp_id(request.wp_id.clone().unwrap_or_default())
         .with_mt_id(request.mt_id.clone().unwrap_or_default());
         self.ledger
-            .record_start(start)
+            .record_start(start.clone())
             .map_err(|err| SwarmError::LedgerFailed(err.to_string()))?;
 
         let model_name = request
@@ -639,23 +733,55 @@ impl ModelSessionFactory for CliLoopbackFactory {
                 ))
             }
         };
+        let session_id = request.instance_id.to_string();
+        let mut invocation_context =
+            CliInvocationContext::new(request.owner_role.clone(), model_name.clone());
+        invocation_context.owner_wp = request.owner_wp.clone();
+        invocation_context.role_id = request.role_id.clone();
+        invocation_context.wp_id = request.wp_id.clone();
+        invocation_context.mt_id = request.mt_id.clone();
+        invocation_context.session_id = Some(session_id.clone());
+        invocation_context.parent_session_id = Some(request.parent_session_id.clone());
+        invocation_context.trace_id = Some(request.parent_session_id.clone());
+        invocation_context.span_id = Some(session_id);
+        invocation_context.requested_trust_class = request.requested_trust_class;
+        invocation_context.requested_isolation_tier = request.isolation_tier;
+        invocation_context.requested_sandbox_capabilities =
+            request.requested_sandbox_capabilities.clone();
+        invocation_context.requested_net_policy = request.requested_net_policy.clone();
+        invocation_context.requested_execution_policy_ref =
+            request.requested_execution_policy_ref.clone();
+        invocation_context.swarm_id = request.swarm_id.clone();
+        invocation_context.worktree_id = request.worktree_id.clone();
+        invocation_context.working_dir = request.working_dir.clone();
 
         // Shared runtime handed to the coordinator (its generate() is driven by
         // launch); loaded so handle_for(model_id) resolves.
-        let mut shared = CliBridgeModelRuntime::new(spawner.clone(), loopback_cli_config());
+        let allowlisted = |model: &str| {
+            AllowlistedCliBridgeConfig::new(
+                loopback_cli_config_for_kind(self.cli_kind),
+                CliModelAllowlist::new(vec![model.to_string()]).expect("test allowlist"),
+            )
+        };
+        let mut shared = CliBridgeModelRuntime::new(spawner.clone(), allowlisted(&model_name))
+            .with_invocation_context(invocation_context.clone());
         let shared_model_id = shared
             .load(loopback_cli_load_spec(&model_name))
             .await
             .map_err(|err| SwarmError::FactoryFailed(err.to_string()))?;
 
         // Owned runtime for the teardown free (mirrors the proof factory shape).
-        let mut owned = CliBridgeModelRuntime::new(spawner, loopback_cli_config());
-        let owned_model_id = owned
+        let mut owned_runtime = CliBridgeModelRuntime::new(spawner, allowlisted(&model_name))
+            .with_invocation_context(invocation_context);
+        let owned_model_id = owned_runtime
             .load(loopback_cli_load_spec(&model_name))
             .await
             .map_err(|err| SwarmError::FactoryFailed(err.to_string()))?;
-        let teardown: SessionTeardown = Box::new(move || {
+        let owned = Arc::new(tokio::sync::Mutex::new(owned_runtime));
+        let teardown: SessionTeardown = Arc::new(move || {
+            let owned = Arc::clone(&owned);
             Box::pin(async move {
+                let mut owned = owned.lock().await;
                 owned
                     .unload(owned_model_id)
                     .await
@@ -663,14 +789,16 @@ impl ModelSessionFactory for CliLoopbackFactory {
             })
         });
 
-        Ok(LiveSession::new(
+        let mut live = LiveSession::new(
             Arc::new(shared),
             shared_model_id,
             CancellationToken::new(),
             teardown,
             record_id,
             os_pid,
-        ))
+        );
+        live.ledger_start_override = Some(start);
+        Ok(live)
     }
 }
 
@@ -678,9 +806,31 @@ fn cli_loopback_coordinator(store: ModelLaneStore, lines: Vec<String>) -> Arc<Sw
     cli_loopback_coordinator_with_ledger(store, lines).0
 }
 
+fn cli_generic_loopback_coordinator(
+    store: ModelLaneStore,
+    lines: Vec<String>,
+) -> Arc<SwarmCoordinator> {
+    cli_generic_loopback_coordinator_with_ledger(store, lines).0
+}
+
+fn cli_generic_loopback_coordinator_with_ledger(
+    store: ModelLaneStore,
+    lines: Vec<String>,
+) -> (Arc<SwarmCoordinator>, ProcessLedgerDrain) {
+    cli_loopback_coordinator_with_ledger_and_kind(store, lines, CliKind::Other)
+}
+
 fn cli_loopback_coordinator_with_ledger(
     store: ModelLaneStore,
     lines: Vec<String>,
+) -> (Arc<SwarmCoordinator>, ProcessLedgerDrain) {
+    cli_loopback_coordinator_with_ledger_and_kind(store, lines, CliKind::CodexCli)
+}
+
+fn cli_loopback_coordinator_with_ledger_and_kind(
+    store: ModelLaneStore,
+    lines: Vec<String>,
+    cli_kind: CliKind,
 ) -> (Arc<SwarmCoordinator>, ProcessLedgerDrain) {
     let (ledger, drain) =
         LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
@@ -691,6 +841,7 @@ fn cli_loopback_coordinator_with_ledger(
             ledger: ledger.clone(),
             lines,
             mode: CliLoopbackMode::Complete,
+            cli_kind,
         }),
         Arc::new(RecordingSwarmSink::new()),
         ledger,
@@ -712,6 +863,7 @@ fn cli_failing_after_chunk_coordinator(
             ledger: ledger.clone(),
             lines,
             mode: CliLoopbackMode::FailAfterChunks,
+            cli_kind: CliKind::CodexCli,
         }),
         Arc::new(RecordingSwarmSink::new()),
         ledger,
@@ -734,6 +886,7 @@ fn cli_cancel_after_prefix_coordinator(
             ledger: ledger.clone(),
             lines,
             mode: CliLoopbackMode::CancelAfterPrefix(probe),
+            cli_kind: CliKind::CodexCli,
         }),
         Arc::new(RecordingSwarmSink::new()),
         ledger,
@@ -750,6 +903,10 @@ fn codex_cli_selection(working_dir: &str, prompt: &str, owner: &str) -> Operator
         cli_provider: Some("codex".into()),
         ..cli_selection(working_dir, prompt, owner)
     }
+}
+
+fn existing_working_dir() -> &'static str {
+    env!("CARGO_MANIFEST_DIR")
 }
 
 fn cli_selection(working_dir: &str, prompt: &str, owner: &str) -> OperatorChatSelection {
@@ -843,7 +1000,7 @@ fn codex_stream_lines() -> Vec<String> {
 async fn assert_process_backed_launch_evidence(
     pool: &sqlx::PgPool,
     store: &ModelLaneStore,
-    drain: &ProcessLedgerDrain,
+    drain: Option<&ProcessLedgerDrain>,
     recorder: &CapturingRecorder,
     launched: &OperatorChatLaunched,
     expected_lane_kind: ModelLaneKind,
@@ -984,10 +1141,12 @@ async fn assert_process_backed_launch_evidence(
         .apply_migration()
         .await
         .expect("process ledger migration applies");
-    drain
-        .drain_available_to(ledger_store)
-        .await
-        .expect("process ledger rows drain to PostgreSQL");
+    if let Some(drain) = drain {
+        drain
+            .drain_available_to(ledger_store)
+            .await
+            .expect("process ledger rows drain to PostgreSQL");
+    }
     let process_rows: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM kernel_process_lifecycle \
          WHERE process_uuid = $1::uuid \
@@ -1130,25 +1289,68 @@ fn no_os_operator_launch_request(idx: usize, owner_session: &str) -> DexterityLa
 /// (mock CLI stream-json) into ONE ModelLaneMessage per completed activity block
 /// with the correct kind + activity_kind + FR evidence — end to end through
 /// `launch()`, not a separately-bound hand-authored vec.
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_completed_block() {
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=pg_store:start");
     let (pool, store) = pg_store().await;
-    let (coordinator, drain) =
-        cli_loopback_coordinator_with_ledger(store.clone(), codex_stream_lines());
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=pg_store:complete");
     let recorder = Arc::new(CapturingRecorder::default());
+    let ledger_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
+    ledger_store
+        .apply_migration()
+        .await
+        .expect("process ledger migration applies before the launch durability gate");
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=ledger_migration:complete");
+    let (ledger, ledger_writer) = LedgerBatcher::spawn(
+        ledger_store,
+        Arc::new(NoopOverflowSink),
+        LedgerBatcherConfig::default(),
+    );
+    let spawner: Arc<dyn CliSubprocessSpawner> =
+        Arc::new(LoopbackCliSpawner::from_lines(&codex_stream_lines()));
+    let observability = Some(Arc::new(CloudLaneObservability {
+        flight_recorder: recorder.clone(),
+        consent: None,
+    }));
+    let cloud = handshake_core::api::configure_operator_chat_official_cli_providers(
+        CloudLaneFactoryConfig::unconfigured(),
+        spawner,
+        observability,
+        [(
+            "codex".to_string(),
+            AllowlistedCliBridgeConfig::new(
+                loopback_cli_config(),
+                CliModelAllowlist::new(vec!["gpt-5-codex".to_string()])
+                    .expect("operator-chat loopback allowlist"),
+            ),
+        )],
+    );
+    let coordinator = Arc::new(SwarmCoordinator::new_with_model_lane_store(
+        SwarmConfig::new(RunBudget::defaulted(8)),
+        Arc::new(ProductionModelSessionFactory::new(
+            ledger.clone(),
+            cloud,
+            None,
+        )),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger.clone(),
+        store.clone(),
+    ));
     let service =
         OperatorChatLaunchService::new(coordinator, ModelCatalog::empty(), recorder.clone());
 
     // launch() spawns through spawn_session AND drives the launched runtime,
     // capturing its real stdout in ONE call.
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=launch:start");
     let launched = service
         .launch(&codex_cli_selection(
-            "D:/work/repo",
+            existing_working_dir(),
             "audit the repo",
             "operator-1",
         ))
         .await
         .expect("operator-chat CLI lane launches + captures through spawn_session");
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=launch:complete");
 
     // F1/F2: launch() itself persisted one message per completed block (F5).
     assert_eq!(
@@ -1161,6 +1363,7 @@ async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_comple
         .replay_run(&launched.run_id)
         .await
         .expect("launched run is replayable");
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=replay:complete");
     assert_eq!(
         replay.lanes.len(),
         2,
@@ -1224,14 +1427,58 @@ async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_comple
     // Flight Recorder evidence: one FR-EVT-AGENT-* for the operator prompt plus
     // one per captured model activity, so Flight Recorder and EventLedger can
     // prove the full conversation timeline.
-    let markers = recorder.event_markers();
-    let agent_events = markers
+    let events = recorder.events.lock().expect("events lock").clone();
+    let agent_events = events
         .iter()
-        .filter(|m| m.starts_with("FR-EVT-AGENT-"))
+        .filter(|event| {
+            event
+                .payload
+                .get("event_id")
+                .and_then(|value| value.as_str())
+                .is_some_and(|event_id| event_id.starts_with("FR-EVT-AGENT-"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        agent_events.len(),
+        4,
+        "capture/replay is the sole FR lifecycle producer: one operator prompt plus three model activities"
+    );
+    assert!(
+        agent_events.iter().all(|event| {
+            event.payload.get("adapter").and_then(|value| value.as_str())
+                == Some(OPERATOR_CHAT_CLI_ADAPTER)
+        }),
+        "every FR-EVT-AGENT event must come from the operator-chat capture adapter; runtime-level duplicates are scoped out: {agent_events:?}"
+    );
+    let unique_agent_lifecycle_keys = agent_events
+        .iter()
+        .map(|event| {
+            format!(
+                "{}:{}:{}",
+                event.payload["request_id"],
+                event.payload["ordered_index"],
+                event.payload["adapter"]
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        unique_agent_lifecycle_keys.len(),
+        4,
+        "each captured lifecycle event has a unique request/index/adapter key"
+    );
+    let infer_events = events
+        .iter()
+        .filter(|event| {
+            event
+                .payload
+                .get("event_id")
+                .and_then(|value| value.as_str())
+                .is_some_and(|event_id| event_id.starts_with("FR-EVT-LLM-INFER-"))
+        })
         .count();
     assert_eq!(
-        agent_events, 4,
-        "operator prompt plus each captured model activity emits FR-EVT-AGENT-* evidence"
+        infer_events, 2,
+        "the shared runtime recorder remains live for infer START/END while only agent activity is suppressed"
     );
 
     // EventLedger authority rows exist for the messages.
@@ -1301,11 +1548,20 @@ async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_comple
         .expect("count HBR-INT-009 tier rows");
         assert_eq!(rows, 1, "HBR-INT-009 tier row {tier}/{state} is recorded");
     }
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=postgres_assertions:complete");
+
+    let ledger_outcome =
+        drain_and_join_ledger_writer(&ledger, ledger_writer, Duration::from_secs(10)).await;
+    assert!(
+        matches!(ledger_outcome, LedgerDrainJoinOutcome::Flushed),
+        "the production process-ledger writer must flush START/STOP before assertions"
+    );
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=ledger_drain:complete");
 
     assert_process_backed_launch_evidence(
         &pool,
         &store,
-        &drain,
+        None,
         recorder.as_ref(),
         &launched,
         ModelLaneKind::CliModel,
@@ -1317,6 +1573,7 @@ async fn operator_chat_launch_drives_runtime_and_captures_one_message_per_comple
         0,
     )
     .await;
+    eprintln!("MT017_OPERATOR_CHAT_STAGE=proof:complete");
 }
 
 /// AC: LOCAL and BYOK CLOUD selections use the same operator-chat launch/capture
@@ -1335,7 +1592,7 @@ async fn operator_chat_local_and_byok_cloud_launches_capture_and_link_process_le
     let local = service
         .launch(&local_selection(
             &local_model_id,
-            "D:/work/repo",
+            existing_working_dir(),
             "run the local model",
             "operator-local",
         ))
@@ -1344,7 +1601,7 @@ async fn operator_chat_local_and_byok_cloud_launches_capture_and_link_process_le
     assert_process_backed_launch_evidence(
         &pool,
         &store,
-        &drain,
+        Some(&drain),
         recorder.as_ref(),
         &local,
         ModelLaneKind::LocalModel,
@@ -1359,7 +1616,7 @@ async fn operator_chat_local_and_byok_cloud_launches_capture_and_link_process_le
 
     let cloud = service
         .launch(&cloud_selection(
-            "D:/work/repo",
+            existing_working_dir(),
             "run the cloud model",
             "operator-cloud",
         ))
@@ -1369,7 +1626,7 @@ async fn operator_chat_local_and_byok_cloud_launches_capture_and_link_process_le
     assert_process_backed_launch_evidence(
         &pool,
         &store,
-        &drain,
+        Some(&drain),
         recorder.as_ref(),
         &cloud,
         ModelLaneKind::CloudModel,
@@ -1407,7 +1664,7 @@ async fn operator_chat_launch_stream_error_preserves_partial_capture_and_reclaim
 
     let err = service
         .launch(&codex_cli_selection(
-            "D:/work/repo",
+            existing_working_dir(),
             "audit",
             "operator-fail",
         ))
@@ -1491,7 +1748,7 @@ async fn operator_chat_launch_coordinator_cancellation_preserves_prefix_and_reje
         ModelCatalog::empty(),
         recorder.clone(),
     ));
-    let selection = codex_cli_selection("D:/work/repo", "audit", "operator-mt009-cancel");
+    let selection = codex_cli_selection(existing_working_dir(), "audit", "operator-mt009-cancel");
     let launch_task = {
         let service = service.clone();
         let selection = selection.clone();
@@ -1652,9 +1909,14 @@ async fn operator_chat_launch_coordinator_cancellation_preserves_prefix_and_reje
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn coordinator_cancellation_fence_rejects_generation_during_terminal_pg_write() {
     let (pool, store) = pg_store().await;
-    let coordinator = cli_loopback_coordinator(store, codex_stream_lines());
+    let (coordinator, _ledger_drain) =
+        cli_generic_loopback_coordinator_with_ledger(store, codex_stream_lines());
     let request = build_spawn_request(
-        &codex_cli_selection("D:/work/repo", "fence generation", "operator-mt009-fence"),
+        &codex_cli_selection(
+            existing_working_dir(),
+            "fence generation",
+            "operator-mt009-fence",
+        ),
         91,
     )
     .expect("build real Dexterity spawn request");
@@ -1741,19 +2003,30 @@ async fn coordinator_cancellation_fence_rejects_generation_during_terminal_pg_wr
     );
 }
 
-/// If the real terminal lane transaction fails, the fence must restore the
-/// preceding live state so an operator can retry rather than leaving a
-/// non-durable local cancellation permanently stuck.
+/// If the real terminal lane transaction fails, the durable cleanup intent
+/// keeps the handle fenced and cancelled until coordinator-owned retry can
+/// finish exactly once.
 #[tokio::test]
-async fn coordinator_cancellation_fence_rolls_back_after_terminal_pg_failure() {
+async fn coordinator_cancellation_fence_retries_after_terminal_pg_failure() {
     let (pool, store) = pg_store().await;
-    let coordinator = cli_loopback_coordinator(store, codex_stream_lines());
+    let (coordinator, _ledger_drain) =
+        cli_generic_loopback_coordinator_with_ledger(store, codex_stream_lines());
     let request = build_spawn_request(
-        &codex_cli_selection("D:/work/repo", "fence retry", "operator-mt009-fence-retry"),
+        &codex_cli_selection(
+            existing_working_dir(),
+            "fence retry",
+            "operator-mt009-fence-retry",
+        ),
         92,
     )
     .expect("build real Dexterity spawn request");
     let instance_id = request.instance_id;
+    let event_stream_id = request
+        .dexterity_launch
+        .as_ref()
+        .expect("Dexterity request carries launch contract")
+        .event_ledger_stream_id
+        .clone();
     coordinator
         .spawn_session(request)
         .await
@@ -1787,9 +2060,39 @@ async fn coordinator_cancellation_fence_rolls_back_after_terminal_pg_failure() {
     );
     assert_eq!(
         coordinator.session_state(instance_id),
-        Some(handshake_core::swarm_orchestration::ModelSessionState::Ready),
-        "failed terminal persistence must roll back the local cancelling fence"
+        Some(handshake_core::swarm_orchestration::ModelSessionState::Cancelling),
+        "failed terminal persistence must retain the durable cancelling fence"
     );
+    let start_attempt = coordinator.generate_session(
+        instance_id,
+        GenerateRequest {
+            id: ModelId::new_v7(),
+            prompt: GenPrompt::new("must remain fenced after terminal persistence failure"),
+            sampling: SamplingParams::default(),
+            lora_overrides: vec![],
+            steering_overrides: vec![],
+            kv_prefix_handle: None,
+            cancel: CancellationToken::new(),
+            max_tokens: 1,
+            stop_sequences: vec![],
+            speculative_mode: None,
+            structured_decoding: None,
+        },
+    );
+    assert!(
+        matches!(&start_attempt, Err(SwarmError::LedgerFailed(message)) if message.contains("Cancelling")),
+        "pending cleanup must reject every later generation start"
+    );
+    let pending: (String, String, i64) = sqlx::query_as(
+        "SELECT status, reason, revision FROM swarm_session_cleanup_receipts WHERE instance_id = $1",
+    )
+    .bind(instance_id.to_string())
+    .fetch_one(&pool)
+    .await
+    .expect("durable cleanup-pending receipt survives terminal write failure");
+    assert_eq!(pending.0, "cleanup_pending");
+    assert_eq!(pending.1, "mt009-cancellation-fence-failure");
+    assert!(pending.2 >= 1);
 
     sqlx::query(&format!("DROP TRIGGER {trigger_name} ON model_lanes"))
         .execute(&pool)
@@ -1800,9 +2103,31 @@ async fn coordinator_cancellation_fence_rolls_back_after_terminal_pg_failure() {
         .await
         .expect("remove terminal-write failure function");
     coordinator
-        .cancel_session(instance_id, "mt009-cancellation-fence-retry")
+        .retry_pending_session_cleanups()
         .await
-        .expect("restored live session must be cancellable after retry");
+        .expect("coordinator-owned retry must complete the original terminal intent");
+    assert_eq!(coordinator.session_state(instance_id), None);
+    let completed: (String, String, i64) = sqlx::query_as(
+        "SELECT status, reason, revision FROM swarm_session_cleanup_receipts WHERE instance_id = $1",
+    )
+    .bind(instance_id.to_string())
+    .fetch_one(&pool)
+    .await
+    .expect("completed cleanup receipt remains durable");
+    assert_eq!(completed.0, "completed");
+    assert_eq!(completed.1, "mt009-cancellation-fence-failure");
+    assert!(completed.2 > pending.2);
+    let terminal_events: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger WHERE session_run_id = $1 AND aggregate_type = 'model_lane_terminal' AND event_type = 'SESSION_CANCELLED'",
+    )
+    .bind(event_stream_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count exact terminal EventLedger transition after retry");
+    assert_eq!(
+        terminal_events, 1,
+        "retry must append one terminal transition"
+    );
 }
 
 /// F1/F2 PROVENANCE: the captured messages carry the DISTINCTIVE text the mock CLI
@@ -1823,7 +2148,11 @@ async fn operator_chat_launch_captured_messages_originate_from_launched_runtime_
         OperatorChatLaunchService::new(coordinator, ModelCatalog::empty(), recorder.clone());
 
     let launched = service
-        .launch(&codex_cli_selection("D:/work/repo", "audit", "operator-2"))
+        .launch(&codex_cli_selection(
+            existing_working_dir(),
+            "audit",
+            "operator-2",
+        ))
         .await
         .expect("launch + capture");
     assert_eq!(launched.captured_message_count, 2);
@@ -1853,9 +2182,11 @@ async fn operator_chat_persists_operator_prompt_as_human_operator_message() {
     let recorder = Arc::new(CapturingRecorder::default());
 
     // Spawn the CLI authority session so it can authorize the no-OS operator lane.
-    let cli_request =
-        build_spawn_request(&cli_selection("D:/work/repo", "hello", "operator-77"), 1)
-            .expect("cli spawn request builds");
+    let cli_request = build_spawn_request(
+        &cli_selection(existing_working_dir(), "hello", "operator-77"),
+        1,
+    )
+    .expect("cli spawn request builds");
     let authority = cli_request.instance_id;
     coordinator
         .spawn_session(cli_request)
@@ -1905,7 +2236,7 @@ async fn operator_chat_subagent_selection_launches_no_os_subagent_lane() {
 
     let launched = service
         .launch(&subagent_selection(
-            "D:/work/repo",
+            existing_working_dir(),
             "assign a review subtask",
             "operator-subagent",
         ))
@@ -1978,7 +2309,7 @@ async fn operator_chat_launch_without_model_lane_store_fails_closed() {
     );
 
     let err = service
-        .launch(&cli_selection("D:/work/repo", "hi", "operator-9"))
+        .launch(&cli_selection(existing_working_dir(), "hi", "operator-9"))
         .await
         .expect_err("launch without ModelLaneStore must fail closed");
     match err {
@@ -2036,7 +2367,22 @@ async fn operator_chat_launch_route_performs_real_launch_when_wired() {
         ModelCatalog::empty(),
         recorder,
     ));
-    let state = OperatorChatState::production().with_launch_service(service);
+    let session_registry = std::sync::Arc::new(handshake_core::workflows::SessionRegistry::new(
+        handshake_core::workflows::SessionSchedulerConfig::default(),
+    ));
+    session_registry
+        .upsert_session(operator_chat_registry_session("parent-route", None, 0))
+        .await;
+    session_registry
+        .upsert_session(operator_chat_registry_session(
+            "operator-route",
+            Some("parent-route"),
+            1,
+        ))
+        .await;
+    let state = OperatorChatState::production()
+        .with_launch_service(service)
+        .with_session_registry(session_registry);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -2055,8 +2401,7 @@ async fn operator_chat_launch_route_performs_real_launch_when_wired() {
         "cli_provider": "codex",
         "working_dir": "D:/work/repo",
         "prompt": "audit the repo",
-        "owner_session": "operator-route",
-        "parent_session_id": "parent-route"
+        "owner_session_id": "operator-route"
     });
     let resp = reqwest::Client::new()
         .post(format!("{base}/operator-chat/launch"))
@@ -2136,7 +2481,7 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
     let (ledger, _drain) =
         LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
             .expect("manual process ledger");
-    let spawner = LiveCliSpawner::new(Arc::new(ledger));
+    let spawner = LiveCliSpawner::new(Arc::new(ledger), LiveCliSpawner::native_cli_registry());
 
     let template = CliBridgeConfig {
         cli_kind: CliKind::Other,
@@ -2153,8 +2498,20 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
     assert_eq!(config.working_dir.as_deref(), Some(selected.as_path()));
 
     use handshake_core::model_runtime::cloud::CliSubprocessSpawner;
+    let mut selected_invocation = CliInvocationContext::new("OPERATOR_CHAT_TEST", "model");
+    selected_invocation.requested_trust_class = Some(handshake_core::sandbox::TrustClass::Trusted);
+    selected_invocation.requested_isolation_tier =
+        Some(handshake_core::sandbox::IsolationTier::Tier1Container);
+    selected_invocation.requested_sandbox_capabilities = Some(std::collections::BTreeSet::from([
+        handshake_core::sandbox::RequiredCapability::HighStdioThroughput,
+    ]));
+    selected_invocation.requested_net_policy =
+        Some(handshake_core::sandbox::NetPolicy::HostInherited);
+    selected_invocation.requested_execution_policy_ref =
+        Some(handshake_core::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF.to_string());
+    selected_invocation.working_dir = Some(selected_str.clone());
     let receipt = spawner
-        .spawn(&config, "model", "prompt")
+        .spawn(&config, &selected_invocation, "model", "prompt")
         .expect("cmd /c cd spawns");
     assert!(
         receipt
@@ -2167,8 +2524,10 @@ async fn operator_chat_cli_lane_runs_in_operator_selected_cwd() {
 
     // Negative: with NO working_dir applied, the child runs in the parent cwd,
     // which does NOT contain the unique operator dir — proving it is load-bearing.
+    let mut default_invocation = selected_invocation;
+    default_invocation.working_dir = None;
     let default_receipt = spawner
-        .spawn(&template, "model", "prompt")
+        .spawn(&template, &default_invocation, "model", "prompt")
         .expect("default cmd /c cd spawns");
     assert!(
         !default_receipt

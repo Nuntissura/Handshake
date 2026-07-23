@@ -16,7 +16,10 @@ use handshake_core::knowledge_ingestion::engine::{IngestionContext, IngestionEng
 use handshake_core::storage::postgres::PostgresDatabase;
 use uuid::Uuid;
 
-use crate::knowledge_pg_support::{knowledge_pg, KnowledgePg};
+#[path = "knowledge_pg_support.rs"]
+mod knowledge_pg_support;
+
+use self::knowledge_pg_support::{knowledge_pg, KnowledgePg};
 
 /// One isolated ingestion test environment.
 pub struct IngestionPg {

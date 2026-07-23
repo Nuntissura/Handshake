@@ -117,12 +117,14 @@ where
             .contention_summary()
             .into_iter()
             .enumerate()
-            .map(|(idx, (event_id, contention_kind, detail))| ContentionEvent {
-                event_id,
-                session_id: format!("{scenario_id}-contention-{idx}"),
-                contention_kind,
-                detail,
-            })
+            .map(
+                |(idx, (event_id, contention_kind, detail))| ContentionEvent {
+                    event_id,
+                    session_id: format!("{scenario_id}-contention-{idx}"),
+                    contention_kind,
+                    detail,
+                },
+            )
             .collect();
 
         let crdt_workspace = SwarmCrdtWorkspaceSummary {

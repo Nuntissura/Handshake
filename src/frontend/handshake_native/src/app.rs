@@ -21,7 +21,7 @@ use crate::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneFactory, PaneId, PaneRecord, PaneRegistry,
     PaneRenderContext, PaneType, PlaceholderPaneFactory,
 };
-use crate::popout_window::{popout_title_for, PopOutGeometry, PopOutManager};
+use crate::popout_window::{argus_window_id, popout_title_for, PopOutGeometry, PopOutManager};
 use crate::project_tabs::{
     fetch_workspaces, ProjectItem, ProjectTabBar, ProjectTabColors, PROJECT_TAB_BAR_HEIGHT,
 };
@@ -113,22 +113,37 @@ pub enum HealthDisplayState {
     Error(String),
 }
 
-/// MT-015: launch a CLI-bridge provider's OWN official login command in a NEW visible OS terminal
-/// (operator-initiated). Focus-safe by construction: it starts a detached console via the OS shell
-/// rather than manipulating the Handshake window (never `SetForegroundWindow`). Handshake captures
-/// nothing from the spawned process — the operator completes the provider's official login there.
-fn launch_visible_login_terminal(program: &str, args: &[String]) -> std::io::Result<()> {
+fn allowlisted_cli_login_command(
+    provider: &str,
+) -> Option<(&'static str, &'static [&'static str])> {
+    match provider {
+        "claude_code" => Some(("claude", &["auth", "login"])),
+        "codex" => Some(("codex", &["login"])),
+        _ => None,
+    }
+}
+
+/// Launch one allowlisted official CLI login in a new visible console after the Settings surface's
+/// explicit operator confirmation. Provider data never becomes a shell fragment.
+fn launch_visible_login_terminal(provider: &str) -> std::io::Result<()> {
+    let (program, args) = allowlisted_cli_login_command(provider).ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "unsupported CLI login provider",
+        )
+    })?;
     #[cfg(windows)]
     {
-        // `cmd /C start "" cmd /K "<program> <args>"` opens a new visible console running the login
-        // command and keeps it open so the operator can complete the interactive login and read output.
-        let mut inner = String::from(program);
-        for arg in args {
-            inner.push(' ');
-            inner.push_str(arg);
-        }
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", "cmd", "/K", &inner])
+        use std::os::windows::process::CommandExt;
+        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+        let fixed_command = match provider {
+            "claude_code" => "claude auth login",
+            "codex" => "codex login",
+            _ => unreachable!("provider was checked by allowlisted_cli_login_command"),
+        };
+        std::process::Command::new("cmd.exe")
+            .args(["/D", "/S", "/K", fixed_command])
+            .creation_flags(CREATE_NEW_CONSOLE)
             .spawn()
             .map(|_| ())
     }
@@ -162,6 +177,9 @@ pub struct HandshakeApp {
     /// real surface factory replaces it in a later MT, so an unhandled type can never blank/panic
     /// a pane (RISK-3 / CONTROL-3).
     factories: HashMap<PaneType, Box<dyn PaneFactory>>,
+    /// Shared command-to-pane bridge for `UserManual: Search`. The command palette can request
+    /// focus without downcasting the type-erased pane factory.
+    user_manual_controller: crate::user_manual_pane::UserManualPaneController,
     /// Persisted split fractions for the 2x2 pane grid (MT-006). Serialized into the layout snapshot
     /// by MT-009. Initialized to the React `DEFAULT_SPLIT_WEIGHTS` (`{ vertical: 0.5, horizontal:
     /// 0.55 }`).
@@ -494,6 +512,11 @@ pub struct HandshakeApp {
     /// pipe), bound at startup on the app runtime. `None` in the headless/test shell and until bind
     /// completes. Dropping it on app exit removes the discovery binding file.
     mcp_server: Option<crate::mcp::SwarmMcpServer>,
+    /// Set only when a backend-authenticated Palmistry launch has returned the
+    /// session signing key and the production MCP bind has been attempted.
+    mcp_bind_attempted: bool,
+    mcp_bind_attempts: u8,
+    mcp_bind_retry_at: Option<std::time::Instant>,
     /// MT-027: the bounded action queue the MCP server ENQUEUES resolved AccessKit actions into and the
     /// egui frame loop DRAINS each frame (via [`mcp_drain_into_events`](Self::mcp_drain_into_events))
     /// to steer the live shell. Shared (`Arc<Mutex<_>>`) because the server tasks run on tokio threads
@@ -502,6 +525,12 @@ pub struct HandshakeApp {
     /// MT-027: the latest UI-tree snapshot the frame loop publishes each frame; the MCP `list_widgets`
     /// tool clones it and `click_widget`/`set_value` resolve targets against it. Shared with the server.
     mcp_snapshot: Arc<Mutex<crate::accessibility::UiTreeSnapshot>>,
+    /// Canonical window-keyed Argus registry. Each native viewport publishes its own actual rendered
+    /// AccessKit tree here; callers never resolve a detached-window target against the main tree.
+    mcp_windows: crate::mcp::WindowSnapshotRegistry,
+    /// Mutations consumed by a viewport in the previous frame. They become applied only when that
+    /// viewport publishes a newer real rendered snapshot on the next pre-frame hook.
+    mcp_consumed_actions: HashMap<String, Vec<(String, u64)>>,
     /// MT-027: the per-session HMAC token gating every MCP request. Generated at startup; written into
     /// the discovery binding file so an authorized agent can present it.
     mcp_token: crate::mcp::SessionToken,
@@ -510,6 +539,11 @@ pub struct HandshakeApp {
     /// when this is set, so publishing the live snapshot never consumes an async result or schedules a
     /// spurious save (the real frame owns those side effects).
     capturing_snapshot: bool,
+    /// Native Tier-2 diagnostics producer. `None` only when its disk-backed
+    /// ring could not be created; the GUI still opens and reports the failure.
+    /// Production launches Palmistry from this exact session through the
+    /// backend's durably-ledgered watcher adapter.
+    internal_diagnostics: Option<crate::internal_diagnostics::InternalDiagnostics>,
 }
 
 /// MT-024 LOCAL drawer-action intents (no backend): the most recent Promote / SendToPane signal a swarm
@@ -747,6 +781,24 @@ impl HandshakeApp {
         // Clone the runtime handle BEFORE moving `rt` into the struct, so the left-rail project tree can
         // spawn its async document/canvas loads on the same multi-thread runtime (MT-014).
         let rt_handle = rt.handle().clone();
+        let internal_diagnostics = match crate::internal_diagnostics::InternalDiagnostics::start() {
+            Ok(diagnostics) => {
+                diagnostics.install_panic_hook();
+                let launch_diagnostics = diagnostics.clone();
+                let repaint = cc.egui_ctx.clone();
+                rt_handle.spawn(async move {
+                    repaint.request_repaint();
+                    launch_diagnostics
+                        .maintain_palmistry(backend_client::BACKEND_BASE_URL)
+                        .await;
+                });
+                Some(diagnostics)
+            }
+            Err(error) => {
+                tracing::error!(error = %error, "internal diagnostics startup failed");
+                None
+            }
+        };
         // MT-017: the REAL Loom-graph search transport, bridged onto the app runtime (MT-009 pattern).
         let quick_switcher_transport: Option<
             Arc<dyn crate::quick_switcher::LoomGraphSearchTransport>,
@@ -761,6 +813,7 @@ impl HandshakeApp {
         // MT-014 FIX-B: the in-process shell event bus, constructed once at app construction (the
         // "subscribe at app/LeftRail construction" control). Drained each frame in `ui()`.
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
+        let user_manual_controller = crate::user_manual_pane::UserManualPaneController::default();
         let mut app = Self {
             health_status: HealthDisplayState::Loading,
             rt,
@@ -770,6 +823,7 @@ impl HandshakeApp {
             last_applied_theme: None,
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
             factories: build_default_factories(),
+            user_manual_controller: user_manual_controller.clone(),
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -877,11 +931,25 @@ impl HandshakeApp {
             // runtime. A bind failure is logged + degrades to "no MCP server" rather than blocking the
             // window from opening (the shell must always start).
             mcp_server: None,
+            mcp_bind_attempted: false,
+            mcp_bind_attempts: 0,
+            mcp_bind_retry_at: None,
             mcp_action_channel: Arc::new(Mutex::new(crate::mcp::ActionChannel::new())),
             mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
+            mcp_windows: crate::mcp::WindowSnapshotRegistry::new(),
+            mcp_consumed_actions: HashMap::new(),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
+            internal_diagnostics,
         };
+        app.factories.insert(
+            PaneType::Problems,
+            Box::new(
+                crate::internal_diagnostics::InternalDiagnosticsPaneFactory::new(
+                    app.internal_diagnostics.clone(),
+                ),
+            ),
+        );
         app.factories.insert(
             PaneType::SwarmLaneDiagnostics,
             Box::new(
@@ -895,6 +963,16 @@ impl HandshakeApp {
             ),
         );
         app.factories.insert(
+            PaneType::ModelRuntime,
+            Box::new(
+                crate::model_runtime_panel::ModelRuntimePaneFactory::with_transport(Arc::new(
+                    crate::backend_client::ModelRuntimeRegistryClient::production(
+                        rt_handle.clone(),
+                    ),
+                )),
+            ),
+        );
+        app.factories.insert(
             PaneType::OperatorChatLaunch,
             Box::new(
                 crate::operator_chat_pane::OperatorChatLaunchPaneFactory::with_client(Arc::new(
@@ -902,48 +980,128 @@ impl HandshakeApp {
                 )),
             ),
         );
-        app.spawn_mcp_server();
+        app.factories.insert(
+            PaneType::UserManual,
+            Box::new(
+                crate::user_manual_pane::UserManualPaneFactory::with_transport_and_controller(
+                    Arc::new(crate::backend_client::UserManualClient::production(
+                        rt_handle.clone(),
+                    )),
+                    user_manual_controller,
+                ),
+            ),
+        );
+        app.mcp_windows.register(Self::main_argus_window());
+        cc.egui_ctx.add_plugin(crate::mcp::ArgusOutputPlugin::new(
+            app.mcp_windows.clone(),
+            app.mcp_snapshot.clone(),
+        ));
         app
     }
 
     /// Bind the MCP transport (MT-027) on the app's tokio runtime and store the handle. Logged + non-fatal
     /// on failure so the shell always opens. Only the production shell (with a multi-thread runtime) binds;
     /// the headless/test shell drives the server's `dispatch_request` directly instead.
-    fn spawn_mcp_server(&mut self) {
+    fn spawn_mcp_server(&mut self) -> bool {
         let token = self.mcp_token.clone();
         let snapshot = self.mcp_snapshot.clone();
+        let windows = self.mcp_windows.clone();
         let channel = self.mcp_action_channel.clone();
+        let Some(diagnostics) = self.internal_diagnostics.as_ref() else {
+            tracing::warn!(
+                "MCP Argus server disabled: authenticated diagnostics provenance unavailable"
+            );
+            return false;
+        };
+        let Some(signing_secret) = diagnostics.argus_signing_secret() else {
+            tracing::warn!(
+                "MCP Argus server disabled until authenticated Palmistry provenance is available"
+            );
+            return false;
+        };
+        drop(signing_secret);
+        let receipt_provenance = crate::mcp::ArgusReceiptProvenance::dynamic(
+            diagnostics.session_id(),
+            diagnostics.argus_signing_secret_provider(),
+        );
         let capture = crate::mcp::SwarmMcpServer::os_window_capture();
         let result = self.rt.block_on(async move {
-            crate::mcp::SwarmMcpServer::bind(token, snapshot, channel, capture).await
+            crate::mcp::SwarmMcpServer::bind_with_windows(
+                token,
+                snapshot,
+                windows,
+                channel,
+                receipt_provenance,
+                capture,
+            )
+            .await
         });
         match result {
             Ok(server) => {
                 tracing::info!(tcp = %server.tcp_addr(), pipe = ?server.pipe_name(), "MCP swarm server bound");
                 self.mcp_server = Some(server);
+                true
             }
             Err(e) => {
                 tracing::warn!(error = %e, "MCP swarm server bind failed; model-steering transport disabled this session");
+                false
             }
         }
     }
 
-    /// Capture the live UI tree into the shared MCP snapshot slot. Runs `ui()` once on a fresh
-    /// AccessKit-enabled context with `capturing_snapshot` set, so the async pollers / event drains /
-    /// layout scheduler are skipped (no double side effects); the resulting `accesskit::TreeUpdate` is
-    /// projected to a [`UiTreeSnapshot`] (the MT-026 path) and stored for the MCP `list_widgets` tool.
-    fn refresh_mcp_snapshot(&mut self) {
-        let ctx = egui::Context::default();
-        ctx.enable_accesskit();
-        self.capturing_snapshot = true;
-        let output = ctx.run(egui::RawInput::default(), |ctx| self.ui(ctx));
-        self.capturing_snapshot = false;
-        if let Some(update) = output.platform_output.accesskit_update {
-            let snapshot = crate::accessibility::collect_ui_tree_snapshot(&update);
-            match self.mcp_snapshot.lock() {
-                Ok(mut slot) => *slot = snapshot,
-                Err(poisoned) => *poisoned.into_inner() = snapshot,
+    fn main_argus_window() -> crate::mcp::ArgusWindowDescriptor {
+        crate::mcp::ArgusWindowDescriptor {
+            window_id: crate::mcp::MAIN_WINDOW_ID.to_owned(),
+            viewport_id: format!("{:?}", egui::ViewportId::ROOT),
+            title: crate::mcp::HANDSHAKE_WINDOW_TITLE.to_owned(),
+        }
+    }
+
+    fn argus_window_for_viewport(
+        &self,
+        viewport_id: egui::ViewportId,
+    ) -> Option<crate::mcp::ArgusWindowDescriptor> {
+        if viewport_id == egui::ViewportId::ROOT {
+            return Some(Self::main_argus_window());
+        }
+        for pane_id in self.popout_manager.popped_out_ids() {
+            let state = self.popout_manager.get(&pane_id)?;
+            if state.viewport_id == viewport_id {
+                let label = self
+                    .pane_registry
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .get(&pane_id)
+                    .map(|record| record.pane_type.label())
+                    .unwrap_or_else(|| pane_id.as_ref().to_owned());
+                return Some(crate::mcp::ArgusWindowDescriptor {
+                    window_id: argus_window_id(pane_id.as_ref()),
+                    viewport_id: format!("{viewport_id:?}"),
+                    title: popout_title_for(&label),
+                });
             }
+        }
+        None
+    }
+
+    fn register_argus_popouts(&self) {
+        for pane_id in self.popout_manager.popped_out_ids() {
+            let Some(state) = self.popout_manager.get(&pane_id) else {
+                continue;
+            };
+            let label = self
+                .pane_registry
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .get(&pane_id)
+                .map(|record| record.pane_type.label())
+                .unwrap_or_else(|| pane_id.as_ref().to_owned());
+            self.mcp_windows
+                .register(crate::mcp::ArgusWindowDescriptor {
+                    window_id: argus_window_id(pane_id.as_ref()),
+                    viewport_id: format!("{:?}", state.viewport_id),
+                    title: popout_title_for(&label),
+                });
         }
     }
 
@@ -962,6 +1120,7 @@ impl HandshakeApp {
         )));
         // MT-014 FIX-B: the in-process shell event bus (same construction as the production ctor).
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
+        let user_manual_controller = crate::user_manual_pane::UserManualPaneController::default();
         let mut app = Self {
             health_status: state,
             rt,
@@ -970,6 +1129,7 @@ impl HandshakeApp {
             last_applied_theme: None,
             pane_registry: Arc::new(Mutex::new(seeded_registry())),
             factories: build_default_factories(),
+            user_manual_controller: user_manual_controller.clone(),
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -1085,19 +1245,42 @@ impl HandshakeApp {
             // dispatch + frame-drain steering loop in-process; the over-the-wire test binds its OWN
             // `SwarmMcpServer` on a `#[tokio::test]` runtime.
             mcp_server: None,
+            mcp_bind_attempted: false,
+            mcp_bind_attempts: 0,
+            mcp_bind_retry_at: None,
             mcp_action_channel: Arc::new(Mutex::new(crate::mcp::ActionChannel::new())),
             mcp_snapshot: Arc::new(Mutex::new(empty_snapshot())),
+            mcp_windows: crate::mcp::WindowSnapshotRegistry::new(),
+            mcp_consumed_actions: HashMap::new(),
             mcp_token: crate::mcp::SessionToken::generate(),
             capturing_snapshot: false,
+            internal_diagnostics: None,
         };
+        app.factories.insert(
+            PaneType::Problems,
+            Box::new(crate::internal_diagnostics::InternalDiagnosticsPaneFactory::new(None)),
+        );
         app.factories.insert(
             PaneType::SwarmLaneDiagnostics,
             Box::new(crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::offline()),
         );
         app.factories.insert(
+            PaneType::ModelRuntime,
+            Box::new(crate::model_runtime_panel::ModelRuntimePaneFactory::offline()),
+        );
+        app.factories.insert(
             PaneType::OperatorChatLaunch,
             Box::new(crate::operator_chat_pane::OperatorChatLaunchPaneFactory::offline()),
         );
+        app.factories.insert(
+            PaneType::UserManual,
+            Box::new(
+                crate::user_manual_pane::UserManualPaneFactory::offline_with_controller(
+                    user_manual_controller,
+                ),
+            ),
+        );
+        app.mcp_windows.register(Self::main_argus_window());
         app
     }
 
@@ -1111,6 +1294,11 @@ impl HandshakeApp {
     /// The shared MCP snapshot slot (MT-027): the live UI-tree the server's `list_widgets` reads.
     pub fn mcp_snapshot_slot(&self) -> Arc<Mutex<crate::accessibility::UiTreeSnapshot>> {
         self.mcp_snapshot.clone()
+    }
+
+    /// Window-keyed Argus snapshots for transport and focused integration tests.
+    pub fn mcp_window_registry(&self) -> crate::mcp::WindowSnapshotRegistry {
+        self.mcp_windows.clone()
     }
 
     /// The per-session MCP token (MT-027) gating every request.
@@ -1346,8 +1534,7 @@ impl HandshakeApp {
         match command_id {
             "usermanual.open" => self.navigate_to_tab("user-manual"),
             "usermanual.search" => {
-                // Open the UserManual tab; a dedicated search-focus flag lands with the UserManual
-                // search surface MT. Opening the tab is the runnable part now.
+                self.user_manual_controller.request_search_focus();
                 self.navigate_to_tab("user-manual")
             }
             "settings.open" => {
@@ -1476,11 +1663,30 @@ impl HandshakeApp {
             ),
         );
         self.factories.insert(
+            PaneType::ModelRuntime,
+            Box::new(
+                crate::model_runtime_panel::ModelRuntimePaneFactory::with_transport(Arc::new(
+                    crate::backend_client::ModelRuntimeRegistryClient::production(handle.clone()),
+                )),
+            ),
+        );
+        self.factories.insert(
             PaneType::OperatorChatLaunch,
             Box::new(
                 crate::operator_chat_pane::OperatorChatLaunchPaneFactory::with_client(Arc::new(
                     crate::backend_client::OperatorChatClient::production(handle.clone()),
                 )),
+            ),
+        );
+        self.factories.insert(
+            PaneType::UserManual,
+            Box::new(
+                crate::user_manual_pane::UserManualPaneFactory::with_transport_and_controller(
+                    Arc::new(crate::backend_client::UserManualClient::production(
+                        handle.clone(),
+                    )),
+                    self.user_manual_controller.clone(),
+                ),
             ),
         );
         self.runtime_handle = Some(handle);
@@ -1542,11 +1748,34 @@ impl HandshakeApp {
             ),
         );
         self.factories.insert(
+            PaneType::ModelRuntime,
+            Box::new(
+                crate::model_runtime_panel::ModelRuntimePaneFactory::with_transport(Arc::new(
+                    crate::backend_client::ModelRuntimeRegistryClient::new(
+                        base_url,
+                        handle.clone(),
+                    ),
+                )),
+            ),
+        );
+        self.factories.insert(
             PaneType::OperatorChatLaunch,
             Box::new(
                 crate::operator_chat_pane::OperatorChatLaunchPaneFactory::with_client(Arc::new(
                     crate::backend_client::OperatorChatClient::new(base_url, handle.clone()),
                 )),
+            ),
+        );
+        self.factories.insert(
+            PaneType::UserManual,
+            Box::new(
+                crate::user_manual_pane::UserManualPaneFactory::with_transport_and_controller(
+                    Arc::new(crate::backend_client::UserManualClient::new(
+                        base_url,
+                        handle.clone(),
+                    )),
+                    self.user_manual_controller.clone(),
+                ),
             ),
         );
         self.runtime_handle = Some(handle);
@@ -1562,6 +1791,21 @@ impl HandshakeApp {
             Box::new(
                 crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::with_projection(
                     projection,
+                ),
+            ),
+        );
+    }
+
+    #[doc(hidden)]
+    pub fn set_swarm_lane_diagnostics_transport_for_test(
+        &mut self,
+        transport: Arc<dyn crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsTransport>,
+    ) {
+        self.factories.insert(
+            PaneType::SwarmLaneDiagnostics,
+            Box::new(
+                crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsPaneFactory::with_transport(
+                    transport,
                 ),
             ),
         );
@@ -2148,11 +2392,12 @@ impl HandshakeApp {
             });
 
         if do_confirm {
-            self.confirm_pending_discard(ctx);
+            self.confirm_pending_discard_and_ack(ctx);
         } else if do_cancel {
             // Cancel: clear the arm with NO backend call (the destructive op never runs).
             self.confirm_discard = None;
             ctx.request_repaint();
+            crate::mcp::argus::acknowledge_action_effect(ctx, "hsk.drawer.confirm.cancel");
         }
     }
 
@@ -2200,6 +2445,16 @@ impl HandshakeApp {
             self.drawer_action_cell.clone(),
         );
         true
+    }
+
+    /// Couple the Argus handler acknowledgement to the real destructive-effect
+    /// dispatch. Missing runtime/client paths remain honest failed receipts.
+    fn confirm_pending_discard_and_ack(&mut self, ctx: &egui::Context) -> bool {
+        let dispatched = self.confirm_pending_discard(ctx);
+        if dispatched {
+            crate::mcp::argus::acknowledge_action_effect(ctx, "hsk.drawer.confirm.ok");
+        }
+        dispatched
     }
 
     /// Dispatch a confirmed drawer card action (MT-024). Persisting actions (Stow/Pin/Discard/
@@ -2781,6 +3036,16 @@ impl HandshakeApp {
                 self.reset_layout_pending = true;
                 true
             }
+            O::OpenModelRuntime => {
+                self.close_settings();
+                let _ = self.navigate_to_tab("model-runtime");
+                true
+            }
+            O::OpenProblems => {
+                self.close_settings();
+                let _ = self.navigate_to_tab("problems");
+                true
+            }
             O::CloudByokKeySaveRequested { provider } => {
                 self.dispatch_cloud_byok_save(&provider);
                 true
@@ -2819,9 +3084,9 @@ impl HandshakeApp {
                 let cell = self.cloud_access_cell.clone();
                 let provider_owned = provider.to_owned();
                 handle.spawn(async move {
-                    // `key` (Zeroizing<String>) moves in; expose its inner str only to build the request
-                    // body, then it drops (zeroized) at task end.
-                    let result = client.store_key(&provider_owned, key.to_string()).await;
+                    // `key` remains Zeroizing<String> across the client boundary and drops (zeroized)
+                    // after the request completes or fails. Do not clone it into a plain String.
+                    let result = client.store_key(&provider_owned, key).await;
                     let (message, snapshot) = match result {
                         Ok(()) => (
                             "Saved — key stored in the OS keychain.".to_owned(),
@@ -2884,12 +3149,15 @@ impl HandshakeApp {
     /// captures or stores the credential this login establishes. Records the launch intent; the terminal
     /// spawn is suppressed in headless test shells so no console steals focus during `cargo test`.
     fn launch_cli_bridge_login(&mut self, provider: &str) {
-        let Some((program, args)) = self.cloud_models.cli_login_command(provider) else {
+        let Some((program, args)) = allowlisted_cli_login_command(provider) else {
             self.cloud_models
                 .set_message(provider, "No login command available for this provider.");
             return;
         };
-        self.last_cli_login_launch = Some((program.clone(), args.clone()));
+        self.last_cli_login_launch = Some((
+            program.to_owned(),
+            args.iter().map(|arg| (*arg).to_owned()).collect(),
+        ));
         self.cloud_models.set_message(
             provider,
             "Launching the provider's official login in a terminal…",
@@ -2897,7 +3165,7 @@ impl HandshakeApp {
         if self.suppress_cli_login_launch {
             return;
         }
-        if let Err(err) = launch_visible_login_terminal(&program, &args) {
+        if let Err(err) = launch_visible_login_terminal(provider) {
             self.cloud_models
                 .set_message(provider, format!("Could not launch terminal: {err}"));
         }
@@ -3132,9 +3400,19 @@ impl HandshakeApp {
     /// open it on the active pane (MT-015 RUN/HELP menus). Returns `true` if the pane state changed.
     /// An unknown id is a safe no-op (returns `false`) rather than a panic.
     fn navigate_to_tab(&mut self, tab_id: &str) -> bool {
+        if tab_id == "model-runtime" {
+            // Model Runtime is the STUDIO module's default surface. Route the
+            // operator menu action through the same module transition as the
+            // module switcher so the tab and its body cannot diverge (a tab
+            // inserted while MAIN remained active produced a blank pane).
+            let module_changed = self.set_module(ModuleId::Studio);
+            let tab_opened = self.open_content_on_active_pane(PaneType::ModelRuntime, None);
+            return module_changed || tab_opened;
+        }
         let pane_type = match tab_id {
             "inference-lab" => PaneType::InferenceLab,
             "flight-recorder" => PaneType::FlightRecorder,
+            "problems" => PaneType::Problems,
             "user-manual" => PaneType::UserManual,
             "swarm" => PaneType::Swarm,
             "swarm-lane-diagnostics" => PaneType::SwarmLaneDiagnostics,
@@ -4342,6 +4620,7 @@ impl HandshakeApp {
             self.current_theme = self.current_theme.toggled();
             // Next frame's apply_theme_if_changed picks up the new palette.
             ui.ctx().request_repaint();
+            crate::mcp::argus::acknowledge_action_effect(ui.ctx(), THEME_TOGGLE_AUTHOR_ID);
         }
     }
 
@@ -4634,6 +4913,7 @@ impl HandshakeApp {
             // debounced save (no synchronous save here — rapid clicks coalesce).
             if self.set_module(module_id) {
                 ctx.request_repaint();
+                crate::mcp::argus::acknowledge_action_effect(ctx, module_id.definition().data_id);
             }
         }
 
@@ -4787,8 +5067,44 @@ impl HandshakeApp {
                 .inner
         };
         if let Some(event) = rail_event {
+            let effect_author_id = match &event {
+                LeftRailEvent::OpenDocument(id) => {
+                    Some(crate::project_tree::document_author_id(id))
+                }
+                LeftRailEvent::OpenCanvas(id) => Some(crate::project_tree::canvas_author_id(id)),
+                LeftRailEvent::OpenBookmark { block_id, .. } => {
+                    Some(crate::project_tree::bookmark_author_id(block_id))
+                }
+                LeftRailEvent::CopyPath(_) => Some("ctx-menu.explorer.copy_path".to_owned()),
+                LeftRailEvent::RenameBlock { .. } => Some("ctx-menu.explorer.rename".to_owned()),
+                LeftRailEvent::RetryProjectTree => {
+                    Some(crate::project_tree::PROJECT_TREE_RETRY_AUTHOR_ID.to_owned())
+                }
+                LeftRailEvent::FocusPaneTab { pane_id, tab_index } => {
+                    Some(format!("quick-links.{pane_id}.{tab_index}"))
+                }
+                LeftRailEvent::ToggleRail => {
+                    Some(crate::left_rail::COLLAPSE_TOGGLE_AUTHOR_ID.to_owned())
+                }
+                LeftRailEvent::ToggleStash => {
+                    Some(crate::left_rail::STASH_TOGGLE_AUTHOR_ID.to_owned())
+                }
+                LeftRailEvent::OpenModuleTab(PaneType::Placeholder(label)) if label == "Agenda" => {
+                    Some(crate::left_rail::AGENDA_AUTHOR_ID.to_owned())
+                }
+                LeftRailEvent::OpenModuleTab(PaneType::Placeholder(label)) if label == "Mail" => {
+                    Some(crate::left_rail::MAIL_AUTHOR_ID.to_owned())
+                }
+                LeftRailEvent::OpenModuleTab(PaneType::LoomDailyJournal) => {
+                    Some(crate::left_rail::NOTES_AUTHOR_ID.to_owned())
+                }
+                _ => None,
+            };
             if self.apply_left_rail_event(ctx, event) {
                 ctx.request_repaint();
+                if let Some(author_id) = effect_author_id {
+                    crate::mcp::argus::acknowledge_action_effect(ctx, &author_id);
+                }
             }
         }
         // MT-020 explorer-row rename: drain any delivered PATCH result, then render the rename dialog.
@@ -4917,6 +5233,10 @@ impl HandshakeApp {
                         LockState::Locked => LockState::Unlocked,
                         LockState::Unlocked => LockState::Locked,
                     };
+                    crate::mcp::argus::acknowledge_action_effect(
+                        ctx,
+                        &crate::pane_header::pane_lock_author_id(pane_id.as_ref()),
+                    );
                 }
             }
         }
@@ -4936,7 +5256,15 @@ impl HandshakeApp {
         // returns to the main split.
         for pane_id in &merge_requests {
             self.popout_manager.merge_back(pane_id);
+            crate::mcp::argus::acknowledge_action_effect(
+                ctx,
+                &crate::popout_window::merge_back_author_id(pane_id.as_ref()),
+            );
         }
+
+        // Register each detached viewport before rendering it so Argus inspection and capture can
+        // resolve a stable window id even before that viewport publishes its first tree.
+        self.register_argus_popouts();
 
         // Render every open pop-out into its own deferred viewport. The pane is STILL in the registry,
         // so we render it through the SAME factory + tab-bar path the main split uses (one source of
@@ -4959,7 +5287,7 @@ impl HandshakeApp {
                 .unwrap_or_else(|| pane_id.as_ref().to_owned());
             popout_title_for(&label)
         };
-        let _merged_back = self
+        let merged_back = self
             .popout_manager
             .show_all(ctx, title_for, |ctx, _class, pane_id| {
                 Self::render_popout_body(
@@ -4974,6 +5302,10 @@ impl HandshakeApp {
                     header_colors,
                 );
             });
+        for pane_id in merged_back {
+            self.mcp_windows
+                .unregister(&argus_window_id(pane_id.as_ref()));
+        }
 
         // ── Command palette overlay (MT-016) ────────────────────────────────────────────────────────
         // Rendered LAST (after the menu bar, the title/project strips, the left rail, the central pane
@@ -5171,24 +5503,99 @@ impl eframe::App for HandshakeApp {
     /// BEFORE egui processes the frame, so a connected out-of-process client steers the running shell.
     /// `raw_input_hook` is eframe's supported pre-frame seam; pushing `AccessKitActionRequest` / `Text`
     /// events here is exactly the path the in-process steering test proves.
-    fn raw_input_hook(&mut self, _ctx: &egui::Context, raw_input: &mut egui::RawInput) {
-        let events = match self.mcp_action_channel.lock() {
-            Ok(mut chan) => chan.drain_into_events(),
-            Err(poisoned) => poisoned.into_inner().drain_into_events(),
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        let Some(window) = self.argus_window_for_viewport(raw_input.viewport_id) else {
+            return;
         };
-        if !events.is_empty() {
-            raw_input.events.extend(events);
+
+        // The Argus egui output plugin published the previous REAL rendered pass after egui produced
+        // its FullOutput. This pre-pass hook uses that monotonic revision to confirm mutations that
+        // were consumed by the viewport one pass earlier.
+        let published_revision = self
+            .mcp_windows
+            .get(&window.window_id)
+            .map(|entry| entry.revision)
+            .unwrap_or(0);
+        let published_snapshot = self
+            .mcp_windows
+            .get(&window.window_id)
+            .ok()
+            .map(|entry| entry.snapshot);
+
+        let tracker = match self.mcp_action_channel.lock() {
+            Ok(channel) => channel.receipt_tracker(),
+            Err(poisoned) => poisoned.into_inner().receipt_tracker(),
+        };
+        if let Some(consumed) = self.mcp_consumed_actions.remove(&window.window_id) {
+            let mut still_waiting = Vec::new();
+            for (action_id, before_revision) in consumed {
+                if published_revision > before_revision {
+                    if let Some(snapshot) = &published_snapshot {
+                        tracker.observe_postcondition(&action_id, published_revision, snapshot);
+                    } else {
+                        tracker.failed(&action_id, "rendered snapshot evidence is unavailable");
+                    }
+                } else {
+                    still_waiting.push((action_id, before_revision));
+                }
+            }
+            if !still_waiting.is_empty() {
+                self.mcp_consumed_actions
+                    .insert(window.window_id.clone(), still_waiting);
+            }
+        }
+
+        let batch = match self.mcp_action_channel.lock() {
+            Ok(mut channel) => channel.drain_for_viewport(&window.window_id, raw_input.viewport_id),
+            Err(poisoned) => poisoned
+                .into_inner()
+                .drain_for_viewport(&window.window_id, raw_input.viewport_id),
+        };
+        if !batch.events.is_empty() {
+            raw_input.events.extend(batch.events);
+            self.mcp_consumed_actions
+                .entry(window.window_id)
+                .or_default()
+                .extend(
+                    batch
+                        .action_ids
+                        .into_iter()
+                        .map(|action_id| (action_id, published_revision)),
+                );
+            ctx.request_repaint();
         }
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let frame_started = std::time::Instant::now();
+        if !self.mcp_bind_attempted
+            && self.mcp_bind_attempts < 6
+            && self
+                .mcp_bind_retry_at
+                .is_none_or(|retry_at| std::time::Instant::now() >= retry_at)
+            && self
+                .internal_diagnostics
+                .as_ref()
+                .and_then(|diagnostics| diagnostics.argus_signing_secret())
+                .is_some()
+        {
+            self.mcp_bind_attempts += 1;
+            if self.spawn_mcp_server() {
+                self.mcp_bind_attempted = true;
+                self.mcp_bind_retry_at = None;
+            } else {
+                let backoff = 200_u64.saturating_mul(1_u64 << self.mcp_bind_attempts.min(4));
+                self.mcp_bind_retry_at =
+                    Some(std::time::Instant::now() + std::time::Duration::from_millis(backoff));
+            }
+        }
         self.ui(ctx);
-        // MT-027: publish the just-rendered UI tree into the shared MCP snapshot slot so the server's
-        // `list_widgets` returns the live tree and `click_widget`/`set_value` resolve against it. This
-        // runs a side-effect-free capture pass (guarded by `capturing_snapshot`) and requests a repaint
-        // so queued model actions are drained promptly even when the UI is otherwise idle.
+        if let Some(diagnostics) = &self.internal_diagnostics {
+            diagnostics.tick_frame(frame_started.elapsed());
+        }
+        // The previous pass is published by `raw_input_hook`; only keep an idle transport repaint
+        // alive while a queued mutation awaits viewport consumption.
         if self.mcp_server.is_some() {
-            self.refresh_mcp_snapshot();
             let has_pending = self
                 .mcp_action_channel
                 .lock()
@@ -5198,5 +5605,97 @@ impl eframe::App for HandshakeApp {
                 ctx.request_repaint();
             }
         }
+    }
+
+    fn on_exit(&mut self) {
+        if let Some(diagnostics) = &self.internal_diagnostics {
+            if let Err(error) = diagnostics.mark_explicit_shutdown() {
+                tracing::error!(error = %error, "internal diagnostics shutdown signal failed");
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod causal_argus_receipt_tests {
+    use super::*;
+    use crate::accessibility::{UiNodeBounds, UiTreeNode, UiTreeSnapshot};
+    use crate::mcp::action::UiAction;
+    use crate::mcp::argus::{
+        register_action_effect, ActionEffectRegistration, ActionReceiptStatus,
+        ActionReceiptTracker, MAIN_WINDOW_ID,
+    };
+    use crate::stash_shelf::{DrawerActionTarget, DrawerCardKind};
+    use std::time::Duration;
+
+    fn confirm_snapshot() -> UiTreeSnapshot {
+        UiTreeSnapshot {
+            root: UiTreeNode {
+                id: "hsk.drawer.confirm.ok".to_owned(),
+                author_id: Some("hsk.drawer.confirm.ok".to_owned()),
+                node_id: 1,
+                role: "Button".to_owned(),
+                label: Some("Discard".to_owned()),
+                value: None,
+                disabled: false,
+                actions: vec!["Click".to_owned()],
+                bounds: Some(UiNodeBounds {
+                    x: 0.0,
+                    y: 0.0,
+                    w: 10.0,
+                    h: 10.0,
+                }),
+                children: Vec::new(),
+            },
+            captured_at_utc: "test".to_owned(),
+            widget_count: 1,
+        }
+    }
+
+    #[test]
+    fn missing_drawer_client_cannot_acknowledge_confirm_discard_receipt() {
+        let ctx = egui::Context::default();
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".to_owned()));
+        app.confirm_discard = Some((
+            DrawerCardKind::Notes,
+            DrawerActionTarget {
+                workspace_id: "workspace-test".to_owned(),
+                block_id: "block-test".to_owned(),
+                title: "Test block".to_owned(),
+                content_type: "text".to_owned(),
+                excerpt: "body".to_owned(),
+            },
+        ));
+        assert!(app.drawer_action_client.is_none());
+
+        let snapshot = confirm_snapshot();
+        let tracker = ActionReceiptTracker::default();
+        let receipt = tracker.begin(
+            "connection-test",
+            "agent-test",
+            MAIN_WINDOW_ID,
+            "hsk.drawer.confirm.ok",
+            &UiAction::Click,
+            7,
+            &snapshot,
+        );
+        assert_eq!(
+            register_action_effect(
+                egui::ViewportId::ROOT,
+                "hsk.drawer.confirm.ok",
+                &receipt.action_id,
+                tracker.clone(),
+            ),
+            ActionEffectRegistration::Registered
+        );
+
+        assert!(!app.confirm_pending_discard_and_ack(&ctx));
+        tracker.observe_postcondition(&receipt.action_id, 8, &snapshot);
+        let terminal = tracker.wait(&receipt.action_id, Duration::ZERO).unwrap();
+        assert_eq!(terminal.status, ActionReceiptStatus::Failed);
+        assert_eq!(
+            terminal.error.as_deref(),
+            Some("click target handler did not acknowledge the requested action effect")
+        );
     }
 }

@@ -23,11 +23,12 @@
 //! in-process analog of the contract's `tokio::sync::mpsc` bounded channel; a future transport MT can
 //! feed this same queue from a socket/pipe without changing the steering semantics.
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 
 use egui::accesskit;
 
 use crate::accessibility::UiTreeSnapshot;
+use crate::mcp::argus::{ActionReceiptTracker, ArgusActionReceipt, MAIN_WINDOW_ID};
 
 /// Default bound on the number of queued, not-yet-dispatched actions. Matches the contract's
 /// `mpsc` capacity of 64: large enough for normal multi-step steering, small enough that a flood is
@@ -47,6 +48,9 @@ pub const MAX_ACTIONS_PER_BURST: usize = 16;
 pub enum UiAction {
     /// Activate the widget (egui `Action::Click` — buttons, toggles, tabs).
     Click,
+    /// Ask the target to reveal its context menu without synthesizing pointer
+    /// coordinates or stealing OS focus.
+    ShowContextMenu,
     /// Move keyboard focus to the widget (egui `Action::Focus`).
     Focus,
     /// Set a text widget's value. egui 0.33 has no `SetValue` action for text inputs (see the module
@@ -67,6 +71,7 @@ impl UiAction {
     pub fn accesskit_action(&self) -> accesskit::Action {
         match self {
             UiAction::Click => accesskit::Action::Click,
+            UiAction::ShowContextMenu => accesskit::Action::ShowContextMenu,
             UiAction::Focus | UiAction::SetValue { .. } | UiAction::Select => {
                 accesskit::Action::Focus
             }
@@ -130,6 +135,32 @@ pub struct ActionOutcome {
     pub text_payload: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+struct QueuedAction {
+    outcome: ActionOutcome,
+    action_id: Option<String>,
+    author_id: String,
+    action: UiAction,
+    window_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct DrainedArgusAction {
+    pub action_id: String,
+    pub author_id: String,
+    pub target_node_id: u64,
+    pub action: UiAction,
+}
+
+/// Events consumed by one concrete viewport in `raw_input_hook`, plus the action ids that must only
+/// be acknowledged after that viewport publishes a newer rendered snapshot.
+#[derive(Debug, Default)]
+pub struct DrainedActionBatch {
+    pub events: Vec<egui::Event>,
+    pub action_ids: Vec<String>,
+    pub attributed_actions: Vec<DrainedArgusAction>,
+}
+
 /// Look up the live `NodeId` for a stable `author_id` in a current-frame snapshot, validating the
 /// widget is present, enabled, and supports the requested action.
 ///
@@ -186,8 +217,9 @@ pub fn build_action_request(target: accesskit::NodeId, action: &UiAction) -> Act
 /// them to egui. Bounding + per-drain burst limiting implement the back-pressure and flood controls.
 #[derive(Debug, Default)]
 pub struct ActionChannel {
-    queue: VecDeque<ActionOutcome>,
+    queue: VecDeque<QueuedAction>,
     capacity: usize,
+    receipts: ActionReceiptTracker,
 }
 
 impl ActionChannel {
@@ -201,6 +233,7 @@ impl ActionChannel {
         Self {
             queue: VecDeque::new(),
             capacity: capacity.max(1),
+            receipts: ActionReceiptTracker::default(),
         }
     }
 
@@ -232,8 +265,55 @@ impl ActionChannel {
             return Err(ActionError::QueueFull);
         }
         let outcome = build_action_request(target, &action);
-        self.queue.push_back(outcome.clone());
+        self.queue.push_back(QueuedAction {
+            outcome: outcome.clone(),
+            action_id: None,
+            author_id: author_id.to_owned(),
+            action,
+            window_id: MAIN_WINDOW_ID.to_owned(),
+        });
         Ok(outcome)
+    }
+
+    /// Resolve and enqueue an attributed Argus mutation. The returned receipt remains `queued`
+    /// until the live viewport drains this action and publishes a newer snapshot.
+    #[allow(clippy::too_many_arguments)]
+    pub fn enqueue_argus(
+        &mut self,
+        snapshot: &UiTreeSnapshot,
+        window_id: &str,
+        author_id: &str,
+        action: UiAction,
+        connection_id: &str,
+        agent_label: &str,
+        before_revision: u64,
+    ) -> Result<(ActionOutcome, ArgusActionReceipt), ActionError> {
+        let target = resolve_target(snapshot, author_id, &action)?;
+        if self.is_full() {
+            return Err(ActionError::QueueFull);
+        }
+        let outcome = build_action_request(target, &action);
+        let receipt = self.receipts.begin(
+            connection_id,
+            agent_label,
+            window_id,
+            author_id,
+            &action,
+            before_revision,
+            snapshot,
+        );
+        self.queue.push_back(QueuedAction {
+            outcome: outcome.clone(),
+            action_id: Some(receipt.action_id.clone()),
+            author_id: author_id.to_owned(),
+            action,
+            window_id: window_id.to_owned(),
+        });
+        Ok((outcome, receipt))
+    }
+
+    pub fn receipt_tracker(&self) -> ActionReceiptTracker {
+        self.receipts.clone()
     }
 
     /// Drain up to [`MAX_ACTIONS_PER_BURST`] pending actions into a list of `egui::Event`s the frame
@@ -244,18 +324,91 @@ impl ActionChannel {
     /// `eframe::App::update` (or a test feeds the events to the kittest harness). The burst cap bounds
     /// one frame's injected input regardless of how full the queue is (red-team: action flood).
     pub fn drain_into_events(&mut self) -> Vec<egui::Event> {
-        let mut events = Vec::new();
-        let take = self.queue.len().min(MAX_ACTIONS_PER_BURST);
-        for _ in 0..take {
-            let Some(outcome) = self.queue.pop_front() else {
-                break;
-            };
-            events.push(egui::Event::AccessKitActionRequest(outcome.request));
-            if let Some(text) = outcome.text_payload {
-                events.push(egui::Event::Text(text));
+        self.drain_for_window(MAIN_WINDOW_ID).events
+    }
+
+    /// Drain only actions addressed to `window_id`; actions for other live viewports remain queued.
+    pub fn drain_for_window(&mut self, window_id: &str) -> DrainedActionBatch {
+        self.drain_for_window_inner(window_id, None)
+    }
+
+    /// Production viewport drain. Causal handler actions sharing one viewport +
+    /// author target are serialized through the prior action's terminal receipt,
+    /// because egui's boolean responses cannot attribute two same-target events
+    /// from one frame to two distinct action ids.
+    pub fn drain_for_viewport(
+        &mut self,
+        window_id: &str,
+        viewport_id: egui::ViewportId,
+    ) -> DrainedActionBatch {
+        self.drain_for_window_inner(window_id, Some(viewport_id))
+    }
+
+    fn drain_for_window_inner(
+        &mut self,
+        window_id: &str,
+        viewport_id: Option<egui::ViewportId>,
+    ) -> DrainedActionBatch {
+        let mut batch = DrainedActionBatch::default();
+        let mut retained = VecDeque::with_capacity(self.queue.len());
+        let mut terminal_dropped_actions = HashSet::new();
+        let mut taken = 0usize;
+        while let Some(queued) = self.queue.pop_front() {
+            if queued.window_id != window_id || taken >= MAX_ACTIONS_PER_BURST {
+                retained.push_back(queued);
+                continue;
+            }
+            if let (Some(viewport_id), Some(action_id)) = (viewport_id, queued.action_id.as_deref())
+            {
+                let action_key = (viewport_id, queued.author_id.clone());
+                if matches!(&queued.action, UiAction::Click | UiAction::ShowContextMenu)
+                    && terminal_dropped_actions.contains(&action_key)
+                {
+                    retained.push_back(queued);
+                    continue;
+                }
+                if matches!(&queued.action, UiAction::Click | UiAction::ShowContextMenu) {
+                    match crate::mcp::argus::register_action_effect(
+                        viewport_id,
+                        &queued.author_id,
+                        action_id,
+                        self.receipts.clone(),
+                    ) {
+                        crate::mcp::argus::ActionEffectRegistration::Registered => {}
+                        crate::mcp::argus::ActionEffectRegistration::Busy => {
+                            retained.push_back(queued);
+                            continue;
+                        }
+                        crate::mcp::argus::ActionEffectRegistration::AlreadyTerminal => {
+                            // Drop terminal A without injecting it. Keep later
+                            // same-target B for a subsequent drain so this batch
+                            // proves that no event or reservation survived A.
+                            terminal_dropped_actions.insert(action_key);
+                            continue;
+                        }
+                    }
+                }
+            }
+            taken += 1;
+            let target_node_id = queued.outcome.request.target.0;
+            batch
+                .events
+                .push(egui::Event::AccessKitActionRequest(queued.outcome.request));
+            if let Some(text) = queued.outcome.text_payload {
+                batch.events.push(egui::Event::Text(text));
+            }
+            if let Some(action_id) = queued.action_id {
+                batch.action_ids.push(action_id.clone());
+                batch.attributed_actions.push(DrainedArgusAction {
+                    action_id,
+                    author_id: queued.author_id,
+                    target_node_id,
+                    action: queued.action,
+                });
             }
         }
-        events
+        self.queue = retained;
+        batch
     }
 }
 
@@ -439,6 +592,118 @@ mod tests {
             chan.pending(),
             5,
             "remainder stays queued for the next frame"
+        );
+    }
+
+    #[test]
+    fn viewport_drain_serializes_same_target_parallel_click_receipts() {
+        let mut snap = fixture_snapshot();
+        let author_id = format!("parallel-btn-{}", uuid::Uuid::now_v7());
+        snap.root.children[0].author_id = Some(author_id.clone());
+        let mut chan = ActionChannel::new();
+        let (_, first) = chan
+            .enqueue_argus(
+                &snap,
+                MAIN_WINDOW_ID,
+                &author_id,
+                UiAction::Click,
+                "connection-1",
+                "agent-1",
+                7,
+            )
+            .expect("enqueue first same-target click");
+        let (_, second) = chan
+            .enqueue_argus(
+                &snap,
+                MAIN_WINDOW_ID,
+                &author_id,
+                UiAction::Click,
+                "connection-2",
+                "agent-2",
+                7,
+            )
+            .expect("enqueue second same-target click");
+        let tracker = chan.receipt_tracker();
+
+        let first_batch = chan.drain_for_viewport(MAIN_WINDOW_ID, egui::ViewportId::ROOT);
+        assert_eq!(first_batch.action_ids, vec![first.action_id.clone()]);
+        assert_eq!(chan.pending(), 1, "second click stays queued");
+        let ctx = egui::Context::default();
+        crate::mcp::argus::acknowledge_action_effect(&ctx, &author_id);
+        tracker.observe_postcondition(&first.action_id, 8, &snap);
+
+        let second_batch = chan.drain_for_viewport(MAIN_WINDOW_ID, egui::ViewportId::ROOT);
+        assert_eq!(second_batch.action_ids, vec![second.action_id.clone()]);
+        assert_eq!(chan.pending(), 0);
+        crate::mcp::argus::acknowledge_action_effect(&ctx, &author_id);
+        tracker.observe_postcondition(&second.action_id, 9, &snap);
+        assert_eq!(
+            tracker
+                .wait(&first.action_id, std::time::Duration::ZERO)
+                .unwrap()
+                .status,
+            crate::mcp::argus::ActionReceiptStatus::Applied
+        );
+        assert_eq!(
+            tracker
+                .wait(&second.action_id, std::time::Duration::ZERO)
+                .unwrap()
+                .status,
+            crate::mcp::argus::ActionReceiptStatus::Applied
+        );
+    }
+
+    #[test]
+    fn terminal_before_first_drain_is_dropped_and_cannot_fence_same_target_successor() {
+        let mut snap = fixture_snapshot();
+        let author_id = format!("terminal-before-drain-{}", uuid::Uuid::now_v7());
+        snap.root.children[0].author_id = Some(author_id.clone());
+        let mut chan = ActionChannel::new();
+        let (_, first) = chan
+            .enqueue_argus(
+                &snap,
+                MAIN_WINDOW_ID,
+                &author_id,
+                UiAction::Click,
+                "connection-1",
+                "agent-1",
+                7,
+            )
+            .expect("enqueue action A");
+        let (_, second) = chan
+            .enqueue_argus(
+                &snap,
+                MAIN_WINDOW_ID,
+                &author_id,
+                UiAction::Click,
+                "connection-2",
+                "agent-2",
+                7,
+            )
+            .expect("enqueue action B");
+        let tracker = chan.receipt_tracker();
+        tracker.failed(
+            &first.action_id,
+            "receipt timed out before first viewport drain",
+        );
+
+        let terminal_batch = chan.drain_for_viewport(MAIN_WINDOW_ID, egui::ViewportId::ROOT);
+        assert!(terminal_batch.events.is_empty());
+        assert!(terminal_batch.action_ids.is_empty());
+        assert_eq!(chan.pending(), 1, "only successor B remains queued");
+
+        let successor_batch = chan.drain_for_viewport(MAIN_WINDOW_ID, egui::ViewportId::ROOT);
+        assert_eq!(successor_batch.action_ids, vec![second.action_id.clone()]);
+        assert_eq!(successor_batch.events.len(), 1);
+        let ctx = egui::Context::default();
+        crate::mcp::argus::acknowledge_action_effect(&ctx, &author_id);
+        tracker.observe_postcondition(&second.action_id, 8, &snap);
+        assert_eq!(
+            tracker
+                .wait(&second.action_id, std::time::Duration::ZERO)
+                .unwrap()
+                .status,
+            crate::mcp::argus::ActionReceiptStatus::Applied
         );
     }
 }

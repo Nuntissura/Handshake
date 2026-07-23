@@ -4,53 +4,69 @@ use std::{
     io::Read,
     path::Path,
     sync::{Arc, Mutex},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use async_trait::async_trait;
 use futures::stream;
 use sha2::{Digest, Sha256};
 
+#[cfg(feature = "candle-runtime-engine")]
+use super::{
+    artifact_snapshot::{capture_candle_artifact, CapturedCandleArtifact},
+    generate::{candle_generate_stream_tracked, CandleGenerationCodec, TokenizerGenerationCodec},
+    mamba2::{config_value_declares_mamba2, decode_mamba2_config_value, CandleMamba2Model},
+    rwkv_v5::{
+        config_value_declares_rwkv_v5, config_value_declares_unversioned_rwkv,
+        decode_rwkv_config_value, CandleRwkvV5Model,
+    },
+    rwkv_v6::{config_value_declares_rwkv_v6, decode_rwkv_v6_config_value, CandleRwkvV6Model},
+    rwkv_v7::{config_value_declares_rwkv_v7, decode_rwkv_v7_config_value, CandleRwkvV7Model},
+    score_embed::{candle_embed_tokens, candle_score_sequence},
+    ssm_state::{LockedSsmStateSource, SsmStateSource},
+    transformer::{decode_llama_config_value, CandleLlamaModel, TransformerModel},
+};
 use super::{
     device::{select_candle_device, CandleDevicePreference, CandleDeviceSelection},
     hooks::CandleSteeringHooks,
     state_vector::{SSMStateVariant, StateVectorHandle},
-    tokenizer::{
-        cache_tokenizer_if_present, tokenizer_json_path_for_artifact, CandleTokenizerCache,
-    },
-};
-#[cfg(feature = "candle-runtime-engine")]
-use super::{
-    generate::{candle_generate_stream, CandleGenerationCodec, TokenizerGenerationCodec},
-    mamba2::{artifact_config_declares_mamba2, CandleMamba2Model},
-    rwkv_v5::{
-        artifact_config_declares_rwkv_v5, artifact_config_declares_unversioned_rwkv,
-        CandleRwkvV5Model,
-    },
-    rwkv_v6::{artifact_config_declares_rwkv_v6, CandleRwkvV6Model},
-    rwkv_v7::{artifact_config_declares_rwkv_v7, CandleRwkvV7Model},
-    score_embed::{candle_embed_tokens, candle_score_sequence},
-    ssm_state::{LockedSsmStateSource, SsmStateSource},
-    transformer::{CandleLlamaModel, TransformerModel},
+    tokenizer::CandleTokenizerCache,
 };
 use crate::model_runtime::{
     CancellationToken, Embedding, GenerateRequest, HookPoint, KvCacheHandle, KvQuantSupport,
-    LoadSpec, LoraStackHandle, ModelCapabilities, ModelId, ModelRuntime, ModelRuntimeError,
-    ProviderKind, RuntimeKind, Score, SteeringHookHandle, SteeringHookOps, SteeringVector,
-    SteeringVectorId, SteeringVectorMeta, TokenStream,
+    LoadSpec, LoraStackHandle, ModelArtifactIntegrityReceipt, ModelCapabilities, ModelId,
+    ModelRuntime, ModelRuntimeError, ProviderKind, RuntimeActivityKind, RuntimeActivityTracker,
+    RuntimeArtifactIntegrityReceipt, RuntimeKind, RuntimeQuiesceError, Score, SteeringHookHandle,
+    SteeringHookOps, SteeringVector, SteeringVectorId, SteeringVectorMeta, TokenStream,
 };
 #[cfg(feature = "candle-runtime-engine")]
 use crate::model_runtime::{CaptureResult, CaptureSpec};
+#[cfg(feature = "candle-runtime-engine")]
+use candle_core::DType;
+#[cfg(feature = "candle-runtime-engine")]
+use candle_nn::VarBuilder;
 
 pub const CANDLE_NATIVE_FEATURE_DISABLED: &str =
     "Candle native engine feature disabled; enable candle-runtime-engine";
 
 pub struct CandleRuntime {
     models: HashMap<ModelId, CandleModelHandle>,
+    activity: RuntimeActivityTracker,
     device_selection: CandleDeviceSelection,
     tokenizer_cache: CandleTokenizerCache,
     #[cfg(feature = "candle-runtime-engine")]
     native_device: candle_core::Device,
+}
+
+/// Fully validated result of the official Candle boot-load path. The model is
+/// published in the runtime cache only after this receipt, architecture-derived
+/// capability set, configured hash, required-capability contract, and UUIDv7
+/// identity have all been validated together.
+#[derive(Clone, Debug)]
+pub struct AttestedCandleLoad {
+    pub model_id: ModelId,
+    pub artifact_integrity: ModelArtifactIntegrityReceipt,
+    pub capabilities: ModelCapabilities,
 }
 
 impl CandleRuntime {
@@ -58,6 +74,7 @@ impl CandleRuntime {
         let device_selection = select_candle_device(preference);
         Self {
             models: HashMap::new(),
+            activity: RuntimeActivityTracker::new(),
             #[cfg(feature = "candle-runtime-engine")]
             native_device: super::device::native_device_for_selection(&device_selection),
             device_selection,
@@ -110,6 +127,251 @@ impl CandleRuntime {
                 adapter: "candle_transformer".to_string(),
             })
     }
+
+    /// Official production load boundary used by default boot. No model/cache
+    /// publication occurs on an attestation or requirement failure.
+    pub async fn load_attested(
+        &mut self,
+        spec: LoadSpec,
+        required_capabilities: &ModelCapabilities,
+    ) -> Result<AttestedCandleLoad, ModelRuntimeError> {
+        validate_candle_load_spec_fields(&spec)?;
+
+        #[cfg(not(feature = "candle-runtime-engine"))]
+        {
+            let _ = required_capabilities;
+            Err(ModelRuntimeError::LoadError(
+                CANDLE_NATIVE_FEATURE_DISABLED.to_string(),
+            ))
+        }
+
+        #[cfg(feature = "candle-runtime-engine")]
+        {
+            let started = Instant::now();
+            let captured = capture_candle_artifact(&spec)?;
+            let prepared = self.prepare_captured_artifact(&spec, captured, started)?;
+            self.attest_and_publish(&spec, prepared, required_capabilities)
+        }
+    }
+
+    #[cfg(feature = "candle-runtime-engine")]
+    fn prepare_captured_artifact(
+        &self,
+        spec: &LoadSpec,
+        captured: CapturedCandleArtifact,
+        started: Instant,
+    ) -> Result<PreparedCandleLoad, ModelRuntimeError> {
+        let id = ModelId::new_v7();
+        let artifact_sha256 = captured.receipt.weights.sha256.clone();
+        let tokenizer_present = captured.tokenizer.is_some();
+        let architecture = detect_captured_architecture(&captured.config)?;
+        let _ = self.native_binding_marker();
+        let vb = VarBuilder::from_slice_safetensors(
+            captured.weights.as_ref(),
+            DType::F32,
+            &self.native_device,
+        )
+        .map_err(|error| {
+            ModelRuntimeError::LoadError(format!(
+                "failed to load captured Candle safetensors bytes: {error}"
+            ))
+        })?;
+
+        let (backend, capabilities, state_vector, residual_width) = match architecture {
+            CapturedCandleArchitecture::Mamba2 => {
+                let (config, eos_token_ids) = decode_mamba2_config_value(&captured.config)?;
+                let model = CandleMamba2Model::from_varbuilder_for_model(
+                    id,
+                    config,
+                    eos_token_ids,
+                    vb,
+                    &self.native_device,
+                )?;
+                let residual_width = model.hidden_dim() as usize;
+                let model_arc: Arc<Mutex<Box<dyn TransformerModel>>> =
+                    Arc::new(Mutex::new(Box::new(model)));
+                let state_source: Arc<dyn SsmStateSource> =
+                    Arc::new(LockedSsmStateSource::new(Arc::clone(&model_arc)));
+                let state_vector = state_vector_handle_with_live_source(
+                    id,
+                    &artifact_sha256,
+                    SSMStateVariant::Mamba2,
+                    state_source,
+                )?;
+                (
+                    CandleModelBackend::Mamba2 { model: model_arc },
+                    candle_mamba2_capabilities(&spec.declared_capabilities),
+                    Some(state_vector),
+                    residual_width,
+                )
+            }
+            CapturedCandleArchitecture::RwkvV7 => {
+                let (config, eos_token_ids) = decode_rwkv_v7_config_value(&captured.config)?;
+                let model = CandleRwkvV7Model::from_varbuilder_for_model(
+                    id,
+                    config,
+                    eos_token_ids,
+                    vb,
+                    &self.native_device,
+                )?;
+                let residual_width = model.hidden_dim() as usize;
+                let model_arc: Arc<Mutex<Box<dyn TransformerModel>>> =
+                    Arc::new(Mutex::new(Box::new(model)));
+                let state_source: Arc<dyn SsmStateSource> =
+                    Arc::new(LockedSsmStateSource::new(Arc::clone(&model_arc)));
+                let state_vector = state_vector_handle_with_live_source(
+                    id,
+                    &artifact_sha256,
+                    SSMStateVariant::RwkvV7,
+                    state_source,
+                )?;
+                (
+                    CandleModelBackend::RwkvV7 { model: model_arc },
+                    candle_rwkv_capabilities(&spec.declared_capabilities),
+                    Some(state_vector),
+                    residual_width,
+                )
+            }
+            CapturedCandleArchitecture::RwkvV6 => {
+                let (config, eos_token_ids) = decode_rwkv_v6_config_value(&captured.config)?;
+                let model = CandleRwkvV6Model::from_varbuilder_for_model(
+                    id,
+                    config,
+                    eos_token_ids,
+                    vb,
+                    &self.native_device,
+                )?;
+                let residual_width = model.hidden_dim() as usize;
+                let model_arc: Arc<Mutex<Box<dyn TransformerModel>>> =
+                    Arc::new(Mutex::new(Box::new(model)));
+                let state_source: Arc<dyn SsmStateSource> =
+                    Arc::new(LockedSsmStateSource::new(Arc::clone(&model_arc)));
+                let state_vector = state_vector_handle_with_live_source(
+                    id,
+                    &artifact_sha256,
+                    SSMStateVariant::RwkvV6,
+                    state_source,
+                )?;
+                (
+                    CandleModelBackend::RwkvV6 { model: model_arc },
+                    candle_rwkv_capabilities(&spec.declared_capabilities),
+                    Some(state_vector),
+                    residual_width,
+                )
+            }
+            CapturedCandleArchitecture::RwkvV5 => {
+                let (config, eos_token_ids) = decode_rwkv_config_value(&captured.config)?;
+                let model = CandleRwkvV5Model::from_varbuilder_for_model(
+                    id,
+                    config,
+                    eos_token_ids,
+                    vb,
+                    &self.native_device,
+                )?;
+                let residual_width = model.hidden_dim() as usize;
+                let model_arc: Arc<Mutex<Box<dyn TransformerModel>>> =
+                    Arc::new(Mutex::new(Box::new(model)));
+                let state_source: Arc<dyn SsmStateSource> =
+                    Arc::new(LockedSsmStateSource::new(Arc::clone(&model_arc)));
+                let state_vector = state_vector_handle_with_live_source(
+                    id,
+                    &artifact_sha256,
+                    SSMStateVariant::RwkvV5,
+                    state_source,
+                )?;
+                (
+                    CandleModelBackend::RwkvV5 { model: model_arc },
+                    candle_rwkv_capabilities(&spec.declared_capabilities),
+                    Some(state_vector),
+                    residual_width,
+                )
+            }
+            CapturedCandleArchitecture::Llama => {
+                let (config, eos_token_ids) = decode_llama_config_value(&captured.config)?;
+                let model = CandleLlamaModel::from_varbuilder_for_model_with_eos(
+                    id,
+                    config,
+                    eos_token_ids,
+                    vb,
+                    &self.native_device,
+                )?;
+                let residual_width = model.hidden_dim() as usize;
+                let mut actual_capabilities =
+                    candle_transformer_capabilities(&spec.declared_capabilities);
+                actual_capabilities.supports_embedding &= tokenizer_present;
+                actual_capabilities.embedding_dimension = actual_capabilities
+                    .supports_embedding
+                    .then_some(residual_width);
+                (
+                    CandleModelBackend::Transformer {
+                        model: Arc::new(Mutex::new(Box::new(model))),
+                    },
+                    actual_capabilities,
+                    None,
+                    residual_width,
+                )
+            }
+        };
+
+        let handle = CandleModelHandle {
+            backend,
+            capabilities,
+            cancel: CancellationToken::new(),
+            load_duration_ms: started.elapsed().as_millis().max(1),
+            device_selection: self.device_selection.clone(),
+            steering_hooks: CandleSteeringHooks::new_for_model(id, residual_width),
+            state_vector,
+            artifact_integrity: captured.receipt,
+        };
+
+        Ok(PreparedCandleLoad {
+            model_id: id,
+            handle,
+            tokenizer: captured.tokenizer,
+        })
+    }
+
+    #[cfg(feature = "candle-runtime-engine")]
+    fn attest_and_publish(
+        &mut self,
+        spec: &LoadSpec,
+        prepared: PreparedCandleLoad,
+        required_capabilities: &ModelCapabilities,
+    ) -> Result<AttestedCandleLoad, ModelRuntimeError> {
+        let expected_weights = decode_expected_sha256(&spec.sha256_expected)?;
+        prepared
+            .handle
+            .artifact_integrity
+            .validate_for_expected_weights(expected_weights)?;
+        ensure_candle_capabilities_satisfy(required_capabilities, &prepared.handle.capabilities)?;
+        if prepared.model_id.as_uuid().get_version_num() != 7 {
+            return Err(ModelRuntimeError::LoadError(format!(
+                "Candle attested load returned non-UUIDv7 model id {}",
+                prepared.model_id
+            )));
+        }
+        if self.models.contains_key(&prepared.model_id)
+            || self.tokenizer_cache.contains_key(&prepared.model_id)
+        {
+            return Err(ModelRuntimeError::LoadError(format!(
+                "Candle attested load minted duplicate model id {}",
+                prepared.model_id
+            )));
+        }
+
+        let attested = AttestedCandleLoad {
+            model_id: prepared.model_id,
+            artifact_integrity: prepared.handle.artifact_integrity.clone(),
+            capabilities: prepared.handle.capabilities.clone(),
+        };
+        // Every fallible step completed above. Publication is a no-await
+        // critical section, so callers cannot interleave with these updates.
+        if let Some(tokenizer) = prepared.tokenizer {
+            self.tokenizer_cache.insert(prepared.model_id, tokenizer);
+        }
+        self.models.insert(prepared.model_id, prepared.handle);
+        Ok(attested)
+    }
 }
 
 impl Default for CandleRuntime {
@@ -121,13 +383,20 @@ impl Default for CandleRuntime {
 #[allow(dead_code)]
 struct CandleModelHandle {
     backend: CandleModelBackend,
-    declared_capabilities: ModelCapabilities,
+    capabilities: ModelCapabilities,
     cancel: CancellationToken,
     load_duration_ms: u128,
-    tokenizer_path: std::path::PathBuf,
     device_selection: CandleDeviceSelection,
     steering_hooks: CandleSteeringHooks,
     state_vector: Option<StateVectorHandle>,
+    artifact_integrity: ModelArtifactIntegrityReceipt,
+}
+
+#[cfg(feature = "candle-runtime-engine")]
+struct PreparedCandleLoad {
+    model_id: ModelId,
+    handle: CandleModelHandle,
+    tokenizer: Option<Arc<tokenizers::Tokenizer>>,
 }
 
 enum CandleModelBackend {
@@ -155,199 +424,72 @@ enum CandleModelBackend {
     TransformerScaffold,
 }
 
+#[cfg(feature = "candle-runtime-engine")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CapturedCandleArchitecture {
+    Llama,
+    Mamba2,
+    RwkvV5,
+    RwkvV6,
+    RwkvV7,
+}
+
+#[cfg(feature = "candle-runtime-engine")]
+fn detect_captured_architecture(
+    config: &serde_json::Value,
+) -> Result<CapturedCandleArchitecture, ModelRuntimeError> {
+    if config_value_declares_mamba2(config) {
+        return Ok(CapturedCandleArchitecture::Mamba2);
+    }
+    if config_value_declares_rwkv_v7(config) {
+        return Ok(CapturedCandleArchitecture::RwkvV7);
+    }
+    if config_value_declares_rwkv_v6(config) {
+        return Ok(CapturedCandleArchitecture::RwkvV6);
+    }
+    if config_value_declares_rwkv_v5(config) {
+        return Ok(CapturedCandleArchitecture::RwkvV5);
+    }
+    if config_value_declares_unversioned_rwkv(config) {
+        return Err(ModelRuntimeError::LoadError(
+            "Candle RWKV config declares generic RWKV without a v5, v6, or v7 marker; use model_type rwkv5/rwkv6/rwkv7 or a versioned architecture marker"
+                .to_string(),
+        ));
+    }
+    Ok(CapturedCandleArchitecture::Llama)
+}
+
 #[async_trait]
 impl ModelRuntime for CandleRuntime {
     async fn load(&mut self, spec: LoadSpec) -> Result<ModelId, ModelRuntimeError> {
-        validate_candle_load_spec(&spec)?;
-
-        #[cfg(not(feature = "candle-runtime-engine"))]
-        {
-            Err(ModelRuntimeError::LoadError(
-                CANDLE_NATIVE_FEATURE_DISABLED.to_string(),
-            ))
-        }
-
-        #[cfg(feature = "candle-runtime-engine")]
-        {
-            let started = Instant::now();
-            let id = ModelId::new_v7();
-            cache_tokenizer_if_present(&mut self.tokenizer_cache, id, &spec.artifact_path)?;
-            let tokenizer_path = tokenizer_json_path_for_artifact(&spec.artifact_path);
-            let artifact_sha256 = spec.sha256_expected.trim().to_ascii_lowercase();
-            let _ = self.native_binding_marker();
-            let is_mamba2 = artifact_config_declares_mamba2(&spec.artifact_path)?;
-            let is_rwkv_v7 = artifact_config_declares_rwkv_v7(&spec.artifact_path)?;
-            let is_rwkv_v6 = artifact_config_declares_rwkv_v6(&spec.artifact_path)?;
-            let is_rwkv_v5 = artifact_config_declares_rwkv_v5(&spec.artifact_path)?;
-            let is_unversioned_rwkv =
-                artifact_config_declares_unversioned_rwkv(&spec.artifact_path)?;
-            let load_duration_ms = started.elapsed().as_millis().max(1);
-            if is_mamba2 {
-                let model = CandleMamba2Model::load_safetensors_for_model(
-                    id,
-                    &spec.artifact_path,
-                    &self.native_device,
-                )?;
-                let residual_width = model.hidden_dim() as usize;
-                let boxed: Box<dyn TransformerModel> = Box::new(model);
-                let model_arc = Arc::new(Mutex::new(boxed));
-                let state_source: Arc<dyn SsmStateSource> =
-                    Arc::new(LockedSsmStateSource::new(Arc::clone(&model_arc)));
-                let state_vector = state_vector_handle_with_live_source(
-                    id,
-                    &artifact_sha256,
-                    SSMStateVariant::Mamba2,
-                    state_source,
-                )?;
-                self.models.insert(
-                    id,
-                    CandleModelHandle {
-                        backend: CandleModelBackend::Mamba2 { model: model_arc },
-                        declared_capabilities: candle_mamba2_capabilities(
-                            &spec.declared_capabilities,
-                        ),
-                        cancel: CancellationToken::new(),
-                        load_duration_ms,
-                        tokenizer_path,
-                        device_selection: self.device_selection.clone(),
-                        steering_hooks: CandleSteeringHooks::new_for_model(id, residual_width),
-                        state_vector: Some(state_vector),
-                    },
-                );
-            } else if is_rwkv_v7 {
-                let model = CandleRwkvV7Model::load_safetensors_for_model(
-                    id,
-                    &spec.artifact_path,
-                    &self.native_device,
-                )?;
-                let residual_width = model.hidden_dim() as usize;
-                let boxed: Box<dyn TransformerModel> = Box::new(model);
-                let model_arc = Arc::new(Mutex::new(boxed));
-                let state_source: Arc<dyn SsmStateSource> =
-                    Arc::new(LockedSsmStateSource::new(Arc::clone(&model_arc)));
-                let state_vector = state_vector_handle_with_live_source(
-                    id,
-                    &artifact_sha256,
-                    SSMStateVariant::RwkvV7,
-                    state_source,
-                )?;
-                self.models.insert(
-                    id,
-                    CandleModelHandle {
-                        backend: CandleModelBackend::RwkvV7 { model: model_arc },
-                        declared_capabilities: candle_rwkv_capabilities(
-                            &spec.declared_capabilities,
-                        ),
-                        cancel: CancellationToken::new(),
-                        load_duration_ms,
-                        tokenizer_path,
-                        device_selection: self.device_selection.clone(),
-                        steering_hooks: CandleSteeringHooks::new_for_model(id, residual_width),
-                        state_vector: Some(state_vector),
-                    },
-                );
-            } else if is_rwkv_v6 {
-                let model = CandleRwkvV6Model::load_safetensors_for_model(
-                    id,
-                    &spec.artifact_path,
-                    &self.native_device,
-                )?;
-                let residual_width = model.hidden_dim() as usize;
-                let boxed: Box<dyn TransformerModel> = Box::new(model);
-                let model_arc = Arc::new(Mutex::new(boxed));
-                let state_source: Arc<dyn SsmStateSource> =
-                    Arc::new(LockedSsmStateSource::new(Arc::clone(&model_arc)));
-                let state_vector = state_vector_handle_with_live_source(
-                    id,
-                    &artifact_sha256,
-                    SSMStateVariant::RwkvV6,
-                    state_source,
-                )?;
-                self.models.insert(
-                    id,
-                    CandleModelHandle {
-                        backend: CandleModelBackend::RwkvV6 { model: model_arc },
-                        declared_capabilities: candle_rwkv_capabilities(
-                            &spec.declared_capabilities,
-                        ),
-                        cancel: CancellationToken::new(),
-                        load_duration_ms,
-                        tokenizer_path,
-                        device_selection: self.device_selection.clone(),
-                        steering_hooks: CandleSteeringHooks::new_for_model(id, residual_width),
-                        state_vector: Some(state_vector),
-                    },
-                );
-            } else if is_rwkv_v5 {
-                let model = CandleRwkvV5Model::load_safetensors_for_model(
-                    id,
-                    &spec.artifact_path,
-                    &self.native_device,
-                )?;
-                let residual_width = model.hidden_dim() as usize;
-                let boxed: Box<dyn TransformerModel> = Box::new(model);
-                let model_arc = Arc::new(Mutex::new(boxed));
-                let state_source: Arc<dyn SsmStateSource> =
-                    Arc::new(LockedSsmStateSource::new(Arc::clone(&model_arc)));
-                let state_vector = state_vector_handle_with_live_source(
-                    id,
-                    &artifact_sha256,
-                    SSMStateVariant::RwkvV5,
-                    state_source,
-                )?;
-                self.models.insert(
-                    id,
-                    CandleModelHandle {
-                        backend: CandleModelBackend::RwkvV5 { model: model_arc },
-                        declared_capabilities: candle_rwkv_capabilities(
-                            &spec.declared_capabilities,
-                        ),
-                        cancel: CancellationToken::new(),
-                        load_duration_ms,
-                        tokenizer_path,
-                        device_selection: self.device_selection.clone(),
-                        steering_hooks: CandleSteeringHooks::new_for_model(id, residual_width),
-                        state_vector: Some(state_vector),
-                    },
-                );
-            } else if is_unversioned_rwkv {
-                return Err(ModelRuntimeError::LoadError(
-                    "Candle RWKV config declares generic RWKV without a v5, v6, or v7 marker; use model_type rwkv5/rwkv6/rwkv7 or a versioned architecture marker"
-                        .to_string(),
-                ));
-            } else {
-                let model = CandleLlamaModel::load_safetensors_for_model(
-                    id,
-                    &spec.artifact_path,
-                    &self.native_device,
-                )?;
-                let residual_width = model.hidden_dim() as usize;
-                self.models.insert(
-                    id,
-                    CandleModelHandle {
-                        backend: CandleModelBackend::Transformer {
-                            model: Arc::new(Mutex::new(Box::new(model))),
-                        },
-                        declared_capabilities: candle_transformer_capabilities(
-                            &spec.declared_capabilities,
-                        ),
-                        cancel: CancellationToken::new(),
-                        load_duration_ms,
-                        tokenizer_path,
-                        device_selection: self.device_selection.clone(),
-                        steering_hooks: CandleSteeringHooks::new_for_model(id, residual_width),
-                        state_vector: None,
-                    },
-                );
-            }
-            Ok(id)
-        }
+        let required_capabilities = ModelCapabilities::default();
+        self.load_attested(spec, &required_capabilities)
+            .await
+            .map(|attested| attested.model_id)
     }
 
     async fn unload(&mut self, id: ModelId) -> Result<(), ModelRuntimeError> {
-        self.models.remove(&id).map(|_| ()).ok_or_else(|| {
+        self.models.remove(&id).ok_or_else(|| {
             ModelRuntimeError::UnloadError(format!("candle model is not loaded: {id}"))
-        })
+        })?;
+        self.tokenizer_cache.remove(&id);
+        Ok(())
+    }
+
+    async fn quiesce_model(
+        &self,
+        id: ModelId,
+        timeout: std::time::Duration,
+    ) -> Result<(), crate::model_runtime::activity::RuntimeQuiesceError> {
+        self.activity.quiesce_model(id, timeout).await
+    }
+
+    fn resume_model_admission(
+        &self,
+        id: ModelId,
+    ) -> Result<(), crate::model_runtime::activity::RuntimeQuiesceError> {
+        self.activity.resume_model(id);
+        Ok(())
     }
 
     fn generate(&self, req: GenerateRequest) -> TokenStream {
@@ -360,6 +502,17 @@ impl ModelRuntime for CandleRuntime {
         if req.cancel.is_cancelled() || handle.cancel.is_cancelled() {
             return single_error_stream(ModelRuntimeError::Cancelled);
         }
+
+        let activity_guard = match self.activity.try_register(
+            req.id,
+            RuntimeActivityKind::Generate,
+            Some(req.cancel.clone()),
+        ) {
+            Ok(guard) => guard,
+            Err(error) => {
+                return single_error_stream(ModelRuntimeError::GenerateError(error.to_string()));
+            }
+        };
 
         #[cfg(feature = "candle-runtime-engine")]
         {
@@ -375,12 +528,13 @@ impl ModelRuntime for CandleRuntime {
                             req.id
                         )));
                     };
-                    candle_generate_stream(
+                    candle_generate_stream_tracked(
                         model.clone(),
                         Arc::new(TokenizerGenerationCodec::new(tokenizer)),
                         handle.steering_hooks.clone(),
                         req,
                         handle.cancel.clone(),
+                        activity_guard,
                     )
                 }
                 _ => single_error_stream(Self::not_implemented("candle_generate")),
@@ -389,6 +543,7 @@ impl ModelRuntime for CandleRuntime {
 
         #[cfg(not(feature = "candle-runtime-engine"))]
         {
+            drop(activity_guard);
             single_error_stream(Self::not_implemented("candle_generate"))
         }
     }
@@ -401,6 +556,10 @@ impl ModelRuntime for CandleRuntime {
 
         #[cfg(feature = "candle-runtime-engine")]
         {
+            let activity_guard = self
+                .activity
+                .try_register(id, RuntimeActivityKind::Score, None)
+                .map_err(|error| ModelRuntimeError::ScoreError(error.to_string()))?;
             // Teacher-forcing scoring works for any backend whose model exposes
             // the per-position logits seam. The Transformer backend implements
             // it; SSM backends fall through to the trait default (typed
@@ -417,6 +576,7 @@ impl ModelRuntime for CandleRuntime {
                     // blocking worker so the async scheduler is not stalled.
                     if tokio::runtime::Handle::try_current().is_ok() {
                         tokio::task::spawn_blocking(move || {
+                            let _activity_guard = activity_guard;
                             candle_score_sequence(&model, &hooks, sequence)
                         })
                         .await
@@ -426,6 +586,7 @@ impl ModelRuntime for CandleRuntime {
                             ))
                         })?
                     } else {
+                        let _activity_guard = activity_guard;
                         candle_score_sequence(&model, &hooks, sequence)
                     }
                 }
@@ -447,6 +608,10 @@ impl ModelRuntime for CandleRuntime {
 
         #[cfg(feature = "candle-runtime-engine")]
         {
+            let activity_guard = self
+                .activity
+                .try_register(id, RuntimeActivityKind::Embed, None)
+                .map_err(|error| ModelRuntimeError::EmbedError(error.to_string()))?;
             let Some(tokenizer) = self.tokenizer_cache.get(&id).cloned() else {
                 return Err(ModelRuntimeError::EmbedError(format!(
                     "candle tokenizer is not loaded for model {id}"
@@ -469,6 +634,7 @@ impl ModelRuntime for CandleRuntime {
                     let hooks = handle.steering_hooks.clone();
                     if tokio::runtime::Handle::try_current().is_ok() {
                         tokio::task::spawn_blocking(move || {
+                            let _activity_guard = activity_guard;
                             candle_embed_tokens(&model, &hooks, token_ids)
                         })
                         .await
@@ -478,6 +644,7 @@ impl ModelRuntime for CandleRuntime {
                             ))
                         })?
                     } else {
+                        let _activity_guard = activity_guard;
                         candle_embed_tokens(&model, &hooks, token_ids)
                     }
                 }
@@ -491,10 +658,24 @@ impl ModelRuntime for CandleRuntime {
         }
     }
 
+    async fn quiesce(&self, timeout: Duration) -> Result<(), RuntimeQuiesceError> {
+        self.activity.quiesce(timeout).await
+    }
+
+    fn artifact_integrity(
+        &self,
+        id: ModelId,
+    ) -> Result<RuntimeArtifactIntegrityReceipt, ModelRuntimeError> {
+        self.models
+            .get(&id)
+            .map(|handle| handle.artifact_integrity.clone().into())
+            .ok_or_else(|| ModelRuntimeError::LoadError(Self::not_loaded_message(id)))
+    }
+
     fn capabilities(&self, id: ModelId) -> Result<&ModelCapabilities, ModelRuntimeError> {
         self.models
             .get(&id)
-            .map(|handle| &handle.declared_capabilities)
+            .map(|handle| &handle.capabilities)
             .ok_or_else(|| ModelRuntimeError::LoadError(Self::not_loaded_message(id)))
     }
 
@@ -533,7 +714,7 @@ impl ModelRuntime for CandleRuntime {
             .models
             .get(&id)
             .ok_or_else(|| ModelRuntimeError::SteeringHookError(Self::not_loaded_message(id)))?;
-        if !handle.declared_capabilities.supports_activation_steering {
+        if !handle.capabilities.supports_activation_steering {
             return Err(ModelRuntimeError::CapabilityNotSupported {
                 capability: "activation_steering".to_string(),
                 adapter: "candle".to_string(),
@@ -634,20 +815,91 @@ pub async fn load_local_candle_model(
     })
 }
 
-pub fn validate_candle_load_spec(spec: &LoadSpec) -> Result<(), ModelRuntimeError> {
-    if spec.runtime_kind != RuntimeKind::Candle {
-        return Err(ModelRuntimeError::LoadError(format!(
-            "CandleRuntime requires RuntimeKind::Candle, got {:?}",
-            spec.runtime_kind
-        )));
-    }
+fn decode_expected_sha256(expected: &str) -> Result<[u8; 32], ModelRuntimeError> {
+    let trimmed = expected.trim();
+    let decoded = hex::decode(trimmed).map_err(|error| {
+        ModelRuntimeError::LoadError(format!(
+            "Candle expected artifact sha256 is not valid hex: {error}"
+        ))
+    })?;
+    decoded.try_into().map_err(|bytes: Vec<u8>| {
+        ModelRuntimeError::LoadError(format!(
+            "Candle expected artifact sha256 decoded to {} bytes, expected 32",
+            bytes.len()
+        ))
+    })
+}
 
-    if spec.provider != ProviderKind::Local {
+fn ensure_candle_capabilities_satisfy(
+    required: &ModelCapabilities,
+    actual: &ModelCapabilities,
+) -> Result<(), ModelRuntimeError> {
+    let required_flags = [
+        (
+            "supports_lora",
+            required.supports_lora,
+            actual.supports_lora,
+        ),
+        (
+            "supports_kv_prefix_cache",
+            required.supports_kv_prefix_cache,
+            actual.supports_kv_prefix_cache,
+        ),
+        (
+            "supports_activation_steering",
+            required.supports_activation_steering,
+            actual.supports_activation_steering,
+        ),
+        (
+            "supports_subquadratic",
+            required.supports_subquadratic,
+            actual.supports_subquadratic,
+        ),
+        (
+            "supports_speculative_draft",
+            required.supports_speculative_draft,
+            actual.supports_speculative_draft,
+        ),
+        (
+            "supports_eagle3",
+            required.supports_eagle3,
+            actual.supports_eagle3,
+        ),
+        (
+            "supports_embedding",
+            required.supports_embedding,
+            actual.supports_embedding,
+        ),
+    ];
+    if let Some((name, _, _)) = required_flags
+        .into_iter()
+        .find(|(_, required, actual)| *required && !*actual)
+    {
         return Err(ModelRuntimeError::LoadError(format!(
-            "CandleRuntime accepts only local provider specs, got {:?}",
-            spec.provider
+            "Candle attested load is missing required capability {name}"
         )));
     }
+    if required.supports_kv_quantization != KvQuantSupport::None
+        && actual.supports_kv_quantization != required.supports_kv_quantization
+    {
+        return Err(ModelRuntimeError::LoadError(format!(
+            "Candle attested load KV quantization {:?} differs from required {:?}",
+            actual.supports_kv_quantization, required.supports_kv_quantization
+        )));
+    }
+    if let Some(required_dimension) = required.embedding_dimension {
+        if actual.embedding_dimension != Some(required_dimension) {
+            return Err(ModelRuntimeError::LoadError(format!(
+                "Candle attested load embedding dimension {:?} differs from required {required_dimension}",
+                actual.embedding_dimension
+            )));
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_candle_load_spec(spec: &LoadSpec) -> Result<(), ModelRuntimeError> {
+    validate_candle_load_spec_fields(spec)?;
 
     if !spec.artifact_path.is_file() {
         return Err(ModelRuntimeError::LoadError(format!(
@@ -667,6 +919,24 @@ pub fn validate_candle_load_spec(spec: &LoadSpec) -> Result<(), ModelRuntimeErro
     Ok(())
 }
 
+fn validate_candle_load_spec_fields(spec: &LoadSpec) -> Result<(), ModelRuntimeError> {
+    if spec.runtime_kind != RuntimeKind::Candle {
+        return Err(ModelRuntimeError::LoadError(format!(
+            "CandleRuntime requires RuntimeKind::Candle, got {:?}",
+            spec.runtime_kind
+        )));
+    }
+
+    if spec.provider != ProviderKind::Local {
+        return Err(ModelRuntimeError::LoadError(format!(
+            "CandleRuntime accepts only local provider specs, got {:?}",
+            spec.provider
+        )));
+    }
+
+    Ok(())
+}
+
 pub fn candle_transformer_capabilities(declared: &ModelCapabilities) -> ModelCapabilities {
     ModelCapabilities {
         supports_lora: true,
@@ -676,7 +946,8 @@ pub fn candle_transformer_capabilities(declared: &ModelCapabilities) -> ModelCap
         supports_subquadratic: false,
         supports_speculative_draft: false,
         supports_eagle3: false,
-        ..Default::default()
+        supports_embedding: declared.supports_embedding,
+        embedding_dimension: declared.embedding_dimension,
     }
 }
 
@@ -700,7 +971,8 @@ pub fn candle_mamba2_capabilities(_declared: &ModelCapabilities) -> ModelCapabil
         supports_subquadratic: true,
         supports_speculative_draft: false,
         supports_eagle3: false,
-        ..Default::default()
+        supports_embedding: false,
+        embedding_dimension: None,
     }
 }
 
@@ -719,7 +991,8 @@ pub fn candle_rwkv_capabilities(_declared: &ModelCapabilities) -> ModelCapabilit
         supports_subquadratic: true,
         supports_speculative_draft: false,
         supports_eagle3: false,
-        ..Default::default()
+        supports_embedding: false,
+        embedding_dimension: None,
     }
 }
 
@@ -881,6 +1154,31 @@ mod tests {
     }
 
     #[test]
+    fn mt013_transformer_and_ssm_capability_finalizers_are_architecture_truthful() {
+        let declared = ModelCapabilities {
+            supports_activation_steering: true,
+            supports_embedding: true,
+            embedding_dimension: Some(999),
+            ..Default::default()
+        };
+
+        let transformer = candle_transformer_capabilities(&declared);
+        assert!(transformer.supports_activation_steering);
+        assert!(transformer.supports_embedding);
+        assert_eq!(transformer.embedding_dimension, Some(999));
+
+        for ssm in [
+            candle_mamba2_capabilities(&declared),
+            candle_rwkv_capabilities(&declared),
+        ] {
+            assert!(!ssm.supports_activation_steering);
+            assert!(ssm.supports_subquadratic);
+            assert!(!ssm.supports_embedding);
+            assert_eq!(ssm.embedding_dimension, None);
+        }
+    }
+
+    #[test]
     fn candle_adapter_validation_rejects_wrong_runtime() {
         let tempdir = tempfile::tempdir().expect("tempdir");
         let path = tempdir.path().join("model.safetensors");
@@ -903,5 +1201,303 @@ mod tests {
 
         let error = validate_candle_load_spec(&spec).expect_err("wrong runtime rejected");
         assert!(error.to_string().contains("CandleRuntime"), "{error}");
+    }
+
+    #[cfg(feature = "candle-runtime-engine")]
+    #[tokio::test]
+    async fn mt013_wrong_weights_hash_fails_before_any_cache_publication() {
+        let fixture = TinyCandleBundle::new(true);
+        let mut runtime = CandleRuntime::default();
+        let error = runtime
+            .load(fixture.load_spec("00".repeat(32)))
+            .await
+            .expect_err("wrong expected digest must fail closed");
+
+        assert!(error.to_string().contains("sha256 mismatch"), "{error}");
+        assert!(runtime.models.is_empty());
+        assert_eq!(runtime.tokenizer_cache_len(), 0);
+    }
+
+    #[test]
+    fn mt013_production_attested_load_has_no_path_reopen_or_raw_loader_bypass() {
+        let source = include_str!("adapter.rs");
+        let start = source
+            .find("pub async fn load_attested(")
+            .expect("official attested Candle load boundary");
+        let end = source[start..]
+            .find("impl Default for CandleRuntime")
+            .map(|offset| start + offset)
+            .expect("attested Candle load boundary end");
+        let production_load = &source[start..end];
+
+        for forbidden in [
+            "from_mmaped_safetensors",
+            "Tokenizer::from_file",
+            "artifact_config_declares",
+            "sha256_file",
+        ] {
+            assert!(
+                !production_load.contains(forbidden),
+                "CandleRuntime::load_attested must consume the immutable captured bundle, not {forbidden}"
+            );
+        }
+        assert!(production_load.contains("capture_candle_artifact"));
+        assert!(production_load.contains("prepare_captured_artifact"));
+        assert!(production_load.contains("attest_and_publish"));
+
+        let trait_load_start = source
+            .find("async fn load(&mut self, spec: LoadSpec)")
+            .expect("ModelRuntime load implementation");
+        let trait_load_end = source[trait_load_start..]
+            .find("async fn unload")
+            .map(|offset| trait_load_start + offset)
+            .expect("ModelRuntime unload boundary");
+        assert!(source[trait_load_start..trait_load_end].contains("load_attested"));
+    }
+
+    #[cfg(feature = "candle-runtime-engine")]
+    #[tokio::test]
+    async fn mt013_source_replacement_after_capture_cannot_change_loaded_bytes() {
+        let fixture = TinyCandleBundle::new(true);
+        let mut spec =
+            fixture.load_spec(sha256_file(&fixture.weights).expect("hash fixture weights"));
+        spec.declared_capabilities.supports_embedding = true;
+        spec.declared_capabilities.embedding_dimension = Some(999);
+        let captured = capture_candle_artifact(&spec).expect("capture exact bundle");
+        let expected_receipt = captured.receipt.clone();
+
+        fs::write(&fixture.weights, b"replacement weights are not safetensors")
+            .expect("replace source weights after capture");
+        fs::write(&fixture.config, br#"{"model_type":"replaced"}"#)
+            .expect("replace source config after capture");
+        fs::write(&fixture.tokenizer, b"not a tokenizer")
+            .expect("replace source tokenizer after capture");
+
+        let mut runtime = CandleRuntime::default();
+        let prepared = runtime
+            .prepare_captured_artifact(&spec, captured, Instant::now())
+            .expect("captured bytes still construct the real Candle model");
+        let attested = runtime
+            .attest_and_publish(&spec, prepared, &ModelCapabilities::default())
+            .expect("captured bytes pass attestation and publish atomically");
+        let id = attested.model_id;
+        assert_eq!(attested.artifact_integrity, expected_receipt);
+        assert_eq!(
+            runtime.artifact_integrity(id).unwrap(),
+            RuntimeArtifactIntegrityReceipt::from(expected_receipt)
+        );
+        assert_eq!(runtime.tokenizer_cache_len(), 1);
+
+        let score = runtime
+            .score(id, vec![1, 2])
+            .await
+            .expect("real forward uses captured weights after source replacement");
+        assert_eq!(score.token_logprobs.len(), 1);
+    }
+
+    #[cfg(feature = "candle-runtime-engine")]
+    #[test]
+    fn mt013_config_and_tokenizer_changes_each_change_bundle_digest() {
+        let fixture = TinyCandleBundle::new(true);
+        let weights_sha256 = sha256_file(&fixture.weights).expect("hash fixture weights");
+        let spec = fixture.load_spec(weights_sha256);
+        let original_config = fs::read(&fixture.config).expect("read original config");
+        let original_tokenizer = fs::read(&fixture.tokenizer).expect("read original tokenizer");
+        let original = capture_candle_artifact(&spec)
+            .expect("capture original")
+            .receipt;
+
+        let mut changed_config: serde_json::Value =
+            serde_json::from_slice(&original_config).expect("decode config fixture");
+        changed_config["bos_token_id"] = serde_json::json!(1);
+        fs::write(
+            &fixture.config,
+            serde_json::to_vec(&changed_config).expect("encode changed config"),
+        )
+        .expect("write changed config");
+        let config_changed = capture_candle_artifact(&spec)
+            .expect("capture config change")
+            .receipt;
+
+        fs::write(&fixture.config, &original_config).expect("restore exact config bytes");
+        let mut changed_tokenizer = original_tokenizer.clone();
+        changed_tokenizer.push(b'\n');
+        fs::write(&fixture.tokenizer, changed_tokenizer).expect("write changed tokenizer");
+        let tokenizer_changed = capture_candle_artifact(&spec)
+            .expect("capture tokenizer change")
+            .receipt;
+
+        assert_eq!(original.weights, config_changed.weights);
+        assert_ne!(original.config, config_changed.config);
+        assert_eq!(original.tokenizer, config_changed.tokenizer);
+        assert_ne!(original.bundle_sha256, config_changed.bundle_sha256);
+
+        assert_eq!(original.weights, tokenizer_changed.weights);
+        assert_eq!(original.config, tokenizer_changed.config);
+        assert_ne!(original.tokenizer, tokenizer_changed.tokenizer);
+        assert_ne!(original.bundle_sha256, tokenizer_changed.bundle_sha256);
+    }
+
+    #[cfg(feature = "candle-runtime-engine")]
+    #[tokio::test]
+    async fn mt013_missing_tokenizer_fails_required_embedding_without_cache_publication() {
+        let fixture = TinyCandleBundle::new(false);
+        let mut spec =
+            fixture.load_spec(sha256_file(&fixture.weights).expect("hash fixture weights"));
+        spec.declared_capabilities.supports_embedding = true;
+        spec.declared_capabilities.embedding_dimension = Some(999);
+        let missing_receipt = capture_candle_artifact(&spec)
+            .expect("capture bundle without tokenizer")
+            .receipt;
+        assert!(missing_receipt.tokenizer.is_none());
+
+        let mut runtime = CandleRuntime::default();
+        let required_embedding = ModelCapabilities {
+            supports_embedding: true,
+            embedding_dimension: Some(4),
+            ..Default::default()
+        };
+        let error = runtime
+            .load_attested(spec, &required_embedding)
+            .await
+            .expect_err("required embedding must fail without a captured tokenizer");
+        assert!(error.to_string().contains("supports_embedding"), "{error}");
+        assert!(runtime.models.is_empty());
+        assert_eq!(runtime.tokenizer_cache_len(), 0);
+
+        write_test_tokenizer(&fixture.tokenizer);
+        let mut present_spec =
+            fixture.load_spec(sha256_file(&fixture.weights).expect("hash fixture weights"));
+        present_spec.declared_capabilities.supports_embedding = true;
+        present_spec.declared_capabilities.embedding_dimension = Some(999);
+        let present_receipt = capture_candle_artifact(&present_spec)
+            .expect("capture bundle with tokenizer")
+            .receipt;
+        assert!(present_receipt.tokenizer.is_some());
+        assert_ne!(missing_receipt.bundle_sha256, present_receipt.bundle_sha256);
+
+        let mut present_runtime = CandleRuntime::default();
+        let present_attested = present_runtime
+            .load_attested(present_spec, &required_embedding)
+            .await
+            .expect("tokenizer-backed embedding model loads");
+        let actual = &present_attested.capabilities;
+        assert!(actual.supports_embedding);
+        assert_eq!(actual.embedding_dimension, Some(4));
+        assert_eq!(present_runtime.models.len(), 1);
+        assert_eq!(present_runtime.tokenizer_cache_len(), 1);
+    }
+
+    #[cfg(feature = "candle-runtime-engine")]
+    #[tokio::test]
+    async fn mt013_model_construction_failure_leaves_model_and_tokenizer_caches_empty() {
+        let fixture = TinyCandleBundle::new(true);
+        fs::write(
+            &fixture.weights,
+            b"validly captured but invalid safetensors",
+        )
+        .expect("write invalid weights");
+        let spec = fixture.load_spec(sha256_file(&fixture.weights).expect("hash fixture weights"));
+        let mut runtime = CandleRuntime::default();
+
+        let error = runtime
+            .load(spec)
+            .await
+            .expect_err("invalid safetensors must fail model construction");
+        assert!(error.to_string().contains("safetensors"), "{error}");
+        assert!(runtime.models.is_empty());
+        assert_eq!(runtime.tokenizer_cache_len(), 0);
+    }
+
+    #[cfg(feature = "candle-runtime-engine")]
+    struct TinyCandleBundle {
+        _root: tempfile::TempDir,
+        weights: std::path::PathBuf,
+        config: std::path::PathBuf,
+        tokenizer: std::path::PathBuf,
+    }
+
+    #[cfg(feature = "candle-runtime-engine")]
+    impl TinyCandleBundle {
+        fn new(with_tokenizer: bool) -> Self {
+            let root = tempfile::tempdir().expect("tiny Candle bundle tempdir");
+            let weights = root.path().join("model.safetensors");
+            let config = root.path().join("config.json");
+            let tokenizer = root.path().join("tokenizer.json");
+            let config_value = serde_json::json!({
+                "hidden_size": 4,
+                "intermediate_size": 8,
+                "vocab_size": 8,
+                "num_hidden_layers": 1,
+                "num_attention_heads": 1,
+                "num_key_value_heads": 1,
+                "rms_norm_eps": 0.00001,
+                "rope_theta": 10000.0,
+                "bos_token_id": null,
+                "eos_token_id": 2,
+                "rope_scaling": null,
+                "max_position_embeddings": 16,
+                "tie_word_embeddings": false
+            });
+            fs::write(
+                &config,
+                serde_json::to_vec(&config_value).expect("encode tiny config"),
+            )
+            .expect("write tiny config");
+
+            let (runtime_config, _) =
+                decode_llama_config_value(&config_value).expect("decode tiny config");
+            let varmap = candle_nn::VarMap::new();
+            let vb = candle_nn::VarBuilder::from_varmap(
+                &varmap,
+                candle_core::DType::F32,
+                &candle_core::Device::Cpu,
+            );
+            let _model = CandleLlamaModel::from_varbuilder_for_model(
+                ModelId::new_v7(),
+                runtime_config,
+                vb,
+                &candle_core::Device::Cpu,
+            )
+            .expect("construct tiny Candle weights");
+            varmap.save(&weights).expect("save tiny safetensors");
+            if with_tokenizer {
+                write_test_tokenizer(&tokenizer);
+            }
+
+            Self {
+                _root: root,
+                weights,
+                config,
+                tokenizer,
+            }
+        }
+
+        fn load_spec(&self, sha256_expected: String) -> LoadSpec {
+            LoadSpec {
+                artifact_path: self.weights.clone(),
+                sha256_expected,
+                runtime_kind: RuntimeKind::Candle,
+                sampling_defaults: SamplingParams::default(),
+                kv_cache_policy: KvCachePolicy::Default {
+                    quant: KvQuantSupport::None,
+                    prefix_cache_ttl_seconds: 0,
+                    max_bytes: None,
+                },
+                declared_capabilities: ModelCapabilities::default(),
+                provider: ProviderKind::Local,
+                engine_origin: Some("candle".to_string()),
+                external_engine_import: None,
+            }
+        }
+    }
+
+    #[cfg(feature = "candle-runtime-engine")]
+    fn write_test_tokenizer(path: &Path) {
+        fs::write(
+            path,
+            br#"{"version":"1.0","truncation":null,"padding":null,"added_tokens":[],"normalizer":null,"pre_tokenizer":null,"post_processor":null,"decoder":null,"model":{"type":"WordLevel","vocab":{"[UNK]":0,"hello":1},"unk_token":"[UNK]"}}"#,
+        )
+        .expect("write valid tokenizer fixture");
     }
 }

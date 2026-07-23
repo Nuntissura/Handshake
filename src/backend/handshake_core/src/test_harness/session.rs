@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeSet,
     sync::{Arc, Mutex},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use async_trait::async_trait;
@@ -17,8 +17,8 @@ use crate::{
     },
     process_ledger::{
         LedgerEvent, ProcessEngineKind, ProcessLedgerError, ProcessLedgerWriter, ProcessStart,
-        ProcessStop, Reclaim, ReclaimProcessStore, ReclaimStopWriter, ReclaimTrigger,
-        ReclaimableProcess, SandboxKill,
+        ProcessStop, Reclaim, ReclaimProcessStore, ReclaimStopReservation, ReclaimStopWriter,
+        ReclaimTrigger, ReclaimableProcess, SandboxKill,
     },
 };
 
@@ -426,20 +426,96 @@ impl ReclaimProcessStore for EmptyReclaimStore {
     ) -> Result<Vec<ReclaimableProcess>, ProcessLedgerError> {
         Ok(Vec::new())
     }
+
+    async fn renew_reclaim_claim(
+        &self,
+        _process_uuid: Uuid,
+        claim: &crate::process_ledger::ReclaimClaim,
+    ) -> Result<crate::process_ledger::ReclaimClaim, ProcessLedgerError> {
+        Ok(claim.clone())
+    }
+
+    async fn mark_reclaim_kill_succeeded(
+        &self,
+        _stop: &ProcessStop,
+        _claim: &crate::process_ledger::ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn mark_reclaim_kill_started(
+        &self,
+        _process_uuid: Uuid,
+        _claim: &crate::process_ledger::ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn release_reclaim_claim(
+        &self,
+        _process_uuid: Uuid,
+        _claim: &crate::process_ledger::ReclaimClaim,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn resolve_reclaim_kill_operation(
+        &self,
+        _process_uuid: Uuid,
+        _kill_operation_uuid: Uuid,
+        _status: crate::process_ledger::ReclaimKillOperationStatus,
+    ) -> Result<(), ProcessLedgerError> {
+        Ok(())
+    }
+
+    async fn in_progress_kill_operations_for_session(
+        &self,
+        _session_id: &str,
+        _limit: usize,
+    ) -> Result<Vec<crate::process_ledger::ReclaimKillOperationCandidate>, ProcessLedgerError> {
+        Ok(Vec::new())
+    }
 }
 
 struct NoopSandboxKill;
 
+#[async_trait]
 impl SandboxKill for NoopSandboxKill {
-    fn kill(&self, _process_uuid: Uuid) -> Result<(), crate::process_ledger::KillError> {
+    async fn kill(
+        &self,
+        _process_uuid: Uuid,
+        _kill_operation_uuid: Uuid,
+    ) -> Result<(), crate::process_ledger::KillError> {
         Ok(())
+    }
+
+    async fn kill_operation_status(
+        &self,
+        _process_uuid: Uuid,
+        _kill_operation_uuid: Uuid,
+    ) -> Result<crate::process_ledger::ReclaimKillOperationStatus, crate::process_ledger::KillError>
+    {
+        Ok(crate::process_ledger::ReclaimKillOperationStatus::Unknown)
     }
 }
 
 struct NoopReclaimStopWriter;
 
 impl ReclaimStopWriter for NoopReclaimStopWriter {
-    fn append_reclaim_stop(&self, _stop: ProcessStop) -> Result<(), ProcessLedgerError> {
+    fn reserve_reclaim_stop(&self) -> Result<Box<dyn ReclaimStopReservation>, ProcessLedgerError> {
+        Ok(Box::new(NoopReclaimStopReservation))
+    }
+}
+
+struct NoopReclaimStopReservation;
+
+#[async_trait]
+impl ReclaimStopReservation for NoopReclaimStopReservation {
+    async fn persist(
+        self: Box<Self>,
+        _stop: ProcessStop,
+        _timeout: Duration,
+    ) -> Result<(), ProcessLedgerError> {
         Ok(())
     }
 }

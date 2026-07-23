@@ -10,16 +10,15 @@ mod user_manual_support;
 use handshake_core::api;
 use handshake_core::swarm_orchestration::model_lane::{
     model_lane_context_bundle_id_for_handoff, LaunchAuthority, ModelLaneAuthority,
-    ModelLaneCrdtHandoffMetadata, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
-    ModelLaneHandoffSelectionState, ModelLaneHandoffSourceKind, ModelLaneKind, ModelLaneLeaseScope,
-    ModelLaneLeaseState, ModelLaneLocusBinding, ModelLaneLoomHandoffRef, ModelLaneMessageKind,
-    ModelLaneMtRuntimeStatus, ModelLaneNavigationProjection, ModelLaneProviderKind,
-    ModelLaneRecoveryEventKind, ModelLaneRecoveryState, ModelLaneRecoveryStatus,
-    ModelLaneRoutingMetadata, ModelLaneStatus, ModelLaneStore, ModelLaneTarget, NewModelLane,
-    NewModelLaneContextBundleArtifactBinding, NewModelLaneContextBundleHandoff,
-    NewModelLaneDiagnosticTierStatus, NewModelLaneLease, NewModelLaneMessage,
-    NewModelLaneMtRuntimeStatus, NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent,
-    NewModelLaneRun, RuntimeBinding,
+    ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState, ModelLaneHandoffSelectionState,
+    ModelLaneHandoffSourceKind, ModelLaneKind, ModelLaneLeaseScope, ModelLaneLeaseState,
+    ModelLaneLocusBinding, ModelLaneLoomHandoffRef, ModelLaneMessageKind, ModelLaneMtRuntimeStatus,
+    ModelLaneNavigationProjection, ModelLaneProviderKind, ModelLaneRecoveryEventKind,
+    ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneRoutingMetadata, ModelLaneStatus,
+    ModelLaneStore, ModelLaneTarget, NewModelLane, NewModelLaneContextBundleArtifactBinding,
+    NewModelLaneContextBundleHandoff, NewModelLaneDiagnosticTierStatus, NewModelLaneLease,
+    NewModelLaneMessage, NewModelLaneMtRuntimeStatus, NewModelLaneRecoveryCheckpoint,
+    NewModelLaneRecoveryEvent, NewModelLaneRun, RuntimeBinding,
 };
 use handshake_core::user_manual::registry::{wp009_surface_registry, SurfaceGroup};
 use handshake_core::user_manual::seed::ensure_seeded;
@@ -43,6 +42,53 @@ struct NavigationFixture {
     _server: tokio::task::JoinHandle<()>,
     http: reqwest::Client,
     store: ModelLaneStore,
+}
+
+#[tokio::test]
+async fn model_lane_navigation_fixture_rejects_fabricated_crdt_authority() {
+    let kpg = skip_if_no_pg!(
+        knowledge_pg_support::knowledge_pg().await,
+        "model_lane_navigation_fabricated_crdt"
+    );
+    let pool = PgPool::connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated navigation CRDT rejection schema");
+    let store = ModelLaneStore::new(pool.clone());
+    let run_id = "run-mt010-navigation-fabricated-crdt";
+    let lane_id = "lane-mt010-navigation-fabricated-crdt";
+    store
+        .record_run(sample_run(run_id, vec![lane_id.to_owned()]))
+        .await
+        .expect("record fabricated-CRDT rejection run");
+    store
+        .record_lane(sample_lane(lane_id, run_id))
+        .await
+        .expect("record fabricated-CRDT rejection lane");
+    let mut message = sample_message("msg-mt010-fabricated-crdt", run_id, lane_id, 1);
+    message.crdt_update_ref = Some("crdt-update://mt010/fabricated".into());
+    message.crdt_base_snapshot_ref = Some("crdt-snapshot://mt010/fabricated".into());
+    message.crdt_state_vector = Some("sv:mt010:fabricated".into());
+    message.crdt_proposal_ref = Some("crdt-proposal://mt010/fabricated".into());
+    message.payload_sha256 = sha256_hex(&canonical_json_bytes(&artifact_payload_json_for_message(
+        &message,
+    )));
+    let error = store
+        .record_message(message)
+        .await
+        .expect_err("navigation setup must reject fabricated CRDT authority refs");
+    assert!(
+        error
+            .to_string()
+            .contains("CRDT authority resolution failed"),
+        "fabricated CRDT rejection must name the authority boundary: {error}"
+    );
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_messages WHERE message_id = 'msg-mt010-fabricated-crdt'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count rejected fabricated navigation message");
+    assert_eq!(count, 0);
 }
 
 #[tokio::test]
@@ -751,15 +797,9 @@ fn sample_message(
     replay_seq: i64,
 ) -> NewModelLaneMessage {
     let payload_ref = payload_ref(message_id);
-    let crdt_update_ref = format!("crdt-update://mt010/{message_id}");
     let locus_ref = format!("locus://wp1/mt010/{run_id}/{lane_id}/{message_id}");
-    let payload_json = artifact_payload_json_parts(
-        message_id,
-        run_id,
-        &payload_ref,
-        &crdt_update_ref,
-        &locus_ref,
-    );
+    let payload_json =
+        artifact_payload_json_parts(message_id, run_id, &payload_ref, "", &locus_ref);
     let payload_sha256 = sha256_hex(&canonical_json_bytes(&payload_json));
     NewModelLaneMessage {
         message_id: message_id.into(),
@@ -806,10 +846,10 @@ fn sample_message(
         replay_order_key: format!("{replay_seq:08}/message/{message_id}"),
         replay_after_event_ledger_seq: Some(1),
         proposal_ref: Some(format!("proposal://mt010/{message_id}")),
-        crdt_update_ref: Some(crdt_update_ref),
-        crdt_base_snapshot_ref: Some("crdt-snapshot://mt010/base".into()),
-        crdt_state_vector: Some("sv:mt010:1".into()),
-        crdt_proposal_ref: Some(format!("crdt-proposal://mt010/{message_id}")),
+        crdt_update_ref: None,
+        crdt_base_snapshot_ref: None,
+        crdt_state_vector: None,
+        crdt_proposal_ref: None,
         crdt_stale_base_ref: None,
         failstate_code: None,
         reason_ref: None,
@@ -845,8 +885,8 @@ fn sample_recovery_event(event_id: &str, run_id: &str, lane_id: &str) -> NewMode
         source_event_ledger_seq: None,
         payload_refs: vec![payload_ref(MESSAGE_ID)],
         artifact_refs: vec![payload_ref(MESSAGE_ID)],
-        crdt_base_snapshot_ref: Some("crdt-snapshot://mt010/base".into()),
-        crdt_state_vector: Some("sv:mt010:1".into()),
+        crdt_base_snapshot_ref: None,
+        crdt_state_vector: None,
         crdt_stale_base_ref: None,
         lease_id: None,
         failure_kind: None,
@@ -1017,7 +1057,7 @@ fn sample_context_bundle_handoff_for_message(
         decision_ref: Some("context-decision://mt010/navigation/select-loom-block".into()),
         reviewer_ref: Some("validator://mt010/navigation/loom-block".into()),
         replay_hint: "replay://mt010/navigation/loom-block".into(),
-        crdt_payload: Some(sample_crdt_handoff_metadata_for_message(message)),
+        crdt_payload: None,
         loom_refs: vec![ModelLaneLoomHandoffRef {
             workspace_id: "workspace-mt010-navigation".into(),
             block_id: LOOM_BLOCK_ID.into(),
@@ -1047,47 +1087,6 @@ fn sample_context_bundle_handoff_for_message(
     handoff.context_bundle_id =
         model_lane_context_bundle_id_for_handoff(&handoff).expect("derive ContextBundle id");
     handoff
-}
-
-fn sample_crdt_handoff_metadata_for_message(
-    message: &NewModelLaneMessage,
-) -> ModelLaneCrdtHandoffMetadata {
-    ModelLaneCrdtHandoffMetadata {
-        schema_id: "hsk.model_lane_crdt_payload@1".into(),
-        document_id: "doc-mt010-navigation".into(),
-        workspace_id: "workspace-mt010-navigation".into(),
-        actor_id: "actor-lane-mt010-local".into(),
-        actor_kind: "local_model".into(),
-        lane_id: message.from_lane_id.clone(),
-        crdt_site_id: "site-lane-mt010-local".into(),
-        update_seq: 1,
-        update_bytes_ref: message
-            .crdt_update_ref
-            .clone()
-            .expect("sample message has CRDT update ref"),
-        update_sha256: sample_sha256(),
-        state_vector: message
-            .crdt_state_vector
-            .clone()
-            .expect("sample message has CRDT state vector"),
-        base_snapshot_ref: message
-            .crdt_base_snapshot_ref
-            .clone()
-            .expect("sample message has CRDT base snapshot"),
-        materialized_projection_hash: sample_sha256(),
-        replay_metadata: json!({
-            "format": "yjs_update_v1",
-            "yjs_compatible": true,
-            "flight_recorder": "eventledger://mt010/crdt/msg-mt010-local"
-        }),
-        promotion_gate_ref: message
-            .promotion_gate_ref
-            .clone()
-            .expect("sample message has promotion gate ref"),
-        promotion_receipt_ref: message.promotion_receipt_ref.clone(),
-        validation_runner_ref: "validation-runner://mt010/navigation/crdt".into(),
-        authority_effect: "advisory_only".into(),
-    }
 }
 
 fn sample_locus(run_id: &str, session_id: &str, model_session_id: &str) -> ModelLaneLocusBinding {

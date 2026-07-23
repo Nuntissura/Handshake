@@ -35,8 +35,7 @@ use crate::flight_recorder::events_agent_activity::agent_activity_event;
 use crate::flight_recorder::{FlightRecorder, RecorderError};
 use crate::model_runtime::catalog::ModelCatalog;
 use crate::model_runtime::cloud::{
-    enumerate_cloud_access, parse_agent_activity_line, AgentActivity, AgentActivityKind, CliKind,
-    CliOutputFormat, ProviderAccessRegistry, ProviderAccessStatus,
+    parse_agent_activity_line, AgentActivity, AgentActivityKind, CliKind, CliOutputFormat,
 };
 use crate::model_runtime::{
     CancellationToken, FinishReason, GenPrompt, GenerateRequest, ModelId, ProviderKind,
@@ -52,14 +51,21 @@ use super::ids::{ByokCloudProvider, ModelInstanceId, SpawnRequest};
 use super::model_lane::{
     dexterity_spawn_model_session_id, DexterityLaunchAdapterKind, DexterityLaunchAdapterRequest,
     DexterityLaunchContract, LaunchAuthority, ModelLaneAuthority,
-    ModelLaneCloudConsentReceiptStatus, ModelLaneCloudConsentScope, ModelLaneCloudExportPosture,
-    ModelLaneCloudProjectionPlanStatus, ModelLaneCloudRetentionPolicy, ModelLaneDiagnosticTier,
-    ModelLaneDiagnosticTierState, ModelLaneError, ModelLaneKind, ModelLaneLocusBinding,
-    ModelLaneMessageKind, ModelLaneProviderKind, ModelLaneRecord, ModelLaneRecoveryState,
-    ModelLaneRoutingMetadata, ModelLaneRunRecord, ModelLaneStatus, ModelLaneStore, ModelLaneTarget,
-    NewModelLane, NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan,
+    ModelLaneCloudConsentReceiptRecord, ModelLaneCloudConsentReceiptStatus,
+    ModelLaneCloudConsentScope, ModelLaneCloudConsentTargetBinding, ModelLaneCloudExportPosture,
+    ModelLaneCloudProjectionPlanRecord, ModelLaneCloudProjectionPlanStatus,
+    ModelLaneCloudRetentionPolicy, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
+    ModelLaneError, ModelLaneKind, ModelLaneLocusBinding, ModelLaneMessageKind,
+    ModelLaneProviderKind, ModelLaneRecord, ModelLaneRecoveryState, ModelLaneRoutingMetadata,
+    ModelLaneRunRecord, ModelLaneStatus, ModelLaneStore, ModelLaneTarget, NewModelLane,
+    NewModelLaneCloudConsentReceipt, NewModelLaneCloudProjectionPlan,
     NewModelLaneContextBundleArtifactBinding, NewModelLaneDiagnosticTierStatus,
     NewModelLaneMessage, RuntimeBinding,
+};
+use super::routing::ModelLaneRoutingAuthority;
+use super::routing_execution::{
+    ModelLaneRoutingDispatchBatch, ModelLaneRoutingExecutionContext,
+    ModelLaneRoutingExecutionState, ModelLaneRoutingStageLaunch,
 };
 use super::SwarmCoordinator;
 
@@ -74,6 +80,41 @@ pub const OPERATOR_CHAT_CLI_ADAPTER: &str = "operator_chat_cli_bridge";
 /// `tool_result` content block as a [`AgentActivity::Text`]. Detecting it lets us
 /// map a rendered tool_result to [`ModelLaneMessageKind::ToolResult`] per F1.
 pub const RENDERED_TOOL_RESULT_PREFIX: &str = "[tool_result]";
+
+/// Operator Chat request for one immutable run-scoped cloud-consent grant.
+/// The receipt is derived from the stored plan so its hash, policies, and
+/// enumerated targets cannot diverge at this product boundary.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorChatSingleRunCloudConsentGrant {
+    pub projection_plan: NewModelLaneCloudProjectionPlan,
+    pub consent_receipt_id: String,
+    pub approved_by_ref: String,
+    pub approved_at_utc: String,
+    pub valid_from_utc: String,
+    pub valid_until_utc: String,
+    pub consent_idempotency_key: String,
+    pub diagnostic_payload: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorChatSingleRunCloudLaunchRequest {
+    pub grant: OperatorChatSingleRunCloudConsentGrant,
+    pub selections: Vec<OperatorChatSelection>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorChatSingleRunCloudLaunched {
+    pub projection_plan_id: String,
+    pub consent_receipt_id: String,
+    pub instance_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorChatSingleRunCloudRevokeRequest {
+    pub consent_receipt_id: String,
+    pub revoked_by_ref: String,
+    pub reason: String,
+}
 
 /// Errors surfaced by the operator chat/launch engine.
 #[derive(Debug, thiserror::Error)]
@@ -132,6 +173,83 @@ pub struct OperatorChatSelection {
     /// Locus micro-task attribution (defaults to the operator turn).
     #[serde(default)]
     pub micro_task_id: Option<String>,
+}
+
+/// External operator-chat launch contract. The client supplies only the governed
+/// owner id; trusted owner/parent lineage is resolved by the API from SessionRegistry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorChatLaunchRequest {
+    pub lane_kind: OperatorChatLaneKind,
+    pub model_id: String,
+    #[serde(default)]
+    pub cloud_provider: Option<String>,
+    #[serde(default)]
+    pub cli_provider: Option<String>,
+    pub working_dir: String,
+    #[serde(default)]
+    pub worktree_id: Option<String>,
+    pub prompt: String,
+    pub owner_session_id: String,
+    #[serde(default)]
+    pub work_packet_id: Option<String>,
+    #[serde(default)]
+    pub micro_task_id: Option<String>,
+}
+
+impl OperatorChatLaunchRequest {
+    pub fn into_governed_selection(
+        self,
+        owner_session: String,
+        parent_session_id: String,
+    ) -> OperatorChatSelection {
+        OperatorChatSelection {
+            lane_kind: self.lane_kind,
+            model_id: self.model_id,
+            cloud_provider: self.cloud_provider,
+            cli_provider: self.cli_provider,
+            working_dir: self.working_dir,
+            worktree_id: self.worktree_id,
+            prompt: self.prompt,
+            owner_session,
+            parent_session_id,
+            work_packet_id: self.work_packet_id,
+            micro_task_id: self.micro_task_id,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorChatRoutingStageRequest {
+    pub stage_id: String,
+    #[serde(default)]
+    pub lane_id: Option<String>,
+    #[serde(default)]
+    pub selection: Option<OperatorChatSelection>,
+    #[serde(default)]
+    pub authority_lane_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorChatRoutingLifecycleRequest {
+    pub execution_id: String,
+    pub selecting_decision_id: String,
+    pub authority: ModelLaneRoutingAuthority,
+    pub context: ModelLaneRoutingExecutionContext,
+    pub stages: Vec<OperatorChatRoutingStageRequest>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorChatRoutingCancelRequest {
+    pub execution_id: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorChatRoutingAuthorityRequest {
+    pub execution_id: String,
+    pub stage_id: String,
+    pub message_id: String,
+    pub routing_request: OperatorChatRoutingLifecycleRequest,
 }
 
 impl OperatorChatSelection {
@@ -218,11 +336,22 @@ pub struct OperatorChatTranscriptRow {
 /// access rows (MT-015). Serializable so the enumeration route returns it verbatim.
 #[derive(Debug, Clone, Serialize)]
 pub struct OperatorChatModelInventory {
+    pub inventory_source: &'static str,
+    pub sessions: Vec<OperatorChatSessionRow>,
     pub local: Vec<OperatorChatModelRow>,
     pub cloud_byok: Vec<OperatorChatCloudRow>,
     pub cloud_cli_bridge: Vec<OperatorChatCloudRow>,
     pub subagents: Vec<OperatorChatSubagentRow>,
     pub excluded: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OperatorChatSessionRow {
+    pub session_id: String,
+    pub parent_session_id: Option<String>,
+    pub label: String,
+    /// `available` only when owner and registered parent are Active and governed.
+    pub status: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -885,26 +1014,15 @@ async fn record_hbr_int_009_tiers(
         ))
     })?;
 
-    let rows = [
-        (
-            ModelLaneDiagnosticTier::FlightRecorder,
-            ModelLaneDiagnosticTierState::Wired,
-            "operator-chat launch/capture emits Flight Recorder and EventLedger rows",
-            None,
-        ),
-        (
-            ModelLaneDiagnosticTier::InternalDiagnostics,
-            ModelLaneDiagnosticTierState::DeferredWithReason,
-            "internal diagnostics inspection is deferred until the dedicated native diagnostics surface is wired",
-            Some("WP-KERNEL-012"),
-        ),
-        (
-            ModelLaneDiagnosticTier::Palmistry,
-            ModelLaneDiagnosticTierState::DeferredWithReason,
-            "Palmistry watcher integration is deferred until the watcher work packet is active",
-            Some("WP-KERNEL-016"),
-        ),
-    ];
+    // The launch service can prove only its own EventLedger/Flight Recorder
+    // production. Native internal diagnostics and Palmistry record their tiers
+    // later through the authenticated observation/readback boundary.
+    let rows = [(
+        ModelLaneDiagnosticTier::FlightRecorder,
+        ModelLaneDiagnosticTierState::Wired,
+        "operator-chat launch/capture emitted this run's EventLedger row",
+        None,
+    )];
 
     for (tier, state, reason, follow_up_ref) in rows {
         let tier_label = tier.as_str();
@@ -916,7 +1034,7 @@ async fn record_hbr_int_009_tiers(
                 tier,
                 state,
                 reason: reason.to_string(),
-                evidence_ref: format!("kernel-event-ledger://{}", run.event_ledger_event_id),
+                evidence_ref: format!("eventledger://kernel/{}", run.event_ledger_event_id),
                 follow_up_ref: follow_up_ref.map(str::to_string),
                 event_ledger_stream_id: run.event_ledger_stream_id.clone(),
                 work_packet_id: work_packet_id.clone(),
@@ -1124,23 +1242,6 @@ fn subagent_launch_request(selection: &OperatorChatSelection) -> DexterityLaunch
     }
 }
 
-fn default_byok_model_id(provider: &str) -> &'static str {
-    match provider {
-        "anthropic" => "claude-sonnet-4",
-        "openai" | "open_ai" => "gpt-4o",
-        _ => "cloud-model",
-    }
-}
-
-fn default_cli_model_id(provider: &str) -> &'static str {
-    match provider {
-        "claude_code" | "claude-code" | "anthropic" => "claude-sonnet-4",
-        "codex_cli" | "codex-cli" | "openai" => "gpt-5-codex",
-        "gemini_cli" | "gemini-cli" | "google" => "gemini-cli",
-        _ => "official-cli-model",
-    }
-}
-
 /// Force the CLI bridge into a JSON-stream output format so captured activities
 /// are TYPED (`tool_call`/`thinking`/`text`) instead of a wall of `Other{raw}`
 /// (contract F8). Idempotently ensures a `--output-format stream-json` flag pair
@@ -1202,58 +1303,366 @@ impl OperatorChatLaunchService {
         }
     }
 
-    /// Enumerate the picker inventory: local models (MT-014 [`ModelCatalog::list`])
-    /// plus cloud access rows (MT-015 [`enumerate_cloud_access`]). A cloud provider
-    /// that is not configured degrades to `unavailable` rather than erroring.
-    pub fn enumerate_models(
+    /// Persist a real Operator Chat `SingleRun` ProjectionPlan and its derived
+    /// ConsentReceipt through ModelLane/EventLedger authority.
+    pub async fn grant_single_run_cloud_consent(
         &self,
-        cloud_registry: &dyn ProviderAccessRegistry,
-    ) -> OperatorChatModelInventory {
-        let local = self
-            .catalog
-            .list()
-            .into_iter()
-            .map(|entry| OperatorChatModelRow {
-                model_id: entry.model_id,
-                display_name: entry.display_name,
-                runtime_binding: entry.runtime_binding,
-                ready: entry.ready,
-            })
-            .collect();
-        let cloud = enumerate_cloud_access(cloud_registry);
-        let cloud_byok = cloud
-            .byok
-            .into_iter()
-            .map(|row| OperatorChatCloudRow {
-                provider: row.provider.to_string(),
-                model_id: default_byok_model_id(row.provider).to_string(),
-                label: row.label.to_string(),
-                status: provider_access_status_label(row.status),
-            })
-            .collect();
-        let cloud_cli_bridge = cloud
-            .cli_bridge
-            .into_iter()
-            .map(|row| OperatorChatCloudRow {
-                provider: row.provider.to_string(),
-                model_id: default_cli_model_id(row.provider).to_string(),
-                label: row.label.to_string(),
-                status: provider_access_status_label(ProviderAccessStatus::Unavailable),
-            })
-            .collect();
-        let subagents = vec![OperatorChatSubagentRow {
-            role: "subagent_coder".to_string(),
-            model_id: "subagent://operator-chat/coder".to_string(),
-            label: "Subagent Manager / Coder".to_string(),
-            status: "available".to_string(),
-        }];
-        OperatorChatModelInventory {
-            local,
-            cloud_byok,
-            cloud_cli_bridge,
-            subagents,
-            excluded: cloud.excluded.into_iter().map(|s| s.to_string()).collect(),
+        request: OperatorChatSingleRunCloudConsentGrant,
+    ) -> Result<
+        (
+            ModelLaneCloudProjectionPlanRecord,
+            ModelLaneCloudConsentReceiptRecord,
+        ),
+        OperatorChatError,
+    > {
+        if request.projection_plan.consent_scope != ModelLaneCloudConsentScope::SingleRun {
+            return Err(OperatorChatError::Invalid(
+                "operator-chat SingleRun grant requires consent_scope=single_run".into(),
+            ));
         }
+        let store = self.coordinator.model_lane_store().ok_or_else(|| {
+            OperatorChatError::Invalid(
+                "operator-chat SingleRun grant requires a ModelLaneStore".into(),
+            )
+        })?;
+        let stored_plan = store
+            .record_cloud_projection_plan(request.projection_plan)
+            .await?;
+        let receipt = store
+            .record_cloud_consent_receipt(NewModelLaneCloudConsentReceipt {
+                consent_receipt_id: request.consent_receipt_id,
+                projection_plan_id: stored_plan.projection_plan_id.clone(),
+                projection_plan_hash: stored_plan.projection_plan_hash.clone(),
+                run_id: stored_plan.run_id.clone(),
+                trace_id: stored_plan.trace_id.clone(),
+                lane_id: None,
+                model_session_id: None,
+                provider_kind: None,
+                requested_model_id: None,
+                scope_hash: stored_plan.scope_hash.clone(),
+                consent_scope: ModelLaneCloudConsentScope::SingleRun,
+                target_bindings: stored_plan.target_bindings.clone(),
+                retention_policy: stored_plan.retention_policy.clone(),
+                export_posture: stored_plan.export_posture.clone(),
+                fan_out_targets: stored_plan.fan_out_targets.clone(),
+                approved: true,
+                approved_by_ref: request.approved_by_ref,
+                approved_at_utc: request.approved_at_utc,
+                valid_from_utc: request.valid_from_utc,
+                valid_until_utc: request.valid_until_utc,
+                revoked_at_utc: None,
+                revocation_ref: None,
+                revocation_input_hash: None,
+                status: ModelLaneCloudConsentReceiptStatus::Approved,
+                event_ledger_stream_id: stored_plan.event_ledger_stream_id.clone(),
+                work_packet_id: stored_plan.work_packet_id.clone(),
+                micro_task_id: stored_plan.micro_task_id.clone(),
+                task_board_id: stored_plan.task_board_id.clone(),
+                owner_session: stored_plan.owner_session.clone(),
+                idempotency_key: request.consent_idempotency_key,
+                created_at_utc: stored_plan.created_at_utc.clone(),
+                user_manual_behavior_ref: stored_plan.user_manual_behavior_ref.clone(),
+                diagnostic_payload: request.diagnostic_payload,
+            })
+            .await?;
+        Ok((stored_plan, receipt))
+    }
+
+    /// Revoke an Operator Chat cloud grant through the same atomic ModelLane
+    /// cancellation path used by coordinator-managed lanes.
+    pub async fn revoke_single_run_cloud_consent(
+        &self,
+        consent_receipt_id: &str,
+        revoked_by_ref: &str,
+        reason: &str,
+    ) -> Result<Vec<ModelLaneRecord>, OperatorChatError> {
+        Ok(self
+            .coordinator
+            .revoke_cloud_consent_receipt(consent_receipt_id, revoked_by_ref, reason)
+            .await?)
+    }
+
+    /// Grant and consume SingleRun cloud authority through the production
+    /// coordinator batch boundary. All targets preflight before any factory call.
+    pub async fn launch_single_run_cloud_consent(
+        &self,
+        mut request: OperatorChatSingleRunCloudLaunchRequest,
+    ) -> Result<OperatorChatSingleRunCloudLaunched, OperatorChatError> {
+        if request.selections.len() < 2 {
+            return Err(OperatorChatError::Invalid(
+                "operator-chat SingleRun launch requires at least two selections".into(),
+            ));
+        }
+        let mut spawn_requests = Vec::with_capacity(request.selections.len());
+        let mut target_bindings = Vec::with_capacity(request.selections.len());
+        for selection in &request.selections {
+            if selection.lane_kind != OperatorChatLaneKind::Cloud {
+                return Err(OperatorChatError::Invalid(
+                    "operator-chat SingleRun launch accepts cloud selections only".into(),
+                ));
+            }
+            let mut spawn = self.build_spawn_request(selection)?;
+            let provider_kind = cloud_provider_kind_for_request(&spawn)?;
+            let model_session_id = dexterity_spawn_model_session_id(&spawn);
+            let contract = spawn.dexterity_launch.as_mut().ok_or_else(|| {
+                OperatorChatError::Invalid(
+                    "operator-chat SingleRun launch requires Dexterity contracts".into(),
+                )
+            })?;
+            contract.run_id = request.grant.projection_plan.run_id.clone();
+            contract.trace_id = request.grant.projection_plan.trace_id.clone();
+            contract.event_ledger_stream_id =
+                request.grant.projection_plan.event_ledger_stream_id.clone();
+            let requested_model_id = contract
+                .candidate_model_ids
+                .first()
+                .cloned()
+                .unwrap_or_else(|| selection.model_id.clone());
+            target_bindings.push(ModelLaneCloudConsentTargetBinding {
+                lane_id: contract.lane_id.clone(),
+                model_session_id,
+                provider_kind: provider_kind.to_string(),
+                requested_model_id,
+                capability_snapshot_ref: contract.effective_capability_snapshot_ref.clone(),
+                provider_endpoint_ref: contract.adapter_id.clone(),
+            });
+            spawn_requests.push(spawn);
+        }
+        request.grant.projection_plan.consent_scope = ModelLaneCloudConsentScope::SingleRun;
+        request.grant.projection_plan.lane_id = None;
+        request.grant.projection_plan.model_session_id = None;
+        request.grant.projection_plan.provider_kind = None;
+        request.grant.projection_plan.requested_model_id = None;
+        request.grant.projection_plan.target_bindings = target_bindings;
+        request.grant.projection_plan.fan_out_targets = request
+            .grant
+            .projection_plan
+            .target_bindings
+            .iter()
+            .map(|target| format!("provider-endpoint://{}", target.provider_endpoint_ref))
+            .collect();
+        let (plan, receipt) = self.grant_single_run_cloud_consent(request.grant).await?;
+        for spawn in &mut spawn_requests {
+            let contract = spawn.dexterity_launch.as_mut().ok_or_else(|| {
+                OperatorChatError::Invalid(
+                    "operator-chat SingleRun launch requires Dexterity contracts".into(),
+                )
+            })?;
+            contract.projection_plan_ref = Some(plan.projection_plan_id.clone());
+            contract.consent_receipt_ref = Some(receipt.consent_receipt_id.clone());
+        }
+        let instances = match self
+            .coordinator
+            .spawn_cloud_consent_batch(spawn_requests)
+            .await
+        {
+            Ok(instances) => instances,
+            Err(error) => {
+                let _ = self
+                    .coordinator
+                    .revoke_cloud_consent_receipt(
+                        &receipt.consent_receipt_id,
+                        "operator-chat://single-run/failed-launch",
+                        "SingleRun batch launch failed closed",
+                    )
+                    .await;
+                return Err(error.into());
+            }
+        };
+        Ok(OperatorChatSingleRunCloudLaunched {
+            projection_plan_id: plan.projection_plan_id.clone(),
+            consent_receipt_id: receipt.consent_receipt_id.clone(),
+            instance_ids: instances
+                .into_iter()
+                .map(|instance| instance.to_string())
+                .collect(),
+        })
+    }
+
+    async fn routing_launches(
+        &self,
+        request: &OperatorChatRoutingLifecycleRequest,
+    ) -> Result<Vec<ModelLaneRoutingStageLaunch>, OperatorChatError> {
+        let store = self.coordinator.model_lane_store().ok_or_else(|| {
+            OperatorChatError::Invalid("operator-chat routing requires a ModelLaneStore".into())
+        })?;
+        let replay = store.replay_run(&request.context.run_id).await?;
+        let run = replay.run;
+        if run.trace_id != request.context.trace_id
+            || run.run_span_id != request.context.run_span_id
+            || run.coordinator_session_id != request.context.coordinator_session_id
+            || run.work_packet_id.as_deref() != Some(request.context.work_packet_id.as_str())
+            || run.micro_task_id.as_deref() != request.context.micro_task_id.as_deref()
+            || run.task_board_id.as_deref() != Some(request.context.task_board_id.as_str())
+            || run.owner_session != request.context.owner_session
+            || run
+                .locus_binding
+                .as_ref()
+                .map(|binding| binding.locus_binding_ref.as_str())
+                != Some(request.context.locus_ref.as_str())
+        {
+            return Err(OperatorChatError::Invalid(
+                "operator-chat routing context differs from canonical ModelLaneRun".into(),
+            ));
+        }
+        let mut launches = Vec::with_capacity(request.stages.len());
+        for stage in &request.stages {
+            let spawn = if let Some(selection) = stage.selection.as_ref() {
+                let lane_id = stage
+                    .lane_id
+                    .as_deref()
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| {
+                        OperatorChatError::Invalid(format!(
+                            "routing model stage {} requires lane_id",
+                            stage.stage_id
+                        ))
+                    })?;
+                let mut spawn = self.build_spawn_request(selection)?;
+                spawn.parent_session_id = request.context.coordinator_session_id.clone();
+                spawn.owner_role = request.context.owner_session.clone();
+                spawn.owner_wp = Some(request.context.work_packet_id.clone());
+                spawn.wp_id = Some(request.context.work_packet_id.clone());
+                spawn.mt_id = request.context.micro_task_id.clone();
+                let contract = spawn.dexterity_launch.as_mut().ok_or_else(|| {
+                    OperatorChatError::Invalid(format!(
+                        "routing stage {} requires Dexterity launch contract",
+                        stage.stage_id
+                    ))
+                })?;
+                contract.lane_id = lane_id.to_string();
+                contract.lane_span_id = format!("span-{lane_id}-lane");
+                contract.run_id = run.run_id.clone();
+                contract.trace_id = run.trace_id.clone();
+                contract.run_span_id = run.run_span_id.clone();
+                contract.routing_policy = run.routing_policy.clone();
+                contract.context_bundle_id = run.context_bundle_id.clone();
+                contract.event_ledger_stream_id = run.event_ledger_stream_id.clone();
+                contract.artifact_namespace = run.artifact_namespace.clone();
+                contract.task_board_id = run.task_board_id.clone().ok_or_else(|| {
+                    OperatorChatError::Invalid(
+                        "canonical ModelLaneRun requires task_board_id".into(),
+                    )
+                })?;
+                contract.locus_binding_ref = request.context.locus_ref.clone();
+                contract.projection_plan_ref = run.projection_plan_ref.clone();
+                contract.consent_receipt_ref = request.authority.cloud_consent_receipt_ref.clone();
+                contract.memory_pack_ref = run.memory_pack_ref.clone();
+                contract.memory_pack_hash = run.memory_pack_hash.clone();
+                contract.determinism_mode = run.determinism_mode.clone();
+                contract.budget_summary_ref = run.budget_summary_ref.clone();
+                contract.candidate_model_ids = run.candidate_model_ids.clone();
+                let selected_model_id = spawn.instance_id.model_id.to_string();
+                contract
+                    .candidate_model_ids
+                    .retain(|value| value != &selected_model_id);
+                contract.candidate_model_ids.insert(0, selected_model_id);
+                contract.effective_capability_snapshot_ref =
+                    format!("capability-snapshot://operator-chat-routing/{lane_id}");
+                contract.tool_gate_decision_refs = vec![format!(
+                    "toolgate://operator-chat-routing/{lane_id}/generate"
+                )];
+                contract.procedural_review_status = run.procedural_review_status.clone();
+                contract.truncation_warning_ref = run.truncation_warning_ref.clone();
+                contract.rejection_reason_refs = run.rejection_reason_refs.clone();
+                contract.run_recovery_hint_ref = run.recovery_hint_ref.clone();
+                Some(spawn)
+            } else {
+                None
+            };
+            let generate_request = spawn.as_ref().map(|spawn| GenerateRequest {
+                id: spawn.instance_id.model_id,
+                prompt: GenPrompt::new(
+                    stage
+                        .selection
+                        .as_ref()
+                        .map(|selection| selection.prompt.clone())
+                        .unwrap_or_default(),
+                ),
+                sampling: SamplingParams::default(),
+                lora_overrides: vec![],
+                steering_overrides: vec![],
+                kv_prefix_handle: None,
+                cancel: CancellationToken::new(),
+                max_tokens: OPERATOR_CHAT_MAX_TOKENS,
+                stop_sequences: vec![],
+                speculative_mode: None,
+                structured_decoding: None,
+            });
+            launches.push(ModelLaneRoutingStageLaunch {
+                stage_id: stage.stage_id.clone(),
+                expected_run_id: request.context.run_id.clone(),
+                expected_lane_id: stage.lane_id.clone().unwrap_or_default(),
+                expected_model_id: spawn
+                    .as_ref()
+                    .map(|spawn| spawn.instance_id.model_id.to_string())
+                    .unwrap_or_default(),
+                expected_provider: spawn.as_ref().and_then(|spawn| spawn.provider),
+                request: spawn,
+                generate_request,
+                authority_lane_id: stage.authority_lane_id.clone(),
+            });
+        }
+        Ok(launches)
+    }
+
+    pub async fn execute_routing_lifecycle(
+        &self,
+        request: OperatorChatRoutingLifecycleRequest,
+    ) -> Result<ModelLaneRoutingDispatchBatch, OperatorChatError> {
+        let launches = self.routing_launches(&request).await?;
+        super::production_factory::execute_production_routing_lifecycle(
+            &self.coordinator,
+            &request.execution_id,
+            &request.selecting_decision_id,
+            &request.authority,
+            request.context,
+            launches,
+        )
+        .await
+        .map_err(OperatorChatError::from)
+    }
+
+    pub async fn recover_routing_lifecycle(
+        &self,
+        request: OperatorChatRoutingLifecycleRequest,
+    ) -> Result<ModelLaneRoutingDispatchBatch, OperatorChatError> {
+        let launches = self.routing_launches(&request).await?;
+        self.coordinator
+            .recover_routing_execution(&request.execution_id, launches)
+            .await
+            .map_err(OperatorChatError::from)
+    }
+
+    pub async fn complete_routing_authority(
+        &self,
+        request: OperatorChatRoutingAuthorityRequest,
+    ) -> Result<ModelLaneRoutingDispatchBatch, OperatorChatError> {
+        if request.execution_id != request.routing_request.execution_id {
+            return Err(OperatorChatError::Invalid(
+                "authority execution_id differs from routing request; no mutation performed".into(),
+            ));
+        }
+        let launches = self.routing_launches(&request.routing_request).await?;
+        self.coordinator
+            .complete_authority_and_resume_routing_lifecycle(
+                &request.execution_id,
+                &request.stage_id,
+                &request.message_id,
+                launches,
+            )
+            .await
+            .map_err(OperatorChatError::from)
+    }
+
+    pub async fn cancel_routing_lifecycle(
+        &self,
+        request: OperatorChatRoutingCancelRequest,
+    ) -> Result<ModelLaneRoutingExecutionState, OperatorChatError> {
+        self.coordinator
+            .cancel_routing_execution(&request.execution_id, request.reason)
+            .await
+            .map_err(OperatorChatError::from)
     }
 
     /// Record the operator's model/worktree selection as a distinct auditable
@@ -1346,10 +1755,10 @@ impl OperatorChatLaunchService {
                 projection_plan_id: projection_plan_id.clone(),
                 run_id: contract.run_id.clone(),
                 trace_id: contract.trace_id.clone(),
-                lane_id: contract.lane_id.clone(),
-                model_session_id: model_session_id.clone(),
-                provider_kind: provider_kind.to_string(),
-                requested_model_id: requested_model_id.clone(),
+                lane_id: Some(contract.lane_id.clone()),
+                model_session_id: Some(model_session_id.clone()),
+                provider_kind: Some(provider_kind.to_string()),
+                requested_model_id: Some(requested_model_id.clone()),
                 scope_hash: scope_hash.clone(),
                 source_artifact_refs: vec![
                     contract.context_bundle_id.clone(),
@@ -1366,6 +1775,7 @@ impl OperatorChatLaunchService {
                 provider_profile_ref: format!("provider-profile://operator-chat/{provider_kind}"),
                 fan_out_targets: fan_out_targets.clone(),
                 consent_scope: ModelLaneCloudConsentScope::SingleLane,
+                target_bindings: vec![],
                 status: ModelLaneCloudProjectionPlanStatus::Active,
                 event_ledger_stream_id: contract.event_ledger_stream_id.clone(),
                 work_packet_id: selection.work_packet().to_string(),
@@ -1395,12 +1805,13 @@ impl OperatorChatLaunchService {
                 projection_plan_hash: stored_plan.projection_plan_hash.clone(),
                 run_id: contract.run_id.clone(),
                 trace_id: contract.trace_id.clone(),
-                lane_id: contract.lane_id.clone(),
-                model_session_id,
-                provider_kind: provider_kind.to_string(),
-                requested_model_id,
+                lane_id: Some(contract.lane_id.clone()),
+                model_session_id: Some(model_session_id),
+                provider_kind: Some(provider_kind.to_string()),
+                requested_model_id: Some(requested_model_id),
                 scope_hash,
                 consent_scope: ModelLaneCloudConsentScope::SingleLane,
+                target_bindings: vec![],
                 retention_policy: ModelLaneCloudRetentionPolicy::NoTrainingEphemeral,
                 export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
                 fan_out_targets,
@@ -1411,6 +1822,7 @@ impl OperatorChatLaunchService {
                 valid_until_utc: (now + Duration::days(365)).to_rfc3339(),
                 revoked_at_utc: None,
                 revocation_ref: None,
+                revocation_input_hash: None,
                 status: ModelLaneCloudConsentReceiptStatus::Approved,
                 event_ledger_stream_id: contract.event_ledger_stream_id.clone(),
                 work_packet_id: selection.work_packet().to_string(),
@@ -1640,7 +2052,7 @@ impl OperatorChatLaunchService {
             ));
         }
         let request = subagent_launch_request(selection);
-        let (run, _lane) = self
+        let (run, _lane, _manager) = self
             .coordinator
             .launch_operator_subagent_model_lane(request)
             .await?;
@@ -1737,7 +2149,9 @@ impl OperatorChatLaunchService {
             speculative_mode: None,
             structured_decoding: None,
         };
-        let mut stream = self.coordinator.generate_session(instance_id, request)?;
+        let mut stream = self
+            .coordinator
+            .generate_session_managed(instance_id, request)?;
         let mut stdout_buffer = String::new();
         let mut next_capture_index = 1;
         let mut captured_message_count = 0;
@@ -1870,16 +2284,6 @@ fn transcript_row_from_message(
     }
 }
 
-fn provider_access_status_label(
-    status: crate::model_runtime::cloud::ProviderAccessStatus,
-) -> String {
-    use crate::model_runtime::cloud::ProviderAccessStatus;
-    match status {
-        ProviderAccessStatus::Configured => "configured".to_string(),
-        ProviderAccessStatus::Unavailable => "unavailable".to_string(),
-    }
-}
-
 /// Build a [`SpawnRequest`] from an operator selection (pure). The launch resolves
 /// provider/runtime from the lane kind, plumbs `working_dir`, and attaches the
 /// Dexterity launch contract required by [`SwarmCoordinator::spawn_session`].
@@ -1924,6 +2328,15 @@ fn build_spawn_request_with_catalog(
             return Err(OperatorChatError::Invalid(format!(
                 "local model_id '{}' is registered but not ready",
                 selection.model_id
+            )));
+        }
+        if !entry.default_selectable
+            || entry.runtime_role != crate::model_runtime::registry::ModelRuntimeRole::Completion
+        {
+            return Err(OperatorChatError::Invalid(format!(
+                "local model_id '{}' has runtime role '{}' and is not eligible as the default completion model",
+                selection.model_id,
+                entry.runtime_role.as_str()
             )));
         }
         Some(entry)
@@ -1973,6 +2386,15 @@ fn build_spawn_request_with_catalog(
             request
                 .with_cloud_provider(ProviderKind::OfficialCli, selection.model_id.clone())
                 .with_official_cli_provider(provider)
+                .with_sandbox_posture(
+                    crate::sandbox::TrustClass::Trusted,
+                    crate::sandbox::IsolationTier::Tier1Container,
+                    std::collections::BTreeSet::from([
+                        crate::sandbox::RequiredCapability::HighStdioThroughput,
+                    ]),
+                    crate::sandbox::NetPolicy::HostInherited,
+                    crate::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF,
+                )
         }
         OperatorChatLaneKind::Cloud => {
             let provider = match selection.cloud_provider.as_deref() {
@@ -2117,6 +2539,22 @@ mod tests {
         );
         assert!(request.dexterity_launch.is_some());
         assert_eq!(request.wp_id.as_deref(), Some("operator-chat-workspace"));
+        assert_eq!(
+            request.requested_trust_class,
+            Some(crate::sandbox::TrustClass::Trusted)
+        );
+        assert_eq!(
+            request.isolation_tier,
+            Some(crate::sandbox::IsolationTier::Tier1Container)
+        );
+        assert_eq!(
+            request.requested_net_policy,
+            Some(crate::sandbox::NetPolicy::HostInherited)
+        );
+        assert_eq!(
+            request.requested_execution_policy_ref.as_deref(),
+            Some("execution-policy://operator-chat/official-cli")
+        );
     }
 
     #[test]
@@ -2189,6 +2627,68 @@ mod tests {
         assert_eq!(request.model_artifact_sha256, Some(hex::encode([9u8; 32])));
         assert_eq!(request.worktree_id.as_deref(), Some("wt-local"));
         assert!(request.dexterity_launch.is_some());
+    }
+
+    #[test]
+    fn build_spawn_request_local_rejects_ready_embedding_role_catalog_bypass() {
+        let model_id = ModelId::new_v7();
+        let mut registry = crate::model_runtime::ModelRegistry::default();
+        registry
+            .register(crate::model_runtime::ModelRegistration {
+                model_id,
+                artifact_path: "D:/models/dedicated-embedding.gguf".into(),
+                sha256: [10u8; 32],
+                runtime_binding: crate::model_runtime::registry::RuntimeBinding::Candle,
+                declared_capabilities: crate::model_runtime::ModelCapabilities {
+                    supports_embedding: true,
+                    embedding_dimension: Some(768),
+                    ..crate::model_runtime::ModelCapabilities::default()
+                },
+                base_model_tag: crate::model_runtime::BaseModelTag::new(
+                    "Dedicated Embedding Model",
+                ),
+                registered_at_utc: Utc::now(),
+                registered_by: crate::model_runtime::OperatorId::new("operator-test"),
+                provider: ProviderKind::Local,
+            })
+            .expect("register dedicated embedding model");
+        registry
+            .mark_loaded(model_id)
+            .expect("mark embedding model READY");
+        let catalog = ModelCatalog::from_registry_with_roles(
+            Arc::new(registry),
+            std::collections::HashMap::from([(
+                model_id,
+                crate::model_runtime::registry::ModelRuntimeRole::Embedding,
+            )]),
+        );
+        let entry = catalog
+            .entry(&model_id.to_string())
+            .expect("READY embedding catalog entry");
+        assert!(entry.ready);
+        assert!(!entry.default_selectable);
+        let selection = OperatorChatSelection {
+            lane_kind: OperatorChatLaneKind::Local,
+            model_id: model_id.to_string(),
+            cloud_provider: None,
+            cli_provider: None,
+            working_dir: "D:/work/repo".into(),
+            worktree_id: Some("wt-embedding-bypass".into()),
+            prompt: "this direct launch must fail closed".into(),
+            owner_session: "op".into(),
+            parent_session_id: "p".into(),
+            work_packet_id: None,
+            micro_task_id: None,
+        };
+
+        let error = build_spawn_request_with_catalog(&selection, 3, Some(catalog.as_ref()))
+            .expect_err("direct launch must reject a READY embedding-role catalog row");
+        assert!(
+            error
+                .to_string()
+                .contains("not eligible as the default completion model"),
+            "unexpected role-boundary error: {error}"
+        );
     }
 
     #[test]

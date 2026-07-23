@@ -302,6 +302,10 @@ fn network_mode(policy: &NetPolicy) -> Result<String, SandboxAdapterError> {
                 })
             }
         }
+        NetPolicy::HostInherited => Err(SandboxAdapterError::NetPolicyApplyFailed {
+            adapter_id: AdapterId::new(WSL2_PODMAN_ADAPTER_ID),
+            reason: "Podman cannot prove the attached HostInherited contract; refusing to reinterpret it as container host networking".to_string(),
+        }),
     }
 }
 

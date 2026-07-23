@@ -99,6 +99,16 @@ fn process_uuid_uses_uuid_v7_and_stop_upsert_recovers_missing_start() {
     assert!(PROCESS_START_INSERT_SQL.contains("ON CONFLICT (process_uuid) DO UPDATE"));
     assert!(PROCESS_STOP_UPSERT_SQL.contains("ON CONFLICT (process_uuid) DO UPDATE"));
     assert!(PROCESS_STOP_UPSERT_SQL.contains("started_at"));
+    assert!(
+        PROCESS_START_INSERT_SQL.contains("INSERT INTO kernel_process_lifecycle"),
+        "PostgreSQL START SQL must use valid INSERT INTO syntax"
+    );
+    assert!(
+        PROCESS_STOP_UPSERT_SQL.contains("INSERT INTO kernel_process_lifecycle"),
+        "PostgreSQL STOP SQL must use valid INSERT INTO syntax"
+    );
+    assert!(!PROCESS_START_INSERT_SQL.contains("INSERT INTO ONLY"));
+    assert!(!PROCESS_STOP_UPSERT_SQL.contains("INSERT INTO ONLY"));
 }
 
 #[tokio::test]

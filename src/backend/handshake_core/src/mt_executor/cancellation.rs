@@ -41,8 +41,8 @@ use uuid::Uuid;
 
 use super::job::MicroTaskJobId;
 use crate::flight_recorder::fr_event_registry::FrEventId;
-use crate::process_ledger::reclaim::{Reclaim, ReclaimReport, ReclaimTrigger};
-use crate::process_ledger::ProcessLedgerError;
+use crate::process_ledger::reclaim::{KillOutcome, Reclaim, ReclaimReport, ReclaimTrigger};
+use crate::process_ledger::{LedgerEventKind, ProcessLedgerError};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -157,10 +157,7 @@ pub trait ForcedCancelReclaimer: Send + Sync {
     /// Reclaim every process owned by `session_id`. Returns the reclaim record
     /// (process kill outcomes + a stop event per process) so the forced-cancel
     /// report can carry proof that no orphan survived.
-    async fn reclaim_session(
-        &self,
-        session_id: &str,
-    ) -> Result<ReclaimRecord, ProcessLedgerError>;
+    async fn reclaim_session(&self, session_id: &str) -> Result<ReclaimRecord, ProcessLedgerError>;
 }
 
 /// Proof-of-reclaim record returned by [`ForcedCancelReclaimer`]. A thin,
@@ -176,18 +173,43 @@ pub struct ReclaimRecord {
     pub total_duration_ms: u128,
 }
 
-impl From<ReclaimReport> for ReclaimRecord {
-    fn from(report: ReclaimReport) -> Self {
-        Self {
-            session_id: report.session_id,
-            processes_reclaimed: report.processes_reclaimed.len() as u32,
-            reclaimed_process_uuids: report
-                .processes_reclaimed
-                .iter()
-                .map(|p| p.process_uuid)
-                .collect(),
-            total_duration_ms: report.total_duration_ms,
+impl TryFrom<ReclaimReport> for ReclaimRecord {
+    type Error = ProcessLedgerError;
+
+    fn try_from(report: ReclaimReport) -> Result<Self, Self::Error> {
+        let mut reclaimed_process_uuids = Vec::with_capacity(report.processes_reclaimed.len());
+        for process in report.processes_reclaimed {
+            match (&process.kill_result, process.stop_event_kind) {
+                (KillOutcome::Killed, Some(LedgerEventKind::Stop)) => {
+                    reclaimed_process_uuids.push(process.process_uuid);
+                }
+                (KillOutcome::Killed, stop_event_kind) => {
+                    return Err(ProcessLedgerError::Event(format!(
+                        "forced-cancel reclaim killed process {} without a durable STOP (event={stop_event_kind:?})",
+                        process.process_uuid
+                    )));
+                }
+                (KillOutcome::KilledPendingStop { error }, _) => {
+                    return Err(ProcessLedgerError::Event(format!(
+                        "forced-cancel reclaim killed process {} but its durable STOP is pending: {error}",
+                        process.process_uuid
+                    )));
+                }
+                (KillOutcome::Failed { error }, _) => {
+                    return Err(ProcessLedgerError::Event(format!(
+                        "forced-cancel reclaim failed to kill process {}: {error}",
+                        process.process_uuid
+                    )));
+                }
+            }
         }
+
+        Ok(Self {
+            session_id: report.session_id,
+            processes_reclaimed: reclaimed_process_uuids.len() as u32,
+            reclaimed_process_uuids,
+            total_duration_ms: report.total_duration_ms,
+        })
     }
 }
 
@@ -209,15 +231,12 @@ impl ReclaimForcedCancelAdapter {
 
 #[async_trait]
 impl ForcedCancelReclaimer for ReclaimForcedCancelAdapter {
-    async fn reclaim_session(
-        &self,
-        session_id: &str,
-    ) -> Result<ReclaimRecord, ProcessLedgerError> {
+    async fn reclaim_session(&self, session_id: &str) -> Result<ReclaimRecord, ProcessLedgerError> {
         let report = self
             .reclaim
             .run(session_id, ReclaimTrigger::OperatorCancel)
             .await?;
-        Ok(report.into())
+        report.try_into()
     }
 }
 
@@ -491,17 +510,20 @@ impl MtCanceller {
         let session_id = session_override
             .or_else(|| self.session_for(job_id))
             .ok_or(ForceCancelError::NoSessionForJob { job_id })?;
-        let reclaim_record = reclaimer.reclaim_session(&session_id).await.map_err(|source| {
-            ForceCancelError::ReclaimFailed {
+        let reclaim_record = reclaimer
+            .reclaim_session(&session_id)
+            .await
+            .map_err(|source| ForceCancelError::ReclaimFailed {
                 job_id,
                 message: source.to_string(),
-            }
-        })?;
+            })?;
 
         // (4) terminal state with force_used = true.
         let cancelled_state = CancelledJobState {
             job_id,
-            state: super::job::MicroTaskJobState::Cancelled.as_str().to_string(),
+            state: super::job::MicroTaskJobState::Cancelled
+                .as_str()
+                .to_string(),
             force_used: true,
             reason: reason.clone(),
         };

@@ -26,16 +26,26 @@
 //! only blocks while some op holds it exclusively (none currently does; reserved for a future snapshot
 //! write).
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use hmac::{Hmac, Mac};
+use serde::Deserialize;
+use sha2::Sha256;
+
 use crate::accessibility::UiTreeSnapshot;
 use crate::mcp::action::ActionChannel;
+use crate::mcp::argus::{
+    validate_agent_label, ArgusWindowDescriptor, WindowSnapshotRegistry, ACTION_RECEIPT_TIMEOUT,
+    MAIN_WINDOW_ID,
+};
 use crate::mcp::attribution::{agent_id_for_token, ActionLog};
 use crate::mcp::leases::{LeaseKind, LeaseRegistry, DEFAULT_LEASE_TIMEOUT};
-use crate::mcp::screenshot::{ScreenshotError, ScreenshotResult};
+use crate::mcp::screenshot::{ScreenshotError, ScreenshotResult, HANDSHAKE_WINDOW_TITLE};
 use crate::mcp::tools::{
-    dispatch_request, McpError, McpRequest, McpResponse, SessionToken, ERR_LEASE_TIMEOUT,
+    canonical_method, dispatch_request, dispatch_windowed_request, McpError, McpRequest,
+    McpResponse, SessionToken, ERR_LEASE_TIMEOUT,
 };
 
 /// The lease resource key for a whole-tree read (`list_widgets`). A read takes this SHARED, so many
@@ -49,6 +59,52 @@ use crate::mcp::tools::{
 /// tradeoff for the single-snapshot model (the whole tree is rebuilt atomically); finer-grained
 /// per-subtree snapshot leasing would be the alternative if read throughput under a writer ever matters.
 pub const SNAPSHOT_RESOURCE: &str = "ui.snapshot";
+
+#[derive(Clone)]
+pub struct ArgusReceiptProvenance {
+    pub diagnostics_session_id: uuid::Uuid,
+    signing_secret:
+        std::sync::Arc<dyn Fn() -> Option<zeroize::Zeroizing<[u8; 32]>> + Send + Sync + 'static>,
+}
+
+impl ArgusReceiptProvenance {
+    pub fn new(
+        diagnostics_session_id: uuid::Uuid,
+        signing_secret: zeroize::Zeroizing<[u8; 32]>,
+    ) -> Self {
+        let signing_secret = std::sync::Arc::new(signing_secret);
+        Self {
+            diagnostics_session_id,
+            signing_secret: std::sync::Arc::new(move || Some((*signing_secret).clone())),
+        }
+    }
+
+    /// Build provenance over the live Palmistry secret slot. The provider is
+    /// evaluated for every durable receipt so a backend restart can rotate the
+    /// secret without rebinding the MCP listener or leaving existing sessions
+    /// permanently signed with the pre-restart key.
+    pub fn dynamic(
+        diagnostics_session_id: uuid::Uuid,
+        signing_secret: std::sync::Arc<
+            dyn Fn() -> Option<zeroize::Zeroizing<[u8; 32]>> + Send + Sync + 'static,
+        >,
+    ) -> Self {
+        Self {
+            diagnostics_session_id,
+            signing_secret,
+        }
+    }
+}
+
+impl std::fmt::Debug for ArgusReceiptProvenance {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ArgusReceiptProvenance")
+            .field("diagnostics_session_id", &self.diagnostics_session_id)
+            .field("signing_secret", &"[REDACTED]")
+            .finish()
+    }
+}
 
 /// The leasing + attribution decision for one request, computed ONCE from the auth-gated request so the
 /// synchronous [`McpSession::dispatch`] and the async [`McpSession::dispatch_shared_async`] entry points
@@ -90,6 +146,22 @@ pub struct McpSession {
     log: ActionLog,
     /// Per-acquire lease timeout (configurable so the concurrent test can force the timeout path).
     lease_timeout: Duration,
+    connection_id: String,
+    durable_receipts: bool,
+    receipt_provenance: Option<ArgusReceiptProvenance>,
+    agent_credentials: AgentCredentialBroker,
+    require_agent_credentials: bool,
+}
+
+static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ArgusDurabilityReceipt {
+    event_ledger_event_id: String,
+    flight_recorder_event_id: Option<uuid::Uuid>,
+    flight_recorder_mirrored: bool,
+    durable: bool,
 }
 
 impl McpSession {
@@ -103,6 +175,14 @@ impl McpSession {
             leases,
             log,
             lease_timeout: DEFAULT_LEASE_TIMEOUT,
+            connection_id: format!(
+                "mcp-connection-{}",
+                NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed)
+            ),
+            durable_receipts: false,
+            receipt_provenance: None,
+            agent_credentials: AgentCredentialBroker::default(),
+            require_agent_credentials: false,
         }
     }
 
@@ -110,6 +190,26 @@ impl McpSession {
     /// deterministically; production uses [`DEFAULT_LEASE_TIMEOUT`]).
     pub fn with_lease_timeout(mut self, timeout: Duration) -> Self {
         self.lease_timeout = timeout;
+        self
+    }
+
+    fn with_durable_receipts(mut self, enabled: bool) -> Self {
+        self.durable_receipts = enabled;
+        self
+    }
+
+    fn with_receipt_provenance(mut self, provenance: Option<ArgusReceiptProvenance>) -> Self {
+        self.receipt_provenance = provenance;
+        self
+    }
+
+    fn with_agent_credentials(
+        mut self,
+        broker: AgentCredentialBroker,
+        required: bool,
+    ) -> Self {
+        self.agent_credentials = broker;
+        self.require_agent_credentials = required;
         self
     }
 
@@ -135,17 +235,32 @@ impl McpSession {
         if !self.token.matches(&request.session_token) {
             return DispatchPlan::Direct;
         }
-        match request.method.as_str() {
-            "click_widget" | "set_value" => {
-                match request.params.get("target").and_then(|v| v.as_str()) {
+        if validate_agent_label(request.agent_label()).is_err() {
+            return DispatchPlan::Direct;
+        }
+        match canonical_method(&request.method) {
+            Some("argus.click" | "argus.show_context_menu" | "argus.set_value") => {
+                match request
+                    .params
+                    .get("author_id")
+                    .or_else(|| request.params.get("target"))
+                    .and_then(|v| v.as_str())
+                {
                     Some(t) if !t.is_empty() => DispatchPlan::ExclusiveWrite {
-                        target: t.to_owned(),
+                        target: format!(
+                            "{}::{t}",
+                            request
+                                .params
+                                .get("window_id")
+                                .and_then(|value| value.as_str())
+                                .unwrap_or(MAIN_WINDOW_ID)
+                        ),
                     },
                     // Missing/empty target is malformed: no lease, let dispatch_request emit -32602.
                     _ => DispatchPlan::Direct,
                 }
             }
-            "list_widgets" => DispatchPlan::SharedRead,
+            Some("argus.inspect" | "argus.list_windows") => DispatchPlan::SharedRead,
             // screenshot + unknown methods: no shared-widget mutation, so no lease.
             _ => DispatchPlan::Direct,
         }
@@ -277,6 +392,252 @@ impl McpSession {
         }
     }
 
+    /// Live production dispatch: canonical/alias method normalization, window-aware resolution,
+    /// per-target fencing, request-level attribution, and an applied/failed receipt after the target
+    /// viewport consumes the action and publishes a newer snapshot.
+    pub async fn dispatch_argus_shared_async(
+        &self,
+        request: &McpRequest,
+        windows: &WindowSnapshotRegistry,
+        channel: &Arc<Mutex<ActionChannel>>,
+        capture: impl FnOnce(&ArgusWindowDescriptor) -> Result<ScreenshotResult, ScreenshotError>,
+    ) -> McpResponse {
+        if !self.token.matches(&request.session_token) {
+            return McpResponse::error(
+                request.id.clone(),
+                crate::mcp::tools::McpError {
+                    code: crate::mcp::ERR_UNAUTHORIZED,
+                    message: "Invalid session token".to_owned(),
+                },
+            );
+        }
+        if request.method == "argus.authenticate_agent" {
+            if validate_agent_label(request.agent_label()).is_err() {
+                return McpResponse::error(
+                    request.id.clone(),
+                    crate::mcp::tools::McpError {
+                        code: crate::mcp::tools::ERR_INVALID_PARAMS,
+                        message: "agent_label must be non-empty bounded ASCII graphic text".to_owned(),
+                    },
+                );
+            }
+            let (agent_id, agent_token) = self.agent_credentials.mint();
+            return McpResponse::ok_value(
+                request.id.clone(),
+                serde_json::json!({
+                    "agent_id": agent_id,
+                    "agent_token": agent_token,
+                    "agent_label": request.agent_label(),
+                }),
+            );
+        }
+        let authenticated_agent_id = if self.require_agent_credentials {
+            match self
+                .agent_credentials
+                .authenticate(request.agent_credential())
+            {
+                Some(agent_id) => agent_id,
+                None => {
+                    return McpResponse::error(
+                        request.id.clone(),
+                        crate::mcp::tools::McpError {
+                            code: crate::mcp::ERR_UNAUTHORIZED,
+                            message: "Missing or invalid broker-minted agent token".to_owned(),
+                        },
+                    )
+                }
+            }
+        } else {
+            self.agent_id.clone()
+        };
+        match self.decide(request) {
+            DispatchPlan::Direct => {
+                let mut channel = lock_channel(channel);
+                dispatch_windowed_request(
+                    request,
+                    &self.token,
+                    windows,
+                    &mut channel,
+                    &self.connection_id,
+                    request.agent_label(),
+                    capture,
+                )
+            }
+            DispatchPlan::SharedRead => {
+                let _guard = match self
+                    .leases
+                    .acquire_async(SNAPSHOT_RESOURCE, LeaseKind::Shared, self.lease_timeout)
+                    .await
+                {
+                    Ok(guard) => guard,
+                    Err(error) => return Self::lease_timeout_response(request, error),
+                };
+                let mut channel = lock_channel(channel);
+                dispatch_windowed_request(
+                    request,
+                    &self.token,
+                    windows,
+                    &mut channel,
+                    &self.connection_id,
+                    request.agent_label(),
+                    capture,
+                )
+            }
+            DispatchPlan::ExclusiveWrite { target } => {
+                let _guard = match self
+                    .leases
+                    .acquire_async(&target, LeaseKind::Exclusive, self.lease_timeout)
+                    .await
+                {
+                    Ok(guard) => guard,
+                    Err(error) => return Self::lease_timeout_response(request, error),
+                };
+                let response = {
+                    let mut channel = lock_channel(channel);
+                    dispatch_windowed_request(
+                        request,
+                        &self.token,
+                        windows,
+                        &mut channel,
+                        &self.connection_id,
+                        request.agent_label(),
+                        capture,
+                    )
+                };
+                self.attribute_and_wait(
+                    response,
+                    request,
+                    channel,
+                    &authenticated_agent_id,
+                )
+                .await
+            }
+        }
+    }
+
+    async fn attribute_and_wait(
+        &self,
+        response: McpResponse,
+        request: &McpRequest,
+        channel: &Arc<Mutex<ActionChannel>>,
+        authenticated_agent_id: &str,
+    ) -> McpResponse {
+        let result = match response.result_ref() {
+            Ok(result) if result.get("queued").and_then(|value| value.as_bool()) == Some(true) => {
+                result.clone()
+            }
+            _ => return response,
+        };
+        let Some(action_id) = result.get("action_id").and_then(|value| value.as_str()) else {
+            return response;
+        };
+        let target = result
+            .get("target")
+            .and_then(|value| value.as_str())
+            .unwrap_or("");
+        let node_id = result
+            .get("node_id")
+            .and_then(|value| value.as_u64())
+            .unwrap_or(0);
+        let seq = self
+            .log
+            .record(authenticated_agent_id, &request.method, target, node_id);
+        let tracker = lock_channel(channel).receipt_tracker();
+        tracker.set_evidence_ref(action_id, format!("native-action-log://{seq}"));
+        let action_id_owned = action_id.to_owned();
+        let waiting_tracker = tracker.clone();
+        let waited = tokio::task::spawn_blocking(move || {
+            waiting_tracker.wait(&action_id_owned, ACTION_RECEIPT_TIMEOUT)
+        })
+        .await;
+        let mut receipt = match waited {
+            Ok(Ok(receipt)) => receipt,
+            Ok(Err(error)) => {
+                tracker.failed(action_id, error.to_string());
+                match tracker.wait(action_id, Duration::ZERO) {
+                    Ok(receipt) => receipt,
+                    Err(_) => return McpResponse::error(request.id.clone(), error.into()),
+                }
+            }
+            Err(error) => {
+                tracker.failed(action_id, format!("receipt waiter failed: {error}"));
+                match tracker.wait(action_id, Duration::ZERO) {
+                    Ok(receipt) => receipt,
+                    Err(receipt_error) => {
+                        return McpResponse::error(request.id.clone(), receipt_error.into())
+                    }
+                }
+            }
+        };
+        if !self.durable_receipts {
+            return McpResponse::ok_value(
+                request.id.clone(),
+                serde_json::to_value(receipt).unwrap_or_else(
+                    |_| serde_json::json!({"status": "failed", "error": "receipt serialize failed"}),
+                ),
+            );
+        }
+        let Some(provenance) = self.receipt_provenance.clone() else {
+            let error = "Argus receipt has no authenticated diagnostics provenance".to_owned();
+            tracker.set_durability_error(action_id, error.clone());
+            receipt.durability_error = Some(error);
+            return McpResponse::ok_value(
+                request.id.clone(),
+                serde_json::to_value(receipt).unwrap_or_else(
+                    |_| serde_json::json!({"status": "failed", "error": "receipt serialize failed"}),
+                ),
+            );
+        };
+        match persist_argus_receipt(&receipt, authenticated_agent_id, provenance).await {
+            Ok(durable) if durable.durable => {
+                let evidence_ref = durable
+                    .flight_recorder_event_id
+                    .filter(|_| durable.flight_recorder_mirrored)
+                    .map(|event_id| {
+                        format!(
+                            "eventledger://kernel/{}#flight-recorder/{event_id}",
+                            durable.event_ledger_event_id
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        format!("eventledger://kernel/{}", durable.event_ledger_event_id)
+                    });
+                tracker.set_evidence_ref(action_id, evidence_ref.clone());
+                receipt.evidence_ref = Some(evidence_ref);
+                crate::internal_diagnostics::record_open(
+                    crate::internal_diagnostics::InternalDiagnosticEvent::mechanical(
+                        crate::internal_diagnostics::DiagnosticMechanism::GuiAction,
+                        crate::internal_diagnostics::DiagnosticEventState::Healthy,
+                        None,
+                    ),
+                );
+            }
+            Ok(_) => {
+                let error = "Argus receipt durability was not acknowledged".to_owned();
+                tracker.set_durability_error(action_id, error.clone());
+                receipt.durability_error = Some(error);
+            }
+            Err(error) => {
+                let error = format!("Argus durable receipt append failed: {error}");
+                tracker.set_durability_error(action_id, error.clone());
+                receipt.durability_error = Some(error);
+                crate::internal_diagnostics::record_open(
+                    crate::internal_diagnostics::InternalDiagnosticEvent::mechanical(
+                        crate::internal_diagnostics::DiagnosticMechanism::GuiAction,
+                        crate::internal_diagnostics::DiagnosticEventState::Degraded,
+                        Some(crate::internal_diagnostics::DiagnosticCode::BackendUnavailable),
+                    ),
+                );
+            }
+        }
+        McpResponse::ok_value(
+            request.id.clone(),
+            serde_json::to_value(receipt).unwrap_or_else(
+                |_| serde_json::json!({"status": "failed", "error": "receipt serialize failed"}),
+            ),
+        )
+    }
+
     /// Build the typed [`ERR_LEASE_TIMEOUT`] (-32004) response for a contended lease.
     fn lease_timeout_response(
         request: &McpRequest,
@@ -327,6 +688,146 @@ impl McpSession {
     }
 }
 
+#[derive(Clone, Default)]
+struct AgentCredentialBroker {
+    credentials: Arc<Mutex<Vec<(SessionToken, String)>>>,
+}
+
+impl AgentCredentialBroker {
+    fn mint(&self) -> (String, String) {
+        let token = SessionToken::generate();
+        let agent_id = agent_id_for_token(token.as_hex());
+        self.credentials
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .push((token.clone(), agent_id.clone()));
+        (agent_id, token.as_hex().to_owned())
+    }
+
+    fn authenticate(&self, presented: &str) -> Option<String> {
+        // Map lookup does not itself provide a constant-time miss path, so first
+        // bound the credential shape and then validate the selected token with
+        // SessionToken::matches before returning its broker-owned principal.
+        if presented.len() != 64 || !presented.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return None;
+        }
+        self.credentials
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .iter()
+            .find_map(|(token, principal)| token.matches(presented).then(|| principal.clone()))
+    }
+}
+
+async fn persist_argus_receipt(
+    receipt: &crate::mcp::argus::ArgusActionReceipt,
+    authenticated_agent_id: &str,
+    provenance: ArgusReceiptProvenance,
+) -> Result<ArgusDurabilityReceipt, String> {
+    let status = match &receipt.status {
+        crate::mcp::argus::ActionReceiptStatus::Applied => "applied",
+        crate::mcp::argus::ActionReceiptStatus::Failed => "failed",
+        crate::mcp::argus::ActionReceiptStatus::Queued => {
+            return Err("queued receipt cannot be persisted as final evidence".to_owned())
+        }
+    };
+    let action = canonical_receipt_action(&receipt.action)?;
+    let proof_bytes = argus_proof_bytes(
+        provenance.diagnostics_session_id,
+        receipt,
+        action,
+        authenticated_agent_id,
+        status,
+    );
+    let signing_secret = (provenance.signing_secret)()
+        .ok_or_else(|| "Palmistry signing secret is not currently authenticated".to_owned())?;
+    let mut mac = Hmac::<Sha256>::new_from_slice(signing_secret.as_ref())
+        .map_err(|_| "invalid Argus proof key".to_owned())?;
+    mac.update(&proof_bytes);
+    let proof = lower_hex(&mac.finalize().into_bytes());
+    let response = reqwest::Client::new()
+        .post(format!(
+            "{}/internal-diagnostics/argus/action-receipt",
+            crate::backend_client::BACKEND_BASE_URL
+        ))
+        .timeout(Duration::from_secs(5))
+        .json(&serde_json::json!({
+            "diagnostics_session_id": provenance.diagnostics_session_id,
+            "action_id": receipt.action_id,
+            "action": action,
+            "connection_id": receipt.connection_id,
+            "agent_id": authenticated_agent_id,
+            "agent_label": receipt.agent_label,
+            "window_id": receipt.window_id,
+            "author_id": receipt.author_id,
+            "before_revision": receipt.before_revision,
+            "after_revision": receipt.after_revision,
+            "status": status,
+            "proof": proof,
+        }))
+        .send()
+        .await
+        .map_err(|error| error.to_string())?;
+    let status = response.status();
+    let bytes = response.bytes().await.map_err(|error| error.to_string())?;
+    if !status.is_success() {
+        return Err(format!(
+            "HTTP {status}: {}",
+            String::from_utf8_lossy(&bytes)
+        ));
+    }
+    serde_json::from_slice(&bytes).map_err(|error| error.to_string())
+}
+
+fn lower_hex(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        output.push(HEX[(byte >> 4) as usize] as char);
+        output.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    output
+}
+
+fn argus_proof_bytes(
+    diagnostics_session_id: uuid::Uuid,
+    receipt: &crate::mcp::argus::ArgusActionReceipt,
+    action: &str,
+    agent_id: &str,
+    status: &str,
+) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    for value in [
+        diagnostics_session_id.to_string(),
+        receipt.action_id.clone(),
+        action.to_owned(),
+        receipt.connection_id.clone(),
+        agent_id.to_owned(),
+        receipt.agent_label.clone(),
+        receipt.window_id.clone(),
+        receipt.author_id.clone(),
+        receipt.before_revision.to_string(),
+        receipt
+            .after_revision
+            .map(|value| value.to_string())
+            .unwrap_or_default(),
+        status.to_owned(),
+    ] {
+        bytes.extend_from_slice(&(value.len() as u64).to_le_bytes());
+        bytes.extend_from_slice(value.as_bytes());
+    }
+    bytes
+}
+
+fn canonical_receipt_action(action: &str) -> Result<&'static str, String> {
+    match action {
+        "Click" => Ok("argus.click"),
+        "ShowContextMenu" => Ok("argus.show_context_menu"),
+        "SetValue" => Ok("argus.set_value"),
+        other => Err(format!("unsupported final Argus receipt action `{other}`")),
+    }
+}
+
 /// Lock the shared channel for the minimum span, recovering a poisoned lock (a prior holder panicked
 /// while holding it) so one agent's panic cannot wedge every other connection's enqueue path.
 fn lock_channel(channel: &Arc<Mutex<ActionChannel>>) -> std::sync::MutexGuard<'_, ActionChannel> {
@@ -349,12 +850,18 @@ pub struct SwarmSafetyState {
     pub log: ActionLog,
     /// The live UI-tree snapshot slot (shared with the egui frame loop).
     pub snapshot: Arc<Mutex<UiTreeSnapshot>>,
+    /// Window-keyed live snapshots used by the production Argus transport.
+    pub windows: WindowSnapshotRegistry,
     /// The bounded action channel (shared with the egui frame loop).
     pub channel: Arc<Mutex<ActionChannel>>,
     /// Per-acquire lease timeout every connection's [`McpSession`] inherits. Defaults to
     /// [`DEFAULT_LEASE_TIMEOUT`]; the concurrent harness overrides it with a short value to exercise the
     /// lease-timeout path deterministically over the wire.
     pub lease_timeout: Duration,
+    durable_receipts: bool,
+    receipt_provenance: Option<ArgusReceiptProvenance>,
+    agent_credentials: AgentCredentialBroker,
+    require_agent_credentials: bool,
 }
 
 impl SwarmSafetyState {
@@ -365,13 +872,31 @@ impl SwarmSafetyState {
         snapshot: Arc<Mutex<UiTreeSnapshot>>,
         channel: Arc<Mutex<ActionChannel>>,
     ) -> Self {
+        let windows = WindowSnapshotRegistry::new();
+        let initial_snapshot = snapshot
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        windows.publish(
+            ArgusWindowDescriptor {
+                window_id: MAIN_WINDOW_ID.to_owned(),
+                viewport_id: "ROOT".to_owned(),
+                title: HANDSHAKE_WINDOW_TITLE.to_owned(),
+            },
+            initial_snapshot,
+        );
         Self {
             token,
             leases: LeaseRegistry::new(),
             log: ActionLog::new(),
             snapshot,
+            windows,
             channel,
             lease_timeout: DEFAULT_LEASE_TIMEOUT,
+            durable_receipts: false,
+            receipt_provenance: None,
+            agent_credentials: AgentCredentialBroker::default(),
+            require_agent_credentials: false,
         }
     }
 
@@ -379,6 +904,13 @@ impl SwarmSafetyState {
     /// lease-contention path times out deterministically). Returns `self` for chaining.
     pub fn with_lease_timeout(mut self, timeout: Duration) -> Self {
         self.lease_timeout = timeout;
+        self
+    }
+
+    pub fn with_durable_receipts(mut self, provenance: ArgusReceiptProvenance) -> Self {
+        self.durable_receipts = true;
+        self.receipt_provenance = Some(provenance);
+        self.require_agent_credentials = true;
         self
     }
 
@@ -394,13 +926,52 @@ impl SwarmSafetyState {
         leases: LeaseRegistry,
         log: ActionLog,
     ) -> Self {
+        let windows = WindowSnapshotRegistry::new();
+        let initial_snapshot = snapshot
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        windows.publish(
+            ArgusWindowDescriptor {
+                window_id: MAIN_WINDOW_ID.to_owned(),
+                viewport_id: "ROOT".to_owned(),
+                title: HANDSHAKE_WINDOW_TITLE.to_owned(),
+            },
+            initial_snapshot,
+        );
         Self {
             token,
             leases,
             log,
             snapshot,
+            windows,
             channel,
             lease_timeout: DEFAULT_LEASE_TIMEOUT,
+            durable_receipts: false,
+            receipt_provenance: None,
+            agent_credentials: AgentCredentialBroker::default(),
+            require_agent_credentials: false,
+        }
+    }
+
+    pub fn with_window_registry(
+        token: SessionToken,
+        snapshot: Arc<Mutex<UiTreeSnapshot>>,
+        windows: WindowSnapshotRegistry,
+        channel: Arc<Mutex<ActionChannel>>,
+    ) -> Self {
+        Self {
+            token,
+            leases: LeaseRegistry::new(),
+            log: ActionLog::new(),
+            snapshot,
+            windows,
+            channel,
+            lease_timeout: DEFAULT_LEASE_TIMEOUT,
+            durable_receipts: false,
+            receipt_provenance: None,
+            agent_credentials: AgentCredentialBroker::default(),
+            require_agent_credentials: false,
         }
     }
 
@@ -409,6 +980,12 @@ impl SwarmSafetyState {
     pub fn session(&self) -> McpSession {
         McpSession::new(self.token.clone(), self.leases.clone(), self.log.clone())
             .with_lease_timeout(self.lease_timeout)
+            .with_durable_receipts(self.durable_receipts)
+            .with_receipt_provenance(self.receipt_provenance.clone())
+            .with_agent_credentials(
+                self.agent_credentials.clone(),
+                self.require_agent_credentials,
+            )
     }
 
     /// The shared action log (for diagnostics / tests).
@@ -460,6 +1037,28 @@ mod tests {
         }
     }
 
+    #[test]
+    fn dynamic_receipt_provenance_reads_rotated_secret_without_rebind() {
+        let slot = std::sync::Arc::new(std::sync::Mutex::new(Some(zeroize::Zeroizing::new(
+            [1_u8; 32],
+        ))));
+        let provider_slot = std::sync::Arc::clone(&slot);
+        let provenance = ArgusReceiptProvenance::dynamic(
+            uuid::Uuid::now_v7(),
+            std::sync::Arc::new(move || {
+                provider_slot
+                    .lock()
+                    .unwrap_or_else(|error| error.into_inner())
+                    .as_ref()
+                    .cloned()
+            }),
+        );
+        assert_eq!((provenance.signing_secret)().unwrap().as_ref(), &[1_u8; 32]);
+        *slot.lock().unwrap_or_else(|error| error.into_inner()) =
+            Some(zeroize::Zeroizing::new([2_u8; 32]));
+        assert_eq!((provenance.signing_secret)().unwrap().as_ref(), &[2_u8; 32]);
+    }
+
     fn req(method: &str, params: serde_json::Value, token: &str) -> McpRequest {
         McpRequest {
             id: serde_json::json!(1),
@@ -471,6 +1070,214 @@ mod tests {
 
     fn no_capture() -> Result<ScreenshotResult, ScreenshotError> {
         Ok(screenshot_from_png(b"x", 1, 1))
+    }
+
+    fn targeted_no_capture(_: &ArgusWindowDescriptor) -> Result<ScreenshotResult, ScreenshotError> {
+        no_capture()
+    }
+
+    #[tokio::test]
+    async fn broker_mints_distinct_two_client_principals_and_label_cannot_spoof() {
+        let token = SessionToken::from_hex("production-root");
+        let snapshot = Arc::new(Mutex::new(snap()));
+        let channel = Arc::new(Mutex::new(ActionChannel::default()));
+        let state = SwarmSafetyState::new(token.clone(), snapshot, channel)
+            .with_durable_receipts(ArgusReceiptProvenance::new(
+                uuid::Uuid::nil(),
+                zeroize::Zeroizing::new([7_u8; 32]),
+            ));
+        let first_session = state.session();
+        let second_session = state.session();
+        let auth = |id: u64, label: &str| {
+            McpRequest::from_json(&serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "method": "argus.authenticate_agent",
+                "params": {},
+                "session_token": token.as_hex(),
+                "agent_label": label,
+            }))
+            .unwrap()
+        };
+        let first = first_session
+            .dispatch_argus_shared_async(
+                &auth(1, "agent-one"),
+                &state.windows,
+                &state.channel,
+                targeted_no_capture,
+            )
+            .await;
+        let second = second_session
+            .dispatch_argus_shared_async(
+                &auth(2, "agent-two"),
+                &state.windows,
+                &state.channel,
+                targeted_no_capture,
+            )
+            .await;
+        let first_result = first.result_ref().unwrap();
+        let second_result = second.result_ref().unwrap();
+        let first_id = first_result["agent_id"].as_str().unwrap();
+        let second_id = second_result["agent_id"].as_str().unwrap();
+        let first_token = first_result["agent_token"].as_str().unwrap();
+        let second_token = second_result["agent_token"].as_str().unwrap();
+        assert_ne!(first_id, second_id);
+        assert_ne!(first_token, second_token);
+        assert_eq!(
+            state.agent_credentials.authenticate(first_token).as_deref(),
+            Some(first_id)
+        );
+        assert_eq!(
+            state.agent_credentials.authenticate(second_token).as_deref(),
+            Some(second_id)
+        );
+        // A caller-controlled display label never participates in credential
+        // resolution, so relabeling cannot turn client one into client two.
+        assert_ne!(
+            state.agent_credentials.authenticate(first_token).as_deref(),
+            Some(second_id)
+        );
+    }
+
+    #[test]
+    fn accesskit_receipt_actions_map_to_canonical_durable_actions() {
+        assert_eq!(canonical_receipt_action("Click").unwrap(), "argus.click");
+        assert_eq!(
+            canonical_receipt_action("ShowContextMenu").unwrap(),
+            "argus.show_context_menu"
+        );
+        assert_eq!(
+            canonical_receipt_action("SetValue").unwrap(),
+            "argus.set_value"
+        );
+        assert!(canonical_receipt_action("Focus").is_err());
+    }
+
+    fn argus_req(id: u64, method: &str, author_id: &str, agent_label: &str) -> McpRequest {
+        McpRequest::from_json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": method,
+            "params": {
+                "window_id": MAIN_WINDOW_ID,
+                "author_id": author_id,
+                "expected_snapshot_revision": 1
+            },
+            "session_token": "secret",
+            "agent_label": agent_label
+        }))
+        .expect("valid Argus request")
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn same_target_mutation_is_fenced_until_first_receipt_completes() {
+        let state = SwarmSafetyState::new(
+            SessionToken::from_hex("secret"),
+            Arc::new(Mutex::new(snap())),
+            Arc::new(Mutex::new(ActionChannel::new())),
+        )
+        .with_lease_timeout(Duration::from_millis(20));
+        let windows = state.windows.clone();
+        let channel = state.channel.clone();
+        let first_session = state.session();
+        let second_session = state.session();
+        let first_request = argus_req(1, "argus.click", "btn", "first-agent");
+        let second_request = argus_req(2, "argus.click", "btn", "second-agent");
+
+        let first_windows = windows.clone();
+        let first_channel = channel.clone();
+        let first = tokio::spawn(async move {
+            first_session
+                .dispatch_argus_shared_async(
+                    &first_request,
+                    &first_windows,
+                    &first_channel,
+                    targeted_no_capture,
+                )
+                .await
+        });
+        let deadline = std::time::Instant::now() + Duration::from_secs(1);
+        while channel.lock().unwrap().pending() == 0 {
+            assert!(std::time::Instant::now() < deadline, "first action queued");
+            tokio::task::yield_now().await;
+        }
+
+        let second = second_session
+            .dispatch_argus_shared_async(&second_request, &windows, &channel, targeted_no_capture)
+            .await;
+        assert!(second.is_error_code(ERR_LEASE_TIMEOUT));
+
+        let (batch, tracker) = {
+            let mut channel = channel.lock().unwrap();
+            let tracker = channel.receipt_tracker();
+            (channel.drain_for_window(MAIN_WINDOW_ID), tracker)
+        };
+        let current = windows.get(MAIN_WINDOW_ID).unwrap();
+        let snapshot = current.snapshot.clone();
+        let revision = windows.publish(current.window, current.snapshot);
+        for action_id in batch.action_ids {
+            tracker.acknowledge_effect(&action_id);
+            tracker.observe_postcondition(&action_id, revision, &snapshot);
+        }
+        let first = first.await.expect("first dispatch task");
+        assert_eq!(first.to_json()["result"]["status"], "applied");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn different_targets_can_wait_for_applied_receipts_concurrently() {
+        let mut snapshot = snap();
+        let mut second = snapshot.root.children[0].clone();
+        second.id = "btn-2".to_owned();
+        second.author_id = Some("btn-2".to_owned());
+        second.node_id = 11;
+        snapshot.root.children.push(second);
+        snapshot.widget_count += 1;
+        let state = SwarmSafetyState::new(
+            SessionToken::from_hex("secret"),
+            Arc::new(Mutex::new(snapshot)),
+            Arc::new(Mutex::new(ActionChannel::new())),
+        );
+        let windows = state.windows.clone();
+        let channel = state.channel.clone();
+        let requests = [
+            argus_req(1, "argus.click", "btn", "agent-one"),
+            argus_req(2, "argus.click", "btn-2", "agent-two"),
+        ];
+        let mut tasks = Vec::new();
+        for request in requests {
+            let session = state.session();
+            let windows = windows.clone();
+            let channel = channel.clone();
+            tasks.push(tokio::spawn(async move {
+                session
+                    .dispatch_argus_shared_async(&request, &windows, &channel, targeted_no_capture)
+                    .await
+            }));
+        }
+        let deadline = std::time::Instant::now() + Duration::from_secs(1);
+        while channel.lock().unwrap().pending() < 2 {
+            assert!(std::time::Instant::now() < deadline, "both actions queued");
+            tokio::task::yield_now().await;
+        }
+        let (batch, tracker) = {
+            let mut channel = channel.lock().unwrap();
+            let tracker = channel.receipt_tracker();
+            (channel.drain_for_window(MAIN_WINDOW_ID), tracker)
+        };
+        assert_eq!(batch.action_ids.len(), 2);
+        let current = windows.get(MAIN_WINDOW_ID).unwrap();
+        let snapshot = current.snapshot.clone();
+        let revision = windows.publish(current.window, current.snapshot);
+        for action_id in batch.action_ids {
+            tracker.acknowledge_effect(&action_id);
+            tracker.observe_postcondition(&action_id, revision, &snapshot);
+        }
+        for task in tasks {
+            assert_eq!(
+                task.await.expect("dispatch task").to_json()["result"]["status"],
+                "applied"
+            );
+        }
     }
 
     #[test]

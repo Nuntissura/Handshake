@@ -1,0 +1,25 @@
+[package]
+name = "windows-native-acl-transaction-harness"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+doctest = false
+
+[dependencies]
+rappct = "=0.13.3"
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.145"
+uuid = { version = "=1.19.0", features = ["v7"] }
+windows-sys = { version = "=0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+] }
+
+[dev-dependencies]
+tempfile = "=3.23.0"
+
+[workspace]

@@ -16,24 +16,30 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
+use uuid::Uuid;
 
+use crate::llm::{LlmClient, LlmInvocationContext, LlmInvocationEvidenceOwner};
 use crate::model_runtime::{
     CancellationToken, GenerateRequest, ModelId, ProviderKind, TokenStream,
 };
 use crate::process_ledger::{
-    LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId, ProcessStop, ReclaimTrigger,
+    ActiveProcessLifecycle, KillOutcome, LedgerBatcher, LedgerEventKind, ProcessEngineKind,
+    ProcessOwnershipRecordId, ProcessStart, ProcessStop, Reclaim, ReclaimTrigger,
+    StopRecordOutcome,
 };
 
 use super::breaker::{AdmitDecision, BreakerConfig, FailureFingerprint, FailureFingerprintBreaker};
+use super::checkout_lease::CheckoutLeaseGuard;
 use super::error::{SwarmError, SwarmResult};
 use super::events::{SwarmEvent, SwarmEventSink};
-use super::factory::{LiveSession, ModelSessionFactory, SessionTeardown};
+use super::factory::{LiveSession, ModelSessionFactory, SessionReadyHook, SessionTeardown};
 use super::ids::{BudgetRemaining, ModelInstanceId, RunBudget, SpawnRequest};
 use super::model_lane::{
     build_failed_launch_records, build_successful_launch_records, DexterityLaunchAdapterKind,
-    DexterityLaunchAdapterRegistry, DexterityLaunchAdapterRequest,
-    ModelLaneDownstreamContextBundle, ModelLaneRecord, ModelLaneRunRecord, ModelLaneStatus,
-    ModelLaneStore, RuntimeBinding as ModelLaneRuntimeBinding,
+    DexterityLaunchAdapterRegistry, DexterityLaunchAdapterRequest, LaunchAuthority,
+    ModelLaneDownstreamContextBundle, ModelLaneKind, ModelLaneMessageRecord, ModelLaneRecord,
+    ModelLaneRunRecord, ModelLaneStatus, ModelLaneStore, NewModelLaneContextBundleArtifactBinding,
+    NewModelLaneMessage, RuntimeBinding as ModelLaneRuntimeBinding,
 };
 use super::state::ModelSessionState;
 use crate::kernel::{KernelActor, ModelAdapter, ModelAdapterOutput, ModelAdapterRequest};
@@ -41,6 +47,23 @@ use crate::kernel::{KernelActor, ModelAdapter, ModelAdapterOutput, ModelAdapterR
 /// Max number of times a single instance may be respawned by the reaper before
 /// it is given up on, so a flapping session cannot storm respawns.
 pub const DEFAULT_MAX_RESPAWNS_PER_INSTANCE: u32 = 3;
+
+fn parse_routing_model_instance_id(value: &str) -> SwarmResult<ModelInstanceId> {
+    let (model_id, instance) = value.rsplit_once('#').ok_or_else(|| {
+        SwarmError::LedgerFailed(format!("invalid routing model instance id {value}"))
+    })?;
+    let model_id = uuid::Uuid::parse_str(model_id)
+        .map(ModelId::from)
+        .map_err(|err| {
+            SwarmError::LedgerFailed(format!("invalid routing model id in {value}: {err}"))
+        })?;
+    let instance = instance.parse::<u32>().map_err(|err| {
+        SwarmError::LedgerFailed(format!(
+            "invalid routing instance ordinal in {value}: {err}"
+        ))
+    })?;
+    Ok(ModelInstanceId::new(model_id, instance))
+}
 
 /// Configuration for a coordinator run.
 #[derive(Clone, Debug)]
@@ -53,6 +76,13 @@ pub struct SwarmConfig {
     pub reaper_scan_interval: Duration,
     pub breaker: BreakerConfig,
     pub max_respawns_per_instance: u32,
+    /// Hard wall-clock bound for one provider generation invocation.
+    pub provider_invocation_timeout: Duration,
+    /// Maximum silence between provider stream items.
+    pub provider_idle_timeout: Duration,
+    /// Bound for one owned teardown attempt before it is aborted, joined, and
+    /// left in cleanup-pending state for a recoverable retry.
+    pub teardown_timeout: Duration,
     /// owner_role stamped on process-ledger rows the coordinator writes.
     pub owner_role: String,
 }
@@ -65,6 +95,9 @@ impl SwarmConfig {
             reaper_scan_interval: Duration::from_secs(5),
             breaker: BreakerConfig::default(),
             max_respawns_per_instance: DEFAULT_MAX_RESPAWNS_PER_INSTANCE,
+            provider_invocation_timeout: Duration::from_secs(300),
+            provider_idle_timeout: Duration::from_secs(30),
+            teardown_timeout: Duration::from_secs(5),
             owner_role: "swarm_coordinator".to_string(),
         }
     }
@@ -86,6 +119,17 @@ impl SwarmConfig {
 
     pub fn with_max_respawns(mut self, max: u32) -> Self {
         self.max_respawns_per_instance = max;
+        self
+    }
+
+    pub fn with_provider_deadlines(mut self, invocation: Duration, idle: Duration) -> Self {
+        self.provider_invocation_timeout = invocation;
+        self.provider_idle_timeout = idle;
+        self
+    }
+
+    pub fn with_teardown_timeout(mut self, timeout: Duration) -> Self {
+        self.teardown_timeout = timeout;
         self
     }
 }
@@ -117,12 +161,24 @@ pub struct SessionHandle {
     pub model_id: ModelId,
     pub process_record_id: ProcessOwnershipRecordId,
     pub os_pid: u32,
+    pub ledger_os_pid: Option<u32>,
+    pub ledger_start_override: Option<ProcessStart>,
+    pub ledger_lifecycle: Option<Arc<ActiveProcessLifecycle>>,
     pub process_engine_kind: ProcessEngineKind,
     pub parent_session_id: String,
     pub runtime: Arc<dyn crate::model_runtime::ModelRuntime>,
-    /// Single-shot async teardown that frees the engine resource. Taken
-    /// (`Option::take`) on the terminal path so it runs exactly once (D1).
+    /// Application generation authority. The runtime field above is retained
+    /// only for lifecycle/control operations such as cancel, score, and teardown.
+    pub llm_client: Arc<dyn LlmClient>,
+    /// Retryable async teardown that frees the engine resource. Retained until
+    /// teardown and the matching process-ledger STOP have both succeeded.
     teardown: Option<SessionTeardown>,
+    /// Secondary publication committed only after all launch persistence and
+    /// the Ready transition succeed.
+    ready_hook: Option<SessionReadyHook>,
+    /// Cross-process checkout locks retained through teardown + durable STOP.
+    _checkout_lease: Option<CheckoutLeaseGuard>,
+    cleanup: Option<PendingSessionCleanup>,
     /// Held for the lifetime of the slot; dropping it returns the permit.
     permit: Option<OwnedSemaphorePermit>,
     started_at: DateTime<Utc>,
@@ -141,6 +197,99 @@ pub struct SessionHandle {
     /// persistence commits. Non-Dexterity sessions do not use this gate.
     dexterity_model_lane_persisted: bool,
     dexterity_lane_id: Option<String>,
+    dexterity_consent_receipt_id: Option<String>,
+}
+
+struct PendingSpawn {
+    cancel: CancellationToken,
+    dexterity_lane_id: Option<String>,
+    dexterity_consent_receipt_id: Option<String>,
+    checkout_lease: Option<CheckoutLeaseGuard>,
+}
+
+#[allow(clippy::result_large_err)]
+enum TryInsertLoadingError {
+    Duplicate {
+        live: LiveSession,
+        permit: OwnedSemaphorePermit,
+        checkout_lease: Option<CheckoutLeaseGuard>,
+    },
+    EventSink {
+        live: LiveSession,
+        permit: OwnedSemaphorePermit,
+        checkout_lease: Option<CheckoutLeaseGuard>,
+        error: SwarmError,
+    },
+}
+
+struct PendingOrphanCleanup {
+    instance_id: ModelInstanceId,
+    cancel: CancellationToken,
+    runtime: Arc<dyn crate::model_runtime::ModelRuntime>,
+    teardown: SessionTeardown,
+    stop: ProcessStop,
+    ledger_lifecycle: Option<Arc<ActiveProcessLifecycle>>,
+    _permit: OwnedSemaphorePermit,
+    committed_memory_bytes: u64,
+    _checkout_lease: Option<CheckoutLeaseGuard>,
+    teardown_succeeded: bool,
+    stop_succeeded: bool,
+    owner_generation: u64,
+    in_progress: bool,
+}
+
+#[derive(Clone)]
+struct PendingSessionCleanup {
+    terminal: ModelSessionState,
+    reason: String,
+    exit_code: i32,
+    teardown_succeeded: bool,
+    stop_succeeded: bool,
+    owner_generation: u64,
+    in_progress: bool,
+}
+
+struct CleanupOwnershipGuard {
+    inner: Arc<Inner>,
+    instance_id: ModelInstanceId,
+    generation: u64,
+}
+
+struct OrphanCleanupOwnershipGuard {
+    inner: Arc<Inner>,
+    process_record_id: ProcessOwnershipRecordId,
+    generation: u64,
+}
+
+impl Drop for CleanupOwnershipGuard {
+    fn drop(&mut self) {
+        let mut registry = self.inner.registry.lock().expect("registry poisoned");
+        let Some(cleanup) = registry
+            .get_mut(&self.instance_id)
+            .and_then(|handle| handle.cleanup.as_mut())
+        else {
+            return;
+        };
+        if cleanup.owner_generation == self.generation {
+            cleanup.in_progress = false;
+        }
+    }
+}
+
+impl Drop for OrphanCleanupOwnershipGuard {
+    fn drop(&mut self) {
+        let mut cleanups = self
+            .inner
+            .orphan_cleanups
+            .lock()
+            .expect("orphan cleanups poisoned");
+        let Some(cleanup) = cleanups.get_mut(&self.process_record_id) else {
+            return;
+        };
+        if cleanup.owner_generation == self.generation {
+            cleanup.in_progress = false;
+        }
+    }
 }
 
 impl SessionHandle {
@@ -159,10 +308,26 @@ impl SessionHandle {
     }
 }
 
+fn ensure_reserved_stop_recorded(
+    result: Result<StopRecordOutcome, crate::process_ledger::ProcessLedgerError>,
+) -> SwarmResult<()> {
+    match result {
+        Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped) => Ok(()),
+        Ok(
+            StopRecordOutcome::LeftOpenForReconciliation | StopRecordOutcome::DurabilityUnconfirmed,
+        ) => Err(SwarmError::LedgerFailed(
+            "reserved pidless lifecycle left START open for reconciliation".to_string(),
+        )),
+        Err(error) => Err(SwarmError::LedgerFailed(error.to_string())),
+    }
+}
+
 /// Shared, lock-guarded inner state. Split out so the reaper task can hold an
 /// `Arc` to exactly this without owning the whole coordinator.
 struct Inner {
     registry: Mutex<HashMap<ModelInstanceId, SessionHandle>>,
+    pending_spawns: Mutex<HashMap<ModelInstanceId, PendingSpawn>>,
+    orphan_cleanups: Mutex<HashMap<ProcessOwnershipRecordId, PendingOrphanCleanup>>,
     breaker: Mutex<FailureFingerprintBreaker>,
     /// Per-instance respawn counters (anti-storm) + budget accounting.
     accounting: Mutex<Accounting>,
@@ -174,11 +339,17 @@ struct Inner {
     /// Monotonic lifetime spawn counter — never decremented. The hard ceiling
     /// is `budget.max_lifetime_spawns` (HBR-SWARM-002 loop-cap semantics).
     lifetime_spawns: AtomicU64,
+    checkout_lease_generation: AtomicU64,
     config: SwarmConfig,
     factory: Arc<dyn ModelSessionFactory>,
     sink: Arc<dyn SwarmEventSink>,
     ledger: LedgerBatcher,
     model_lane_store: Option<ModelLaneStore>,
+    routing_execution_store: Option<super::routing_execution::ModelLaneRoutingExecutionStore>,
+    /// Production fallback for externally owned processes whose normal
+    /// teardown fails. Exact-process reclaim prevents a terminal lane from
+    /// killing healthy siblings sharing the coordinator session.
+    process_reclaimer: Mutex<Option<Arc<Reclaim>>>,
     dexterity_launch_required: bool,
 }
 
@@ -238,6 +409,21 @@ struct LifetimeSpawnReservation {
     armed: bool,
 }
 
+struct PendingSpawnRegistration {
+    inner: Arc<Inner>,
+    instance_id: ModelInstanceId,
+}
+
+impl Drop for PendingSpawnRegistration {
+    fn drop(&mut self) {
+        self.inner
+            .pending_spawns
+            .lock()
+            .expect("pending spawns poisoned")
+            .remove(&self.instance_id);
+    }
+}
+
 impl LifetimeSpawnReservation {
     fn reserve(inner: Arc<Inner>) -> Self {
         let reserved = inner.lifetime_spawns.fetch_add(1, Ordering::SeqCst) + 1;
@@ -263,9 +449,263 @@ impl Drop for LifetimeSpawnReservation {
 }
 
 /// The coordinator handle the operator/scheduler holds.
+#[derive(Clone)]
 pub struct SwarmCoordinator {
     inner: Arc<Inner>,
-    reaper: Mutex<Option<JoinHandle<()>>>,
+    reaper: Arc<Mutex<Option<JoinHandle<()>>>>,
+}
+
+struct ManagedGenerationFinalizer {
+    coordinator: Arc<SwarmCoordinator>,
+    instance_id: ModelInstanceId,
+    trace_id: Uuid,
+    run_id: String,
+    session_id: String,
+    finalized: bool,
+    generated_tokens: u64,
+}
+
+const MANAGED_GENERATION_CALLER_CLEANUP_DEADLINE: Duration = Duration::from_millis(750);
+const MANAGED_GENERATION_RECONCILIATION_DEADLINE: Duration = Duration::from_secs(5);
+
+impl ManagedGenerationFinalizer {
+    fn record_token(&mut self) {
+        self.generated_tokens = self.generated_tokens.saturating_add(1);
+    }
+
+    fn commit_usage(&self) {
+        self.coordinator.record_usage(self.generated_tokens, 0);
+    }
+
+    fn emit_terminal(&self, outcome: &str, error: Option<String>) -> Result<(), String> {
+        self.coordinator
+            .inner
+            .sink
+            .emit(SwarmEvent::ModelInvocationFinished {
+                instance_id: self.instance_id,
+                trace_id: self.trace_id,
+                run_id: self.run_id.clone(),
+                session_id: self.session_id.clone(),
+                outcome: outcome.to_string(),
+                generated_tokens: self.generated_tokens,
+                error,
+            })
+    }
+
+    async fn finish_ready(&mut self) -> Result<(), String> {
+        if self.finalized {
+            return Ok(());
+        }
+        self.finalized = true;
+        self.commit_usage();
+        if let Err(error) = self.emit_terminal("completed", None) {
+            let reason = format!("terminal event persistence rejected: {error}");
+            if self.coordinator.session_state(self.instance_id)
+                == Some(ModelSessionState::Generating)
+            {
+                let _ = self
+                    .coordinator
+                    .fail_session(self.instance_id, reason.clone())
+                    .await;
+            }
+            return Err(reason);
+        }
+        if self.coordinator.session_state(self.instance_id) == Some(ModelSessionState::Generating) {
+            let _ = self
+                .coordinator
+                .transition(self.instance_id, ModelSessionState::Ready);
+        }
+        Ok(())
+    }
+
+    async fn finish_failure(&mut self, error: String) -> Result<(), String> {
+        if self.finalized {
+            return Ok(());
+        }
+        self.finalized = true;
+        self.commit_usage();
+        let terminal_result = self.emit_terminal("failed", Some(error.clone()));
+        if self.coordinator.session_state(self.instance_id) == Some(ModelSessionState::Generating) {
+            let cleanup = self
+                .coordinator
+                .fail_session(self.instance_id, error.clone());
+            if !matches!(
+                tokio::time::timeout(MANAGED_GENERATION_CALLER_CLEANUP_DEADLINE, cleanup).await,
+                Ok(Ok(()))
+            ) {
+                self.spawn_reconciliation(ModelSessionState::Failed, error);
+            }
+        }
+        terminal_result
+    }
+
+    async fn finish_cancelled(&mut self, reason: String) -> Result<(), String> {
+        if self.finalized {
+            return Ok(());
+        }
+        self.finalized = true;
+        self.commit_usage();
+        let terminal_result = self.emit_terminal("cancelled", Some(reason.clone()));
+        if self.coordinator.session_state(self.instance_id) == Some(ModelSessionState::Generating) {
+            let cleanup = self
+                .coordinator
+                .cancel_session(self.instance_id, reason.clone());
+            if !matches!(
+                tokio::time::timeout(MANAGED_GENERATION_CALLER_CLEANUP_DEADLINE, cleanup).await,
+                Ok(Ok(()))
+            ) {
+                self.spawn_reconciliation(ModelSessionState::Cancelled, reason);
+            }
+        }
+        terminal_result
+    }
+
+    fn spawn_reconciliation(&self, terminal: ModelSessionState, reason: String) {
+        let coordinator = Arc::clone(&self.coordinator);
+        let instance_id = self.instance_id;
+        let reconcile = async move {
+            let result = match terminal {
+                ModelSessionState::Failed => coordinator.fail_session(instance_id, reason).await,
+                ModelSessionState::Cancelled => {
+                    coordinator.cancel_session(instance_id, reason).await
+                }
+                _ => unreachable!("managed generation reconciles only failure/cancellation"),
+            };
+            match result {
+                Ok(()) | Err(SwarmError::UnknownInstance(_)) => {}
+                Err(error) => tracing::warn!(
+                    target: "handshake_core::swarm_orchestration",
+                    %instance_id,
+                    %error,
+                    "managed-generation cleanup remains pending after bounded reconciliation"
+                ),
+            }
+        };
+        tokio::spawn(async move {
+            if tokio::time::timeout(MANAGED_GENERATION_RECONCILIATION_DEADLINE, reconcile)
+                .await
+                .is_err()
+            {
+                tracing::warn!(
+                    target: "handshake_core::swarm_orchestration",
+                    %instance_id,
+                    "managed-generation cleanup reconciliation deadline elapsed; durable/local cleanup_pending state is retained for retry or restart recovery"
+                );
+            }
+        });
+    }
+}
+
+impl Drop for ManagedGenerationFinalizer {
+    fn drop(&mut self) {
+        if self.finalized {
+            return;
+        }
+        self.finalized = true;
+        self.commit_usage();
+        if let Err(error) = self.emit_terminal(
+            "dropped",
+            Some("managed generation stream dropped".to_string()),
+        ) {
+            tracing::error!(
+                target: "handshake_core::swarm_orchestration",
+                %error,
+                instance_id = %self.instance_id,
+                "dropped generation terminal event was rejected; synchronous cancellation fence remains active"
+            );
+        }
+        let reason = "managed generation stream dropped";
+        let fenced = {
+            let mut registry = self
+                .coordinator
+                .inner
+                .registry
+                .lock()
+                .expect("registry poisoned");
+            let Some(handle) = registry
+                .get_mut(&self.instance_id)
+                .filter(|handle| handle.state == ModelSessionState::Generating)
+            else {
+                return;
+            };
+            handle.state = ModelSessionState::Cancelling;
+            handle.cleanup = Some(PendingSessionCleanup {
+                terminal: ModelSessionState::Cancelled,
+                reason: reason.to_string(),
+                exit_code: -1,
+                teardown_succeeded: false,
+                stop_succeeded: false,
+                owner_generation: 0,
+                in_progress: false,
+            });
+            (handle.cancel.clone(), Arc::clone(&handle.runtime))
+        };
+        let _ = self
+            .coordinator
+            .inner
+            .sink
+            .emit(SwarmEvent::SessionStateChanged {
+                instance_id: self.instance_id,
+                from: ModelSessionState::Generating,
+                to: ModelSessionState::Cancelling,
+            });
+        let (cancel, runtime_adapter) = fenced;
+        cancel.cancel();
+        runtime_adapter.cancel(cancel.clone());
+        let coordinator = Arc::clone(&self.coordinator);
+        let instance_id = self.instance_id;
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            runtime.spawn(async move {
+                if tokio::time::timeout(
+                    MANAGED_GENERATION_RECONCILIATION_DEADLINE,
+                    coordinator.cancel_session(instance_id, reason),
+                )
+                .await
+                .is_err()
+                {
+                    tracing::warn!(
+                        target: "handshake_core::swarm_orchestration",
+                        %instance_id,
+                        "managed-generation Drop cleanup deadline elapsed; cleanup_pending state is retained for restart recovery"
+                    );
+                }
+            });
+        } else {
+            // A managed stream can be moved to and dropped on a plain worker
+            // thread. The synchronous Cancelling + cleanup-intent fence above
+            // prevents Ready resurrection immediately; this owned runtime
+            // drives the existing durable terminate path without depending on
+            // ambient Tokio state on the dropping thread.
+            std::thread::spawn(move || {
+                let cleanup_runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build();
+                match cleanup_runtime {
+                    Ok(cleanup_runtime) => {
+                        let result = cleanup_runtime.block_on(tokio::time::timeout(
+                            MANAGED_GENERATION_RECONCILIATION_DEADLINE,
+                            coordinator.cancel_session(instance_id, reason),
+                        ));
+                        if result.is_err() {
+                            tracing::warn!(
+                                target: "handshake_core::swarm_orchestration",
+                                %instance_id,
+                                "no-Tokio managed-generation cleanup deadline elapsed; cleanup_pending state is retained for restart recovery"
+                            );
+                        }
+                    }
+                    Err(error) => {
+                        tracing::error!(
+                            target: "handshake_core::swarm_orchestration",
+                            %error,
+                            %instance_id,
+                            "failed to construct no-Tokio managed-generation cleanup runtime; synchronous Cancelling fence remains for reconciliation"
+                        );
+                    }
+                }
+            });
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -278,11 +718,30 @@ pub struct DexterityNoOsLaunchCaller {
     capability_receipt_ref: String,
 }
 
+/// Unforgeable in-process receipt for the manager-owned half of an
+/// operator-requested subagent lane. The coordinator mints this only after the
+/// no-OS lane has committed to ModelLaneStore, and requires it again when the
+/// external SubagentManager submits a typed output payload.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OperatorSubagentManagerLane {
+    run_id: String,
+    lane_id: String,
+    owner_session: String,
+    manager_receipt_ref: String,
+}
+
 fn reserves_host_committed_memory(request: &SpawnRequest) -> bool {
     matches!(request.provider, None | Some(ProviderKind::Local))
 }
 
 impl SwarmCoordinator {
+    fn emit_event(&self, event: SwarmEvent) -> SwarmResult<()> {
+        self.inner
+            .sink
+            .emit(event)
+            .map_err(SwarmError::EventSinkFailed)
+    }
+
     /// Build a fail-closed coordinator. `factory`, `sink`, and `ledger` are
     /// injected so the same coordinator code runs in production and tests, but
     /// runtime creation still requires a Dexterity launch contract. With no
@@ -338,24 +797,41 @@ impl SwarmCoordinator {
             config.budget.max_concurrent_cold_starts.max(1),
         ));
         let breaker = FailureFingerprintBreaker::new(config.breaker);
+        let routing_execution_store = model_lane_store.as_ref().map(|store| {
+            super::routing_execution::ModelLaneRoutingExecutionStore::new(store.postgres_pool())
+        });
         let inner = Arc::new(Inner {
             registry: Mutex::new(HashMap::new()),
+            pending_spawns: Mutex::new(HashMap::new()),
+            orphan_cleanups: Mutex::new(HashMap::new()),
             breaker: Mutex::new(breaker),
             accounting: Mutex::new(Accounting::default()),
             semaphore,
             cold_start_semaphore,
             lifetime_spawns: AtomicU64::new(0),
+            checkout_lease_generation: AtomicU64::new(0),
             config,
             factory,
             sink,
             ledger,
             model_lane_store,
+            routing_execution_store,
+            process_reclaimer: Mutex::new(None),
             dexterity_launch_required,
         });
         Self {
             inner,
-            reaper: Mutex::new(None),
+            reaper: Arc::new(Mutex::new(None)),
         }
+    }
+
+    pub fn with_process_reclaimer(self, reclaimer: Arc<Reclaim>) -> Self {
+        *self
+            .inner
+            .process_reclaimer
+            .lock()
+            .expect("process reclaimer lock poisoned") = Some(reclaimer);
+        self
     }
 
     /// Start the single background reaper task. Idempotent: a second call is a
@@ -390,7 +866,7 @@ impl SwarmCoordinator {
     /// factory create -> atomic dedup + registry insert + lease + events. Any
     /// bound failure returns a typed error and the partially-acquired resources
     /// are released.
-    pub async fn spawn_session(&self, request: SpawnRequest) -> SwarmResult<ModelInstanceId> {
+    pub async fn spawn_session(&self, mut request: SpawnRequest) -> SwarmResult<ModelInstanceId> {
         let inner = Arc::clone(&self.inner);
         let instance_id = request.instance_id;
 
@@ -420,7 +896,7 @@ impl SwarmCoordinator {
                 cooldown_remaining_ms,
             } = admit
             {
-                self.emit_spawn_rejected(instance_id, "breaker_open");
+                self.emit_spawn_rejected(instance_id, "breaker_open")?;
                 return Err(SwarmError::BreakerOpen {
                     signature: fp.to_string(),
                     cooldown_remaining_ms,
@@ -432,7 +908,7 @@ impl SwarmCoordinator {
         // ceilings. Committed memory is provider-aware and checked below so
         // cloud lanes can still escape saturated local host memory.
         if let Some(dimension) = inner.exhausted_global_budget_dimension() {
-            self.emit_spawn_rejected(instance_id, &format!("budget:{dimension}"));
+            self.emit_spawn_rejected(instance_id, &format!("budget:{dimension}"))?;
             return Err(SwarmError::BudgetExhausted { dimension });
         }
         let committed_memory_bytes = if !reserves_host_committed_memory(&request) {
@@ -442,7 +918,7 @@ impl SwarmCoordinator {
                 Some(bytes) => bytes,
                 None => {
                     let dimension = "committed_memory_unestimated".to_string();
-                    self.emit_spawn_rejected(instance_id, &format!("budget:{dimension}"));
+                    self.emit_spawn_rejected(instance_id, &format!("budget:{dimension}"))?;
                     return Err(SwarmError::BudgetExhausted { dimension });
                 }
             }
@@ -453,7 +929,7 @@ impl SwarmCoordinator {
             match CommittedMemoryReservation::reserve(Arc::clone(&inner), committed_memory_bytes) {
                 Ok(reservation) => reservation,
                 Err(dimension) => {
-                    self.emit_spawn_rejected(instance_id, &format!("budget:{dimension}"));
+                    self.emit_spawn_rejected(instance_id, &format!("budget:{dimension}"))?;
                     return Err(SwarmError::BudgetExhausted { dimension });
                 }
             };
@@ -465,7 +941,7 @@ impl SwarmCoordinator {
         let reserved = lifetime_reservation.reserved;
         let ceiling = inner.config.budget.max_lifetime_spawns;
         if reserved > ceiling {
-            self.emit_spawn_rejected(instance_id, "lifetime_ceiling");
+            self.emit_spawn_rejected(instance_id, "lifetime_ceiling")?;
             return Err(SwarmError::LifetimeSpawnCeilingReached {
                 spawned: reserved.saturating_sub(1),
                 ceiling,
@@ -478,7 +954,7 @@ impl SwarmCoordinator {
             Ok(p) => p,
             Err(_) => {
                 let cap = inner.config.budget.max_concurrent;
-                self.emit_spawn_rejected(instance_id, "concurrency_cap");
+                self.emit_spawn_rejected(instance_id, "concurrency_cap")?;
                 return Err(SwarmError::ConcurrencyCapReached {
                     in_flight: cap.saturating_sub(inner.semaphore.available_permits()),
                     cap,
@@ -543,26 +1019,147 @@ impl SwarmCoordinator {
                 )));
             }
         }
-        let create_result = {
+        // Exclusive checkout ownership is acquired after every pure/durable
+        // preflight but before factory.create crosses a runtime side-effect
+        // boundary. The guard is first owned by pending-spawn state, then moves
+        // into the live SessionHandle and survives until teardown + STOP.
+        let checkout_generation = inner
+            .checkout_lease_generation
+            .fetch_add(1, Ordering::SeqCst)
+            + 1;
+        let checkout_lease = CheckoutLeaseGuard::acquire(&request, checkout_generation)?;
+        request.checkout_lease = checkout_lease
+            .as_ref()
+            .map(|guard| guard.lease_ref().clone());
+
+        let create_cancel = CancellationToken::new();
+        {
+            let mut pending = inner
+                .pending_spawns
+                .lock()
+                .expect("pending spawns poisoned");
+            let dexterity_lane_id = request
+                .dexterity_launch
+                .as_ref()
+                .map(|launch| launch.lane_id.clone());
+            let dexterity_consent_receipt_id = request
+                .dexterity_launch
+                .as_ref()
+                .and_then(|launch| launch.consent_receipt_ref.clone());
+            if pending
+                .insert(
+                    instance_id,
+                    PendingSpawn {
+                        cancel: create_cancel.clone(),
+                        dexterity_lane_id,
+                        dexterity_consent_receipt_id,
+                        checkout_lease,
+                    },
+                )
+                .is_some()
+            {
+                drop(permit);
+                return Err(SwarmError::DuplicateInstance(instance_id));
+            }
+        }
+        let _pending_registration = PendingSpawnRegistration {
+            inner: Arc::clone(&inner),
+            instance_id,
+        };
+        let (create_result, cancelled_during_create) = {
             let _boot_permit = inner
                 .cold_start_semaphore
                 .clone()
                 .acquire_owned()
                 .await
                 .expect("cold-start semaphore is never closed");
-            inner.factory.create(&request).await
+            let create = inner.factory.create(&request);
+            tokio::pin!(create);
+            tokio::select! {
+                biased;
+                _ = create_cancel.cancelled() => {
+                    // `create` may already have crossed an external side-effect
+                    // boundary. Do not drop it: resolve it and compensate any
+                    // resulting live session before acknowledging cancellation.
+                    (create.await, true)
+                },
+                result = &mut create => (result, false),
+            }
+        };
+        let create_result = match (cancelled_during_create, create_result) {
+            (false, result) => result,
+            (true, Err(_)) => {
+                return Err(SwarmError::FactoryFailed(format!(
+                    "spawn cancelled while factory create was pending for {instance_id}"
+                )));
+            }
+            (true, Ok(live)) => {
+                let checkout_lease = match self.take_pending_checkout_lease(instance_id) {
+                    Ok(checkout_lease) => checkout_lease,
+                    Err(transfer_error) => {
+                        return self
+                            .rollback_unregistered_after_factory_create(
+                                &request,
+                                live,
+                                None,
+                                permit,
+                                committed_memory_reservation,
+                                "spawn_cancelled_checkout_lease_transfer_failed",
+                                transfer_error,
+                            )
+                            .await;
+                    }
+                };
+                return self
+                    .rollback_unregistered_after_factory_create(
+                        &request,
+                        live,
+                        checkout_lease,
+                        permit,
+                        committed_memory_reservation,
+                        "spawn_cancelled_after_factory_create",
+                        SwarmError::FactoryFailed(format!(
+                            "spawn cancelled after factory create compensation for {instance_id}"
+                        )),
+                    )
+                    .await;
+            }
         };
         match create_result {
             Ok(live) => {
+                let checkout_lease = match self.take_pending_checkout_lease(instance_id) {
+                    Ok(checkout_lease) => checkout_lease,
+                    Err(transfer_error) => {
+                        return self
+                            .rollback_unregistered_after_factory_create(
+                                &request,
+                                live,
+                                None,
+                                permit,
+                                committed_memory_reservation,
+                                "checkout_lease_transfer_failed_after_factory_create",
+                                transfer_error,
+                            )
+                            .await;
+                    }
+                };
                 let dexterity_launch_records = if request.dexterity_launch.is_some() {
                     match build_successful_launch_records(&request, &live) {
                         Ok(records) => Some(records),
                         Err(err) => {
-                            drop(permit);
-                            self.teardown_orphan(&request, live).await;
-                            return Err(SwarmError::LedgerFailed(format!(
-                                "Dexterity launch record preparation failed: {err}"
-                            )));
+                            return self
+                                .rollback_unregistered_after_factory_create(
+                                    &request,
+                                    live,
+                                    checkout_lease,
+                                    permit,
+                                    committed_memory_reservation,
+                                    "dexterity_launch_record_preparation_failed",
+                                    SwarmError::LedgerFailed(format!(
+                                        "Dexterity launch record preparation failed: {err}"
+                                    )),
+                                )
+                                .await;
                         }
                     }
                 } else {
@@ -572,66 +1169,107 @@ impl SwarmCoordinator {
                 // BOTH the duplicate check and the insert so two concurrent
                 // spawns of the same instance_id cannot both record a START and
                 // silently drop the first handle. If a live instance already
-                // exists, roll back this spawn's permit + lifetime reservation
+                // exists, roll back this spawn's permit + committed-memory and
+                // lifetime reservations
                 // AND fully tear down the just-created session (cancel +
                 // teardown + ledger STOP) so the loser leaves no orphan START.
-                let inserted =
-                    self.try_insert_loading(&request, live, permit, committed_memory_bytes);
+                let inserted = self.try_insert_loading_with_memory_handoff(
+                    &request,
+                    live,
+                    permit,
+                    checkout_lease,
+                    committed_memory_reservation,
+                );
                 match inserted {
                     Ok(()) => {
                         if let Some(records) = dexterity_launch_records {
                             let Some(store) = inner.model_lane_store.as_ref() else {
-                                let _ = self
+                                if let Err(cleanup_err) = self
                                     .terminate(
                                         instance_id,
                                         ModelSessionState::Cancelled,
                                         "dexterity_model_lane_store_missing",
                                         -1,
                                     )
-                                    .await;
+                                    .await
+                                {
+                                    return Err(SwarmError::LedgerFailed(format!(
+                                        "Dexterity ModelLaneStore missing and spawned-session cleanup failed: {cleanup_err}"
+                                    )));
+                                }
                                 return Err(SwarmError::LedgerFailed(
                                     "Dexterity launch contract requires ModelLaneStore".into(),
                                 ));
                             };
                             if let Err(err) = store.record_prepared_launch(records).await {
-                                let _ = self
+                                if let Err(cleanup_err) = self
                                     .terminate(
                                         instance_id,
                                         ModelSessionState::Cancelled,
                                         "dexterity_model_lane_record_failed",
                                         -1,
                                     )
-                                    .await;
+                                    .await
+                                {
+                                    return Err(SwarmError::LedgerFailed(format!(
+                                        "Dexterity launch persistence failed ({err}); spawned-session cleanup also failed: {cleanup_err}"
+                                    )));
+                                }
                                 return Err(SwarmError::LedgerFailed(format!(
                                     "Dexterity launch record failed: {err}"
                                 )));
                             }
                             if let Err(err) = self.mark_dexterity_model_lane_persisted(instance_id)
                             {
-                                let _ = self
+                                if let Err(cleanup_err) = self
                                     .terminate(
                                         instance_id,
                                         ModelSessionState::Cancelled,
                                         "dexterity_model_lane_persist_marker_failed",
                                         -1,
                                     )
-                                    .await;
+                                    .await
+                                {
+                                    return Err(SwarmError::LedgerFailed(format!(
+                                        "Dexterity persistence marker failed ({err}); spawned-session cleanup also failed: {cleanup_err}"
+                                    )));
+                                }
                                 return Err(err);
                             }
                         }
                         if let Err(err) = self.transition(instance_id, ModelSessionState::Ready) {
-                            let _ = self
+                            if let Err(cleanup_err) = self
                                 .terminate(
                                     instance_id,
                                     ModelSessionState::Cancelled,
                                     "dexterity_ready_transition_failed",
                                     -1,
                                 )
-                                .await;
+                                .await
+                            {
+                                return Err(SwarmError::LedgerFailed(format!(
+                                    "ready transition failed ({err}); spawned-session cleanup also failed: {cleanup_err}"
+                                )));
+                            }
+                            return Err(err);
+                        }
+                        if let Err(err) = self.commit_ready_hook(instance_id) {
+                            if let Err(cleanup_err) = self
+                                .terminate(
+                                    instance_id,
+                                    ModelSessionState::Cancelled,
+                                    "ready_hook_commit_failed",
+                                    -1,
+                                )
+                                .await
+                            {
+                                return Err(SwarmError::LedgerFailed(format!(
+                                    "ready hook failed ({err}); spawned-session cleanup also failed: {cleanup_err}"
+                                )));
+                            }
                             return Err(err);
                         }
                         lifetime_reservation.disarm();
-                        committed_memory_reservation.disarm();
                         // Heal the breaker for this instance's tracked signature
                         // on a real success (C4). A signature that tripped
                         // recovers after a genuine success, not only cooldown.
@@ -639,19 +1277,51 @@ impl SwarmCoordinator {
                         let permits_cap = inner.config.budget.max_concurrent;
                         let permits_in_use =
                             permits_cap.saturating_sub(inner.semaphore.available_permits());
-                        inner.sink.emit(SwarmEvent::ResourceAllocated {
-                            instance_id,
-                            permits_in_use,
-                            permits_cap,
-                        });
+                        inner
+                            .sink
+                            .emit(SwarmEvent::ResourceAllocated {
+                                instance_id,
+                                permits_in_use,
+                                permits_cap,
+                            })
+                            .map_err(SwarmError::EventSinkFailed)?;
                         Ok(instance_id)
                     }
-                    Err((live, permit)) => {
-                        // Lost the race: an instance is already live. Release
-                        // permit + lifetime reservation and tear down the loser.
-                        drop(permit);
-                        self.teardown_orphan(&request, live).await;
-                        Err(SwarmError::DuplicateInstance(instance_id))
+                    Err((
+                        TryInsertLoadingError::Duplicate {
+                            live,
+                            permit,
+                            checkout_lease,
+                        },
+                        committed_memory_reservation,
+                    )) => {
+                        self.rollback_duplicate_after_factory_create(
+                            &request,
+                            live,
+                            permit,
+                            checkout_lease,
+                            committed_memory_reservation,
+                        )
+                        .await
+                    }
+                    Err((
+                        TryInsertLoadingError::EventSink {
+                            live,
+                            permit,
+                            checkout_lease,
+                            error,
+                        },
+                        committed_memory_reservation,
+                    )) => {
+                        self.rollback_spawn_event_failure_after_factory_create(
+                            &request,
+                            live,
+                            permit,
+                            checkout_lease,
+                            committed_memory_reservation,
+                            error,
+                        )
+                        .await
                     }
                 }
             }
@@ -694,15 +1364,21 @@ impl SwarmCoordinator {
                         (tripped, consecutive)
                     };
                     if tripped {
-                        inner.sink.emit(SwarmEvent::BreakerTripped {
-                            signature: fp.to_string(),
-                            consecutive_failures: consecutive,
-                        });
+                        inner
+                            .sink
+                            .emit(SwarmEvent::BreakerTripped {
+                                signature: fp.to_string(),
+                                consecutive_failures: consecutive,
+                            })
+                            .map_err(SwarmError::EventSinkFailed)?;
                     }
-                    inner.sink.emit(SwarmEvent::SessionFailed {
-                        instance_id,
-                        error: err.to_string(),
-                    });
+                    inner
+                        .sink
+                        .emit(SwarmEvent::SessionFailed {
+                            instance_id,
+                            error: err.to_string(),
+                        })
+                        .map_err(SwarmError::EventSinkFailed)?;
                     // If this failure pushed the breaker Open, surface the
                     // suppression so the caller stops retrying this signature.
                     let suppressed = {
@@ -729,6 +1405,206 @@ impl SwarmCoordinator {
     /// Rust coordinator still owns the launch path by normalizing through the
     /// Dexterity registry and committing ModelLane + EventLedger rows in the
     /// same PostgreSQL authority path as process-backed launches.
+    /// Launch a cloud batch under one run-scoped consent receipt. Every request
+    /// must share the run and receipt, and every request is preflighted before
+    /// the first factory call.
+    pub async fn spawn_cloud_consent_batch(
+        &self,
+        requests: Vec<SpawnRequest>,
+    ) -> SwarmResult<Vec<ModelInstanceId>> {
+        if requests.len() < 2 {
+            return Err(SwarmError::LedgerFailed(
+                "CX-MM-007 SingleRun cloud batch requires at least two targets".into(),
+            ));
+        }
+        let store = self.inner.model_lane_store.as_ref().ok_or_else(|| {
+            SwarmError::LedgerFailed(
+                "CX-MM-007 SingleRun cloud batch requires ModelLaneStore".into(),
+            )
+        })?;
+        let first_contract = requests[0].dexterity_launch.as_ref().ok_or_else(|| {
+            SwarmError::LedgerFailed(
+                "CX-MM-007 SingleRun cloud batch request lacks Dexterity contract".into(),
+            )
+        })?;
+        let consent_receipt_id = first_contract.consent_receipt_ref.clone().ok_or_else(|| {
+            SwarmError::LedgerFailed("CX-MM-007 SingleRun cloud batch lacks consent receipt".into())
+        })?;
+        let run_id = first_contract.run_id.clone();
+        for request in &requests {
+            if request.provider != Some(ProviderKind::ByokCloud) {
+                return Err(SwarmError::LedgerFailed(
+                    "CX-MM-007 SingleRun batch contains a non-cloud request".into(),
+                ));
+            }
+            let contract = request.dexterity_launch.as_ref().ok_or_else(|| {
+                SwarmError::LedgerFailed(
+                    "CX-MM-007 SingleRun cloud batch request lacks Dexterity contract".into(),
+                )
+            })?;
+            if contract.run_id != run_id
+                || contract.consent_receipt_ref.as_deref() != Some(consent_receipt_id.as_str())
+            {
+                return Err(SwarmError::LedgerFailed(
+                    "CX-MM-007 SingleRun batch requests must share run and receipt authority"
+                        .into(),
+                ));
+            }
+            store
+                .preflight_cloud_spawn_request(request)
+                .await
+                .map_err(|error| {
+                    SwarmError::LedgerFailed(format!(
+                        "CX-MM-007 SingleRun batch cloud preflight failed: {error}"
+                    ))
+                })?;
+            DexterityLaunchAdapterRegistry::standard()
+                .preflight_spawn_request(request)
+                .map_err(|error| {
+                    SwarmError::LedgerFailed(format!(
+                        "CX-MM-007 SingleRun batch adapter preflight failed: {error}"
+                    ))
+                })?;
+        }
+        let mut launched = Vec::with_capacity(requests.len());
+        for request in requests {
+            match self.spawn_session(request).await {
+                Ok(instance_id) => launched.push(instance_id),
+                Err(error) => {
+                    for instance_id in launched.iter().copied() {
+                        let _ = self
+                            .cancel_session(instance_id, "SingleRun batch compensation")
+                            .await;
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        Ok(launched)
+    }
+
+    /// Revoke cloud consent under coordinator ownership so durable cancellation
+    /// evidence corresponds to real token cancellation, teardown, and eviction.
+    pub async fn revoke_cloud_consent_receipt(
+        &self,
+        consent_receipt_id: &str,
+        revoked_by_ref: &str,
+        reason: &str,
+    ) -> SwarmResult<Vec<ModelLaneRecord>> {
+        let store = self.inner.model_lane_store.as_ref().ok_or_else(|| {
+            SwarmError::LedgerFailed(
+                "CX-MM-007 cloud consent revoke requires ModelLaneStore".into(),
+            )
+        })?;
+        // Fence under the same receipt advisory authority used by launch
+        // persistence before taking an ephemeral runtime snapshot. A launch that
+        // commits first is included; a launch that loses the fence re-preflights
+        // as revoked. Identical retries rediscover the same canonical lane set.
+        let covered_lanes = store
+            .fence_cloud_consent_revocation(consent_receipt_id, revoked_by_ref, reason)
+            .await
+            .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
+        let target_lane_ids = covered_lanes
+            .iter()
+            .map(|lane| lane.lane_id.clone())
+            .collect::<std::collections::BTreeSet<_>>();
+        let cancel_reason = format!("CX-MM-007 cloud consent revoked: {reason}");
+        let pending = {
+            self.inner
+                .pending_spawns
+                .lock()
+                .expect("pending spawns poisoned")
+                .values()
+                .filter(|pending| {
+                    pending.dexterity_consent_receipt_id.as_deref() == Some(consent_receipt_id)
+                        || pending
+                            .dexterity_lane_id
+                            .as_ref()
+                            .is_some_and(|lane_id| target_lane_ids.contains(lane_id))
+                })
+                .map(|pending| pending.cancel.clone())
+                .collect::<Vec<_>>()
+        };
+        for cancel in pending {
+            cancel.cancel();
+        }
+        let live = {
+            let mut registry = self.inner.registry.lock().expect("registry poisoned");
+            registry
+                .values_mut()
+                .filter_map(|handle| {
+                    let covered = handle.dexterity_consent_receipt_id.as_deref()
+                        == Some(consent_receipt_id)
+                        || handle
+                            .dexterity_lane_id
+                            .as_ref()
+                            .is_some_and(|lane_id| target_lane_ids.contains(lane_id));
+                    if !covered || handle.state.is_terminal() {
+                        return None;
+                    }
+                    if handle.state != ModelSessionState::Cancelling {
+                        handle.state = ModelSessionState::Cancelling;
+                        handle.cleanup = Some(PendingSessionCleanup {
+                            terminal: ModelSessionState::Cancelled,
+                            reason: cancel_reason.clone(),
+                            exit_code: -1,
+                            teardown_succeeded: false,
+                            stop_succeeded: false,
+                            owner_generation: 0,
+                            in_progress: false,
+                        });
+                    }
+                    // Specialized finalization below owns the terminal lane row.
+                    handle.dexterity_model_lane_persisted = false;
+                    Some((handle.instance_id, handle.dexterity_lane_id.clone()))
+                })
+                .collect::<Vec<_>>()
+        };
+        let mut provider_cancelled_lane_ids = std::collections::BTreeSet::new();
+        for (instance_id, lane_id) in live {
+            match self
+                .cancel_session(instance_id, cancel_reason.clone())
+                .await
+            {
+                Ok(()) => {
+                    if let Some(lane_id) = lane_id {
+                        provider_cancelled_lane_ids.insert(lane_id);
+                    }
+                }
+                Err(SwarmError::UnknownInstance(_)) => {}
+                Err(error) => return Err(error),
+            }
+        }
+
+        // If runtime cleanup completed but terminal finalization failed, the
+        // live handle is already evicted. Recover the truthful cancellation
+        // outcome from the existing durable cleanup receipt on identical retry.
+        for lane in &covered_lanes {
+            if provider_cancelled_lane_ids.contains(&lane.lane_id) {
+                continue;
+            }
+            if let Some(instance_id) = lane.model_session_id.strip_prefix("swarm-session:") {
+                let completed = store
+                    .session_cleanup_completed(instance_id, "Cancelled", &cancel_reason)
+                    .await
+                    .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
+                if completed {
+                    provider_cancelled_lane_ids.insert(lane.lane_id.clone());
+                }
+            }
+        }
+
+        store
+            .finalize_cloud_consent_revocation(
+                consent_receipt_id,
+                revoked_by_ref,
+                reason,
+                &provider_cancelled_lane_ids,
+            )
+            .await
+            .map_err(|error| SwarmError::LedgerFailed(error.to_string()))
+    }
+
     pub async fn launch_no_os_model_lane(
         &self,
         request: DexterityLaunchAdapterRequest,
@@ -790,7 +1666,11 @@ impl SwarmCoordinator {
     pub async fn launch_operator_subagent_model_lane(
         &self,
         request: DexterityLaunchAdapterRequest,
-    ) -> SwarmResult<(ModelLaneRunRecord, ModelLaneRecord)> {
+    ) -> SwarmResult<(
+        ModelLaneRunRecord,
+        ModelLaneRecord,
+        OperatorSubagentManagerLane,
+    )> {
         if request.adapter_kind != DexterityLaunchAdapterKind::Subagent {
             return Err(SwarmError::LedgerFailed(format!(
                 "operator subagent launch requires subagent adapter; got {}",
@@ -825,9 +1705,92 @@ impl SwarmCoordinator {
                 "Dexterity subagent record preparation failed: {err}"
             ))
         })?;
-        store.record_prepared_launch(records).await.map_err(|err| {
+        let (run, lane) = store.record_prepared_launch(records).await.map_err(|err| {
             SwarmError::LedgerFailed(format!("Dexterity subagent launch record failed: {err}"))
-        })
+        })?;
+        let manager = OperatorSubagentManagerLane {
+            run_id: run.run_id.clone(),
+            lane_id: lane.lane_id.clone(),
+            owner_session: lane.owner_session.clone(),
+            manager_receipt_ref: format!(
+                "subagent-manager-receipt://{}/{}/{}",
+                run.run_id,
+                lane.lane_id,
+                uuid::Uuid::now_v7()
+            ),
+        };
+        Ok((run, lane, manager))
+    }
+
+    /// Persist one SubagentManager-produced output and its ArtifactStore
+    /// binding atomically. Direct ModelLaneStore insertion is deliberately not
+    /// the manager ingress: the receipt, lane kind, no-OS ownership contract,
+    /// run/owner identity, and terminal fence are checked here first.
+    pub async fn record_operator_subagent_manager_output(
+        &self,
+        manager: &OperatorSubagentManagerLane,
+        mut message: NewModelLaneMessage,
+        binding: NewModelLaneContextBundleArtifactBinding,
+    ) -> SwarmResult<ModelLaneMessageRecord> {
+        if message.run_id != manager.run_id
+            || message.from_lane_id != manager.lane_id
+            || message.owner_session != manager.owner_session
+            || binding.run_id != manager.run_id
+            || binding.owner_session != manager.owner_session
+        {
+            return Err(SwarmError::LedgerFailed(
+                "SubagentManager output does not match its coordinator-issued lane receipt".into(),
+            ));
+        }
+        let Some(store) = self.inner.model_lane_store.as_ref() else {
+            return Err(SwarmError::LedgerFailed(
+                "SubagentManager output requires ModelLaneStore".into(),
+            ));
+        };
+        let projection = store
+            .navigation_by_lane(&manager.lane_id)
+            .await
+            .map_err(|err| {
+                SwarmError::LedgerFailed(format!(
+                    "SubagentManager lane {} lookup failed: {err}",
+                    manager.lane_id
+                ))
+            })?;
+        let lane = projection.lanes.first().ok_or_else(|| {
+            SwarmError::LedgerFailed(format!(
+                "SubagentManager lane {} is missing",
+                manager.lane_id
+            ))
+        })?;
+        if lane.run_id != manager.run_id
+            || lane.kind != ModelLaneKind::Subagent
+            || lane.runtime_binding != ModelLaneRuntimeBinding::Subagent
+            || lane.launch_authority != LaunchAuthority::SubagentManager
+            || lane.process_ownership_ref.is_some()
+            || lane.no_os_process_reason_ref.is_none()
+        {
+            return Err(SwarmError::LedgerFailed(format!(
+                "lane {} is not a coordinator-owned no-OS SubagentManager lane",
+                manager.lane_id
+            )));
+        }
+        let diagnostic = message.diagnostic_payload.as_object_mut().ok_or_else(|| {
+            SwarmError::LedgerFailed(
+                "SubagentManager output diagnostic_payload must be an object".into(),
+            )
+        })?;
+        diagnostic.insert(
+            "subagent_manager_receipt_ref".into(),
+            serde_json::Value::String(manager.manager_receipt_ref.clone()),
+        );
+        store
+            .record_message_with_payload_binding(message, binding)
+            .await
+            .map_err(|err| {
+                SwarmError::LedgerFailed(format!(
+                    "SubagentManager output persistence failed: {err}"
+                ))
+            })
     }
 
     pub fn authorize_no_os_model_lane(
@@ -958,15 +1921,13 @@ impl SwarmCoordinator {
             handle.state = to;
             from
         };
-        self.inner.sink.emit(SwarmEvent::SessionStateChanged {
+        self.emit_event(SwarmEvent::SessionStateChanged {
             instance_id,
             from,
             to,
-        });
+        })?;
         if to == ModelSessionState::Ready {
-            self.inner
-                .sink
-                .emit(SwarmEvent::SessionReady { instance_id });
+            self.emit_event(SwarmEvent::SessionReady { instance_id })?;
         }
         Ok(())
     }
@@ -992,6 +1953,16 @@ impl SwarmCoordinator {
             .await
     }
 
+    pub async fn fail_session(
+        &self,
+        instance_id: ModelInstanceId,
+        error: impl Into<String>,
+    ) -> SwarmResult<()> {
+        let error = error.into();
+        self.terminate(instance_id, ModelSessionState::Failed, &error, 1)
+            .await
+    }
+
     /// Cancel a session: cancels its token, tears down (frees) the runtime,
     /// writes the ledger stop, evicts it, emits the cancelled event.
     ///
@@ -1004,6 +1975,25 @@ impl SwarmCoordinator {
         reason: impl Into<String>,
     ) -> SwarmResult<()> {
         let reason = reason.into();
+        let is_live = self
+            .inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .contains_key(&instance_id);
+        if !is_live {
+            if let Some(cancel) = self
+                .inner
+                .pending_spawns
+                .lock()
+                .expect("pending spawns poisoned")
+                .get(&instance_id)
+                .map(|pending| pending.cancel.clone())
+            {
+                cancel.cancel();
+                return Ok(());
+            }
+        }
         self.terminate(instance_id, ModelSessionState::Cancelled, &reason, -1)
             .await
     }
@@ -1078,6 +2068,7 @@ impl SwarmCoordinator {
     /// without reaching into the private registry. The returned `Arc` is a clone
     /// of the coordinator-owned handle, so the caller borrows the live engine for
     /// the duration of its work; the coordinator retains ownership for teardown.
+    #[cfg(any(test, feature = "test-utils"))]
     pub fn session_runtime(
         &self,
         instance_id: ModelInstanceId,
@@ -1096,6 +2087,28 @@ impl SwarmCoordinator {
             .map(|h| h.runtime.clone())
     }
 
+    /// The central generation facade attached to a live coordinator session.
+    /// Application callers that need repeated/batch generation use this
+    /// accessor instead of reaching through to `ModelRuntime::generate`.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn session_llm_client(
+        &self,
+        instance_id: ModelInstanceId,
+    ) -> Option<Arc<dyn crate::llm::LlmClient>> {
+        self.inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .get(&instance_id)
+            .filter(|h| {
+                matches!(
+                    h.state,
+                    ModelSessionState::Ready | ModelSessionState::Generating
+                )
+            })
+            .map(|h| h.llm_client.clone())
+    }
+
     /// Start one generation through the coordinator-owned session handle.
     ///
     /// The request's `id` and cancellation token are replaced with the live
@@ -1104,12 +2117,42 @@ impl SwarmCoordinator {
     /// [`Self::cancel_session`]'s terminal ModelLane/EventLedger transition.
     /// A session may have only one active generation: a second start while it
     /// is already `Generating` fails closed.
-    pub fn generate_session(
+    fn generate_session_raw(
+        &self,
+        instance_id: ModelInstanceId,
+        request: GenerateRequest,
+    ) -> SwarmResult<TokenStream> {
+        self.generate_session_raw_with_context(instance_id, request, None)
+    }
+
+    fn generate_session_raw_with_context(
         &self,
         instance_id: ModelInstanceId,
         mut request: GenerateRequest,
+        invocation_context: Option<LlmInvocationContext>,
     ) -> SwarmResult<TokenStream> {
-        let (runtime, model_id, cancel, from) = {
+        let remaining = self.remaining();
+        if remaining.tokens_remaining == Some(0) {
+            return Err(SwarmError::LedgerFailed(
+                "generation rejected: run token budget is exhausted".to_string(),
+            ));
+        }
+        if remaining.cost_micros_remaining == Some(0) {
+            return Err(SwarmError::LedgerFailed(
+                "generation rejected: run cost budget is exhausted".to_string(),
+            ));
+        }
+        if remaining
+            .tokens_remaining
+            .is_some_and(|available| u64::from(request.max_tokens) > available)
+        {
+            return Err(SwarmError::LedgerFailed(format!(
+                "generation max_tokens {} exceeds remaining run token budget {}",
+                request.max_tokens,
+                remaining.tokens_remaining.unwrap_or_default()
+            )));
+        }
+        let (llm_client, model_id, cancel, from) = {
             let mut registry = self.inner.registry.lock().expect("registry poisoned");
             let handle = registry
                 .get_mut(&instance_id)
@@ -1123,7 +2166,7 @@ impl SwarmCoordinator {
             let from = handle.state;
             handle.state = ModelSessionState::Generating;
             (
-                handle.runtime.clone(),
+                handle.llm_client.clone(),
                 handle.model_id,
                 handle.cancel.clone(),
                 from,
@@ -1131,12 +2174,200 @@ impl SwarmCoordinator {
         };
         request.id = model_id;
         request.cancel = cancel;
-        self.inner.sink.emit(SwarmEvent::SessionStateChanged {
+        self.emit_event(SwarmEvent::SessionStateChanged {
             instance_id,
             from,
             to: ModelSessionState::Generating,
-        });
-        Ok(runtime.generate(request))
+        })?;
+        if let Some(context) = invocation_context {
+            self.emit_event(SwarmEvent::ModelInvocationStarted {
+                instance_id,
+                trace_id: context.trace_id,
+                run_id: context.run_id.clone(),
+                session_id: context.session_id.clone(),
+                max_tokens: request.max_tokens,
+            })?;
+            Ok(llm_client.stream_completion_with_context(request, context))
+        } else {
+            Ok(llm_client.stream_completion(request))
+        }
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn generate_session(
+        &self,
+        instance_id: ModelInstanceId,
+        request: GenerateRequest,
+    ) -> SwarmResult<TokenStream> {
+        self.generate_session_raw(instance_id, request)
+    }
+
+    /// Coordinator-owned generation stream. The session's traced/budgeted
+    /// [`LlmClient`] remains the only generation authority, and Ready-state
+    /// finalization runs on EOF, provider error, cancellation, or caller drop.
+    pub fn generate_session_managed(
+        &self,
+        instance_id: ModelInstanceId,
+        request: GenerateRequest,
+    ) -> SwarmResult<TokenStream> {
+        use futures::StreamExt as _;
+
+        let (run_id, session_id) = {
+            let registry = self.inner.registry.lock().expect("registry poisoned");
+            let handle = registry
+                .get(&instance_id)
+                .ok_or(SwarmError::UnknownInstance(instance_id))?;
+            (handle.parent_session_id.clone(), instance_id.to_string())
+        };
+        let trace_id = Uuid::now_v7();
+        let stream = self.generate_session_raw_with_context(
+            instance_id,
+            request,
+            Some(LlmInvocationContext {
+                trace_id,
+                run_id: run_id.clone(),
+                session_id: session_id.clone(),
+                evidence_owner: LlmInvocationEvidenceOwner::Coordinator,
+            }),
+        )?;
+        let finalizer = ManagedGenerationFinalizer {
+            coordinator: Arc::new(self.clone()),
+            instance_id,
+            trace_id,
+            run_id,
+            session_id,
+            finalized: false,
+            generated_tokens: 0,
+        };
+        let invocation_deadline =
+            tokio::time::Instant::now() + self.inner.config.provider_invocation_timeout;
+        let idle_timeout = self.inner.config.provider_idle_timeout;
+        Ok(Box::pin(futures::stream::unfold(
+            (stream, finalizer, invocation_deadline, false),
+            move |(mut stream, mut finalizer, invocation_deadline, terminated)| async move {
+                if terminated {
+                    return None;
+                }
+                let now = tokio::time::Instant::now();
+                let invocation_remaining = invocation_deadline.saturating_duration_since(now);
+                let wait_budget = invocation_remaining.min(idle_timeout);
+                let next = tokio::time::timeout(wait_budget, stream.next()).await;
+                match next {
+                    Err(_) => {
+                        let reason = if tokio::time::Instant::now() >= invocation_deadline {
+                            "provider generation invocation deadline elapsed"
+                        } else {
+                            "provider generation idle deadline elapsed"
+                        };
+                        // `finish_cancelled` enters Cancelling, installs durable
+                        // cleanup intent, and invokes both cancellation seams
+                        // synchronously inside `terminate` before its first
+                        // persistence await.
+                        let terminal_result = finalizer.finish_cancelled(reason.to_string()).await;
+                        let stream_error = terminal_result
+                            .err()
+                            .map(crate::model_runtime::ModelRuntimeError::GenerateError)
+                            .unwrap_or(crate::model_runtime::ModelRuntimeError::Cancelled);
+                        Some((
+                            Err(stream_error),
+                            (stream, finalizer, invocation_deadline, true),
+                        ))
+                    }
+                    Ok(Some(Ok(token))) => {
+                        finalizer.record_token();
+                        Some((Ok(token), (stream, finalizer, invocation_deadline, false)))
+                    }
+                    Ok(Some(Err(error))) => {
+                        let reason = error.to_string();
+                        let terminal_result =
+                            if matches!(&error, crate::model_runtime::ModelRuntimeError::Cancelled)
+                            {
+                                finalizer.finish_cancelled(reason).await
+                            } else {
+                                finalizer.finish_failure(reason).await
+                            };
+                        let stream_error = terminal_result
+                            .err()
+                            .map(|terminal_error| {
+                                crate::model_runtime::ModelRuntimeError::GenerateError(format!(
+                                    "terminal event persistence rejected: {terminal_error}; provider result: {error}"
+                                ))
+                            })
+                            .unwrap_or(error);
+                        Some((
+                            Err(stream_error),
+                            (stream, finalizer, invocation_deadline, true),
+                        ))
+                    }
+                    Ok(None) => match finalizer.finish_ready().await {
+                        Ok(()) => None,
+                        Err(error) => Some((
+                            Err(crate::model_runtime::ModelRuntimeError::GenerateError(
+                                error,
+                            )),
+                            (stream, finalizer, invocation_deadline, true),
+                        )),
+                    },
+                }
+            },
+        )))
+    }
+
+    /// Score through the coordinator-owned LlmClient without exposing the
+    /// runtime or client. Usage and lifecycle state are finalized exactly once.
+    pub async fn score_session(
+        &self,
+        instance_id: ModelInstanceId,
+        sequence: Vec<u32>,
+    ) -> SwarmResult<crate::model_runtime::Score> {
+        let token_cost = u64::try_from(sequence.len()).unwrap_or(u64::MAX);
+        if self
+            .remaining()
+            .tokens_remaining
+            .is_some_and(|remaining| token_cost > remaining)
+        {
+            return Err(SwarmError::LedgerFailed(
+                "score rejected: sequence exceeds remaining run token budget".to_string(),
+            ));
+        }
+        let (client, model_id) = {
+            let mut registry = self.inner.registry.lock().expect("registry poisoned");
+            let handle = registry
+                .get_mut(&instance_id)
+                .ok_or(SwarmError::UnknownInstance(instance_id))?;
+            if handle.state != ModelSessionState::Ready {
+                return Err(SwarmError::LedgerFailed(format!(
+                    "session {instance_id} must be Ready before scoring; got {:?}",
+                    handle.state
+                )));
+            }
+            handle.state = ModelSessionState::Generating;
+            (handle.llm_client.clone(), handle.model_id)
+        };
+        self.emit_event(SwarmEvent::SessionStateChanged {
+            instance_id,
+            from: ModelSessionState::Ready,
+            to: ModelSessionState::Generating,
+        })?;
+        let result = client.score(model_id, sequence).await;
+        self.record_usage(token_cost, 0);
+        match result {
+            Ok(score) => {
+                if self.session_state(instance_id) == Some(ModelSessionState::Generating) {
+                    self.transition(instance_id, ModelSessionState::Ready)?;
+                }
+                Ok(score)
+            }
+            Err(error) => {
+                let detail = error.to_string();
+                if self.session_state(instance_id) == Some(ModelSessionState::Generating) {
+                    self.fail_session(instance_id, detail.clone()).await?;
+                }
+                Err(SwarmError::LedgerFailed(format!(
+                    "session scoring failed: {detail}"
+                )))
+            }
+        }
     }
 
     /// The runtime-minted `ModelId` registered for a spawned instance (the id the
@@ -1165,6 +2396,12 @@ impl SwarmCoordinator {
     /// ModelLaneMessage rows, and the transcript route uses it to read them back.
     pub fn model_lane_store(&self) -> Option<ModelLaneStore> {
         self.inner.model_lane_store.clone()
+    }
+
+    pub(crate) fn routing_execution_store(
+        &self,
+    ) -> Option<super::routing_execution::ModelLaneRoutingExecutionStore> {
+        self.inner.routing_execution_store.clone()
     }
 
     /// Materialize a Dexterity ContextBundle for the named downstream lane from
@@ -1347,6 +2584,7 @@ impl SwarmCoordinator {
     /// Cancel + drain every live session (orderly shutdown). After this, no
     /// session remains live and every started process has a matching stop row.
     pub async fn drain_all(&self) -> SwarmResult<()> {
+        self.retry_pending_orphan_cleanups().await?;
         let live: Vec<ModelInstanceId> = self
             .inner
             .registry
@@ -1359,9 +2597,1154 @@ impl SwarmCoordinator {
         for instance_id in live {
             self.cancel_session(instance_id, "drain_all").await?;
         }
+        self.retry_pending_orphan_cleanups().await?;
         Ok(())
     }
 
+    /// Execute every currently-ready stage through coordinator-owned production seams.
+    async fn dispatch_ready_routing_stages(
+        &self,
+        execution_id: &str,
+        launches: Vec<super::routing_execution::ModelLaneRoutingStageLaunch>,
+    ) -> SwarmResult<super::routing_execution::ModelLaneRoutingDispatchBatch> {
+        use super::routing::ModelLaneRoutingDispatchTarget;
+        use super::routing_execution::{
+            ModelLaneRoutingStageDispatch, ModelLaneRoutingStageStateKind,
+        };
+        use futures::StreamExt as _;
+        let execution_store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
+            SwarmError::LedgerFailed(
+                "production routing requires a PostgreSQL ModelLaneStore".into(),
+            )
+        })?;
+        let execution = execution_store
+            .snapshot(execution_id)
+            .await
+            .map_err(|err| SwarmError::LedgerFailed(format!("routing snapshot failed: {err}")))?
+            .ok_or_else(|| SwarmError::LedgerFailed(format!(
+                "routing execution {execution_id} must be initialized from a persisted promotion decision"
+            )))?;
+        let authority = &execution.authority;
+
+        for launch in &launches {
+            let Some(request) = launch.request.as_ref() else {
+                continue;
+            };
+            if !matches!(
+                request.provider,
+                Some(ProviderKind::ByokCloud | ProviderKind::OfficialCli)
+            ) {
+                continue;
+            }
+            let contract = request.dexterity_launch.as_ref().ok_or_else(|| {
+                SwarmError::LedgerFailed(format!(
+                    "cloud routing stage {} requires Dexterity consent authority",
+                    launch.stage_id
+                ))
+            })?;
+            if contract.consent_receipt_ref.as_deref()
+                != authority.cloud_consent_receipt_ref.as_deref()
+            {
+                return Err(SwarmError::LedgerFailed(format!(
+                    "cloud routing stage {} consent receipt does not match graph authority",
+                    launch.stage_id
+                )));
+            }
+        }
+        let claims = execution_store
+            .claim_ready(execution_id, &launches)
+            .await
+            .map_err(|err| SwarmError::LedgerFailed(format!("routing claim failed: {err}")))?;
+        let mut launches_by_stage: std::collections::HashMap<_, _> = launches
+            .into_iter()
+            .map(|launch| (launch.stage_id.clone(), launch))
+            .collect();
+        let jobs: Vec<_> = claims
+            .into_iter()
+            .map(|claim| {
+                let launch = launches_by_stage.remove(&claim.stage_id);
+                (claim, launch)
+            })
+            .collect();
+        let mut pending: futures::stream::FuturesUnordered<_> = jobs
+            .into_iter()
+            .map(|(claim, launch)| async move {
+            if claim.dispatch_target == ModelLaneRoutingDispatchTarget::CoordinatorJoin {
+                execution_store
+                    .record_transition(
+                        &claim,
+                        ModelLaneRoutingStageStateKind::InFlight,
+                        None,
+                        Some("coordinator join materializing canonical predecessor outputs".into()),
+                    )
+                    .await
+                    .map_err(|err| {
+                        SwarmError::LedgerFailed(format!(
+                            "routing join launch intent failed: {err}"
+                        ))
+                    })?;
+                let input = execution_store
+                    .stage_input_envelope(execution_id, &claim.stage_id)
+                    .await
+                    .map_err(|err| SwarmError::LedgerFailed(format!("routing join input failed: {err}")))?;
+                execution_store
+                    .record_generated_output(
+                        &claim,
+                        ModelLaneRoutingStageStateKind::Joined,
+                        None,
+                        None,
+                        input,
+                        None,
+                    )
+                    .await
+                    .map_err(|err| SwarmError::LedgerFailed(format!("routing join failed: {err}")))?;
+                return Ok(ModelLaneRoutingStageDispatch {
+                    stage_id: claim.stage_id,
+                    dispatch_target: claim.dispatch_target,
+                    state: ModelLaneRoutingStageStateKind::Joined,
+                    instance_id: None,
+                    detail: None,
+                });
+            }
+
+            if matches!(claim.dispatch_target, ModelLaneRoutingDispatchTarget::Validator | ModelLaneRoutingDispatchTarget::Operator) {
+                let authority_lane_id = match launch
+                    .as_ref()
+                    .and_then(|launch| launch.authority_lane_id.clone())
+                {
+                    Some(lane_id) => lane_id,
+                    None => {
+                        let detail = format!("authority stage {} requires a durable ModelLane id", claim.stage_id);
+                        execution_store
+                            .record_transition(&claim, ModelLaneRoutingStageStateKind::Failed, None, Some(detail.clone()))
+                            .await
+                            .map_err(|err| SwarmError::LedgerFailed(format!("routing authority failure persistence failed: {err}")))?;
+                        return Ok(ModelLaneRoutingStageDispatch {
+                            stage_id: claim.stage_id,
+                            dispatch_target: claim.dispatch_target,
+                            state: ModelLaneRoutingStageStateKind::Failed,
+                            instance_id: None,
+                            detail: Some(detail),
+                        });
+                    }
+                };
+                let model_lane_store = self.inner.model_lane_store.as_ref().ok_or_else(|| {
+                    SwarmError::LedgerFailed("routing authority dispatch requires ModelLaneStore".into())
+                })?;
+                let projection = match model_lane_store.navigation_by_lane(&authority_lane_id).await {
+                    Ok(projection) => projection,
+                    Err(err) => {
+                        let detail = format!("routing authority lane lookup failed: {err}");
+                        execution_store
+                            .record_transition(&claim, ModelLaneRoutingStageStateKind::Failed, None, Some(detail.clone()))
+                            .await
+                            .map_err(|persist_err| SwarmError::LedgerFailed(format!("{detail}; persistence failed: {persist_err}")))?;
+                        return Ok(ModelLaneRoutingStageDispatch {
+                            stage_id: claim.stage_id,
+                            dispatch_target: claim.dispatch_target,
+                            state: ModelLaneRoutingStageStateKind::Failed,
+                            instance_id: None,
+                            detail: Some(detail),
+                        });
+                    }
+                };
+                let expected_kind = match claim.dispatch_target {
+                    ModelLaneRoutingDispatchTarget::Validator => super::model_lane::ModelLaneKind::Validator,
+                    ModelLaneRoutingDispatchTarget::Operator => super::model_lane::ModelLaneKind::HumanOperator,
+                    _ => unreachable!(),
+                };
+                if projection.lanes.first().map(|lane| &lane.kind) != Some(&expected_kind) {
+                    let detail = format!("authority lane {authority_lane_id} does not match {:?}", claim.dispatch_target);
+                    execution_store
+                        .record_transition(&claim, ModelLaneRoutingStageStateKind::Failed, None, Some(detail.clone()))
+                        .await
+                        .map_err(|err| SwarmError::LedgerFailed(format!("routing authority-kind persistence failed: {err}")))?;
+                    return Ok(ModelLaneRoutingStageDispatch {
+                        stage_id: claim.stage_id,
+                        dispatch_target: claim.dispatch_target,
+                        state: ModelLaneRoutingStageStateKind::Failed,
+                        instance_id: None,
+                        detail: Some(detail),
+                    });
+                }
+                let current_execution = execution_store
+                    .snapshot(execution_id)
+                    .await
+                    .map_err(|err| SwarmError::LedgerFailed(format!("authority request snapshot failed: {err}")))?
+                    .ok_or_else(|| SwarmError::LedgerFailed(format!("routing execution {execution_id} disappeared")))?;
+                let authority_stage = current_execution.stages.get(&claim.stage_id).ok_or_else(|| {
+                    SwarmError::LedgerFailed(format!("authority stage {} disappeared", claim.stage_id))
+                })?;
+                let source_stage = current_execution
+                    .stages
+                    .values()
+                    .find(|candidate| {
+                        candidate.output_ref.as_ref().is_some_and(|output_ref| {
+                            authority_stage.input_refs.iter().any(|input_ref| input_ref == output_ref)
+                        }) && candidate.lane_id.is_some()
+                    })
+                    .ok_or_else(|| SwarmError::LedgerFailed(format!(
+                        "authority stage {} has no causal predecessor ModelLane output",
+                        claim.stage_id
+                    )))?;
+                let source_lane_id = source_stage.lane_id.clone().expect("checked source lane");
+                let source_projection = model_lane_store
+                    .navigation_by_lane(&source_lane_id)
+                    .await
+                    .map_err(|err| SwarmError::LedgerFailed(format!("authority source lane lookup failed: {err}")))?;
+                let source_lane = source_projection.lanes.first().ok_or_else(|| {
+                    SwarmError::LedgerFailed(format!("authority source lane {source_lane_id} missing"))
+                })?;
+                let source_message_ref = source_stage.output_message_ref.as_deref().ok_or_else(|| {
+                    SwarmError::LedgerFailed(format!(
+                        "authority source stage {} has no causal ModelLaneMessage ref",
+                        source_stage.stage_id
+                    ))
+                })?;
+                let source_message_projection = model_lane_store
+                    .navigation_by_message(source_message_ref)
+                    .await
+                    .map_err(|err| SwarmError::LedgerFailed(format!(
+                        "authority source message {source_message_ref} lookup failed: {err}"
+                    )))?;
+                let source_message = source_message_projection.messages.first().ok_or_else(|| {
+                    SwarmError::LedgerFailed(format!(
+                        "authority source message {source_message_ref} missing"
+                    ))
+                })?;
+                let source_instance_id = parse_routing_model_instance_id(
+                    source_stage.instance_id.as_deref().ok_or_else(|| {
+                        SwarmError::LedgerFailed(format!(
+                            "authority source stage {} has no runtime instance",
+                            source_stage.stage_id
+                        ))
+                    })?,
+                )?;
+                let request_message_id = format!(
+                    "routing-authority-request:{execution_id}:{}:{}",
+                    claim.stage_id, claim.attempt
+                );
+                let request_message_result = model_lane_store
+                    .record_message(super::model_lane::NewModelLaneMessage {
+                        message_id: request_message_id.clone(),
+                        run_id: current_execution.run_id.clone(),
+                        trace_id: current_execution.trace_id.clone(),
+                        message_span_id: uuid::Uuid::now_v7().to_string(),
+                        parent_span_id: Some(current_execution.run_span_id.clone()),
+                        linked_span_contexts: vec![source_message.message_span_id.clone()],
+                        from_lane_id: source_lane_id,
+                        to_lane: super::model_lane::ModelLaneTarget::Lane(authority_lane_id.clone()),
+                        routing: Some(super::model_lane::ModelLaneRoutingMetadata {
+                            target_role: format!("{:?}", claim.dispatch_target).to_ascii_lowercase(),
+                            target_session: authority_lane_id.clone(),
+                            correlation_id: format!("routing:{execution_id}:{}", claim.stage_id),
+                            requires_ack: true,
+                            ack_for: None,
+                        }),
+                        kind: super::model_lane::ModelLaneMessageKind::Status,
+                        payload_ref: source_stage.output_ref.clone().expect("checked predecessor output"),
+                        payload_sha256: source_stage.output_sha256.clone().ok_or_else(|| {
+                            SwarmError::LedgerFailed("authority predecessor output has no hash".into())
+                        })?,
+                        event_ledger_stream_id: source_lane.event_ledger_stream_id.clone(),
+                        summary: format!("authority request for routing stage {}", claim.stage_id),
+                        authority: super::model_lane::ModelLaneAuthority::Advisory,
+                        promotion_decision_id: Some(current_execution.selecting_decision_id.clone()),
+                        promotion_gate_ref: None,
+                        promotion_receipt_ref: None,
+                        validator_verdict_ref: None,
+                        operator_decision_ref: None,
+                        promoted_artifact_ref: None,
+                        promoted_artifact_sha256: None,
+                        promoted_artifact_version: None,
+                        tool_gate_decision_refs: Vec::new(),
+                        coordinator_session_id: current_execution.coordinator_session_id.clone(),
+                        work_packet_id: Some(current_execution.work_packet_id.clone()),
+                        micro_task_id: current_execution.micro_task_id.clone(),
+                        task_board_id: Some(current_execution.task_board_id.clone()),
+                        owner_session: current_execution.owner_session.clone(),
+                        locus_binding: Some(super::model_lane::ModelLaneLocusBinding {
+                            work_packet_id: current_execution.work_packet_id.clone(),
+                            micro_task_id: current_execution.micro_task_id.clone().ok_or_else(|| {
+                                SwarmError::LedgerFailed("authority routing requires micro_task_id".into())
+                            })?,
+                            task_board_id: Some(current_execution.task_board_id.clone()),
+                            coordinator_session_id: current_execution.coordinator_session_id.clone(),
+                            session_id: source_lane.session_id.clone(),
+                            model_session_id: source_lane.model_session_id.clone(),
+                            owner_session: current_execution.owner_session.clone(),
+                            locus_binding_ref: current_execution.locus_ref.clone(),
+                        }),
+                        idempotency_key: format!("routing-authority-request:{execution_id}:{}:{}", claim.stage_id, claim.attempt),
+                        replay_order_key: format!("routing/{execution_id}/{}/authority-request/{:04}", claim.stage_id, claim.attempt),
+                        replay_after_event_ledger_seq: Some(source_stage.event_ledger_seq),
+                        proposal_ref: None,
+                        crdt_update_ref: None,
+                        crdt_base_snapshot_ref: None,
+                        crdt_state_vector: None,
+                        crdt_proposal_ref: None,
+                        crdt_stale_base_ref: None,
+                        failstate_code: None,
+                        reason_ref: None,
+                        recovery_hint_ref: None,
+                        created_at_utc: chrono::Utc::now().to_rfc3339(),
+                        diagnostic_payload: serde_json::json!({
+                            "schema_id": "hsk.model_lane_routing_authority_request@1",
+                            "execution_id": execution_id,
+                            "stage_id": claim.stage_id,
+                            "attempt": claim.attempt,
+                            "fencing_token": claim.fencing_token,
+                            "predecessor_message_ref": source_stage.output_message_ref,
+                        }),
+                    })
+                    .await;
+                let request_message = match request_message_result {
+                    Ok(message) => message,
+                    Err(err) => {
+                        let cleanup = self
+                            .cancel_session(
+                                source_instance_id,
+                                "authority request persistence failed",
+                            )
+                            .await;
+                        return Err(SwarmError::LedgerFailed(match cleanup {
+                            Ok(()) | Err(SwarmError::UnknownInstance(_)) => {
+                                format!("authority request persistence failed: {err}")
+                            }
+                            Err(cleanup_err) => format!(
+                                "authority request persistence failed: {err}; source cleanup failed: {cleanup_err}"
+                            ),
+                        }));
+                    }
+                };
+                match self.complete_session(source_instance_id).await {
+                    Ok(()) | Err(SwarmError::UnknownInstance(_)) => {}
+                    Err(err) => return Err(err),
+                }
+                execution_store
+                    .record_stage_result(
+                        &claim,
+                        ModelLaneRoutingStageStateKind::AwaitingAuthority,
+                        None,
+                        Some(authority_lane_id.clone()),
+                        Some(request_message.message_id.clone()),
+                        Vec::new(),
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some("typed authority lane dispatched; awaiting ModelLaneMessage".into()),
+                    )
+                    .await
+                    .map_err(|err| SwarmError::LedgerFailed(format!("routing authority dispatch failed: {err}")))?;
+                let heartbeat_store = (*execution_store).clone();
+                let heartbeat_claim = claim.clone();
+                let heartbeat_lane_id = authority_lane_id.clone();
+                let heartbeat_request_message_ref = request_message.message_id.clone();
+                tokio::spawn(async move {
+                    let mut heartbeat =
+                        tokio::time::interval(std::time::Duration::from_secs(10));
+                    heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+                    loop {
+                        heartbeat.tick().await;
+                        if heartbeat_store
+                            .heartbeat_claim(
+                                &heartbeat_claim,
+                                ModelLaneRoutingStageStateKind::AwaitingAuthority,
+                                None,
+                                Some(heartbeat_lane_id.clone()),
+                                Some(heartbeat_request_message_ref.clone()),
+                            )
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                });
+                return Ok(ModelLaneRoutingStageDispatch {
+                    stage_id: claim.stage_id,
+                    dispatch_target: claim.dispatch_target,
+                    state: ModelLaneRoutingStageStateKind::AwaitingAuthority,
+                    instance_id: None,
+                    detail: Some("awaiting typed authority ModelLaneMessage".into()),
+                });
+            }
+
+            let launch = match launch {
+                Some(launch) => launch,
+                None => {
+                    let detail = format!("ready model stage {} has no launch contract", claim.stage_id);
+                    execution_store
+                        .record_transition(&claim, ModelLaneRoutingStageStateKind::Failed, None, Some(detail.clone()))
+                        .await
+                        .map_err(|err| SwarmError::LedgerFailed(format!("routing missing-launch persistence failed: {err}")))?;
+                    return Ok(ModelLaneRoutingStageDispatch {
+                        stage_id: claim.stage_id,
+                        dispatch_target: claim.dispatch_target,
+                        state: ModelLaneRoutingStageStateKind::Failed,
+                        instance_id: None,
+                        detail: Some(detail),
+                    });
+                }
+            };
+            let request = match launch.request {
+                Some(request) => request,
+                None => {
+                    let detail = format!("ready model stage {} has no SpawnRequest", claim.stage_id);
+                    execution_store
+                        .record_transition(&claim, ModelLaneRoutingStageStateKind::Failed, None, Some(detail.clone()))
+                        .await
+                        .map_err(|err| SwarmError::LedgerFailed(format!("routing missing-spawn persistence failed: {err}")))?;
+                    return Ok(ModelLaneRoutingStageDispatch {
+                        stage_id: claim.stage_id,
+                        dispatch_target: claim.dispatch_target,
+                        state: ModelLaneRoutingStageStateKind::Failed,
+                        instance_id: None,
+                        detail: Some(detail),
+                    });
+                }
+            };
+            let mut generate_request = match launch.generate_request {
+                Some(request) => request,
+                None => {
+                    let detail = format!("ready model stage {} has no GenerateRequest", claim.stage_id);
+                    execution_store
+                        .record_transition(&claim, ModelLaneRoutingStageStateKind::Failed, None, Some(detail.clone()))
+                        .await
+                        .map_err(|err| SwarmError::LedgerFailed(format!("routing missing-generation persistence failed: {err}")))?;
+                    return Ok(ModelLaneRoutingStageDispatch {
+                        stage_id: claim.stage_id,
+                        dispatch_target: claim.dispatch_target,
+                        state: ModelLaneRoutingStageStateKind::Failed,
+                        instance_id: None,
+                        detail: Some(detail),
+                    });
+                }
+            };
+            let provider_matches = match claim.dispatch_target {
+                ModelLaneRoutingDispatchTarget::LocalModel => {
+                    request.provider.is_none() || request.provider == Some(ProviderKind::Local)
+                }
+                ModelLaneRoutingDispatchTarget::CloudModel => matches!(
+                    request.provider,
+                    Some(ProviderKind::ByokCloud | ProviderKind::OfficialCli)
+                ),
+                _ => false,
+            };
+            if !provider_matches {
+                let detail = format!(
+                    "routing stage {} target {:?} does not match provider {:?}",
+                    claim.stage_id, claim.dispatch_target, request.provider
+                );
+                execution_store
+                    .record_transition(&claim, ModelLaneRoutingStageStateKind::Failed, None, Some(detail.clone()))
+                    .await
+                    .map_err(|err| SwarmError::LedgerFailed(format!("routing provider-failure persistence failed: {err}")))?;
+                return Ok(ModelLaneRoutingStageDispatch {
+                    stage_id: claim.stage_id,
+                    dispatch_target: claim.dispatch_target,
+                    state: ModelLaneRoutingStageStateKind::Failed,
+                    instance_id: None,
+                    detail: Some(detail),
+                });
+            }
+            let contract = request.dexterity_launch.as_ref().ok_or_else(|| {
+                SwarmError::LedgerFailed(format!(
+                    "routing stage {} requires a canonical Dexterity launch contract",
+                    claim.stage_id
+                ))
+            })?;
+            if contract.run_id != claim.expected_run_id
+                || launch.expected_run_id != claim.expected_run_id
+                || contract.lane_id != claim.expected_lane_id
+                || launch.expected_lane_id != claim.expected_lane_id
+                || launch.expected_provider != claim.expected_provider
+                || request.provider != claim.expected_provider
+                || launch.expected_model_id != claim.expected_model_id
+                || request.instance_id.model_id.to_string() != claim.expected_model_id
+                || generate_request.id != request.instance_id.model_id
+            {
+                let detail = format!(
+                    "routing stage {} provider/model/run binding differs from its canonical launch contract",
+                    claim.stage_id
+                );
+                execution_store
+                    .record_transition(&claim, ModelLaneRoutingStageStateKind::Failed, None, Some(detail.clone()))
+                    .await
+                    .map_err(|err| SwarmError::LedgerFailed(format!("routing launch-binding persistence failed: {err}")))?;
+                return Ok(ModelLaneRoutingStageDispatch {
+                    stage_id: claim.stage_id,
+                    dispatch_target: claim.dispatch_target,
+                    state: ModelLaneRoutingStageStateKind::Failed,
+                    instance_id: None,
+                    detail: Some(detail),
+                });
+            }
+            let lane_id = Some(contract.lane_id.clone());
+            let input_envelope = execution_store
+                .stage_input_envelope(execution_id, &claim.stage_id)
+                .await
+                .map_err(|err| SwarmError::LedgerFailed(format!("routing input materialization failed: {err}")))?;
+            let output_contract = if claim.stage_id == "cloud-review" {
+                "\n\noutput_contract:\nReturn JSON only with verdict set to accept, reject, or promotion_recommended and a review string."
+            } else {
+                ""
+            };
+            generate_request.prompt.text = format!(
+                "{input_envelope}\n\ncanonical_stage_instruction:\nExecute routing stage {} using only the authoritative payloads above.{output_contract}",
+                claim.stage_id
+            );
+            execution_store
+                .record_transition(
+                    &claim,
+                    ModelLaneRoutingStageStateKind::InFlight,
+                    Some(request.instance_id.to_string()),
+                    Some(format!(
+                        "launch_intent provider={:?} model={} run={}",
+                        request.provider, request.instance_id.model_id, contract.run_id
+                    )),
+                )
+                .await
+                .map_err(|err| SwarmError::LedgerFailed(format!("routing launch intent failed: {err}")))?;
+            let instance_id = match self.spawn_session(request).await {
+                Ok(instance_id) => instance_id,
+                Err(err) => {
+                    let detail = err.to_string();
+                    execution_store
+                        .record_transition(&claim, ModelLaneRoutingStageStateKind::Failed, None, Some(detail.clone()))
+                        .await
+                        .map_err(|persist_err| SwarmError::LedgerFailed(format!(
+                            "routing spawn failed ({detail}) and persistence failed: {persist_err}"
+                        )))?;
+                    return Ok(ModelLaneRoutingStageDispatch {
+                        stage_id: claim.stage_id,
+                        dispatch_target: claim.dispatch_target,
+                        state: ModelLaneRoutingStageStateKind::Failed,
+                        instance_id: None,
+                        detail: Some(detail),
+                    });
+                }
+            };
+            let persisted_instance_id = instance_id.to_string();
+            if let Err(err) = execution_store
+                .record_transition(
+                    &claim,
+                    ModelLaneRoutingStageStateKind::InFlight,
+                    Some(persisted_instance_id.clone()),
+                    None,
+                )
+                .await
+            {
+                let cleanup = self
+                    .cancel_session(
+                        instance_id,
+                        "routing in-flight persistence rejected after spawn",
+                    )
+                    .await;
+                return Err(SwarmError::LedgerFailed(match cleanup {
+                    Ok(()) => format!("routing in-flight transition failed after spawned session cleanup: {err}"),
+                    Err(cleanup_err) => format!(
+                        "routing in-flight transition failed ({err}); spawned session cleanup also failed: {cleanup_err}"
+                    ),
+                }));
+            }
+            let mut stream = self.generate_session_managed(instance_id, generate_request)?;
+            let mut output = String::new();
+            let mut heartbeat = tokio::time::interval(std::time::Duration::from_secs(10));
+            heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            loop {
+                let token = tokio::select! {
+                    _ = heartbeat.tick() => {
+                        if let Err(err) = execution_store
+                            .heartbeat_claim(
+                                &claim,
+                                ModelLaneRoutingStageStateKind::InFlight,
+                                Some(persisted_instance_id.clone()),
+                                None,
+                                None,
+                            )
+                            .await
+                        {
+                            self.cancel_session(
+                                instance_id,
+                                "routing claim heartbeat rejected; cancelling stale worker",
+                            )
+                            .await?;
+                            return Err(SwarmError::LedgerFailed(format!(
+                                "routing heartbeat failed: {err}"
+                            )));
+                        }
+                        continue;
+                    }
+                    token = stream.next() => token,
+                };
+                let Some(token) = token else { break };
+                match token {
+                    Ok(token) => output.push_str(&token.text),
+                    Err(err) => {
+                        let detail = err.to_string();
+                        let _ = self.cancel_session(instance_id, &detail).await;
+                        execution_store
+                            .record_transition(
+                                &claim,
+                                ModelLaneRoutingStageStateKind::Failed,
+                                Some(persisted_instance_id.clone()),
+                                Some(detail.clone()),
+                            )
+                            .await
+                            .map_err(|persist_err| SwarmError::LedgerFailed(format!(
+                                "routing generation failed ({detail}) and persistence failed: {persist_err}"
+                            )))?;
+                        return Ok(ModelLaneRoutingStageDispatch {
+                            stage_id: claim.stage_id,
+                            dispatch_target: claim.dispatch_target,
+                            state: ModelLaneRoutingStageStateKind::Failed,
+                            instance_id: Some(persisted_instance_id),
+                            detail: Some(detail),
+                        });
+                    }
+                }
+            }
+            let completed_execution = execution_store
+                .record_generated_output(
+                    &claim,
+                    ModelLaneRoutingStageStateKind::Succeeded,
+                    Some(persisted_instance_id.clone()),
+                    lane_id,
+                    output,
+                    None,
+                )
+                .await
+                .map_err(|err| SwarmError::LedgerFailed(format!("routing output persistence failed: {err}")))?;
+            let has_authority_successor = completed_execution
+                .canonical_graph
+                .get("stages")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|stages| {
+                    stages.iter().any(|candidate| {
+                        matches!(
+                            candidate.get("target").and_then(serde_json::Value::as_str),
+                            Some("validator" | "operator")
+                        ) && candidate
+                            .get("depends_on")
+                            .and_then(serde_json::Value::as_array)
+                            .is_some_and(|dependencies| {
+                                dependencies.iter().any(|dependency| {
+                                    dependency.as_str() == Some(claim.stage_id.as_str())
+                                })
+                            })
+                    })
+                });
+            if !has_authority_successor {
+                self.complete_session(instance_id).await?;
+            }
+            Ok(ModelLaneRoutingStageDispatch {
+                stage_id: claim.stage_id,
+                dispatch_target: claim.dispatch_target,
+                state: ModelLaneRoutingStageStateKind::Succeeded,
+                instance_id: Some(persisted_instance_id),
+                detail: None,
+            })
+            })
+            .collect();
+
+        let mut dispatched = Vec::new();
+        while let Some(result) = pending.next().await {
+            let dispatch = match result {
+                Ok(dispatch) => dispatch,
+                Err(err) => {
+                    self.cancel_active_routing_siblings(
+                        execution_id,
+                        None,
+                        "routing dispatch error; immediate terminal cleanup",
+                    )
+                    .await?;
+                    return Err(err);
+                }
+            };
+            if dispatch.state == ModelLaneRoutingStageStateKind::Failed {
+                self.cancel_active_routing_siblings(
+                    execution_id,
+                    Some(&dispatch.stage_id),
+                    "routing sibling failed; immediate terminal cleanup",
+                )
+                .await?;
+            }
+            dispatched.push(dispatch);
+        }
+        let execution = execution_store
+            .snapshot(execution_id)
+            .await
+            .map_err(|err| SwarmError::LedgerFailed(format!("routing snapshot failed: {err}")))?
+            .ok_or_else(|| {
+                SwarmError::LedgerFailed(format!(
+                    "routing execution {execution_id} disappeared after dispatch"
+                ))
+            })?;
+        Ok(super::routing_execution::ModelLaneRoutingDispatchBatch {
+            execution,
+            dispatched,
+        })
+    }
+
+    async fn cancel_active_routing_siblings(
+        &self,
+        execution_id: &str,
+        except_stage_id: Option<&str>,
+        reason: &str,
+    ) -> SwarmResult<()> {
+        use super::routing_execution::{
+            ModelLaneRoutingStageClaim, ModelLaneRoutingStageStateKind,
+        };
+        let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
+            SwarmError::LedgerFailed("production routing requires a PostgreSQL executor".into())
+        })?;
+        let execution = store
+            .snapshot(execution_id)
+            .await
+            .map_err(|err| {
+                SwarmError::LedgerFailed(format!(
+                    "routing sibling-cancellation snapshot failed: {err}"
+                ))
+            })?
+            .ok_or_else(|| {
+                SwarmError::LedgerFailed(format!(
+                    "routing execution {execution_id} disappeared during sibling cancellation"
+                ))
+            })?;
+        let active: Vec<_> = execution
+            .stages
+            .values()
+            .filter(|stage| except_stage_id != Some(stage.stage_id.as_str()))
+            .filter(|stage| {
+                matches!(
+                    stage.state,
+                    ModelLaneRoutingStageStateKind::Claimed
+                        | ModelLaneRoutingStageStateKind::InFlight
+                        | ModelLaneRoutingStageStateKind::AwaitingAuthority
+                )
+            })
+            .cloned()
+            .collect();
+        for stage in active {
+            let claim = ModelLaneRoutingStageClaim {
+                execution_id: execution_id.to_string(),
+                stage_id: stage.stage_id.clone(),
+                attempt: stage.attempt,
+                fencing_token: stage.fencing_token.clone().ok_or_else(|| {
+                    SwarmError::LedgerFailed(format!(
+                        "active routing stage {} has no fencing token",
+                        stage.stage_id
+                    ))
+                })?,
+                lease_owner: stage.lease_owner.clone().ok_or_else(|| {
+                    SwarmError::LedgerFailed(format!(
+                        "active routing stage {} has no lease owner",
+                        stage.stage_id
+                    ))
+                })?,
+                lease_expires_at_unix_ms: stage.lease_expires_at_unix_ms.ok_or_else(|| {
+                    SwarmError::LedgerFailed(format!(
+                        "active routing stage {} has no lease expiry",
+                        stage.stage_id
+                    ))
+                })?,
+                dispatch_target: stage.dispatch_target,
+                expected_run_id: stage.expected_run_id.clone(),
+                expected_lane_id: stage.expected_lane_id.clone(),
+                expected_model_id: stage.expected_model_id.clone(),
+                expected_provider: stage.expected_provider,
+            };
+            let instance = stage.instance_id.as_ref().and_then(|value| {
+                let live = self
+                    .inner
+                    .registry
+                    .lock()
+                    .expect("registry poisoned")
+                    .keys()
+                    .copied()
+                    .find(|instance_id| instance_id.to_string() == *value);
+                live.or_else(|| {
+                    self.inner
+                        .pending_spawns
+                        .lock()
+                        .expect("pending spawns poisoned")
+                        .keys()
+                        .copied()
+                        .find(|instance_id| instance_id.to_string() == *value)
+                })
+            });
+            if let Some(instance_id) = instance {
+                self.cancel_session(instance_id, reason).await?;
+            }
+            store
+                .record_transition(
+                    &claim,
+                    ModelLaneRoutingStageStateKind::Cancelled,
+                    stage.instance_id.clone(),
+                    Some(reason.to_string()),
+                )
+                .await
+                .map_err(|err| {
+                    SwarmError::LedgerFailed(format!(
+                    "routing sibling cancellation persistence failed after runtime cleanup: {err}"
+                ))
+                })?;
+        }
+        Ok(())
+    }
+
+    pub async fn execute_routing_wave(
+        &self,
+        execution_id: &str,
+        selecting_decision_id: &str,
+        authority: &super::routing::ModelLaneRoutingAuthority,
+        context: super::routing_execution::ModelLaneRoutingExecutionContext,
+        launches: Vec<super::routing_execution::ModelLaneRoutingStageLaunch>,
+    ) -> SwarmResult<super::routing_execution::ModelLaneRoutingDispatchBatch> {
+        let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
+            SwarmError::LedgerFailed(
+                "production routing requires a PostgreSQL ModelLaneStore".into(),
+            )
+        })?;
+        store
+            .begin_execution(execution_id, selecting_decision_id, authority, context)
+            .await
+            .map_err(|err| SwarmError::LedgerFailed(format!("routing start failed: {err}")))?;
+        self.dispatch_ready_routing_stages(execution_id, launches)
+            .await
+    }
+
+    pub async fn execute_routing_lifecycle(
+        &self,
+        execution_id: &str,
+        selecting_decision_id: &str,
+        authority: &super::routing::ModelLaneRoutingAuthority,
+        context: super::routing_execution::ModelLaneRoutingExecutionContext,
+        launches: Vec<super::routing_execution::ModelLaneRoutingStageLaunch>,
+    ) -> SwarmResult<super::routing_execution::ModelLaneRoutingDispatchBatch> {
+        let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
+            SwarmError::LedgerFailed(
+                "production routing requires a PostgreSQL ModelLaneStore".into(),
+            )
+        })?;
+        store
+            .begin_execution(execution_id, selecting_decision_id, authority, context)
+            .await
+            .map_err(|err| SwarmError::LedgerFailed(format!("routing start failed: {err}")))?;
+        self.drive_routing_lifecycle(execution_id, launches).await
+    }
+
+    async fn drive_routing_lifecycle(
+        &self,
+        execution_id: &str,
+        launches: Vec<super::routing_execution::ModelLaneRoutingStageLaunch>,
+    ) -> SwarmResult<super::routing_execution::ModelLaneRoutingDispatchBatch> {
+        use super::routing_execution::ModelLaneRoutingExecutionStatus;
+        self.retry_pending_session_cleanups().await?;
+        let mut dispatched = Vec::new();
+        loop {
+            let batch = self
+                .dispatch_ready_routing_stages(execution_id, launches.clone())
+                .await?;
+            let made_progress = !batch.dispatched.is_empty();
+            dispatched.extend(batch.dispatched);
+            if matches!(
+                batch.execution.status,
+                ModelLaneRoutingExecutionStatus::AwaitingAuthority
+                    | ModelLaneRoutingExecutionStatus::Succeeded
+                    | ModelLaneRoutingExecutionStatus::Failed
+                    | ModelLaneRoutingExecutionStatus::Cancelled
+            ) || !made_progress
+            {
+                return Ok(super::routing_execution::ModelLaneRoutingDispatchBatch {
+                    execution: batch.execution,
+                    dispatched,
+                });
+            }
+        }
+    }
+
+    pub async fn complete_authority_and_resume_routing_lifecycle(
+        &self,
+        execution_id: &str,
+        stage_id: &str,
+        message_id: &str,
+        launches: Vec<super::routing_execution::ModelLaneRoutingStageLaunch>,
+    ) -> SwarmResult<super::routing_execution::ModelLaneRoutingDispatchBatch> {
+        self.complete_authority_routing_stage(execution_id, stage_id, message_id)
+            .await?;
+        self.drive_routing_lifecycle(execution_id, launches).await
+    }
+
+    pub async fn complete_authority_routing_stage(
+        &self,
+        execution_id: &str,
+        stage_id: &str,
+        message_id: &str,
+    ) -> SwarmResult<super::routing_execution::ModelLaneRoutingExecutionState> {
+        use super::routing::ModelLaneRoutingDispatchTarget;
+        let execution_store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
+            SwarmError::LedgerFailed("production routing requires a PostgreSQL executor".into())
+        })?;
+        let model_lane_store = self.inner.model_lane_store.as_ref().ok_or_else(|| {
+            SwarmError::LedgerFailed("authority completion requires ModelLaneStore".into())
+        })?;
+        let execution = execution_store
+            .snapshot(execution_id)
+            .await
+            .map_err(|err| SwarmError::LedgerFailed(format!("routing snapshot failed: {err}")))?
+            .ok_or_else(|| {
+                SwarmError::LedgerFailed(format!("unknown routing execution {execution_id}"))
+            })?;
+        let stage = execution
+            .stages
+            .get(stage_id)
+            .ok_or_else(|| SwarmError::LedgerFailed(format!("unknown routing stage {stage_id}")))?;
+        let projection = model_lane_store
+            .navigation_by_message(message_id)
+            .await
+            .map_err(|err| {
+                SwarmError::LedgerFailed(format!("authority message lookup failed: {err}"))
+            })?;
+        let message = projection
+            .messages
+            .iter()
+            .find(|message| message.message_id == message_id)
+            .ok_or_else(|| {
+                SwarmError::LedgerFailed(format!("ModelLaneMessage {message_id} missing"))
+            })?;
+        if stage.lane_id.as_deref() != Some(message.from_lane_id.as_str()) {
+            return Err(SwarmError::LedgerFailed(format!(
+                "authority message {message_id} is not from stage lane"
+            )));
+        }
+        let authority_request_ref =
+            stage
+                .authority_request_message_ref
+                .as_deref()
+                .ok_or_else(|| {
+                    SwarmError::LedgerFailed(format!(
+                        "authority stage {stage_id} has no causal request message"
+                    ))
+                })?;
+        if message.run_id != execution.run_id
+            || message.trace_id != execution.trace_id
+            || message.coordinator_session_id != execution.coordinator_session_id
+            || message.work_packet_id.as_deref() != Some(execution.work_packet_id.as_str())
+            || message
+                .routing
+                .as_ref()
+                .and_then(|routing| routing.ack_for.as_deref())
+                != Some(authority_request_ref)
+            || message
+                .diagnostic_payload
+                .get("execution_id")
+                .and_then(serde_json::Value::as_str)
+                != Some(execution_id)
+            || message
+                .diagnostic_payload
+                .get("stage_id")
+                .and_then(serde_json::Value::as_str)
+                != Some(stage_id)
+        {
+            return Err(SwarmError::LedgerFailed(format!(
+                "authority message {message_id} is not causally bound to execution/run/trace/predecessor/request"
+            )));
+        }
+        let authority_ref = stage.authority_ref.as_deref().ok_or_else(|| {
+            SwarmError::LedgerFailed(format!("authority stage {stage_id} has no authority ref"))
+        })?;
+        let valid_authority = match stage.dispatch_target {
+            ModelLaneRoutingDispatchTarget::Validator => {
+                message.authority == super::model_lane::ModelLaneAuthority::ValidatorVerdict
+                    && message.validator_verdict_ref.as_deref() == Some(authority_ref)
+            }
+            ModelLaneRoutingDispatchTarget::Operator => {
+                message.authority == super::model_lane::ModelLaneAuthority::OperatorDecision
+                    && message.operator_decision_ref.as_deref() == Some(authority_ref)
+            }
+            _ => false,
+        };
+        if !valid_authority {
+            return Err(SwarmError::LedgerFailed(format!(
+                "ModelLaneMessage {message_id} does not satisfy stage authority"
+            )));
+        }
+        let artifact = projection
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.artifact_ref == message.payload_ref)
+            .ok_or_else(|| {
+                SwarmError::LedgerFailed(format!(
+                    "authority message {message_id} has no durable payload binding"
+                ))
+            })?;
+        let payload = artifact.payload_json.clone();
+        let hash = super::routing_execution::canonical_sha256(&payload)
+            .map_err(SwarmError::LedgerFailed)?;
+        if hash != message.payload_sha256 || artifact.artifact_sha256 != message.payload_sha256 {
+            return Err(SwarmError::LedgerFailed(format!(
+                "authority message {message_id} payload hash does not match its durable artifact binding"
+            )));
+        }
+        let claim = super::routing_execution::ModelLaneRoutingStageClaim {
+            execution_id: execution_id.to_string(),
+            stage_id: stage_id.to_string(),
+            attempt: stage.attempt,
+            fencing_token: stage.fencing_token.clone().ok_or_else(|| {
+                SwarmError::LedgerFailed(format!("authority stage {stage_id} has no fencing token"))
+            })?,
+            lease_owner: stage.lease_owner.clone().ok_or_else(|| {
+                SwarmError::LedgerFailed(format!("authority stage {stage_id} has no lease owner"))
+            })?,
+            lease_expires_at_unix_ms: stage.lease_expires_at_unix_ms.ok_or_else(|| {
+                SwarmError::LedgerFailed(format!("authority stage {stage_id} has no lease expiry"))
+            })?,
+            dispatch_target: stage.dispatch_target,
+            expected_run_id: stage.expected_run_id.clone(),
+            expected_lane_id: stage.expected_lane_id.clone(),
+            expected_model_id: stage.expected_model_id.clone(),
+            expected_provider: stage.expected_provider,
+        };
+        execution_store
+            .complete_authority_stage(
+                &claim,
+                authority_ref,
+                message.payload_ref.clone(),
+                message.message_id.clone(),
+                hash,
+                payload,
+            )
+            .await
+            .map_err(|err| SwarmError::LedgerFailed(format!("authority completion failed: {err}")))
+    }
+
+    pub async fn recover_routing_execution(
+        &self,
+        execution_id: &str,
+        launches: Vec<super::routing_execution::ModelLaneRoutingStageLaunch>,
+    ) -> SwarmResult<super::routing_execution::ModelLaneRoutingDispatchBatch> {
+        self.retry_pending_session_cleanups().await?;
+        let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
+            SwarmError::LedgerFailed("production routing requires a PostgreSQL executor".into())
+        })?;
+        let expired = store
+            .expired_stage_instance_ids(execution_id)
+            .await
+            .map_err(|err| {
+                SwarmError::LedgerFailed(format!("routing recovery scan failed: {err}"))
+            })?;
+        let mut instances: Vec<ModelInstanceId> = self
+            .inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .keys()
+            .copied()
+            .filter(|instance_id| {
+                expired
+                    .iter()
+                    .any(|value| value == &instance_id.to_string())
+            })
+            .collect();
+        instances.extend(
+            self.inner
+                .pending_spawns
+                .lock()
+                .expect("pending spawns poisoned")
+                .keys()
+                .copied()
+                .filter(|instance_id| {
+                    expired
+                        .iter()
+                        .any(|value| value == &instance_id.to_string())
+                }),
+        );
+        instances.sort_by_key(ToString::to_string);
+        instances.dedup();
+        for instance_id in instances {
+            self.cancel_session(
+                instance_id,
+                "routing stage lease expired; compensate before retry",
+            )
+            .await?;
+        }
+        store
+            .recover_expired_claims(execution_id)
+            .await
+            .map_err(|err| SwarmError::LedgerFailed(format!("routing recovery failed: {err}")))?;
+        self.dispatch_ready_routing_stages(execution_id, launches)
+            .await
+    }
+
+    pub async fn cancel_routing_execution(
+        &self,
+        execution_id: &str,
+        reason: impl Into<String>,
+    ) -> SwarmResult<super::routing_execution::ModelLaneRoutingExecutionState> {
+        let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
+            SwarmError::LedgerFailed("production routing requires a PostgreSQL executor".into())
+        })?;
+        let execution = store
+            .snapshot(execution_id)
+            .await
+            .map_err(|err| {
+                SwarmError::LedgerFailed(format!("routing cancellation scan failed: {err}"))
+            })?
+            .ok_or_else(|| {
+                SwarmError::LedgerFailed(format!("unknown routing execution {execution_id}"))
+            })?;
+        let active_instance_ids: Vec<String> = execution
+            .stages
+            .values()
+            .filter(|stage| {
+                matches!(
+                    stage.state,
+                    super::routing_execution::ModelLaneRoutingStageStateKind::Claimed
+                        | super::routing_execution::ModelLaneRoutingStageStateKind::InFlight
+                        | super::routing_execution::ModelLaneRoutingStageStateKind::AwaitingAuthority
+                )
+            })
+            .filter_map(|stage| stage.instance_id.clone())
+            .collect();
+        let mut instances: Vec<ModelInstanceId> = self
+            .inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .keys()
+            .copied()
+            .collect();
+        instances.extend(
+            self.inner
+                .pending_spawns
+                .lock()
+                .expect("pending spawns poisoned")
+                .keys()
+                .copied(),
+        );
+        instances.retain(|instance_id| {
+            active_instance_ids
+                .iter()
+                .any(|value| value == &instance_id.to_string())
+        });
+        instances.sort_by_key(ToString::to_string);
+        instances.dedup();
+        for instance_id in instances {
+            self.cancel_session(instance_id, "routing execution cancelled")
+                .await?;
+        }
+        store
+            .cancel_execution(execution_id, reason)
+            .await
+            .map_err(|err| {
+                SwarmError::LedgerFailed(format!(
+                    "routing cancellation persistence failed after runtime cleanup: {err}"
+                ))
+            })
+    }
     // ---- internals ----
 
     /// Atomic check-and-insert (D2). Holds the registry lock across the
@@ -1382,7 +3765,8 @@ impl SwarmCoordinator {
         live: LiveSession,
         permit: OwnedSemaphorePermit,
         committed_memory_bytes: u64,
-    ) -> Result<(), (LiveSession, OwnedSemaphorePermit)> {
+        checkout_lease: Option<CheckoutLeaseGuard>,
+    ) -> Result<(), TryInsertLoadingError> {
         let now = Utc::now();
         // rank-7: a per-spawn time_box overrides the configured lease_ttl, so a
         // time-boxed (e.g. calendar-scheduled) session expires after its box and
@@ -1393,15 +3777,35 @@ impl SwarmCoordinator {
                 .unwrap_or_else(|_| chrono::Duration::seconds(300));
         let instance_id = request.instance_id;
         let process_uuid = live.process_record_id.as_uuid();
-        let process_engine_kind = process_engine_kind_for_request(request);
+        let process_engine_kind = live
+            .ledger_engine_kind_override
+            .unwrap_or_else(|| process_engine_kind_for_request(request));
 
         {
             let mut registry = self.inner.registry.lock().expect("registry poisoned");
             if let Some(existing) = registry.get(&instance_id) {
                 if !existing.state.is_terminal() {
                     // Lost the race — hand the session + permit back untouched.
-                    return Err((live, permit));
+                    return Err(TryInsertLoadingError::Duplicate {
+                        live,
+                        permit,
+                        checkout_lease,
+                    });
                 }
+            }
+            if let Err(error) = self.emit_event(SwarmEvent::SessionSpawned {
+                instance_id,
+                parent_session_id: request.parent_session_id.clone(),
+                process_uuid,
+                swarm_id: request.swarm_id.clone(),
+                worktree_id: request.worktree_id.clone(),
+            }) {
+                return Err(TryInsertLoadingError::EventSink {
+                    live,
+                    permit,
+                    checkout_lease,
+                    error,
+                });
             }
             let handle = SessionHandle {
                 instance_id,
@@ -1415,10 +3819,17 @@ impl SwarmCoordinator {
                 model_id: live.model_id,
                 process_record_id: live.process_record_id,
                 os_pid: live.os_pid,
+                ledger_os_pid: live.ledger_os_pid,
+                ledger_start_override: live.ledger_start_override,
+                ledger_lifecycle: live.ledger_lifecycle,
                 process_engine_kind,
                 parent_session_id: request.parent_session_id.clone(),
                 runtime: live.runtime,
+                llm_client: live.llm_client,
                 teardown: Some(live.teardown),
+                ready_hook: live.ready_hook,
+                _checkout_lease: checkout_lease,
+                cleanup: None,
                 permit: Some(permit),
                 started_at: now,
                 swarm_id: request.swarm_id.clone(),
@@ -1429,18 +3840,245 @@ impl SwarmCoordinator {
                     .dexterity_launch
                     .as_ref()
                     .map(|launch| launch.lane_id.clone()),
+                dexterity_consent_receipt_id: request
+                    .dexterity_launch
+                    .as_ref()
+                    .and_then(|launch| launch.consent_receipt_ref.clone()),
             };
             registry.insert(instance_id, handle);
         }
-
-        self.inner.sink.emit(SwarmEvent::SessionSpawned {
-            instance_id,
-            parent_session_id: request.parent_session_id.clone(),
-            process_uuid,
-            swarm_id: request.swarm_id.clone(),
-            worktree_id: request.worktree_id.clone(),
-        });
         Ok(())
+    }
+
+    /// Atomically hand the committed-memory charge to the newly inserted
+    /// registry handle. On rejection, the still-armed guard is returned beside
+    /// the live resources so the compensating orphan owner can adopt it.
+    #[allow(clippy::result_large_err)]
+    fn try_insert_loading_with_memory_handoff(
+        &self,
+        request: &SpawnRequest,
+        live: LiveSession,
+        permit: OwnedSemaphorePermit,
+        checkout_lease: Option<CheckoutLeaseGuard>,
+        mut committed_memory_reservation: CommittedMemoryReservation,
+    ) -> Result<(), (TryInsertLoadingError, CommittedMemoryReservation)> {
+        match self.try_insert_loading(
+            request,
+            live,
+            permit,
+            committed_memory_reservation.bytes,
+            checkout_lease,
+        ) {
+            Ok(()) => {
+                // `SessionHandle::committed_memory_bytes` and its owned permit
+                // are now the sole capacity owner. Disarm before any caller can
+                // cross an await or be cancelled.
+                committed_memory_reservation.disarm();
+                Ok(())
+            }
+            Err(error) => Err((error, committed_memory_reservation)),
+        }
+    }
+
+    async fn rollback_unregistered_after_factory_create(
+        &self,
+        request: &SpawnRequest,
+        live: LiveSession,
+        checkout_lease: Option<CheckoutLeaseGuard>,
+        permit: OwnedSemaphorePermit,
+        committed_memory_reservation: CommittedMemoryReservation,
+        cleanup_reason: &str,
+        primary_error: SwarmError,
+    ) -> SwarmResult<ModelInstanceId> {
+        match self
+            .teardown_orphan_with_capacity(
+                request,
+                live,
+                checkout_lease,
+                permit,
+                committed_memory_reservation,
+                cleanup_reason,
+            )
+            .await
+        {
+            Ok(()) => Err(primary_error),
+            Err(cleanup_error) => Err(SwarmError::LedgerFailed(format!(
+                "{primary_error}; live-session rollback also failed: {cleanup_error}"
+            ))),
+        }
+    }
+
+    /// Compensate a factory-created session that lost the atomic registry
+    /// insertion race. The ready hook remains uncommitted, the concurrency
+    /// permit remains owned until teardown plus the matching ledger STOP
+    /// complete, and only then is the typed duplicate result returned. Holding
+    /// the permit prevents a replacement spawn from exceeding the configured
+    /// live-resource cap while the duplicate loser is still alive.
+    async fn rollback_duplicate_after_factory_create(
+        &self,
+        request: &SpawnRequest,
+        live: LiveSession,
+        permit: OwnedSemaphorePermit,
+        checkout_lease: Option<CheckoutLeaseGuard>,
+        committed_memory_reservation: CommittedMemoryReservation,
+    ) -> SwarmResult<ModelInstanceId> {
+        let instance_id = request.instance_id;
+        self.teardown_orphan_with_capacity(
+            request,
+            live,
+            checkout_lease,
+            permit,
+            committed_memory_reservation,
+            "duplicate_instance_rollback",
+        )
+        .await?;
+        Err(SwarmError::DuplicateInstance(instance_id))
+    }
+
+    /// A rejected durable `SessionSpawned` write must not publish a live
+    /// registry handle. Roll back the still-owned factory session through the
+    /// same orphan teardown/STOP path as a duplicate while retaining the
+    /// original event-sink failure as the externally visible error.
+    async fn rollback_spawn_event_failure_after_factory_create(
+        &self,
+        request: &SpawnRequest,
+        live: LiveSession,
+        permit: OwnedSemaphorePermit,
+        checkout_lease: Option<CheckoutLeaseGuard>,
+        committed_memory_reservation: CommittedMemoryReservation,
+        event_error: SwarmError,
+    ) -> SwarmResult<ModelInstanceId> {
+        let teardown_result = self
+            .teardown_orphan_with_capacity(
+                request,
+                live,
+                checkout_lease,
+                permit,
+                committed_memory_reservation,
+                "session_spawned_event_persistence_failed",
+            )
+            .await;
+        match teardown_result {
+            Ok(()) => Err(event_error),
+            Err(cleanup_error) => Err(SwarmError::EventSinkFailed(format!(
+                "{event_error}; live-session rollback also failed: {cleanup_error}"
+            ))),
+        }
+    }
+
+    /// Test-only deterministic seam for the narrow window after factory create
+    /// and before atomic registry insertion. A live winner must already occupy
+    /// the requested instance id; this exercises the production duplicate
+    /// rollback without relying on scheduler timing or bypassing teardown.
+    #[cfg(test)]
+    pub(crate) async fn duplicate_insert_after_factory_create_for_test(
+        &self,
+        request: SpawnRequest,
+        live: LiveSession,
+    ) -> SwarmResult<ModelInstanceId> {
+        let committed_memory_bytes = request.committed_memory_bytes.unwrap_or(0);
+        let committed_memory_reservation =
+            CommittedMemoryReservation::reserve(Arc::clone(&self.inner), committed_memory_bytes)
+                .map_err(|dimension| SwarmError::BudgetExhausted { dimension })?;
+        let cap = self.inner.config.budget.max_concurrent;
+        let permit = self
+            .inner
+            .semaphore
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| SwarmError::ConcurrencyCapReached {
+                in_flight: cap.saturating_sub(self.inner.semaphore.available_permits()),
+                cap,
+            })?;
+        match self.try_insert_loading_with_memory_handoff(
+            &request,
+            live,
+            permit,
+            None,
+            committed_memory_reservation,
+        ) {
+            Ok(()) => Err(SwarmError::Internal(format!(
+                "duplicate insertion test seam expected a live winner for {}",
+                request.instance_id
+            ))),
+            Err((
+                TryInsertLoadingError::Duplicate {
+                    live,
+                    permit,
+                    checkout_lease,
+                },
+                committed_memory_reservation,
+            )) => {
+                self.rollback_duplicate_after_factory_create(
+                    &request,
+                    live,
+                    permit,
+                    checkout_lease,
+                    committed_memory_reservation,
+                )
+                .await
+            }
+            Err((
+                TryInsertLoadingError::EventSink {
+                    live,
+                    permit,
+                    checkout_lease,
+                    error,
+                },
+                committed_memory_reservation,
+            )) => {
+                self.rollback_spawn_event_failure_after_factory_create(
+                    &request,
+                    live,
+                    permit,
+                    checkout_lease,
+                    committed_memory_reservation,
+                    error,
+                )
+                .await
+            }
+        }
+    }
+
+    /// Test-only cancellation seam that parks immediately after the production
+    /// insertion + memory-ownership handoff. Aborting this future must not drop
+    /// the registry-owned committed-memory charge or concurrency permit.
+    #[cfg(test)]
+    pub(crate) async fn successful_insert_ownership_handoff_for_test(
+        &self,
+        request: SpawnRequest,
+        live: LiveSession,
+    ) -> SwarmResult<ModelInstanceId> {
+        let committed_memory_bytes = request.committed_memory_bytes.unwrap_or(0);
+        let committed_memory_reservation =
+            CommittedMemoryReservation::reserve(Arc::clone(&self.inner), committed_memory_bytes)
+                .map_err(|dimension| SwarmError::BudgetExhausted { dimension })?;
+        let cap = self.inner.config.budget.max_concurrent;
+        let permit = self
+            .inner
+            .semaphore
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| SwarmError::ConcurrencyCapReached {
+                in_flight: cap.saturating_sub(self.inner.semaphore.available_permits()),
+                cap,
+            })?;
+        match self.try_insert_loading_with_memory_handoff(
+            &request,
+            live,
+            permit,
+            None,
+            committed_memory_reservation,
+        ) {
+            Ok(()) => {
+                std::future::pending::<()>().await;
+                Ok(request.instance_id)
+            }
+            Err((TryInsertLoadingError::Duplicate { .. }, _reservation)) => {
+                Err(SwarmError::DuplicateInstance(request.instance_id))
+            }
+            Err((TryInsertLoadingError::EventSink { error, .. }, _reservation)) => Err(error),
+        }
     }
 
     fn mark_dexterity_model_lane_persisted(&self, instance_id: ModelInstanceId) -> SwarmResult<()> {
@@ -1452,33 +4090,255 @@ impl SwarmCoordinator {
         Ok(())
     }
 
-    /// Tear down a session that never made it into the registry (D2 duplicate
-    /// loser). Cancels the token, runs the engine teardown so the loaded model
-    /// is freed, and writes the matching ledger STOP so the START the factory
-    /// recorded for this losing session has no orphan.
-    async fn teardown_orphan(&self, request: &SpawnRequest, live: LiveSession) {
-        let instance_id = request.instance_id;
-        live.cancel.cancel();
-        live.runtime.cancel(live.cancel.clone());
-        // Free the engine resource (D1 contract).
-        let _ = (live.teardown)().await;
+    fn take_pending_checkout_lease(
+        &self,
+        instance_id: ModelInstanceId,
+    ) -> SwarmResult<Option<CheckoutLeaseGuard>> {
+        let mut pending = self
+            .inner
+            .pending_spawns
+            .lock()
+            .expect("pending spawns poisoned");
+        let spawn = pending
+            .get_mut(&instance_id)
+            .ok_or(SwarmError::UnknownInstance(instance_id))?;
+        Ok(spawn.checkout_lease.take())
+    }
 
+    fn commit_ready_hook(&self, instance_id: ModelInstanceId) -> SwarmResult<()> {
+        // Publication and the Ready-state check share the registry fence. A
+        // concurrent terminal path therefore cannot remove the handle between
+        // hook selection and publication and then let the hook republish a dead
+        // runtime. SessionReadyHook is synchronous and must not re-enter the
+        // coordinator; it may only publish the already-prepared secondary handle.
+        let mut registry = self.inner.registry.lock().expect("registry poisoned");
+        let handle = registry
+            .get_mut(&instance_id)
+            .ok_or(SwarmError::UnknownInstance(instance_id))?;
+        if handle.state != ModelSessionState::Ready {
+            return Err(SwarmError::LedgerFailed(format!(
+                "ready hook for {instance_id} requires Ready state; got {:?}",
+                handle.state
+            )));
+        }
+        if let Some(hook) = handle.ready_hook.clone() {
+            hook()?;
+            handle.ready_hook = None;
+        }
+        Ok(())
+    }
+
+    /// Register and attempt cleanup for a session that never made it into the
+    /// live registry. The orphan owner retains the permit, committed-memory
+    /// charge, checkout lease, and teardown authority across failures; only
+    /// successful teardown plus matching STOP removes the owner and releases
+    /// capacity and cross-process locks.
+    /// Transfer all still-live capacity ownership into the retryable orphan
+    /// record before awaiting teardown. The committed-memory guard cannot be
+    /// stored directly because it owns `Arc<Inner>` and would form an ownership
+    /// cycle through `Inner::orphan_cleanups`; retain its byte liability instead.
+    async fn teardown_orphan_with_capacity(
+        &self,
+        request: &SpawnRequest,
+        live: LiveSession,
+        checkout_lease: Option<CheckoutLeaseGuard>,
+        permit: OwnedSemaphorePermit,
+        mut committed_memory_reservation: CommittedMemoryReservation,
+        reason: &str,
+    ) -> SwarmResult<()> {
+        let instance_id = request.instance_id;
+        let process_record_id = live.process_record_id;
+        let committed_memory_bytes = committed_memory_reservation.bytes;
+        let process_engine_kind = live
+            .ledger_engine_kind_override
+            .unwrap_or_else(|| process_engine_kind_for_request(request));
         let stop = self.build_stop(
-            live.process_record_id,
-            live.os_pid,
-            process_engine_kind_for_request(request),
+            process_record_id,
+            live.ledger_os_pid,
+            live.ledger_start_override.clone(),
+            process_engine_kind,
             None,
             Utc::now(),
             ModelSessionState::Cancelled,
-            "duplicate_instance_rollback",
+            reason,
             -1,
             &instance_id,
         );
-        let _ = self.inner.ledger.record_stop(stop);
-        self.inner.sink.emit(SwarmEvent::ResourceEvicted {
+        let cleanup = PendingOrphanCleanup {
+            instance_id,
+            cancel: live.cancel,
+            runtime: live.runtime,
+            teardown: live.teardown,
+            stop,
+            ledger_lifecycle: live.ledger_lifecycle,
+            _permit: permit,
+            committed_memory_bytes,
+            _checkout_lease: checkout_lease,
+            teardown_succeeded: false,
+            stop_succeeded: false,
+            owner_generation: 0,
+            in_progress: false,
+        };
+        {
+            let mut orphan_cleanups = self
+                .inner
+                .orphan_cleanups
+                .lock()
+                .expect("orphan cleanups poisoned");
+            if orphan_cleanups.contains_key(&process_record_id) {
+                return Err(SwarmError::LedgerFailed(format!(
+                    "orphan cleanup owner already exists for process {}",
+                    process_record_id.as_uuid()
+                )));
+            }
+            orphan_cleanups.insert(process_record_id, cleanup);
+        }
+        committed_memory_reservation.disarm();
+        self.retry_orphan_cleanup(process_record_id).await
+    }
+
+    async fn retry_orphan_cleanup(
+        &self,
+        process_record_id: ProcessOwnershipRecordId,
+    ) -> SwarmResult<()> {
+        let (
+            instance_id,
+            cancel,
+            runtime,
+            teardown,
+            stop,
+            ledger_lifecycle,
+            teardown_succeeded,
+            stop_succeeded,
+            generation,
+        ) = {
+            let mut cleanups = self
+                .inner
+                .orphan_cleanups
+                .lock()
+                .expect("orphan cleanups poisoned");
+            let cleanup = cleanups.get_mut(&process_record_id).ok_or_else(|| {
+                SwarmError::LedgerFailed(format!(
+                    "orphan cleanup {} is missing",
+                    process_record_id.as_uuid()
+                ))
+            })?;
+            if cleanup.in_progress {
+                return Err(SwarmError::LedgerFailed(format!(
+                    "orphan cleanup {} is already in progress at generation {}",
+                    process_record_id.as_uuid(),
+                    cleanup.owner_generation
+                )));
+            }
+            cleanup.owner_generation = cleanup.owner_generation.saturating_add(1);
+            cleanup.in_progress = true;
+            (
+                cleanup.instance_id,
+                cleanup.cancel.clone(),
+                Arc::clone(&cleanup.runtime),
+                cleanup.teardown.clone(),
+                cleanup.stop.clone(),
+                cleanup.ledger_lifecycle.clone(),
+                cleanup.teardown_succeeded,
+                cleanup.stop_succeeded,
+                cleanup.owner_generation,
+            )
+        };
+        let _cleanup_owner = OrphanCleanupOwnershipGuard {
+            inner: Arc::clone(&self.inner),
+            process_record_id,
+            generation,
+        };
+
+        cancel.cancel();
+        runtime.cancel(cancel.clone());
+        if !teardown_succeeded {
+            self.run_teardown_bounded(instance_id, teardown).await?;
+            let mut cleanups = self
+                .inner
+                .orphan_cleanups
+                .lock()
+                .expect("orphan cleanups poisoned");
+            cleanups
+                .get_mut(&process_record_id)
+                .ok_or_else(|| {
+                    SwarmError::LedgerFailed(format!(
+                        "orphan cleanup {} disappeared after teardown",
+                        process_record_id.as_uuid()
+                    ))
+                })?
+                .teardown_succeeded = true;
+        }
+
+        if !stop_succeeded {
+            if let Some(lifecycle) = ledger_lifecycle {
+                ensure_reserved_stop_recorded(lifecycle.stop(
+                    stop.exit_code,
+                    stop.stop_reason.as_deref().unwrap_or("orphan_cleanup"),
+                ))?;
+            } else {
+                self.inner
+                    .ledger
+                    .record_stop_lossless(stop)
+                    .map_err(|err| SwarmError::LedgerFailed(err.to_string()))?;
+            }
+            let mut cleanups = self
+                .inner
+                .orphan_cleanups
+                .lock()
+                .expect("orphan cleanups poisoned");
+            cleanups
+                .get_mut(&process_record_id)
+                .ok_or_else(|| {
+                    SwarmError::LedgerFailed(format!(
+                        "orphan cleanup {} disappeared after STOP",
+                        process_record_id.as_uuid()
+                    ))
+                })?
+                .stop_succeeded = true;
+        }
+
+        {
+            let cleanups = self
+                .inner
+                .orphan_cleanups
+                .lock()
+                .expect("orphan cleanups poisoned");
+            let cleanup = cleanups.get(&process_record_id).ok_or_else(|| {
+                SwarmError::LedgerFailed(format!(
+                    "orphan cleanup {} disappeared before completion",
+                    process_record_id.as_uuid()
+                ))
+            })?;
+            if !cleanup.teardown_succeeded || !cleanup.stop_succeeded {
+                return Err(SwarmError::LedgerFailed(format!(
+                    "orphan cleanup {} cannot release capacity before teardown and STOP completed",
+                    process_record_id.as_uuid()
+                )));
+            }
+        }
+        self.emit_event(SwarmEvent::ResourceEvicted {
             instance_id,
             terminal_state: ModelSessionState::Cancelled,
-        });
+        })?;
+        let cleanup = self
+            .inner
+            .orphan_cleanups
+            .lock()
+            .expect("orphan cleanups poisoned")
+            .remove(&process_record_id)
+            .ok_or_else(|| {
+                SwarmError::LedgerFailed(format!(
+                    "orphan cleanup {} disappeared after completion event",
+                    process_record_id.as_uuid()
+                ))
+            })?;
+        self.inner
+            .release_committed_memory(cleanup.committed_memory_bytes);
+        // Dropping the completed owner releases its semaphore permit and
+        // checkout lease only after teardown and STOP have both succeeded.
+        drop(cleanup);
+        Ok(())
     }
 
     /// Terminal teardown shared by complete/cancel/reap: cancel token, run the
@@ -1501,32 +4361,97 @@ impl SwarmCoordinator {
         // underway but blocked on PostgreSQL/EventLedger.  The terminal lane
         // receipt remains the authoritative gate; `Cancelling` is the local
         // coordinator fence that prevents a new runtime start in that gap.
-        let (previous_state, terminal_record) = {
+        let (terminal_record, cleanup_generation) = {
             let mut registry = self.inner.registry.lock().expect("registry poisoned");
             let handle = registry
                 .get_mut(&instance_id)
                 .ok_or(SwarmError::UnknownInstance(instance_id))?;
             if handle.state == ModelSessionState::Cancelling {
-                return Err(SwarmError::LedgerFailed(format!(
-                    "session {instance_id} termination is already in progress"
-                )));
-            }
-            if handle.state.is_terminal() {
-                return Err(SwarmError::UnknownInstance(instance_id));
-            }
-            let previous_state = handle.state;
-            handle.state = ModelSessionState::Cancelling;
-            let terminal_record = if handle.dexterity_model_lane_persisted {
-                self.inner
-                    .model_lane_store
-                    .as_ref()
-                    .cloned()
-                    .zip(handle.dexterity_lane_id.clone())
+                let pending = handle.cleanup.as_mut().ok_or_else(|| {
+                    SwarmError::LedgerFailed(format!(
+                        "session {instance_id} has a cancelling state without a cleanup receipt"
+                    ))
+                })?;
+                if pending.terminal != terminal
+                    || pending.reason != reason
+                    || pending.exit_code != exit_code
+                {
+                    return Err(SwarmError::LedgerFailed(format!(
+                        "session {instance_id} cleanup retry does not match its durable terminal intent"
+                    )));
+                }
+                if pending.in_progress {
+                    return Err(SwarmError::LedgerFailed(format!(
+                        "session {instance_id} cleanup is already in progress at generation {}",
+                        pending.owner_generation
+                    )));
+                }
+                pending.owner_generation = pending.owner_generation.saturating_add(1);
+                pending.in_progress = true;
+                let generation = pending.owner_generation;
+                let terminal_record = if handle.dexterity_model_lane_persisted {
+                    self.inner
+                        .model_lane_store
+                        .as_ref()
+                        .cloned()
+                        .zip(handle.dexterity_lane_id.clone())
+                } else {
+                    None
+                };
+                (terminal_record, generation)
             } else {
-                None
-            };
-            (previous_state, terminal_record)
+                if handle.state.is_terminal() {
+                    return Err(SwarmError::UnknownInstance(instance_id));
+                }
+                handle.state = ModelSessionState::Cancelling;
+                handle.cleanup = Some(PendingSessionCleanup {
+                    terminal,
+                    reason: reason.to_string(),
+                    exit_code,
+                    teardown_succeeded: false,
+                    stop_succeeded: false,
+                    owner_generation: 1,
+                    in_progress: true,
+                });
+                let terminal_record = if handle.dexterity_model_lane_persisted {
+                    self.inner
+                        .model_lane_store
+                        .as_ref()
+                        .cloned()
+                        .zip(handle.dexterity_lane_id.clone())
+                } else {
+                    None
+                };
+                (terminal_record, 1)
+            }
         };
+        let _cleanup_owner = CleanupOwnershipGuard {
+            inner: Arc::clone(&self.inner),
+            instance_id,
+            generation: cleanup_generation,
+        };
+
+        // Fence provider work before any PostgreSQL receipt can block. The
+        // typed in-memory cleanup intent above survives a timed-out durable
+        // write and is retried by the background/restart reconciliation path.
+        {
+            let registry = self.inner.registry.lock().expect("registry poisoned");
+            let handle = registry
+                .get(&instance_id)
+                .ok_or(SwarmError::UnknownInstance(instance_id))?;
+            handle.cancel.cancel();
+            handle.runtime.cancel(handle.cancel.clone());
+        }
+
+        self.record_cleanup_receipt(
+            instance_id,
+            "cleanup_pending",
+            terminal,
+            reason,
+            exit_code,
+            None,
+        )
+        .await?;
 
         if let Some(status) = model_lane_terminal_status(terminal) {
             if let Some((store, lane_id)) = terminal_record {
@@ -1534,15 +4459,6 @@ impl SwarmCoordinator {
                     .record_lane_terminal_status(&lane_id, status, reason)
                     .await
                 {
-                    // A failed durable terminal write must not strand the
-                    // session in a local-only terminal fence. Restore exactly
-                    // the prior live state so a retry can take the same path.
-                    let mut registry = self.inner.registry.lock().expect("registry poisoned");
-                    if let Some(handle) = registry.get_mut(&instance_id) {
-                        if handle.state == ModelSessionState::Cancelling {
-                            handle.state = previous_state;
-                        }
-                    }
                     return Err(SwarmError::LedgerFailed(format!(
                         "Dexterity terminal lane state record failed: {err}"
                     )));
@@ -1550,47 +4466,217 @@ impl SwarmCoordinator {
             }
         }
 
-        // Remove the handle from the registry (releases the permit via Drop).
-        let mut handle = {
-            let mut registry = self.inner.registry.lock().expect("registry poisoned");
-            match registry.remove(&instance_id) {
-                Some(h) => h,
-                None => return Err(SwarmError::UnknownInstance(instance_id)),
-            }
+        let (
+            cancel,
+            runtime,
+            teardown,
+            teardown_succeeded,
+            mut stop_succeeded,
+            stop,
+            ledger_lifecycle,
+            process_record_id,
+            parent_session_id,
+        ) = {
+            let registry = self.inner.registry.lock().expect("registry poisoned");
+            let handle = registry
+                .get(&instance_id)
+                .ok_or(SwarmError::UnknownInstance(instance_id))?;
+            let cleanup = handle.cleanup.as_ref().ok_or_else(|| {
+                SwarmError::LedgerFailed(format!(
+                    "session {instance_id} cleanup metadata disappeared"
+                ))
+            })?;
+            (
+                handle.cancel.clone(),
+                Arc::clone(&handle.runtime),
+                handle.teardown.clone(),
+                cleanup.teardown_succeeded,
+                cleanup.stop_succeeded,
+                self.build_stop(
+                    handle.process_record_id,
+                    handle.ledger_os_pid,
+                    handle.ledger_start_override.clone(),
+                    handle.process_engine_kind,
+                    Some(handle.parent_session_id.clone()),
+                    handle.started_at,
+                    terminal,
+                    reason,
+                    exit_code,
+                    &instance_id,
+                ),
+                handle.ledger_lifecycle.clone(),
+                handle.process_record_id,
+                handle.parent_session_id.clone(),
+            )
         };
 
-        // Cancel the session's token so any in-flight generation aborts.
-        handle.cancel.cancel();
-        handle.runtime.cancel(handle.cancel.clone());
+        cancel.cancel();
+        runtime.cancel(cancel.clone());
 
-        // D1: actually FREE the loaded model. `cancel` only aborts in-flight
-        // generation; teardown is the only thing that releases the engine
-        // resource (drop owned Arc / unload on a shared runtime). Runs exactly
-        // once via Option::take. The model_id is passed through the closure the
-        // factory captured at load time.
-        let _ = handle.model_id; // retained for shared-runtime teardown identity
-        if let Some(teardown) = handle.teardown.take() {
-            let _ = teardown().await;
+        if !teardown_succeeded {
+            let teardown = teardown.ok_or_else(|| {
+                SwarmError::LedgerFailed(format!(
+                    "session {instance_id} cleanup has no teardown handle"
+                ))
+            })?;
+            if let Err(err) = self.run_teardown_bounded(instance_id, teardown).await {
+                let teardown_error = err.to_string();
+                self.record_cleanup_receipt(
+                    instance_id,
+                    "cleanup_pending",
+                    terminal,
+                    reason,
+                    exit_code,
+                    Some(&teardown_error),
+                )
+                .await?;
+                let reclaimer = self
+                    .inner
+                    .process_reclaimer
+                    .lock()
+                    .expect("process reclaimer lock poisoned")
+                    .clone();
+                let Some(reclaimer) = reclaimer else {
+                    return Err(err);
+                };
+                let trigger = match terminal {
+                    ModelSessionState::Cancelled => ReclaimTrigger::OperatorCancel,
+                    ModelSessionState::Failed => ReclaimTrigger::Failure,
+                    _ => ReclaimTrigger::Close,
+                };
+                let report = reclaimer
+                    .run_process(&parent_session_id, process_record_id.as_uuid(), trigger)
+                    .await
+                    .map_err(|reclaim_error| {
+                        SwarmError::LedgerFailed(format!(
+                            "session {instance_id} teardown failed ({teardown_error}); exact-process reclaim failed: {reclaim_error}"
+                        ))
+                    })?;
+                let reclaimed = report.processes_reclaimed.as_slice();
+                let reclaimed_durably = matches!(
+                    reclaimed,
+                    [process]
+                        if process.process_uuid == process_record_id.as_uuid()
+                            && process.kill_result == KillOutcome::Killed
+                            && process.stop_event_kind == Some(LedgerEventKind::Stop)
+                );
+                if !reclaimed_durably {
+                    return Err(SwarmError::LedgerFailed(format!(
+                        "session {instance_id} teardown failed ({teardown_error}); exact-process reclaim did not prove kill plus durable STOP: {reclaimed:?}"
+                    )));
+                }
+                {
+                    let mut registry = self.inner.registry.lock().expect("registry poisoned");
+                    let handle = registry
+                        .get_mut(&instance_id)
+                        .ok_or(SwarmError::UnknownInstance(instance_id))?;
+                    let cleanup = handle.cleanup.as_mut().expect("cleanup initialized");
+                    cleanup.teardown_succeeded = true;
+                    cleanup.stop_succeeded = true;
+                }
+                stop_succeeded = true;
+                self.record_cleanup_receipt(
+                    instance_id,
+                    "exact_process_reclaim_succeeded",
+                    terminal,
+                    reason,
+                    exit_code,
+                    Some(&teardown_error),
+                )
+                .await?;
+            } else {
+                {
+                    let mut registry = self.inner.registry.lock().expect("registry poisoned");
+                    let handle = registry
+                        .get_mut(&instance_id)
+                        .ok_or(SwarmError::UnknownInstance(instance_id))?;
+                    handle
+                        .cleanup
+                        .as_mut()
+                        .expect("cleanup initialized")
+                        .teardown_succeeded = true;
+                }
+                self.record_cleanup_receipt(
+                    instance_id,
+                    "teardown_succeeded",
+                    terminal,
+                    reason,
+                    exit_code,
+                    None,
+                )
+                .await?;
+            }
         }
+
+        if !stop_succeeded {
+            let stop_result = if let Some(lifecycle) = ledger_lifecycle {
+                ensure_reserved_stop_recorded(lifecycle.stop(Some(exit_code), reason))
+            } else {
+                self.inner
+                    .ledger
+                    .record_stop_lossless(stop)
+                    .map_err(|err| SwarmError::LedgerFailed(err.to_string()))
+            };
+            if let Err(err) = stop_result {
+                let detail = err.to_string();
+                self.record_cleanup_receipt(
+                    instance_id,
+                    "teardown_succeeded",
+                    terminal,
+                    reason,
+                    exit_code,
+                    Some(&detail),
+                )
+                .await?;
+                return Err(SwarmError::LedgerFailed(detail));
+            }
+            let mut registry = self.inner.registry.lock().expect("registry poisoned");
+            let handle = registry
+                .get_mut(&instance_id)
+                .ok_or(SwarmError::UnknownInstance(instance_id))?;
+            handle
+                .cleanup
+                .as_mut()
+                .expect("cleanup initialized")
+                .stop_succeeded = true;
+        }
+
+        self.record_cleanup_receipt(instance_id, "completed", terminal, reason, exit_code, None)
+            .await?;
+
+        // Commit terminal + eviction events before removing the retryable
+        // session handle. If the durable outbox rejects either event, the
+        // producer observes EventSinkFailed and a later cleanup pass can retry.
+        match terminal {
+            ModelSessionState::Completed => {
+                self.emit_event(SwarmEvent::SessionCompleted { instance_id })?
+            }
+            ModelSessionState::Failed => self.emit_event(SwarmEvent::SessionFailed {
+                instance_id,
+                error: reason.to_string(),
+            })?,
+            ModelSessionState::Cancelled => self.emit_event(SwarmEvent::SessionCancelled {
+                instance_id,
+                reason: reason.to_string(),
+            })?,
+            _ => {}
+        }
+        self.emit_event(SwarmEvent::ResourceEvicted {
+            instance_id,
+            terminal_state: terminal,
+        })?;
+
+        // Only terminalize and release capacity after teardown, STOP, and the
+        // durable completed receipt and terminal outbox commits have succeeded.
+        let handle = self
+            .inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .remove(&instance_id)
+            .ok_or(SwarmError::UnknownInstance(instance_id))?;
         self.inner
             .release_committed_memory(handle.committed_memory_bytes);
-
-        // Write the matching process-ledger stop row so there is no orphan.
-        let stop = self.build_stop(
-            handle.process_record_id,
-            handle.os_pid,
-            handle.process_engine_kind,
-            Some(handle.parent_session_id.clone()),
-            handle.started_at,
-            terminal,
-            reason,
-            exit_code,
-            &instance_id,
-        );
-        self.inner
-            .ledger
-            .record_stop(stop)
-            .map_err(|e| SwarmError::LedgerFailed(e.to_string()))?;
 
         // Prune per-instance accounting now that the instance is terminal so the
         // respawn + signature maps cannot grow without bound (C5).
@@ -1600,27 +4686,99 @@ impl SwarmCoordinator {
             acc.last_failure_signature.remove(&instance_id);
         }
 
-        // Emit terminal + evicted events. The permit is released as `handle`
-        // (and its `permit` field) drops at end of scope.
-        match terminal {
-            ModelSessionState::Completed => self
-                .inner
-                .sink
-                .emit(SwarmEvent::SessionCompleted { instance_id }),
-            ModelSessionState::Failed => self.inner.sink.emit(SwarmEvent::SessionFailed {
-                instance_id,
-                error: reason.to_string(),
-            }),
-            ModelSessionState::Cancelled => self.inner.sink.emit(SwarmEvent::SessionCancelled {
-                instance_id,
-                reason: reason.to_string(),
-            }),
-            _ => {}
+        // The permit is released as `handle` drops at end of scope.
+        Ok(())
+    }
+
+    async fn run_teardown_bounded(
+        &self,
+        instance_id: ModelInstanceId,
+        teardown: SessionTeardown,
+    ) -> SwarmResult<()> {
+        let mut owned = tokio::spawn(async move { teardown().await });
+        match tokio::time::timeout(self.inner.config.teardown_timeout, &mut owned).await {
+            Ok(Ok(result)) => result,
+            Ok(Err(join_error)) => Err(SwarmError::LedgerFailed(format!(
+                "session {instance_id} owned teardown task failed to join: {join_error}"
+            ))),
+            Err(_) => {
+                owned.abort();
+                let _ = owned.await;
+                Err(SwarmError::LedgerFailed(format!(
+                    "session {instance_id} teardown exceeded {:?}; owned task was aborted and joined, cleanup remains retryable",
+                    self.inner.config.teardown_timeout
+                )))
+            }
         }
-        self.inner.sink.emit(SwarmEvent::ResourceEvicted {
-            instance_id,
-            terminal_state: terminal,
-        });
+    }
+
+    async fn record_cleanup_receipt(
+        &self,
+        instance_id: ModelInstanceId,
+        status: &str,
+        terminal: ModelSessionState,
+        reason: &str,
+        exit_code: i32,
+        last_error: Option<&str>,
+    ) -> SwarmResult<()> {
+        if let Some(store) = self.inner.model_lane_store.as_ref() {
+            store
+                .record_session_cleanup_receipt(
+                    &instance_id.to_string(),
+                    status,
+                    &format!("{terminal:?}"),
+                    reason,
+                    exit_code,
+                    last_error,
+                )
+                .await
+                .map_err(|err| {
+                    SwarmError::LedgerFailed(format!(
+                        "session cleanup receipt persistence failed: {err}"
+                    ))
+                })?;
+        }
+        Ok(())
+    }
+
+    pub async fn retry_pending_orphan_cleanups(&self) -> SwarmResult<()> {
+        let pending: Vec<_> = self
+            .inner
+            .orphan_cleanups
+            .lock()
+            .expect("orphan cleanups poisoned")
+            .keys()
+            .copied()
+            .collect();
+        for process_record_id in pending {
+            self.retry_orphan_cleanup(process_record_id).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn retry_pending_session_cleanups(&self) -> SwarmResult<()> {
+        self.retry_pending_orphan_cleanups().await?;
+        let pending: Vec<_> = self
+            .inner
+            .registry
+            .lock()
+            .expect("registry poisoned")
+            .iter()
+            .filter_map(|(instance_id, handle)| {
+                handle.cleanup.as_ref().map(|cleanup| {
+                    (
+                        *instance_id,
+                        cleanup.terminal,
+                        cleanup.reason.clone(),
+                        cleanup.exit_code,
+                    )
+                })
+            })
+            .collect();
+        for (instance_id, terminal, reason, exit_code) in pending {
+            self.terminate(instance_id, terminal, &reason, exit_code)
+                .await?;
+        }
         Ok(())
     }
 
@@ -1631,7 +4789,8 @@ impl SwarmCoordinator {
     fn build_stop(
         &self,
         process_record_id: ProcessOwnershipRecordId,
-        os_pid: u32,
+        ledger_os_pid: Option<u32>,
+        ledger_start_override: Option<ProcessStart>,
         engine_kind: ProcessEngineKind,
         parent_session_id: Option<String>,
         started_at: DateTime<Utc>,
@@ -1640,9 +4799,12 @@ impl SwarmCoordinator {
         exit_code: i32,
         instance_id: &ModelInstanceId,
     ) -> ProcessStop {
+        if let Some(start) = ledger_start_override {
+            return ProcessStop::from_start(&start, Some(exit_code)).with_stop_reason(reason);
+        }
         ProcessStop {
             process_uuid: process_record_id.as_uuid(),
-            os_pid: Some(os_pid),
+            os_pid: ledger_os_pid,
             parent_session_id,
             parent_process_id: None,
             sandbox_adapter_id: None,
@@ -1659,6 +4821,7 @@ impl SwarmCoordinator {
             role_id: None,
             wp_id: None,
             mt_id: None,
+            runtime_owner: None,
             sandbox_capabilities_snapshot: serde_json::json!({}),
             metadata_jsonb: serde_json::json!({
                 "instance_id": instance_id.to_string(),
@@ -1671,11 +4834,11 @@ impl SwarmCoordinator {
         }
     }
 
-    fn emit_spawn_rejected(&self, instance_id: ModelInstanceId, reason: &str) {
-        self.inner.sink.emit(SwarmEvent::SpawnRejected {
+    fn emit_spawn_rejected(&self, instance_id: ModelInstanceId, reason: &str) -> SwarmResult<()> {
+        self.emit_event(SwarmEvent::SpawnRejected {
             instance_id,
             reason: reason.to_string(),
-        });
+        })
     }
 }
 
@@ -1864,154 +5027,60 @@ impl Inner {
 /// a flapping session is eventually abandoned rather than respawned forever.
 async fn reap_expired(inner: &Arc<Inner>) {
     let now = Utc::now();
-    let expired: Vec<(ModelInstanceId, String)> = {
+    let expired: Vec<(ModelInstanceId, String, ModelSessionState, String, i32)> = {
         let registry = inner.registry.lock().expect("registry poisoned");
         registry
             .values()
             .filter(|h| !h.state.is_terminal() && h.lease.is_expired(now))
-            .map(|h| (h.instance_id, h.lease.owner.clone()))
+            .map(|h| {
+                let (terminal, reason, exit_code) = h
+                    .cleanup
+                    .as_ref()
+                    .map(|cleanup| (cleanup.terminal, cleanup.reason.clone(), cleanup.exit_code))
+                    .unwrap_or((
+                        ModelSessionState::Cancelled,
+                        "lease_expired_reclaim".to_string(),
+                        -1,
+                    ));
+                (
+                    h.instance_id,
+                    h.lease.owner.clone(),
+                    terminal,
+                    reason,
+                    exit_code,
+                )
+            })
             .collect()
     };
 
-    for (instance_id, owner) in expired {
-        inner
+    for (instance_id, owner, terminal, reason, exit_code) in expired {
+        let _ = inner
             .sink
             .emit(SwarmEvent::LeaseExpired { instance_id, owner });
 
-        // Mirror `terminate`'s cancelling fence. A lease reaper must not leave
-        // a Ready handle startable while it awaits the durable terminal lane
-        // receipt, and a concurrent explicit cancel must not race a second
-        // terminal write against it.
-        let fenced = {
-            let mut registry = inner.registry.lock().expect("registry poisoned");
-            match registry.get_mut(&instance_id) {
-                None => None,
-                Some(handle)
-                    if handle.state.is_terminal()
-                        || handle.state == ModelSessionState::Cancelling =>
-                {
-                    None
-                }
-                Some(handle) => {
-                    let previous_state = handle.state;
-                    handle.state = ModelSessionState::Cancelling;
-                    let terminal_record = if handle.dexterity_model_lane_persisted {
-                        inner
-                            .model_lane_store
-                            .as_ref()
-                            .cloned()
-                            .zip(handle.dexterity_lane_id.clone())
-                    } else {
-                        None
-                    };
-                    Some((previous_state, terminal_record))
-                }
-            }
+        // Lease expiry uses the same durable cleanup state machine as explicit
+        // completion/cancellation. A teardown or STOP failure therefore keeps
+        // the session fenced and retryable for the next reaper pass.
+        let coordinator = SwarmCoordinator {
+            inner: Arc::clone(inner),
+            reaper: Arc::new(Mutex::new(None)),
         };
-        let Some((previous_state, terminal_record)) = fenced else {
-            continue;
-        };
-        if let Some((store, lane_id)) = terminal_record {
-            if let Err(err) = store
-                .record_lane_terminal_status(
-                    &lane_id,
-                    ModelLaneStatus::Cancelled,
-                    "lease_expired_reclaim",
-                )
-                .await
-            {
-                let mut registry = inner.registry.lock().expect("registry poisoned");
-                if let Some(handle) = registry.get_mut(&instance_id) {
-                    if handle.state == ModelSessionState::Cancelling {
-                        handle.state = previous_state;
-                    }
-                }
-                inner.sink.emit(SwarmEvent::SessionFailed {
-                    instance_id,
-                    error: format!(
-                        "Dexterity terminal lane state record failed before lease reaper teardown: {err}"
-                    ),
-                });
-                continue;
+        if let Err(err) = coordinator
+            .terminate(instance_id, terminal, &reason, exit_code)
+            .await
+        {
+            if let Err(event_error) = inner.sink.emit(SwarmEvent::SessionFailed {
+                instance_id,
+                error: format!("lease reaper cleanup remains pending: {err}"),
+            }) {
+                tracing::error!(
+                    target: "handshake_core::swarm_orchestration",
+                    %instance_id,
+                    %event_error,
+                    "lease reaper terminal failure event rejected; cleanup remains retryable"
+                );
             }
         }
-
-        // Anti-storm: bump and check the respawn counter after terminal
-        // persistence succeeds. If terminal persistence fails, the live handle
-        // stays in the registry and the next reaper pass can retry.
-        let over_storm_cap = {
-            let mut acc = inner.accounting.lock().expect("accounting poisoned");
-            let count = acc.respawns.entry(instance_id).or_insert(0);
-            *count = count.saturating_add(1);
-            *count > inner.config.max_respawns_per_instance
-        };
-
-        // Reclaim: remove from registry, cancel, tear down (free model),
-        // ledger-stop.
-        let mut handle = {
-            let mut registry = inner.registry.lock().expect("registry poisoned");
-            registry.remove(&instance_id)
-        };
-        let Some(handle) = handle.as_mut() else {
-            continue;
-        };
-        handle.cancel.cancel();
-        handle.runtime.cancel(handle.cancel.clone());
-
-        // D1: actually FREE the loaded model on lease-expiry reclaim, mirroring
-        // the explicit terminate path. cancel() alone does not release engine
-        // memory; teardown does.
-        let _ = handle.model_id;
-        if let Some(teardown) = handle.teardown.take() {
-            let _ = teardown().await;
-        }
-        inner.release_committed_memory(handle.committed_memory_bytes);
-
-        let stop = ProcessStop {
-            process_uuid: handle.process_record_id.as_uuid(),
-            os_pid: Some(handle.os_pid),
-            parent_session_id: Some(handle.parent_session_id.clone()),
-            parent_process_id: None,
-            sandbox_adapter_id: None,
-            sandbox_internal_id: None,
-            engine_kind: handle.process_engine_kind,
-            started_at: handle.started_at,
-            stopped_at: Utc::now(),
-            exit_code: Some(-1),
-            stop_reason: Some("lease_expired_reclaim".to_string()),
-            model_artifact_sha256: None,
-            work_profile_id: None,
-            owner_role: inner.config.owner_role.clone(),
-            owner_wp: None,
-            role_id: None,
-            wp_id: None,
-            mt_id: None,
-            sandbox_capabilities_snapshot: serde_json::json!({}),
-            metadata_jsonb: serde_json::json!({
-                "instance_id": instance_id.to_string(),
-                "reclaim_trigger": ReclaimTrigger::Stale.as_str(),
-                "respawn_storm_capped": over_storm_cap,
-                "swarm_id": handle.swarm_id,
-                "worktree_id": handle.worktree_id,
-            }),
-        };
-        let _ = inner.ledger.record_stop(stop);
-
-        inner.sink.emit(SwarmEvent::ResourceEvicted {
-            instance_id,
-            terminal_state: ModelSessionState::Cancelled,
-        });
-
-        // C5: if this instance is abandoned (past the respawn storm cap) it
-        // will never respawn, so drop its accounting entries (respawn counter +
-        // tracked signature) to bound map growth. Otherwise keep the respawn
-        // counter so the anti-storm bound stays meaningful across reclaims.
-        if over_storm_cap {
-            let mut acc = inner.accounting.lock().expect("accounting poisoned");
-            acc.respawns.remove(&instance_id);
-            acc.last_failure_signature.remove(&instance_id);
-        }
-        // Permit released as `handle` drops here.
     }
 
     // C5: prune fully-settled breaker signatures (Closed-no-failures or

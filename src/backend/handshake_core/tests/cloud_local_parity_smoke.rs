@@ -68,8 +68,9 @@ use handshake_core::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError,
 };
 use handshake_core::model_runtime::cloud::{
-    AnthropicByokRuntime, ApiKeyProvider, CliBridgeConfig, CliInvocationReceipt, CliKind,
-    CliOutputFormat, CliSubprocessSpawner, CloudCallKind, CloudCallStatus, CloudConsentContext,
+    AnthropicByokRuntime, ApiKeyProvider, CliBridgeConfig, CliInvocationContext,
+    CliInvocationReceipt, CliKind, CliOutputFormat, CliSubprocessSpawner, CloudCallKind,
+    CloudCallStatus, CloudConsentContext,
     CloudInvocationAuditRow, CloudInvocationAuditSink, CloudLaneObservability, ConsentDecision,
     ConsentGate, ConsentGateError, ConsentProvider, OfficialCliBridgeError,
     OfficialCliBridgeRuntime, OpenAiByokError, OpenAiByokRuntime, ANTHROPIC_API_KEY_HEADER,
@@ -417,7 +418,10 @@ impl ModelRuntime for FakeLocalRuntime {
     }
 
     fn kv_cache(&self, _id: ModelId) -> Result<KvCacheHandle, ModelRuntimeError> {
-        Ok(KvCacheHandle::new(format!("{}:fixture", self.adapter_label)))
+        Ok(KvCacheHandle::new(format!(
+            "{}:fixture",
+            self.adapter_label
+        )))
     }
 
     fn lora_stack(&self, _id: ModelId) -> Result<LoraStackHandle, ModelRuntimeError> {
@@ -449,6 +453,8 @@ fn fake_local_caps() -> ModelCapabilities {
         supports_subquadratic: false,
         supports_speculative_draft: true,
         supports_eagle3: false,
+        supports_embedding: false,
+        embedding_dimension: None,
     }
 }
 
@@ -471,6 +477,7 @@ impl CliSubprocessSpawner for CapturingSpawner {
     fn spawn(
         &self,
         _config: &CliBridgeConfig,
+        _invocation: &CliInvocationContext,
         model_name: &str,
         prompt: &str,
     ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
@@ -510,9 +517,8 @@ fn fixture_cli_config() -> CliBridgeConfig {
 fn static_dispatch_table_compiles_for_each_lane() {
     // If any of these coercions fails to compile, the lane normalisation
     // gate in HBR-INT-005 is broken at the type level.
-    let llama_cpp = handshake_core::model_runtime::llama_cpp::LlamaCppRuntime::new(
-        KvCachePolicy::default(),
-    );
+    let llama_cpp =
+        handshake_core::model_runtime::llama_cpp::LlamaCppRuntime::new(KvCachePolicy::default());
     let candle = handshake_core::model_runtime::candle::CandleRuntime::default();
 
     let sink: Arc<dyn CloudInvocationAuditSink> = Arc::new(CapturingSink::default());
@@ -693,11 +699,7 @@ async fn cloud_lanes_return_capability_not_supported_for_local_only_surfaces() {
     let anthropic_id = anthropic_handle.model_id;
 
     for (label, runtime, model_id) in [
-        (
-            "openai_byok",
-            &openai as &dyn ModelRuntime,
-            openai_id,
-        ),
+        ("openai_byok", &openai as &dyn ModelRuntime, openai_id),
         (
             "anthropic_byok",
             &anthropic as &dyn ModelRuntime,
@@ -708,7 +710,10 @@ async fn cloud_lanes_return_capability_not_supported_for_local_only_surfaces() {
             .kv_cache(model_id)
             .expect_err(&format!("{label}: kv_cache must return error"));
         match kv_err {
-            ModelRuntimeError::CapabilityNotSupported { capability, adapter } => {
+            ModelRuntimeError::CapabilityNotSupported {
+                capability,
+                adapter,
+            } => {
                 assert!(
                     capability.contains("kv_cache"),
                     "{label}: capability message must reference kv_cache, got: {capability}"
@@ -725,7 +730,10 @@ async fn cloud_lanes_return_capability_not_supported_for_local_only_surfaces() {
             .lora_stack(model_id)
             .expect_err(&format!("{label}: lora_stack must return error"));
         match lora_err {
-            ModelRuntimeError::CapabilityNotSupported { capability, adapter } => {
+            ModelRuntimeError::CapabilityNotSupported {
+                capability,
+                adapter,
+            } => {
                 assert!(
                     capability.contains("lora_stack"),
                     "{label}: capability message must reference lora_stack, got: {capability}"
@@ -741,16 +749,19 @@ async fn cloud_lanes_return_capability_not_supported_for_local_only_surfaces() {
             .steering_hooks(model_id)
             .expect_err(&format!("{label}: steering_hooks must return error"));
         match steering_err {
-            ModelRuntimeError::CapabilityNotSupported { capability, adapter } => {
+            ModelRuntimeError::CapabilityNotSupported {
+                capability,
+                adapter,
+            } => {
                 assert!(
                     capability.contains("steering_hooks"),
                     "{label}: capability message must reference steering_hooks, got: {capability}"
                 );
                 assert_eq!(adapter, label);
             }
-            other => panic!(
-                "{label}: steering_hooks must return CapabilityNotSupported, got: {other:?}"
-            ),
+            other => {
+                panic!("{label}: steering_hooks must return CapabilityNotSupported, got: {other:?}")
+            }
         }
     }
 }
@@ -885,11 +896,10 @@ async fn fr_event_shape_parity_from_real_cloud_emissions() {
         .expect("anthropic allowlisted");
 
     // ----- Drain BOTH streams to completion -----
-    let mut openai_stream =
-        openai.chat_completions_stream(fr_parity_generate_request(
-            openai_handle.model_id,
-            CancellationToken::new(),
-        ));
+    let mut openai_stream = openai.chat_completions_stream(fr_parity_generate_request(
+        openai_handle.model_id,
+        CancellationToken::new(),
+    ));
     while let Some(item) = openai_stream.next().await {
         item.expect("openai success-path items are Ok");
     }
@@ -1069,7 +1079,17 @@ fn fr_event_payload_shape_is_uniform_across_lanes_start_token_end() {
         );
 
         // END payload.
-        let end = infer_end_event(model_id, request_id, 12, 24, 1024, 64, 960, FinishReason::Stop, lane_label);
+        let end = infer_end_event(
+            model_id,
+            request_id,
+            12,
+            24,
+            1024,
+            64,
+            960,
+            FinishReason::Stop,
+            lane_label,
+        );
         let end_obj = end
             .payload
             .as_object()
@@ -1121,13 +1141,20 @@ fn fr_event_required_fields_present_on_all_three_phases() {
 
     let start = infer_start_event(model_id, request_id, 5, "prompt", "llama_cpp").payload;
     let token = infer_token_event(model_id, request_id, 16, 99, "x", 4, "llama_cpp").payload;
-    let end = infer_end_event(model_id, request_id, 5, 16, 200, 50, 150, FinishReason::Stop, "llama_cpp").payload;
+    let end = infer_end_event(
+        model_id,
+        request_id,
+        5,
+        16,
+        200,
+        50,
+        150,
+        FinishReason::Stop,
+        "llama_cpp",
+    )
+    .payload;
 
-    for (label, payload) in [
-        ("start", &start),
-        ("token", &token),
-        ("end", &end),
-    ] {
+    for (label, payload) in [("start", &start), ("token", &token), ("end", &end)] {
         let obj = payload
             .as_object()
             .unwrap_or_else(|| panic!("{label}: must be JSON object"));
@@ -1234,9 +1261,7 @@ async fn pre_cancelled_local_lane_stream_yields_cancelled_terminal_token() {
     };
     let mut stream = local.generate(req);
     let mut saw_cancelled = false;
-    while let Ok(Some(item)) =
-        tokio::time::timeout(Duration::from_secs(2), stream.next()).await
-    {
+    while let Ok(Some(item)) = tokio::time::timeout(Duration::from_secs(2), stream.next()).await {
         match item {
             Ok(token) if matches!(token.finish_reason, Some(FinishReason::Cancelled)) => {
                 saw_cancelled = true;
@@ -1298,9 +1323,7 @@ async fn cloud_lane_audit_row_shape_uniform_openai_and_anthropic() {
         assert!(
             matches!(
                 row.call_kind,
-                CloudCallKind::ChatCompletion
-                    | CloudCallKind::Embeddings
-                    | CloudCallKind::Score
+                CloudCallKind::ChatCompletion | CloudCallKind::Embeddings | CloudCallKind::Score
             ),
             "row call_kind must be a known cloud call kind"
         );
@@ -1344,7 +1367,11 @@ fn cli_bridge_receipt_shape_parallels_cloud_audit_row() {
         .expect("register cli bridge");
 
     let receipt = runtime
-        .invoke(handle.model_id, "parity-probe-prompt")
+        .invoke(
+            handle.model_id,
+            "parity-probe-prompt",
+            &CliInvocationContext::new("PARITY_TEST", "claude-3.5-sonnet"),
+        )
         .expect("invoke");
 
     // Shape-parity properties:
@@ -1486,9 +1513,8 @@ async fn local_lane_load_error_shape_matches_cloud_lane_load_error_shape() {
         engine_origin: None,
         external_engine_import: None,
     };
-    let mut runtime = handshake_core::model_runtime::llama_cpp::LlamaCppRuntime::new(
-        KvCachePolicy::default(),
-    );
+    let mut runtime =
+        handshake_core::model_runtime::llama_cpp::LlamaCppRuntime::new(KvCachePolicy::default());
     let err = runtime
         .load(bogus)
         .await
@@ -1498,9 +1524,9 @@ async fn local_lane_load_error_shape_matches_cloud_lane_load_error_shape() {
     // failures per HBR-INT-005 normalisation).
     match err {
         ModelRuntimeError::LoadError(_) => {}
-        other => panic!(
-            "expected LoadError variant per HBR-INT-005 lane normalisation, got: {other:?}"
-        ),
+        other => {
+            panic!("expected LoadError variant per HBR-INT-005 lane normalisation, got: {other:?}")
+        }
     }
 }
 
@@ -1586,7 +1612,18 @@ fn mt130_red_team_minimum_controls_field_by_field_fr_event_parity_verified() {
     let request_id = new_llm_infer_request_id();
     let start = infer_start_event(model_id, request_id, 1, "x", "llama_cpp").payload;
     let token = infer_token_event(model_id, request_id, 16, 1, "x", 1, "llama_cpp").payload;
-    let end = infer_end_event(model_id, request_id, 1, 1, 1, 1, 0, FinishReason::Stop, "llama_cpp").payload;
+    let end = infer_end_event(
+        model_id,
+        request_id,
+        1,
+        1,
+        1,
+        1,
+        0,
+        FinishReason::Stop,
+        "llama_cpp",
+    )
+    .payload;
     for phase in [&start, &token, &end] {
         let obj = phase.as_object().expect("payload is object");
         // Per-lane fields MUST NOT be invented; the only allowed

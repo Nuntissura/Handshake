@@ -14,7 +14,7 @@
 //! when absent the launch route reports `503 launch_not_wired` (production wires
 //! the live coordinator singleton — a follow-on to this MT).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use axum::{
@@ -29,12 +29,19 @@ use serde_json::{json, Value};
 use crate::flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError};
 use crate::model_runtime::catalog::ModelCatalog;
 use crate::model_runtime::cloud::{
-    enumerate_cloud_access, InMemoryAccessRegistry, ProviderAccessRegistry, ProviderAccessStatus,
+    enumerate_cli_bridge_with_probe, enumerate_cloud_access, CliBridgeAuthStatus,
+    CliBridgeAuthStatusProbe, CliBridgeProvider, InMemoryAccessRegistry, ProviderAccessRegistry,
+    ProviderAccessStatus,
 };
+use crate::storage::ModelSessionState;
 use crate::swarm_orchestration::operator_chat::{
-    OperatorChatCloudRow, OperatorChatError, OperatorChatLaunchService, OperatorChatModelInventory,
-    OperatorChatModelRow, OperatorChatSelection, OperatorChatSubagentRow,
+    OperatorChatCloudRow, OperatorChatError, OperatorChatLaunchRequest, OperatorChatLaunchService,
+    OperatorChatModelInventory, OperatorChatModelRow, OperatorChatRoutingAuthorityRequest,
+    OperatorChatRoutingCancelRequest, OperatorChatRoutingLifecycleRequest, OperatorChatSessionRow,
+    OperatorChatSingleRunCloudLaunchRequest, OperatorChatSingleRunCloudRevokeRequest,
+    OperatorChatSubagentRow,
 };
+use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
 
 type ApiError = (StatusCode, Json<Value>);
 
@@ -44,8 +51,19 @@ pub struct OperatorChatState {
     launch_service: Option<Arc<OperatorChatLaunchService>>,
     catalog: Arc<ModelCatalog>,
     cloud_registry: Arc<dyn ProviderAccessRegistry>,
-    cli_bridge_statuses: BTreeMap<String, ProviderAccessStatus>,
+    cli_auth_probe: Arc<dyn CliBridgeAuthStatusProbe>,
+    cli_bridge_launchable_providers: BTreeSet<String>,
     recorder: Arc<dyn FlightRecorder>,
+    session_registry: Arc<SessionRegistry>,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct UnavailableOperatorChatCliAuthProbe;
+
+impl CliBridgeAuthStatusProbe for UnavailableOperatorChatCliAuthProbe {
+    fn auth_status(&self, _provider: CliBridgeProvider) -> CliBridgeAuthStatus {
+        CliBridgeAuthStatus::Unavailable
+    }
 }
 
 impl OperatorChatState {
@@ -58,8 +76,10 @@ impl OperatorChatState {
             launch_service: None,
             catalog: ModelCatalog::empty(),
             cloud_registry: Arc::new(InMemoryAccessRegistry::new()),
-            cli_bridge_statuses: BTreeMap::new(),
+            cli_auth_probe: Arc::new(UnavailableOperatorChatCliAuthProbe),
+            cli_bridge_launchable_providers: BTreeSet::new(),
             recorder: Arc::new(NoopOperatorChatRecorder),
+            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
         }
     }
 
@@ -78,17 +98,26 @@ impl OperatorChatState {
         self
     }
 
-    pub fn with_cli_bridge_provider_status(
+    pub fn with_cli_bridge_auth_probe(mut self, probe: Arc<dyn CliBridgeAuthStatusProbe>) -> Self {
+        self.cli_auth_probe = probe;
+        self
+    }
+
+    pub fn with_cli_bridge_launchable_providers(
         mut self,
-        provider: impl Into<String>,
-        status: ProviderAccessStatus,
+        providers: impl IntoIterator<Item = String>,
     ) -> Self {
-        self.cli_bridge_statuses.insert(provider.into(), status);
+        self.cli_bridge_launchable_providers = providers.into_iter().collect();
         self
     }
 
     pub fn with_recorder(mut self, recorder: Arc<dyn FlightRecorder>) -> Self {
         self.recorder = recorder;
+        self
+    }
+
+    pub fn with_session_registry(mut self, registry: Arc<SessionRegistry>) -> Self {
+        self.session_registry = registry;
         self
     }
 }
@@ -128,22 +157,106 @@ pub fn routes(state: OperatorChatState) -> Router {
         .route("/operator-chat/models", get(enumerate_models))
         .route("/operator-chat/selection", post(record_selection))
         .route("/operator-chat/launch", post(launch_session))
+        .route(
+            "/operator-chat/cloud/single-run/grant-launch",
+            post(launch_single_run_cloud_consent),
+        )
+        .route(
+            "/operator-chat/cloud/single-run/revoke",
+            post(revoke_single_run_cloud_consent),
+        )
         .route("/operator-chat/transcript/:run_id", get(fetch_transcript))
+        .route(
+            "/operator-chat/routing/lifecycle",
+            post(execute_routing_lifecycle),
+        )
+        .route(
+            "/operator-chat/routing/recover",
+            post(recover_routing_lifecycle),
+        )
+        .route(
+            "/operator-chat/routing/authority",
+            post(complete_routing_authority),
+        )
+        .route(
+            "/operator-chat/routing/cancel",
+            post(cancel_routing_lifecycle),
+        )
         .with_state(state)
+}
+
+fn routing_service(state: &OperatorChatState) -> Result<Arc<OperatorChatLaunchService>, ApiError> {
+    state.launch_service.clone().ok_or_else(|| (
+        StatusCode::SERVICE_UNAVAILABLE,
+        Json(json!({"error":"routing_not_wired","detail":"operator-chat routing requires the production coordinator"})),
+    ))
+}
+
+async fn execute_routing_lifecycle(
+    State(state): State<OperatorChatState>,
+    Json(request): Json<OperatorChatRoutingLifecycleRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let batch = routing_service(&state)?
+        .execute_routing_lifecycle(request)
+        .await
+        .map_err(launch_api_error)?;
+    Ok(Json(
+        serde_json::to_value(batch).unwrap_or_else(|_| json!({})),
+    ))
+}
+
+async fn recover_routing_lifecycle(
+    State(state): State<OperatorChatState>,
+    Json(request): Json<OperatorChatRoutingLifecycleRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let batch = routing_service(&state)?
+        .recover_routing_lifecycle(request)
+        .await
+        .map_err(launch_api_error)?;
+    Ok(Json(
+        serde_json::to_value(batch).unwrap_or_else(|_| json!({})),
+    ))
+}
+
+async fn complete_routing_authority(
+    State(state): State<OperatorChatState>,
+    Json(request): Json<OperatorChatRoutingAuthorityRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let batch = routing_service(&state)?
+        .complete_routing_authority(request)
+        .await
+        .map_err(launch_api_error)?;
+    Ok(Json(
+        serde_json::to_value(batch).unwrap_or_else(|_| json!({})),
+    ))
+}
+
+async fn cancel_routing_lifecycle(
+    State(state): State<OperatorChatState>,
+    Json(request): Json<OperatorChatRoutingCancelRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let execution = routing_service(&state)?
+        .cancel_routing_lifecycle(request)
+        .await
+        .map_err(launch_api_error)?;
+    Ok(Json(
+        serde_json::to_value(execution).unwrap_or_else(|_| json!({})),
+    ))
 }
 
 /// GET the non-secret picker inventory: local models (MT-014) + cloud rows (MT-015).
 /// Enumeration needs no launch authority; it reads the catalog + cloud registry.
 async fn enumerate_models(State(state): State<OperatorChatState>) -> Json<Value> {
-    let inventory = enumerate_inventory(&state);
+    let inventory = enumerate_inventory(&state).await;
     Json(serde_json::to_value(inventory).unwrap_or_else(|_| json!({})))
 }
 
-fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInventory {
+async fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInventory {
     let local = state
         .catalog
         .list()
         .into_iter()
+        .filter(|entry| entry.default_selectable)
         .map(|entry| OperatorChatModelRow {
             model_id: entry.model_id,
             display_name: entry.display_name,
@@ -152,11 +265,62 @@ fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInventory 
         })
         .collect();
     let cloud = enumerate_cloud_access(state.cloud_registry.as_ref());
+    let cli_auth_probe = state.cli_auth_probe.clone();
+    let cli_bridge_launchable_providers = state.cli_bridge_launchable_providers.clone();
+    let cli_bridge_statuses: BTreeMap<String, CliBridgeAuthStatus> =
+        tokio::task::spawn_blocking(move || {
+            enumerate_cli_bridge_with_probe(cli_auth_probe.as_ref())
+                .into_iter()
+                .map(|row| (row.provider.to_string(), row.auth_status))
+                .collect()
+        })
+        .await
+        .unwrap_or_else(|_| {
+            CliBridgeProvider::OFFERED
+                .into_iter()
+                .map(|provider| (provider.id().to_string(), CliBridgeAuthStatus::Unavailable))
+                .collect()
+        });
     let status_label = |status: ProviderAccessStatus| match status {
         ProviderAccessStatus::Configured => "configured".to_string(),
         ProviderAccessStatus::Unavailable => "unavailable".to_string(),
     };
+    let cli_auth_status_label = |status: CliBridgeAuthStatus| match status {
+        CliBridgeAuthStatus::LoggedIn => "logged_in".to_string(),
+        CliBridgeAuthStatus::LoggedOut => "logged_out".to_string(),
+        CliBridgeAuthStatus::Expired => "expired".to_string(),
+        CliBridgeAuthStatus::Unavailable => "unavailable".to_string(),
+    };
+    let sessions = state.session_registry.snapshot().await;
+    let mut session_rows = sessions
+        .active_sessions
+        .values()
+        .map(|session| {
+            let parent_active = session
+                .parent_session_id
+                .as_ref()
+                .and_then(|parent| sessions.active_sessions.get(parent))
+                .is_some_and(|parent| {
+                    parent.state == ModelSessionState::Active
+                        && session.spawn_depth == parent.spawn_depth.saturating_add(1)
+                });
+            OperatorChatSessionRow {
+                session_id: session.session_id.clone(),
+                parent_session_id: session.parent_session_id.clone(),
+                label: format!("{} / {}", session.role, session.model_id),
+                status: if session.state == ModelSessionState::Active && parent_active {
+                    "available"
+                } else {
+                    "unavailable"
+                }
+                .to_string(),
+            }
+        })
+        .collect::<Vec<_>>();
+    session_rows.sort_by(|left, right| left.session_id.cmp(&right.session_id));
     OperatorChatModelInventory {
+        inventory_source: "operator_chat_backend",
+        sessions: session_rows,
         local,
         cloud_byok: cloud
             .byok
@@ -185,12 +349,15 @@ fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInventory 
                 }
                 .to_string(),
                 label: row.label.to_string(),
-                status: status_label(
-                    state
-                        .cli_bridge_statuses
-                        .get(row.provider)
-                        .copied()
-                        .unwrap_or(ProviderAccessStatus::Unavailable),
+                status: cli_auth_status_label(
+                    if cli_bridge_launchable_providers.contains(row.provider) {
+                        cli_bridge_statuses
+                            .get(row.provider)
+                            .copied()
+                            .unwrap_or(CliBridgeAuthStatus::Unavailable)
+                    } else {
+                        CliBridgeAuthStatus::Unavailable
+                    },
                 ),
             })
             .collect(),
@@ -202,6 +369,49 @@ fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInventory 
         }],
         excluded: cloud.excluded.into_iter().map(|s| s.to_string()).collect(),
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedOperatorChatLineage {
+    pub owner_session_id: String,
+    pub parent_session_id: String,
+}
+
+pub async fn resolve_operator_chat_lineage(
+    registry: &SessionRegistry,
+    owner_session_id: &str,
+) -> Result<ResolvedOperatorChatLineage, &'static str> {
+    let owner_session_id = owner_session_id.trim();
+    if owner_session_id.is_empty() {
+        return Err("owner_session_id_required");
+    }
+    let snapshot = registry.snapshot().await;
+    let owner = snapshot
+        .active_sessions
+        .get(owner_session_id)
+        .ok_or("owner_session_not_registered")?;
+    if owner.state != ModelSessionState::Active {
+        return Err("owner_session_not_active");
+    }
+    let parent_session_id = owner
+        .parent_session_id
+        .as_deref()
+        .filter(|parent| !parent.trim().is_empty())
+        .ok_or("owner_session_lineage_missing")?;
+    let parent = snapshot
+        .active_sessions
+        .get(parent_session_id)
+        .ok_or("parent_session_not_registered")?;
+    if parent.state != ModelSessionState::Active {
+        return Err("parent_session_not_active");
+    }
+    if owner.spawn_depth != parent.spawn_depth.saturating_add(1) {
+        return Err("owner_session_lineage_invalid");
+    }
+    Ok(ResolvedOperatorChatLineage {
+        owner_session_id: owner.session_id.clone(),
+        parent_session_id: parent.session_id.clone(),
+    })
 }
 
 /// POST the selection-decision audit event (wires MT-014 record_selection_decision).
@@ -261,7 +471,7 @@ fn push_selection_context(
 /// ModelLaneStore, or `503` when the launch service is not wired.
 async fn launch_session(
     State(state): State<OperatorChatState>,
-    Json(selection): Json<OperatorChatSelection>,
+    Json(request): Json<OperatorChatLaunchRequest>,
 ) -> Result<Json<Value>, ApiError> {
     let Some(service) = state.launch_service.clone() else {
         return Err((
@@ -272,10 +482,53 @@ async fn launch_session(
             })),
         ));
     };
+    let lineage = resolve_operator_chat_lineage(&state.session_registry, &request.owner_session_id)
+        .await
+        .map_err(|code| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": "invalid_owner_session", "code": code})),
+            )
+        })?;
+    let selection =
+        request.into_governed_selection(lineage.owner_session_id, lineage.parent_session_id);
     let launched = service.launch(&selection).await.map_err(launch_api_error)?;
     Ok(Json(
         serde_json::to_value(launched).unwrap_or_else(|_| json!({})),
     ))
+}
+
+async fn launch_single_run_cloud_consent(
+    State(state): State<OperatorChatState>,
+    Json(request): Json<OperatorChatSingleRunCloudLaunchRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let service = routing_service(&state)?;
+    let launched = service
+        .launch_single_run_cloud_consent(request)
+        .await
+        .map_err(launch_api_error)?;
+    Ok(Json(
+        serde_json::to_value(launched).unwrap_or_else(|_| json!({})),
+    ))
+}
+
+async fn revoke_single_run_cloud_consent(
+    State(state): State<OperatorChatState>,
+    Json(request): Json<OperatorChatSingleRunCloudRevokeRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let service = routing_service(&state)?;
+    let cancelled = service
+        .revoke_single_run_cloud_consent(
+            &request.consent_receipt_id,
+            &request.revoked_by_ref,
+            &request.reason,
+        )
+        .await
+        .map_err(launch_api_error)?;
+    Ok(Json(json!({
+        "consent_receipt_id": request.consent_receipt_id,
+        "cancelled_lanes": cancelled,
+    })))
 }
 
 /// GET the captured transcript (ModelLaneMessage rows) for a launched run so the

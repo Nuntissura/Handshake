@@ -48,6 +48,6 @@ pub use registry::{
     PALETTE_AUTHOR_IDS, PANE_NODE_ID_BASE, THEME_TOGGLE_AUTHOR_ID, THEME_TOGGLE_NODE_ID,
 };
 pub use snapshot::{
-    collect_tree_snapshot, collect_ui_tree_snapshot, AccessNodeSnapshot, AccessTreeSnapshot,
-    UiNodeBounds, UiTreeNode, UiTreeSnapshot, MAX_SNAPSHOT_NODES,
+    collect_tree_snapshot, collect_ui_tree_snapshot, is_sensitive_author_id, AccessNodeSnapshot,
+    AccessTreeSnapshot, UiNodeBounds, UiTreeNode, UiTreeSnapshot, MAX_SNAPSHOT_NODES,
 };

@@ -485,7 +485,7 @@ pub fn store_api_key_impl(
     if secret.expose_secret().is_empty() {
         return Err(CloudLaneIpcError::EmptySecretValue);
     }
-    state.vault.put(&lane, secret.expose_secret().to_string())?;
+    state.vault.put(&lane, secret.expose_secret())?;
     let now = Utc::now().to_rfc3339();
     // Update the lane registration record if it exists. (Storing a
     // key for an unregistered lane is allowed; some operator flows

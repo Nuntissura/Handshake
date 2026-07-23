@@ -1465,13 +1465,19 @@ impl SandboxAdapter for CloudHypervisorAdapter {
         // cannot be honored without a tap/virtio-net bind, so fail closed at
         // spawn instead of silently accepting an unenforceable policy (the
         // separate net_policy() applies the same guard for post-spawn calls).
-        if let NetPolicy::Allowlist(entries) = &spec.net_policy {
-            if !entries.is_empty() {
+        match &spec.net_policy {
+            NetPolicy::Allowlist(entries) if !entries.is_empty() => {
                 return Err(net_policy_failed(
                     "cloud_hypervisor microVMs boot with no network device; a non-empty \
                      net_policy allowlist cannot be honored and fails closed at spawn",
                 ));
             }
+            NetPolicy::HostInherited => {
+                return Err(net_policy_failed(
+                    "cloud_hypervisor cannot enforce attached host-inherited networking and fails closed",
+                ));
+            }
+            _ => {}
         }
 
         // Persistent-VM model (snapshot/restore): boot a long-lived idle VM with
@@ -1753,6 +1759,9 @@ impl SandboxAdapter for CloudHypervisorAdapter {
             NetPolicy::Allowlist(entries) if entries.is_empty() => Ok(()),
             NetPolicy::Allowlist(_) => Err(net_policy_failed(
                 "cloud_hypervisor microVMs boot with no network device; external allowlist entries require a future tap/virtio-net bind and fail closed",
+            )),
+            NetPolicy::HostInherited => Err(net_policy_failed(
+                "cloud_hypervisor cannot enforce attached host-inherited networking and fails closed",
             )),
         }
     }

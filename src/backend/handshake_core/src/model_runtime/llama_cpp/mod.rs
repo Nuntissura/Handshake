@@ -1,4 +1,6 @@
 pub mod adapter;
+#[cfg(any(test, feature = "llama-cpp-runtime-engine"))]
+mod artifact_snapshot;
 pub mod context;
 pub mod eagle3_hook;
 pub mod generate;

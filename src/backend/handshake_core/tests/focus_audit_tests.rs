@@ -11,7 +11,7 @@ use handshake_core::{
         FocusAuditReport, OwnedProcessPidSet, FOCUS_AUDIT_LEDGER_DIR,
     },
     process_ledger::{
-        ProcessEngineKind, ProcessStart, ProcessStop, ReclaimableProcess,
+        ProcessEngineKind, ProcessStart, ProcessStop, ReclaimClaim, ReclaimableProcess,
         POSTGRES_ACTIVE_RECLAIM_QUERY_SQL, PROCESS_LEDGER_MIGRATION_SQL, PROCESS_START_INSERT_SQL,
         PROCESS_STOP_UPSERT_SQL,
     },
@@ -131,6 +131,14 @@ fn process_ownership_ledger_exposes_optional_postgres_os_pid_for_focus_correlati
     assert_eq!(start.os_pid, Some(3210));
     assert_eq!(stop.os_pid, Some(3210));
 
+    let now_ms = Utc::now().timestamp_millis();
+    let reclaim_claim = ReclaimClaim {
+        claimant_uuid: Uuid::now_v7(),
+        kill_operation_uuid: Uuid::now_v7(),
+        generation: 1,
+        claimed_at_unix_ms: now_ms,
+        lease_expires_at_unix_ms: now_ms + 30_000,
+    };
     let reclaimable = ReclaimableProcess {
         process_uuid: Uuid::now_v7(),
         os_pid: Some(6540),
@@ -147,8 +155,11 @@ fn process_ownership_ledger_exposes_optional_postgres_os_pid_for_focus_correlati
         role_id: Some("KERNEL_BUILDER".to_string()),
         wp_id: Some("WP-KERNEL-004".to_string()),
         mt_id: Some("MT-053".to_string()),
+        runtime_owner: None,
         sandbox_capabilities_snapshot: serde_json::json!({"adapter_id": "sandbox-adapter-test"}),
-        metadata_jsonb: serde_json::json!({}),
+        metadata_jsonb: serde_json::json!({"reclaim_claim": reclaim_claim}),
+        reclaim_claim,
+        kill_succeeded_pending_stop: false,
     };
     assert_eq!(reclaimable.reclaim_stop(-1).os_pid, Some(6540));
 }

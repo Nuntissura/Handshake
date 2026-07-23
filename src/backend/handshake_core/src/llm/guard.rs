@@ -361,6 +361,10 @@ impl LlmClient for CloudEscalationGuard {
     fn profile(&self) -> &super::ModelProfile {
         self.inner.profile()
     }
+
+    fn selected_model_id(&self) -> String {
+        self.inner.selected_model_id()
+    }
 }
 
 #[cfg(test)]

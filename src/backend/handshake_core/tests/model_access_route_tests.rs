@@ -24,13 +24,95 @@
 //! The OS-keychain leak proof (key stored only in the keychain, never in logs /
 //! FR / EventLedger / audit rows) lives in `cloud_byok_access_config_leak_tests`.
 
-use std::sync::Arc;
+use std::collections::BTreeMap;
+use std::io::Write;
+use std::sync::{Arc, Mutex, Once, OnceLock, RwLock};
 
 use handshake_core::api::model_access::{routes, CloudAccessProvider, ModelAccessState};
 use handshake_core::model_runtime::cloud::{
-    AccessConfigError, ByokProvider, CloudModelAccess, InMemorySecretsVault, SecretsVault,
+    AccessConfigError, ByokProvider, CliBridgeAuthStatus, CliBridgeAuthStatusProbe,
+    CliBridgeProvider, CloudModelAccess, InMemorySecretsVault, SecretsVault, SecretsVaultError,
 };
 use serde_json::Value;
+use zeroize::Zeroizing;
+
+#[derive(Clone, Default)]
+struct SharedTraceBuffer(Arc<Mutex<Vec<u8>>>);
+
+impl Write for SharedTraceBuffer {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0
+            .lock()
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "trace lock poisoned"))?
+            .extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for SharedTraceBuffer {
+    type Writer = SharedTraceBuffer;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
+
+fn capture_tracing() -> SharedTraceBuffer {
+    static BUFFER: OnceLock<SharedTraceBuffer> = OnceLock::new();
+    static INIT: Once = Once::new();
+    let buffer = BUFFER.get_or_init(SharedTraceBuffer::default).clone();
+    INIT.call_once(|| {
+        tracing_subscriber::fmt()
+            .with_writer(buffer.clone())
+            .with_max_level(tracing::Level::TRACE)
+            .with_ansi(false)
+            .try_init()
+            .expect("install model-access route tracing capture");
+    });
+    tracing::info!(
+        target: "handshake_core::tests::model_access",
+        marker = "model-access-tracing-live",
+        "public tracing capture marker"
+    );
+    buffer
+}
+
+struct EchoingFailVault;
+
+impl SecretsVault for EchoingFailVault {
+    fn put(&self, _lane: &str, secret: &str) -> Result<(), SecretsVaultError> {
+        Err(SecretsVaultError::KeychainBackend(format!(
+            "injected backend echoed submitted value {secret}"
+        )))
+    }
+
+    fn get(&self, lane: &str) -> Result<Zeroizing<String>, SecretsVaultError> {
+        Err(SecretsVaultError::NoSecretForLane(lane.to_string()))
+    }
+
+    fn delete(&self, _lane: &str) -> Result<(), SecretsVaultError> {
+        Ok(())
+    }
+
+    fn list_lanes(&self) -> Result<Vec<String>, SecretsVaultError> {
+        Ok(Vec::new())
+    }
+}
+
+struct EchoingFailProvider;
+
+impl CloudAccessProvider for EchoingFailProvider {
+    fn access(&self) -> Result<CloudModelAccess, AccessConfigError> {
+        Ok(CloudModelAccess::with_vault(
+            Arc::new(EchoingFailVault),
+            "EchoingFailVault",
+        ))
+    }
+}
 
 /// Provider backed by a shared in-memory vault so a stored key persists across
 /// requests within a test. Never touches the host keychain.
@@ -57,11 +139,46 @@ impl CloudAccessProvider for KeychainUnavailableProvider {
     }
 }
 
+#[derive(Default)]
+struct TypedCliAuthProbe {
+    statuses: RwLock<BTreeMap<CliBridgeProvider, CliBridgeAuthStatus>>,
+    calls: Mutex<Vec<CliBridgeProvider>>,
+}
+
+impl TypedCliAuthProbe {
+    fn set_all(&self, status: CliBridgeAuthStatus) {
+        let mut statuses = self.statuses.write().expect("auth status lock");
+        statuses.clear();
+        for provider in CliBridgeProvider::OFFERED {
+            statuses.insert(provider, status);
+        }
+    }
+
+    fn calls(&self) -> Vec<CliBridgeProvider> {
+        self.calls.lock().expect("auth calls lock").clone()
+    }
+}
+
+impl CliBridgeAuthStatusProbe for TypedCliAuthProbe {
+    fn auth_status(&self, provider: CliBridgeProvider) -> CliBridgeAuthStatus {
+        self.calls.lock().expect("auth calls lock").push(provider);
+        self.statuses
+            .read()
+            .expect("auth status lock")
+            .get(&provider)
+            .copied()
+            .unwrap_or(CliBridgeAuthStatus::Unavailable)
+    }
+}
+
 fn in_memory_state() -> (ModelAccessState, Arc<InMemorySecretsVault>) {
     let vault = Arc::new(InMemorySecretsVault::default());
-    let state = ModelAccessState::with_provider(Arc::new(InMemoryProvider {
-        vault: vault.clone(),
-    }));
+    let state = ModelAccessState::with_provider_and_cli_auth_probe(
+        Arc::new(InMemoryProvider {
+            vault: vault.clone(),
+        }),
+        Arc::new(TypedCliAuthProbe::default()),
+    );
     (state, vault)
 }
 
@@ -109,6 +226,32 @@ async fn put_store_returns_200_and_never_echoes_the_key() {
         .get(ByokProvider::OpenAi.vault_lane())
         .expect("key stored under the openai vault lane");
     assert_eq!(stored.as_str(), CANARY, "the key was written to the vault");
+
+    server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn put_store_vault_failure_logs_only_stable_error_code() {
+    const CANARY: &str = "sk-route-vault-error-canary-NEVER-ECHO";
+    let trace_buffer = capture_tracing();
+    let state = ModelAccessState::with_provider(Arc::new(EchoingFailProvider));
+    let (base, server) = start_server(state).await;
+
+    let response = reqwest::Client::new()
+        .put(format!("{base}/model-access/byok/openai/key"))
+        .json(&serde_json::json!({ "api_key": CANARY }))
+        .send()
+        .await
+        .expect("send failing store request");
+    assert_eq!(response.status().as_u16(), 500);
+    let body = response.text().await.expect("read stable error body");
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+
+    assert!(body.contains("vault_error"), "{body}");
+    assert!(tracing.contains("model-access-tracing-live"), "tracing capture must be live");
+    assert!(tracing.contains("keychain_backend"), "stable vault error class must be logged");
+    assert!(!body.contains(CANARY), "response leaked submitted key: {body}");
+    assert!(!tracing.contains(CANARY), "tracing leaked submitted key: {tracing}");
 
     server.abort();
 }
@@ -243,6 +386,65 @@ async fn get_providers_reflects_configured_and_excludes_gemini() {
         "Gemini is surfaced only as an explicit exclusion"
     );
 
+    server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cli_bridge_typed_status_wire_mapping_excludes_account_fields_and_gemini() {
+    let vault = Arc::new(InMemorySecretsVault::default());
+    let probe = Arc::new(TypedCliAuthProbe::default());
+    let state = ModelAccessState::with_provider_and_cli_auth_probe(
+        Arc::new(InMemoryProvider { vault }),
+        probe.clone(),
+    );
+    let (base, server) = start_server(state).await;
+    let client = reqwest::Client::new();
+
+    for (typed_status, wire_status) in [
+        (CliBridgeAuthStatus::LoggedIn, "logged_in"),
+        (CliBridgeAuthStatus::LoggedOut, "logged_out"),
+        (CliBridgeAuthStatus::Expired, "expired"),
+    ] {
+        probe.set_all(typed_status);
+        let response = client
+            .get(format!("{base}/model-access/providers"))
+            .send()
+            .await
+            .expect("enumerate CLI auth status");
+        assert_eq!(response.status().as_u16(), 200);
+        let body = response.text().await.expect("auth status body");
+        assert!(
+            !body.contains("access_token")
+                && !body.contains("refresh_token")
+                && !body.contains("\"email\""),
+            "the typed fake status surface unexpectedly contained account fields: {body}"
+        );
+        let value: Value = serde_json::from_str(&body).expect("auth status JSON");
+        let rows = value["cli_bridge"].as_array().expect("CLI bridge rows");
+        assert_eq!(rows.len(), 2, "only Claude Code and Codex are offered");
+        for provider in ["claude_code", "codex"] {
+            let row = rows
+                .iter()
+                .find(|row| row["provider"] == provider)
+                .unwrap_or_else(|| panic!("{provider} auth row"));
+            assert_eq!(row["auth_status"], wire_status, "{provider} auth state");
+        }
+        assert!(
+            rows.iter()
+                .all(|row| row["provider"] != "gemini" && row["provider"] != "gemini_cli"),
+            "Gemini must never be offered or probed: {rows:?}"
+        );
+    }
+
+    let calls = probe.calls();
+    assert_eq!(calls.len(), 6, "two offered providers across three probes");
+    assert!(
+        calls.iter().all(|provider| matches!(
+            provider,
+            CliBridgeProvider::ClaudeCode | CliBridgeProvider::Codex
+        )),
+        "the auth probe must never receive Gemini or any unknown provider"
+    );
     server.abort();
 }
 

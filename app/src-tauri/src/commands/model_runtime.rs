@@ -555,6 +555,8 @@ mod tests {
             supports_subquadratic: false,
             supports_speculative_draft: false,
             supports_eagle3: false,
+            supports_embedding: false,
+            embedding_dimension: None,
         }
     }
 
@@ -662,6 +664,8 @@ mod tests {
             supports_subquadratic: false,
             supports_speculative_draft: false,
             supports_eagle3: false,
+            supports_embedding: false,
+            embedding_dimension: None,
         };
         let fake = Arc::new(crate::commands::testing::FakeCandleRuntime::new(
             model_id, live_caps,

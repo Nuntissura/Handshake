@@ -48,14 +48,17 @@
       "description": "ignored end-to-end llama.cpp runtime smoke test covering load, capabilities, generation, optional LoRA, KV quantization/prefix replay, ngram speculation, score, embed, flight-recorder events, and unload",
       "run_command": "cargo test -p handshake_core --features llama-cpp-runtime-engine --target-dir ../Handshake_Artifacts/handshake-cargo-target --test llama_cpp_e2e_smoke llama_cpp_e2e_smoke -- --ignored --nocapture",
       "required_env": [
-        "HANDSHAKE_TEST_GGUF_PATH"
+        "HANDSHAKE_TEST_GGUF_PATH",
+        "HANDSHAKE_ARTIFACTS_DIR",
+        "HANDSHAKE_MT013_REAL_LLAMA_PROOF_NONCE",
+        "HANDSHAKE_MT013_FROZEN_SOURCE_WORKTREE_SHA256"
       ],
       "optional_env": [
         "HANDSHAKE_TEST_LORA_PATH",
         "HANDSHAKE_TEST_LORA_BASE_TAG",
         "HANDSHAKE_TEST_LORA_EXPECT_DIFFERENT"
       ],
-      "skip_policy": "If HANDSHAKE_TEST_GGUF_PATH is absent, the ignored smoke test emits a SKIPPED outcome and returns success. If HANDSHAKE_TEST_LORA_PATH is absent, only the LoRA substep is skipped and the remaining smoke path still executes. If HANDSHAKE_TEST_LORA_EXPECT_DIFFERENT is present, the LoRA substep also requires a curated fixture that changes the deterministic token stream. If either path env var is present but invalid, the test fails loudly.",
+      "skip_policy": "The authoritative smoke run hard-fails when HANDSHAKE_TEST_GGUF_PATH or any required proof input is absent, invalid, or does not match the exact frozen tracked-plus-untracked non-ignored worktree bytes. If HANDSHAKE_TEST_LORA_PATH is absent, only the optional LoRA substep is skipped. If HANDSHAKE_TEST_LORA_EXPECT_DIFFERENT is present, the LoRA substep requires a curated fixture that changes the deterministic token stream.",
       "artifact_policy": "Use CARGO_TARGET_DIR or --target-dir under ../Handshake_Artifacts/handshake-cargo-target; do not write smoke-test artifacts into the repository.",
       "coverage": [
         "load",
@@ -65,8 +68,10 @@
         "kv_quantization_prefix_commit_restore_replay",
         "ngram_speculative_generation",
         "score",
-        "embed_or_embedding_capability_skip",
+        "model_derived_embedding_dimension_and_embed",
         "flight_recorder_generation_and_spec_events",
+        "compile_time_full_source_config_lockfile_closure_binding",
+        "compile_derived_manifest_tamper_rejection",
         "unload_absence_checks"
       ]
     }

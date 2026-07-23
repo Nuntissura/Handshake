@@ -2,26 +2,40 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use handshake_core::process_ledger::{LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink};
 use handshake_core::sandbox::{
-    default_no_op_capabilities, AdapterCapabilities, AdapterId, BindMode, BindSpec, Command,
-    ExecResult, GpuPassthrough, ImageRef, IsolationStrength, NetPolicy, ProcessHandle, ProcessSpec,
-    ProcessStatus, RequiredCapability, ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal,
-    ThroughputClass, TrustClass,
+    default_no_op_capabilities, AdapterCapabilities, AdapterId, AttachedNetworkMode,
+    AttachedProcessSpec, AttachedSandboxProcess, AttachedStdioContract, BindMode, BindSpec,
+    Command, ExecResult, GpuPassthrough, ImageRef, IsolationStrength, IsolationTier,
+    LedgerDecorator, NetPolicy, ProcessHandle, ProcessSpec, ProcessStatus, RequiredCapability,
+    ResourceLimits, SandboxAdapter, SandboxAdapterError, Signal, ThroughputClass, TrustClass,
 };
 
 #[derive(Debug, Clone)]
 struct NoopAdapter {
     capabilities: AdapterCapabilities,
+    attached_spawn_calls: Arc<AtomicUsize>,
+    attached_stdio_calls: Arc<AtomicUsize>,
+    attached_network_validation_calls: Arc<AtomicUsize>,
+    warm_agent_transport_calls: Arc<AtomicUsize>,
 }
 
 impl Default for NoopAdapter {
     fn default() -> Self {
         Self {
             capabilities: default_no_op_capabilities(),
+            attached_spawn_calls: Arc::new(AtomicUsize::new(0)),
+            attached_stdio_calls: Arc::new(AtomicUsize::new(0)),
+            attached_network_validation_calls: Arc::new(AtomicUsize::new(0)),
+            warm_agent_transport_calls: Arc::new(AtomicUsize::new(0)),
         }
     }
 }
@@ -39,6 +53,32 @@ impl NoopAdapter {
 impl SandboxAdapter for NoopAdapter {
     async fn spawn(&self, _spec: ProcessSpec) -> Result<ProcessHandle, SandboxAdapterError> {
         Err(self.unavailable())
+    }
+
+    async fn spawn_attached(
+        &self,
+        _spec: AttachedProcessSpec,
+    ) -> Result<Box<dyn AttachedSandboxProcess>, SandboxAdapterError> {
+        self.attached_spawn_calls.fetch_add(1, Ordering::SeqCst);
+        Err(self.unavailable())
+    }
+
+    async fn spawn_attached_with_stdio(
+        &self,
+        _spec: AttachedProcessSpec,
+        _stdio: AttachedStdioContract,
+    ) -> Result<Box<dyn AttachedSandboxProcess>, SandboxAdapterError> {
+        self.attached_stdio_calls.fetch_add(1, Ordering::SeqCst);
+        Err(self.unavailable())
+    }
+
+    fn validate_attached_network_mode(
+        &self,
+        _mode: AttachedNetworkMode,
+    ) -> Result<(), SandboxAdapterError> {
+        self.attached_network_validation_calls
+            .fetch_add(1, Ordering::SeqCst);
+        Ok(())
     }
 
     async fn exec(
@@ -83,9 +123,104 @@ impl SandboxAdapter for NoopAdapter {
         Err(self.unavailable())
     }
 
+    async fn warm_agent_transport(
+        &self,
+        _handle: &ProcessHandle,
+    ) -> Result<Arc<dyn handshake_core::model_runtime::WarmAgentTransport>, SandboxAdapterError>
+    {
+        self.warm_agent_transport_calls
+            .fetch_add(1, Ordering::SeqCst);
+        Err(self.unavailable())
+    }
+
     fn capabilities(&self) -> AdapterCapabilities {
         self.capabilities.clone()
     }
+}
+
+fn attached_spec() -> AttachedProcessSpec {
+    AttachedProcessSpec {
+        executable_path: PathBuf::from("attached-probe"),
+        args: vec!["--probe".to_string()],
+        env: BTreeMap::new(),
+        cwd: None,
+        binds: Vec::new(),
+        network_mode: AttachedNetworkMode::DenyAll,
+        trust_class: TrustClass::Trusted,
+        required_capabilities: BTreeSet::new(),
+        requested_isolation_tier: IsolationTier::Tier1Container,
+        requested_net_policy: NetPolicy::DenyAll,
+        resource_limits: ResourceLimits::default(),
+        startup_timeout_ms: 1_000,
+        ephemeral_cleanup_paths: Vec::new(),
+        execution_policy_ref: "execution-policy://test/decorator".to_string(),
+        resolved_execution_policy: None,
+        swarm_id: Some("test-swarm".to_string()),
+        worktree_id: Some("test-worktree".to_string()),
+        checkout_lease_id: None,
+        checkout_lease_owner_generation: None,
+        checkout_lease_canonical_working_dir: None,
+    }
+}
+
+fn test_ledger() -> LedgerBatcher {
+    let (batcher, _drain) =
+        LedgerBatcher::manual_for_tests(LedgerBatcherConfig::default(), Arc::new(NoopOverflowSink))
+            .expect("manual ledger batcher");
+    batcher
+}
+
+#[tokio::test]
+async fn ledger_decorator_delegates_all_attached_contract_methods() {
+    let inner = Arc::new(NoopAdapter::default());
+    let decorator = LedgerDecorator::new(inner.clone(), test_ledger());
+
+    let spawn_error = match decorator.spawn_attached(attached_spec()).await {
+        Err(error) => error,
+        Ok(_) => panic!("recording adapter unexpectedly returned an attached process"),
+    };
+    assert!(matches!(
+        spawn_error,
+        SandboxAdapterError::AdapterUnavailable { .. }
+    ));
+
+    let stdio_error = match decorator
+        .spawn_attached_with_stdio(
+            attached_spec(),
+            AttachedStdioContract::null_stdin_piped_output(),
+        )
+        .await
+    {
+        Err(error) => error,
+        Ok(_) => panic!("recording adapter unexpectedly returned a stdio-attached process"),
+    };
+    assert!(matches!(
+        stdio_error,
+        SandboxAdapterError::AdapterUnavailable { .. }
+    ));
+
+    decorator
+        .validate_attached_network_mode(AttachedNetworkMode::OutboundInternetClient)
+        .expect("inner attached-network validator result is preserved");
+    let handle = ProcessHandle::new(AdapterId::new("noop"), None, "warm-agent-probe");
+    let warm_error = match decorator.warm_agent_transport(&handle).await {
+        Err(error) => error,
+        Ok(_) => panic!("recording adapter unexpectedly returned a warm-agent transport"),
+    };
+    assert!(matches!(
+        warm_error,
+        SandboxAdapterError::AdapterUnavailable { .. }
+    ));
+
+    assert_eq!(inner.attached_spawn_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(inner.attached_stdio_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        inner
+            .attached_network_validation_calls
+            .load(Ordering::SeqCst),
+        1
+    );
+    assert_eq!(inner.warm_agent_transport_calls.load(Ordering::SeqCst), 1);
 }
 
 #[test]
@@ -186,17 +321,19 @@ fn sandbox_adapter_trait_source_has_exact_public_method_shape() {
         .filter(|line| line.starts_with("async fn ") || line.starts_with("fn "))
         .collect::<Vec<_>>();
 
-    // 8 core methods + the Master Spec v02.187 §3.5.7 additive methods:
-    // snapshot/restore (#7) and copy_in/copy_out (#4) = 12.
+    // 8 core methods + three attached-live contract methods + the Master Spec
+    // v02.187 additive snapshot/copy/delete/warm-agent methods = 17.
     assert_eq!(
         declarations.len(),
-        12,
-        "SandboxAdapter must expose exactly the core 8 methods plus the §3.5.7 \
-         additive methods snapshot/restore/copy_in/copy_out: {declarations:?}"
+        17,
+        "SandboxAdapter public method shape drifted: {declarations:?}"
     );
 
     for method in [
         "spawn",
+        "spawn_attached",
+        "spawn_attached_with_stdio",
+        "validate_attached_network_mode",
         "exec",
         "fs_bind",
         "net_policy",
@@ -205,8 +342,10 @@ fn sandbox_adapter_trait_source_has_exact_public_method_shape() {
         "exit_code",
         "snapshot",
         "restore",
+        "delete_snapshot",
         "copy_in",
         "copy_out",
+        "warm_agent_transport",
         "capabilities",
     ] {
         assert!(

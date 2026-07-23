@@ -1,4 +1,11 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Mutex,
+    },
+};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -37,6 +44,32 @@ impl OperatorId {
 pub enum RuntimeBinding {
     LlamaCpp,
     Candle,
+}
+
+/// Authoritative runtime role assigned when a model is registered.
+///
+/// This is deliberately independent from `supports_embedding`: a completion
+/// model may expose an embedding head, while a dedicated embedding model must
+/// never become the default completion route.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelRuntimeRole {
+    #[default]
+    Completion,
+    Embedding,
+}
+
+impl ModelRuntimeRole {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Completion => "completion",
+            Self::Embedding => "embedding",
+        }
+    }
+
+    pub const fn default_selectable(self) -> bool {
+        matches!(self, Self::Completion)
+    }
 }
 
 impl RuntimeBinding {
@@ -79,6 +112,90 @@ pub struct ModelRegistration {
 pub struct ModelRegistry {
     registrations: HashMap<ModelId, ModelRegistration>,
     loaded_model_ids: HashMap<ModelId, RuntimeBinding>,
+}
+
+/// Mutable current-boot availability projection shared by routing and catalog
+/// surfaces. Durable registration remains immutable; verified unload/reload
+/// transactions update this one revisioned projection atomically.
+#[derive(Debug, Default)]
+pub struct ModelRuntimeAvailability {
+    unavailable: Mutex<HashSet<ModelId>>,
+    replacements: Mutex<HashMap<ModelId, (ModelRegistration, ModelRuntimeRole)>>,
+    revision: AtomicU64,
+}
+
+impl ModelRuntimeAvailability {
+    pub fn is_available(&self, id: ModelId) -> bool {
+        !self
+            .unavailable
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .contains(&id)
+    }
+
+    pub fn revision(&self) -> u64 {
+        self.revision.load(Ordering::Acquire)
+    }
+
+    pub fn mark_unloaded(&self, id: ModelId) -> u64 {
+        let mut unavailable = self
+            .unavailable
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if unavailable.insert(id) {
+            self.revision.fetch_add(1, Ordering::AcqRel) + 1
+        } else {
+            self.revision()
+        }
+    }
+
+    pub fn mark_loaded(&self, id: ModelId) -> u64 {
+        let mut unavailable = self
+            .unavailable
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if unavailable.remove(&id) {
+            self.revision.fetch_add(1, Ordering::AcqRel) + 1
+        } else {
+            self.revision()
+        }
+    }
+
+    pub fn replacement(&self, id: ModelId) -> Option<(ModelRegistration, ModelRuntimeRole)> {
+        self.replacements
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(&id)
+            .cloned()
+    }
+
+    pub fn replacements(&self) -> Vec<(ModelRegistration, ModelRuntimeRole)> {
+        self.replacements
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .values()
+            .cloned()
+            .collect()
+    }
+
+    /// Atomically publish the boot-scoped identity produced by a verified
+    /// adapter reload and retire the previous identity from admission.
+    pub fn publish_replacement(
+        &self,
+        previous: ModelId,
+        replacement: ModelRegistration,
+        role: ModelRuntimeRole,
+    ) -> u64 {
+        self.unavailable
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(previous);
+        self.replacements
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .insert(replacement.model_id, (replacement, role));
+        self.revision.fetch_add(1, Ordering::AcqRel) + 1
+    }
 }
 
 impl ModelRegistry {

@@ -13,10 +13,13 @@ use futures::{stream, StreamExt};
 use handshake_core::kernel::crdt::actor_site::{
     derive_knowledge_site_id, knowledge_crdt_identity, KnowledgeActorIdV1, KnowledgeActorKind,
 };
+use handshake_core::kernel::crdt::agent_lease::{
+    claim_lease, release_lease, KnowledgeLeaseScopeKind, LeaseClaimOutcomeV1, LeaseClaimRequestV1,
+};
 use handshake_core::kernel::crdt::snapshot::{
-    build_snapshot_bounded_replay_plan, new_crdt_snapshot_record, plan_crdt_compaction,
-    CrdtCompactionAuditMode, CrdtCompactionDisposition, CrdtCompactionPolicyV1,
-    CrdtSnapshotRecordInputV1,
+    apply_crdt_compaction, build_snapshot_bounded_replay_plan, new_crdt_snapshot_record,
+    plan_crdt_compaction, CrdtCompactionAuditMode, CrdtCompactionDisposition,
+    CrdtCompactionPolicyV1, CrdtSnapshotRecordInputV1, CrdtSnapshotReplayError,
 };
 use handshake_core::kernel::crdt::state_vector::{verify_causal_chain, KnowledgeStateVectorV1};
 use handshake_core::kernel::crdt::yjs_bridge::{
@@ -24,24 +27,27 @@ use handshake_core::kernel::crdt::yjs_bridge::{
     YjsPushOutcomeV1, YjsUpdateEnvelopeV1, YJS_UPDATE_ENCODING_V1, YJS_UPDATE_ENVELOPE_SCHEMA_ID,
 };
 use handshake_core::kernel::{KernelEventType, NewKernelEvent};
+use handshake_core::model_runtime::registry::RuntimeBinding as RuntimeAdapterBinding;
 use handshake_core::model_runtime::{
     CancellationToken, Embedding, GenPrompt, GenerateRequest, GeneratedToken, KvCacheHandle,
     LoadSpec, LoraStackHandle, ModelCapabilities, ModelId, ModelRuntime, ModelRuntimeError,
-    SamplingParams, Score, SteeringHookHandle, TokenStream,
+    ProviderKind, SamplingParams, Score, SteeringHookHandle, TokenStream,
 };
 use handshake_core::process_ledger::{
     LedgerBatcher, LedgerBatcherConfig, LedgerEventKind, LedgerOverflowEvent,
-    PostgresProcessLedgerStore, ProcessEngineKind, ProcessLedgerError, ProcessLedgerOverflowSink,
-    ProcessStart, ProcessStop,
+    PostgresProcessLedgerStore, ProcessEngineKind, ProcessLedgerDrain, ProcessLedgerError,
+    ProcessLedgerOverflowSink, ProcessOwnershipRecordId, ProcessStart, ProcessStop,
 };
 use handshake_core::storage::postgres::PostgresDatabase;
 use handshake_core::storage::Database;
 use handshake_core::swarm_orchestration::model_lane::{
-    LaunchAuthority, ModelLaneAuthority, ModelLaneCloudConsentReceiptStatus,
-    ModelLaneCloudConsentScope, ModelLaneCloudExportPosture, ModelLaneCloudProjectionPlanStatus,
-    ModelLaneCloudRetentionPolicy, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
-    ModelLaneDiagnosticsLane, ModelLaneKind, ModelLaneLeaseScope, ModelLaneLeaseState,
-    ModelLaneLocusBinding, ModelLaneMessageKind, ModelLaneMessageRecord, ModelLaneMtRuntimeStatus,
+    build_successful_launch_records, dexterity_spawn_model_session_id, DexterityLaunchAdapterKind,
+    DexterityLaunchAdapterRequest, DexterityLaunchContract, LaunchAuthority, ModelLaneAuthority,
+    ModelLaneCloudConsentReceiptStatus, ModelLaneCloudConsentScope, ModelLaneCloudExportPosture,
+    ModelLaneCloudProjectionPlanStatus, ModelLaneCloudRetentionPolicy, ModelLaneDiagnosticTier,
+    ModelLaneDiagnosticTierState, ModelLaneDiagnosticsLane, ModelLaneDiagnosticsProjection,
+    ModelLaneKind, ModelLaneLeaseScope, ModelLaneLeaseState, ModelLaneLocusBinding,
+    ModelLaneMessageKind, ModelLaneMessageRecord, ModelLaneMtRuntimeStatus,
     ModelLanePromotionDenialReason, ModelLanePromotionOutcome, ModelLaneProviderKind,
     ModelLaneRecord, ModelLaneRecoveryEventKind, ModelLaneRecoveryFailureKind,
     ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneRoutingMetadata,
@@ -51,17 +57,55 @@ use handshake_core::swarm_orchestration::model_lane::{
     NewModelLaneMessage, NewModelLaneMtRuntimeStatus, NewModelLanePromotionDecision,
     NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent, NewModelLaneRun, RuntimeBinding,
 };
+use handshake_core::swarm_orchestration::production_factory::{
+    execute_production_routing_lifecycle, execute_production_routing_wave,
+};
+use handshake_core::swarm_orchestration::routing::{
+    ModelLaneRoutingAuthority, ModelLaneRoutingDispatchTarget,
+};
+use handshake_core::swarm_orchestration::routing_execution::{
+    ModelLaneRoutingDispatchBatch, ModelLaneRoutingExecutionContext,
+    ModelLaneRoutingExecutionStatus, ModelLaneRoutingStageLaunch, ModelLaneRoutingStageStateKind,
+};
+use handshake_core::swarm_orchestration::ModelLaneRoutingGraph;
+use handshake_core::swarm_orchestration::{
+    ByokCloudProvider, LiveSession, ModelInstanceId, ModelSessionFactory, RecordingSwarmSink,
+    RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use sqlx::{PgPool, Row};
 use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::{Arc, Mutex},
-    time::Duration,
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc, Mutex,
+    },
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::Barrier;
 use yrs::updates::{decoder::Decode, encoder::Encode};
 use yrs::{Doc, GetString, ReadTxn, StateVector, Text, Transact, Update};
+
+#[tokio::test]
+async fn mt009_kernel_crdt_authority_rejects_truncate() {
+    let (pool, _store) = model_lane_store().await;
+    for table in ["kernel_crdt_updates", "kernel_crdt_snapshots"] {
+        let mut tx = pool.begin().await.expect("begin CRDT TRUNCATE probe");
+        let error = sqlx::query(&format!("TRUNCATE TABLE {table}"))
+            .execute(&mut *tx)
+            .await
+            .expect_err("append-only CRDT authority must reject TRUNCATE");
+        assert!(
+            error.to_string().contains("append-only CRDT authority"),
+            "TRUNCATE rejection for {table} must name append-only authority: {error}"
+        );
+        tx.rollback()
+            .await
+            .expect("rollback rejected TRUNCATE probe");
+    }
+}
 
 const WP_ID: &str = "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1";
 const MT_ID: &str = "MT-009";
@@ -76,310 +120,561 @@ const LOCAL_MESSAGE_ID: &str = "msg-mt009-local";
 const CLOUD_MESSAGE_ID: &str = "msg-mt009-cloud";
 const SUBAGENT_MESSAGE_ID: &str = "msg-mt009-subagent";
 
+struct ForbiddenSubagentOsFactory {
+    calls: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl ModelSessionFactory for ForbiddenSubagentOsFactory {
+    async fn create(&self, _request: &SpawnRequest) -> Result<LiveSession, SwarmError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Err(SwarmError::FactoryFailed(
+            "no-OS subagent lane must not invoke ModelSessionFactory".into(),
+        ))
+    }
+}
+
+fn mt009_diagnostics_projection_artifact_paths() -> (PathBuf, PathBuf) {
+    let artifact_root = if let Ok(configured) = std::env::var("HANDSHAKE_ARTIFACTS_DIR") {
+        std::fs::canonicalize(configured)
+            .expect("HANDSHAKE_ARTIFACTS_DIR must resolve to an existing directory")
+    } else {
+        let manifest_dir = std::fs::canonicalize(env!("CARGO_MANIFEST_DIR"))
+            .expect("backend crate manifest directory must resolve");
+        let worktree_root = manifest_dir
+            .parent()
+            .and_then(std::path::Path::parent)
+            .and_then(std::path::Path::parent)
+            .expect("backend crate must live below the worktree src directory");
+        std::fs::canonicalize(
+            worktree_root
+                .parent()
+                .expect("worktree must have a parent")
+                .join("Handshake_Artifacts"),
+        )
+        .expect("canonical sibling Handshake_Artifacts directory must exist")
+    };
+    let artifact = artifact_root
+        .join("handshake-test")
+        .join("wp1-final-audit")
+        .join("mt009_mixed_model_lane_diagnostics_projection.json");
+    std::fs::create_dir_all(
+        artifact
+            .parent()
+            .expect("MT-009 diagnostics artifact has a parent directory"),
+    )
+    .expect("create MT-009 diagnostics artifact directory");
+    let provenance = artifact.with_extension("provenance.json");
+    (artifact, provenance)
+}
+
+fn clear_mt009_diagnostics_projection_artifact() {
+    let (artifact, provenance) = mt009_diagnostics_projection_artifact_paths();
+    for path in [artifact, provenance] {
+        match std::fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => panic!(
+                "remove stale MT-009 proof artifact {}: {error}",
+                path.display()
+            ),
+        }
+    }
+}
+
+fn emit_mt009_diagnostics_projection_artifact(projection: &ModelLaneDiagnosticsProjection) {
+    let (artifact, provenance) = mt009_diagnostics_projection_artifact_paths();
+    let proof_nonce = std::env::var("HANDSHAKE_MT009_DIAGNOSTICS_PROOF_NONCE")
+        .unwrap_or_else(|_| format!("standalone-{}", uuid::Uuid::now_v7()));
+    let artifact_bytes =
+        serde_json::to_vec_pretty(projection).expect("serialize MT-009 diagnostics projection");
+    let artifact_sha256 = hex::encode(Sha256::digest(&artifact_bytes));
+    let producer_completed_at_unix_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock must be after Unix epoch")
+        .as_millis() as u64;
+    let temp_suffix = uuid::Uuid::now_v7();
+    let artifact_temp = artifact.with_extension(format!("projection.{temp_suffix}.tmp"));
+    let provenance_temp = provenance.with_extension(format!("provenance.{temp_suffix}.tmp"));
+    std::fs::write(&artifact_temp, &artifact_bytes)
+        .expect("write temporary backend-generated MT-009 diagnostics projection");
+    std::fs::write(
+        &provenance_temp,
+        serde_json::to_vec_pretty(&json!({
+            "schema_id": "hsk.mt009_diagnostics_projection_provenance@1",
+            "proof_nonce": proof_nonce,
+            "projection_schema_id": projection.schema_id,
+            "artifact_sha256": artifact_sha256,
+            "producer_test_id": "mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects",
+            "producer_status": "passed_all_backend_assertions",
+            "producer_completed_at_unix_ms": producer_completed_at_unix_ms,
+        }))
+        .expect("serialize MT-009 diagnostics provenance"),
+    )
+    .expect("write temporary backend-generated MT-009 diagnostics provenance");
+    std::fs::rename(&artifact_temp, &artifact)
+        .expect("atomically publish backend-generated MT-009 diagnostics projection");
+    std::fs::rename(&provenance_temp, &provenance)
+        .expect("publish MT-009 producer completion receipt after projection bytes");
+}
+
 #[tokio::test]
-async fn mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects() {
+async fn diagnostics_projection_rejects_model_stable_anchor_column_tamper() {
+    const RUN_ID: &str = "run-mt009-stable-anchor-tamper";
+    const LANE_ID: &str = "lane-mt009-stable-anchor-tamper";
     let (pool, store) = model_lane_store().await;
-    seed_cloud_authority(&store, RUN_ID, CLOUD_LANE_ID).await;
+    seed_run_lane(&store, RUN_ID, LANE_ID, RuntimeBinding::Local).await;
 
-    let lane_ids = vec![
-        LOCAL_LANE_ID.to_owned(),
-        CLOUD_LANE_ID.to_owned(),
-        SUBAGENT_LANE_ID.to_owned(),
-    ];
-    store
-        .record_run(sample_run(RUN_ID, lane_ids.clone()))
+    let original_anchor = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT model_stable_anchor FROM model_lanes WHERE lane_id = $1",
+    )
+    .bind(LANE_ID)
+    .fetch_one(&pool)
+    .await
+    .expect("read initial durable model anchor");
+    let forged_anchor = if original_anchor.as_deref() == Some(&"a".repeat(64)) {
+        "b".repeat(64)
+    } else {
+        "a".repeat(64)
+    };
+    sqlx::query("UPDATE model_lanes SET model_stable_anchor = $2 WHERE lane_id = $1")
+        .bind(LANE_ID)
+        .bind(&forged_anchor)
+        .execute(&pool)
         .await
-        .expect("record mixed ModelLaneRun");
-    store
-        .record_lane(sample_lane(
-            LOCAL_LANE_ID,
-            RUN_ID,
-            ModelLaneKind::LocalModel,
-            RuntimeBinding::Local,
-            LaunchAuthority::ModelRuntime,
-        ))
-        .await
-        .expect("record local lane");
-    store
-        .record_lane(sample_lane(
-            CLOUD_LANE_ID,
-            RUN_ID,
-            ModelLaneKind::CloudModel,
-            RuntimeBinding::Cloud,
-            LaunchAuthority::CloudLane,
-        ))
-        .await
-        .expect("record cloud lane with durable ProjectionPlan/ConsentReceipt");
-    store
-        .record_lane(sample_lane(
-            SUBAGENT_LANE_ID,
-            RUN_ID,
-            ModelLaneKind::Subagent,
-            RuntimeBinding::Subagent,
-            LaunchAuthority::SubagentManager,
-        ))
-        .await
-        .expect("record no-OS subagent lane");
+        .expect("tamper mutable stable-anchor projection column");
 
-    let messages = vec![
-        sample_message(LOCAL_MESSAGE_ID, RUN_ID, LOCAL_LANE_ID, "local", 1),
-        sample_message(CLOUD_MESSAGE_ID, RUN_ID, CLOUD_LANE_ID, "cloud", 2),
-        sample_message(SUBAGENT_MESSAGE_ID, RUN_ID, SUBAGENT_LANE_ID, "subagent", 3),
-    ];
-    for message in &messages {
-        store
-            .record_message(message.clone())
-            .await
-            .expect("record mixed lane message");
-        store
-            .record_context_bundle_artifact_binding(sample_artifact_binding_for_message(message))
-            .await
-            .expect("record ArtifactStore/EventLedger payload authority");
-    }
-
-    store
-        .record_recovery_event(sample_recovery_event(
-            "recovery-event-mt009-crdt-001",
-            RUN_ID,
-            Some(LOCAL_LANE_ID),
-            ModelLaneRecoveryEventKind::CrdtUpdateObserved,
-            1,
-            Some(payload_ref(LOCAL_MESSAGE_ID)),
-            None,
-            Some("crdt-snapshot://mt009/base"),
-            Some("sv:mt009:3"),
-        ))
-        .await
-        .expect("record checkpoint-bounded CRDT recovery event");
-    store
-        .record_lane_lease(sample_lease(
-            "lease-mt009-local-active",
-            RUN_ID,
-            LOCAL_LANE_ID,
-            "2099-01-01T00:00:00Z",
-            ModelLaneLeaseState::Active,
-        ))
-        .await
-        .expect("record active lane lease");
-    for (tier, state, evidence) in [
-        (
-            ModelLaneDiagnosticTier::FlightRecorder,
-            ModelLaneDiagnosticTierState::Wired,
-            "eventledger://kernel/model-lane/mt009",
-        ),
-        (
-            ModelLaneDiagnosticTier::InternalDiagnostics,
-            ModelLaneDiagnosticTierState::Wired,
-            "hbr-int-009://dexterity/mixed-runtime",
-        ),
-        (
-            ModelLaneDiagnosticTier::Palmistry,
-            ModelLaneDiagnosticTierState::DeferredWithReason,
-            "palmistry://wp1/model-lane/mt009/external-worktree",
-        ),
-    ] {
-        store
-            .record_diagnostic_tier_status(sample_tier(RUN_ID, tier, state, evidence))
-            .await
-            .expect("record HBR diagnostic tier");
-    }
-    store
-        .record_mt_runtime_status(sample_mt_status(
-            "mt-status-mt009-ready",
-            RUN_ID,
-            ModelLaneMtRuntimeStatus::ReadyForValidation,
-        ))
-        .await
-        .expect("record MT runtime status");
-
-    let checkpoint_high_watermark =
-        event_stream_high_watermark(&pool, &event_stream_id(RUN_ID)).await;
-    let checkpoint = store
-        .record_recovery_checkpoint(sample_checkpoint(
-            "checkpoint-mt009-mixed",
-            RUN_ID,
-            Some(LOCAL_LANE_ID),
-            Some(SUBAGENT_MESSAGE_ID),
-            Some("lease-mt009-local-active"),
-            checkpoint_high_watermark,
-            messages
-                .iter()
-                .map(|message| message.payload_ref.clone())
-                .collect(),
-        ))
-        .await
-        .expect("record restart checkpoint");
-
-    let replay = store.replay_run(RUN_ID).await.expect("replay mixed run");
-    assert_eq!(replay.run.run_id, RUN_ID);
-    assert_eq!(replay.run.routing_policy, "mixed_local_cloud_subagent");
-    assert_eq!(replay.run.lane_ids, lane_ids);
-    assert_eq!(
-        replay.run.candidate_model_ids,
-        vec![
-            "model://mt009/local/tinyllama".to_owned(),
-            "model://mt009/cloud/openai/gpt-4o-mini".to_owned(),
-            "subagent://mt009/coder".to_owned(),
-        ]
-    );
-    assert_eq!(replay.lanes.len(), 3);
-    assert_eq!(replay.messages.len(), 3);
-    assert!(replay
-        .messages
-        .iter()
-        .all(|message| message.event_ledger_event_id.starts_with("KE-")));
-    assert_process_backed_lane_runtime_contract(
-        replay_lane(&replay.lanes, LOCAL_LANE_ID),
-        "local-runtime",
-        RuntimeBinding::Local,
-        LaunchAuthority::ModelRuntime,
-        ModelLaneProviderKind::LocalRuntime,
-    );
-    assert_process_backed_lane_runtime_contract(
-        replay_lane(&replay.lanes, CLOUD_LANE_ID),
-        "openai-byok",
-        RuntimeBinding::Cloud,
-        LaunchAuthority::CloudLane,
-        ModelLaneProviderKind::OpenAi,
-    );
-    assert_no_os_lane_runtime_contract(replay_lane(&replay.lanes, SUBAGENT_LANE_ID));
-
-    let recovered = store
-        .recover_run_after_restart(RUN_ID)
-        .await
-        .expect("recover mixed run from PostgreSQL/EventLedger checkpoint");
-    assert_eq!(recovered.checkpoint.checkpoint_id, checkpoint.checkpoint_id);
-    assert_eq!(recovered.replay.messages.len(), 3);
-    assert_eq!(recovered.recovery_events.len(), 1);
-    assert_eq!(recovered.active_leases.len(), 1);
-    assert_eq!(recovered.mt_runtime_statuses.len(), 1);
-    assert_eq!(
-        recovered.mt_runtime_statuses[0].status,
-        ModelLaneMtRuntimeStatus::ReadyForValidation
-    );
-
-    let materialized = materialize_crdt(&replay.messages);
-    let mut shuffled = replay.messages.clone();
-    shuffled.reverse();
-    shuffled.push(replay.messages[0].clone());
-    assert_eq!(
-        materialized,
-        materialize_crdt(&shuffled),
-        "CRDT replay projection must be order-stable and duplicate-id tolerant"
-    );
-    assert_eq!(
-        materialized.get("mt009.local"),
-        Some(&"local proposed deterministic edit".to_owned())
-    );
-    assert_eq!(
-        materialized.get("mt009.cloud"),
-        Some(&"cloud advisory review".to_owned())
-    );
-    assert_eq!(
-        materialized.get("mt009.subagent"),
-        Some(&"subagent implementation note".to_owned())
-    );
-
-    let projection = store
+    let error = store
         .diagnostics_projection(RUN_ID)
         .await
-        .expect("build native diagnostics projection");
-    assert_eq!(
-        projection.schema_id,
-        "hsk.model_lane_diagnostics_projection@1"
+        .expect_err("forged stable anchor must fail before diagnostics identity projection");
+    assert_error_contains(
+        &error,
+        "model_stable_anchor does not match initial EventLedger payload",
     );
-    assert_eq!(
-        projection.surface_contract_id,
-        "native_swarm_lane_diagnostics"
-    );
-    assert_eq!(projection.run.run_id, RUN_ID);
-    assert_eq!(projection.run.micro_task_id.as_deref(), Some(MT_ID));
-    assert_eq!(projection.lanes.len(), 3);
-    assert_eq!(projection.messages.len(), 3);
-    assert_eq!(
-        projection
+}
+
+#[tokio::test]
+async fn mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects() {
+    let proof_phase = Arc::new(AtomicUsize::new(0));
+    let active_phase = Arc::clone(&proof_phase);
+    let proof = async move {
+        active_phase.store(1, Ordering::SeqCst);
+        clear_mt009_diagnostics_projection_artifact();
+        let (pool, store) = model_lane_store().await;
+        active_phase.store(2, Ordering::SeqCst);
+        seed_cloud_authority(&store, RUN_ID, CLOUD_LANE_ID).await;
+
+        let lane_ids = vec![
+            LOCAL_LANE_ID.to_owned(),
+            CLOUD_LANE_ID.to_owned(),
+            SUBAGENT_LANE_ID.to_owned(),
+        ];
+        store
+            .record_run(sample_run(RUN_ID, lane_ids.clone()))
+            .await
+            .expect("record mixed ModelLaneRun");
+        store
+            .record_lane(sample_lane(
+                LOCAL_LANE_ID,
+                RUN_ID,
+                ModelLaneKind::LocalModel,
+                RuntimeBinding::Local,
+                LaunchAuthority::ModelRuntime,
+            ))
+            .await
+            .expect("record local lane");
+        store
+            .record_lane(sample_lane(
+                CLOUD_LANE_ID,
+                RUN_ID,
+                ModelLaneKind::CloudModel,
+                RuntimeBinding::Cloud,
+                LaunchAuthority::CloudLane,
+            ))
+            .await
+            .expect("record cloud lane with durable ProjectionPlan/ConsentReceipt");
+        let (subagent_ledger, _subagent_ledger_drain) = LedgerBatcher::manual_for_tests(
+            LedgerBatcherConfig::default(),
+            Arc::new(RecordingOverflowSink::default()),
+        )
+        .expect("construct no-OS subagent coordinator ledger");
+        let forbidden_factory_calls = Arc::new(AtomicUsize::new(0));
+        let subagent_coordinator = SwarmCoordinator::new_with_model_lane_store(
+            SwarmConfig::new(RunBudget::defaulted(1)),
+            Arc::new(ForbiddenSubagentOsFactory {
+                calls: forbidden_factory_calls.clone(),
+            }),
+            Arc::new(RecordingSwarmSink::new()),
+            subagent_ledger,
+            store.clone(),
+        );
+        active_phase.store(3, Ordering::SeqCst);
+        let (_subagent_run, subagent_lane, subagent_manager) = subagent_coordinator
+            .launch_operator_subagent_model_lane(sample_subagent_launch_request(
+                RUN_ID,
+                SUBAGENT_LANE_ID,
+            ))
+            .await
+            .expect("launch no-OS subagent lane through coordinator-owned manager seam");
+        active_phase.store(4, Ordering::SeqCst);
+        assert_no_os_lane_runtime_contract(&subagent_lane);
+        assert_eq!(
+            forbidden_factory_calls.load(Ordering::SeqCst),
+            0,
+            "SubagentManager-owned no-OS lane must not invoke the OS/runtime factory"
+        );
+
+        let messages = vec![
+            sample_message(LOCAL_MESSAGE_ID, RUN_ID, LOCAL_LANE_ID, "local", 1),
+            sample_message(CLOUD_MESSAGE_ID, RUN_ID, CLOUD_LANE_ID, "cloud", 2),
+            sample_message(SUBAGENT_MESSAGE_ID, RUN_ID, SUBAGENT_LANE_ID, "subagent", 3),
+        ];
+        for message in messages.iter().take(2) {
+            store
+                .record_message_with_payload_binding(
+                    message.clone(),
+                    sample_artifact_binding_for_message(message),
+                )
+                .await
+                .expect("atomically record process-backed lane message and payload authority");
+        }
+        active_phase.store(5, Ordering::SeqCst);
+        let stored_subagent_message = subagent_coordinator
+            .record_operator_subagent_manager_output(
+                &subagent_manager,
+                messages[2].clone(),
+                sample_artifact_binding_for_message(&messages[2]),
+            )
+            .await
+            .expect(
+                "SubagentManager receipt atomically records typed output and payload authority",
+            );
+        active_phase.store(6, Ordering::SeqCst);
+        assert!(stored_subagent_message
+            .diagnostic_payload
+            .get("subagent_manager_receipt_ref")
+            .and_then(Value::as_str)
+            .is_some_and(|value| value.starts_with("subagent-manager-receipt://")));
+
+        store
+            .record_recovery_event(sample_recovery_event(
+                "recovery-event-mt009-payload-001",
+                RUN_ID,
+                Some(LOCAL_LANE_ID),
+                ModelLaneRecoveryEventKind::PayloadRefObserved,
+                1,
+                Some(payload_ref(LOCAL_MESSAGE_ID)),
+                None,
+                None,
+                None,
+            ))
+            .await
+            .expect("record checkpoint-bounded payload recovery event");
+        store
+            .record_lane_lease(sample_lease(
+                "lease-mt009-local-active",
+                RUN_ID,
+                LOCAL_LANE_ID,
+                "2099-01-01T00:00:00Z",
+                ModelLaneLeaseState::Active,
+            ))
+            .await
+            .expect("record active lane lease");
+        for (tier, state, evidence) in [
+            (
+                ModelLaneDiagnosticTier::FlightRecorder,
+                ModelLaneDiagnosticTierState::Wired,
+                "eventledger://kernel/model-lane/mt009",
+            ),
+            (
+                ModelLaneDiagnosticTier::InternalDiagnostics,
+                ModelLaneDiagnosticTierState::Wired,
+                "hbr-int-009://dexterity/mixed-runtime",
+            ),
+            (
+                ModelLaneDiagnosticTier::Palmistry,
+                ModelLaneDiagnosticTierState::DeferredWithReason,
+                "palmistry://wp1/model-lane/mt009/external-worktree",
+            ),
+        ] {
+            store
+                .record_diagnostic_tier_status(sample_tier(RUN_ID, tier, state, evidence))
+                .await
+                .expect("record HBR diagnostic tier");
+        }
+        store
+            .record_mt_runtime_status(sample_mt_status(
+                "mt-status-mt009-ready",
+                RUN_ID,
+                ModelLaneMtRuntimeStatus::ReadyForValidation,
+            ))
+            .await
+            .expect("record MT runtime status");
+
+        let checkpoint_high_watermark =
+            event_stream_high_watermark(&pool, &event_stream_id(RUN_ID)).await;
+        let checkpoint = store
+            .record_recovery_checkpoint(sample_checkpoint(
+                "checkpoint-mt009-mixed",
+                RUN_ID,
+                Some(LOCAL_LANE_ID),
+                Some(SUBAGENT_MESSAGE_ID),
+                Some("lease-mt009-local-active"),
+                checkpoint_high_watermark,
+                messages
+                    .iter()
+                    .map(|message| message.payload_ref.clone())
+                    .collect(),
+            ))
+            .await
+            .expect("record restart checkpoint");
+
+        active_phase.store(7, Ordering::SeqCst);
+        let replay = store.replay_run(RUN_ID).await.expect("replay mixed run");
+        assert_eq!(replay.run.run_id, RUN_ID);
+        assert_eq!(replay.run.routing_policy, "mixed_local_cloud_subagent");
+        assert_eq!(replay.run.lane_ids, lane_ids);
+        assert_eq!(
+            replay.run.candidate_model_ids,
+            vec![
+                "model://mt009/local/tinyllama".to_owned(),
+                "model://mt009/cloud/openai/gpt-4o-mini".to_owned(),
+                "subagent://mt009/coder".to_owned(),
+            ]
+        );
+        assert_eq!(replay.lanes.len(), 3);
+        assert_eq!(replay.messages.len(), 3);
+        assert!(replay
+            .messages
+            .iter()
+            .all(|message| message.event_ledger_event_id.starts_with("KE-")));
+        assert_process_backed_lane_runtime_contract(
+            replay_lane(&replay.lanes, LOCAL_LANE_ID),
+            "local-runtime",
+            RuntimeBinding::Local,
+            LaunchAuthority::ModelRuntime,
+            ModelLaneProviderKind::LocalRuntime,
+        );
+        assert_process_backed_lane_runtime_contract(
+            replay_lane(&replay.lanes, CLOUD_LANE_ID),
+            "openai-byok",
+            RuntimeBinding::Cloud,
+            LaunchAuthority::CloudLane,
+            ModelLaneProviderKind::OpenAi,
+        );
+        assert_no_os_lane_runtime_contract(replay_lane(&replay.lanes, SUBAGENT_LANE_ID));
+
+        let recovered = store
+            .recover_run_after_restart(RUN_ID)
+            .await
+            .expect("recover mixed run from PostgreSQL/EventLedger checkpoint");
+        assert_eq!(recovered.checkpoint.checkpoint_id, checkpoint.checkpoint_id);
+        assert_eq!(recovered.replay.messages.len(), 3);
+        assert_eq!(recovered.recovery_events.len(), 1);
+        assert_eq!(recovered.active_leases.len(), 1);
+        assert_eq!(recovered.mt_runtime_statuses.len(), 1);
+        assert_eq!(
+            recovered.mt_runtime_statuses[0].status,
+            ModelLaneMtRuntimeStatus::ReadyForValidation
+        );
+
+        let materialized = materialize_crdt(&replay.messages);
+        let mut shuffled = replay.messages.clone();
+        shuffled.reverse();
+        shuffled.push(replay.messages[0].clone());
+        assert_eq!(
+            materialized,
+            materialize_crdt(&shuffled),
+            "CRDT replay projection must be order-stable and duplicate-id tolerant"
+        );
+        assert_eq!(
+            materialized.get("mt009.local"),
+            Some(&"local proposed deterministic edit".to_owned())
+        );
+        assert_eq!(
+            materialized.get("mt009.cloud"),
+            Some(&"cloud advisory review".to_owned())
+        );
+        assert_eq!(
+            materialized.get("mt009.subagent"),
+            Some(&"subagent implementation note".to_owned())
+        );
+
+        let projection = store
+            .diagnostics_projection(RUN_ID)
+            .await
+            .expect("build native diagnostics projection");
+        assert_eq!(
+            projection.schema_id,
+            "hsk.model_lane_diagnostics_projection@3"
+        );
+        assert_eq!(
+            projection.surface_contract_id,
+            "native_swarm_lane_diagnostics"
+        );
+        assert_eq!(projection.run.run_id, RUN_ID);
+        assert_eq!(projection.run.micro_task_id.as_deref(), Some(MT_ID));
+        assert_eq!(projection.lanes.len(), 3);
+        assert_eq!(projection.messages.len(), 3);
+        assert_eq!(
+            projection
+                .lanes
+                .iter()
+                .map(|lane| lane.message_count)
+                .sum::<usize>(),
+            projection.messages.len()
+        );
+        let cloud_lane = projection
             .lanes
             .iter()
-            .map(|lane| lane.message_count)
-            .sum::<usize>(),
-        projection.messages.len()
-    );
-    let cloud_lane = projection
-        .lanes
-        .iter()
-        .find(|lane| lane.lane_id == CLOUD_LANE_ID)
-        .expect("cloud lane in projection");
-    let expected_projection_plan_id = projection_plan_id(RUN_ID, CLOUD_LANE_ID);
-    let expected_consent_receipt_id = consent_receipt_id(RUN_ID, CLOUD_LANE_ID);
-    assert_eq!(
-        cloud_lane.projection_plan_ref.as_deref(),
-        Some(expected_projection_plan_id.as_str())
-    );
-    assert_eq!(
-        cloud_lane.consent_receipt_ref.as_deref(),
-        Some(expected_consent_receipt_id.as_str())
-    );
-    let subagent_lane = projection
-        .lanes
-        .iter()
-        .find(|lane| lane.lane_id == SUBAGENT_LANE_ID)
-        .expect("subagent lane in projection");
-    assert!(subagent_lane.process_ownership_ref.is_none());
-    assert!(subagent_lane
-        .no_os_process_reason_ref
-        .as_deref()
-        .is_some_and(|value| value.contains("subagent_manager")));
-    assert_eq!(projection.active_lease_count, 1);
-    assert_eq!(projection.mt_runtime_statuses.len(), 1);
-    assert_eq!(
-        projection.mt_runtime_statuses[0].status,
-        "ready_for_validation"
-    );
-    assert_eq!(
-        projection
+            .find(|lane| lane.lane_id == CLOUD_LANE_ID)
+            .expect("cloud lane in projection");
+        let expected_projection_plan_id = projection_plan_id(RUN_ID, CLOUD_LANE_ID);
+        let expected_consent_receipt_id = consent_receipt_id(RUN_ID, CLOUD_LANE_ID);
+        assert_eq!(
+            cloud_lane.projection_plan_ref.as_deref(),
+            Some(expected_projection_plan_id.as_str())
+        );
+        assert_eq!(
+            cloud_lane.consent_receipt_ref.as_deref(),
+            Some(expected_consent_receipt_id.as_str())
+        );
+        let subagent_lane = projection
+            .lanes
+            .iter()
+            .find(|lane| lane.lane_id == SUBAGENT_LANE_ID)
+            .expect("subagent lane in projection");
+        assert!(subagent_lane.process_ownership_ref.is_none());
+        assert!(subagent_lane
+            .no_os_process_reason_ref
+            .as_deref()
+            .is_some_and(
+                |value| value.contains("subagent_manager") || value.contains("subagent-manager")
+            ));
+        assert_eq!(projection.active_lease_count, 1);
+        assert_eq!(projection.mt_runtime_statuses.len(), 1);
+        assert_eq!(
+            projection.mt_runtime_statuses[0].status,
+            "ready_for_validation"
+        );
+        assert_eq!(
+            projection
+                .diagnostic_tiers
+                .iter()
+                .map(|tier| tier.tier.as_str())
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from(["flight_recorder", "internal_diagnostics", "palmistry"])
+        );
+        assert!(projection
             .diagnostic_tiers
             .iter()
-            .map(|tier| tier.tier.as_str())
-            .collect::<BTreeSet<_>>(),
-        BTreeSet::from(["flight_recorder", "internal_diagnostics", "palmistry"])
-    );
-    assert!(projection
-        .diagnostic_tiers
-        .iter()
-        .any(|tier| tier.tier == "palmistry"
-            && tier.state == "deferred_with_reason"
-            && tier.follow_up_ref.is_some()));
+            .any(|tier| tier.tier == "palmistry"
+                && tier.state == "deferred_with_reason"
+                && tier.follow_up_ref.is_some()));
 
-    let overflow_events = record_mixed_runtime_process_ledger_evidence(&pool).await;
-    assert_process_ledger_linked(
-        &pool,
-        projection_lane(&projection.lanes, LOCAL_LANE_ID),
-        ProcessEngineKind::LlamaCpp,
-        "local-runtime",
-    )
-    .await;
-    assert_process_ledger_linked(
-        &pool,
-        projection_lane(&projection.lanes, CLOUD_LANE_ID),
-        ProcessEngineKind::HelperSubprocess,
-        "openai-byok",
-    )
-    .await;
-    assert_eq!(
-        overflow_events.len(),
-        1,
-        "MT-009 bounded ProcessOwnershipLedger writer must emit overflow evidence"
-    );
-    assert_eq!(overflow_events[0].event_type, "FR_EVT_LEDGER_OVERFLOW");
-    assert_eq!(overflow_events[0].capacity, 4);
-    assert_eq!(
-        overflow_events[0].dropped_event_kind,
-        LedgerEventKind::Start
-    );
-    assert_eq!(
-        overflow_events[0].sampled_event_payload["metadata_jsonb"]["mt_id"],
-        MT_ID
-    );
+        active_phase.store(8, Ordering::SeqCst);
+        let overflow_events =
+            record_mixed_runtime_process_ledger_evidence(&pool, active_phase.as_ref()).await;
+        active_phase.store(9, Ordering::SeqCst);
+        assert_process_ledger_linked(
+            &pool,
+            projection_lane(&projection.lanes, LOCAL_LANE_ID),
+            ProcessEngineKind::LlamaCpp,
+            "local-runtime",
+        )
+        .await;
+        assert_process_ledger_linked(
+            &pool,
+            projection_lane(&projection.lanes, CLOUD_LANE_ID),
+            ProcessEngineKind::HelperSubprocess,
+            "openai-byok",
+        )
+        .await;
+        assert_eq!(
+            overflow_events.len(),
+            1,
+            "MT-009 bounded ProcessOwnershipLedger writer must emit overflow evidence"
+        );
+        assert_eq!(overflow_events[0].event_type, "FR_EVT_LEDGER_OVERFLOW");
+        assert_eq!(overflow_events[0].capacity, 4);
+        assert_eq!(
+            overflow_events[0].dropped_event_kind,
+            LedgerEventKind::Start
+        );
+        assert_eq!(
+            overflow_events[0].sampled_event_payload["metadata_jsonb"]["mt_id"],
+            MT_ID
+        );
+
+        active_phase.store(10, Ordering::SeqCst);
+        store
+            .record_lane_terminal_status(
+                SUBAGENT_LANE_ID,
+                ModelLaneStatus::Cancelled,
+                "SubagentManager cancellation fence proof after durable output",
+            )
+            .await
+            .expect("persist the no-OS subagent terminal cancellation boundary");
+        let late_subagent_message = sample_message(
+            "msg-mt009-subagent-late-after-cancel",
+            RUN_ID,
+            SUBAGENT_LANE_ID,
+            "subagent",
+            4,
+        );
+        let late_binding = sample_artifact_binding_for_message(&late_subagent_message);
+        let late_binding_id = late_binding.artifact_binding_id.clone();
+        active_phase.store(11, Ordering::SeqCst);
+        let late_error = subagent_coordinator
+            .record_operator_subagent_manager_output(
+                &subagent_manager,
+                late_subagent_message.clone(),
+                late_binding,
+            )
+            .await
+            .expect_err("SubagentManager output after cancellation must fail closed");
+        active_phase.store(12, Ordering::SeqCst);
+        assert!(
+            late_error.to_string().contains("terminal source lane"),
+            "late SubagentManager output must identify the terminal source boundary: {late_error}"
+        );
+        assert_no_message_row(&pool, &late_subagent_message.message_id).await;
+        let late_binding_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE artifact_binding_id=$1",
+        )
+        .bind(&late_binding_id)
+        .fetch_one(&pool)
+        .await
+        .expect("count rejected late SubagentManager artifact binding");
+        assert_eq!(
+            late_binding_count, 0,
+            "terminal-fenced SubagentManager output must roll back its payload binding"
+        );
+        let completed_projection = store
+            .diagnostics_projection(RUN_ID)
+            .await
+            .expect("rebuild diagnostics after all backend assertions and cancellation probe");
+        assert_eq!(completed_projection.messages.len(), 3);
+        assert_eq!(
+            completed_projection
+                .lanes
+                .iter()
+                .find(|lane| lane.lane_id == SUBAGENT_LANE_ID)
+                .map(|lane| lane.status.as_str()),
+            Some("cancelled")
+        );
+        emit_mt009_diagnostics_projection_artifact(&completed_projection);
+        active_phase.store(13, Ordering::SeqCst);
+    };
+    tokio::time::timeout(Duration::from_secs(600), proof)
+        .await
+        .unwrap_or_else(|_| {
+            panic!(
+                "MT-009 mixed producer proof exceeded 600 seconds in phase {}",
+                proof_phase.load(Ordering::SeqCst)
+            )
+        });
 }
 
 fn replay_lane<'a>(lanes: &'a [ModelLaneRecord], lane_id: &str) -> &'a ModelLaneRecord {
@@ -443,12 +738,17 @@ fn assert_no_os_lane_runtime_contract(lane: &ModelLaneRecord) {
     assert!(
         lane.no_os_process_reason_ref
             .as_deref()
-            .is_some_and(|value| value.contains("subagent_manager")),
+            .is_some_and(
+                |value| value.contains("subagent_manager") || value.contains("subagent-manager")
+            ),
         "subagent lane must explain why no OS process exists"
     );
 }
 
-async fn record_mixed_runtime_process_ledger_evidence(pool: &PgPool) -> Vec<LedgerOverflowEvent> {
+async fn record_mixed_runtime_process_ledger_evidence(
+    pool: &PgPool,
+    active_phase: &AtomicUsize,
+) -> Vec<LedgerOverflowEvent> {
     let overflow = RecordingOverflowSink::default();
     let (batcher, drain) = LedgerBatcher::manual_for_tests(
         LedgerBatcherConfig {
@@ -494,14 +794,22 @@ async fn record_mixed_runtime_process_ledger_evidence(pool: &PgPool) -> Vec<Ledg
         .expect("bounded writer emits overflow without blocking spawn path");
 
     let ledger_store = Arc::new(PostgresProcessLedgerStore::new(pool.clone()));
-    ledger_store
-        .apply_migration()
-        .await
-        .expect("process ledger migration applies");
+    active_phase.store(80, Ordering::SeqCst);
+    let ledger_table_exists: bool =
+        sqlx::query_scalar("SELECT pg_catalog.to_regclass('kernel_process_lifecycle') IS NOT NULL")
+            .fetch_one(pool)
+            .await
+            .expect("inspect process-ledger relation in the already-migrated isolated schema");
+    assert!(
+        ledger_table_exists,
+        "knowledge_pg must fully migrate the isolated schema before MT-009 ledger evidence"
+    );
+    active_phase.store(81, Ordering::SeqCst);
     drain
         .drain_available_to(ledger_store)
         .await
         .expect("MT-009 process ledger rows drain to PostgreSQL");
+    active_phase.store(82, Ordering::SeqCst);
     overflow.events()
 }
 
@@ -1087,7 +1395,7 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         .connect(&schema_url)
         .await
         .expect("connect isolated schema for ModelLane CRDT receipts");
-    let store = ModelLaneStore::new(pool);
+    let store = ModelLaneStore::new(pool.clone());
     let document_id = format!("doc-mt009-yjs-{workspace_id}");
     let crdt_document_id = format!("crdt-mt009-yjs-{workspace_id}");
 
@@ -1260,7 +1568,7 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         "mt009-yjs-post-local",
         &local_actor,
         &local_site.site_id,
-        "session-mt009-yjs",
+        "session-lane-mt009-real-yjs-local",
         &local_post_snapshot_bytes,
         &mut state_vector,
         4,
@@ -1280,7 +1588,7 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         "mt009-yjs-post-cloud",
         &cloud_actor,
         &cloud_site.site_id,
-        "session-mt009-yjs",
+        "session-lane-mt009-real-yjs-cloud",
         &cloud_post_snapshot_bytes,
         &mut state_vector,
         5,
@@ -1300,7 +1608,7 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         "mt009-yjs-post-operator",
         &operator_actor,
         &operator_site.site_id,
-        "session-mt009-yjs",
+        "session-lane-mt009-real-yjs-operator",
         &operator_post_snapshot_bytes,
         &mut state_vector,
         6,
@@ -1573,10 +1881,104 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
             .count()
             == 3
     );
+    let mut forged_compaction = compaction.clone();
+    forged_compaction
+        .decisions
+        .iter_mut()
+        .find(|decision| decision.disposition == CrdtCompactionDisposition::CompactWithAudit)
+        .expect("compaction contains an audited removal")
+        .audit_ref = "eventledger://forged/event".into();
+    assert!(matches!(
+        apply_crdt_compaction(&snapshots[0], &records, &forged_compaction),
+        Err(CrdtSnapshotReplayError::InvalidCompactionPlan {
+            field: "decisions[].audit_ref",
+            ..
+        })
+    ));
+    let mut forged_promotion_compaction = compaction.clone();
+    forged_promotion_compaction
+        .decisions
+        .iter_mut()
+        .find(|decision| decision.update_id == "mt009-yjs-pre-cloud")
+        .expect("compaction contains promotion evidence")
+        .disposition = CrdtCompactionDisposition::CompactWithAudit;
+    assert!(matches!(
+        apply_crdt_compaction(&snapshots[0], &records, &forged_promotion_compaction),
+        Err(CrdtSnapshotReplayError::PromotionEvidenceWouldBeDropped { update_id })
+            if update_id == "mt009-yjs-pre-cloud"
+    ));
+
+    let applied_compaction = apply_crdt_compaction(&snapshots[0], &records, &compaction)
+        .expect("apply compaction to the active replay representation");
+    assert_eq!(
+        applied_compaction.snapshot_sha256, snapshots[0].snapshot_sha256,
+        "applied compaction keeps the authoritative snapshot hash"
+    );
+    assert_eq!(
+        applied_compaction.snapshot_state_vector, snapshots[0].state_vector,
+        "applied compaction keeps the snapshot state vector"
+    );
+    assert_eq!(applied_compaction.final_state_vector, final_state_vector);
+    assert_eq!(
+        applied_compaction.compacted_update_audits.len(),
+        2,
+        "two covered non-promotion updates move out of active replay into audit records"
+    );
+    for audit in &applied_compaction.compacted_update_audits {
+        let original = records
+            .iter()
+            .find(|record| record.update_id == audit.update_id)
+            .expect("compacted audit maps to an authoritative PostgreSQL update");
+        assert_eq!(audit.update_sha256, original.update_sha256);
+        assert_eq!(audit.update_bytes_ref, original.update_bytes_ref);
+        assert_eq!(audit.state_vector_before, original.state_vector_before);
+        assert_eq!(audit.state_vector_after, original.state_vector_after);
+        assert_eq!(audit.replay_metadata, original.replay_metadata);
+        assert_eq!(audit.event_ledger_event_id, original.event_ledger_event_id);
+        assert_eq!(
+            audit.audit_ref,
+            format!(
+                "eventledger://{}/{}",
+                original.event_ledger_stream_id, original.event_ledger_event_id
+            )
+        );
+    }
+    assert!(applied_compaction
+        .retained_updates
+        .iter()
+        .any(|record| record.update_id == "mt009-yjs-pre-cloud"));
+    assert_eq!(
+        applied_compaction
+            .retained_updates
+            .iter()
+            .filter(|record| record.update_seq > snapshots[0].covered_update_seq)
+            .count(),
+        3
+    );
+    let replay_after_compaction =
+        build_snapshot_bounded_replay_plan(&snapshots[0], &applied_compaction.retained_updates)
+            .expect("post-compaction representation remains replayable from the snapshot");
+    assert_eq!(
+        replay_after_compaction.final_state_vector,
+        final_state_vector
+    );
+    assert_eq!(
+        replay_after_compaction
+            .ordered_updates
+            .iter()
+            .map(|step| (&step.update_sha256, &step.state_vector_after))
+            .collect::<Vec<_>>(),
+        bounded_replay
+            .ordered_updates
+            .iter()
+            .map(|step| (&step.update_sha256, &step.state_vector_after))
+            .collect::<Vec<_>>(),
+        "post-compaction replay preserves update hashes and state vectors"
+    );
     let records_after_compaction_plan = db
         .list_kernel_crdt_updates(&workspace_id, &document_id, &crdt_document_id)
         .await
-        .expect("append-only compaction planning must not destroy receipt rows");
+        .expect("authoritative PostgreSQL/EventLedger receipts remain available for audit");
     assert_eq!(records_after_compaction_plan, records);
 
     let pulled = pull_yjs_updates(
@@ -1615,24 +2017,27 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
     );
 
     let mut recorded_messages = Vec::new();
-    for ((message_id, lane_id, lane_label, crdt_value), record) in [
+    for ((message_id, lane_id, lane_label, crdt_value, actor), record) in [
         (
             "msg-mt009-yjs-post-local",
             LOCAL_LANE,
             "local",
             "local model merged Yjs edit",
+            local_actor.clone(),
         ),
         (
             "msg-mt009-yjs-post-cloud",
             CLOUD_LANE,
             "cloud",
             "cloud model merged Yjs review",
+            cloud_actor.clone(),
         ),
         (
             "msg-mt009-yjs-post-operator",
             OPERATOR_LANE,
             "operator",
             "operator merged Yjs decision",
+            operator_actor.clone(),
         ),
     ]
     .into_iter()
@@ -1645,15 +2050,38 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
             lane_label,
             record.update_seq as i64,
         );
+        message.kind = ModelLaneMessageKind::Status;
         message.crdt_update_ref = Some(record.update_bytes_ref.clone());
         message.crdt_base_snapshot_ref = Some(snapshot.snapshot_bytes_ref.clone());
         message.crdt_state_vector = Some(record.state_vector_after.clone());
+        message
+            .linked_span_contexts
+            .push(format!("trace-{}", record.update_id));
         message.diagnostic_payload["crdt_update_id"] = json!(record.update_id);
         message.diagnostic_payload["crdt_key"] = json!("mt009.yjs.shared-document");
         message.diagnostic_payload["crdt_value"] = json!(crdt_value);
         message.payload_sha256 = sha256_hex(&canonical_json_bytes(
             &artifact_payload_json_for_message(&message),
         ));
+        let lease = match claim_lease(
+            &db,
+            &pool,
+            LeaseClaimRequestV1 {
+                lane_id: lane_id.into(),
+                actor: actor.clone(),
+                session_id: format!("session-lane-mt009-real-yjs-{lane_label}"),
+                correlation_id: format!("trace-{}", record.update_id),
+                scope_kind: KnowledgeLeaseScopeKind::Document,
+                scope_id: crdt_document_id.clone(),
+                ttl_seconds: 3600,
+            },
+        )
+        .await
+        .expect("claim exact active MT-009 CRDT message lease")
+        {
+            LeaseClaimOutcomeV1::Claimed(lease) => lease,
+            other => panic!("MT-009 CRDT message lease must claim: {other:?}"),
+        };
         let stored_message = store
             .record_message_with_payload_binding(
                 message.clone(),
@@ -1661,8 +2089,44 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
             )
             .await
             .expect("atomically record ModelLane message and payload authority for persisted Yjs receipt");
+        assert_eq!(
+            stored_message
+                .crdt_authority_binding
+                .as_ref()
+                .expect("real Yjs message has CRDT lease authority")
+                .lease_id,
+            lease.lease_id
+        );
+        release_lease(&db, &pool, &lease.lease_id, &actor)
+            .await
+            .expect("release admitted MT-009 CRDT message lease")
+            .expect("admitted MT-009 CRDT message lease exists");
         recorded_messages.push(stored_message);
     }
+
+    let mut state_vector_mismatch = sample_message(
+        "msg-mt009-yjs-state-vector-mismatch",
+        RUN_ID,
+        LOCAL_LANE,
+        "local",
+        7,
+    );
+    state_vector_mismatch.kind = ModelLaneMessageKind::Status;
+    state_vector_mismatch.crdt_update_ref = Some(records[3].update_bytes_ref.clone());
+    state_vector_mismatch.crdt_base_snapshot_ref = Some(snapshot.snapshot_bytes_ref.clone());
+    state_vector_mismatch.crdt_state_vector = Some("hsk-sv1:fabricated-state".into());
+    state_vector_mismatch.payload_sha256 = sha256_hex(&canonical_json_bytes(
+        &artifact_payload_json_for_message(&state_vector_mismatch),
+    ));
+    let state_vector_mismatch_err = store
+        .record_message_with_payload_binding(
+            state_vector_mismatch.clone(),
+            sample_artifact_binding_for_message(&state_vector_mismatch),
+        )
+        .await
+        .expect_err("persisted update ref with a mismatched state vector must fail closed");
+    assert_error_contains(&state_vector_mismatch_err, "crdt_state_vector");
+    assert_no_message_row(&pool, &state_vector_mismatch.message_id).await;
 
     let replay = store
         .replay_run(RUN_ID)
@@ -1726,6 +2190,7 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         linked_span_contexts: vec![format!("trace-link://{RUN_ID}/promotion")],
         coordinator_session_id: format!("coordinator-{RUN_ID}"),
         routing_policy: ModelLaneRoutingPolicy::OperatorLane,
+        routing_launch_plan: Vec::new(),
         input_refs: vec![selected_ref.clone()],
         selected_input_refs: vec![selected_ref],
         rejected_input_refs: vec![],
@@ -1762,6 +2227,20 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         }),
     };
 
+    let current_promotion = store
+        .record_promotion_decision(promotion_input.clone())
+        .await
+        .expect("persist current Yjs promotion approval in EventLedger");
+    assert_eq!(
+        current_promotion.outcome,
+        ModelLanePromotionOutcome::Approved,
+        "a promotion carrying the current persisted snapshot and state vector must pass ValidationRunner and PromotionGate authority"
+    );
+    assert_eq!(
+        current_promotion.denial_reason, None,
+        "the valid current Yjs promotion path must not carry a denial reason"
+    );
+
     let mut stale_base_input = promotion_input.clone();
     stale_base_input.decision_id = "promotion-mt009-yjs-stale-base".into();
     stale_base_input.decision_span_id = "span-promotion-mt009-yjs-stale-base".into();
@@ -1790,7 +2269,7 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         stale_state_vector, current_state_vector,
         "the stale-state probe must differ from the selected persisted Yjs state vector"
     );
-    let mut stale_state_input = promotion_input;
+    let mut stale_state_input = promotion_input.clone();
     stale_state_input.decision_id = "promotion-mt009-yjs-stale-state-vector".into();
     stale_state_input.decision_span_id = "span-promotion-mt009-yjs-stale-state-vector".into();
     stale_state_input.state_vector = stale_state_vector;
@@ -1814,6 +2293,47 @@ async fn mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_conv
         stale_state_promotion.denial_reason,
         Some(ModelLanePromotionDenialReason::StaleStateVector),
         "a promotion with the current snapshot but stale state vector must be denied independently"
+    );
+
+    sqlx::query(
+        r#"
+        UPDATE kernel_event_ledger
+        SET payload = jsonb_set(
+            payload,
+            '{crdt_authority_binding,lease_id}',
+            '"forged-lease-binding"'
+        )
+        WHERE event_id = $1
+        "#,
+    )
+    .bind(&selected_message.event_ledger_event_id)
+    .execute(&pool)
+    .await
+    .expect("tamper selected CRDT message EventLedger binding");
+    let mut tampered_projection_input = promotion_input;
+    tampered_projection_input.decision_id = "promotion-mt009-yjs-tampered-ledger".into();
+    tampered_projection_input.decision_span_id = "span-promotion-mt009-yjs-tampered-ledger".into();
+    tampered_projection_input.promotion_gate_ref =
+        "promotion-gate://mt009/yjs/tampered-ledger".into();
+    tampered_projection_input.promotion_receipt_ref =
+        Some("promotion-receipt://mt009/yjs/tampered-ledger".into());
+    tampered_projection_input.promoted_artifact_ref =
+        Some("artifact://promoted/mt009/yjs/tampered-ledger".into());
+    tampered_projection_input.idempotency_key = "idem-promotion-mt009-yjs-tampered-ledger".into();
+    tampered_projection_input.replay_order_key =
+        "00000007/promotion/mt009/yjs/tampered-ledger".into();
+    let tampered_projection = store
+        .record_promotion_decision(tampered_projection_input)
+        .await
+        .expect("tampered selected-message authority produces a durable promotion denial");
+    assert_eq!(
+        tampered_projection.outcome,
+        ModelLanePromotionOutcome::Denied
+    );
+    assert_eq!(
+        tampered_projection.denial_reason,
+        Some(ModelLanePromotionDenialReason::InputRefMismatch),
+        "promotion must fail closed when the source projection differs from MODEL_RESPONSE_RECORDED authority"
     );
 }
 
@@ -2190,12 +2710,12 @@ async fn mixed_model_lane_recovery_replays_post_checkpoint_eventledger_catchup()
             "recovery-event-mt009-post-checkpoint",
             run_id,
             Some(lane_id),
-            ModelLaneRecoveryEventKind::CrdtUpdateObserved,
+            ModelLaneRecoveryEventKind::PayloadRefObserved,
             1,
             Some(after_checkpoint.payload_ref.clone()),
             None,
-            Some("crdt-snapshot://mt009/base"),
-            Some("sv:mt009:3"),
+            None,
+            None,
         ))
         .await
         .expect("record post-checkpoint recovery event");
@@ -2227,6 +2747,133 @@ async fn mixed_model_lane_recovery_replays_post_checkpoint_eventledger_catchup()
     assert_eq!(
         recovered.mt_runtime_statuses[0].status,
         ModelLaneMtRuntimeStatus::ProofRunning
+    );
+}
+
+#[tokio::test]
+async fn recovery_reconciles_current_post_checkpoint_leases_without_moving_replay_bound() {
+    let (pool, store) = model_lane_store().await;
+    let run_id = "run-mt017-post-checkpoint-lease-reconciliation";
+    let checkpoint_lane_id = "lane-mt017-checkpoint";
+    let post_checkpoint_lane_id = "lane-mt017-post-checkpoint";
+    let active_lease_id = "lease-mt017-post-checkpoint-active";
+    let expired_lease_id = "lease-mt017-post-checkpoint-expired";
+    seed_run_lane(&store, run_id, checkpoint_lane_id, RuntimeBinding::Local).await;
+    record_checkpoint_at_highwater(
+        &pool,
+        &store,
+        run_id,
+        checkpoint_lane_id,
+        None,
+        vec![],
+        "checkpoint-mt017-before-new-lane-leases",
+    )
+    .await;
+
+    store
+        .record_lane(sample_lane(
+            post_checkpoint_lane_id,
+            run_id,
+            ModelLaneKind::LocalModel,
+            RuntimeBinding::Local,
+            LaunchAuthority::ModelRuntime,
+        ))
+        .await
+        .expect("record lane after checkpoint without moving replay watermark");
+    store
+        .record_lane_lease(sample_lease(
+            active_lease_id,
+            run_id,
+            post_checkpoint_lane_id,
+            "2099-01-01T00:00:00Z",
+            ModelLaneLeaseState::Active,
+        ))
+        .await
+        .expect("record active post-checkpoint lease");
+    store
+        .record_lane_lease(sample_lease(
+            expired_lease_id,
+            run_id,
+            post_checkpoint_lane_id,
+            "2020-01-01T00:00:00Z",
+            ModelLaneLeaseState::Active,
+        ))
+        .await
+        .expect("record expired post-checkpoint lease");
+
+    let first = store
+        .recover_run_after_restart(run_id)
+        .await
+        .expect("reconcile current leases independently of checkpoint replay");
+    assert!(
+        first
+            .replay
+            .lanes
+            .iter()
+            .all(|lane| lane.lane_id != post_checkpoint_lane_id),
+        "post-checkpoint lane must not widen the checkpoint replay watermark"
+    );
+    assert_eq!(
+        first.checkpoint.last_event_ledger_seq,
+        first
+            .replay
+            .run
+            .event_ledger_seq
+            .max(first.checkpoint.last_event_ledger_seq)
+    );
+    assert!(
+        first
+            .active_leases
+            .iter()
+            .any(|lease| lease.lease_id == active_lease_id
+                && lease.lane_id.as_deref() == Some(post_checkpoint_lane_id)),
+        "active post-checkpoint ownership must be visible during restart"
+    );
+    assert!(
+        first
+            .reclaimable_lease_ids
+            .iter()
+            .any(|lease_id| lease_id == expired_lease_id),
+        "expired post-checkpoint ownership must be reclaimable"
+    );
+    let first_orphan = first
+        .recovery_events
+        .iter()
+        .find(|event| event.lease_id.as_deref() == Some(expired_lease_id))
+        .expect("expired lease produces an orphan recovery event");
+    assert_eq!(
+        first_orphan.model_session_id.as_deref(),
+        Some("model-session-lane-mt017-post-checkpoint"),
+        "orphan evidence must attribute the post-checkpoint lease lane"
+    );
+
+    let second = store
+        .recover_run_after_restart(run_id)
+        .await
+        .expect("repeated recovery is idempotent");
+    assert!(second
+        .active_leases
+        .iter()
+        .any(|lease| lease.lease_id == active_lease_id));
+    assert!(second
+        .reclaimable_lease_ids
+        .iter()
+        .any(|lease_id| lease_id == expired_lease_id));
+    let orphan_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE aggregate_type = 'model_lane_recovery_event' \
+           AND session_run_id = $1 \
+           AND payload->'record'->>'lease_id' = $2 \
+           AND payload->'record'->>'event_kind' = 'orphan_detected'",
+    )
+    .bind(event_stream_id(run_id))
+    .bind(expired_lease_id)
+    .fetch_one(&pool)
+    .await
+    .expect("count idempotent post-checkpoint orphan evidence");
+    assert_eq!(
+        orphan_rows, 1,
+        "repeated recovery must not duplicate orphan EventLedger evidence"
     );
 }
 
@@ -2392,6 +3039,48 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         .await
         .expect_err("hidden provider endpoint cannot become payload authority");
     assert_error_contains(&hidden_err, "hidden provider/session memory");
+
+    seed_run_lane(
+        &store,
+        "run-mt009-fabricated-crdt",
+        "lane-mt009-fabricated-crdt",
+        RuntimeBinding::Local,
+    )
+    .await;
+    let mut fabricated_crdt = sample_message(
+        "msg-mt009-fabricated-crdt",
+        "run-mt009-fabricated-crdt",
+        "lane-mt009-fabricated-crdt",
+        "local",
+        1,
+    );
+    fabricated_crdt.crdt_update_ref =
+        Some("postgres://kernel_crdt_updates/fabricated/update-001".into());
+    fabricated_crdt.crdt_base_snapshot_ref =
+        Some("postgres://kernel_crdt_snapshots/fabricated/snapshot-001".into());
+    fabricated_crdt.crdt_state_vector = Some("hsk-sv1:ZmFicmljYXRlZA==".into());
+    let fabricated_crdt_err = store
+        .record_message(fabricated_crdt)
+        .await
+        .expect_err("well-formed but nonexistent CRDT refs must fail closed");
+    assert_error_contains(&fabricated_crdt_err, "CRDT authority resolution failed");
+    assert_no_message_row(&pool, "msg-mt009-fabricated-crdt").await;
+    let fabricated_event_count: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM kernel_event_ledger
+        WHERE aggregate_type = 'model_lane_message'
+          AND aggregate_id = $1
+        "#,
+    )
+    .bind("msg-mt009-fabricated-crdt")
+    .fetch_one(&pool)
+    .await
+    .expect("count rejected fabricated CRDT EventLedger rows");
+    assert_eq!(
+        fabricated_event_count, 0,
+        "rejected CRDT metadata must not append a successful message event"
+    );
 
     seed_run_lane(
         &store,
@@ -3216,7 +3905,7 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
         ("recovery-event-mt009-gap-001", 1_i64),
         ("recovery-event-mt009-gap-003", 3_i64),
     ] {
-        store
+        let recorded = store
             .record_recovery_event(sample_recovery_event(
                 event_id,
                 "run-mt009-replay-gap",
@@ -3230,6 +3919,31 @@ async fn mixed_model_lane_negative_guards_fail_closed() {
             ))
             .await
             .expect("record replay gap recovery event");
+        if replay_order_seq == 3 {
+            sqlx::query(
+                r#"
+                UPDATE model_lane_recovery_events
+                SET replay_order_seq = 3,
+                    record_json = jsonb_set(record_json, '{replay_order_seq}', '3'::jsonb)
+                WHERE recovery_event_id = $1
+                "#,
+            )
+            .bind(&recorded.recovery_event_id)
+            .execute(&pool)
+            .await
+            .expect("corrupt mutable replay sequence to create a gap");
+            sqlx::query(
+                r#"
+                UPDATE kernel_event_ledger
+                SET payload = jsonb_set(payload, '{record,replay_order_seq}', '3'::jsonb)
+                WHERE event_id = $1
+                "#,
+            )
+            .bind(&recorded.event_ledger_event_id)
+            .execute(&pool)
+            .await
+            .expect("corrupt EventLedger replay sequence to the same gap");
+        }
     }
     record_checkpoint_at_highwater(
         &pool,
@@ -3577,17 +4291,40 @@ async fn model_lane_store() -> (PgPool, ModelLaneStore) {
 }
 
 async fn seed_cloud_authority(store: &ModelLaneStore, run_id: &str, lane_id: &str) {
+    seed_cloud_authority_for_model_session(
+        store,
+        run_id,
+        lane_id,
+        &format!("model-session-{lane_id}"),
+        "model://mt009/cloud/openai/gpt-4o-mini",
+    )
+    .await;
+}
+
+async fn seed_cloud_authority_for_model_session(
+    store: &ModelLaneStore,
+    run_id: &str,
+    lane_id: &str,
+    model_session_id: &str,
+    requested_model_id: &str,
+) {
+    let mut projection_plan = sample_projection_plan(run_id, lane_id);
+    projection_plan.model_session_id = Some(model_session_id.to_string());
+    projection_plan.requested_model_id = Some(requested_model_id.to_string());
     let plan = store
-        .record_cloud_projection_plan(sample_projection_plan(run_id, lane_id))
+        .record_cloud_projection_plan(projection_plan)
         .await
         .expect("record cloud ProjectionPlan authority");
+    let mut consent_receipt = sample_consent_receipt(
+        run_id,
+        lane_id,
+        &plan.projection_plan_id,
+        &plan.projection_plan_hash,
+    );
+    consent_receipt.model_session_id = Some(model_session_id.to_string());
+    consent_receipt.requested_model_id = Some(requested_model_id.to_string());
     store
-        .record_cloud_consent_receipt(sample_consent_receipt(
-            run_id,
-            lane_id,
-            &plan.projection_plan_id,
-            &plan.projection_plan_hash,
-        ))
+        .record_cloud_consent_receipt(consent_receipt)
         .await
         .expect("record cloud ConsentReceipt authority");
 }
@@ -3785,6 +4522,83 @@ fn sample_run(run_id: &str, lane_ids: Vec<String>) -> NewModelLaneRun {
     }
 }
 
+fn sample_subagent_launch_request(run_id: &str, lane_id: &str) -> DexterityLaunchAdapterRequest {
+    let run = sample_run(run_id, vec![lane_id.to_owned()]);
+    let lane = sample_lane(
+        lane_id,
+        run_id,
+        ModelLaneKind::Subagent,
+        RuntimeBinding::Subagent,
+        LaunchAuthority::SubagentManager,
+    );
+    let locus = lane
+        .locus_binding
+        .clone()
+        .expect("MT-009 subagent launch carries Locus binding");
+    DexterityLaunchAdapterRequest {
+        adapter_kind: DexterityLaunchAdapterKind::Subagent,
+        run_id: run.run_id,
+        lane_id: lane.lane_id,
+        trace_id: run.trace_id,
+        run_span_id: run.run_span_id,
+        lane_span_id: lane.lane_span_id,
+        coordinator_session_id: run.coordinator_session_id,
+        routing_policy: run.routing_policy,
+        context_bundle_id: run.context_bundle_id,
+        event_ledger_stream_id: run.event_ledger_stream_id,
+        artifact_namespace: run.artifact_namespace,
+        work_packet_id: run.work_packet_id,
+        micro_task_id: run.micro_task_id,
+        task_board_id: run.task_board_id,
+        owner_session: run.owner_session,
+        locus_binding_ref: locus.locus_binding_ref,
+        role: lane.role,
+        backend: Some(lane.backend),
+        adapter_id: Some(lane.adapter_id),
+        model_id: lane.model_id,
+        session_id: lane.session_id,
+        model_session_id: lane.model_session_id,
+        extra_capability_token_ids: lane.capability_token_ids,
+        requested_tool_capability_tokens: vec!["tool-capability://read-context".into()],
+        effective_capability_snapshot_ref: lane.effective_capability_snapshot_ref,
+        capability_negotiation_ref: lane.capability_negotiation_ref,
+        provider_feature_profile_ref: lane.provider_feature_profile_ref,
+        requested_execution_policy_ref: lane.requested_execution_policy_ref,
+        effective_execution_policy_ref: lane.effective_execution_policy_ref,
+        projection_plan_ref: lane.projection_plan_ref,
+        consent_receipt_ref: lane.consent_receipt_ref,
+        tool_gate_decision_refs: lane.tool_gate_decision_refs,
+        status: Some(lane.status),
+        heartbeat_at_utc: lane.heartbeat_at_utc,
+        lease_expires_at_utc: lane.lease_expires_at_utc,
+        reclaim_after_utc: lane.reclaim_after_utc,
+        restart_generation: lane.restart_generation,
+        cancellation_ref: lane.cancellation_ref,
+        reclaim_policy_ref: lane.reclaim_policy_ref,
+        terminal_status_mapping_ref: lane.terminal_status_mapping_ref,
+        process_ownership_ref: None,
+        no_os_process_reason_ref: None,
+        backpressure_ref: lane.backpressure_ref,
+        loop_counter_ref: lane.loop_counter_ref,
+        last_runtime_status_ref: lane.last_runtime_status_ref,
+        last_recovery_event_ref: lane.last_recovery_event_ref,
+        startup_failure_code: lane.failstate_code,
+        startup_failure_ref: lane.startup_failure_ref,
+        reason_ref: lane.reason_ref,
+        run_recovery_hint_ref: run.recovery_hint_ref,
+        lane_recovery_hint_ref: lane.recovery_hint_ref,
+        memory_pack_ref: run.memory_pack_ref,
+        memory_pack_hash: run.memory_pack_hash,
+        determinism_mode: run.determinism_mode,
+        budget_summary_ref: run.budget_summary_ref,
+        selected_model_id: run.selected_model_id,
+        candidate_model_ids: run.candidate_model_ids,
+        procedural_review_status: run.procedural_review_status,
+        truncation_warning_ref: run.truncation_warning_ref,
+        rejection_reason_refs: run.rejection_reason_refs,
+    }
+}
+
 fn sample_lane(
     lane_id: &str,
     run_id: &str,
@@ -3905,15 +4719,9 @@ fn sample_message(
         _ => ("mt009.local", "local proposed deterministic edit"),
     };
     let payload_ref = payload_ref(message_id);
-    let crdt_update_ref = format!("crdt-update://mt009/{message_id}");
     let locus_ref = format!("locus://wp1/mt009/{run_id}/{lane_id}/{message_id}");
-    let payload_json = artifact_payload_json_parts(
-        message_id,
-        run_id,
-        &payload_ref,
-        &crdt_update_ref,
-        &locus_ref,
-    );
+    let payload_json =
+        artifact_payload_json_parts(message_id, run_id, &payload_ref, "", &locus_ref);
     let payload_sha256 = sha256_hex(&canonical_json_bytes(&payload_json));
     NewModelLaneMessage {
         message_id: message_id.into(),
@@ -3959,11 +4767,11 @@ fn sample_message(
         idempotency_key: format!("idem-message-{message_id}"),
         replay_order_key: format!("{replay_seq:08}/message/{message_id}"),
         replay_after_event_ledger_seq: Some(1),
-        proposal_ref: Some(format!("proposal://mt009/{message_id}")),
-        crdt_update_ref: Some(crdt_update_ref),
-        crdt_base_snapshot_ref: Some("crdt-snapshot://mt009/base".into()),
-        crdt_state_vector: Some("sv:mt009:3".into()),
-        crdt_proposal_ref: Some(format!("crdt-proposal://mt009/{message_id}")),
+        proposal_ref: None,
+        crdt_update_ref: None,
+        crdt_base_snapshot_ref: None,
+        crdt_state_vector: None,
+        crdt_proposal_ref: None,
         crdt_stale_base_ref: None,
         failstate_code: None,
         reason_ref: None,
@@ -4187,10 +4995,10 @@ fn sample_projection_plan(run_id: &str, lane_id: &str) -> NewModelLaneCloudProje
         projection_plan_id: projection_plan_id(run_id, lane_id),
         run_id: run_id.into(),
         trace_id: format!("trace-{run_id}"),
-        lane_id: lane_id.into(),
-        model_session_id: format!("model-session-{lane_id}"),
-        provider_kind: "openai".into(),
-        requested_model_id: "model://mt009/cloud/openai/gpt-4o-mini".into(),
+        lane_id: Some(lane_id.into()),
+        model_session_id: Some(format!("model-session-{lane_id}")),
+        provider_kind: Some("openai".into()),
+        requested_model_id: Some("model://mt009/cloud/openai/gpt-4o-mini".into()),
         scope_hash: sample_scope_hash(),
         source_artifact_refs: vec![
             format!("artifact-store://mt009/{run_id}/{lane_id}/context.json"),
@@ -4205,6 +5013,7 @@ fn sample_projection_plan(run_id: &str, lane_id: &str) -> NewModelLaneCloudProje
         provider_profile_ref: "provider-profile://mt009/openai".into(),
         fan_out_targets: vec!["provider://openai/byok".into()],
         consent_scope: ModelLaneCloudConsentScope::SingleLane,
+        target_bindings: vec![],
         status: ModelLaneCloudProjectionPlanStatus::Active,
         event_ledger_stream_id: event_stream_id(run_id),
         work_packet_id: WP_ID.into(),
@@ -4235,12 +5044,13 @@ fn sample_consent_receipt(
         projection_plan_hash: projection_plan_hash.into(),
         run_id: run_id.into(),
         trace_id: format!("trace-{run_id}"),
-        lane_id: lane_id.into(),
-        model_session_id: format!("model-session-{lane_id}"),
-        provider_kind: "openai".into(),
-        requested_model_id: "model://mt009/cloud/openai/gpt-4o-mini".into(),
+        lane_id: Some(lane_id.into()),
+        model_session_id: Some(format!("model-session-{lane_id}")),
+        provider_kind: Some("openai".into()),
+        requested_model_id: Some("model://mt009/cloud/openai/gpt-4o-mini".into()),
         scope_hash: sample_scope_hash(),
         consent_scope: ModelLaneCloudConsentScope::SingleLane,
+        target_bindings: vec![],
         retention_policy: ModelLaneCloudRetentionPolicy::NoTrainingEphemeral,
         export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
         fan_out_targets: vec!["provider://openai/byok".into()],
@@ -4251,6 +5061,7 @@ fn sample_consent_receipt(
         valid_until_utc: "2027-01-01T00:00:00Z".into(),
         revoked_at_utc: None,
         revocation_ref: None,
+        revocation_input_hash: None,
         status: ModelLaneCloudConsentReceiptStatus::Approved,
         event_ledger_stream_id: event_stream_id(run_id),
         work_packet_id: WP_ID.into(),
@@ -4432,4 +5243,2461 @@ fn write_canonical_json(output: &mut String, value: &Value) {
             output.push('}');
         }
     }
+}
+struct Ac9ProductionRuntime {
+    capabilities: ModelCapabilities,
+    kv: KvCacheHandle,
+    lora: LoraStackHandle,
+    steering: SteeringHookHandle,
+    hold_generation: Arc<AtomicBool>,
+    model_outputs: Arc<Mutex<HashMap<ModelId, String>>>,
+}
+
+impl Ac9ProductionRuntime {
+    fn new(
+        hold_generation: Arc<AtomicBool>,
+        model_outputs: Arc<Mutex<HashMap<ModelId, String>>>,
+    ) -> Self {
+        Self {
+            capabilities: ModelCapabilities::default(),
+            kv: KvCacheHandle::new("ac9-production-kv"),
+            lora: LoraStackHandle::new("ac9-production-lora"),
+            steering: SteeringHookHandle::new("ac9-production-steering"),
+            hold_generation,
+            model_outputs,
+        }
+    }
+}
+
+#[async_trait]
+impl ModelRuntime for Ac9ProductionRuntime {
+    async fn load(&mut self, _spec: LoadSpec) -> Result<ModelId, ModelRuntimeError> {
+        Ok(ModelId::new_v7())
+    }
+
+    async fn unload(&mut self, _id: ModelId) -> Result<(), ModelRuntimeError> {
+        Ok(())
+    }
+
+    fn generate(&self, req: GenerateRequest) -> TokenStream {
+        if self.hold_generation.load(Ordering::SeqCst) {
+            return Box::pin(stream::unfold(
+                (req.cancel, self.hold_generation.clone(), false),
+                |(cancel, hold_generation, terminal_emitted)| async move {
+                    if terminal_emitted {
+                        return None;
+                    }
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                    if cancel.is_cancelled() {
+                        Some((
+                            Err(ModelRuntimeError::Cancelled),
+                            (cancel, hold_generation, true),
+                        ))
+                    } else if !hold_generation.load(Ordering::SeqCst) {
+                        Some((
+                            Ok(GeneratedToken {
+                                token_id: 1,
+                                text: "AC-9 released held proposal".into(),
+                                logprob: None,
+                                finish_reason: None,
+                            }),
+                            (cancel, hold_generation, true),
+                        ))
+                    } else {
+                        Some((
+                            Ok(GeneratedToken {
+                                token_id: 0,
+                                text: String::new(),
+                                logprob: None,
+                                finish_reason: None,
+                            }),
+                            (cancel, hold_generation, false),
+                        ))
+                    }
+                },
+            ));
+        }
+        let forced = self
+            .model_outputs
+            .lock()
+            .expect("AC-9 model-output lock")
+            .get(&req.id)
+            .cloned();
+        let text = if let Some(forced) = forced {
+            forced
+        } else if req.prompt.text.contains("output_contract:") {
+            r#"{"verdict":"accept","review":"AC-9 typed cloud review"}"#.to_string()
+        } else {
+            format!("AC-9 proposal for {}", req.id)
+        };
+        Box::pin(stream::iter(vec![Ok(GeneratedToken {
+            token_id: 1,
+            text,
+            logprob: None,
+            finish_reason: None,
+        })]))
+    }
+
+    async fn score(&self, _id: ModelId, _sequence: Vec<u32>) -> Result<Score, ModelRuntimeError> {
+        Ok(Score {
+            token_logprobs: Vec::new(),
+            mean_logprob: 0.0,
+        })
+    }
+
+    async fn embed(&self, _id: ModelId, _text: &str) -> Result<Embedding, ModelRuntimeError> {
+        Ok(Embedding { vector: Vec::new() })
+    }
+
+    fn capabilities(&self, _id: ModelId) -> Result<&ModelCapabilities, ModelRuntimeError> {
+        Ok(&self.capabilities)
+    }
+
+    fn kv_cache(&self, _id: ModelId) -> Result<KvCacheHandle, ModelRuntimeError> {
+        Ok(self.kv.clone())
+    }
+
+    fn lora_stack(&self, _id: ModelId) -> Result<LoraStackHandle, ModelRuntimeError> {
+        Ok(self.lora.clone())
+    }
+
+    fn steering_hooks(&self, _id: ModelId) -> Result<SteeringHookHandle, ModelRuntimeError> {
+        Ok(self.steering.clone())
+    }
+
+    fn cancel(&self, token: CancellationToken) {
+        token.cancel();
+    }
+}
+
+struct Ac9ProductionFactory {
+    ledger: LedgerBatcher,
+    creates: Arc<AtomicUsize>,
+    teardowns: Arc<AtomicUsize>,
+    hold_generation: Arc<AtomicBool>,
+    hold_create: Arc<AtomicBool>,
+    fail_model: Arc<Mutex<Option<ModelId>>>,
+    model_outputs: Arc<Mutex<HashMap<ModelId, String>>>,
+    held_models: Arc<Mutex<HashSet<ModelId>>>,
+}
+
+#[async_trait]
+impl ModelSessionFactory for Ac9ProductionFactory {
+    async fn create(&self, request: &SpawnRequest) -> Result<LiveSession, SwarmError> {
+        self.creates.fetch_add(1, Ordering::SeqCst);
+        while self.hold_create.load(Ordering::SeqCst)
+            || self
+                .held_models
+                .lock()
+                .expect("AC-9 held-model lock")
+                .contains(&request.instance_id.model_id)
+        {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        if self
+            .fail_model
+            .lock()
+            .expect("AC-9 fail-model lock")
+            .as_ref()
+            == Some(&request.instance_id.model_id)
+        {
+            return Err(SwarmError::FactoryFailed(format!(
+                "injected AC-9 factory failure for {}",
+                request.instance_id.model_id
+            )));
+        }
+        let record_id = ProcessOwnershipRecordId::new_v7();
+        let os_pid = 61_000 + request.instance_id.instance;
+        let engine = if request.provider == Some(ProviderKind::ByokCloud) {
+            ProcessEngineKind::HelperSubprocess
+        } else {
+            ProcessEngineKind::Candle
+        };
+        let start = ProcessStart::new(engine, request.owner_role.clone(), request.owner_wp.clone())
+            .with_process_uuid(record_id.as_uuid())
+            .with_os_pid(os_pid)
+            .with_parent_session_id(request.parent_session_id.clone())
+            .with_wp_id(request.wp_id.clone().unwrap_or_default())
+            .with_mt_id(request.mt_id.clone().unwrap_or_default());
+        self.ledger
+            .record_start(start.clone())
+            .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
+        let teardown_count = self.teardowns.clone();
+        let teardown: handshake_core::swarm_orchestration::SessionTeardown = Arc::new(move || {
+            let teardown_count = teardown_count.clone();
+            Box::pin(async move {
+                teardown_count.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            })
+        });
+        Ok(LiveSession::new(
+            Arc::new(Ac9ProductionRuntime::new(
+                self.hold_generation.clone(),
+                self.model_outputs.clone(),
+            )),
+            request.instance_id.model_id,
+            CancellationToken::new(),
+            teardown,
+            record_id,
+            os_pid,
+        )
+        .with_ledger_start(engine, start))
+    }
+}
+
+#[derive(Clone)]
+struct Ac9StageSpec {
+    stage_id: String,
+    target: ModelLaneRoutingDispatchTarget,
+    lane_id: Option<String>,
+    authority_lane_id: Option<String>,
+    instance_id: Option<ModelInstanceId>,
+}
+
+struct Ac9ProductionFixture {
+    pool: PgPool,
+    store: ModelLaneStore,
+    coordinator: SwarmCoordinator,
+    policy: ModelLaneRoutingPolicy,
+    execution_id: String,
+    decision_id: String,
+    context: ModelLaneRoutingExecutionContext,
+    authority: ModelLaneRoutingAuthority,
+    specs: Vec<Ac9StageSpec>,
+    creates: Arc<AtomicUsize>,
+    teardowns: Arc<AtomicUsize>,
+    hold_generation: Arc<AtomicBool>,
+    hold_create: Arc<AtomicBool>,
+    fail_model: Arc<Mutex<Option<ModelId>>>,
+    model_outputs: Arc<Mutex<HashMap<ModelId, String>>>,
+    held_models: Arc<Mutex<HashSet<ModelId>>>,
+    ledger_drain: ProcessLedgerDrain,
+}
+
+impl Ac9ProductionFixture {
+    fn launches(&self) -> Vec<ModelLaneRoutingStageLaunch> {
+        self.specs
+            .iter()
+            .map(|spec| {
+                let request = spec.instance_id.map(|instance_id| {
+                    let mut request = SpawnRequest::new(
+                        instance_id,
+                        RuntimeAdapterBinding::Candle,
+                        OWNER,
+                        self.context.coordinator_session_id.clone(),
+                    )
+                    .with_wp(WP_ID)
+                    .with_mt(MT_ID);
+                    request.owner_wp = Some(WP_ID.into());
+                    if spec.target == ModelLaneRoutingDispatchTarget::CloudModel {
+                        request = request
+                            .with_cloud_provider(ProviderKind::ByokCloud, "gpt-4o-mini")
+                            .with_byok_cloud_provider(ByokCloudProvider::OpenAi);
+                    } else {
+                        request = request.with_local_artifact("ac9-model.gguf", sample_sha256());
+                    }
+                    let mut contract = DexterityLaunchContract::from_spawn_request(&request)
+                        .expect("construct real AC-9 Dexterity launch contract");
+                    let lane_id = spec.lane_id.clone().expect("model stage has planned lane");
+                    contract.run_id = self.context.run_id.clone();
+                    contract.lane_id = lane_id.clone();
+                    contract.trace_id = self.context.trace_id.clone();
+                    contract.run_span_id = self.context.run_span_id.clone();
+                    contract.lane_span_id = format!("span-{lane_id}");
+                    contract.routing_policy = "mixed_local_cloud_subagent".into();
+                    contract.context_bundle_id = format!("ctx-{}", self.context.run_id);
+                    contract.event_ledger_stream_id = event_stream_id(&self.context.run_id);
+                    contract.artifact_namespace =
+                        format!("artifact://model-lane/mt009/{}", self.context.run_id);
+                    contract.task_board_id = TASK_BOARD_ID.into();
+                    contract.locus_binding_ref = self.context.locus_ref.clone();
+                    contract.memory_pack_ref =
+                        format!("memory-pack://fems/mt009/{}", self.context.run_id);
+                    contract.memory_pack_hash = sample_sha256();
+                    contract.determinism_mode = "deterministic_replay".into();
+                    contract.budget_summary_ref = "budget://mt009/mixed-runtime".into();
+                    contract.candidate_model_ids =
+                        if spec.target == ModelLaneRoutingDispatchTarget::CloudModel {
+                            vec!["model://dexterity/byok_cloud/gpt-4o-mini".into()]
+                        } else {
+                            vec![instance_id.model_id.to_string()]
+                        };
+                    contract.procedural_review_status = "reviewed_by_kernel_builder".into();
+                    contract.projection_plan_ref = (spec.target
+                        == ModelLaneRoutingDispatchTarget::CloudModel)
+                        .then(|| projection_plan_id(&self.context.run_id, &lane_id));
+                    contract.consent_receipt_ref = (spec.target
+                        == ModelLaneRoutingDispatchTarget::CloudModel)
+                        .then(|| consent_receipt_id(&self.context.run_id, &lane_id));
+                    request.with_dexterity_launch(contract)
+                });
+                let generate_request = request.as_ref().map(|request| GenerateRequest {
+                    id: request.instance_id.model_id,
+                    prompt: GenPrompt::new(format!("execute canonical stage {}", spec.stage_id)),
+                    sampling: SamplingParams::default(),
+                    lora_overrides: Vec::new(),
+                    steering_overrides: Vec::new(),
+                    kv_prefix_handle: None,
+                    cancel: CancellationToken::new(),
+                    max_tokens: 16,
+                    stop_sequences: Vec::new(),
+                    speculative_mode: None,
+                    structured_decoding: None,
+                });
+                ModelLaneRoutingStageLaunch {
+                    stage_id: spec.stage_id.clone(),
+                    expected_run_id: self.context.run_id.clone(),
+                    expected_lane_id: spec.lane_id.clone().unwrap_or_default(),
+                    expected_model_id: spec
+                        .instance_id
+                        .map(|instance| instance.model_id.to_string())
+                        .unwrap_or_default(),
+                    expected_provider: request.as_ref().and_then(|request| request.provider),
+                    request,
+                    generate_request,
+                    authority_lane_id: spec.authority_lane_id.clone(),
+                }
+            })
+            .collect()
+    }
+
+    async fn wave(&self) -> Result<ModelLaneRoutingDispatchBatch, SwarmError> {
+        execute_production_routing_wave(
+            &self.coordinator,
+            &self.execution_id,
+            &self.decision_id,
+            &self.authority,
+            self.context.clone(),
+            self.launches(),
+        )
+        .await
+    }
+
+    async fn lifecycle(&self) -> Result<ModelLaneRoutingDispatchBatch, SwarmError> {
+        execute_production_routing_lifecycle(
+            &self.coordinator,
+            &self.execution_id,
+            &self.decision_id,
+            &self.authority,
+            self.context.clone(),
+            self.launches(),
+        )
+        .await
+    }
+
+    async fn complete_waiting_authority(
+        &self,
+        batch: &ModelLaneRoutingDispatchBatch,
+    ) -> Option<ModelLaneRoutingDispatchBatch> {
+        let stage = batch
+            .execution
+            .stages
+            .values()
+            .find(|stage| stage.state == ModelLaneRoutingStageStateKind::AwaitingAuthority)?;
+        let authority_lane_id = stage.lane_id.clone().expect("authority stage stores lane");
+        let request_message_ref = stage
+            .authority_request_message_ref
+            .clone()
+            .expect("authority stage stores causal request");
+        let message_id = format!(
+            "ac9-authority-response:{}:{}:{}",
+            self.execution_id, stage.stage_id, stage.attempt
+        );
+        let mut response = sample_message(
+            &message_id,
+            &self.context.run_id,
+            &authority_lane_id,
+            "authority",
+            90 + i64::from(stage.attempt),
+        );
+        response.kind = ModelLaneMessageKind::Status;
+        response.authority = if stage.dispatch_target == ModelLaneRoutingDispatchTarget::Validator {
+            ModelLaneAuthority::ValidatorVerdict
+        } else {
+            ModelLaneAuthority::OperatorDecision
+        };
+        response.promotion_decision_id = None;
+        response.promotion_gate_ref = None;
+        response.promotion_receipt_ref = None;
+        response.promoted_artifact_ref = None;
+        response.promoted_artifact_sha256 = None;
+        response.promoted_artifact_version = None;
+        response.proposal_ref = None;
+        response.crdt_update_ref = None;
+        response.crdt_base_snapshot_ref = None;
+        response.crdt_state_vector = None;
+        response.crdt_proposal_ref = None;
+        response.crdt_stale_base_ref = None;
+        response.validator_verdict_ref = (stage.dispatch_target
+            == ModelLaneRoutingDispatchTarget::Validator)
+            .then(|| stage.authority_ref.clone())
+            .flatten();
+        response.operator_decision_ref = (stage.dispatch_target
+            == ModelLaneRoutingDispatchTarget::Operator)
+            .then(|| stage.authority_ref.clone())
+            .flatten();
+        response.routing = Some(ModelLaneRoutingMetadata {
+            target_role: "coordinator".into(),
+            target_session: self.context.coordinator_session_id.clone(),
+            correlation_id: format!("routing:{}:{}", self.execution_id, stage.stage_id),
+            requires_ack: false,
+            ack_for: Some(request_message_ref),
+        });
+        response.diagnostic_payload = json!({
+            "schema_id": "hsk.model_lane_routing_authority_response@1",
+            "execution_id": self.execution_id,
+            "stage_id": stage.stage_id,
+            "attempt": stage.attempt,
+            "verdict": "approve",
+        });
+        response.payload_sha256 = sha256_hex(&canonical_json_bytes(
+            &artifact_payload_json_for_message(&response),
+        ));
+        let stored = self
+            .store
+            .record_message_with_payload_binding(
+                response.clone(),
+                sample_artifact_binding_for_message(&response),
+            )
+            .await
+            .expect("record real typed authority response and payload binding");
+        Some(
+            self.coordinator
+                .complete_authority_and_resume_routing_lifecycle(
+                    &self.execution_id,
+                    &stage.stage_id,
+                    &stored.message_id,
+                    self.launches(),
+                )
+                .await
+                .expect("complete authority and auto-resume production lifecycle"),
+        )
+    }
+}
+
+async fn ac9_fixture(policy: ModelLaneRoutingPolicy, suffix: &str) -> Ac9ProductionFixture {
+    let (pool, store) = model_lane_store().await;
+    let run_id = format!("run-ac9-{suffix}-{}", policy.as_str());
+    let execution_id = format!("execution-ac9-{suffix}-{}", policy.as_str());
+    let decision_id = format!("decision-ac9-{suffix}-{}", policy.as_str());
+    let source_lane_id = format!("lane-ac9-{suffix}-source");
+    let source_message_id = format!("message-ac9-{suffix}-source");
+    let graph = ModelLaneRoutingGraph::for_policy(policy);
+    let mut initial_lane_ids = vec![source_lane_id.clone()];
+    let mut specs = Vec::new();
+    let mut cloud_receipt_ref = None;
+    for (index, stage) in graph.stages.iter().enumerate() {
+        let (lane_id, authority_lane_id, instance_id) = match stage.target {
+            ModelLaneRoutingDispatchTarget::LocalModel
+            | ModelLaneRoutingDispatchTarget::CloudModel => {
+                let lane_id = format!("lane-ac9-{suffix}-{}", stage.stage_id);
+                let instance_id = ModelInstanceId::new(ModelId::new_v7(), index as u32);
+                if stage.target == ModelLaneRoutingDispatchTarget::CloudModel {
+                    let authority_request = SpawnRequest::new(
+                        instance_id,
+                        RuntimeAdapterBinding::Candle,
+                        OWNER,
+                        format!("coordinator-{run_id}"),
+                    );
+                    seed_cloud_authority_for_model_session(
+                        &store,
+                        &run_id,
+                        &lane_id,
+                        &dexterity_spawn_model_session_id(&authority_request),
+                        "model://dexterity/byok_cloud/gpt-4o-mini",
+                    )
+                    .await;
+                    cloud_receipt_ref = Some(consent_receipt_id(&run_id, &lane_id));
+                }
+                (Some(lane_id), None, Some(instance_id))
+            }
+            ModelLaneRoutingDispatchTarget::Validator => {
+                let lane_id = format!("lane-ac9-{suffix}-validator");
+                initial_lane_ids.push(lane_id.clone());
+                (None, Some(lane_id), None)
+            }
+            ModelLaneRoutingDispatchTarget::Operator => {
+                let lane_id = format!("lane-ac9-{suffix}-operator");
+                initial_lane_ids.push(lane_id.clone());
+                (None, Some(lane_id), None)
+            }
+            ModelLaneRoutingDispatchTarget::CoordinatorJoin => (None, None, None),
+        };
+        specs.push(Ac9StageSpec {
+            stage_id: stage.stage_id.clone(),
+            target: stage.target,
+            lane_id,
+            authority_lane_id,
+            instance_id,
+        });
+    }
+    store
+        .record_run(sample_run(&run_id, initial_lane_ids.clone()))
+        .await
+        .expect("record AC-9 canonical ModelLaneRun");
+    store
+        .record_lane(sample_lane(
+            &source_lane_id,
+            &run_id,
+            ModelLaneKind::LocalModel,
+            RuntimeBinding::Local,
+            LaunchAuthority::ModelRuntime,
+        ))
+        .await
+        .expect("record AC-9 source lane");
+    for spec in &specs {
+        let Some(authority_lane_id) = spec.authority_lane_id.as_deref() else {
+            continue;
+        };
+        let (kind, binding, launch_authority) =
+            if spec.target == ModelLaneRoutingDispatchTarget::Validator {
+                (
+                    ModelLaneKind::Validator,
+                    RuntimeBinding::Validator,
+                    LaunchAuthority::ValidatorRunner,
+                )
+            } else {
+                (
+                    ModelLaneKind::HumanOperator,
+                    RuntimeBinding::Human,
+                    LaunchAuthority::Operator,
+                )
+            };
+        store
+            .record_lane(sample_lane(
+                authority_lane_id,
+                &run_id,
+                kind,
+                binding,
+                launch_authority,
+            ))
+            .await
+            .expect("record AC-9 authority lane");
+    }
+    let source_message = sample_message(&source_message_id, &run_id, &source_lane_id, "local", 1);
+    let source_record = store
+        .record_message_with_payload_binding(
+            source_message.clone(),
+            sample_artifact_binding_for_message(&source_message),
+        )
+        .await
+        .expect("record AC-9 selected input message and payload binding");
+    let selected_ref = format!("model-lane-message://{}", source_record.message_id);
+    // Promotion authority is independent of whether the routing graph itself
+    // contains a validator stage. Every fixture below records an Approved
+    // selecting decision, so all six policies require an explicit promotion
+    // authority reference before their production wave can launch.
+    let validator_ref = Some(format!("validator://ac9/{suffix}"));
+    let operator_ref = (policy == ModelLaneRoutingPolicy::OperatorLane)
+        .then(|| format!("operator://ac9/{suffix}"));
+    let mut diagnostic_payload = json!({"fixture": "ac9-production-matrix"});
+    if let Some(receipt) = cloud_receipt_ref.as_ref() {
+        diagnostic_payload["cloud_consent_receipt_ref"] = json!(receipt);
+    }
+    let decision = store
+        .record_promotion_decision(NewModelLanePromotionDecision {
+            decision_id: decision_id.clone(),
+            run_id: run_id.clone(),
+            trace_id: format!("trace-{run_id}"),
+            decision_span_id: format!("span-{decision_id}"),
+            parent_span_id: Some(source_record.message_span_id.clone()),
+            linked_span_contexts: vec![source_record.message_span_id.clone()],
+            coordinator_session_id: format!("coordinator-{run_id}"),
+            routing_policy: policy,
+            routing_launch_plan: specs
+                .iter()
+                .map(|spec| {
+                    handshake_core::swarm_orchestration::routing::ModelLaneRoutingStageLaunchPlan {
+                        stage_id: spec.stage_id.clone(),
+                        dispatch_target: spec.target,
+                        lane_id: spec
+                            .lane_id
+                            .clone()
+                            .or_else(|| spec.authority_lane_id.clone()),
+                        model_id: spec
+                            .instance_id
+                            .map(|instance| instance.model_id.to_string()),
+                        provider: (spec.target == ModelLaneRoutingDispatchTarget::CloudModel)
+                            .then_some(ProviderKind::ByokCloud),
+                    }
+                })
+                .collect(),
+            input_refs: vec![selected_ref.clone()],
+            selected_input_refs: vec![selected_ref.clone()],
+            rejected_input_refs: Vec::new(),
+            validator_authority_ref: validator_ref.clone(),
+            operator_authority_ref: operator_ref.clone(),
+            expected_event_ledger_aggregate_type: "model_lane_message".into(),
+            expected_event_ledger_aggregate_id: source_record.message_id.clone(),
+            expected_event_ledger_version: source_record.event_ledger_seq,
+            base_snapshot_ref: source_record
+                .crdt_base_snapshot_ref
+                .clone()
+                .expect("source message CRDT base"),
+            current_base_snapshot_ref: source_record
+                .crdt_base_snapshot_ref
+                .clone()
+                .expect("source message current CRDT base"),
+            state_vector: source_record
+                .crdt_state_vector
+                .clone()
+                .expect("source message state vector"),
+            current_state_vector: source_record
+                .crdt_state_vector
+                .clone()
+                .expect("source message current state vector"),
+            schema_id: "hsk.model_lane_message@1".into(),
+            deterministic_tie_break_rule: "event_ledger_seq_then_message_id".into(),
+            promotion_gate_ref: format!("promotion-gate://ac9/{suffix}"),
+            promotion_receipt_ref: Some(format!("promotion-receipt://ac9/{suffix}")),
+            promoted_artifact_ref: Some(format!("artifact://promoted/ac9/{suffix}")),
+            promoted_artifact_sha256: Some(sample_sha256()),
+            promoted_artifact_version: Some("1".into()),
+            direct_authority_mutation_attempt_ref: None,
+            event_ledger_stream_id: event_stream_id(&run_id),
+            work_packet_id: Some(WP_ID.into()),
+            micro_task_id: Some(MT_ID.into()),
+            task_board_id: Some(TASK_BOARD_ID.into()),
+            owner_session: OWNER.into(),
+            idempotency_key: format!("idem-{decision_id}"),
+            replay_order_key: format!("00000090/promotion/{decision_id}"),
+            recovery_hint_ref: Some("usermanual://model-lane-validation-harness#recovery".into()),
+            created_at_utc: "2026-07-14T00:00:00Z".into(),
+            diagnostic_payload,
+        })
+        .await
+        .expect("record approved AC-9 selecting promotion decision");
+    assert_eq!(decision.outcome, ModelLanePromotionOutcome::Approved);
+    let locus_ref = format!("locus://wp1/mt009/{run_id}/coordinator-{run_id}");
+    let context = ModelLaneRoutingExecutionContext {
+        run_id: run_id.clone(),
+        trace_id: format!("trace-{run_id}"),
+        run_span_id: format!("span-{run_id}"),
+        coordinator_session_id: format!("coordinator-{run_id}"),
+        locus_ref,
+        work_packet_id: WP_ID.into(),
+        micro_task_id: Some(MT_ID.into()),
+        task_board_id: TASK_BOARD_ID.into(),
+        owner_session: OWNER.into(),
+        initial_input_ref: selected_ref,
+        initial_input_sha256: source_record.payload_sha256.clone(),
+    };
+    let authority = ModelLaneRoutingAuthority {
+        cloud_consent_receipt_ref: cloud_receipt_ref,
+        validator_authority_ref: validator_ref,
+        operator_authority_ref: operator_ref,
+    };
+    let (ledger, ledger_drain) = LedgerBatcher::manual_for_tests(
+        LedgerBatcherConfig {
+            capacity: 256,
+            ..LedgerBatcherConfig::default()
+        },
+        Arc::new(RecordingOverflowSink::default()),
+    )
+    .expect("manual AC-9 process ledger");
+    let creates = Arc::new(AtomicUsize::new(0));
+    let teardowns = Arc::new(AtomicUsize::new(0));
+    let hold_generation = Arc::new(AtomicBool::new(false));
+    let hold_create = Arc::new(AtomicBool::new(false));
+    let fail_model = Arc::new(Mutex::new(None));
+    let model_outputs = Arc::new(Mutex::new(HashMap::new()));
+    let held_models = Arc::new(Mutex::new(HashSet::new()));
+    let coordinator = SwarmCoordinator::new_with_model_lane_store(
+        SwarmConfig::new(RunBudget::defaulted(8)),
+        Arc::new(Ac9ProductionFactory {
+            ledger: ledger.clone(),
+            creates: creates.clone(),
+            teardowns: teardowns.clone(),
+            hold_generation: hold_generation.clone(),
+            hold_create: hold_create.clone(),
+            fail_model: fail_model.clone(),
+            model_outputs: model_outputs.clone(),
+            held_models: held_models.clone(),
+        }),
+        Arc::new(RecordingSwarmSink::new()),
+        ledger,
+        store.clone(),
+    );
+    Ac9ProductionFixture {
+        pool,
+        store,
+        coordinator,
+        policy,
+        execution_id,
+        decision_id,
+        context,
+        authority,
+        specs,
+        creates,
+        teardowns,
+        hold_generation,
+        hold_create,
+        fail_model,
+        model_outputs,
+        held_models,
+        ledger_drain,
+    }
+}
+
+async fn ac9_wait_for_stage_state(
+    pool: &PgPool,
+    execution_id: &str,
+    stage_id: &str,
+    expected_state: &str,
+) -> Value {
+    for _ in 0..200 {
+        if let Some(record) = sqlx::query_scalar::<_, Value>(
+            "SELECT record_json FROM model_lane_routing_executions WHERE execution_id = $1",
+        )
+        .bind(execution_id)
+        .fetch_optional(pool)
+        .await
+        .expect("poll AC-9 execution projection")
+        {
+            if record
+                .pointer(&format!("/stages/{stage_id}/state"))
+                .and_then(Value::as_str)
+                == Some(expected_state)
+            {
+                return record;
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    panic!("stage {stage_id} did not reach {expected_state}");
+}
+
+async fn ac9_wait_for_stage_attempt_state(
+    pool: &PgPool,
+    execution_id: &str,
+    stage_id: &str,
+    expected_attempt: u64,
+    expected_state: &str,
+) -> Value {
+    for _ in 0..200 {
+        if let Some(record) = sqlx::query_scalar::<_, Value>(
+            "SELECT record_json FROM model_lane_routing_executions WHERE execution_id = $1",
+        )
+        .bind(execution_id)
+        .fetch_optional(pool)
+        .await
+        .expect("poll AC-9 execution attempt projection")
+        {
+            let stage = &record["stages"][stage_id];
+            if stage["attempt"].as_u64() == Some(expected_attempt)
+                && stage["state"].as_str() == Some(expected_state)
+            {
+                return record;
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    panic!("stage {stage_id} attempt {expected_attempt} did not reach {expected_state}");
+}
+
+async fn ac9_force_expired_lease(pool: &PgPool, execution_id: &str, stage_id: &str) {
+    let row = sqlx::query(
+        "SELECT record_json, event_ledger_event_id FROM model_lane_routing_executions WHERE execution_id = $1",
+    )
+    .bind(execution_id)
+    .fetch_one(pool)
+    .await
+    .expect("load AC-9 execution for deterministic expiry");
+    let mut execution: Value = row.get("record_json");
+    execution["stages"][stage_id]["lease_expires_at_unix_ms"] = json!(0);
+    let execution_event_id: String = row.get("event_ledger_event_id");
+    sqlx::query("UPDATE model_lane_routing_executions SET record_json=$2 WHERE execution_id=$1")
+        .bind(execution_id)
+        .bind(&execution)
+        .execute(pool)
+        .await
+        .expect("expire execution-stage lease projection");
+    let mut event_payload: Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id=$1")
+            .bind(&execution_event_id)
+            .fetch_one(pool)
+            .await
+            .expect("load authoritative execution event");
+    event_payload["record"] = execution.clone();
+    sqlx::query("UPDATE kernel_event_ledger SET payload=$2 WHERE event_id=$1")
+        .bind(&execution_event_id)
+        .bind(event_payload)
+        .execute(pool)
+        .await
+        .expect("expire authoritative execution-stage lease");
+
+    let attempt_row = sqlx::query(
+        "SELECT attempt, record_json, event_ledger_event_id FROM model_lane_routing_stage_attempts WHERE execution_id=$1 AND stage_id=$2 ORDER BY attempt DESC LIMIT 1",
+    )
+    .bind(execution_id)
+    .bind(stage_id)
+    .fetch_one(pool)
+    .await
+    .expect("load AC-9 attempt for deterministic expiry");
+    let attempt: i64 = attempt_row.get("attempt");
+    let mut attempt_record: Value = attempt_row.get("record_json");
+    let attempt_event_id: String = attempt_row.get("event_ledger_event_id");
+    attempt_record["lease_expires_at_unix_ms"] = json!(0);
+    sqlx::query(
+        "UPDATE model_lane_routing_stage_attempts SET lease_expires_at_unix_ms=0, record_json=$4 WHERE execution_id=$1 AND stage_id=$2 AND attempt=$3",
+    )
+    .bind(execution_id)
+    .bind(stage_id)
+    .bind(attempt)
+    .bind(&attempt_record)
+    .execute(pool)
+    .await
+    .expect("expire AC-9 attempt lease");
+    let mut attempt_event_payload: Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id=$1")
+            .bind(&attempt_event_id)
+            .fetch_one(pool)
+            .await
+            .expect("load authoritative AC-9 attempt event");
+    attempt_event_payload["lease_expires_at_unix_ms"] = json!(0);
+    attempt_event_payload["record"] = attempt_record;
+    sqlx::query("UPDATE kernel_event_ledger SET payload=$2 WHERE event_id=$1")
+        .bind(&attempt_event_id)
+        .bind(attempt_event_payload)
+        .execute(pool)
+        .await
+        .expect("expire authoritative AC-9 attempt lease");
+
+    let outbox_event_id: String = sqlx::query_scalar(
+        "SELECT event_ledger_event_id FROM model_lane_routing_outbox WHERE execution_id=$1 AND stage_id=$2 AND attempt=$3",
+    )
+    .bind(execution_id)
+    .bind(stage_id)
+    .bind(attempt)
+    .fetch_one(pool)
+    .await
+    .expect("load AC-9 outbox event pointer for deterministic expiry");
+    sqlx::query(
+        "UPDATE model_lane_routing_outbox SET lease_expires_at_unix_ms=0 WHERE execution_id=$1 AND stage_id=$2 AND attempt=$3",
+    )
+    .bind(execution_id)
+    .bind(stage_id)
+    .bind(attempt)
+    .execute(pool)
+    .await
+    .expect("expire AC-9 outbox lease");
+    let mut outbox_event_payload: Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id=$1")
+            .bind(&outbox_event_id)
+            .fetch_one(pool)
+            .await
+            .expect("load authoritative AC-9 outbox event");
+    outbox_event_payload["lease_expires_at_unix_ms"] = json!(0);
+    sqlx::query("UPDATE kernel_event_ledger SET payload=$2 WHERE event_id=$1")
+        .bind(&outbox_event_id)
+        .bind(outbox_event_payload)
+        .execute(pool)
+        .await
+        .expect("expire authoritative AC-9 outbox lease");
+}
+
+fn ac9_stage_is_terminal(state: ModelLaneRoutingStageStateKind) -> bool {
+    matches!(
+        state,
+        ModelLaneRoutingStageStateKind::Succeeded
+            | ModelLaneRoutingStageStateKind::Failed
+            | ModelLaneRoutingStageStateKind::Joined
+            | ModelLaneRoutingStageStateKind::Cancelled
+            | ModelLaneRoutingStageStateKind::Compensated
+    )
+}
+
+fn ac9_stage_is_success(state: ModelLaneRoutingStageStateKind) -> bool {
+    matches!(
+        state,
+        ModelLaneRoutingStageStateKind::Succeeded | ModelLaneRoutingStageStateKind::Joined
+    )
+}
+
+#[test]
+fn ac9_rejects_policy_labelled_arbitrary_dags_and_exposes_only_production_wrapper() {
+    use handshake_core::swarm_orchestration::routing::{
+        ModelLaneRoutingGraph, ModelLaneRoutingPolicy,
+    };
+
+    let _production_entrypoint = execute_production_routing_wave;
+    for policy in ModelLaneRoutingPolicy::all().iter().copied() {
+        let canonical = ModelLaneRoutingGraph::for_policy(policy);
+        canonical
+            .validate()
+            .expect("canonical policy graph validates");
+        let mut forged = canonical.clone();
+        forged.stages.reverse();
+        assert!(
+            forged.validate().is_err(),
+            "policy-labelled arbitrary DAG must be rejected for {}",
+            policy.as_str()
+        );
+    }
+}
+
+#[tokio::test]
+async fn ac9_all_six_policies_execute_real_production_waves_with_typed_lineage() {
+    for policy in ModelLaneRoutingPolicy::all().iter().copied() {
+        eprintln!("AC-9 six-policy proof: {} fixture start", policy.as_str());
+        let fixture = ac9_fixture(policy, &format!("positive-{}", policy.as_str())).await;
+        eprintln!("AC-9 six-policy proof: {} lifecycle start", policy.as_str());
+        let batch = fixture
+            .lifecycle()
+            .await
+            .expect("production lifecycle drives every ready wave without a test-side loop");
+        eprintln!(
+            "AC-9 six-policy proof: {} lifecycle returned {:?}",
+            policy.as_str(),
+            batch.execution.status
+        );
+        let final_batch =
+            if batch.execution.status == ModelLaneRoutingExecutionStatus::AwaitingAuthority {
+                eprintln!(
+                    "AC-9 six-policy proof: {} authority completion start",
+                    policy.as_str()
+                );
+                fixture
+                    .complete_waiting_authority(&batch)
+                    .await
+                    .expect("external authority completion auto-resumes the lifecycle")
+            } else {
+                batch
+            };
+        let final_execution = final_batch.execution;
+        assert_eq!(
+            final_execution.status,
+            ModelLaneRoutingExecutionStatus::Succeeded,
+            "{} must complete its exact canonical DAG",
+            policy.as_str()
+        );
+        assert_eq!(
+            final_execution.selecting_decision_id, fixture.decision_id,
+            "execution remains bound to the selecting decision"
+        );
+        assert_eq!(final_execution.run_id, fixture.context.run_id);
+        assert_eq!(final_execution.trace_id, fixture.context.trace_id);
+        assert_eq!(final_execution.locus_ref, fixture.context.locus_ref);
+        for stage in final_execution.stages.values() {
+            assert_eq!(stage.expected_run_id, fixture.context.run_id);
+            assert!(
+                ac9_stage_is_terminal(stage.state),
+                "terminal execution has no live stage"
+            );
+            if matches!(
+                stage.dispatch_target,
+                ModelLaneRoutingDispatchTarget::LocalModel
+                    | ModelLaneRoutingDispatchTarget::CloudModel
+            ) {
+                assert!(!stage.expected_lane_id.is_empty());
+                assert!(!stage.expected_model_id.is_empty());
+                assert!(stage.output_message_ref.is_some());
+                assert!(stage.output_ref.is_some());
+                assert!(stage.output_sha256.is_some());
+            }
+        }
+        let replay = fixture
+            .store
+            .replay_run(&fixture.context.run_id)
+            .await
+            .expect("replay production routing ModelLaneRun");
+        for stage in final_execution
+            .stages
+            .values()
+            .filter(|stage| ac9_stage_is_success(stage.state))
+        {
+            let Some(message_id) = stage.output_message_ref.as_deref() else {
+                continue;
+            };
+            let message = replay
+                .messages
+                .iter()
+                .find(|message| message.message_id == message_id)
+                .expect("successful stage output replays as a ModelLaneMessage");
+            assert_eq!(message.run_id, fixture.context.run_id);
+            assert_eq!(message.trace_id, fixture.context.trace_id);
+            assert_eq!(
+                message.coordinator_session_id,
+                fixture.context.coordinator_session_id
+            );
+            assert_eq!(message.work_packet_id.as_deref(), Some(WP_ID));
+            assert_eq!(message.micro_task_id.as_deref(), Some(MT_ID));
+            assert_eq!(
+                stage.output_ref.as_deref(),
+                Some(message.payload_ref.as_str())
+            );
+            assert_eq!(
+                stage.output_sha256.as_deref(),
+                Some(message.payload_sha256.as_str())
+            );
+            let artifact_projection = fixture
+                .store
+                .navigation_by_artifact_or_context(
+                    Some(message.payload_ref.as_str()),
+                    None,
+                    Some(fixture.context.run_id.as_str()),
+                )
+                .await
+                .expect("resolve stage output through the authoritative artifact navigation route");
+            let artifact = artifact_projection
+                .artifacts
+                .iter()
+                .find(|artifact| artifact.artifact_ref == message.payload_ref)
+                .expect("each successful output resolves to its exact durable payload artifact");
+            assert_eq!(artifact.artifact_sha256, message.payload_sha256);
+            assert_eq!(
+                sha256_hex(&canonical_json_bytes(&artifact.payload_json)),
+                message.payload_sha256,
+                "artifact bytes, message binding, and execution output share one canonical hash"
+            );
+            let expected_authority = match stage.dispatch_target {
+                ModelLaneRoutingDispatchTarget::Validator => ModelLaneAuthority::ValidatorVerdict,
+                ModelLaneRoutingDispatchTarget::Operator => ModelLaneAuthority::OperatorDecision,
+                _ => ModelLaneAuthority::Advisory,
+            };
+            assert_eq!(
+                message.authority,
+                expected_authority,
+                "ordinary routing output remains advisory while authority responses retain their typed authority"
+            );
+            for (field, value) in [
+                ("proposal_ref", message.proposal_ref.as_deref()),
+                ("crdt_update_ref", message.crdt_update_ref.as_deref()),
+                (
+                    "crdt_base_snapshot_ref",
+                    message.crdt_base_snapshot_ref.as_deref(),
+                ),
+                ("crdt_state_vector", message.crdt_state_vector.as_deref()),
+                ("crdt_proposal_ref", message.crdt_proposal_ref.as_deref()),
+                (
+                    "crdt_stale_base_ref",
+                    message.crdt_stale_base_ref.as_deref(),
+                ),
+            ] {
+                assert!(
+                    value.is_none(),
+                    "{} stage {} fabricated {field}={value:?} instead of persisting real CRDT authority",
+                    policy.as_str(),
+                    stage.stage_id,
+                );
+            }
+        }
+        if policy == ModelLaneRoutingPolicy::CloudReview {
+            assert_eq!(
+                final_execution.stages["cloud-review"]
+                    .output_payload
+                    .as_ref()
+                    .and_then(|value| value.pointer("/typed_output/schema_id"))
+                    .and_then(Value::as_str),
+                Some("hsk.model_lane_cloud_review_verdict@1")
+            );
+            assert_eq!(
+                final_execution.stages["cloud-review"]
+                    .output_payload
+                    .as_ref()
+                    .and_then(|value| value.pointer("/typed_output/verdict"))
+                    .and_then(Value::as_str),
+                Some("accept")
+            );
+        }
+        if policy == ModelLaneRoutingPolicy::ParallelDebate {
+            assert_eq!(
+                final_execution.stages["debate-join"]
+                    .output_payload
+                    .as_ref()
+                    .and_then(|value| value.pointer("/typed_output/schema_id"))
+                    .and_then(Value::as_str),
+                Some("hsk.model_lane_parallel_debate_adjudication@1")
+            );
+            assert_eq!(
+                final_execution.stages["debate-join"].input_refs.len(),
+                3,
+                "debate join keeps the initial causal input plus both sibling artifacts"
+            );
+            assert_eq!(
+                final_execution.stages["debate-join"]
+                    .input_refs
+                    .iter()
+                    .filter(|input_ref| *input_ref != &fixture.context.initial_input_ref)
+                    .count(),
+                2,
+                "typed debate adjudication compares only the two sibling artifacts"
+            );
+        }
+        if matches!(
+            policy,
+            ModelLaneRoutingPolicy::ValidatorLane | ModelLaneRoutingPolicy::OperatorLane
+        ) {
+            let terminal_stage_id = if policy == ModelLaneRoutingPolicy::ValidatorLane {
+                "validator-verdict"
+            } else {
+                "operator-decision"
+            };
+            let stage = &final_execution.stages[terminal_stage_id];
+            let request_ref = stage
+                .authority_request_message_ref
+                .as_deref()
+                .expect("authority stage preserves its typed causal request");
+            let request = replay
+                .messages
+                .iter()
+                .find(|message| message.message_id == request_ref)
+                .expect("typed authority request replays");
+            assert_eq!(
+                request.diagnostic_payload["schema_id"],
+                json!("hsk.model_lane_routing_authority_request@1")
+            );
+            assert_eq!(request.run_id, fixture.context.run_id);
+            assert_eq!(request.trace_id, fixture.context.trace_id);
+            assert_eq!(
+                request.parent_span_id.as_deref(),
+                Some(fixture.context.run_span_id.as_str()),
+                "authority request remains a child of the routing run span"
+            );
+            let predecessor_message_ref = request.diagnostic_payload["predecessor_message_ref"]
+                .as_str()
+                .expect("authority request names its causal predecessor message");
+            let predecessor_message = replay
+                .messages
+                .iter()
+                .find(|message| message.message_id == predecessor_message_ref)
+                .expect("causal predecessor message replays");
+            assert_eq!(
+                request.linked_span_contexts,
+                vec![predecessor_message.message_span_id.clone()],
+                "authority request links the predecessor message span, not an EventLedger event id"
+            );
+            assert_eq!(
+                request.routing.as_ref().map(|routing| routing.requires_ack),
+                Some(true)
+            );
+            let response = replay
+                .messages
+                .iter()
+                .find(|message| {
+                    stage.output_message_ref.as_deref() == Some(message.message_id.as_str())
+                })
+                .expect("typed authority response replays");
+            assert_eq!(
+                response
+                    .routing
+                    .as_ref()
+                    .and_then(|routing| routing.ack_for.as_deref()),
+                stage.authority_request_message_ref.as_deref(),
+                "authority response explicitly acknowledges the causal request"
+            );
+        }
+        fixture
+            .ledger_drain
+            .drain_available_to(Arc::new(PostgresProcessLedgerStore::new(
+                fixture.pool.clone(),
+            )))
+            .await
+            .expect("production-shaped START and STOP rows drain with identical ownership lineage");
+        let ledger_counts: (i64, i64, i64) = sqlx::query_as(
+            r#"
+            SELECT
+                COUNT(*),
+                COUNT(*) FILTER (WHERE stopped_at IS NOT NULL),
+                COUNT(*) FILTER (
+                    WHERE owner_role = $2
+                      AND owner_wp = $3
+                      AND wp_id = $3
+                      AND mt_id = $4
+                )
+            FROM kernel_process_lifecycle
+            WHERE parent_session_id = $1
+            "#,
+        )
+        .bind(&fixture.context.coordinator_session_id)
+        .bind(OWNER)
+        .bind(WP_ID)
+        .bind(MT_ID)
+        .fetch_one(&fixture.pool)
+        .await
+        .expect("read production-shaped process lifecycle proof");
+        let expected_lifecycle_rows = fixture.creates.load(Ordering::SeqCst) as i64;
+        assert_eq!(ledger_counts.0, expected_lifecycle_rows);
+        assert_eq!(
+            ledger_counts.1, expected_lifecycle_rows,
+            "every production-shaped START must have a matching STOP"
+        );
+        assert_eq!(
+            ledger_counts.2, expected_lifecycle_rows,
+            "START and STOP must preserve exact owner/WP/MT lineage"
+        );
+        assert_eq!(
+            fixture.creates.load(Ordering::SeqCst),
+            fixture.teardowns.load(Ordering::SeqCst),
+            "all real model sessions terminate without orphan handles"
+        );
+        eprintln!("AC-9 six-policy proof: {} complete", policy.as_str());
+    }
+}
+
+#[tokio::test]
+async fn ac9_rejects_policy_decision_projection_pointer_run_and_attempt_tamper() {
+    let graph_fixture = ac9_fixture(ModelLaneRoutingPolicy::CloudReview, "tamper-graph").await;
+    let decision_row = sqlx::query(
+        "SELECT record_json, event_ledger_event_id FROM model_lane_promotion_decisions WHERE decision_id=$1",
+    )
+    .bind(&graph_fixture.decision_id)
+    .fetch_one(&graph_fixture.pool)
+    .await
+    .expect("load selecting decision for canonical-graph tamper");
+    let mut decision: Value = decision_row.get("record_json");
+    decision["diagnostic_payload"]["routing_graph"]["stages"]
+        .as_array_mut()
+        .expect("routing graph stages")
+        .reverse();
+    let decision_event_id: String = decision_row.get("event_ledger_event_id");
+    sqlx::query("UPDATE model_lane_promotion_decisions SET record_json=$2 WHERE decision_id=$1")
+        .bind(&graph_fixture.decision_id)
+        .bind(&decision)
+        .execute(&graph_fixture.pool)
+        .await
+        .expect("tamper selecting decision projection graph");
+    let mut decision_event: Value =
+        sqlx::query_scalar("SELECT payload FROM kernel_event_ledger WHERE event_id=$1")
+            .bind(&decision_event_id)
+            .fetch_one(&graph_fixture.pool)
+            .await
+            .expect("load selecting decision EventLedger payload");
+    decision_event["record"] = decision;
+    sqlx::query("UPDATE kernel_event_ledger SET payload=$2 WHERE event_id=$1")
+        .bind(&decision_event_id)
+        .bind(decision_event)
+        .execute(&graph_fixture.pool)
+        .await
+        .expect("tamper selecting decision EventLedger graph");
+    let graph_error = graph_fixture
+        .wave()
+        .await
+        .expect_err("noncanonical policy-labelled graph must fail");
+    assert!(graph_error.to_string().contains("exact canonical graph"));
+
+    let decision_fixture =
+        ac9_fixture(ModelLaneRoutingPolicy::CloudReview, "tamper-decision").await;
+    sqlx::query(
+        "UPDATE model_lane_promotion_decisions SET record_json=jsonb_set(record_json, '{owner_session}', '\"tampered-owner\"'::jsonb) WHERE decision_id=$1",
+    )
+    .bind(&decision_fixture.decision_id)
+    .execute(&decision_fixture.pool)
+    .await
+    .expect("tamper decision projection only");
+    assert!(decision_fixture
+        .wave()
+        .await
+        .expect_err("decision projection drift must fail")
+        .to_string()
+        .contains("projection/EventLedger"));
+
+    let run_fixture = ac9_fixture(ModelLaneRoutingPolicy::CloudReview, "tamper-run").await;
+    sqlx::query(
+        "UPDATE model_lane_runs SET record_json=jsonb_set(record_json, '{trace_id}', '\"trace-tampered\"'::jsonb) WHERE run_id=$1",
+    )
+    .bind(&run_fixture.context.run_id)
+    .execute(&run_fixture.pool)
+    .await
+    .expect("tamper run projection only");
+    assert!(run_fixture
+        .wave()
+        .await
+        .expect_err("run projection drift must fail")
+        .to_string()
+        .contains("projection/EventLedger"));
+
+    let pointer_fixture = ac9_fixture(ModelLaneRoutingPolicy::CloudReview, "tamper-pointer").await;
+    pointer_fixture
+        .wave()
+        .await
+        .expect("initialize pointer fixture");
+    sqlx::query(
+        "UPDATE model_lane_routing_executions SET event_ledger_seq=event_ledger_seq+1 WHERE execution_id=$1",
+    )
+    .bind(&pointer_fixture.execution_id)
+    .execute(&pointer_fixture.pool)
+    .await
+    .expect("tamper execution EventLedger pointer");
+    assert!(pointer_fixture
+        .wave()
+        .await
+        .expect_err("dangling execution pointer must fail")
+        .to_string()
+        .contains("integrity"));
+
+    let attempt_fixture = ac9_fixture(ModelLaneRoutingPolicy::CloudReview, "tamper-attempt").await;
+    attempt_fixture
+        .wave()
+        .await
+        .expect("initialize attempt fixture");
+    sqlx::query(
+        "UPDATE model_lane_routing_stage_attempts SET record_json=jsonb_set(record_json, '{expected_model_id}', '\"tampered-model\"'::jsonb) WHERE execution_id=$1 AND stage_id='local-candidate'",
+    )
+    .bind(&attempt_fixture.execution_id)
+    .execute(&attempt_fixture.pool)
+    .await
+    .expect("tamper active attempt projection");
+    assert!(attempt_fixture
+        .wave()
+        .await
+        .expect_err("attempt projection drift must fail")
+        .to_string()
+        .contains("routing attempt"));
+}
+
+#[tokio::test]
+async fn ac9_concurrent_production_claims_and_run_extension_are_single_effect_idempotent() {
+    let fixture =
+        Arc::new(ac9_fixture(ModelLaneRoutingPolicy::CloudReview, "concurrent-claim").await);
+    fixture.hold_generation.store(true, Ordering::SeqCst);
+    let left_worker = {
+        let fixture = fixture.clone();
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    ac9_wait_for_stage_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "local-candidate",
+        "in_flight",
+    )
+    .await;
+    let right = fixture
+        .wave()
+        .await
+        .expect("competing production claim wave");
+    fixture.hold_generation.store(false, Ordering::SeqCst);
+    let left = left_worker
+        .await
+        .expect("join winning production wave")
+        .expect("winning production wave succeeds");
+    assert_eq!(
+        left.dispatched.len() + right.dispatched.len(),
+        1,
+        "SKIP LOCKED outbox claim permits one local-candidate dispatcher"
+    );
+    assert_eq!(fixture.creates.load(Ordering::SeqCst), 1);
+    let local_lane_id = fixture
+        .specs
+        .iter()
+        .find(|spec| spec.stage_id == "local-candidate")
+        .and_then(|spec| spec.lane_id.as_deref())
+        .expect("local candidate planned lane");
+    let lane_rows: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM model_lanes WHERE run_id=$1 AND lane_id=$2")
+            .bind(&fixture.context.run_id)
+            .bind(local_lane_id)
+            .fetch_one(&fixture.pool)
+            .await
+            .expect("count concurrently attached lane rows");
+    assert_eq!(lane_rows, 1);
+    let run_lane_occurrences: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_runs run CROSS JOIN LATERAL jsonb_array_elements_text(run.record_json->'lane_ids') lane WHERE run.run_id=$1 AND lane=$2",
+    )
+    .bind(&fixture.context.run_id)
+    .bind(local_lane_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("count canonical run lane membership");
+    assert_eq!(run_lane_occurrences, 1);
+    let final_batch = fixture
+        .wave()
+        .await
+        .expect("dispatch cloud review after claim race");
+    assert_eq!(
+        final_batch.execution.status,
+        ModelLaneRoutingExecutionStatus::Succeeded
+    );
+}
+
+#[tokio::test]
+async fn ac9_concurrent_exact_run_extension_replays_one_canonical_lane() {
+    let fixture = ac9_fixture(ModelLaneRoutingPolicy::CloudReview, "run-extension-race").await;
+    let mut launches = fixture.launches();
+    let request = launches
+        .iter_mut()
+        .find(|launch| launch.stage_id == "local-candidate")
+        .and_then(|launch| launch.request.take())
+        .expect("real local-candidate SpawnRequest");
+    let record_id = ProcessOwnershipRecordId::new_v7();
+    let teardown: handshake_core::swarm_orchestration::SessionTeardown =
+        Arc::new(|| Box::pin(async { Ok(()) }));
+    let live = LiveSession::new(
+        Arc::new(Ac9ProductionRuntime::new(
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(Mutex::new(HashMap::new())),
+        )),
+        request.instance_id.model_id,
+        CancellationToken::new(),
+        teardown,
+        record_id,
+        62_001,
+    );
+    let records = build_successful_launch_records(&request, &live)
+        .expect("build exact successful launch records for extension race");
+    let (left, right) = tokio::join!(
+        fixture.store.record_prepared_launch(records.clone()),
+        fixture.store.record_prepared_launch(records),
+    );
+    let (left_run, left_lane) = left.expect("left exact run extension");
+    let (right_run, right_lane) = right.expect("right exact run extension replay");
+    assert_eq!(left_lane.lane_id, right_lane.lane_id);
+    assert_eq!(
+        left_lane.event_ledger_event_id,
+        right_lane.event_ledger_event_id
+    );
+    assert_eq!(left_run.run_id, right_run.run_id);
+    assert_eq!(
+        right_run
+            .lane_ids
+            .iter()
+            .filter(|lane_id| *lane_id == &right_lane.lane_id)
+            .count(),
+        1
+    );
+    let replay = fixture
+        .store
+        .replay_run(&fixture.context.run_id)
+        .await
+        .expect("replay concurrently extended run");
+    assert_eq!(
+        replay
+            .lanes
+            .iter()
+            .filter(|lane| lane.lane_id == right_lane.lane_id)
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn ac9_local_first_failure_dispatches_the_cloud_escalation_contract() {
+    let fixture = ac9_fixture(ModelLaneRoutingPolicy::LocalFirst, "local-fallback").await;
+    let local_model = fixture
+        .specs
+        .iter()
+        .find(|spec| spec.stage_id == "local-attempt")
+        .and_then(|spec| spec.instance_id)
+        .expect("local-attempt model")
+        .model_id;
+    *fixture.fail_model.lock().expect("set local failure") = Some(local_model);
+    let local = fixture
+        .wave()
+        .await
+        .expect("persist failed local production attempt");
+    assert_eq!(
+        local.execution.stages["local-attempt"].state,
+        ModelLaneRoutingStageStateKind::Failed
+    );
+    assert_eq!(
+        local.execution.status,
+        ModelLaneRoutingExecutionStatus::Running
+    );
+    *fixture.fail_model.lock().expect("clear local failure") = None;
+    let cloud = fixture
+        .wave()
+        .await
+        .expect("dispatch cloud escalation after local failure");
+    assert_eq!(
+        cloud.execution.status,
+        ModelLaneRoutingExecutionStatus::Succeeded
+    );
+    assert_eq!(
+        cloud.execution.stages["cloud-escalation"].state,
+        ModelLaneRoutingStageStateKind::Succeeded
+    );
+    assert_eq!(
+        cloud.execution.stages["cloud-escalation"].expected_provider,
+        Some(ProviderKind::ByokCloud)
+    );
+}
+
+#[tokio::test]
+async fn ac9_parallel_peer_failure_immediately_cancels_live_sibling() {
+    let fixture =
+        Arc::new(ac9_fixture(ModelLaneRoutingPolicy::ParallelDebate, "peer-failure").await);
+    fixture.hold_generation.store(true, Ordering::SeqCst);
+    let cloud_model = fixture
+        .specs
+        .iter()
+        .find(|spec| spec.stage_id == "debate-cloud")
+        .and_then(|spec| spec.instance_id)
+        .expect("debate-cloud model")
+        .model_id;
+    *fixture.fail_model.lock().expect("set cloud peer failure") = Some(cloud_model);
+    let result = fixture.wave().await;
+    assert!(
+        result.is_err(),
+        "cancelled sibling worker reports its stale terminal write"
+    );
+    let record: Value = sqlx::query_scalar(
+        "SELECT record_json FROM model_lane_routing_executions WHERE execution_id=$1",
+    )
+    .bind(&fixture.execution_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("load peer-failure execution");
+    assert_eq!(record["status"], json!("failed"));
+    assert_eq!(record["stages"]["debate-cloud"]["state"], json!("failed"));
+    assert_eq!(
+        record["stages"]["debate-local"]["state"],
+        json!("cancelled")
+    );
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn ac9_crash_after_intent_before_spawn_completion_recovers_without_orphan() {
+    let fixture = Arc::new(ac9_fixture(ModelLaneRoutingPolicy::LocalFirst, "crash-intent").await);
+    fixture.hold_create.store(true, Ordering::SeqCst);
+    let worker = {
+        let fixture = fixture.clone();
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    let intent = ac9_wait_for_stage_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "local-attempt",
+        "in_flight",
+    )
+    .await;
+    assert!(intent["stages"]["local-attempt"]["instance_id"].is_string());
+    let planned_lane_id = fixture
+        .specs
+        .iter()
+        .find(|spec| spec.stage_id == "local-attempt")
+        .and_then(|spec| spec.lane_id.as_deref())
+        .expect("planned local-attempt lane");
+    let lane_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM model_lanes WHERE lane_id=$1")
+        .bind(planned_lane_id)
+        .fetch_one(&fixture.pool)
+        .await
+        .expect("count lanes before held factory returns");
+    assert_eq!(
+        lane_count, 0,
+        "intent is durable before spawn records exist"
+    );
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 0);
+    worker.abort();
+    ac9_force_expired_lease(&fixture.pool, &fixture.execution_id, "local-attempt").await;
+    fixture.hold_create.store(false, Ordering::SeqCst);
+    let recovered = fixture
+        .coordinator
+        .recover_routing_execution(&fixture.execution_id, fixture.launches())
+        .await
+        .expect("recover intent-only crash boundary");
+    assert_eq!(
+        recovered.execution.stages["local-attempt"].state,
+        ModelLaneRoutingStageStateKind::Succeeded
+    );
+    assert_eq!(recovered.execution.stages["local-attempt"].attempt, 2);
+    assert_eq!(fixture.creates.load(Ordering::SeqCst), 2);
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn ac9_crash_after_persisted_spawn_intent_recovers_with_new_fence_and_compensation() {
+    let fixture = Arc::new(
+        ac9_fixture(
+            ModelLaneRoutingPolicy::CloudPlanLocalExecute,
+            "crash-recover",
+        )
+        .await,
+    );
+    fixture.hold_generation.store(true, Ordering::SeqCst);
+    let worker = {
+        let fixture = fixture.clone();
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    let before_crash = ac9_wait_for_stage_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "cloud-plan",
+        "in_flight",
+    )
+    .await;
+    let old_fence = before_crash["stages"]["cloud-plan"]["fencing_token"]
+        .as_str()
+        .expect("persisted pre-spawn fence")
+        .to_string();
+    assert!(before_crash["stages"]["cloud-plan"]["instance_id"].is_string());
+    worker.abort();
+    ac9_force_expired_lease(&fixture.pool, &fixture.execution_id, "cloud-plan").await;
+    fixture.hold_generation.store(false, Ordering::SeqCst);
+    let recovered = fixture
+        .coordinator
+        .recover_routing_execution(&fixture.execution_id, fixture.launches())
+        .await
+        .expect("recover and redispatch expired production stage");
+    let stage = &recovered.execution.stages["cloud-plan"];
+    assert_eq!(stage.attempt, 2);
+    assert_eq!(stage.state, ModelLaneRoutingStageStateKind::Succeeded);
+    let retry_fence: String = sqlx::query_scalar(
+        "SELECT ledger.payload->>'fencing_token' FROM model_lane_routing_stage_attempts attempt JOIN kernel_event_ledger ledger ON ledger.event_id=attempt.event_ledger_event_id AND ledger.event_sequence=attempt.event_ledger_seq WHERE attempt.execution_id=$1 AND attempt.stage_id='cloud-plan' AND attempt.attempt=2",
+    )
+    .bind(&fixture.execution_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("read retry fencing token from terminal attempt event");
+    assert_ne!(retry_fence, old_fence);
+    let compensated = sqlx::query(
+        "SELECT attempt.status, attempt.record_json, ledger.aggregate_type, ledger.aggregate_id, ledger.payload FROM model_lane_routing_stage_attempts attempt JOIN kernel_event_ledger ledger ON ledger.event_id=attempt.event_ledger_event_id AND ledger.event_sequence=attempt.event_ledger_seq WHERE attempt.execution_id=$1 AND attempt.stage_id='cloud-plan' AND attempt.attempt=1",
+    )
+    .bind(&fixture.execution_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("read compensated stale attempt and its EventLedger record");
+    let compensated_status: String = compensated.get("status");
+    let compensated_record: Value = compensated.get("record_json");
+    let compensated_aggregate_type: String = compensated.get("aggregate_type");
+    let compensated_aggregate_id: String = compensated.get("aggregate_id");
+    let compensated_payload: Value = compensated.get("payload");
+    assert_eq!(compensated_status, "compensated");
+    assert_eq!(compensated_record["state"], json!("compensated"));
+    assert_eq!(compensated_record["fencing_token"], Value::Null);
+    assert_eq!(
+        compensated_aggregate_type,
+        "model_lane_routing_stage_attempt"
+    );
+    assert_eq!(
+        compensated_aggregate_id,
+        format!("{}:cloud-plan:1", fixture.execution_id)
+    );
+    assert_eq!(compensated_payload["state"], json!("compensated"));
+    assert_eq!(fixture.creates.load(Ordering::SeqCst), 2);
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn ac9_bounded_retry_exhaustion_fails_after_three_durable_attempts() {
+    let fixture =
+        Arc::new(ac9_fixture(ModelLaneRoutingPolicy::LocalFirst, "retry-exhaustion").await);
+    fixture.hold_create.store(true, Ordering::SeqCst);
+
+    for expected_attempt in 1..=3_u64 {
+        let worker = if expected_attempt == 1 {
+            let fixture = fixture.clone();
+            tokio::spawn(async move { fixture.wave().await })
+        } else {
+            let fixture = fixture.clone();
+            tokio::spawn(async move {
+                fixture
+                    .coordinator
+                    .recover_routing_execution(&fixture.execution_id, fixture.launches())
+                    .await
+            })
+        };
+        ac9_wait_for_stage_attempt_state(
+            &fixture.pool,
+            &fixture.execution_id,
+            "local-attempt",
+            expected_attempt,
+            "in_flight",
+        )
+        .await;
+        worker.abort();
+        ac9_force_expired_lease(&fixture.pool, &fixture.execution_id, "local-attempt").await;
+    }
+
+    fixture.hold_create.store(false, Ordering::SeqCst);
+    let exhausted = fixture
+        .coordinator
+        .recover_routing_execution(&fixture.execution_id, fixture.launches())
+        .await
+        .expect("bounded local exhaustion dispatches the canonical cloud fallback");
+    let stage = &exhausted.execution.stages["local-attempt"];
+    assert_eq!(stage.attempt, 3);
+    assert_eq!(stage.state, ModelLaneRoutingStageStateKind::Failed);
+    assert_eq!(
+        stage.detail.as_deref(),
+        Some("routing stage exhausted bounded recovery attempts")
+    );
+    assert_eq!(
+        exhausted.execution.status,
+        ModelLaneRoutingExecutionStatus::Succeeded,
+        "LocalFirst must continue through its bounded cloud fallback"
+    );
+    assert_eq!(
+        exhausted.execution.stages["cloud-escalation"].state,
+        ModelLaneRoutingStageStateKind::Succeeded
+    );
+    assert_eq!(fixture.creates.load(Ordering::SeqCst), 4);
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 1);
+
+    let attempts: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_routing_stage_attempts WHERE execution_id=$1 AND stage_id='local-attempt'",
+    )
+    .bind(&fixture.execution_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("count bounded retry attempts");
+    assert_eq!(attempts, 3, "retry authority must never create attempt 4");
+    let exhausted_payload: Value = sqlx::query_scalar(
+        "SELECT payload FROM kernel_event_ledger WHERE aggregate_type='model_lane_routing_stage_attempt' AND aggregate_id=$1 ORDER BY event_sequence DESC LIMIT 1",
+    )
+    .bind(format!("{}:local-attempt:3", fixture.execution_id))
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("load bounded recovery exhaustion EventLedger evidence");
+    assert_eq!(
+        exhausted_payload["reason"],
+        json!("bounded_recovery_exhausted")
+    );
+    assert_eq!(exhausted_payload["attempt"], json!(3));
+    assert_eq!(exhausted_payload["state"], json!("failed"));
+}
+
+#[tokio::test]
+async fn ac9_redispatch_rejects_the_live_prior_attempt_stale_fence() {
+    let fixture =
+        Arc::new(ac9_fixture(ModelLaneRoutingPolicy::CloudPlanLocalExecute, "stale-fence").await);
+    fixture.hold_generation.store(true, Ordering::SeqCst);
+    let prior_worker = {
+        let fixture = fixture.clone();
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    let prior = ac9_wait_for_stage_attempt_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "cloud-plan",
+        1,
+        "in_flight",
+    )
+    .await;
+    let prior_fence = prior["stages"]["cloud-plan"]["fencing_token"]
+        .as_str()
+        .expect("attempt-1 fence")
+        .to_string();
+    ac9_force_expired_lease(&fixture.pool, &fixture.execution_id, "cloud-plan").await;
+    let recovery_worker = {
+        let fixture = fixture.clone();
+        tokio::spawn(async move {
+            fixture
+                .coordinator
+                .recover_routing_execution(&fixture.execution_id, fixture.launches())
+                .await
+        })
+    };
+    let retry = ac9_wait_for_stage_attempt_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "cloud-plan",
+        2,
+        "in_flight",
+    )
+    .await;
+    assert_ne!(
+        retry["stages"]["cloud-plan"]["fencing_token"].as_str(),
+        Some(prior_fence.as_str())
+    );
+    fixture.hold_generation.store(false, Ordering::SeqCst);
+    let recovered = recovery_worker
+        .await
+        .expect("join retry worker")
+        .expect("attempt 2 commits through its current fence");
+    assert_eq!(
+        recovered.execution.stages["cloud-plan"].state,
+        ModelLaneRoutingStageStateKind::Succeeded
+    );
+    let stale = prior_worker
+        .await
+        .expect("join prior worker")
+        .expect_err("attempt 1 cannot commit after attempt 2 owns the stage");
+    assert!(stale.to_string().contains("stale routing claim"));
+    let stale_artifacts: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE artifact_ref LIKE $1",
+    )
+    .bind(format!(
+        "artifact://model-lane-routing/{}/cloud-plan/1/%",
+        fixture.execution_id
+    ))
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("count stale-attempt artifacts");
+    assert_eq!(
+        stale_artifacts, 0,
+        "stale fence is rejected before artifact/message persistence"
+    );
+    assert_eq!(fixture.creates.load(Ordering::SeqCst), 2);
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn ac9_cancel_terminalizes_parallel_siblings_and_live_sessions() {
+    let fixture =
+        Arc::new(ac9_fixture(ModelLaneRoutingPolicy::ParallelDebate, "cancel-siblings").await);
+    fixture.hold_generation.store(true, Ordering::SeqCst);
+    let worker = {
+        let fixture = fixture.clone();
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    ac9_wait_for_stage_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "debate-local",
+        "in_flight",
+    )
+    .await;
+    ac9_wait_for_stage_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "debate-cloud",
+        "in_flight",
+    )
+    .await;
+    let cancelled = fixture
+        .coordinator
+        .cancel_routing_execution(&fixture.execution_id, "operator AC-9 cancellation")
+        .await
+        .expect("cancel production routing execution");
+    assert_eq!(cancelled.status, ModelLaneRoutingExecutionStatus::Cancelled);
+    assert!(cancelled.stages.values().all(|stage| {
+        stage.state == ModelLaneRoutingStageStateKind::Cancelled
+            || ac9_stage_is_terminal(stage.state)
+    }));
+    let _ = worker.await;
+    assert_eq!(fixture.creates.load(Ordering::SeqCst), 2);
+    assert_eq!(fixture.teardowns.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn ac9_inflight_heartbeat_renews_lease_and_eventledger_pointer() {
+    let fixture = Arc::new(ac9_fixture(ModelLaneRoutingPolicy::LocalFirst, "heartbeat").await);
+    fixture.hold_generation.store(true, Ordering::SeqCst);
+    let worker = {
+        let fixture = fixture.clone();
+        tokio::spawn(async move { fixture.wave().await })
+    };
+    let before = ac9_wait_for_stage_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "local-attempt",
+        "in_flight",
+    )
+    .await;
+    let before_event = before["stages"]["local-attempt"]["event_ledger_event_id"]
+        .as_str()
+        .expect("pre-heartbeat event pointer")
+        .to_string();
+    let before_expiry = before["stages"]["local-attempt"]["lease_expires_at_unix_ms"]
+        .as_u64()
+        .expect("pre-heartbeat lease expiry");
+    tokio::time::sleep(Duration::from_secs(11)).await;
+    let after: Value = sqlx::query_scalar(
+        "SELECT record_json FROM model_lane_routing_executions WHERE execution_id=$1",
+    )
+    .bind(&fixture.execution_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("load post-heartbeat execution projection");
+    assert_ne!(
+        after["stages"]["local-attempt"]["event_ledger_event_id"].as_str(),
+        Some(before_event.as_str()),
+        "heartbeat advances the attempt EventLedger pointer"
+    );
+    assert!(
+        after["stages"]["local-attempt"]["lease_expires_at_unix_ms"]
+            .as_u64()
+            .expect("post-heartbeat lease expiry")
+            > before_expiry,
+        "heartbeat extends the live lease"
+    );
+    fixture
+        .coordinator
+        .cancel_routing_execution(&fixture.execution_id, "heartbeat proof complete")
+        .await
+        .expect("cancel heartbeat proof execution");
+    let _ = worker.await;
+}
+
+#[tokio::test]
+async fn ac9_replay_rejects_message_and_artifact_projection_drift() {
+    let message_fixture = ac9_fixture(ModelLaneRoutingPolicy::LocalFirst, "tamper-message").await;
+    let batch = message_fixture
+        .wave()
+        .await
+        .expect("produce message tamper fixture output");
+    let message_id = batch.execution.stages["local-attempt"]
+        .output_message_ref
+        .as_deref()
+        .expect("local output message");
+    sqlx::query(
+        "UPDATE model_lane_messages SET event_ledger_seq=event_ledger_seq+1 WHERE message_id=$1",
+    )
+    .bind(message_id)
+    .execute(&message_fixture.pool)
+    .await
+    .expect("tamper ModelLaneMessage pointer");
+    assert!(message_fixture
+        .store
+        .replay_run(&message_fixture.context.run_id)
+        .await
+        .expect_err("message pointer drift must fail replay")
+        .to_string()
+        .contains("EventLedger"));
+
+    let artifact_fixture = ac9_fixture(ModelLaneRoutingPolicy::LocalFirst, "tamper-artifact").await;
+    let batch = artifact_fixture
+        .wave()
+        .await
+        .expect("produce artifact tamper fixture output");
+    let artifact_ref = batch.execution.stages["local-attempt"]
+        .output_ref
+        .as_deref()
+        .expect("local output artifact");
+    sqlx::query(
+        "UPDATE model_lane_context_bundle_artifacts SET record_json=jsonb_set(record_json, '{payload_json,typed_output,proposal}', '\"tampered-output\"'::jsonb) WHERE artifact_ref=$1",
+    )
+    .bind(artifact_ref)
+    .execute(&artifact_fixture.pool)
+    .await
+    .expect("tamper output artifact projection");
+    assert!(artifact_fixture
+        .store
+        .replay_run(&artifact_fixture.context.run_id)
+        .await
+        .expect_err("artifact projection drift must fail replay")
+        .to_string()
+        .contains("EventLedger"));
+}
+
+#[tokio::test]
+async fn ac9_authority_retry_rejects_late_prior_attempt_ack_and_uses_new_fence() {
+    let fixture = ac9_fixture(ModelLaneRoutingPolicy::ValidatorLane, "authority-stale").await;
+    fixture.wave().await.expect("produce validator candidate");
+    let first_authority = fixture
+        .wave()
+        .await
+        .expect("dispatch validator authority attempt 1");
+    let first_stage = &first_authority.execution.stages["validator-verdict"];
+    assert_eq!(
+        first_stage.state,
+        ModelLaneRoutingStageStateKind::AwaitingAuthority
+    );
+    let first_request = first_stage
+        .authority_request_message_ref
+        .clone()
+        .expect("attempt-1 authority request");
+    let first_fence = first_stage
+        .fencing_token
+        .clone()
+        .expect("attempt-1 authority fence");
+    let authority_lane_id = first_stage.lane_id.clone().expect("validator lane");
+    let late_message_id = format!("ac9-late-authority-{}", fixture.execution_id);
+    let mut late = sample_message(
+        &late_message_id,
+        &fixture.context.run_id,
+        &authority_lane_id,
+        "authority",
+        120,
+    );
+    late.kind = ModelLaneMessageKind::Status;
+    late.authority = ModelLaneAuthority::ValidatorVerdict;
+    late.promotion_decision_id = None;
+    late.promotion_gate_ref = None;
+    late.promotion_receipt_ref = None;
+    late.promoted_artifact_ref = None;
+    late.promoted_artifact_sha256 = None;
+    late.promoted_artifact_version = None;
+    late.validator_verdict_ref = first_stage.authority_ref.clone();
+    late.routing = Some(ModelLaneRoutingMetadata {
+        target_role: "coordinator".into(),
+        target_session: fixture.context.coordinator_session_id.clone(),
+        correlation_id: format!("routing:{}:validator-verdict", fixture.execution_id),
+        requires_ack: false,
+        ack_for: Some(first_request.clone()),
+    });
+    late.diagnostic_payload = json!({
+        "schema_id": "hsk.model_lane_routing_authority_response@1",
+        "execution_id": fixture.execution_id,
+        "stage_id": "validator-verdict",
+        "attempt": 1,
+        "verdict": "approve",
+    });
+    late.payload_sha256 = sha256_hex(&canonical_json_bytes(&artifact_payload_json_for_message(
+        &late,
+    )));
+    let late_record = fixture
+        .store
+        .record_message_with_payload_binding(
+            late.clone(),
+            sample_artifact_binding_for_message(&late),
+        )
+        .await
+        .expect("persist valid but deliberately late attempt-1 authority response");
+    ac9_force_expired_lease(&fixture.pool, &fixture.execution_id, "validator-verdict").await;
+    let second_authority = fixture
+        .coordinator
+        .recover_routing_execution(&fixture.execution_id, fixture.launches())
+        .await
+        .expect("compensate and redispatch validator authority attempt 2");
+    let second_stage = &second_authority.execution.stages["validator-verdict"];
+    assert_eq!(second_stage.attempt, 2);
+    assert_eq!(
+        second_stage.state,
+        ModelLaneRoutingStageStateKind::AwaitingAuthority
+    );
+    assert_ne!(
+        second_stage.fencing_token.as_deref(),
+        Some(first_fence.as_str())
+    );
+    assert_ne!(
+        second_stage.authority_request_message_ref.as_deref(),
+        Some(first_request.as_str())
+    );
+    let stale_error = fixture
+        .coordinator
+        .complete_authority_routing_stage(
+            &fixture.execution_id,
+            "validator-verdict",
+            &late_record.message_id,
+        )
+        .await
+        .expect_err("attempt-1 authority ack cannot satisfy attempt 2");
+    assert!(stale_error.to_string().contains("causally bound"));
+    let final_batch = fixture
+        .complete_waiting_authority(&second_authority)
+        .await
+        .expect("record and complete attempt-2 authority response");
+    assert_eq!(
+        final_batch.execution.status,
+        ModelLaneRoutingExecutionStatus::Succeeded
+    );
+    let attempt_one = sqlx::query(
+        "SELECT attempt.status, attempt.record_json, ledger.aggregate_id, ledger.payload FROM model_lane_routing_stage_attempts attempt JOIN kernel_event_ledger ledger ON ledger.event_id=attempt.event_ledger_event_id AND ledger.event_sequence=attempt.event_ledger_seq WHERE attempt.execution_id=$1 AND attempt.stage_id='validator-verdict' AND attempt.attempt=1",
+    )
+    .bind(&fixture.execution_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("read authority attempt-1 compensation lineage");
+    let attempt_one_status: String = attempt_one.get("status");
+    let attempt_one_record: Value = attempt_one.get("record_json");
+    let attempt_one_aggregate_id: String = attempt_one.get("aggregate_id");
+    let attempt_one_payload: Value = attempt_one.get("payload");
+    assert_eq!(attempt_one_status, "compensated");
+    assert_eq!(attempt_one_record["state"], json!("compensated"));
+    assert_eq!(attempt_one_record["fencing_token"], Value::Null);
+    assert_eq!(
+        attempt_one_aggregate_id,
+        format!("{}:validator-verdict:1", fixture.execution_id)
+    );
+    assert_eq!(attempt_one_payload["state"], json!("compensated"));
+}
+
+#[tokio::test]
+async fn ac9_cloud_review_strict_typed_decoder_rejects_malformed_outputs_without_artifacts() {
+    let invalid = [
+        ("missing", r#"{}"#),
+        ("null", r#"{"verdict":null,"review":"x"}"#),
+        ("numeric", r#"{"verdict":7,"review":"x"}"#),
+        ("blank", r#"{"verdict":"accept","review":"   "}"#),
+        ("invalid", r#"{"verdict":"maybe","review":"x"}"#),
+    ];
+    for (suffix, output) in invalid {
+        let fixture = ac9_fixture(
+            ModelLaneRoutingPolicy::CloudReview,
+            &format!("review-{suffix}"),
+        )
+        .await;
+        let cloud_model = fixture
+            .specs
+            .iter()
+            .find(|spec| spec.stage_id == "cloud-review")
+            .and_then(|spec| spec.instance_id)
+            .expect("cloud-review model")
+            .model_id;
+        fixture
+            .model_outputs
+            .lock()
+            .expect("set malformed review")
+            .insert(cloud_model, output.to_string());
+        let error = fixture
+            .lifecycle()
+            .await
+            .expect_err("malformed CloudReview must fail closed");
+        assert!(error.to_string().contains("cloud-review"));
+        let artifacts: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE artifact_ref LIKE $1",
+        )
+        .bind(format!(
+            "artifact://model-lane-routing/{}/cloud-review/%",
+            fixture.execution_id
+        ))
+        .fetch_one(&fixture.pool)
+        .await
+        .expect("count rejected review artifacts");
+        assert_eq!(
+            artifacts, 0,
+            "typed decoding precedes artifact/message side effects"
+        );
+    }
+}
+
+#[tokio::test]
+async fn ac9_parallel_debate_adjudication_is_content_sensitive_for_contradictory_fixtures() {
+    let cases = [
+        (
+            "contradiction-a",
+            "Never deploy this change.",
+            "Deploy this change immediately.",
+        ),
+        (
+            "contradiction-b",
+            "Delete the migration.",
+            "Retain and expand the migration.",
+        ),
+    ];
+    let mut selected_outputs = Vec::new();
+    for (suffix, local, cloud) in cases {
+        let fixture = ac9_fixture(ModelLaneRoutingPolicy::ParallelDebate, suffix).await;
+        for spec in &fixture.specs {
+            let Some(instance) = spec.instance_id else {
+                continue;
+            };
+            let output = if spec.stage_id == "debate-local" {
+                local
+            } else {
+                cloud
+            };
+            fixture
+                .model_outputs
+                .lock()
+                .expect("set debate output")
+                .insert(instance.model_id, output.to_string());
+        }
+        let batch = fixture
+            .lifecycle()
+            .await
+            .expect("drive contradictory debate lifecycle");
+        let join = &batch.execution.stages["debate-join"];
+        let output_ref = join.output_ref.as_deref().expect("debate artifact");
+        let projection = fixture
+            .store
+            .navigation_by_artifact_or_context(
+                Some(output_ref),
+                None,
+                Some(&fixture.context.run_id),
+            )
+            .await
+            .expect("load debate adjudication artifact");
+        let artifact = projection
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.artifact_ref == output_ref)
+            .expect("exact debate artifact");
+        assert_eq!(
+            artifact
+                .payload_json
+                .pointer("/typed_output/decision")
+                .and_then(Value::as_str),
+            Some("selected_canonical_candidate")
+        );
+        assert!(artifact
+            .payload_json
+            .pointer("/typed_output/rationale")
+            .and_then(Value::as_str)
+            .is_some_and(|value| value.contains("proposals conflict")));
+        selected_outputs.push(
+            artifact
+                .payload_json
+                .pointer("/typed_output/selected_output")
+                .and_then(Value::as_str)
+                .expect("selected content-sensitive output")
+                .to_string(),
+        );
+    }
+    assert_ne!(selected_outputs[0], selected_outputs[1]);
+}
+
+#[tokio::test]
+async fn ac9_selecting_decision_launch_plan_rejects_local_cloud_and_provider_tamper() {
+    for (suffix, stage_id, tamper_provider) in [
+        ("plan-local", "local-candidate", false),
+        ("plan-cloud", "cloud-review", false),
+        ("plan-provider", "cloud-review", true),
+    ] {
+        let fixture = ac9_fixture(ModelLaneRoutingPolicy::CloudReview, suffix).await;
+        let mut launches = fixture.launches();
+        let launch = launches
+            .iter_mut()
+            .find(|launch| launch.stage_id == stage_id)
+            .expect("planned stage launch");
+        if tamper_provider {
+            launch.expected_provider = Some(ProviderKind::OfficialCli);
+            launch.request.as_mut().expect("model request").provider =
+                Some(ProviderKind::OfficialCli);
+        } else {
+            let replacement = ModelId::new_v7();
+            launch.expected_model_id = replacement.to_string();
+            launch
+                .request
+                .as_mut()
+                .expect("model request")
+                .instance_id
+                .model_id = replacement;
+            launch
+                .generate_request
+                .as_mut()
+                .expect("generate request")
+                .id = replacement;
+        }
+        let error = execute_production_routing_lifecycle(
+            &fixture.coordinator,
+            &fixture.execution_id,
+            &fixture.decision_id,
+            &fixture.authority,
+            fixture.context.clone(),
+            launches,
+        )
+        .await
+        .expect_err("IPC-equivalent launch tamper must differ from selecting decision");
+        assert!(error.to_string().contains("selecting-decision"));
+    }
+}
+
+#[tokio::test]
+async fn ac9_outbox_projection_and_pointer_tamper_fail_eventledger_replay() {
+    let projection = ac9_fixture(ModelLaneRoutingPolicy::CloudReview, "outbox-projection").await;
+    projection
+        .wave()
+        .await
+        .expect("initialize outbox projection fixture");
+    sqlx::query("UPDATE model_lane_routing_outbox SET command_json=jsonb_set(command_json,'{expected_model_id}','\"tampered\"'::jsonb) WHERE execution_id=$1 AND stage_id='local-candidate'")
+        .bind(&projection.execution_id).execute(&projection.pool).await.expect("tamper outbox command");
+    assert!(projection
+        .wave()
+        .await
+        .expect_err("outbox projection drift must fail")
+        .to_string()
+        .contains("outbox"));
+
+    let pointer = ac9_fixture(ModelLaneRoutingPolicy::CloudReview, "outbox-pointer").await;
+    pointer
+        .wave()
+        .await
+        .expect("initialize outbox pointer fixture");
+    sqlx::query("UPDATE model_lane_routing_outbox SET event_ledger_seq=event_ledger_seq+1 WHERE execution_id=$1 AND stage_id='local-candidate'")
+        .bind(&pointer.execution_id).execute(&pointer.pool).await.expect("tamper outbox pointer");
+    assert!(pointer
+        .wave()
+        .await
+        .expect_err("outbox pointer drift must fail")
+        .to_string()
+        .contains("outbox"));
+}
+
+#[tokio::test]
+async fn ac9_cancel_and_peer_failure_propagate_into_blocked_factory_create() {
+    let cancelled =
+        Arc::new(ac9_fixture(ModelLaneRoutingPolicy::LocalFirst, "cancel-create").await);
+    cancelled.hold_create.store(true, Ordering::SeqCst);
+    let worker = {
+        let fixture = cancelled.clone();
+        tokio::spawn(async move { fixture.lifecycle().await })
+    };
+    ac9_wait_for_stage_state(
+        &cancelled.pool,
+        &cancelled.execution_id,
+        "local-attempt",
+        "in_flight",
+    )
+    .await;
+    let state = cancelled
+        .coordinator
+        .cancel_routing_execution(&cancelled.execution_id, "cancel blocked create")
+        .await
+        .expect("pending create cancellation completes before DB terminalization");
+    assert_eq!(state.status, ModelLaneRoutingExecutionStatus::Cancelled);
+    assert!(worker.await.expect("join cancelled create worker").is_err());
+    assert_eq!(cancelled.teardowns.load(Ordering::SeqCst), 0);
+
+    let peer = Arc::new(ac9_fixture(ModelLaneRoutingPolicy::ParallelDebate, "peer-create").await);
+    let local_model = peer
+        .specs
+        .iter()
+        .find(|spec| spec.stage_id == "debate-local")
+        .and_then(|spec| spec.instance_id)
+        .expect("local peer")
+        .model_id;
+    let cloud_model = peer
+        .specs
+        .iter()
+        .find(|spec| spec.stage_id == "debate-cloud")
+        .and_then(|spec| spec.instance_id)
+        .expect("cloud peer")
+        .model_id;
+    peer.held_models
+        .lock()
+        .expect("hold local create")
+        .insert(local_model);
+    *peer.fail_model.lock().expect("fail cloud create") = Some(cloud_model);
+    assert!(peer.lifecycle().await.is_err());
+    assert_eq!(peer.coordinator.live_session_count(), 0);
+}
+
+#[tokio::test]
+async fn ac9_production_wrapper_rejects_unpersisted_selecting_decision_in_managed_postgres() {
+    use handshake_core::swarm_orchestration::production_factory::{
+        build_production_swarm_coordinator, CloudLaneFactoryConfig,
+    };
+    let (_pool, model_lane_store) = model_lane_store().await;
+    let (ledger, _drain) = LedgerBatcher::manual_for_tests(
+        LedgerBatcherConfig {
+            capacity: 8,
+            batch_size: 8,
+            flush_interval: Duration::from_millis(250),
+        },
+        Arc::new(RecordingOverflowSink::default()),
+    )
+    .expect("manual AC-9 production ProcessOwnershipLedger writer");
+    let coordinator = build_production_swarm_coordinator(
+        ledger,
+        CloudLaneFactoryConfig::unconfigured(),
+        model_lane_store,
+        Some(2),
+        uuid::Uuid::now_v7(),
+        |_| Ok(()),
+    );
+    let run_id = format!("run-ac9-unknown-decision-{}", uuid::Uuid::now_v7());
+    let error = execute_production_routing_wave(
+        &coordinator,
+        "execution-ac9-unknown-decision",
+        "promotion-decision://ac9/missing",
+        &ModelLaneRoutingAuthority::default(),
+        ModelLaneRoutingExecutionContext {
+            run_id: run_id.clone(),
+            trace_id: format!("trace-{run_id}"),
+            run_span_id: format!("span-{run_id}"),
+            coordinator_session_id: format!("coordinator-{run_id}"),
+            locus_ref: format!("locus://{run_id}"),
+            work_packet_id: WP_ID.into(),
+            micro_task_id: Some(MT_ID.into()),
+            task_board_id: TASK_BOARD_ID.into(),
+            owner_session: OWNER.into(),
+            initial_input_ref: format!("model-lane-message://missing-{run_id}"),
+            initial_input_sha256: sample_sha256(),
+        },
+        Vec::new(),
+    )
+    .await
+    .expect_err("production wrapper must require persisted selecting decision authority");
+    assert!(error.to_string().contains("selecting promotion decision"));
+}
+
+#[tokio::test]
+async fn ac9_reassignment_cannot_cross_post_validation_output_barrier_or_create_stale_rows() {
+    let fixture = Arc::new(ac9_fixture(ModelLaneRoutingPolicy::LocalFirst, "output-toctou").await);
+    fixture.hold_generation.store(true, Ordering::SeqCst);
+    let worker = {
+        let fixture = fixture.clone();
+        tokio::spawn(async move { fixture.lifecycle().await })
+    };
+    ac9_wait_for_stage_state(
+        &fixture.pool,
+        &fixture.execution_id,
+        "local-attempt",
+        "in_flight",
+    )
+    .await;
+
+    let barrier_key = format!("routing-output:{}:local-attempt:1", fixture.execution_id);
+    let mut barrier_connection = fixture
+        .pool
+        .acquire()
+        .await
+        .expect("acquire barrier connection");
+    sqlx::query("SELECT pg_advisory_lock(hashtextextended($1, 0))")
+        .bind(&barrier_key)
+        .execute(&mut *barrier_connection)
+        .await
+        .expect("hold deterministic post-validation barrier");
+    fixture.hold_generation.store(false, Ordering::SeqCst);
+
+    for _ in 0..200 {
+        let waiting: bool = sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE locktype='advisory' AND NOT granted)",
+        )
+        .fetch_one(&fixture.pool)
+        .await
+        .expect("observe output barrier waiter");
+        if waiting {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let waiting: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE locktype='advisory' AND NOT granted)",
+    )
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("confirm output barrier waiter");
+    assert!(
+        waiting,
+        "output writer reached the barrier after exact claim validation"
+    );
+
+    let reassignment = {
+        let pool = fixture.pool.clone();
+        let execution_id = fixture.execution_id.clone();
+        tokio::spawn(async move {
+            ac9_force_expired_lease(&pool, &execution_id, "local-attempt").await;
+        })
+    };
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert!(
+        !reassignment.is_finished(),
+        "reassignment must block on the execution row locked by validated output"
+    );
+
+    sqlx::query("SELECT pg_advisory_unlock(hashtextextended($1, 0))")
+        .bind(&barrier_key)
+        .execute(&mut *barrier_connection)
+        .await
+        .expect("release deterministic output barrier");
+    worker
+        .await
+        .expect("join output writer")
+        .expect("validated output commits atomically");
+    reassignment.await.expect("join attempted reassignment");
+    let recovered = fixture
+        .coordinator
+        .recover_routing_execution(&fixture.execution_id, fixture.launches())
+        .await
+        .expect("recovery observes committed terminal attempt");
+    assert_eq!(recovered.execution.stages["local-attempt"].attempt, 1);
+    assert_eq!(
+        recovered.execution.stages["local-attempt"].state,
+        ModelLaneRoutingStageStateKind::Succeeded
+    );
+
+    let message_rows: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM model_lane_messages WHERE message_id=$1")
+            .bind(format!(
+                "routing-output:{}:local-attempt:1",
+                fixture.execution_id
+            ))
+            .fetch_one(&fixture.pool)
+            .await
+            .expect("count fenced output messages");
+    let artifact_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_context_bundle_artifacts WHERE artifact_binding_id=$1",
+    )
+    .bind(format!(
+        "routing-output-binding:{}:local-attempt:1",
+        fixture.execution_id
+    ))
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("count fenced output artifacts");
+    let reassigned_attempt_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM model_lane_routing_stage_attempts WHERE execution_id=$1 AND stage_id='local-attempt' AND attempt=2",
+    )
+    .bind(&fixture.execution_id)
+    .fetch_one(&fixture.pool)
+    .await
+    .expect("count forbidden reassigned attempts");
+    assert_eq!(
+        (message_rows, artifact_rows, reassigned_attempt_rows),
+        (1, 1, 0)
+    );
 }

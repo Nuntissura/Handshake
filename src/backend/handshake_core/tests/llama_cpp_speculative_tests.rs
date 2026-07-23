@@ -721,6 +721,8 @@ fn load_spec(artifact_path: &Path, sha256_expected: String) -> LoadSpec {
             supports_subquadratic: false,
             supports_speculative_draft: true,
             supports_eagle3: true,
+            supports_embedding: false,
+            embedding_dimension: None,
         },
         provider: ProviderKind::Local,
         engine_origin: None,

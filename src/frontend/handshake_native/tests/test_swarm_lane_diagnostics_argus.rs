@@ -7,12 +7,124 @@ use handshake_native::backend_client::HealthInfo;
 use handshake_native::pane_registry::PaneType;
 use handshake_native::swarm_lane_diagnostics::{
     lane_author_id, message_author_id, message_payload_author_id, message_promotion_author_id,
-    mt_status_author_id, run_author_id, selected_message_author_id,
+    mt_status_author_id, routing_execution_author_id, routing_outbox_author_id,
+    routing_stage_author_id, run_author_id, selected_message_author_id,
     validate_projection_for_native_surface, visible_message_ids_for_filters,
     SwarmLaneDiagnosticsLane, SwarmLaneDiagnosticsMessage, SwarmLaneDiagnosticsMtStatus,
     SwarmLaneDiagnosticsProjection, SwarmLaneDiagnosticsRun, SwarmLaneDiagnosticsTier,
-    LANE_FILTER_AUTHOR_ID, MESSAGE_FILTER_AUTHOR_ID, RUN_FILTER_AUTHOR_ID, SURFACE_AUTHOR_ID,
+    SwarmLaneDiagnosticsTransport, SwarmLaneRoutingExecutionDiagnostics,
+    SwarmLaneRoutingOutboxDiagnostics, SwarmLaneRoutingStageDiagnostics, ERROR_AUTHOR_ID,
+    FRESHNESS_AUTHOR_ID, LANE_FILTER_AUTHOR_ID, MESSAGE_FILTER_AUTHOR_ID, REFRESH_AUTHOR_ID,
+    RUN_FILTER_AUTHOR_ID, SURFACE_AUTHOR_ID,
 };
+use serde::Deserialize;
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+
+#[derive(Deserialize)]
+struct DiagnosticsProjectionProvenance {
+    schema_id: String,
+    proof_nonce: String,
+    projection_schema_id: String,
+    artifact_sha256: String,
+    producer_test_id: String,
+    producer_status: String,
+    producer_completed_at_unix_ms: u64,
+}
+
+fn validate_exact_backend_json_shape(
+    raw: &Value,
+    projection: &SwarmLaneDiagnosticsProjection,
+) -> Result<(), String> {
+    let native = serde_json::to_value(projection)
+        .map_err(|error| format!("native projection reserialization failed: {error}"))?;
+    if &native == raw {
+        Ok(())
+    } else {
+        Err("backend/native projection JSON field shape changed or lost data".to_owned())
+    }
+}
+
+fn load_current_mt009_backend_projection() -> SwarmLaneDiagnosticsProjection {
+    let artifact_root = std::env::var("HANDSHAKE_ARTIFACTS_DIR")
+        .expect("backend MT-009 proof must provide HANDSHAKE_ARTIFACTS_DIR");
+    let artifact_root = std::fs::canonicalize(artifact_root)
+        .expect("HANDSHAKE_ARTIFACTS_DIR must resolve to an existing directory");
+    let manifest_dir = std::fs::canonicalize(env!("CARGO_MANIFEST_DIR"))
+        .expect("native crate manifest directory must resolve");
+    let worktree_root = manifest_dir
+        .parent()
+        .and_then(std::path::Path::parent)
+        .and_then(std::path::Path::parent)
+        .expect("native crate must live below the worktree src directory");
+    let expected_root = std::fs::canonicalize(
+        worktree_root
+            .parent()
+            .expect("worktree must have a parent")
+            .join("Handshake_Artifacts"),
+    )
+    .expect("canonical sibling Handshake_Artifacts directory must exist");
+    assert_eq!(
+        artifact_root, expected_root,
+        "native MT-009 consumer must read the canonical sibling Handshake_Artifacts directory"
+    );
+    let artifact = artifact_root
+        .join("handshake-test")
+        .join("wp1-final-audit")
+        .join("mt009_mixed_model_lane_diagnostics_projection.json");
+    let artifact_bytes =
+        std::fs::read(&artifact).expect("backend-generated MT-009 projection is required");
+    let provenance: DiagnosticsProjectionProvenance = serde_json::from_slice(
+        &std::fs::read(artifact.with_extension("provenance.json"))
+            .expect("backend-generated MT-009 provenance is required"),
+    )
+    .expect("MT-009 diagnostics provenance is typed JSON");
+    assert_eq!(
+        provenance.schema_id,
+        "hsk.mt009_diagnostics_projection_provenance@1"
+    );
+    assert_eq!(
+        provenance.proof_nonce,
+        std::env::var("HANDSHAKE_MT009_DIAGNOSTICS_PROOF_NONCE")
+            .expect("native MT-009 proof requires the producer nonce"),
+        "native proof must consume the artifact from the current backend producer run"
+    );
+    assert_eq!(
+        provenance.producer_test_id,
+        "mixed_local_cloud_subagent_run_persists_restarts_replays_and_projects"
+    );
+    assert_eq!(
+        provenance.producer_status, "passed_all_backend_assertions",
+        "native proof requires the backend producer completion receipt"
+    );
+    let now_unix_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock must be after Unix epoch")
+        .as_millis() as u64;
+    assert!(
+        provenance.producer_completed_at_unix_ms <= now_unix_ms.saturating_add(30_000),
+        "MT-009 producer completion receipt cannot be from the future"
+    );
+    assert!(
+        now_unix_ms.saturating_sub(provenance.producer_completed_at_unix_ms) <= 30 * 60 * 1_000,
+        "MT-009 producer completion receipt is stale; rerun the backend producer"
+    );
+    assert_eq!(
+        provenance.artifact_sha256,
+        format!("{:x}", Sha256::digest(&artifact_bytes)),
+        "MT-009 artifact bytes must match backend provenance"
+    );
+    let raw_projection: Value = serde_json::from_slice(&artifact_bytes)
+        .expect("backend-generated MT-009 projection is JSON");
+    let projection: SwarmLaneDiagnosticsProjection = serde_json::from_value(raw_projection.clone())
+        .expect("native contract consumes backend-generated MT-009 projection JSON");
+    validate_exact_backend_json_shape(&raw_projection, &projection)
+        .expect("MT-009 backend/native projection field shape round-trips exactly");
+    assert_eq!(provenance.projection_schema_id, projection.schema_id);
+    projection
+}
 
 fn ok_app() -> HandshakeApp {
     app_with_projection(fixture_projection())
@@ -42,6 +154,18 @@ fn shell_harness_with_projection(
 }
 
 fn live_author_ids(harness: &Harness<'_, HandshakeApp>) -> Vec<String> {
+    raw_live_author_ids(harness)
+        .into_iter()
+        .map(|author_id| {
+            author_id
+                .split_once(".pane.")
+                .map(|(logical, _)| logical.to_owned())
+                .unwrap_or(author_id)
+        })
+        .collect()
+}
+
+fn raw_live_author_ids(harness: &Harness<'_, HandshakeApp>) -> Vec<String> {
     harness
         .root()
         .children_recursive()
@@ -51,7 +175,7 @@ fn live_author_ids(harness: &Harness<'_, HandshakeApp>) -> Vec<String> {
 
 fn assert_unique_swarm_author_ids(harness: &Harness<'_, HandshakeApp>) {
     let mut counts = std::collections::BTreeMap::<String, usize>::new();
-    for author_id in live_author_ids(harness)
+    for author_id in raw_live_author_ids(harness)
         .into_iter()
         .filter(|id| id.starts_with("swarm-lane-diagnostics."))
     {
@@ -74,13 +198,68 @@ fn node_by_author<'a>(
     harness
         .root()
         .children_recursive()
-        .find(|n| n.accesskit_node().author_id() == Some(author_id))
+        .find(|n| {
+            n.accesskit_node().author_id().is_some_and(|actual| {
+                !actual.ends_with("::egui-response")
+                    && (actual == author_id || actual.starts_with(&format!("{author_id}.pane.")))
+            })
+        })
         .unwrap_or_else(|| {
             panic!(
                 "{author_id} missing from live tree: {:?}",
                 live_author_ids(harness)
             )
         })
+}
+
+fn accesskit_label(harness: &Harness<'_, HandshakeApp>, author_id: &str) -> String {
+    node_by_author(harness, author_id)
+        .accesskit_node()
+        .label()
+        .unwrap_or_default()
+        .to_owned()
+}
+
+#[derive(Default)]
+struct SequencedDiagnosticsTransport {
+    results: Mutex<VecDeque<Result<SwarmLaneDiagnosticsProjection, String>>>,
+}
+
+impl SequencedDiagnosticsTransport {
+    fn new(
+        results: impl IntoIterator<Item = Result<SwarmLaneDiagnosticsProjection, String>>,
+    ) -> Self {
+        Self {
+            results: Mutex::new(results.into_iter().collect()),
+        }
+    }
+
+    fn deliver(&self, cell: handshake_native::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell) {
+        let result = self
+            .results
+            .lock()
+            .expect("lock diagnostics transport sequence")
+            .pop_front()
+            .expect("diagnostics transport result available");
+        *cell.lock().expect("lock diagnostics delivery cell") = Some(result);
+    }
+}
+
+impl SwarmLaneDiagnosticsTransport for SequencedDiagnosticsTransport {
+    fn fetch_latest(
+        &self,
+        cell: handshake_native::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell,
+    ) {
+        self.deliver(cell);
+    }
+
+    fn fetch_run(
+        &self,
+        _run_id: &str,
+        cell: handshake_native::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell,
+    ) {
+        self.deliver(cell);
+    }
 }
 
 #[test]
@@ -92,6 +271,20 @@ fn swarm_lane_diagnostics_argus_lists_filters_and_drills_down() {
     harness.run();
     harness.get_by_label("Open Lane Diagnostics").click();
     harness.run();
+
+    let authors = live_author_ids(&harness);
+    assert!(authors.iter().any(|author_id| {
+        author_id
+            == &handshake_native::swarm_lane_diagnostics::lane_model_identity_author_id(
+                "lane-mt008-local",
+            )
+    }));
+    assert!(authors.iter().any(|author_id| {
+        author_id
+            == &handshake_native::swarm_lane_diagnostics::lane_model_label_author_id(
+                "lane-mt008-local",
+            )
+    }));
     harness.run();
 
     assert!(
@@ -113,12 +306,50 @@ fn swarm_lane_diagnostics_argus_lists_filters_and_drills_down() {
         &message_payload_author_id("msg-mt008-001"),
         &message_promotion_author_id("msg-mt008-001"),
         &mt_status_author_id("MT-008"),
+        &routing_execution_author_id("execution-mt017-awaiting"),
+        &routing_stage_author_id("execution-mt017-awaiting", "validator-verdict", 1),
+        &routing_outbox_author_id("routing-command:execution-mt017-awaiting:validator-verdict:1"),
+        &routing_execution_author_id("execution-mt017-expired-recovery"),
+        &routing_execution_author_id("execution-mt017-failed"),
+        &routing_execution_author_id("execution-mt017-cancelled"),
     ] {
         assert!(
             live_author_ids(&harness).iter().any(|id| id == expected),
             "{expected} present in live AccessKit tree"
         );
     }
+    assert!(
+        accesskit_label(
+            &harness,
+            &routing_stage_author_id("execution-mt017-awaiting", "validator-verdict", 1,),
+        )
+        .contains("state awaiting_authority"),
+        "awaiting-authority lifecycle is visible"
+    );
+    assert!(
+        accesskit_label(
+            &harness,
+            &routing_stage_author_id("execution-mt017-expired-recovery", "local-attempt", 2,),
+        )
+        .contains("expired=true"),
+        "expired recoverable lease is visible"
+    );
+    assert!(
+        accesskit_label(
+            &harness,
+            &routing_outbox_author_id("routing-command:execution-mt017-failed:local-attempt:1",),
+        )
+        .contains("status acked"),
+        "current architecture's durable failed-stage outbox acknowledgement is visible"
+    );
+    assert!(
+        accesskit_label(
+            &harness,
+            &routing_execution_author_id("execution-mt017-cancelled"),
+        )
+        .contains("cancel operator cancelled run"),
+        "cancellation reason is visible"
+    );
     assert_unique_swarm_author_ids(&harness);
 
     node_by_author(&harness, LANE_FILTER_AUTHOR_ID).focus();
@@ -164,7 +395,408 @@ fn swarm_lane_diagnostics_argus_lists_filters_and_drills_down() {
 }
 
 #[test]
+fn two_swarm_lane_panes_have_unique_pane_scoped_author_ids() {
+    let mut harness = shell_harness();
+    harness.run();
+    for pane_index in 0..2 {
+        if pane_index == 1 {
+            harness.get_by_label("GO").click();
+            harness.run();
+            harness.get_by_label("Go to Next Pane").click();
+            harness.run();
+        }
+        harness.get_by_label("RUN").click();
+        harness.run();
+        harness.get_by_label("Open Lane Diagnostics").click();
+        harness.run();
+    }
+    let surface_ids = raw_live_author_ids(&harness)
+        .into_iter()
+        .filter(|id| id.starts_with(&format!("{SURFACE_AUTHOR_ID}.pane.")))
+        .collect::<Vec<_>>();
+    assert_eq!(surface_ids.len(), 2, "both diagnostics panes are visible");
+    assert_ne!(
+        surface_ids[0], surface_ids[1],
+        "pane scope differentiates surfaces"
+    );
+    assert_unique_swarm_author_ids(&harness);
+}
+
+#[test]
+fn known_and_stale_model_identity_labels_are_visible() {
+    let mut projection = fixture_projection();
+    let known_name = projection.lanes[0].model_display_name.clone();
+    let known_anchor = projection.lanes[0]
+        .model_stable_anchor
+        .clone()
+        .expect("known fixture carries a stable anchor");
+    let mut stale = projection.lanes[0].clone();
+    stale.lane_id = "lane-mt008-stale".into();
+    stale.model_id = Some("01900000-0000-7000-8000-000000000099".into());
+    stale.model_display_name = "Unknown / stale model registration".into();
+    stale.model_stable_anchor = None;
+    stale.model_anchor_unavailable_reason =
+        Some("legacy model id is absent from the current registry".into());
+    stale.message_count = 0;
+    projection.lanes.push(stale);
+
+    let mut harness = shell_harness_with_projection(projection);
+    harness.run();
+    harness.get_by_label("RUN").click();
+    harness.run();
+    harness.get_by_label("Open Lane Diagnostics").click();
+    harness.run();
+
+    let known = accesskit_label(
+        &harness,
+        &handshake_native::swarm_lane_diagnostics::lane_model_label_author_id("lane-mt008-local"),
+    );
+    assert!(
+        known.contains(&known_name),
+        "known label names the registered model: {known}"
+    );
+    assert!(
+        known.contains(&known_anchor),
+        "known label exposes the stable anchor: {known}"
+    );
+    let stale = accesskit_label(
+        &harness,
+        &handshake_native::swarm_lane_diagnostics::lane_model_label_author_id("lane-mt008-stale"),
+    );
+    assert!(
+        stale.contains("Unknown / stale model registration"),
+        "stale label is explicit: {stale}"
+    );
+    assert!(
+        stale.contains("legacy model id"),
+        "stale label explains anchor loss: {stale}"
+    );
+}
+
+#[test]
+fn argus_keeps_last_success_visible_when_refresh_fails() {
+    let transport = Arc::new(SequencedDiagnosticsTransport::new([
+        Ok(fixture_projection()),
+        Err("simulated diagnostics refresh failure".into()),
+    ]));
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_swarm_lane_diagnostics_transport_for_test(transport);
+    let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
+    harness.run();
+    harness.get_by_label("RUN").click();
+    harness.run();
+    harness.get_by_label("Open Lane Diagnostics").click();
+    harness.run();
+    harness.run();
+
+    let current = accesskit_label(&harness, FRESHNESS_AUTHOR_ID);
+    let last_success = current
+        .strip_prefix("CURRENT | last success unix_ms ")
+        .expect("successful fetch publishes CURRENT last-success status")
+        .to_owned();
+    node_by_author(&harness, REFRESH_AUTHOR_ID).click_accesskit();
+    harness.run();
+    harness.run();
+
+    assert_eq!(
+        accesskit_label(&harness, FRESHNESS_AUTHOR_ID),
+        format!("STALE | last success unix_ms {last_success}"),
+        "refresh failure preserves and marks the last successful projection stale"
+    );
+    assert_eq!(
+        accesskit_label(&harness, ERROR_AUTHOR_ID),
+        "simulated diagnostics refresh failure"
+    );
+    assert!(
+        live_author_ids(&harness)
+            .iter()
+            .any(|id| id == &lane_author_id("lane-mt008-local")),
+        "stale projection remains inspectable after refresh failure"
+    );
+}
+
+#[test]
+fn native_consumes_backend_generated_schema_v3_projection_artifact() {
+    let artifact_root = std::env::var("HANDSHAKE_ARTIFACTS_DIR")
+        .expect("backend diagnostics proof must provide HANDSHAKE_ARTIFACTS_DIR");
+    let artifact_root = std::fs::canonicalize(artifact_root)
+        .expect("HANDSHAKE_ARTIFACTS_DIR must resolve to an existing directory");
+    let manifest_dir = std::fs::canonicalize(env!("CARGO_MANIFEST_DIR"))
+        .expect("native crate manifest directory must resolve");
+    let worktree_root = manifest_dir
+        .parent()
+        .and_then(std::path::Path::parent)
+        .and_then(std::path::Path::parent)
+        .expect("native crate must live below the worktree src directory");
+    let expected_root = std::fs::canonicalize(
+        worktree_root
+            .parent()
+            .expect("worktree must have a parent")
+            .join("Handshake_Artifacts"),
+    )
+    .expect("canonical sibling Handshake_Artifacts directory must exist");
+    assert_eq!(
+        artifact_root, expected_root,
+        "native consumer must read the canonical sibling Handshake_Artifacts directory"
+    );
+    let artifact = artifact_root
+        .join("handshake-test")
+        .join("wp1-final-audit")
+        .join("mt014_swarm_lane_diagnostics_projection.json");
+    let artifact_bytes =
+        std::fs::read(&artifact).expect("backend-generated diagnostics projection is required");
+    let provenance: DiagnosticsProjectionProvenance = serde_json::from_slice(
+        &std::fs::read(artifact.with_extension("provenance.json"))
+            .expect("backend-generated diagnostics provenance is required"),
+    )
+    .expect("diagnostics provenance is typed JSON");
+    assert_eq!(
+        provenance.schema_id,
+        "hsk.mt017_diagnostics_projection_provenance@1"
+    );
+    assert_eq!(
+        provenance.proof_nonce,
+        std::env::var("HANDSHAKE_MT017_DIAGNOSTICS_PROOF_NONCE")
+            .expect("native proof requires the producer nonce"),
+        "native proof must consume an artifact from the current backend producer run"
+    );
+    assert_eq!(
+        provenance.producer_test_id,
+        "swarm_lane_diagnostics_backend_projection_matches_eventledger"
+    );
+    assert_eq!(
+        provenance.producer_status, "passed_all_backend_assertions",
+        "native proof requires the backend producer completion receipt"
+    );
+    let now_unix_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock must be after Unix epoch")
+        .as_millis() as u64;
+    assert!(
+        provenance.producer_completed_at_unix_ms <= now_unix_ms.saturating_add(30_000),
+        "MT-017 producer completion receipt cannot be from the future"
+    );
+    assert!(
+        now_unix_ms.saturating_sub(provenance.producer_completed_at_unix_ms) <= 30 * 60 * 1_000,
+        "MT-017 producer completion receipt is stale; rerun the backend producer"
+    );
+    assert_eq!(
+        provenance.artifact_sha256,
+        format!("{:x}", Sha256::digest(&artifact_bytes)),
+        "artifact bytes must match backend provenance"
+    );
+    let raw_projection: Value = serde_json::from_slice(&artifact_bytes)
+        .expect("backend-generated diagnostics projection is JSON");
+    let projection: SwarmLaneDiagnosticsProjection = serde_json::from_value(raw_projection.clone())
+        .expect("native contract consumes backend-generated projection JSON");
+    validate_exact_backend_json_shape(&raw_projection, &projection)
+        .expect("MT-017 backend/native projection field shape round-trips exactly");
+    assert_eq!(
+        projection.schema_id,
+        "hsk.model_lane_diagnostics_projection@3"
+    );
+    assert_eq!(provenance.projection_schema_id, projection.schema_id);
+    validate_projection_for_native_surface(&projection)
+        .expect("backend-generated projection satisfies native schema-v3 contract");
+
+    let known_lane = projection
+        .lanes
+        .iter()
+        .find(|lane| lane.lane_id == "lane-mt008-local")
+        .expect("backend artifact contains the known-model lane");
+    let known_name = known_lane.model_display_name.clone();
+    let known_anchor = known_lane
+        .model_stable_anchor
+        .clone()
+        .expect("backend artifact exposes the known stable anchor");
+    let stale_lane = projection
+        .lanes
+        .iter()
+        .find(|lane| lane.lane_id == "lane-mt014-stale")
+        .expect("backend artifact contains the legacy stale-model lane");
+    let stale_name = stale_lane.model_display_name.clone();
+    let stale_reason = stale_lane
+        .model_anchor_unavailable_reason
+        .clone()
+        .expect("backend artifact explains the unavailable legacy anchor");
+    let routing = projection
+        .routing_executions
+        .iter()
+        .find(|execution| execution.execution_id == "execution-mt017-diagnostics-awaiting")
+        .expect("backend artifact contains the real routing lifecycle");
+    assert_eq!(routing.status, "awaiting_authority");
+    let authority_stage = routing
+        .stages
+        .iter()
+        .find(|stage| stage.stage_id == "validator-verdict")
+        .expect("backend artifact contains the real awaiting-authority stage");
+    assert_eq!(authority_stage.state, "awaiting_authority");
+    assert_eq!(authority_stage.outbox.status, "claimed");
+    assert_eq!(
+        authority_stage.outbox.fencing_token,
+        authority_stage.fencing_token
+    );
+    assert!(authority_stage.authority_request_message_ref.is_some());
+
+    let mut harness = shell_harness_with_projection(projection);
+    harness.run();
+    harness.get_by_label("RUN").click();
+    harness.run();
+    harness.get_by_label("Open Lane Diagnostics").click();
+    harness.run();
+    harness.run();
+
+    let known_author =
+        handshake_native::swarm_lane_diagnostics::lane_model_label_author_id("lane-mt008-local");
+    let stale_author =
+        handshake_native::swarm_lane_diagnostics::lane_model_label_author_id("lane-mt014-stale");
+    let known_label = accesskit_label(&harness, &known_author);
+    assert!(
+        known_label.contains(&known_name),
+        "backend known-model label renders through the native pane: {known_label}"
+    );
+    assert!(
+        known_label.contains(&known_anchor),
+        "backend stable anchor renders through the native pane: {known_label}"
+    );
+    let stale_label = accesskit_label(&harness, &stale_author);
+    assert!(
+        stale_label.contains(&stale_name),
+        "backend stale-model label renders through the native pane: {stale_label}"
+    );
+    assert!(
+        stale_label.contains(&stale_reason),
+        "backend legacy-anchor reason renders through the native pane: {stale_label}"
+    );
+    let routing_author = routing_execution_author_id("execution-mt017-diagnostics-awaiting");
+    let routing_label = accesskit_label(&harness, &routing_author);
+    assert!(
+        routing_label.contains("status awaiting_authority"),
+        "backend routing execution status renders through the native pane: {routing_label}"
+    );
+    let authority_stage_author = routing_stage_author_id(
+        "execution-mt017-diagnostics-awaiting",
+        "validator-verdict",
+        1,
+    );
+    let authority_stage_label = accesskit_label(&harness, &authority_stage_author);
+    assert!(
+        authority_stage_label.contains("state awaiting_authority")
+            && authority_stage_label.contains("fence="),
+        "backend authority-stage fencing renders through the native pane: {authority_stage_label}"
+    );
+
+    let logical_authors = live_author_ids(&harness);
+    for logical_author in [&known_author, &stale_author] {
+        assert!(
+            logical_authors
+                .iter()
+                .any(|actual| actual == logical_author),
+            "stable logical model-label author ID is present: {logical_author}"
+        );
+        let scoped = raw_live_author_ids(&harness)
+            .into_iter()
+            .filter(|actual| {
+                actual.starts_with(&format!("{logical_author}.pane."))
+                    && !actual.ends_with("::egui-response")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            scoped.len(),
+            1,
+            "logical author ID has exactly one pane-scoped production node: {logical_author}"
+        );
+    }
+    assert_unique_swarm_author_ids(&harness);
+}
+
+#[test]
 fn swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch() {
+    let mut serialized = serde_json::to_value(fixture_projection()).expect("serialize fixture");
+    serialized["lanes"][0]
+        .as_object_mut()
+        .expect("lane JSON object")
+        .remove("model_display_name");
+    let err = serde_json::from_value::<SwarmLaneDiagnosticsProjection>(serialized)
+        .expect_err("backend/native contract requires model_display_name");
+    assert!(err.to_string().contains("model_display_name"), "got {err}");
+
+    let mut serialized = serde_json::to_value(fixture_projection()).expect("serialize fixture");
+    serialized["run"]
+        .as_object_mut()
+        .expect("run JSON object")
+        .remove("candidate_model_ids");
+    let err = serde_json::from_value::<SwarmLaneDiagnosticsProjection>(serialized)
+        .expect_err("backend/native contract requires candidate_model_ids");
+    assert!(err.to_string().contains("candidate_model_ids"), "got {err}");
+
+    let mut projection = fixture_projection();
+    projection.run.candidate_model_ids.clear();
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("empty candidate model authority must fail closed");
+    assert!(
+        err.contains("run coordinator/routing/owner/model/recovery refs missing"),
+        "got {err}"
+    );
+
+    let mut serialized = serde_json::to_value(fixture_projection()).expect("serialize fixture");
+    serialized["run"]
+        .as_object_mut()
+        .expect("run JSON object")
+        .remove("locus_ref");
+    let projection: SwarmLaneDiagnosticsProjection = serde_json::from_value(serialized.clone())
+        .expect("optional field omission is accepted by serde before the boundary guard");
+    let err = validate_exact_backend_json_shape(&serialized, &projection)
+        .expect_err("backend field omissions must not survive the exact boundary guard");
+    assert!(err.contains("field shape changed"), "got {err}");
+
+    let mut projection = fixture_projection();
+    projection.lanes[0].capability_token_ids.clear();
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("empty lane capability authority must fail closed");
+    assert!(err.contains("capability/ToolGate"), "got {err}");
+
+    let mut projection = fixture_projection();
+    projection.lanes[0].tool_gate_decision_refs.clear();
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("empty lane ToolGate authority must fail closed");
+    assert!(err.contains("capability/ToolGate"), "got {err}");
+
+    let mut projection = fixture_projection();
+    projection.routing_executions[0].stages[1].dependency_stage_ids =
+        vec!["tampered-missing-stage".into()];
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("tampered routing dependency lineage must fail closed");
+    assert!(err.contains("dependency lineage"), "got {err}");
+
+    let mut projection = fixture_projection();
+    projection.routing_executions[1].stages[0].input_refs = vec![String::new()];
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("missing routing input lineage must fail closed");
+    assert!(err.contains("input/EventLedger lineage"), "got {err}");
+
+    let mut projection = fixture_projection();
+    projection.routing_executions[0].stages[1].authority_request_message_ref = None;
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("awaiting authority without causal request lineage must fail closed");
+    assert!(err.contains("causal authority lineage"), "got {err}");
+
+    let mut projection = fixture_projection();
+    projection.routing_executions[2].stages[0].outbox.status = "dead_letter".into();
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("outbox status must match the persisted current lifecycle state");
+    assert!(err.contains("outbox state"), "got {err}");
+
+    let mut projection = fixture_projection();
+    projection.routing_executions[3].cancel_reason = None;
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("cancelled execution without authority reason must fail closed");
+    assert!(err.contains("cancel_reason"), "got {err}");
+
     let mut projection = fixture_projection();
     projection.lanes[0].lane_id.clear();
     let err = validate_projection_for_native_surface(&projection)
@@ -215,6 +847,13 @@ fn swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch() {
     let err = validate_projection_for_native_surface(&projection)
         .expect_err("wrong backend schema id must fail before rendering");
     assert!(err.contains("schema_id mismatch"), "got {err}");
+
+    let mut projection = fixture_projection();
+    projection.messages[0].kind = "status".into();
+    projection.messages[0].crdt_base_snapshot_ref = None;
+    let err = validate_projection_for_native_surface(&projection)
+        .expect_err("non-proposal CRDT targets must fail closed on partial metadata");
+    assert!(err.contains("CRDT refs missing"), "got {err}");
 
     let mut projection = fixture_projection();
     projection
@@ -286,7 +925,7 @@ fn swarm_lane_diagnostics_argus_rejects_missing_author_id_and_count_mismatch() {
 
 #[test]
 fn mixed_model_lane_run_is_inspectable_through_argus() {
-    let projection = mixed_fixture_projection();
+    let projection = load_current_mt009_backend_projection();
     validate_projection_for_native_surface(&projection)
         .expect("MT-009 mixed projection satisfies native Argus contract");
     assert_eq!(projection.lanes.len(), 3);
@@ -431,9 +1070,207 @@ fn mixed_model_lane_run_is_inspectable_through_argus() {
     );
 }
 
+fn routing_stage_fixture(
+    execution_id: &str,
+    stage_id: &str,
+    state: &str,
+    attempt: u32,
+    dependencies: &[&str],
+    outbox_status: &str,
+    active_lease: bool,
+    expired_lease: bool,
+    awaiting_authority: bool,
+) -> SwarmLaneRoutingStageDiagnostics {
+    let event_ledger_seq = 100 + i64::from(attempt);
+    let lease_expires_at_unix_ms = active_lease.then_some(if expired_lease { 1 } else { u64::MAX });
+    let output = (state == "succeeded").then(|| {
+        (
+            format!("artifact://routing/{execution_id}/{stage_id}"),
+            format!("message://routing/{execution_id}/{stage_id}"),
+            "ab".repeat(32),
+        )
+    });
+    let command_id = format!("routing-command:{execution_id}:{stage_id}:{attempt}");
+    SwarmLaneRoutingStageDiagnostics {
+        execution_id: execution_id.into(),
+        stage_id: stage_id.into(),
+        state: state.into(),
+        attempt,
+        dispatch_target: if awaiting_authority {
+            "validator"
+        } else {
+            "local_model"
+        }
+        .into(),
+        dependency_stage_ids: dependencies.iter().map(|value| (*value).into()).collect(),
+        expected_run_id: "run-mt008-ui".into(),
+        expected_lane_id: format!("lane-{stage_id}"),
+        expected_model_id: if awaiting_authority {
+            String::new()
+        } else {
+            "model://mt017/local".into()
+        },
+        expected_provider: None,
+        instance_id: active_lease.then(|| format!("instance-{stage_id}")),
+        lane_id: Some(format!("lane-{stage_id}")),
+        input_refs: vec!["model-lane-message://msg-mt008-001".into()],
+        output_ref: output.as_ref().map(|value| value.0.clone()),
+        output_message_ref: output.as_ref().map(|value| value.1.clone()),
+        authority_request_message_ref: awaiting_authority
+            .then(|| format!("message://authority-request/{execution_id}/{stage_id}")),
+        output_sha256: output.as_ref().map(|value| value.2.clone()),
+        authority_ref: awaiting_authority.then(|| "validator://mt017/authority".into()),
+        lease_owner: active_lease.then(|| "routing-executor:mt017".into()),
+        fencing_token: active_lease.then(|| format!("fence-{execution_id}-{stage_id}-{attempt}")),
+        lease_expires_at_unix_ms,
+        lease_expired: expired_lease,
+        detail: expired_lease.then(|| "expired lease is recoverable with a fenced retry".into()),
+        event_ledger_event_id: format!("evt-{execution_id}-{stage_id}-{attempt}"),
+        event_ledger_seq,
+        updated_at_unix_ms: 1_752_000_000_000,
+        outbox: SwarmLaneRoutingOutboxDiagnostics {
+            command_id,
+            status: outbox_status.into(),
+            fencing_token: active_lease
+                .then(|| format!("fence-{execution_id}-{stage_id}-{attempt}")),
+            lease_owner: active_lease.then(|| "routing-executor:mt017".into()),
+            lease_expires_at_unix_ms,
+            event_ledger_event_id: format!("evt-outbox-{execution_id}-{stage_id}-{attempt}"),
+            event_ledger_seq: event_ledger_seq + 1,
+            created_at_unix_ms: 1_751_999_999_000,
+            updated_at_unix_ms: 1_752_000_000_000,
+        },
+    }
+}
+
+fn routing_execution_fixture(
+    execution_id: &str,
+    status: &str,
+    failure_reason: Option<&str>,
+    cancel_reason: Option<&str>,
+    stages: Vec<SwarmLaneRoutingStageDiagnostics>,
+) -> SwarmLaneRoutingExecutionDiagnostics {
+    SwarmLaneRoutingExecutionDiagnostics {
+        execution_id: execution_id.into(),
+        run_id: "run-mt008-ui".into(),
+        selecting_decision_id: format!("decision-{execution_id}"),
+        selecting_decision_event_id: format!("evt-decision-{execution_id}"),
+        selecting_decision_event_seq: 80,
+        trace_id: "trace-run-mt008-ui".into(),
+        run_span_id: "span-run-mt008-ui".into(),
+        coordinator_session_id: "coordinator-run-mt008-ui".into(),
+        locus_ref: "locus://wp1/mt008/run-mt008-ui".into(),
+        work_packet_id: "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".into(),
+        micro_task_id: Some("MT-008".into()),
+        task_board_id: "task-board://wp-1".into(),
+        owner_session: "KERNEL_BUILDER-20260630-045713".into(),
+        canonical_graph_sha256: "cd".repeat(32),
+        canonical_launch_plan_sha256: "ef".repeat(32),
+        cloud_consent_receipt_ref: None,
+        validator_authority_ref: (status == "awaiting_authority")
+            .then(|| "validator://mt017/authority".into()),
+        operator_authority_ref: None,
+        initial_input_ref: Some("model-lane-message://msg-mt008-001".into()),
+        initial_input_sha256: Some("12".repeat(32)),
+        status: status.into(),
+        failure_reason: failure_reason.map(str::to_owned),
+        cancel_reason: cancel_reason.map(str::to_owned),
+        revision: 3,
+        stages,
+        event_ledger_event_id: format!("evt-execution-{execution_id}"),
+        event_ledger_seq: 90,
+    }
+}
+
+fn routing_lifecycle_fixture() -> Vec<SwarmLaneRoutingExecutionDiagnostics> {
+    let awaiting_id = "execution-mt017-awaiting";
+    let succeeded = routing_stage_fixture(
+        awaiting_id,
+        "validation-candidate",
+        "succeeded",
+        1,
+        &[],
+        "acked",
+        false,
+        false,
+        false,
+    );
+    let awaiting = routing_stage_fixture(
+        awaiting_id,
+        "validator-verdict",
+        "awaiting_authority",
+        1,
+        &["validation-candidate"],
+        "claimed",
+        true,
+        false,
+        true,
+    );
+    let recovery_id = "execution-mt017-expired-recovery";
+    let recovery = routing_stage_fixture(
+        recovery_id,
+        "local-attempt",
+        "claimed",
+        2,
+        &[],
+        "claimed",
+        true,
+        true,
+        false,
+    );
+    let failed_id = "execution-mt017-failed";
+    let failed = routing_stage_fixture(
+        failed_id,
+        "local-attempt",
+        "failed",
+        1,
+        &[],
+        "acked",
+        false,
+        false,
+        false,
+    );
+    let cancelled_id = "execution-mt017-cancelled";
+    let cancelled = routing_stage_fixture(
+        cancelled_id,
+        "local-attempt",
+        "cancelled",
+        1,
+        &[],
+        "cancelled",
+        false,
+        false,
+        false,
+    );
+    vec![
+        routing_execution_fixture(
+            awaiting_id,
+            "awaiting_authority",
+            None,
+            None,
+            vec![succeeded, awaiting],
+        ),
+        routing_execution_fixture(recovery_id, "running", None, None, vec![recovery]),
+        routing_execution_fixture(
+            failed_id,
+            "failed",
+            Some("model runtime failed"),
+            None,
+            vec![failed],
+        ),
+        routing_execution_fixture(
+            cancelled_id,
+            "cancelled",
+            None,
+            Some("operator cancelled run"),
+            vec![cancelled],
+        ),
+    ]
+}
+
 fn fixture_projection() -> SwarmLaneDiagnosticsProjection {
     SwarmLaneDiagnosticsProjection {
-        schema_id: "hsk.model_lane_diagnostics_projection@1".into(),
+        schema_id: "hsk.model_lane_diagnostics_projection@3".into(),
         surface_contract_id: "native_swarm_lane_diagnostics".into(),
         run: SwarmLaneDiagnosticsRun {
             run_id: "run-mt008-ui".into(),
@@ -473,6 +1310,9 @@ fn fixture_projection() -> SwarmLaneDiagnosticsProjection {
             status: "running".into(),
             recovery_state: "restartable".into(),
             model_id: Some("model://mt008/local".into()),
+            model_display_name: "MT-014 Diagnostics Catalog Model".into(),
+            model_stable_anchor: Some("5a".repeat(32)),
+            model_anchor_unavailable_reason: None,
             session_id: "session-lane-mt008-local".into(),
             model_session_id: "model-session-lane-mt008-local".into(),
             adapter_id: "local-runtime".into(),
@@ -597,280 +1437,9 @@ fn fixture_projection() -> SwarmLaneDiagnosticsProjection {
             event_ledger_event_id: "evt_mt_status_mt008_ui".into(),
             event_ledger_seq: 4,
         }],
+        routing_executions: routing_lifecycle_fixture(),
         active_lease_count: 1,
         reclaimable_lease_ids: vec![],
         orphan_state: "none".into(),
     }
-}
-
-fn mixed_fixture_projection() -> SwarmLaneDiagnosticsProjection {
-    let base = fixture_projection();
-    SwarmLaneDiagnosticsProjection {
-        schema_id: "hsk.model_lane_diagnostics_projection@1".into(),
-        surface_contract_id: "native_swarm_lane_diagnostics".into(),
-        run: SwarmLaneDiagnosticsRun {
-            run_id: "run-mt009-mixed".into(),
-            trace_id: "trace-run-mt009-mixed".into(),
-            run_span_id: "span-run-mt009-mixed".into(),
-            coordinator_session_id: "coordinator-run-mt009-mixed".into(),
-            routing_policy: "mixed_local_cloud_subagent".into(),
-            artifact_namespace: "artifact://model-lane/mt009/run-mt009-mixed".into(),
-            projection_plan_ref: None,
-            consent_receipt_ref: None,
-            work_packet_id: Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".into()),
-            micro_task_id: Some("MT-009".into()),
-            task_board_id: Some("task-board://wp-1".into()),
-            owner_session: "KERNEL_BUILDER-MT009".into(),
-            event_ledger_event_id: "evt_run_mt009_mixed".into(),
-            event_ledger_seq: 1,
-            flight_recorder_correlation_id: "evt_run_mt009_mixed".into(),
-            context_bundle_id: "ctx-run-mt009-mixed".into(),
-            memory_pack_ref: "memory-pack://fems/mt009/run-mt009-mixed".into(),
-            memory_pack_hash: "2f5f9f7bb8d38bb4a5a212c05cfb767c8aa97930c2da1b7d5cfa8f7f03f1b2e4"
-                .into(),
-            locus_ref: Some("locus://wp1/mt009/run-mt009-mixed".into()),
-            loom_ref: Some("loom://mt009/run-mt009-mixed".into()),
-            fems_ref: Some("fems://mt009/run-mt009-mixed".into()),
-            status: "restartable".into(),
-            recovery_hint_ref: Some("usermanual://model-lane-validation-harness#recovery".into()),
-            selected_model_id: Some("model://mt009/local/tinyllama".into()),
-            candidate_model_ids: vec![
-                "model://mt009/local/tinyllama".into(),
-                "model://mt009/cloud/openai/gpt-4o-mini".into(),
-                "subagent://mt009/coder".into(),
-            ],
-            budget_summary_ref: "budget://mt009/mixed-runtime".into(),
-            determinism_mode: "deterministic_replay".into(),
-        },
-        lanes: vec![
-            mixed_lane(
-                &base.lanes[0],
-                "lane-mt009-local",
-                "local_model",
-                "local_implementer",
-                "local",
-                "local_runtime",
-                "local",
-                "model_runtime",
-                "model://mt009/local/tinyllama",
-                None,
-                None,
-                Some("process-ledger://mt009/lane-mt009-local"),
-                None,
-                2,
-            ),
-            mixed_lane(
-                &base.lanes[0],
-                "lane-mt009-cloud",
-                "cloud_model",
-                "cloud_reviewer",
-                "cloud",
-                "openai",
-                "cloud",
-                "cloud_lane",
-                "model://mt009/cloud/openai/gpt-4o-mini",
-                Some("cloud-projection-plan://run-mt009-mixed/lane-mt009-cloud"),
-                Some("cloud-consent-receipt://run-mt009-mixed/lane-mt009-cloud"),
-                Some("process-ledger://mt009/lane-mt009-cloud"),
-                None,
-                3,
-            ),
-            mixed_lane(
-                &base.lanes[0],
-                "lane-mt009-subagent",
-                "subagent",
-                "subagent_coder",
-                "subagent",
-                "subagent",
-                "subagent",
-                "subagent_manager",
-                "subagent://mt009/coder",
-                None,
-                None,
-                None,
-                Some("no-os-process://subagent_manager/lane-mt009-subagent"),
-                4,
-            ),
-        ],
-        messages: vec![
-            mixed_message(
-                &base.messages[0],
-                "msg-mt009-local",
-                "lane-mt009-local",
-                "local",
-                "model://mt009/local/tinyllama",
-                5,
-            ),
-            mixed_message(
-                &base.messages[0],
-                "msg-mt009-cloud",
-                "lane-mt009-cloud",
-                "cloud",
-                "model://mt009/cloud/openai/gpt-4o-mini",
-                6,
-            ),
-            mixed_message(
-                &base.messages[0],
-                "msg-mt009-subagent",
-                "lane-mt009-subagent",
-                "subagent",
-                "subagent://mt009/coder",
-                7,
-            ),
-        ],
-        diagnostic_tiers: vec![
-            SwarmLaneDiagnosticsTier {
-                tier: "flight_recorder".into(),
-                state: "wired".into(),
-                reason: "MT-009 mixed runtime emits EventLedger evidence".into(),
-                evidence_ref: "eventledger://kernel/model-lane/mt009".into(),
-                follow_up_ref: None,
-            },
-            SwarmLaneDiagnosticsTier {
-                tier: "internal_diagnostics".into(),
-                state: "wired".into(),
-                reason: "MT-009 mixed runtime exposes internal diagnostic rows".into(),
-                evidence_ref: "hbr-int-009://dexterity/mixed-runtime".into(),
-                follow_up_ref: None,
-            },
-            SwarmLaneDiagnosticsTier {
-                tier: "palmistry".into(),
-                state: "deferred_with_reason".into(),
-                reason: "Palmistry external watcher is deferred to the watcher worktree".into(),
-                evidence_ref: "palmistry://wp1/model-lane/mt009/external-worktree".into(),
-                follow_up_ref: Some("palmistry://wp1/model-lane/mt009".into()),
-            },
-        ],
-        mt_runtime_statuses: vec![SwarmLaneDiagnosticsMtStatus {
-            micro_task_id: "MT-009".into(),
-            status: "ready_for_validation".into(),
-            proof_status_ref: Some("proof://mt009/mixed_model_lane_integration_pg_tests".into()),
-            hbr_status_ref: Some("hbr-int-009://dexterity/mixed-runtime".into()),
-            event_ledger_event_id: "evt_mt_status_mt009_ready".into(),
-            event_ledger_seq: 8,
-        }],
-        active_lease_count: 1,
-        reclaimable_lease_ids: vec![],
-        orphan_state: "none".into(),
-    }
-}
-
-fn mixed_lane(
-    base: &SwarmLaneDiagnosticsLane,
-    lane_id: &str,
-    kind: &str,
-    role: &str,
-    backend: &str,
-    provider_kind: &str,
-    runtime_binding: &str,
-    launch_authority: &str,
-    model_id: &str,
-    projection_plan_ref: Option<&str>,
-    consent_receipt_ref: Option<&str>,
-    process_ownership_ref: Option<&str>,
-    no_os_process_reason_ref: Option<&str>,
-    event_ledger_seq: i64,
-) -> SwarmLaneDiagnosticsLane {
-    let mut lane = base.clone();
-    lane.lane_id = lane_id.into();
-    lane.kind = kind.into();
-    lane.role = role.into();
-    lane.backend = backend.into();
-    lane.status = "ready".into();
-    lane.recovery_state = "restartable".into();
-    lane.model_id = Some(model_id.into());
-    lane.session_id = format!("session-{lane_id}");
-    lane.model_session_id = format!("model-session-{lane_id}");
-    lane.adapter_id = format!("adapter-{lane_id}");
-    lane.provider_kind = provider_kind.into();
-    lane.runtime_binding = runtime_binding.into();
-    lane.launch_authority = launch_authority.into();
-    lane.capability_token_ids = vec![format!("capability://mt009/{lane_id}/read")];
-    lane.effective_capability_snapshot_ref = Some(format!("capability-snapshot://mt009/{lane_id}"));
-    lane.capability_negotiation_ref = Some(format!("capability-negotiation://mt009/{lane_id}"));
-    lane.provider_feature_profile_ref = Some(format!("provider-feature-profile://mt009/{lane_id}"));
-    lane.requested_execution_policy_ref =
-        Some(format!("execution-policy://requested/mt009/{lane_id}"));
-    lane.effective_execution_policy_ref =
-        Some(format!("execution-policy://effective/mt009/{lane_id}"));
-    lane.projection_plan_ref = projection_plan_ref.map(str::to_string);
-    lane.consent_receipt_ref = consent_receipt_ref.map(str::to_string);
-    lane.tool_gate_decision_refs = vec![format!("toolgate://mt009/{lane_id}/allow")];
-    lane.trace_id = "trace-run-mt009-mixed".into();
-    lane.lane_span_id = format!("span-{lane_id}");
-    lane.event_ledger_event_id = format!("evt_{lane_id}");
-    lane.event_ledger_seq = event_ledger_seq;
-    lane.flight_recorder_correlation_id = lane.event_ledger_event_id.clone();
-    lane.message_count = 1;
-    lane.process_ownership_ref = process_ownership_ref.map(str::to_string);
-    lane.no_os_process_reason_ref = no_os_process_reason_ref.map(str::to_string);
-    lane.last_runtime_status_ref = Some(format!("runtime-status://mt009/{lane_id}/ready"));
-    lane.last_recovery_event_ref = Some(format!("recovery://mt009/{lane_id}/startable"));
-    lane.recovery_hint_ref = Some("usermanual://model-lane-validation-harness#lane".into());
-    lane.work_packet_id = Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".into());
-    lane.micro_task_id = Some("MT-009".into());
-    lane.task_board_id = Some("task-board://wp-1".into());
-    lane.owner_session = "KERNEL_BUILDER-MT009".into();
-    lane.locus_ref = Some(format!("locus://wp1/mt009/run-mt009-mixed/{lane_id}"));
-    lane
-}
-
-fn mixed_message(
-    base: &SwarmLaneDiagnosticsMessage,
-    message_id: &str,
-    lane_id: &str,
-    lane_label: &str,
-    model_ref: &str,
-    event_ledger_seq: i64,
-) -> SwarmLaneDiagnosticsMessage {
-    let mut message = base.clone();
-    message.message_id = message_id.into();
-    message.from_lane_id = lane_id.into();
-    message.to_lane = "coordinator".into();
-    message.routing_target_role = Some("coordinator".into());
-    message.routing_target_session = Some("coordinator-run-mt009-mixed".into());
-    message.routing_correlation_id = Some(format!("corr-run-mt009-mixed-{message_id}"));
-    message.routing_requires_ack = true;
-    message.kind = "proposal".into();
-    message.authority = "promotion_candidate".into();
-    message.promotion_state = "decision_recorded".into();
-    message.payload_ref = format!("artifact://model-lane/messages/{message_id}");
-    message.payload_sha256 =
-        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".into();
-    message.artifact_ref = Some(format!("artifact://promoted/mt009/{message_id}"));
-    message.promotion_decision_id = Some(format!("promotion://mt009/{message_id}"));
-    message.promotion_gate_ref = Some(format!("promotion-gate://mt009/{message_id}"));
-    message.promotion_receipt_ref = Some(format!("promotion-receipt://mt009/{message_id}"));
-    message.promoted_artifact_sha256 =
-        Some("2f5f9f7bb8d38bb4a5a212c05cfb767c8aa97930c2da1b7d5cfa8f7f03f1b2e4".into());
-    message.promoted_artifact_version = Some("1".into());
-    message.tool_gate_decision_refs = vec![format!("toolgate://mt009/{lane_id}/allow")];
-    message.coordinator_session_id = "coordinator-run-mt009-mixed".into();
-    message.work_packet_id = Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".into());
-    message.micro_task_id = Some("MT-009".into());
-    message.task_board_id = Some("task-board://wp-1".into());
-    message.owner_session = "KERNEL_BUILDER-MT009".into();
-    message.trace_id = "trace-run-mt009-mixed".into();
-    message.message_span_id = format!("span-{message_id}");
-    message.parent_span_id = Some(format!("span-{lane_id}"));
-    message.linked_span_contexts = vec![format!("trace-link://run-mt009-mixed/{lane_id}")];
-    message.event_ledger_event_id = format!("evt_{message_id}");
-    message.event_ledger_seq = event_ledger_seq;
-    message.flight_recorder_correlation_id = message.event_ledger_event_id.clone();
-    message.locus_ref = Some(format!(
-        "locus://wp1/mt009/run-mt009-mixed/{lane_id}/{message_id}"
-    ));
-    message.loom_ref = Some(format!("loom://mt009/run-mt009-mixed/{message_id}"));
-    message.fems_ref = Some(format!("fems://mt009/run-mt009-mixed/{message_id}"));
-    message.proposal_ref = Some(format!("proposal://mt009/{message_id}/{model_ref}"));
-    message.crdt_update_ref = Some(format!("crdt-update://mt009/{message_id}"));
-    message.crdt_base_snapshot_ref = Some("crdt-snapshot://mt009/base".into());
-    message.crdt_state_vector = Some(format!("sv:mt009:{lane_label}"));
-    message.crdt_proposal_ref = Some(format!("crdt-proposal://mt009/{message_id}"));
-    message.crdt_stale_base_ref = None;
-    message.payload_error = None;
-    message.reason_ref = None;
-    message.recovery_hint_ref = Some("usermanual://model-lane-validation-harness#message".into());
-    message.created_at_utc = "2026-07-01T00:00:00Z".into();
-    message
 }

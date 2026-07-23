@@ -9,7 +9,6 @@
 //! EventLedger receipts, and DB constraints.
 
 mod knowledge_ingestion_support;
-mod knowledge_pg_support;
 
 use knowledge_ingestion_support::{ingestion_pg, register_root, test_ctx};
 

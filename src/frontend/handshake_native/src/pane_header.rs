@@ -286,9 +286,30 @@ impl PaneHeader {
         });
         ui.ctx().accesskit_node_builder(header_id, |node| {
             node.set_role(accesskit::Role::Group);
+            node.add_action(accesskit::Action::ShowContextMenu);
             node.set_author_id(pane_header_author_id(pane_id));
             node.set_label(format!("Pane header {pane_id}"));
         });
+        let show_context_menu = ui.input_mut(|input| {
+            let mut requested = false;
+            input.consume_accesskit_action_requests(header_id, |request| {
+                if request.action == accesskit::Action::ShowContextMenu {
+                    requested = true;
+                    true
+                } else {
+                    false
+                }
+            });
+            requested
+        });
+        if show_context_menu {
+            crate::context_menu::request_open(
+                ui.ctx(),
+                header_resp.id,
+                header_resp.rect.left_bottom(),
+            );
+            crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &pane_header_author_id(pane_id));
+        }
         // Build + show the header context menu on the strip's response. CLOSED by default (so the
         // MT-025 default snapshot only grows by the four header TARGET nodes, not menu items).
         let menu = ContextMenu::new("pane").items(pane_header_context_items(locked, is_last_pane));

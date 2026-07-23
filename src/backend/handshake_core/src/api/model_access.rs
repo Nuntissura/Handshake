@@ -4,8 +4,9 @@
 //! through these routes. They wrap [`crate::model_runtime::cloud::access_config`]:
 //!
 //! * `GET  /model-access/providers`            — non-secret enumeration for the
-//!   model picker (configured / unavailable per provider; CLI-bridge login
-//!   commands; the deliberately-excluded Gemini). Never returns key material.
+//!   model picker (BYOK configured / unavailable; CLI-bridge logged-in /
+//!   logged-out / expired / unavailable plus provider-owned login commands;
+//!   the deliberately-excluded Gemini). Never returns key material.
 //! * `PUT  /model-access/byok/:provider/key`   — store a BYOK API key ONLY in
 //!   the OS-keychain vault. Body `{ "api_key": "<secret>" }`. The key is a
 //!   [`secrecy::SecretString`] at the trust boundaries (request deserialisation
@@ -31,8 +32,9 @@
 //! [`ModelAccessState`], NOT hardcoded to [`CloudModelAccess::production`]. The
 //! real server wires [`ModelAccessState::production`] (OS keychain); a route
 //! test injects an in-memory-vault-backed provider via
-//! [`ModelAccessState::with_provider`] and mounts [`routes`] directly — it never
-//! builds a full [`crate::AppState`] and never touches the host keychain.
+//! [`ModelAccessState::with_provider_and_cli_auth_probe`] and mounts [`routes`]
+//! directly — it never builds a full [`crate::AppState`], touches the host
+//! keychain, or invokes an installed CLI.
 
 use std::sync::Arc;
 
@@ -47,8 +49,10 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::model_runtime::cloud::access_config::{
-    AccessConfigError, ByokProvider, CloudAccessEnumeration, CloudModelAccess,
+    enumerate_with_cli_auth_probe, AccessConfigError, ByokProvider, CliBridgeAuthStatusProbe,
+    CloudAccessEnumeration, CloudModelAccess, InMemoryAccessRegistry,
 };
+use crate::model_runtime::cloud::SecretsVaultError;
 
 type ApiError = (StatusCode, Json<Value>);
 
@@ -82,27 +86,68 @@ impl CloudAccessProvider for ProductionCloudAccessProvider {
     }
 }
 
-/// Axum state for the model-access router. Holds only the [`CloudAccessProvider`]
-/// seam — no key material, no [`crate::AppState`] — so a route test can mount
-/// [`routes`] with an injected provider and never build a full `AppState`
-/// (which needs a live PostgreSQL pool) or touch the host keychain.
+#[derive(Clone, Copy, Debug, Default)]
+struct UnavailableCliAuthProbe;
+
+impl CliBridgeAuthStatusProbe for UnavailableCliAuthProbe {
+    fn auth_status(
+        &self,
+        _provider: crate::model_runtime::cloud::CliBridgeProvider,
+    ) -> crate::model_runtime::cloud::CliBridgeAuthStatus {
+        crate::model_runtime::cloud::CliBridgeAuthStatus::Unavailable
+    }
+}
+
+/// Axum state for the model-access router. Holds the
+/// [`CloudAccessProvider`] and typed [`CliBridgeAuthStatusProbe`] seams — no key
+/// material, no [`crate::AppState`] — so a route test can mount [`routes`] with
+/// injected providers and never build a full `AppState` (which needs a live
+/// PostgreSQL pool), touch the host keychain, or invoke installed CLIs.
 #[derive(Clone)]
 pub struct ModelAccessState {
     provider: Arc<dyn CloudAccessProvider>,
+    cli_auth_probe: Arc<dyn CliBridgeAuthStatusProbe>,
 }
 
 impl ModelAccessState {
-    /// Production wiring (OS keychain). Used by the real server in `api::routes`.
+    /// Production keychain wiring with CLI status fail-closed. The real server
+    /// uses [`Self::production_with_cli_auth_probe`] after it has built and
+    /// pinned the canonical launch configurations.
     pub fn production() -> Self {
         Self {
             provider: Arc::new(ProductionCloudAccessProvider),
+            cli_auth_probe: Arc::new(UnavailableCliAuthProbe),
+        }
+    }
+
+    pub fn production_with_cli_auth_probe(
+        cli_auth_probe: Arc<dyn CliBridgeAuthStatusProbe>,
+    ) -> Self {
+        Self {
+            provider: Arc::new(ProductionCloudAccessProvider),
+            cli_auth_probe,
         }
     }
 
     /// Wire an explicit provider. Tests inject an in-memory-vault-backed provider
     /// (200/400/404 paths) or a keychain-unavailable provider (503 path).
     pub fn with_provider(provider: Arc<dyn CloudAccessProvider>) -> Self {
-        Self { provider }
+        Self {
+            provider,
+            cli_auth_probe: Arc::new(UnavailableCliAuthProbe),
+        }
+    }
+
+    /// Wire both seams explicitly. Route tests use a typed fake auth probe, so
+    /// they never inspect host credential files or invoke installed CLIs.
+    pub fn with_provider_and_cli_auth_probe(
+        provider: Arc<dyn CloudAccessProvider>,
+        cli_auth_probe: Arc<dyn CliBridgeAuthStatusProbe>,
+    ) -> Self {
+        Self {
+            provider,
+            cli_auth_probe,
+        }
     }
 }
 
@@ -121,12 +166,16 @@ fn access_config_api_error(err: AccessConfigError) -> ApiError {
             Json(json!({"error": "keychain_unavailable"})),
         ),
         AccessConfigError::Vault(vault_err) => {
-            // The vault error Display never contains key material (it carries a
-            // lane id + backend reason only), but we still map to a stable code
-            // rather than echoing internals.
+            let vault_error_code = match vault_err {
+                SecretsVaultError::EmptyLaneId => "empty_lane_id",
+                SecretsVaultError::EmptySecretValue => "empty_secret_value",
+                SecretsVaultError::NoSecretForLane(_) => "no_secret_for_lane",
+                SecretsVaultError::LockPoisoned(_) => "lock_poisoned",
+                SecretsVaultError::KeychainBackend(_) => "keychain_backend",
+            };
             tracing::error!(
                 target: "handshake_core::model_access",
-                error = %vault_err,
+                vault_error_code = vault_error_code,
                 "model_access_vault_error"
             );
             (
@@ -154,15 +203,26 @@ fn resolve_byok(provider_id: &str) -> Result<ByokProvider, ApiError> {
 
 /// `GET /model-access/providers` — the non-secret enumeration surface.
 async fn list_providers(State(state): State<ModelAccessState>) -> Result<Json<Value>, ApiError> {
-    // Keychain disabled / backend error: still return a well-formed enumeration
-    // (everything unavailable) rather than erroring, so the picker degrades
-    // gracefully.
-    let enumeration: CloudAccessEnumeration = match state.provider.access() {
-        Ok(svc) => svc.enumerate(),
-        Err(_) => crate::model_runtime::cloud::access_config::enumerate(
-            &crate::model_runtime::cloud::access_config::InMemoryAccessRegistry::new(),
-        ),
-    };
+    // Both keychain access and provider-owned CLI probes may block. Keep them
+    // off the async request executor; each CLI child is independently bounded.
+    let provider = state.provider.clone();
+    let cli_auth_probe = state.cli_auth_probe.clone();
+    let enumeration: CloudAccessEnumeration = tokio::task::spawn_blocking(move || {
+        // Keychain disabled / backend error: still return a well-formed
+        // enumeration (BYOK unavailable, typed CLI auth statuses) rather than
+        // erroring, so the picker degrades gracefully.
+        match provider.access() {
+            Ok(svc) => svc.enumerate_with_cli_auth_probe(cli_auth_probe.as_ref()),
+            Err(_) => enumerate_with_cli_auth_probe(
+                &InMemoryAccessRegistry::new(),
+                cli_auth_probe.as_ref(),
+            ),
+        }
+    })
+    .await
+    .unwrap_or_else(|_| {
+        enumerate_with_cli_auth_probe(&InMemoryAccessRegistry::new(), &UnavailableCliAuthProbe)
+    });
     Ok(Json(serde_json::to_value(enumeration).unwrap_or_else(
         |_| json!({"byok": [], "cli_bridge": [], "excluded": ["gemini"]}),
     )))

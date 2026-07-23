@@ -726,6 +726,77 @@ async fn model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflic
         "expected CRDT validation error, got {err}"
     );
 
+    let mut non_proposal_with_partial_crdt = sample_message(
+        "msg-partial-crdt-status",
+        "lane-local",
+        ModelLaneTarget::Lane("lane-cloud".into()),
+    );
+    non_proposal_with_partial_crdt.kind = ModelLaneMessageKind::Status;
+    non_proposal_with_partial_crdt.crdt_base_snapshot_ref = None;
+    let err = store
+        .record_message(non_proposal_with_partial_crdt)
+        .await
+        .expect_err("every CRDT-targeting message kind must fail closed on partial metadata");
+    assert!(
+        err.to_string().contains("crdt_base_snapshot_ref"),
+        "expected kind-independent CRDT validation error, got {err}"
+    );
+
+    let mut proposal_ref_only = sample_message(
+        "msg-crdt-proposal-ref-only",
+        "lane-local",
+        ModelLaneTarget::Lane("lane-cloud".into()),
+    );
+    proposal_ref_only.crdt_update_ref = None;
+    proposal_ref_only.crdt_base_snapshot_ref = None;
+    proposal_ref_only.crdt_state_vector = None;
+    proposal_ref_only.crdt_stale_base_ref = None;
+    let err = store
+        .record_message(proposal_ref_only)
+        .await
+        .expect_err("proposal-only CRDT metadata must not bypass authority resolution");
+    assert!(
+        err.to_string().contains("without crdt_update_ref"),
+        "expected proposal-only CRDT validation error, got {err}"
+    );
+
+    let mut stale_ref_only = sample_message(
+        "msg-crdt-stale-ref-only",
+        "lane-local",
+        ModelLaneTarget::Lane("lane-cloud".into()),
+    );
+    stale_ref_only.crdt_update_ref = None;
+    stale_ref_only.crdt_base_snapshot_ref = None;
+    stale_ref_only.crdt_state_vector = None;
+    stale_ref_only.crdt_proposal_ref = None;
+    stale_ref_only.crdt_stale_base_ref = Some("crdt-stale-base://mt002/stale-only".into());
+    let err = store
+        .record_message(stale_ref_only)
+        .await
+        .expect_err("stale-only CRDT metadata must not bypass authority resolution");
+    assert!(
+        err.to_string().contains("without crdt_update_ref"),
+        "expected stale-only CRDT validation error, got {err}"
+    );
+
+    let mut advisory_proposal = sample_message(
+        "msg-advisory-proposal-without-crdt",
+        "lane-local",
+        ModelLaneTarget::Lane("lane-cloud".into()),
+    );
+    advisory_proposal.proposal_ref = None;
+    advisory_proposal.crdt_update_ref = None;
+    advisory_proposal.crdt_base_snapshot_ref = None;
+    advisory_proposal.crdt_state_vector = None;
+    advisory_proposal.crdt_proposal_ref = None;
+    advisory_proposal.crdt_stale_base_ref = None;
+    advisory_proposal.authority = ModelLaneAuthority::Advisory;
+    advisory_proposal.idempotency_key = "idem-message-mt002-advisory-without-crdt".into();
+    store
+        .record_message(advisory_proposal)
+        .await
+        .expect("ordinary advisory Proposal without CRDT posture is valid");
+
     let mut malformed_trace = sample_message(
         "msg-malformed-trace",
         "lane-local",
@@ -767,8 +838,8 @@ async fn model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflic
     .await
     .expect("count message EventLedger rows after concurrent retry");
     assert_eq!(
-        message_ledger_rows, 1,
-        "concurrent same-key retry must not create a duplicate EventLedger row"
+        message_ledger_rows, 2,
+        "the advisory proposal plus one concurrent same-key insert must produce exactly two EventLedger rows"
     );
 
     let retry = sample_message(
@@ -1090,10 +1161,14 @@ impl ModelSessionFactory for DexterityProofFactory {
             .load(dexterity_load_spec())
             .await
             .map_err(|err| SwarmError::FactoryFailed(err.to_string()))?;
+        let owned_runtime = Arc::new(tokio::sync::Mutex::new(owned_runtime));
         let shared_runtime = DexterityProofRuntime::new(self.unloads.clone());
-        let teardown: handshake_core::swarm_orchestration::SessionTeardown = Box::new(move || {
+        let teardown: handshake_core::swarm_orchestration::SessionTeardown = Arc::new(move || {
+            let owned_runtime = Arc::clone(&owned_runtime);
             Box::pin(async move {
                 owned_runtime
+                    .lock()
+                    .await
                     .unload(model_id)
                     .await
                     .map_err(|err| SwarmError::Internal(err.to_string()))

@@ -13,6 +13,8 @@ fn model_runtime_contract_tests_root_exports_contract_types() {
         supports_subquadratic: true,
         supports_speculative_draft: true,
         supports_eagle3: false,
+        supports_embedding: false,
+        embedding_dimension: None,
     };
     let _error = ModelRuntimeError::Cancelled;
 }
@@ -61,6 +63,8 @@ fn model_runtime_contract_tests_capabilities_serde_shape_is_stable() {
         supports_subquadratic: true,
         supports_speculative_draft: false,
         supports_eagle3: true,
+        supports_embedding: false,
+        embedding_dimension: None,
     };
 
     assert_eq!(
@@ -72,7 +76,8 @@ fn model_runtime_contract_tests_capabilities_serde_shape_is_stable() {
             "supports_activation_steering": false,
             "supports_subquadratic": true,
             "supports_speculative_draft": false,
-            "supports_eagle3": true
+            "supports_eagle3": true,
+            "supports_embedding": false
         })
     );
 

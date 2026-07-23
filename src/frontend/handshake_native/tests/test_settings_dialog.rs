@@ -217,28 +217,52 @@ fn search_filter_narrows_to_keybindings_section() {
 // ── Test 6 (contract): same chord on both actions -> conflict banner; not persisted ─────────────────
 #[test]
 fn duplicate_keybinding_chord_shows_conflict_banner_and_is_not_saved() {
-    let transport = StubSettingsTransport::with_loaded(None);
+    let stored_conflict = serde_json::json!({
+        "schema_id": "hsk.workspace_settings_state@1",
+        "theme": "dark",
+        "custom_theme_tokens": {},
+        "keybindings": {
+            "app.quick_switcher.open": "Mod-Alt-p",
+            "app.command_palette.open": "Mod-Alt-p"
+        },
+        "settings": {
+            "view_mode": "NSFW",
+            "swarm_board_default_open": false,
+            "swarm_lane_diagnostics_default_open": false,
+            "operator_chat_default_open": false
+        }
+    });
+    let transport = StubSettingsTransport::with_loaded(Some(stored_conflict));
     let handle = leak_runtime_handle();
     let mut app = ok_app();
     app.set_runtime_handle(handle);
     app.set_settings_transport(transport.clone());
-    // Seed a deliberately-conflicting state: both actions on Mod-Alt-p (the wired edit path refuses to
-    // commit a conflict, so the seed bypasses it). On open, the drafts reflect this and the banner shows.
+    // Seed the same deliberately-conflicting state in memory as well as the scripted durable load. The
+    // app autoloads settings before the modal opens, so a `None` load would correctly replace any local
+    // test-only seed with first-run defaults and make this proof scheduler-dependent.
     app.set_keybinding_for_test("app.quick_switcher.open", "Mod-Alt-p");
     app.set_keybinding_for_test("app.command_palette.open", "Mod-Alt-p");
 
-    let mut harness =
-        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    // Keep the complete expanded settings surface inside the headless desktop viewport. The dialog
+    // now includes Cloud Models and Model Runtime sections, so the kittest default viewport can clip
+    // lower AccessKit nodes even though the live desktop surface is scrollable.
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1440.0, 940.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
     harness.run();
     harness.run();
 
     // AC6: the conflict banner appears naming both actions + the shared chord.
-    assert!(
-        harness
-            .query_by_label("Quick Switcher and Command Palette both use Mod-Alt-p.")
-            .is_some(),
-        "AC6: conflict banner appears naming both actions + the shared chord"
+    let conflict_label = harness
+        .root()
+        .children_recursive()
+        .find(|node| node.accesskit_node().author_id() == Some("settings.keybinding-conflict"))
+        .and_then(|node| node.accesskit_node().label());
+    assert_eq!(
+        conflict_label.as_deref(),
+        Some("Quick Switcher and Command Palette both use Mod-Alt-p."),
+        "AC6: addressable conflict banner names both actions + the shared chord"
     );
 
     // AC6: while the bindings conflict, the dialog renders the banner but emits NO KeybindingChanged,
@@ -281,8 +305,10 @@ fn reset_panes_and_drawers_button_arms_layout_reset() {
     app.set_runtime_handle(handle);
     app.set_settings_transport(StubSettingsTransport::with_loaded(None));
 
-    let mut harness =
-        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    // Match the production desktop-sized proof surface used by the Model Runtime settings route.
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1440.0, 940.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
     harness.run();
 
@@ -292,7 +318,9 @@ fn reset_panes_and_drawers_button_arms_layout_reset() {
     );
 
     // Click the Reset panes & drawers button (findable by its visible label).
-    harness.get_by_label("Reset panes & drawers").click();
+    harness
+        .get_by_label("Reset panes & drawers")
+        .click_accesskit();
     harness.run();
 
     assert!(
@@ -727,6 +755,86 @@ fn persisted_swarm_defaults_open_runtime_tabs() {
     assert!(
         loaded,
         "stored Swarm defaults open Swarm, Lane Diagnostics, and Operator Chat runtime tabs"
+    );
+}
+
+#[test]
+fn model_runtime_settings_action_opens_production_registry_pane() {
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1440.0, 940.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    harness.state_mut().open_settings();
+    harness.run();
+
+    let author_ids = harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+        .collect::<Vec<_>>();
+    assert!(
+        author_ids
+            .iter()
+            .any(|id| id == "settings.section.model-runtime"),
+        "Model Runtime settings section must be addressable: {author_ids:?}"
+    );
+    assert!(
+        author_ids
+            .iter()
+            .any(|id| id == "settings.model-runtime.open"),
+        "Model Runtime settings action must be addressable: {author_ids:?}"
+    );
+
+    harness.get_by_label("Open Model Runtime").click_accesskit();
+    harness.run();
+
+    assert!(
+        !harness.state().settings_open(),
+        "navigation closes the modal settings overlay"
+    );
+    assert_eq!(
+        harness.state().active_module(),
+        handshake_native::module_switcher::ModuleId::Studio,
+        "settings navigation uses the production STUDIO route"
+    );
+    assert!(
+        harness.state().tab_bar_states().values().any(|bar| bar
+            .tabs
+            .iter()
+            .any(|tab| tab.pane_type == PaneType::ModelRuntime)),
+        "settings navigation opens the production Model Runtime pane"
+    );
+}
+
+#[test]
+fn model_runtime_settings_action_opens_canonical_problems_pane() {
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1440.0, 940.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), ok_app());
+    harness.state_mut().open_settings();
+    harness.run();
+
+    let author_ids = harness
+        .root()
+        .children_recursive()
+        .filter_map(|node| node.accesskit_node().author_id().map(str::to_owned))
+        .collect::<Vec<_>>();
+    assert!(
+        author_ids
+            .iter()
+            .any(|id| id == "settings.model-runtime.open-problems"),
+        "Problems settings action must be addressable: {author_ids:?}"
+    );
+
+    harness.get_by_label("Open Problems").click_accesskit();
+    harness.run();
+
+    assert!(!harness.state().settings_open());
+    assert!(
+        harness.state().tab_bar_states().values().any(|bar| bar
+            .tabs
+            .iter()
+            .any(|tab| tab.pane_type == PaneType::Problems)),
+        "settings navigation opens the canonical Problems pane"
     );
 }
 

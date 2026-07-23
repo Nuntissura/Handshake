@@ -15,7 +15,7 @@ use llama_cpp_2::model::params::LlamaModelParams;
 
 use super::super::{
     CancellationToken, GenerateRequest, KvCacheHandle, KvQuantSupport, ModelRuntimeError,
-    TokenStream,
+    RuntimeActivityGuard, TokenStream,
 };
 use super::generate;
 use super::gguf_loader::LlamaCppLoadConfig;
@@ -36,7 +36,7 @@ pub struct LlamaCppContext {
 }
 
 impl LlamaCppContext {
-    pub fn load_from_file(
+    pub(super) fn load_from_file(
         path: &Path,
         config: &LlamaCppLoadConfig,
     ) -> Result<Self, ModelRuntimeError> {
@@ -58,6 +58,7 @@ impl LlamaCppContext {
         generation_epoch: u64,
         perf_stats: Arc<std::sync::Mutex<LlamaCppPerfStats>>,
         flight_recorder: Option<Arc<dyn FlightRecorder>>,
+        activity_guard: RuntimeActivityGuard,
     ) -> TokenStream {
         generate_backend(
             &self.backend,
@@ -71,6 +72,7 @@ impl LlamaCppContext {
             generation_epoch,
             perf_stats,
             flight_recorder,
+            activity_guard,
         )
     }
 
@@ -111,6 +113,24 @@ impl LlamaCppContext {
         match &self.backend {
             LlamaCppBackend::Native(native) => native.clone(),
         }
+    }
+
+    #[cfg(feature = "llama-cpp-runtime-engine")]
+    pub(super) fn embedding_dimension(&self) -> Result<usize, ModelRuntimeError> {
+        let dimension = match &self.backend {
+            LlamaCppBackend::Native(native) => native.model.n_embd(),
+        };
+        let dimension = usize::try_from(dimension).map_err(|error| {
+            ModelRuntimeError::LoadError(format!(
+                "llama.cpp model embedding dimension is invalid: {error}"
+            ))
+        })?;
+        if dimension == 0 {
+            return Err(ModelRuntimeError::LoadError(
+                "llama.cpp model embedding dimension is zero".to_string(),
+            ));
+        }
+        Ok(dimension)
     }
 }
 
@@ -260,6 +280,7 @@ fn generate_backend(
     generation_epoch: u64,
     perf_stats: Arc<std::sync::Mutex<LlamaCppPerfStats>>,
     flight_recorder: Option<Arc<dyn FlightRecorder>>,
+    activity_guard: RuntimeActivityGuard,
 ) -> TokenStream {
     match backend {
         LlamaCppBackend::Native(native) => generate::native_generate_stream(
@@ -274,6 +295,7 @@ fn generate_backend(
             generation_epoch,
             perf_stats,
             flight_recorder,
+            activity_guard,
         ),
     }
 }
@@ -291,7 +313,9 @@ fn generate_backend(
     _generation_epoch: u64,
     _perf_stats: Arc<std::sync::Mutex<LlamaCppPerfStats>>,
     _flight_recorder: Option<Arc<dyn FlightRecorder>>,
+    activity_guard: RuntimeActivityGuard,
 ) -> TokenStream {
+    drop(activity_guard);
     generate::single_error_stream(ModelRuntimeError::LoadError(
         LLAMA_CPP_NATIVE_FEATURE_DISABLED.to_string(),
     ))
@@ -369,7 +393,9 @@ fn model_params_from_config(config: &LlamaCppModelLoadConfig) -> LlamaModelParam
     params
         .with_main_gpu(config.main_gpu)
         .with_vocab_only(config.vocab_only)
-        .with_use_mmap(config.use_mmap)
+        // Hard enforcement at the native boundary. The runtime constructor
+        // also normalizes its reported effective config to false.
+        .with_use_mmap(false)
         .with_use_mlock(config.use_mlock)
 }
 

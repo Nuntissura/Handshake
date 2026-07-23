@@ -694,13 +694,23 @@ fn read_mamba2_config(path: &Path) -> Result<(Config, Vec<u32>), ModelRuntimeErr
             path.display()
         ))
     })?;
-    let config = serde_json::from_value::<Config>(value.clone()).map_err(|error| {
+    decode_mamba2_config_value(&value).map_err(|error| {
         ModelRuntimeError::LoadError(format!(
             "failed to decode Candle Mamba2 config {}: {error}",
             path.display()
         ))
+    })
+}
+
+pub(super) fn decode_mamba2_config_value(
+    value: &Value,
+) -> Result<(Config, Vec<u32>), ModelRuntimeError> {
+    let config = serde_json::from_value::<Config>(value.clone()).map_err(|error| {
+        ModelRuntimeError::LoadError(format!(
+            "failed to decode captured Candle Mamba2 config: {error}"
+        ))
     })?;
-    Ok((config, eos_token_ids(&value)))
+    Ok((config, eos_token_ids(value)))
 }
 
 fn eos_token_ids(value: &Value) -> Vec<u32> {

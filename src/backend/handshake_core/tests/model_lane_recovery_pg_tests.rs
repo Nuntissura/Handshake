@@ -41,7 +41,7 @@ async fn model_lane_recovery_replays_from_postgres_eventledger_checkpoint() {
             "recovery-event-mt007-001",
             "run-mt007-happy",
             Some("lane-local-mt007"),
-            ModelLaneRecoveryEventKind::CrdtUpdateObserved,
+            ModelLaneRecoveryEventKind::PayloadRefObserved,
             1,
             Some(message_payload_ref.clone()),
             None,
@@ -258,7 +258,7 @@ async fn model_lane_recovery_replays_from_postgres_eventledger_checkpoint() {
 
 #[tokio::test]
 async fn model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap() {
-    let (_pool, store) = recovery_store().await;
+    let (pool, store) = recovery_store().await;
 
     seed_run_lane_message(&store, "run-mt007-gap", "lane-mt007-gap", "msg-mt007-gap").await;
     store
@@ -284,7 +284,30 @@ async fn model_lane_recovery_rejects_corrupt_checkpoint_and_event_seq_gap() {
             None,
         ))
         .await
-        .expect("record replay seq 3");
+        .expect("record allocator-owned replay seq 2");
+    sqlx::query(
+        r#"
+        UPDATE model_lane_recovery_events
+        SET replay_order_seq = 3,
+            record_json = jsonb_set(record_json, '{replay_order_seq}', '3'::jsonb)
+        WHERE recovery_event_id = $1
+        "#,
+    )
+    .bind(&gap_event.recovery_event_id)
+    .execute(&pool)
+    .await
+    .expect("corrupt mutable replay sequence to create a gap");
+    sqlx::query(
+        r#"
+        UPDATE kernel_event_ledger
+        SET payload = jsonb_set(payload, '{record,replay_order_seq}', '3'::jsonb)
+        WHERE event_id = $1
+        "#,
+    )
+    .bind(&gap_event.event_ledger_event_id)
+    .execute(&pool)
+    .await
+    .expect("corrupt EventLedger replay sequence to the same gap");
     store
         .record_recovery_checkpoint(sample_checkpoint(
             "checkpoint-gap",
@@ -382,8 +405,8 @@ async fn model_lane_recovery_restores_mt_runtime_status_refs_after_restart() {
 }
 
 #[tokio::test]
-async fn model_lane_recovery_excludes_post_checkpoint_adjunct_state() {
-    let (_pool, store) = recovery_store().await;
+async fn model_lane_recovery_includes_current_leases_but_bounds_replay_adjunct_state() {
+    let (pool, store) = recovery_store().await;
 
     seed_run_lane_message(
         &store,
@@ -409,7 +432,7 @@ async fn model_lane_recovery_excludes_post_checkpoint_adjunct_state() {
         ))
         .await
         .expect("record checkpoint-bounded recovery event");
-    store
+    let checkpoint = store
         .record_recovery_checkpoint(sample_checkpoint(
             "checkpoint-adjunct-bound",
             "run-mt007-adjunct-bound",
@@ -432,6 +455,26 @@ async fn model_lane_recovery_excludes_post_checkpoint_adjunct_state() {
         ))
         .await
         .expect("record post-checkpoint lease");
+    store
+        .record_lane_lease(sample_lease(
+            "lease-mt007-post-checkpoint-expired",
+            "run-mt007-adjunct-bound",
+            "lane-mt007-adjunct-bound",
+            "2020-01-01T00:00:00Z",
+            ModelLaneLeaseState::Active,
+        ))
+        .await
+        .expect("record expired post-checkpoint lease");
+    store
+        .record_lane_lease(sample_lease(
+            "lease-mt007-post-checkpoint-expired-2",
+            "run-mt007-adjunct-bound",
+            "lane-mt007-adjunct-bound",
+            "2020-01-02T00:00:00Z",
+            ModelLaneLeaseState::Active,
+        ))
+        .await
+        .expect("record second expired post-checkpoint lease");
     store
         .record_mt_runtime_status(sample_mt_status(
             "mt-status-mt007-post-checkpoint",
@@ -480,11 +523,417 @@ async fn model_lane_recovery_excludes_post_checkpoint_adjunct_state() {
     let recovered = store
         .recover_run_after_restart("run-mt007-adjunct-bound")
         .await
-        .expect("recover only checkpoint-bounded adjunct state");
-    assert!(recovered.active_leases.is_empty());
-    assert!(recovered.reclaimable_lease_ids.is_empty());
+        .expect("recover checkpoint replay plus current lease authority");
+    assert_eq!(
+        recovered
+            .active_leases
+            .iter()
+            .map(|lease| lease.lease_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["lease-mt007-post-checkpoint"],
+        "forward-advanced recovery includes the current unexpired lease"
+    );
+    assert_eq!(
+        recovered.reclaimable_lease_ids,
+        vec![
+            "lease-mt007-post-checkpoint-expired",
+            "lease-mt007-post-checkpoint-expired-2",
+        ],
+        "all expired current leases are reconciled even though created after checkpoint"
+    );
+    assert_eq!(
+        recovered.checkpoint.last_event_ledger_seq, checkpoint.last_event_ledger_seq,
+        "current lease reconciliation must not move the replay watermark"
+    );
     assert!(recovered.cloud_consent_denials.is_empty());
     assert!(recovered.mt_runtime_statuses.is_empty());
+
+    let orphan_events_after_first_recovery: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE aggregate_type = 'model_lane_recovery_event' \
+           AND payload->'record'->>'event_kind' = 'orphan_detected' \
+           AND payload->'record'->>'lease_id' IN \
+               ('lease-mt007-post-checkpoint-expired', \
+                'lease-mt007-post-checkpoint-expired-2')",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("query first durable orphan event");
+    assert_eq!(
+        orphan_events_after_first_recovery, 2,
+        "each expired lease receives one contiguous orphan recovery event"
+    );
+
+    let recovered_again = store
+        .recover_run_after_restart("run-mt007-adjunct-bound")
+        .await
+        .expect("repeat recovery is idempotent");
+    assert_eq!(
+        recovered_again.reclaimable_lease_ids,
+        vec![
+            "lease-mt007-post-checkpoint-expired",
+            "lease-mt007-post-checkpoint-expired-2",
+        ]
+    );
+    assert_eq!(
+        recovered_again.checkpoint.last_event_ledger_seq, checkpoint.last_event_ledger_seq,
+        "repeated orphan reconciliation must not move the replay watermark"
+    );
+    let orphan_events_after_second_recovery: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE aggregate_type = 'model_lane_recovery_event' \
+           AND payload->'record'->>'event_kind' = 'orphan_detected' \
+           AND payload->'record'->>'lease_id' IN \
+               ('lease-mt007-post-checkpoint-expired', \
+                'lease-mt007-post-checkpoint-expired-2')",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("query durable orphan event after repeated recovery");
+    assert_eq!(
+        orphan_events_after_second_recovery, 2,
+        "repeated recovery must reuse the durable orphan decision"
+    );
+
+    store
+        .record_lane_lease(sample_lease(
+            "lease-mt007-post-checkpoint-expired-later",
+            "run-mt007-adjunct-bound",
+            "lane-mt007-adjunct-bound",
+            "2020-01-03T00:00:00Z",
+            ModelLaneLeaseState::Active,
+        ))
+        .await
+        .expect("record later forward expired lease");
+    let recovered_after_later_lease = store
+        .recover_run_after_restart("run-mt007-adjunct-bound")
+        .await
+        .expect("later current lease reconciles after prior idempotent recovery");
+    assert_eq!(
+        recovered_after_later_lease.reclaimable_lease_ids,
+        vec![
+            "lease-mt007-post-checkpoint-expired",
+            "lease-mt007-post-checkpoint-expired-2",
+            "lease-mt007-post-checkpoint-expired-later",
+        ]
+    );
+    assert_eq!(
+        recovered_after_later_lease.checkpoint.last_event_ledger_seq,
+        checkpoint.last_event_ledger_seq,
+        "later current-authority reconciliation must not move the replay watermark"
+    );
+    let orphan_events_after_later_lease: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE aggregate_type = 'model_lane_recovery_event' \
+           AND payload->'record'->>'event_kind' = 'orphan_detected' \
+           AND payload->'record'->>'lease_id' IN \
+               ('lease-mt007-post-checkpoint-expired', \
+                'lease-mt007-post-checkpoint-expired-2', \
+                'lease-mt007-post-checkpoint-expired-later')",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("query durable orphan events after later lease");
+    assert_eq!(
+        orphan_events_after_later_lease, 3,
+        "later forward lease appends exactly one orphan event after the existing recovery tail"
+    );
+}
+
+#[tokio::test]
+async fn recovery_checkpoint_requires_exact_pre_write_eventledger_watermark() {
+    let (pool, store) = recovery_store().await;
+    let run_id = "run-mt017-ac10-exact-watermark";
+    let lane_id = "lane-mt017-ac10-exact-watermark";
+    let message_id = "msg-mt017-ac10-exact-watermark";
+    seed_run_lane_message(&store, run_id, lane_id, message_id).await;
+    let stale_but_valid_seq = store
+        .replay_run(run_id)
+        .await
+        .expect("seeded run replays")
+        .messages[0]
+        .event_ledger_seq;
+    store
+        .record_mt_runtime_status(sample_mt_status(
+            "mt-status-mt017-ac10-watermark-forward",
+            run_id,
+            "MT-017",
+            ModelLaneMtRuntimeStatus::ReadyForValidation,
+        ))
+        .await
+        .expect("advance stream after the stale checkpoint candidate");
+    let exact_high_watermark =
+        event_stream_high_watermark(&pool, &format!("mlane-stream-{run_id}")).await;
+    assert!(exact_high_watermark > stale_but_valid_seq);
+
+    let err = store
+        .record_recovery_checkpoint(sample_checkpoint(
+            "checkpoint-mt017-ac10-stale-watermark",
+            run_id,
+            Some(lane_id),
+            Some(message_id),
+            None,
+            stale_but_valid_seq,
+            vec![],
+        ))
+        .await
+        .expect_err("an older in-stream sequence is not an exact checkpoint watermark");
+    assert!(
+        err.to_string()
+            .contains(ModelLaneRecoveryFailureKind::CorruptCheckpoint.code()),
+        "expected typed corrupt-checkpoint error, got {err}"
+    );
+    assert!(
+        err.to_string()
+            .contains("exact pre-write stream high-watermark"),
+        "expected exact watermark diagnosis, got {err}"
+    );
+    let checkpoint_rows: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM kernel_event_ledger \
+         WHERE aggregate_type = 'model_lane_recovery_checkpoint' \
+           AND aggregate_id = 'checkpoint-mt017-ac10-stale-watermark'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count rejected checkpoint ledger rows");
+    assert_eq!(
+        checkpoint_rows, 0,
+        "watermark rejection occurs before write"
+    );
+}
+
+#[tokio::test]
+async fn production_boot_recovery_fences_public_append_and_new_lane_orphan_recovery() {
+    let (pool, store) = recovery_store().await;
+    let run_id = "run-mt017-ac10-fenced";
+    let checkpoint_lane_id = "lane-mt017-ac10-checkpoint";
+    let current_lane_id = "lane::post-checkpoint/ac10#opaque";
+    let message_id = "msg-mt017-ac10-fenced";
+    let authoritative_session_id = "session::opaque/ac10@runtime";
+    let authoritative_model_session_id = "model-session::opaque/ac10@provider";
+    let active_lease_id = "lease::active/ac10#opaque";
+    let expired_lease_ids = ["lease::expired/ac10#one", "lease::expired/ac10#two"];
+
+    let mut run = sample_run(run_id, checkpoint_lane_id);
+    run.lane_ids = vec![checkpoint_lane_id.into(), current_lane_id.into()];
+    store.record_run(run).await.expect("record AC-10 run");
+    store
+        .record_lane(sample_lane(
+            checkpoint_lane_id,
+            run_id,
+            ModelLaneKind::LocalModel,
+            RuntimeBinding::Local,
+            LaunchAuthority::ModelRuntime,
+        ))
+        .await
+        .expect("record checkpoint-bounded lane");
+    let message = sample_message(message_id, run_id, checkpoint_lane_id);
+    store
+        .record_message(message.clone())
+        .await
+        .expect("record AC-10 message");
+    store
+        .record_context_bundle_artifact_binding(sample_artifact_binding_for_message(&message))
+        .await
+        .expect("record AC-10 payload authority");
+    let recovery_event = store
+        .record_recovery_event(sample_recovery_event(
+            "recovery-event-mt017-ac10-base",
+            run_id,
+            Some(checkpoint_lane_id),
+            ModelLaneRecoveryEventKind::PayloadRefObserved,
+            1,
+            Some(message.payload_ref.clone()),
+            None,
+        ))
+        .await
+        .expect("record contiguous recovery base");
+    let checkpoint = sample_checkpoint(
+        "checkpoint-mt017-ac10-fenced",
+        run_id,
+        Some(checkpoint_lane_id),
+        Some(message_id),
+        None,
+        recovery_event.event_ledger_seq,
+        vec![message.payload_ref.clone()],
+    );
+    store
+        .record_recovery_checkpoint(checkpoint)
+        .await
+        .expect("record exact AC-10 checkpoint");
+
+    // This lane is genuinely new current authority: it is committed after the
+    // checkpoint and no post-checkpoint message advances the forward replay bound.
+    let mut lane = sample_lane(
+        current_lane_id,
+        run_id,
+        ModelLaneKind::LocalModel,
+        RuntimeBinding::Local,
+        LaunchAuthority::ModelRuntime,
+    );
+    lane.session_id = authoritative_session_id.into();
+    lane.model_session_id = authoritative_model_session_id.into();
+    lane.locus_binding = Some(sample_locus(
+        run_id,
+        authoritative_session_id,
+        authoritative_model_session_id,
+    ));
+    store
+        .record_lane(lane)
+        .await
+        .expect("record post-checkpoint opaque-id lane");
+
+    store
+        .record_lane_lease(sample_lease(
+            active_lease_id,
+            run_id,
+            current_lane_id,
+            "2099-01-01T00:00:00Z",
+            ModelLaneLeaseState::Active,
+        ))
+        .await
+        .expect("record post-checkpoint active lease");
+    for (index, lease_id) in expired_lease_ids.iter().enumerate() {
+        store
+            .record_lane_lease(sample_lease(
+                lease_id,
+                run_id,
+                current_lane_id,
+                if index == 0 {
+                    "2020-01-01T00:00:00Z"
+                } else {
+                    "2020-01-02T00:00:00Z"
+                },
+                ModelLaneLeaseState::Active,
+            ))
+            .await
+            .expect("record post-checkpoint expired lease");
+    }
+
+    let mut ordinary_append = sample_recovery_event(
+        "recovery-event-mt017-ac10-ordinary-racer",
+        run_id,
+        Some(current_lane_id),
+        ModelLaneRecoveryEventKind::CheckpointRestored,
+        999,
+        None,
+        None,
+    );
+    ordinary_append.session_id = Some(authoritative_session_id.into());
+    ordinary_append.model_session_id = Some(authoritative_model_session_id.into());
+
+    let (first, second, ordinary) = tokio::join!(
+        store.recover_run_after_restart(run_id),
+        store.recover_run_after_restart(run_id),
+        store.record_recovery_event(ordinary_append)
+    );
+    let first = first.expect("first concurrent recovery succeeds");
+    let second = second.expect("second concurrent recovery succeeds idempotently");
+    let ordinary = ordinary.expect("ordinary recovery append shares the run fence");
+    assert!((2..=4).contains(&ordinary.replay_order_seq));
+    for recovered in [&first, &second] {
+        assert_eq!(
+            recovered
+                .active_leases
+                .iter()
+                .map(|lease| lease.lease_id.as_str())
+                .collect::<Vec<_>>(),
+            vec![active_lease_id]
+        );
+        assert_eq!(
+            recovered.reclaimable_lease_ids,
+            expired_lease_ids.map(str::to_string).to_vec()
+        );
+        assert_eq!(
+            recovered.checkpoint.last_event_ledger_seq,
+            recovery_event.event_ledger_seq
+        );
+        assert!(
+            recovered
+                .replay
+                .lanes
+                .iter()
+                .all(|lane| lane.lane_id != current_lane_id),
+            "current post-checkpoint lane must not move or enter bounded replay"
+        );
+    }
+
+    let orphan_rows: Vec<(String, i64, String, String)> = sqlx::query_as(
+        r#"
+        SELECT payload->'record'->>'lease_id',
+               (payload->'record'->>'replay_order_seq')::bigint,
+               payload->'record'->>'session_id',
+               payload->'record'->>'model_session_id'
+        FROM kernel_event_ledger
+        WHERE aggregate_type = 'model_lane_recovery_event'
+          AND payload->'record'->>'run_id' = $1
+          AND payload->'record'->>'event_kind' = 'orphan_detected'
+        ORDER BY (payload->'record'->>'replay_order_seq')::bigint
+        "#,
+    )
+    .bind(run_id)
+    .fetch_all(&pool)
+    .await
+    .expect("load fenced orphan authority");
+    assert_eq!(orphan_rows.len(), 2);
+    assert_eq!(orphan_rows[0].0, expired_lease_ids[0]);
+    assert_eq!(orphan_rows[1].0, expired_lease_ids[1]);
+    for row in &orphan_rows {
+        assert_eq!(row.2, authoritative_session_id);
+        assert_eq!(row.3, authoritative_model_session_id);
+    }
+    let raced_tail: Vec<i64> = sqlx::query_scalar(
+        "SELECT replay_order_seq FROM model_lane_recovery_events WHERE run_id = $1 ORDER BY replay_order_seq",
+    )
+    .bind(run_id)
+    .fetch_all(&pool)
+    .await
+    .expect("load allocator-owned raced tail");
+    assert_eq!(raced_tail, vec![1, 2, 3, 4]);
+
+    let boot_recovered = store
+        .recover_restartable_runs_at_boot()
+        .await
+        .expect("production boot recovery invokes run recovery");
+    assert_eq!(boot_recovered.len(), 1);
+    assert_eq!(boot_recovered[0].reclaimable_lease_ids.len(), 2);
+
+    let later_lease_id = "lease::expired/ac10#later-forward";
+    store
+        .record_lane_lease(sample_lease(
+            later_lease_id,
+            run_id,
+            current_lane_id,
+            "2020-01-03T00:00:00Z",
+            ModelLaneLeaseState::Active,
+        ))
+        .await
+        .expect("record later expired lease");
+    let later_boot = store
+        .recover_restartable_runs_at_boot()
+        .await
+        .expect("later production recovery appends one decision");
+    assert_eq!(
+        later_boot[0].reclaimable_lease_ids,
+        vec![
+            expired_lease_ids[0].to_string(),
+            expired_lease_ids[1].to_string(),
+            later_lease_id.to_string(),
+        ]
+    );
+    let repeated_boot = store
+        .recover_restartable_runs_at_boot()
+        .await
+        .expect("repeated production recovery is idempotent");
+    assert_eq!(repeated_boot[0].reclaimable_lease_ids.len(), 3);
+    let final_tail: Vec<i64> = sqlx::query_scalar(
+        "SELECT replay_order_seq FROM model_lane_recovery_events WHERE run_id = $1 ORDER BY replay_order_seq",
+    )
+    .bind(run_id)
+    .fetch_all(&pool)
+    .await
+    .expect("load final contiguous recovery authority");
+    assert_eq!(final_tail, vec![1, 2, 3, 4, 5]);
 }
 
 #[tokio::test]
@@ -1363,11 +1812,11 @@ fn sample_message(message_id: &str, run_id: &str, lane_id: &str) -> NewModelLane
         idempotency_key: format!("idem-{message_id}"),
         replay_order_key: "00000002/message".into(),
         replay_after_event_ledger_seq: Some(1),
-        proposal_ref: Some(format!("proposal://mt007/{message_id}")),
-        crdt_update_ref: Some(format!("crdt-update://mt007/{message_id}")),
-        crdt_base_snapshot_ref: Some("crdt-snapshot://mt007/base".into()),
-        crdt_state_vector: Some("sv:1".into()),
-        crdt_proposal_ref: Some(format!("crdt-proposal://mt007/{message_id}")),
+        proposal_ref: None,
+        crdt_update_ref: None,
+        crdt_base_snapshot_ref: None,
+        crdt_state_vector: None,
+        crdt_proposal_ref: None,
         crdt_stale_base_ref: None,
         failstate_code: None,
         reason_ref: None,
@@ -1390,6 +1839,7 @@ fn sample_recovery_event(
     payload_ref: Option<String>,
     crdt_stale_base_ref: Option<String>,
 ) -> NewModelLaneRecoveryEvent {
+    let crdt_observation = kind == ModelLaneRecoveryEventKind::CrdtUpdateObserved;
     NewModelLaneRecoveryEvent {
         recovery_event_id: event_id.into(),
         run_id: run_id.into(),
@@ -1406,8 +1856,8 @@ fn sample_recovery_event(
         source_event_ledger_seq: None,
         payload_refs: payload_ref.into_iter().collect(),
         artifact_refs: vec![],
-        crdt_base_snapshot_ref: Some("crdt-snapshot://mt007/base".into()),
-        crdt_state_vector: Some("sv:1".into()),
+        crdt_base_snapshot_ref: crdt_observation.then_some("crdt-snapshot://mt007/base".into()),
+        crdt_state_vector: crdt_observation.then_some("sv:1".into()),
         crdt_stale_base_ref,
         lease_id: None,
         failure_kind: None,

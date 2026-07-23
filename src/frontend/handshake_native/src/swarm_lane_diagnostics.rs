@@ -1,7 +1,8 @@
 //! Native Swarm lane diagnostics pane (WP-1 MT-008).
 //!
 //! The pane renders Dexterity model-lane runs, lanes, messages, payload refs,
-//! promotion state, recovery state, and diagnostic tier posture. Production
+//! promotion state, routing execution/stage/outbox lifecycle, recovery state,
+//! and diagnostic tier posture. Production
 //! data is fetched from the `handshake_core` PostgreSQL-backed diagnostics
 //! route; tests may inject a projection into the same renderer.
 
@@ -16,13 +17,14 @@ use serde::{Deserialize, Serialize};
 use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 
 pub const SURFACE_CONTRACT_ID: &str = "native_swarm_lane_diagnostics";
-pub const PROJECTION_SCHEMA_ID: &str = "hsk.model_lane_diagnostics_projection@1";
+pub const PROJECTION_SCHEMA_ID: &str = "hsk.model_lane_diagnostics_projection@3";
 pub const SURFACE_AUTHOR_ID: &str = "swarm-lane-diagnostics.surface";
 pub const RUN_FILTER_AUTHOR_ID: &str = "swarm-lane-diagnostics.filter.run";
 pub const LANE_FILTER_AUTHOR_ID: &str = "swarm-lane-diagnostics.filter.lane";
 pub const MESSAGE_FILTER_AUTHOR_ID: &str = "swarm-lane-diagnostics.filter.message";
 pub const REFRESH_AUTHOR_ID: &str = "swarm-lane-diagnostics.action.refresh";
 pub const ERROR_AUTHOR_ID: &str = "swarm-lane-diagnostics.error";
+pub const FRESHNESS_AUTHOR_ID: &str = "swarm-lane-diagnostics.freshness";
 
 pub type SwarmLaneDiagnosticsCell =
     Arc<Mutex<Option<Result<SwarmLaneDiagnosticsProjection, String>>>>;
@@ -36,6 +38,7 @@ pub struct SwarmLaneDiagnosticsProjection {
     pub messages: Vec<SwarmLaneDiagnosticsMessage>,
     pub diagnostic_tiers: Vec<SwarmLaneDiagnosticsTier>,
     pub mt_runtime_statuses: Vec<SwarmLaneDiagnosticsMtStatus>,
+    pub routing_executions: Vec<SwarmLaneRoutingExecutionDiagnostics>,
     pub active_lease_count: usize,
     pub reclaimable_lease_ids: Vec<String>,
     pub orphan_state: String,
@@ -71,7 +74,6 @@ pub struct SwarmLaneDiagnosticsRun {
     pub status: String,
     pub recovery_hint_ref: Option<String>,
     pub selected_model_id: Option<String>,
-    #[serde(default)]
     pub candidate_model_ids: Vec<String>,
     #[serde(default)]
     pub budget_summary_ref: String,
@@ -90,6 +92,9 @@ pub struct SwarmLaneDiagnosticsLane {
     pub status: String,
     pub recovery_state: String,
     pub model_id: Option<String>,
+    pub model_display_name: String,
+    pub model_stable_anchor: Option<String>,
+    pub model_anchor_unavailable_reason: Option<String>,
     #[serde(default)]
     pub session_id: String,
     #[serde(default)]
@@ -100,7 +105,6 @@ pub struct SwarmLaneDiagnosticsLane {
     pub runtime_binding: String,
     #[serde(default)]
     pub launch_authority: String,
-    #[serde(default)]
     pub capability_token_ids: Vec<String>,
     pub effective_capability_snapshot_ref: Option<String>,
     pub capability_negotiation_ref: Option<String>,
@@ -109,7 +113,6 @@ pub struct SwarmLaneDiagnosticsLane {
     pub effective_execution_policy_ref: Option<String>,
     pub projection_plan_ref: Option<String>,
     pub consent_receipt_ref: Option<String>,
-    #[serde(default)]
     pub tool_gate_decision_refs: Vec<String>,
     pub trace_id: String,
     pub lane_span_id: String,
@@ -214,6 +217,81 @@ pub struct SwarmLaneDiagnosticsMtStatus {
     pub event_ledger_seq: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmLaneRoutingOutboxDiagnostics {
+    pub command_id: String,
+    pub status: String,
+    pub fencing_token: Option<String>,
+    pub lease_owner: Option<String>,
+    pub lease_expires_at_unix_ms: Option<u64>,
+    pub event_ledger_event_id: String,
+    pub event_ledger_seq: i64,
+    pub created_at_unix_ms: u64,
+    pub updated_at_unix_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmLaneRoutingStageDiagnostics {
+    pub execution_id: String,
+    pub stage_id: String,
+    pub state: String,
+    pub attempt: u32,
+    pub dispatch_target: String,
+    pub dependency_stage_ids: Vec<String>,
+    pub expected_run_id: String,
+    pub expected_lane_id: String,
+    pub expected_model_id: String,
+    pub expected_provider: Option<String>,
+    pub instance_id: Option<String>,
+    pub lane_id: Option<String>,
+    pub input_refs: Vec<String>,
+    pub output_ref: Option<String>,
+    pub output_message_ref: Option<String>,
+    pub authority_request_message_ref: Option<String>,
+    pub output_sha256: Option<String>,
+    pub authority_ref: Option<String>,
+    pub lease_owner: Option<String>,
+    pub fencing_token: Option<String>,
+    pub lease_expires_at_unix_ms: Option<u64>,
+    pub lease_expired: bool,
+    pub detail: Option<String>,
+    pub event_ledger_event_id: String,
+    pub event_ledger_seq: i64,
+    pub updated_at_unix_ms: u64,
+    pub outbox: SwarmLaneRoutingOutboxDiagnostics,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SwarmLaneRoutingExecutionDiagnostics {
+    pub execution_id: String,
+    pub run_id: String,
+    pub selecting_decision_id: String,
+    pub selecting_decision_event_id: String,
+    pub selecting_decision_event_seq: i64,
+    pub trace_id: String,
+    pub run_span_id: String,
+    pub coordinator_session_id: String,
+    pub locus_ref: String,
+    pub work_packet_id: String,
+    pub micro_task_id: Option<String>,
+    pub task_board_id: String,
+    pub owner_session: String,
+    pub canonical_graph_sha256: String,
+    pub canonical_launch_plan_sha256: String,
+    pub cloud_consent_receipt_ref: Option<String>,
+    pub validator_authority_ref: Option<String>,
+    pub operator_authority_ref: Option<String>,
+    pub initial_input_ref: Option<String>,
+    pub initial_input_sha256: Option<String>,
+    pub status: String,
+    pub failure_reason: Option<String>,
+    pub cancel_reason: Option<String>,
+    pub revision: u64,
+    pub stages: Vec<SwarmLaneRoutingStageDiagnostics>,
+    pub event_ledger_event_id: String,
+    pub event_ledger_seq: i64,
+}
+
 pub trait SwarmLaneDiagnosticsTransport: Send + Sync {
     fn fetch_latest(&self, cell: SwarmLaneDiagnosticsCell);
     fn fetch_run(&self, run_id: &str, cell: SwarmLaneDiagnosticsCell);
@@ -228,6 +306,8 @@ struct DiagnosticsUiState {
     selected_message_id: Option<String>,
     pending_fetch: bool,
     error: Option<String>,
+    projection_stale: bool,
+    last_success_unix_ms: Option<u128>,
 }
 
 pub struct SwarmLaneDiagnosticsPaneFactory {
@@ -249,6 +329,7 @@ impl SwarmLaneDiagnosticsPaneFactory {
         Self {
             state: Arc::new(Mutex::new(DiagnosticsUiState {
                 projection: Some(projection),
+                last_success_unix_ms: Some(now_unix_ms()),
                 ..Default::default()
             })),
             transport: None,
@@ -292,13 +373,19 @@ impl SwarmLaneDiagnosticsPaneFactory {
                     Ok(projection) => {
                         if let Err(error) = validate_projection_for_native_surface(&projection) {
                             state.error = Some(error);
+                            state.projection_stale = state.projection.is_some();
                         } else {
                             state.run_filter = projection.run.run_id.clone();
                             state.projection = Some(projection);
                             state.error = None;
+                            state.projection_stale = false;
+                            state.last_success_unix_ms = Some(now_unix_ms());
                         }
                     }
-                    Err(error) => state.error = Some(error),
+                    Err(error) => {
+                        state.error = Some(error);
+                        state.projection_stale = state.projection.is_some();
+                    }
                 }
             }
         }
@@ -327,10 +414,11 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
             return;
         };
 
+        let pane_id: &str = ctx.record.pane_id.as_ref();
         let surface_id = ctx.egui_id.with("swarm-lane-diagnostics-surface");
         ui.ctx().accesskit_node_builder(surface_id, |node| {
             node.set_role(accesskit::Role::Group);
-            node.set_author_id(SURFACE_AUTHOR_ID.to_owned());
+            node.set_author_id(scoped_author_id(pane_id, SURFACE_AUTHOR_ID));
             node.set_label("Swarm Lane Diagnostics".to_owned());
         });
 
@@ -345,7 +433,7 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                         .desired_width(260.0),
                 );
                 ui.ctx().accesskit_node_builder(response.id, |node| {
-                    node.set_author_id(RUN_FILTER_AUTHOR_ID.to_owned());
+                    node.set_author_id(scoped_author_id(pane_id, RUN_FILTER_AUTHOR_ID));
                     node.set_label("Run filter".to_owned());
                 });
                 let refresh = ui.button("Refresh");
@@ -355,7 +443,7 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                 ui.ctx().accesskit_node_builder(refresh.id, |node| {
                     node.set_role(accesskit::Role::Button);
                     node.add_action(accesskit::Action::Click);
-                    node.set_author_id(REFRESH_AUTHOR_ID.to_owned());
+                    node.set_author_id(scoped_author_id(pane_id, REFRESH_AUTHOR_ID));
                     node.set_label("Refresh".to_owned());
                 });
                 if refresh.clicked() {
@@ -370,7 +458,7 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                         .desired_width(220.0),
                 );
                 ui.ctx().accesskit_node_builder(response.id, |node| {
-                    node.set_author_id(LANE_FILTER_AUTHOR_ID.to_owned());
+                    node.set_author_id(scoped_author_id(pane_id, LANE_FILTER_AUTHOR_ID));
                     node.set_label("Lane filter".to_owned());
                 });
                 ui.label("Message");
@@ -380,7 +468,7 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                         .desired_width(220.0),
                 );
                 ui.ctx().accesskit_node_builder(response.id, |node| {
-                    node.set_author_id(MESSAGE_FILTER_AUTHOR_ID.to_owned());
+                    node.set_author_id(scoped_author_id(pane_id, MESSAGE_FILTER_AUTHOR_ID));
                     node.set_label("Message filter".to_owned());
                 });
             });
@@ -391,9 +479,24 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
             if let Some(error) = state.error.as_deref() {
                 let resp = ui.colored_label(ui.visuals().error_fg_color, error);
                 ui.ctx().accesskit_node_builder(resp.id, |node| {
-                    node.set_author_id(ERROR_AUTHOR_ID.to_owned());
+                    node.set_author_id(scoped_author_id(pane_id, ERROR_AUTHOR_ID));
                     node.set_label(error.to_owned());
                 });
+            }
+            if let Some(last_success) = state.last_success_unix_ms {
+                tagged_label(
+                    ui,
+                    ctx.egui_id.with("swarm-lane-diagnostics-freshness"),
+                    &scoped_author_id(pane_id, FRESHNESS_AUTHOR_ID),
+                    &format!(
+                        "{} | last success unix_ms {last_success}",
+                        if state.projection_stale {
+                            "STALE"
+                        } else {
+                            "CURRENT"
+                        }
+                    ),
+                );
             }
 
             let Some(projection) = state.projection.clone() else {
@@ -401,7 +504,7 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
                 return;
             };
 
-            render_projection(ui, ctx, &projection, &mut state);
+            render_projection(ui, ctx, pane_id, &projection, &mut state);
         });
         drop(state);
         if let Some(run_id) = fetch_after_render {
@@ -417,6 +520,7 @@ impl PaneFactory for SwarmLaneDiagnosticsPaneFactory {
 fn render_projection(
     ui: &mut egui::Ui,
     ctx: &PaneRenderContext,
+    pane_id: &str,
     projection: &SwarmLaneDiagnosticsProjection,
     state: &mut DiagnosticsUiState,
 ) {
@@ -424,7 +528,7 @@ fn render_projection(
     tagged_label(
         ui,
         ctx.egui_id.with("run-row"),
-        &run_author_id(&projection.run.run_id),
+        &scoped_author_id(pane_id, &run_author_id(&projection.run.run_id)),
         &format!(
             "run {} | status {} | routing {} | coordinator {} | lanes {} | messages {} | event {}#{} | trace {} | FR {}",
             projection.run.run_id,
@@ -442,7 +546,7 @@ fn render_projection(
     tagged_label(
         ui,
         ctx.egui_id.with("context-row"),
-        "swarm-lane-diagnostics.context",
+        &scoped_author_id(pane_id, "swarm-lane-diagnostics.context"),
         &format!(
             "context {} | namespace {} | memory {} {} | Locus {} | Loom {} | FEMS {} | WP {} | MT {} | owner {}",
             projection.run.context_bundle_id,
@@ -460,7 +564,7 @@ fn render_projection(
     tagged_label(
         ui,
         ctx.egui_id.with("recovery-row"),
-        "swarm-lane-diagnostics.recovery",
+        &scoped_author_id(pane_id, "swarm-lane-diagnostics.recovery"),
         &format!(
             "active leases {} | reclaimable {:?} | orphan state {}",
             projection.active_lease_count,
@@ -468,6 +572,106 @@ fn render_projection(
             projection.orphan_state
         ),
     );
+
+    ui.separator();
+    ui.label("Routing lifecycle");
+    for execution in &projection.routing_executions {
+        tagged_label(
+            ui,
+            ctx.egui_id.with(("routing-execution", &execution.execution_id)),
+            &scoped_author_id(
+                pane_id,
+                &routing_execution_author_id(&execution.execution_id),
+            ),
+            &format!(
+                "execution {} | status {} | revision {} | failure {} | cancel {} | authority cloud={} validator={} operator={} | decision {} event {}#{} | routing event {}#{}",
+                execution.execution_id,
+                execution.status,
+                execution.revision,
+                execution.failure_reason.as_deref().unwrap_or("none"),
+                execution.cancel_reason.as_deref().unwrap_or("none"),
+                execution.cloud_consent_receipt_ref.as_deref().unwrap_or("none"),
+                execution.validator_authority_ref.as_deref().unwrap_or("none"),
+                execution.operator_authority_ref.as_deref().unwrap_or("none"),
+                execution.selecting_decision_id,
+                execution.selecting_decision_event_id,
+                execution.selecting_decision_event_seq,
+                execution.event_ledger_event_id,
+                execution.event_ledger_seq,
+            ),
+        );
+        for stage in &execution.stages {
+            tagged_label(
+                ui,
+                ctx.egui_id.with((
+                    "routing-stage",
+                    &execution.execution_id,
+                    &stage.stage_id,
+                    stage.attempt,
+                )),
+                &scoped_author_id(
+                    pane_id,
+                    &routing_stage_author_id(
+                        &execution.execution_id,
+                        &stage.stage_id,
+                        stage.attempt,
+                    ),
+                ),
+                &format!(
+                    "stage {} | state {} attempt {} target {} deps {:?} | lease owner={} fence={} expires={} expired={} | input {:?} | output {} message {} sha {} | authority {} request {} | event {}#{} | detail {}",
+                    stage.stage_id,
+                    stage.state,
+                    stage.attempt,
+                    stage.dispatch_target,
+                    stage.dependency_stage_ids,
+                    stage.lease_owner.as_deref().unwrap_or("none"),
+                    stage.fencing_token.as_deref().unwrap_or("none"),
+                    stage
+                        .lease_expires_at_unix_ms
+                        .map(|value| value.to_string())
+                        .as_deref()
+                        .unwrap_or("none"),
+                    stage.lease_expired,
+                    stage.input_refs,
+                    stage.output_ref.as_deref().unwrap_or("none"),
+                    stage.output_message_ref.as_deref().unwrap_or("none"),
+                    stage.output_sha256.as_deref().unwrap_or("none"),
+                    stage.authority_ref.as_deref().unwrap_or("none"),
+                    stage
+                        .authority_request_message_ref
+                        .as_deref()
+                        .unwrap_or("none"),
+                    stage.event_ledger_event_id,
+                    stage.event_ledger_seq,
+                    stage.detail.as_deref().unwrap_or("none"),
+                ),
+            );
+            tagged_label(
+                ui,
+                ctx.egui_id.with(("routing-outbox", &stage.outbox.command_id)),
+                &scoped_author_id(
+                    pane_id,
+                    &routing_outbox_author_id(&stage.outbox.command_id),
+                ),
+                &format!(
+                    "outbox {} | status {} | lease owner={} fence={} expires={} | event {}#{} | updated {}",
+                    stage.outbox.command_id,
+                    stage.outbox.status,
+                    stage.outbox.lease_owner.as_deref().unwrap_or("none"),
+                    stage.outbox.fencing_token.as_deref().unwrap_or("none"),
+                    stage
+                        .outbox
+                        .lease_expires_at_unix_ms
+                        .map(|value| value.to_string())
+                        .as_deref()
+                        .unwrap_or("none"),
+                    stage.outbox.event_ledger_event_id,
+                    stage.outbox.event_ledger_seq,
+                    stage.outbox.updated_at_unix_ms,
+                ),
+            );
+        }
+    }
 
     ui.separator();
     ui.label("Lanes");
@@ -480,7 +684,7 @@ fn render_projection(
         tagged_label(
             ui,
             ctx.egui_id.with(("lane", &lane.lane_id)),
-            &lane_author_id(&lane.lane_id),
+            &scoped_author_id(pane_id, &lane_author_id(&lane.lane_id)),
             &format!(
                 "{} | {} role {} | session {} model-session {} | {} | recovery {} | runtime {} via {} | messages {} | payload errors {} | event {}#{} | span {} | FR {} | Locus {} | runtime-status {} | recovery-hint {}",
                 lane.lane_id,
@@ -501,6 +705,25 @@ fn render_projection(
                 lane.locus_ref.as_deref().unwrap_or("missing"),
                 lane.last_runtime_status_ref.as_deref().unwrap_or("missing"),
                 lane.recovery_hint_ref.as_deref().unwrap_or("missing")
+            ),
+        );
+        tagged_label(
+            ui,
+            ctx.egui_id.with(("lane-model-id", &lane.lane_id)),
+            &scoped_author_id(pane_id, &lane_model_identity_author_id(&lane.lane_id)),
+            &format!("model id {}", lane.model_id.as_deref().unwrap_or("none")),
+        );
+        tagged_label(
+            ui,
+            ctx.egui_id.with(("lane-model-label", &lane.lane_id)),
+            &scoped_author_id(pane_id, &lane_model_label_author_id(&lane.lane_id)),
+            &format!(
+                "model label {} | stable anchor {} | anchor status {}",
+                lane.model_display_name,
+                lane.model_stable_anchor.as_deref().unwrap_or("none"),
+                lane.model_anchor_unavailable_reason
+                    .as_deref()
+                    .unwrap_or("resolved")
             ),
         );
     }
@@ -547,7 +770,10 @@ fn render_projection(
                 ),
             );
             ui.ctx().accesskit_node_builder(row.id, |node| {
-                node.set_author_id(message_author_id(&message.message_id));
+                node.set_author_id(scoped_author_id(
+                    pane_id,
+                    &message_author_id(&message.message_id),
+                ));
                 node.set_label(format!("Message {}", message.message_id));
             });
             if row.clicked() {
@@ -557,7 +783,7 @@ fn render_projection(
             let payload = diagnostics_button(
                 ui,
                 ctx.egui_id.with(("message-payload", &message.message_id)),
-                message_payload_author_id(&message.message_id),
+                scoped_author_id(pane_id, &message_payload_author_id(&message.message_id)),
                 "Payload",
                 format!("Payload {}", message.payload_ref),
             );
@@ -568,7 +794,7 @@ fn render_projection(
             let promotion = diagnostics_button(
                 ui,
                 ctx.egui_id.with(("message-promotion", &message.message_id)),
-                message_promotion_author_id(&message.message_id),
+                scoped_author_id(pane_id, &message_promotion_author_id(&message.message_id)),
                 "Promotion",
                 format!("Promotion {}", message.promotion_state),
             );
@@ -588,7 +814,7 @@ fn render_projection(
         tagged_label(
             ui,
             ctx.egui_id.with("selected-message"),
-            &selected_message_author_id(&selected.message_id),
+            &scoped_author_id(pane_id, &selected_message_author_id(&selected.message_id)),
             &format!(
                 "selected {} | payload {} sha {} | artifact {} | promotion {} gate {} receipt {} validator {} operator {} | proposal {} CRDT update {} proposal {} base {} vector {} stale {} | trace {} span {} parent {} links {:?} | WP {} MT {} owner {} | recovery {}",
                 selected.message_id,
@@ -624,7 +850,7 @@ fn render_projection(
         tagged_label(
             ui,
             ctx.egui_id.with(("tier", &tier.tier)),
-            &tier_author_id(&tier.tier),
+            &scoped_author_id(pane_id, &tier_author_id(&tier.tier)),
             &format!(
                 "{} | {} | reason {} | evidence {} | follow-up {}",
                 tier.tier,
@@ -642,7 +868,7 @@ fn render_projection(
         tagged_label(
             ui,
             ctx.egui_id.with(("mt-status", &status.micro_task_id)),
-            &mt_status_author_id(&status.micro_task_id),
+            &scoped_author_id(pane_id, &mt_status_author_id(&status.micro_task_id)),
             &format!(
                 "{} | {} | proof {} | HBR {} | event {}#{}",
                 status.micro_task_id,
@@ -731,12 +957,33 @@ fn token(raw: &str) -> String {
         .collect()
 }
 
+pub fn scoped_author_id(pane_id: &str, logical_author_id: &str) -> String {
+    format!("{logical_author_id}.pane.{}", token(pane_id))
+}
+
+fn now_unix_ms() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default()
+}
+
 fn lane_matches_filter(lane: &SwarmLaneDiagnosticsLane, lane_filter: &str) -> bool {
     let lane_filter = lane_filter.trim().to_ascii_lowercase();
     lane_filter.is_empty()
         || lane.lane_id.to_ascii_lowercase().contains(&lane_filter)
         || lane.kind.to_ascii_lowercase().contains(&lane_filter)
         || lane.status.to_ascii_lowercase().contains(&lane_filter)
+        || lane
+            .model_id
+            .as_deref()
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            .contains(&lane_filter)
+        || lane
+            .model_display_name
+            .to_ascii_lowercase()
+            .contains(&lane_filter)
 }
 
 fn visible_lane_ids_for_filter(
@@ -824,8 +1071,38 @@ pub fn run_author_id(run_id: &str) -> String {
     format!("swarm-lane-diagnostics.run.{}", token(run_id))
 }
 
+pub fn routing_execution_author_id(execution_id: &str) -> String {
+    format!(
+        "swarm-lane-diagnostics.routing.execution.{}",
+        token(execution_id)
+    )
+}
+
+pub fn routing_stage_author_id(execution_id: &str, stage_id: &str, attempt: u32) -> String {
+    format!(
+        "swarm-lane-diagnostics.routing.execution.{}.stage.{}.attempt.{attempt}",
+        token(execution_id),
+        token(stage_id)
+    )
+}
+
+pub fn routing_outbox_author_id(command_id: &str) -> String {
+    format!(
+        "swarm-lane-diagnostics.routing.outbox.{}",
+        token(command_id)
+    )
+}
+
 pub fn lane_author_id(lane_id: &str) -> String {
     format!("swarm-lane-diagnostics.lane.{}", token(lane_id))
+}
+
+pub fn lane_model_identity_author_id(lane_id: &str) -> String {
+    format!("swarm-lane-diagnostics.lane.{}.model-id", token(lane_id))
+}
+
+pub fn lane_model_label_author_id(lane_id: &str) -> String {
+    format!("swarm-lane-diagnostics.lane.{}.model-label", token(lane_id))
 }
 
 pub fn message_author_id(message_id: &str) -> String {
@@ -887,10 +1164,16 @@ pub fn validate_projection_for_native_surface(
         || projection.run.routing_policy.trim().is_empty()
         || projection.run.artifact_namespace.trim().is_empty()
         || projection.run.owner_session.trim().is_empty()
+        || projection.run.candidate_model_ids.is_empty()
+        || projection
+            .run
+            .candidate_model_ids
+            .iter()
+            .any(|model_id| model_id.trim().is_empty())
         || projection.run.budget_summary_ref.trim().is_empty()
         || projection.run.determinism_mode.trim().is_empty()
     {
-        return Err("run coordinator/routing/owner/recovery refs missing".to_owned());
+        return Err("run coordinator/routing/owner/model/recovery refs missing".to_owned());
     }
     if projection
         .run
@@ -932,6 +1215,240 @@ pub fn validate_projection_for_native_surface(
     {
         return Err("run EventLedger or FlightRecorder ref missing".to_owned());
     }
+    let mut execution_ids = BTreeSet::new();
+    for execution in &projection.routing_executions {
+        register_author_id(
+            &mut author_ids,
+            "routing execution",
+            &execution.execution_id,
+            routing_execution_author_id(&execution.execution_id),
+        )?;
+        if !execution_ids.insert(execution.execution_id.clone()) {
+            return Err(format!(
+                "duplicate routing execution {}",
+                execution.execution_id
+            ));
+        }
+        if execution.run_id != projection.run.run_id
+            || execution.trace_id != projection.run.trace_id
+            || execution.run_span_id != projection.run.run_span_id
+            || execution.coordinator_session_id != projection.run.coordinator_session_id
+            || Some(execution.work_packet_id.as_str()) != projection.run.work_packet_id.as_deref()
+            || execution.micro_task_id.as_deref() != projection.run.micro_task_id.as_deref()
+            || Some(execution.task_board_id.as_str()) != projection.run.task_board_id.as_deref()
+            || execution.owner_session != projection.run.owner_session
+        {
+            return Err(format!(
+                "routing execution {} run/trace/coordinator lineage mismatch",
+                execution.execution_id
+            ));
+        }
+        if execution.selecting_decision_id.trim().is_empty()
+            || execution.selecting_decision_event_id.trim().is_empty()
+            || execution.selecting_decision_event_seq <= 0
+            || execution.event_ledger_event_id.trim().is_empty()
+            || execution.event_ledger_seq <= 0
+            || execution.canonical_graph_sha256.trim().is_empty()
+            || execution.canonical_launch_plan_sha256.trim().is_empty()
+            || execution.locus_ref.trim().is_empty()
+            || execution.work_packet_id.trim().is_empty()
+            || execution.task_board_id.trim().is_empty()
+            || execution.owner_session.trim().is_empty()
+        {
+            return Err(format!(
+                "routing execution {} authority/EventLedger/task lineage missing",
+                execution.execution_id
+            ));
+        }
+        match execution.status.as_str() {
+            "failed"
+                if execution
+                    .failure_reason
+                    .as_deref()
+                    .unwrap_or_default()
+                    .trim()
+                    .is_empty() =>
+            {
+                return Err(format!(
+                    "routing execution {} failed without failure_reason",
+                    execution.execution_id
+                ));
+            }
+            "cancelled"
+                if execution
+                    .cancel_reason
+                    .as_deref()
+                    .unwrap_or_default()
+                    .trim()
+                    .is_empty() =>
+            {
+                return Err(format!(
+                    "routing execution {} cancelled without cancel_reason",
+                    execution.execution_id
+                ));
+            }
+            "running" | "awaiting_authority" | "succeeded" | "failed" | "cancelled" => {}
+            unsupported => {
+                return Err(format!(
+                    "routing execution {} status unsupported: {unsupported}",
+                    execution.execution_id
+                ));
+            }
+        }
+        let stage_ids = execution
+            .stages
+            .iter()
+            .map(|stage| stage.stage_id.clone())
+            .collect::<BTreeSet<_>>();
+        if stage_ids.len() != execution.stages.len() {
+            return Err(format!(
+                "routing execution {} has duplicate current stage lineage",
+                execution.execution_id
+            ));
+        }
+        for stage in &execution.stages {
+            register_author_id(
+                &mut author_ids,
+                "routing stage",
+                &format!(
+                    "{}:{}:{}",
+                    execution.execution_id, stage.stage_id, stage.attempt
+                ),
+                routing_stage_author_id(&execution.execution_id, &stage.stage_id, stage.attempt),
+            )?;
+            register_author_id(
+                &mut author_ids,
+                "routing outbox",
+                &stage.outbox.command_id,
+                routing_outbox_author_id(&stage.outbox.command_id),
+            )?;
+            if stage.execution_id != execution.execution_id
+                || stage.expected_run_id != execution.run_id
+                || stage.event_ledger_event_id.trim().is_empty()
+                || stage.event_ledger_seq <= 0
+                || (stage.state != "scheduled" && stage.input_refs.is_empty())
+                || stage
+                    .input_refs
+                    .iter()
+                    .any(|reference| reference.trim().is_empty())
+            {
+                return Err(format!(
+                    "routing stage {}/{} execution/run/input/EventLedger lineage mismatch",
+                    execution.execution_id, stage.stage_id
+                ));
+            }
+            if stage
+                .dependency_stage_ids
+                .iter()
+                .any(|dependency| dependency == &stage.stage_id || !stage_ids.contains(dependency))
+            {
+                return Err(format!(
+                    "routing stage {}/{} dependency lineage missing or tampered",
+                    execution.execution_id, stage.stage_id
+                ));
+            }
+            let expected_command_id = format!(
+                "routing-command:{}:{}:{}",
+                execution.execution_id, stage.stage_id, stage.attempt
+            );
+            if stage.outbox.command_id != expected_command_id
+                || stage.outbox.event_ledger_event_id.trim().is_empty()
+                || stage.outbox.event_ledger_seq <= 0
+            {
+                return Err(format!(
+                    "routing stage {}/{} durable outbox lineage mismatch",
+                    execution.execution_id, stage.stage_id
+                ));
+            }
+            let expected_outbox_status = match stage.state.as_str() {
+                "scheduled" => "pending",
+                "claimed" | "in_flight" | "awaiting_authority" => "claimed",
+                "cancelled" => "cancelled",
+                "compensated" => "compensated",
+                "succeeded" | "failed" | "joined" => "acked",
+                unsupported => {
+                    return Err(format!(
+                        "routing stage {}/{} state unsupported: {unsupported}",
+                        execution.execution_id, stage.stage_id
+                    ));
+                }
+            };
+            if stage.outbox.status != expected_outbox_status {
+                return Err(format!(
+                    "routing stage {}/{} outbox state {} does not match lifecycle {}",
+                    execution.execution_id, stage.stage_id, stage.outbox.status, stage.state
+                ));
+            }
+            let active = matches!(
+                stage.state.as_str(),
+                "claimed" | "in_flight" | "awaiting_authority"
+            );
+            if active
+                && (stage
+                    .lease_owner
+                    .as_deref()
+                    .unwrap_or_default()
+                    .trim()
+                    .is_empty()
+                    || stage
+                        .fencing_token
+                        .as_deref()
+                        .unwrap_or_default()
+                        .trim()
+                        .is_empty()
+                    || stage.lease_expires_at_unix_ms.is_none()
+                    || stage.outbox.lease_owner != stage.lease_owner
+                    || stage.outbox.fencing_token != stage.fencing_token
+                    || stage.outbox.lease_expires_at_unix_ms != stage.lease_expires_at_unix_ms)
+            {
+                return Err(format!(
+                    "routing stage {}/{} active lease fencing lineage missing",
+                    execution.execution_id, stage.stage_id
+                ));
+            }
+            if !active
+                && (stage.lease_owner.is_some()
+                    || stage.fencing_token.is_some()
+                    || stage.lease_expires_at_unix_ms.is_some()
+                    || stage.outbox.lease_owner.is_some()
+                    || stage.outbox.fencing_token.is_some()
+                    || stage.outbox.lease_expires_at_unix_ms.is_some())
+            {
+                return Err(format!(
+                    "routing stage {}/{} terminal lifecycle retained active lease",
+                    execution.execution_id, stage.stage_id
+                ));
+            }
+            if stage.state == "awaiting_authority"
+                && (stage
+                    .authority_ref
+                    .as_deref()
+                    .unwrap_or_default()
+                    .trim()
+                    .is_empty()
+                    || stage
+                        .authority_request_message_ref
+                        .as_deref()
+                        .unwrap_or_default()
+                        .trim()
+                        .is_empty())
+            {
+                return Err(format!(
+                    "routing stage {}/{} awaiting authority without causal authority lineage",
+                    execution.execution_id, stage.stage_id
+                ));
+            }
+            let output_lineage_count = usize::from(stage.output_ref.is_some())
+                + usize::from(stage.output_message_ref.is_some())
+                + usize::from(stage.output_sha256.is_some());
+            if output_lineage_count != 0 && output_lineage_count != 3 {
+                return Err(format!(
+                    "routing stage {}/{} output lineage incomplete",
+                    execution.execution_id, stage.stage_id
+                ));
+            }
+        }
+    }
     let lane_count: usize = projection.lanes.iter().map(|lane| lane.message_count).sum();
     if lane_count != projection.messages.len() {
         return Err(format!(
@@ -947,6 +1464,18 @@ pub fn validate_projection_for_native_surface(
             "lane",
             &lane.lane_id,
             lane_author_id(&lane.lane_id),
+        )?;
+        register_author_id(
+            &mut author_ids,
+            "lane model identity",
+            &lane.lane_id,
+            lane_model_identity_author_id(&lane.lane_id),
+        )?;
+        register_author_id(
+            &mut author_ids,
+            "lane model label",
+            &lane.lane_id,
+            lane_model_label_author_id(&lane.lane_id),
         )?;
         lane_ids.insert(lane.lane_id.clone());
     }
@@ -987,6 +1516,7 @@ pub fn validate_projection_for_native_surface(
         }
         if lane.role.trim().is_empty()
             || lane.backend.trim().is_empty()
+            || lane.model_display_name.trim().is_empty()
             || lane.session_id.trim().is_empty()
             || lane.model_session_id.trim().is_empty()
             || lane.adapter_id.trim().is_empty()
@@ -995,6 +1525,22 @@ pub fn validate_projection_for_native_surface(
         {
             return Err(format!(
                 "lane {} session/model/runtime authority refs missing",
+                lane.lane_id
+            ));
+        }
+        if lane.capability_token_ids.is_empty()
+            || lane
+                .capability_token_ids
+                .iter()
+                .any(|token_id| token_id.trim().is_empty())
+            || lane.tool_gate_decision_refs.is_empty()
+            || lane
+                .tool_gate_decision_refs
+                .iter()
+                .any(|decision_ref| decision_ref.trim().is_empty())
+        {
+            return Err(format!(
+                "lane {} capability/ToolGate authority refs missing",
                 lane.lane_id
             ));
         }
@@ -1151,7 +1697,8 @@ pub fn validate_projection_for_native_surface(
                 message.message_id
             ));
         }
-        if message.promotion_state == "decision_recorded"
+        if message.authority == "promotion_candidate"
+            && message.promotion_state == "decision_recorded"
             && (message
                 .promotion_decision_id
                 .as_deref()
@@ -1176,24 +1723,42 @@ pub fn validate_projection_for_native_surface(
                 message.message_id
             ));
         }
-        if message
-            .proposal_ref
-            .as_deref()
-            .unwrap_or_default()
-            .trim()
-            .is_empty()
-            || message
-                .crdt_update_ref
+        let targets_crdt = message.crdt_update_ref.is_some()
+            || message.crdt_base_snapshot_ref.is_some()
+            || message.crdt_state_vector.is_some()
+            || message.crdt_proposal_ref.is_some()
+            || message.crdt_stale_base_ref.is_some();
+        if targets_crdt
+            && (message
+                .proposal_ref
                 .as_deref()
                 .unwrap_or_default()
                 .trim()
                 .is_empty()
-            || message
-                .crdt_proposal_ref
-                .as_deref()
-                .unwrap_or_default()
-                .trim()
-                .is_empty()
+                || message
+                    .crdt_update_ref
+                    .as_deref()
+                    .unwrap_or_default()
+                    .trim()
+                    .is_empty()
+                || message
+                    .crdt_base_snapshot_ref
+                    .as_deref()
+                    .unwrap_or_default()
+                    .trim()
+                    .is_empty()
+                || message
+                    .crdt_state_vector
+                    .as_deref()
+                    .unwrap_or_default()
+                    .trim()
+                    .is_empty()
+                || message
+                    .crdt_proposal_ref
+                    .as_deref()
+                    .unwrap_or_default()
+                    .trim()
+                    .is_empty())
         {
             return Err(format!("message {} CRDT refs missing", message.message_id));
         }

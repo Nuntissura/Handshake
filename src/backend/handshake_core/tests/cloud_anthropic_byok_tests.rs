@@ -18,7 +18,8 @@
 //!   - `score()` and `embed()` return CapabilityNotSupported (no
 //!     first-party logprobs or embeddings on the Messages API).
 
-use std::sync::{Arc, Mutex};
+use std::io::Write;
+use std::sync::{Arc, Mutex, Once, OnceLock};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -39,6 +40,7 @@ use handshake_core::model_runtime::{
 };
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, Request, ResponseTemplate};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 struct StaticKey {
     key: String,
@@ -305,6 +307,311 @@ async fn anthropic_byok_generate_streams_tokens_against_wiremock() {
             .any(|r| r.status == CloudCallStatus::Succeeded),
         "audit must include a Succeeded row after the stream completes"
     );
+}
+
+struct EchoingFailKey;
+
+impl ApiKeyProvider for EchoingFailKey {
+    fn fetch_api_key(&self) -> Result<String, OpenAiByokError> {
+        Err(OpenAiByokError::AuditPersist(API_KEY_FIXTURE.to_string()))
+    }
+}
+
+#[derive(Clone, Default)]
+struct SharedTraceBuffer(Arc<Mutex<Vec<u8>>>);
+
+impl Write for SharedTraceBuffer {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0
+            .lock()
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "trace lock poisoned"))?
+            .extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for SharedTraceBuffer {
+    type Writer = SharedTraceBuffer;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
+
+fn capture_tracing() -> SharedTraceBuffer {
+    static BUFFER: OnceLock<SharedTraceBuffer> = OnceLock::new();
+    static INIT: Once = Once::new();
+    let buffer = BUFFER.get_or_init(SharedTraceBuffer::default).clone();
+    INIT.call_once(|| {
+        tracing_subscriber::fmt()
+            .with_writer(buffer.clone())
+            .with_max_level(tracing::Level::TRACE)
+            .with_ansi(false)
+            .try_init()
+            .expect("install Anthropic BYOK test tracing capture");
+    });
+    tracing::info!(
+        target: "handshake_core::tests::anthropic_byok",
+        marker = "anthropic-byok-tracing-live",
+        "public tracing capture marker"
+    );
+    buffer
+}
+
+async fn start_truncated_sse_server(body_prefix: String) -> (String, tokio::task::JoinHandle<()>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind truncated SSE server");
+    let addr = listener.local_addr().expect("truncated SSE server addr");
+    let handle = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.expect("accept BYOK request");
+        let mut request = [0_u8; 8192];
+        let _ = socket.read(&mut request).await;
+        let declared_length = body_prefix.len() + 4096;
+        let headers = format!(
+            "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {declared_length}\r\nconnection: close\r\n\r\n"
+        );
+        socket.write_all(headers.as_bytes()).await.expect("write response headers");
+        socket.write_all(body_prefix.as_bytes()).await.expect("write truncated SSE prefix");
+        socket.shutdown().await.expect("close truncated SSE response");
+    });
+    (format!("http://{addr}"), handle)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_non_success_body_is_redacted_and_bounded() {
+    const PROVIDER_ECHO_CANARY: &str = "provider-echo-canary-MUST-NOT-ESCAPE";
+    let mock_server = MockServer::start().await;
+    let echoed_body = format!("{PROVIDER_ECHO_CANARY}{}", "x".repeat(32_768));
+    Mock::given(method("POST"))
+        .and(path(ANTHROPIC_MESSAGES_PATH))
+        .respond_with(ResponseTemplate::new(503).set_body_string(echoed_body))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink);
+    let handle = runtime
+        .register_handle("claude-opus-4", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+    let mut generate = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let error = generate
+        .next()
+        .await
+        .expect("generate yields its provider-status error")
+        .expect_err("503 must fail generate")
+        .to_string();
+
+    assert!(!error.contains(PROVIDER_ECHO_CANARY), "{error}");
+    assert!(error.contains("<redacted provider response body"), "{error}");
+    assert!(error.len() <= 256, "error must remain bounded: {} bytes", error.len());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_malformed_success_sse_never_reflects_byok_canary() {
+    let trace_buffer = capture_tracing();
+    let mock_server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path(ANTHROPIC_MESSAGES_PATH))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(format!(
+                    "event: content_block_delta\ndata: {API_KEY_FIXTURE}\n\n"
+                )),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let sink = Arc::new(CapturingSink::default());
+    let recorder = Arc::new(CapturingFlightRecorder::default());
+    let lane_obs = Arc::new(CloudLaneObservability {
+        flight_recorder: recorder.clone(),
+        consent: None,
+    });
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone())
+        .with_lane_observability(lane_obs);
+    let handle = runtime
+        .register_handle("claude-opus-4", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+    let mut stream = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let error = stream
+        .next()
+        .await
+        .expect("malformed SSE yields an error")
+        .expect_err("malformed 2xx SSE must fail")
+        .to_string();
+
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+    let audit_rows = sink.rows.lock().unwrap().clone();
+    assert!(audit_rows.iter().any(|row| row.status == CloudCallStatus::Started));
+    assert!(audit_rows.iter().any(|row| row.status == CloudCallStatus::Failed));
+    let recorder_events = recorder.events.lock().unwrap().clone();
+    assert!(recorder_events.iter().any(|event| event.payload["phase"] == "start"));
+    assert!(recorder_events.iter().any(|event| event.payload["phase"] == "end"));
+    assert!(tracing.contains("anthropic-byok-tracing-live"), "tracing capture must be live");
+    let audit = format!("{audit_rows:?}");
+    let recorded = format!("{recorder_events:?}");
+    for (surface, rendered) in [
+        ("returned_error", error.as_str()),
+        ("tracing", tracing.as_str()),
+        ("audit", audit.as_str()),
+        ("flight_recorder", recorded.as_str()),
+    ] {
+        assert!(!rendered.contains(API_KEY_FIXTURE), "{surface} leaked BYOK canary: {rendered}");
+    }
+    assert!(error.contains("event_kind=content_block_delta"), "{error}");
+    assert!(error.contains("payload_bytes="), "{error}");
+    assert!(error.len() <= 256, "SSE error must remain bounded: {} bytes", error.len());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_truncated_sse_stream_error_never_reflects_byok_canary() {
+    let trace_buffer = capture_tracing();
+    let (api_base, server) = start_truncated_sse_server(format!(
+        "event: content_block_delta\ndata: {API_KEY_FIXTURE}"
+    )).await;
+    let sink = Arc::new(CapturingSink::default());
+    let recorder = Arc::new(CapturingFlightRecorder::default());
+    let runtime = fixture_runtime(api_base, sink.clone()).with_lane_observability(Arc::new(
+        CloudLaneObservability {
+            flight_recorder: recorder.clone(),
+            consent: None,
+        },
+    ));
+    let handle = runtime
+        .register_handle("claude-opus-4", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+    let mut stream = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let error = stream
+        .next()
+        .await
+        .expect("truncated SSE yields an error")
+        .expect_err("truncated SSE must fail")
+        .to_string();
+    server.await.expect("truncated SSE server completes");
+
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+    let audit_rows = sink.rows.lock().unwrap().clone();
+    let recorder_events = recorder.events.lock().unwrap().clone();
+    assert!(audit_rows.iter().any(|row| row.status == CloudCallStatus::Started));
+    assert!(audit_rows.iter().any(|row| row.status == CloudCallStatus::Failed));
+    assert!(recorder_events.iter().any(|event| event.payload["phase"] == "start"));
+    assert!(recorder_events.iter().any(|event| event.payload["phase"] == "end"));
+    assert!(tracing.contains("anthropic-byok-tracing-live"));
+    for (surface, rendered) in [
+        ("returned_error", error.clone()),
+        ("tracing", tracing),
+        ("audit", format!("{audit_rows:?}")),
+        ("flight_recorder", format!("{recorder_events:?}")),
+    ] {
+        assert!(!rendered.contains(API_KEY_FIXTURE), "{surface} leaked BYOK canary: {rendered}");
+    }
+    assert!(error.contains("SSE framing failure"), "{error}");
+    assert!(error.len() <= 256, "SSE error must remain bounded: {} bytes", error.len());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_provider_fetch_failure_is_typed_and_never_echoes_provider_error() {
+    let trace_buffer = capture_tracing();
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = AnthropicByokRuntime::with_client(
+        "http://127.0.0.1:9",
+        reqwest::Client::new(),
+        Arc::new(EchoingFailKey),
+        sink.clone(),
+    );
+    let handle = runtime
+        .register_handle("claude-opus-4", "2026-05-20T11:00:00Z")
+        .expect("allowlisted");
+    let mut generate = runtime.generate(fixture_generate_request(
+        handle.model_id,
+        CancellationToken::new(),
+    ));
+    let error = generate.next().await.expect("generate error item")
+        .expect_err("provider fetch fails generate").to_string();
+
+    assert!(!error.contains(API_KEY_FIXTURE), "provider error leaked: {error}");
+    assert!(error.contains("code=provider_failure"), "typed code missing: {error}");
+    assert!(error.len() <= 160, "typed provider error must be bounded: {} bytes", error.len());
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+    let audit = format!("{:?}", sink.rows.lock().unwrap());
+    assert!(tracing.contains("anthropic-byok-tracing-live"));
+    assert!(!tracing.contains(API_KEY_FIXTURE), "tracing leaked provider error: {tracing}");
+    assert!(!audit.contains(API_KEY_FIXTURE), "audit leaked provider error: {audit}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_clean_eof_without_message_stop_is_failed_and_redacted() {
+    let mock_server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path(ANTHROPIC_MESSAGES_PATH))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/event-stream")
+                .set_body_string(format!("event: ping\ndata: {API_KEY_FIXTURE}\n\n")),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+    let sink = Arc::new(CapturingSink::default());
+    let recorder = Arc::new(CapturingFlightRecorder::default());
+    let runtime = fixture_runtime(mock_server.uri(), sink.clone()).with_lane_observability(Arc::new(
+        CloudLaneObservability { flight_recorder: recorder.clone(), consent: None },
+    ));
+    let handle = runtime.register_handle("claude-opus-4", "2026-05-20T11:00:00Z").unwrap();
+    let mut stream = runtime.generate(fixture_generate_request(handle.model_id, CancellationToken::new()));
+    let error = stream.next().await.expect("missing terminal error")
+        .expect_err("clean EOF without message_stop must fail").to_string();
+    let audit_rows = sink.rows.lock().unwrap().clone();
+    let recorder_events = recorder.events.lock().unwrap().clone();
+
+    assert!(error.contains("terminal missing"), "{error}");
+    assert!(audit_rows.iter().any(|row| row.status == CloudCallStatus::Failed));
+    assert!(recorder_events.iter().any(|event| event.payload["phase"] == "end"));
+    for rendered in [error, format!("{audit_rows:?}"), format!("{recorder_events:?}")] {
+        assert!(!rendered.contains(API_KEY_FIXTURE), "clean-EOF surface leaked: {rendered}");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn anthropic_byok_transport_error_is_bounded_and_never_echoes_canary_url() {
+    let trace_buffer = capture_tracing();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("reserve port");
+    let address = listener.local_addr().expect("reserved address");
+    drop(listener);
+    let api_base = format!("http://{address}/{API_KEY_FIXTURE}");
+    let sink = Arc::new(CapturingSink::default());
+    let runtime = fixture_runtime(api_base, sink.clone());
+    let handle = runtime.register_handle("claude-opus-4", "2026-05-20T11:00:00Z").unwrap();
+
+    let mut generate = runtime.generate(fixture_generate_request(handle.model_id, CancellationToken::new()));
+    let error = generate.next().await.expect("transport error")
+        .expect_err("generate connection must fail").to_string();
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+    let audit = format!("{:?}", sink.rows.lock().unwrap());
+
+    assert!(error.contains("operation=generate"), "{error}");
+    assert!(error.contains("code=connect"), "{error}");
+    assert!(!error.contains(API_KEY_FIXTURE), "transport error leaked URL: {error}");
+    assert!(error.len() <= 128, "transport error must be bounded: {} bytes", error.len());
+    assert!(!tracing.contains(API_KEY_FIXTURE), "tracing leaked transport URL: {tracing}");
+    assert!(!audit.contains(API_KEY_FIXTURE), "audit leaked transport URL: {audit}");
 }
 
 // ---------------------------------------------------------------------

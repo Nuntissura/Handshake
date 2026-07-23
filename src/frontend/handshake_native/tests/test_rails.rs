@@ -243,6 +243,10 @@ fn global_scrollbar_style_sets_bar_width_and_preserves_panel_fill() {
         !style.spacing.scroll.floating,
         "scrollbar reserves space (non-floating rail)"
     );
+    assert!(
+        !style.spacing.scroll.foreground_color,
+        "scrollbar handles must use the configured rail bg fills, not the foreground text stroke"
+    );
     // Red-team control: backgrounds untouched.
     assert_eq!(
         style.visuals.panel_fill, before_panel,

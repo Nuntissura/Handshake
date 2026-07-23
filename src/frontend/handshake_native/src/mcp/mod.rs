@@ -6,9 +6,9 @@
 //! 1. an **action channel** ([`action`]) that turns a model's `author_id`-addressed request
 //!    (`click` / `focus` / `set_value` / `select` / `scroll`) into a real `accesskit::ActionRequest`
 //!    bound to the widget's STABLE `NodeId`, and
-//! 2. an **MCP-style tool surface** ([`tools`]) — `list_widgets`, `click_widget`, `set_value`,
-//!    `screenshot` — dispatched through a JSON-RPC 2.0 subset so an external/in-process agent speaks
-//!    the same protocol Claude Code and other MCP clients already use, and
+//! 2. an **MCP-style tool surface** ([`tools`]) — canonical `argus.list_windows`, `argus.inspect`,
+//!    `argus.click`, `argus.show_context_menu`, `argus.set_value`, and `argus.screenshot` methods
+//!    (with legacy aliases retained) — dispatched through a JSON-RPC 2.0 subset, and
 //! 3. a **screenshot adapter** ([`screenshot`]) that captures a focus-safe PNG of the window, and
 //! 4. an **out-of-process transport** ([`server`]) — a localhost TCP listener AND a Windows named pipe,
 //!    both gated by the per-session HMAC [`SessionToken`], persisting an [`McpBinding`] discovery file —
@@ -46,6 +46,7 @@
 //! honoring the contract's INTENT (set a text widget's value by stable id) over its mistaken mechanic.
 
 pub mod action;
+pub mod argus;
 pub mod attribution;
 pub mod binding;
 pub mod layout_guard;
@@ -56,24 +57,33 @@ pub mod session;
 pub mod tools;
 
 pub use action::{
-    build_action_request, resolve_target, ActionChannel, ActionError, ActionOutcome, UiAction,
-    DEFAULT_ACTION_CAPACITY, MAX_ACTIONS_PER_BURST,
+    build_action_request, resolve_target, ActionChannel, ActionError, ActionOutcome,
+    DrainedActionBatch, UiAction, DEFAULT_ACTION_CAPACITY, MAX_ACTIONS_PER_BURST,
+};
+pub use argus::{
+    acknowledge_action_effect, register_action_effect, ActionEffectRegistration,
+    ActionReceiptStatus, ActionReceiptTracker, ArgusActionReceipt, ArgusError, ArgusOutputPlugin,
+    ArgusWindowDescriptor, ArgusWindowListing, ArgusWindowSnapshot, WindowSnapshotRegistry,
+    ACTION_RECEIPT_TIMEOUT, MAIN_WINDOW_ID, MAX_AGENT_LABEL_BYTES,
 };
 pub use attribution::{
     agent_id_for_token, ActionLog, AttributedAction, ACTION_LOG_CAPACITY, AGENT_ID_HEX_LEN,
 };
 pub use binding::{
-    binding_path, remove_binding, write_binding, BindingError, McpBinding, BINDING_FILE_NAME,
+    binding_path, remove_binding, remove_binding_if_owned, write_binding, BindingError, McpBinding,
+    BINDING_FILE_NAME,
 };
 pub use layout_guard::LayoutGuard;
 pub use leases::{LeaseError, LeaseGuard, LeaseKind, LeaseRegistry, DEFAULT_LEASE_TIMEOUT};
 pub use screenshot::{
-    capture_handshake_window, ScreenshotError, ScreenshotResult, HANDSHAKE_WINDOW_TITLE,
+    capture_handshake_window, capture_handshake_window_target, ScreenshotError, ScreenshotResult,
+    HANDSHAKE_WINDOW_TITLE,
 };
 pub use server::{SwarmMcpServer, MAX_LINE_BYTES, MAX_REQUESTS_PER_SEC};
-pub use session::{McpSession, SwarmSafetyState, SNAPSHOT_RESOURCE};
+pub use session::{ArgusReceiptProvenance, McpSession, SwarmSafetyState, SNAPSHOT_RESOURCE};
 pub use tools::{
-    dispatch_request, McpError, McpRequest, McpResponse, McpToolError, SessionToken,
-    ERR_ACTION_QUEUE_FULL, ERR_INVALID_PARAMS, ERR_LEASE_TIMEOUT, ERR_METHOD_NOT_FOUND,
-    ERR_RATE_LIMITED, ERR_TOOL_FAILED, ERR_UNAUTHORIZED,
+    canonical_method, dispatch_request, dispatch_windowed_request, McpError, McpRequest,
+    McpResponse, McpToolError, SessionToken, ERR_ACTION_QUEUE_FULL, ERR_ARGUS_CONFLICT,
+    ERR_INVALID_PARAMS, ERR_LEASE_TIMEOUT, ERR_METHOD_NOT_FOUND, ERR_RATE_LIMITED, ERR_TOOL_FAILED,
+    ERR_UNAUTHORIZED,
 };

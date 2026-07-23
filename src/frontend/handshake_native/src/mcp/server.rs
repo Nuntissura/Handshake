@@ -43,11 +43,12 @@ use tokio::sync::broadcast;
 
 use crate::accessibility::UiTreeSnapshot;
 use crate::mcp::action::ActionChannel;
+use crate::mcp::argus::{ArgusWindowDescriptor, WindowSnapshotRegistry};
 use crate::mcp::attribution::ActionLog;
 use crate::mcp::binding::{self, McpBinding};
 use crate::mcp::leases::LeaseRegistry;
-use crate::mcp::screenshot::{capture_handshake_window, ScreenshotError, ScreenshotResult};
-use crate::mcp::session::{McpSession, SwarmSafetyState};
+use crate::mcp::screenshot::{capture_handshake_window_target, ScreenshotError, ScreenshotResult};
+use crate::mcp::session::{ArgusReceiptProvenance, McpSession, SwarmSafetyState};
 use crate::mcp::tools::{
     McpRequest, McpResponse, SessionToken, ERR_INVALID_PARAMS, ERR_RATE_LIMITED,
 };
@@ -88,7 +89,9 @@ struct ServerState {
     safety: SwarmSafetyState,
     /// The screenshot capture used by the `screenshot` tool. Boxed so tests can inject an
     /// offscreen-render closure in place of the OS-window grab.
-    capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
+    capture: Arc<
+        dyn Fn(&ArgusWindowDescriptor) -> Result<ScreenshotResult, ScreenshotError> + Send + Sync,
+    >,
 }
 
 impl SwarmMcpServer {
@@ -107,7 +110,26 @@ impl SwarmMcpServer {
         // MT-028: build the per-server swarm-safety state (fresh lease registry + attribution log) over
         // the same token + shared snapshot/channel MT-027 used, then bind through the shared-safety path.
         let safety = SwarmSafetyState::new(token, snapshot, channel);
-        Self::bind_with_safety(safety, capture).await
+        let compatible = Arc::new(move |_: &ArgusWindowDescriptor| capture());
+        Self::bind_with_targeted_safety(safety, compatible).await
+    }
+
+    /// Bind the production window-aware transport over the registry published by the live app.
+    pub async fn bind_with_windows(
+        token: SessionToken,
+        snapshot: Arc<Mutex<UiTreeSnapshot>>,
+        windows: WindowSnapshotRegistry,
+        channel: Arc<Mutex<ActionChannel>>,
+        receipt_provenance: ArgusReceiptProvenance,
+        capture: Arc<
+            dyn Fn(&ArgusWindowDescriptor) -> Result<ScreenshotResult, ScreenshotError>
+                + Send
+                + Sync,
+        >,
+    ) -> std::io::Result<Self> {
+        let safety = SwarmSafetyState::with_window_registry(token, snapshot, windows, channel)
+            .with_durable_receipts(receipt_provenance);
+        Self::bind_with_targeted_safety(safety, capture).await
     }
 
     /// Bind a server over an EXISTING [`SwarmSafetyState`] (MT-028). Use this when multiple per-token
@@ -117,6 +139,18 @@ impl SwarmMcpServer {
     pub async fn bind_with_safety(
         safety: SwarmSafetyState,
         capture: Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync>,
+    ) -> std::io::Result<Self> {
+        let compatible = Arc::new(move |_: &ArgusWindowDescriptor| capture());
+        Self::bind_with_targeted_safety(safety, compatible).await
+    }
+
+    async fn bind_with_targeted_safety(
+        safety: SwarmSafetyState,
+        capture: Arc<
+            dyn Fn(&ArgusWindowDescriptor) -> Result<ScreenshotResult, ScreenshotError>
+                + Send
+                + Sync,
+        >,
     ) -> std::io::Result<Self> {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
         let tcp_addr = listener.local_addr()?.to_string();
@@ -181,9 +215,10 @@ impl SwarmMcpServer {
     }
 
     /// The production OS-window screenshot capture (focus-safe). Pass to [`Self::bind`] in the live app.
-    pub fn os_window_capture(
-    ) -> Arc<dyn Fn() -> Result<ScreenshotResult, ScreenshotError> + Send + Sync> {
-        Arc::new(capture_handshake_window)
+    pub fn os_window_capture() -> Arc<
+        dyn Fn(&ArgusWindowDescriptor) -> Result<ScreenshotResult, ScreenshotError> + Send + Sync,
+    > {
+        Arc::new(capture_handshake_window_target)
     }
 
     /// Spawn the Windows named-pipe accept loop. Returns the pipe name on success, `None` (TCP-only) on
@@ -297,7 +332,7 @@ impl SwarmMcpServer {
         // A send error just means there are no live receivers (loops already stopped) — fine.
         let _ = self.shutdown_tx.send(());
         if !self.binding_removed {
-            if let Err(e) = binding::remove_binding() {
+            if let Err(e) = binding::remove_binding_if_owned(&self.binding) {
                 tracing::warn!(error = %e, "mcp binding file removal failed on shutdown");
             }
             self.binding_removed = true;
@@ -415,15 +450,14 @@ async fn dispatch_with_session(
     session: &McpSession,
     state: &ServerState,
 ) -> McpResponse {
-    let snapshot = state
-        .safety
-        .snapshot
-        .lock()
-        .map(|g| g.clone())
-        .unwrap_or_else(|poisoned| poisoned.into_inner().clone());
     let capture = state.capture.clone();
     session
-        .dispatch_shared_async(request, &snapshot, &state.safety.channel, move || capture())
+        .dispatch_argus_shared_async(
+            request,
+            &state.safety.windows,
+            &state.safety.channel,
+            move |window| capture(window),
+        )
         .await
 }
 
@@ -511,6 +545,7 @@ impl RateLimiter {
 mod tests {
     use super::*;
     use crate::accessibility::{UiTreeNode, UiTreeSnapshot};
+    use crate::mcp::MAIN_WINDOW_ID;
 
     fn snap() -> UiTreeSnapshot {
         let button = UiTreeNode {
@@ -552,8 +587,40 @@ mod tests {
         );
         ServerState {
             safety,
-            capture: Arc::new(|| Ok(crate::mcp::screenshot::screenshot_from_png(b"foobar", 4, 3))),
+            capture: Arc::new(|_| Ok(crate::mcp::screenshot::screenshot_from_png(b"foobar", 4, 3))),
         }
+    }
+
+    fn complete_next_main_action(state: &ServerState) -> std::thread::JoinHandle<()> {
+        let channel = state.safety.channel.clone();
+        let windows = state.safety.windows.clone();
+        std::thread::spawn(move || {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+            loop {
+                let (batch, tracker) = {
+                    let mut channel = channel
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner());
+                    let tracker = channel.receipt_tracker();
+                    (channel.drain_for_window(MAIN_WINDOW_ID), tracker)
+                };
+                if !batch.action_ids.is_empty() {
+                    let current = windows.get(MAIN_WINDOW_ID).expect("main snapshot");
+                    let snapshot = current.snapshot.clone();
+                    let revision = windows.publish(current.window, current.snapshot);
+                    for action_id in batch.action_ids {
+                        tracker.acknowledge_effect(&action_id);
+                        tracker.observe_postcondition(&action_id, revision, &snapshot);
+                    }
+                    return;
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "timed out waiting for queued Argus action"
+                );
+                std::thread::yield_now();
+            }
+        })
     }
 
     #[tokio::test]
@@ -561,10 +628,33 @@ mod tests {
         let state = test_state("secret-token-1234567890");
         let session = state.safety.session();
         let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
-        let line = r#"{"jsonrpc":"2.0","id":1,"method":"list_widgets","params":{},"session_token":"secret-token-1234567890"}"#;
+        let line = r#"{"jsonrpc":"2.0","id":1,"method":"argus.inspect","params":{"window_id":"main"},"session_token":"secret-token-1234567890","agent_label":"server-test"}"#;
         let resp = handle_line(line, &state, &session, &mut limiter).await;
-        assert_eq!(resp["result"]["widget_count"], 2);
-        assert_eq!(resp["result"]["root"]["role"], "Window");
+        assert_eq!(resp["result"]["snapshot"]["widget_count"], 2);
+        assert_eq!(resp["result"]["snapshot"]["root"]["role"], "Window");
+    }
+
+    #[tokio::test]
+    async fn handle_line_lists_registered_windows_over_canonical_method() {
+        let state = test_state("secret-token-1234567890");
+        state.safety.windows.register(ArgusWindowDescriptor {
+            window_id: "popout-pane-a".to_owned(),
+            viewport_id: "PANE_A".to_owned(),
+            title: "Handshake – Workspace".to_owned(),
+        });
+        let session = state.safety.session();
+        let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
+        let line = r#"{"jsonrpc":"2.0","id":11,"method":"argus.list_windows","params":{},"session_token":"secret-token-1234567890","agent_label":"server-test"}"#;
+        let response = handle_line(line, &state, &session, &mut limiter).await;
+        assert_eq!(response["result"]["windows"][0]["window_id"], "main");
+        assert_eq!(
+            response["result"]["windows"][1]["window_id"],
+            "popout-pane-a"
+        );
+        assert_eq!(
+            response["result"]["windows"][1]["snapshot_available"],
+            false
+        );
     }
 
     #[tokio::test]
@@ -584,19 +674,21 @@ mod tests {
         let state = test_state("secret-token-1234567890");
         let session = state.safety.session();
         let mut limiter = RateLimiter::new(MAX_REQUESTS_PER_SEC);
-        let line = r#"{"jsonrpc":"2.0","id":3,"method":"click_widget","params":{"target":"btn"},"session_token":"secret-token-1234567890"}"#;
+        let completer = complete_next_main_action(&state);
+        let line = r#"{"jsonrpc":"2.0","id":3,"method":"argus.click","params":{"window_id":"main","author_id":"btn","expected_snapshot_revision":1},"session_token":"secret-token-1234567890","agent_label":"server-test"}"#;
         let resp = handle_line(line, &state, &session, &mut limiter).await;
-        assert_eq!(resp["result"]["queued"], true);
-        // MAJOR #2 / AC#2: the success result carries the acting agent_id over the wire shape.
-        assert_eq!(
-            resp["result"]["agent_id"],
-            session.agent_id(),
-            "the click result is stamped with the acting agent_id"
-        );
+        completer.join().expect("UI completion worker");
+        assert_eq!(resp["result"]["status"], "applied");
+        assert_eq!(resp["result"]["action"], "Click");
+        assert_eq!(resp["result"]["agent_label"], "server-test");
+        assert_eq!(resp["result"]["window_id"], MAIN_WINDOW_ID);
+        assert_eq!(resp["result"]["author_id"], "btn");
+        assert_eq!(resp["result"]["before_revision"], 1);
+        assert_eq!(resp["result"]["after_revision"], 2);
         assert_eq!(
             state.safety.channel.lock().unwrap().pending(),
-            1,
-            "action landed in the shared channel"
+            0,
+            "applied action was consumed from the shared channel"
         );
         // MT-028: the click is attributed in the shared log with this connection's agent_id.
         let entries = state.safety.log().drain_log();
@@ -605,7 +697,7 @@ mod tests {
             1,
             "the click is recorded in the attribution log"
         );
-        assert_eq!(entries[0].agent_id, session.agent_id());
+        assert_eq!(entries[0].agent_id, "server-test");
         assert_eq!(entries[0].target_key, "btn");
     }
 

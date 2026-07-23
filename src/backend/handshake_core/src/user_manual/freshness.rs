@@ -103,13 +103,26 @@ pub async fn check_freshness(db: &PostgresDatabase) -> StorageResult<FreshnessRe
 
     // 1) Version metadata.
     match store.get_version(USER_MANUAL_VERSION).await? {
-        Some(row) if row.seed_content_hash == seed_hash => {}
+        Some(row)
+            if row.seed_content_hash == seed_hash
+                && row.page_count == corpus.pages.len() as i32
+                && row.tool_count == corpus.tools.len() as i32
+                && row.feature_count == corpus.features.len() as i32 =>
+        {
+        }
         Some(row) => verdicts.push(FreshnessVerdict {
             kind: FreshnessVerdictKind::UnseededVersion,
             subject: USER_MANUAL_VERSION.to_string(),
             detail: format!(
-                "stored seed hash {} != compiled-in corpus hash {} — run POST /usermanual/resync",
-                row.seed_content_hash, seed_hash
+                "stored version metadata differs from the compiled-in corpus: hash {}/{}, pages {}/{}, tools {}/{}, features {}/{} — run POST /usermanual/resync",
+                row.seed_content_hash,
+                seed_hash,
+                row.page_count,
+                corpus.pages.len(),
+                row.tool_count,
+                corpus.tools.len(),
+                row.feature_count,
+                corpus.features.len(),
             ),
         }),
         None => verdicts.push(FreshnessVerdict {
@@ -266,6 +279,31 @@ pub async fn check_freshness(db: &PostgresDatabase) -> StorageResult<FreshnessRe
                 subject: stored.alias.clone(),
                 detail: "database holds a legacy alias the seed corpus does not declare"
                     .to_string(),
+            });
+        }
+    }
+
+    for (subject, stored_count, seed_count) in [
+        ("user_manual_pages", stored_pages.len(), corpus.pages.len()),
+        ("user_manual_tool_entries", stored_tools.len(), corpus.tools.len()),
+        (
+            "user_manual_feature_entries",
+            stored_features.len(),
+            corpus.features.len(),
+        ),
+        (
+            "user_manual_legacy_aliases",
+            stored_aliases.len(),
+            corpus.aliases.len(),
+        ),
+    ] {
+        if stored_count != seed_count {
+            verdicts.push(FreshnessVerdict {
+                kind: FreshnessVerdictKind::StaleContent,
+                subject: subject.to_string(),
+                detail: format!(
+                    "stored row count {stored_count} differs from seed corpus count {seed_count}"
+                ),
             });
         }
     }

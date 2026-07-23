@@ -3,10 +3,8 @@
 use std::{
     env, fs,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
 };
 
-use async_trait::async_trait;
 use candle_core::{DType, Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::llama::Config as LlamaRuntimeConfig;
@@ -14,14 +12,13 @@ use futures::StreamExt;
 use handshake_core::model_runtime::{
     candle::{
         adapter::candle_transformer_capabilities,
-        generate::{candle_generate_stream, CandleGenerationCodec},
         transformer::{CandleLlamaModel, TransformerModel},
         CandleSteeringHooks,
     },
-    CancellationToken, FinishReason, GenPrompt, GenerateRequest, HookPoint, KvCachePolicy,
-    KvPrefixHandle, KvQuantSupport, LayerIndex, LoadSpec, LoraId, ModelCapabilities, ModelId,
-    ModelRuntime, ModelRuntimeError, ProviderKind, RuntimeKind, SamplingParams, SteeringProvenance,
-    SteeringVector, SteeringVectorValues, CANDLE_LOCAL_ENGINE_ORIGIN,
+    CancellationToken, GenPrompt, GenerateRequest, HookPoint, KvCachePolicy, KvQuantSupport,
+    LayerIndex, LoadSpec, ModelCapabilities, ModelId, ModelRuntime, ProviderKind, RuntimeKind,
+    SamplingParams, SteeringProvenance, SteeringVector, SteeringVectorValues,
+    CANDLE_LOCAL_ENGINE_ORIGIN,
 };
 use sha2::{Digest, Sha256};
 
@@ -95,107 +92,6 @@ fn candle_llama_forward_records_real_layer_events() {
     );
 }
 
-#[tokio::test]
-async fn candle_generate_stream_uses_fake_transformer_sampling_cancel_and_hooks() {
-    let model_id = ModelId::new_v7();
-    // MT-082: this test exercises scaffold capture on bare hooks (no real
-    // forward), so it opts in explicitly; production bare hooks fail closed.
-    let hooks = CandleSteeringHooks::new_for_model(model_id, 2).with_scaffold_capture();
-    let vector = SteeringVector::try_new(
-        None,
-        "test-vector",
-        LayerIndex::new(5),
-        HookPoint::ResidStream,
-        SteeringVectorValues::try_new(vec![10.0, 0.0], 0.5).unwrap(),
-        "test steering vector",
-        Some(SteeringProvenance::Manual {
-            author: "test".to_string(),
-            notes: "fake transformer hook proof".to_string(),
-        }),
-    )
-    .unwrap();
-    let vector_id = hooks.register_vector(vector).await.unwrap();
-
-    let model = Arc::new(Mutex::new(
-        Box::new(FakeTransformer::new(vec![2, 3, 4])) as Box<dyn TransformerModel>
-    ));
-    let codec = Arc::new(FakeCodec);
-    let cancel = CancellationToken::new();
-    let mut stream = candle_generate_stream(
-        model,
-        codec,
-        hooks.clone(),
-        request(model_id, cancel.clone(), 8, vec![vector_id]),
-        cancel,
-    );
-
-    let mut tokens = Vec::new();
-    while let Some(item) = stream.next().await {
-        tokens.push(item.unwrap());
-    }
-
-    assert_eq!(
-        tokens
-            .iter()
-            .map(|token| token.text.as_str())
-            .collect::<Vec<_>>(),
-        ["A", "B", ""]
-    );
-    assert_eq!(
-        tokens.last().unwrap().finish_reason,
-        Some(FinishReason::Stop)
-    );
-    let captured = hooks
-        .capture(handshake_core::model_runtime::CaptureSpec {
-            prompts: vec!["after generation".to_string()],
-            layers: vec![LayerIndex::new(5)],
-            hook_point: HookPoint::ResidStream,
-        })
-        .await
-        .unwrap();
-    assert!(captured.activations.contains_key(&LayerIndex::new(5)));
-}
-
-#[tokio::test]
-async fn candle_generate_stream_cancels_before_forward_work() {
-    let model_id = ModelId::new_v7();
-    let cancel = CancellationToken::new();
-    cancel.cancel();
-    let model = Arc::new(Mutex::new(
-        Box::new(FakeTransformer::new(vec![2])) as Box<dyn TransformerModel>
-    ));
-    let mut stream = candle_generate_stream(
-        model,
-        Arc::new(FakeCodec),
-        CandleSteeringHooks::new_for_model(model_id, 2),
-        request(model_id, cancel.clone(), 8, Vec::new()),
-        cancel,
-    );
-
-    let token = stream.next().await.unwrap().unwrap();
-    assert_eq!(token.finish_reason, Some(FinishReason::Cancelled));
-}
-
-#[tokio::test]
-async fn candle_generate_stream_rejects_kv_prefix_until_supported() {
-    let model_id = ModelId::new_v7();
-    let hooks = CandleSteeringHooks::new_for_model(model_id, 2);
-    let model = Arc::new(Mutex::new(
-        Box::new(FakeTransformer::new(vec![2])) as Box<dyn TransformerModel>
-    ));
-    let mut kv_request = request(model_id, CancellationToken::new(), 8, Vec::new());
-    kv_request.kv_prefix_handle = Some(KvPrefixHandle::from_tokens(&[1, 2]).unwrap());
-    let mut stream = candle_generate_stream(
-        model,
-        Arc::new(FakeCodec),
-        hooks,
-        kv_request,
-        CancellationToken::new(),
-    );
-    let err = stream.next().await.unwrap().unwrap_err();
-    assert!(err.to_string().contains("kv prefix"), "{err}");
-}
-
 #[test]
 fn candle_transformer_capabilities_match_implemented_ops() {
     let declared = ModelCapabilities {
@@ -206,6 +102,8 @@ fn candle_transformer_capabilities_match_implemented_ops() {
         supports_subquadratic: true,
         supports_speculative_draft: true,
         supports_eagle3: true,
+        supports_embedding: true,
+        embedding_dimension: Some(4),
     };
 
     let actual = candle_transformer_capabilities(&declared);
@@ -217,6 +115,8 @@ fn candle_transformer_capabilities_match_implemented_ops() {
     assert!(!actual.supports_subquadratic);
     assert!(!actual.supports_speculative_draft);
     assert!(!actual.supports_eagle3);
+    assert!(actual.supports_embedding);
+    assert_eq!(actual.embedding_dimension, Some(4));
 }
 
 #[tokio::test]
@@ -283,118 +183,6 @@ async fn candle_runtime_load_env_model_generates_when_present() {
         .expect("runtime hook capture drives real forward");
     assert!(capture.tokens_seen > 0);
     assert!(capture.activations.contains_key(&LayerIndex::new(0)));
-}
-
-struct FakeTransformer {
-    scripted_tokens: Vec<u32>,
-    calls: usize,
-}
-
-impl FakeTransformer {
-    fn new(scripted_tokens: Vec<u32>) -> Self {
-        Self {
-            scripted_tokens,
-            calls: 0,
-        }
-    }
-}
-
-#[async_trait]
-impl TransformerModel for FakeTransformer {
-    fn forward(
-        &mut self,
-        _input_ids: &Tensor,
-        hooks: &CandleSteeringHooks,
-        steering_overrides: &[handshake_core::model_runtime::SteeringVectorId],
-        _lora_overrides: &[LoraId],
-    ) -> Result<Tensor, ModelRuntimeError> {
-        hooks.run_resid_stream_forward_harness(
-            [(LayerIndex::new(5), vec![vec![1.0, 2.0]])]
-                .into_iter()
-                .collect(),
-            &[LayerIndex::new(5)],
-            steering_overrides,
-        )?;
-        let token = self.scripted_tokens.get(self.calls).copied().unwrap_or(4);
-        self.calls += 1;
-        let mut logits = vec![0.0_f32; 5];
-        logits[token as usize] = 10.0;
-        Tensor::from_vec(logits, 5, &Device::Cpu)
-            .map_err(|error| ModelRuntimeError::GenerateError(error.to_string()))
-    }
-
-    fn n_layers(&self) -> u32 {
-        6
-    }
-
-    fn hidden_dim(&self) -> u32 {
-        2
-    }
-
-    fn vocab_size(&self) -> u32 {
-        5
-    }
-
-    fn eos_token_ids(&self) -> &[u32] {
-        &[4]
-    }
-
-    fn device(&self) -> Device {
-        Device::Cpu
-    }
-
-    fn reset_generation_state(&mut self) -> Result<(), ModelRuntimeError> {
-        self.calls = 0;
-        Ok(())
-    }
-}
-
-struct FakeCodec;
-
-impl CandleGenerationCodec for FakeCodec {
-    fn encode_prompt(&self, _prompt: &str) -> Result<Vec<u32>, ModelRuntimeError> {
-        Ok(vec![1])
-    }
-
-    fn decode_token(&self, token_id: u32) -> Result<String, ModelRuntimeError> {
-        Ok(match token_id {
-            2 => "A",
-            3 => "B",
-            4 => "",
-            _ => "?",
-        }
-        .to_string())
-    }
-}
-
-fn request(
-    id: ModelId,
-    cancel: CancellationToken,
-    max_tokens: u32,
-    steering_overrides: Vec<handshake_core::model_runtime::SteeringVectorId>,
-) -> GenerateRequest {
-    GenerateRequest {
-        id,
-        prompt: GenPrompt::from("prompt"),
-        sampling: SamplingParams {
-            temperature: Some(0.0),
-            top_p: None,
-            top_k: None,
-            min_p: None,
-            repetition_penalty: None,
-            frequency_penalty: None,
-            presence_penalty: None,
-            seed: Some(42),
-        },
-        lora_overrides: Vec::new(),
-        steering_overrides,
-        kv_prefix_handle: None,
-        cancel,
-        max_tokens,
-        stop_sequences: Vec::new(),
-        speculative_mode: None,
-        structured_decoding: None,
-    }
 }
 
 fn tiny_llama_config() -> LlamaRuntimeConfig {

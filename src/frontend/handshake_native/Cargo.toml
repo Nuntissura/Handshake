@@ -39,12 +39,12 @@ opt-level = 3
 [workspace.metadata.handshake-native]
 # Bundled-deps + installer metadata for no-context tooling. Authoritative human-readable policy is
 # installer/windows/BUNDLED_DEPS_POLICY.md (GOVARTIFACTS-019 operator-prose exception).
-single_binary = true
+single_binary = false
 crt_static = true
 bundled_fonts = ["Inter-Regular.ttf", "Inter-Bold.ttf"]
 installer = "installer/windows/handshake_native.wxs"
 # Two-binary install layout: native shell + the handshake_core backend (managed-postgres host).
-install_payload = ["handshake-native.exe", "handshake_core.exe"]
+install_payload = ["handshake-native.exe", "palmistry.exe", "handshake_core.exe"]
 
 [package]
 name = "handshake-native"
@@ -63,6 +63,10 @@ resources = ["assets/fonts"]
 [[bin]]
 name = "handshake-native"
 path = "src/main.rs"
+
+[[bin]]
+name = "palmistry"
+path = "src/bin/palmistry.rs"
 
 [features]
 # MT-004 bundles assets/fonts/Inter-{Regular,Bold}.ttf and turns this ON by default so the shipped
@@ -95,6 +99,8 @@ serde_json = "1"
 # MT adds; both are audited, pure-Rust (no native build). `rand` (CSPRNG token bytes) is reused from the
 # existing locked graph. See the MT-027 deviation notes for the per-crate justification.
 hmac = "0.12"
+hex = "0.4"
+ed25519-dalek = "3.0.0"
 sha2 = "0.10"
 rand = "0.9"
 # base64 STANDARD-alphabet encode for the screenshot tool's `png_base64`. Already present in the locked
@@ -103,12 +109,16 @@ rand = "0.9"
 base64 = "0.22"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+memmap2 = "0.9"
+uuid = { version = "1", features = ["v7", "fast-rng", "serde"] }
 # MT-015 BYOK key entry: the in-memory API-key edit buffer is wrapped in
 # `zeroize::Zeroizing<String>` so it is wiped from memory on clear/drop and never
 # lingers after submit. zeroize is already in the locked graph (rustls/secrecy
 # family); declared here so the settings dialog's key buffer uses the audited
 # crate directly. No new dependency family.
 zeroize = "1"
+chacha20poly1305 = "0.10"
+curve25519-dalek = "5.0.0"
 
 # MT-027 production screenshot: the live OS-window grab uses Win32 GDI `PrintWindow` (focus-safe — never
 # SetForegroundWindow/BringWindowToTop). `windows-sys` is already in the locked graph transitively; here
@@ -133,7 +143,14 @@ zeroize = "1"
 # additional feature module that was previously listed in clippy.toml as a not-yet-reachable ban path.
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
     "Win32_Graphics_Gdi",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Kernel",
+    "Win32_System_Memory",
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_Accessibility",
     "Win32_UI_Input_KeyboardAndMouse",
@@ -146,7 +163,11 @@ windows-sys = { version = "0.61", features = [
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [dev-dependencies]
+tempfile = "3"
 egui_kittest = { version = "0.33", features = ["wgpu"] }
+# MT-014 composite proof: reuse the production backend route, managed-PostgreSQL
+# lifecycle, LocalRouter, and LocalModelRuntimeLlmClient behind a test-utils seam.
+handshake_core = { path = "../../backend/handshake_core", default-features = false, features = ["runtime-full", "test-utils"] }
 # image: TEST-ONLY (dev-dependency). NOT a new dependency family — `egui_kittest[wgpu]` already pulls
 # image 0.25 into the locked graph (it returns `image::RgbaImage` from `Harness::render()`), so this is
 # already compiled. Declared explicitly so the MT-027 screenshot proof can encode the rendered frame to

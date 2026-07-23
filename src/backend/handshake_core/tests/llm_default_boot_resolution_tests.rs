@@ -21,7 +21,8 @@ use handshake_core::{
     llm::{
         boot::{
             assemble_local_runtime_client, assemble_local_runtime_client_with_registrations,
-            build_default_local_client, build_openai_compat_client,
+            build_openai_compat_client, resolve_default_llm_client,
+            resolve_default_llm_client_with_factory, DefaultLocalClientFactory,
         },
         registry::{ProviderKind, ResolvedProvider},
         CompletionRequest, CompletionResponse, EmbeddingRequest, LlmClient, LlmError, ModelProfile,
@@ -35,6 +36,64 @@ use handshake_core::{
     },
 };
 use uuid::Uuid;
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+struct EnvScope {
+    previous: Vec<(&'static str, Option<std::ffi::OsString>)>,
+}
+
+impl EnvScope {
+    fn apply(changes: &[(&'static str, Option<&'static str>)]) -> Self {
+        let previous = changes
+            .iter()
+            .map(|(key, _)| (*key, std::env::var_os(key)))
+            .collect();
+        for (key, value) in changes {
+            match value {
+                Some(value) => std::env::set_var(key, value),
+                None => std::env::remove_var(key),
+            }
+        }
+        Self { previous }
+    }
+
+    fn local_runtime_without_models() -> Self {
+        Self::apply(&[
+            ("HANDSHAKE_LLM_PROVIDER", Some("local_runtime")),
+            ("HANDSHAKE_LOCAL_MODEL_PATH", None),
+            ("HANDSHAKE_LOCAL_EMBEDDING_MODEL_PATH", None),
+        ])
+    }
+
+    fn configured_local_runtime() -> Self {
+        Self::apply(&[
+            ("HANDSHAKE_LLM_PROVIDER", Some("local_runtime")),
+            (
+                "HANDSHAKE_LOCAL_MODEL_PATH",
+                Some("fixtures/models/resolver-proof.gguf"),
+            ),
+            (
+                "HANDSHAKE_LOCAL_MODEL_SHA256",
+                Some("0707070707070707070707070707070707070707070707070707070707070707"),
+            ),
+            ("HANDSHAKE_LOCAL_MODEL_BINDING", Some("candle")),
+            ("HANDSHAKE_LOCAL_MODEL_NAME", Some("resolver-proof-model")),
+            ("HANDSHAKE_LOCAL_EMBEDDING_MODEL_PATH", None),
+        ])
+    }
+}
+
+impl Drop for EnvScope {
+    fn drop(&mut self) {
+        for (key, value) in self.previous.drain(..) {
+            match value {
+                Some(value) => std::env::set_var(key, value),
+                None => std::env::remove_var(key),
+            }
+        }
+    }
+}
 
 #[test]
 fn mt003_ollama_adapter_source_file_and_public_export_are_removed() {
@@ -207,6 +266,31 @@ impl LlmClient for RecordingFallback {
     }
 }
 
+struct RecordingLocalFactory {
+    resolved: Arc<Mutex<Vec<ResolvedProvider>>>,
+    client: Arc<dyn LlmClient>,
+}
+
+#[async_trait]
+impl DefaultLocalClientFactory for RecordingLocalFactory {
+    async fn build(
+        &self,
+        resolved: &ResolvedProvider,
+        _flight_recorder: Arc<dyn FlightRecorder>,
+        _ledger: Option<handshake_core::process_ledger::LedgerBatcher>,
+        _model_registry_store: Option<handshake_core::model_runtime::ModelRegistryStore>,
+        _runtime_instance: Option<
+            handshake_core::process_ledger::EmbeddedRuntimeInstanceDescriptor,
+        >,
+    ) -> Arc<dyn LlmClient> {
+        self.resolved
+            .lock()
+            .expect("resolved provider lock")
+            .push(resolved.clone());
+        Arc::clone(&self.client)
+    }
+}
+
 #[derive(Clone, Default)]
 struct CapturingRecorder {
     events: Arc<Mutex<Vec<FlightRecorderEvent>>>,
@@ -254,21 +338,12 @@ fn local_registration(model_id: ModelId, binding: RuntimeBinding) -> ModelRegist
 
 #[tokio::test]
 async fn default_boot_with_no_local_model_returns_disabled_never_ollama_daemon() {
-    // ProviderKind has exactly LocalRuntime + OpenAiCompat; there is no Ollama
-    // variant to select (compile-time proof the daemon arm is gone).
-    let resolved = ResolvedProvider {
-        provider_id: "local_runtime".to_string(),
-        kind: ProviderKind::LocalRuntime,
-        tier: ModelTier::Local,
-        base_url: String::new(),
-        model_id: "embedded-local-unconfigured".to_string(),
-        api_key_env: None,
-        local_model: None,
-        local_embedding_model: None,
-    };
-
+    let _env_lock = ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _env = EnvScope::local_runtime_without_models();
     let recorder = Arc::new(CapturingRecorder::default());
-    let client = build_default_local_client(&resolved, recorder, None).await;
+    let client = resolve_default_llm_client(recorder, None, None, None).await;
 
     // DisabledLlmClient fail-closed signature: zero context window + errored
     // completion carrying the fail-closed reason.
@@ -285,6 +360,55 @@ async fn default_boot_with_no_local_model_returns_disabled_never_ollama_daemon()
         message.contains("no local model configured") || message.contains("HSK-LOCAL-DISABLED"),
         "unexpected fail-closed error: {message}"
     );
+}
+
+#[tokio::test]
+async fn configured_default_boot_traverses_real_registry_and_local_dispatch() {
+    let _env_lock = ENV_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _env = EnvScope::configured_local_runtime();
+    let resolved = Arc::new(Mutex::new(Vec::new()));
+    let routed_client: Arc<dyn LlmClient> = Arc::new(RecordingFallback::new());
+    let factory = Arc::new(RecordingLocalFactory {
+        resolved: Arc::clone(&resolved),
+        client: Arc::clone(&routed_client),
+    });
+
+    let client = resolve_default_llm_client_with_factory(
+        Arc::new(CapturingRecorder::default()),
+        None,
+        None,
+        None,
+        factory,
+    )
+    .await;
+
+    let calls = resolved.lock().expect("resolved provider lock");
+    assert_eq!(
+        calls.len(),
+        1,
+        "local factory must be dispatched exactly once"
+    );
+    assert_eq!(calls[0].kind, ProviderKind::LocalRuntime);
+    let local = calls[0]
+        .local_model
+        .as_ref()
+        .expect("configured model must survive real registry resolution");
+    assert_eq!(local.display_name, "resolver-proof-model");
+    assert_eq!(local.runtime_binding, RuntimeBinding::Candle);
+    drop(calls);
+
+    assert_eq!(client.profile().model_id, routed_client.profile().model_id);
+    let response = client
+        .completion(CompletionRequest::new(
+            Uuid::now_v7(),
+            "registry dispatch proof".to_string(),
+            client.profile().model_id.clone(),
+        ))
+        .await
+        .expect("injected local client response");
+    assert_eq!(response.text, "FALLBACK");
 }
 
 // ---------------------------------------------------------------------------

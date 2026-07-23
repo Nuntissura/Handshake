@@ -337,6 +337,8 @@ fn load_spec_with_kv_policy(
             supports_subquadratic: false,
             supports_speculative_draft: true,
             supports_eagle3: false,
+            supports_embedding: false,
+            embedding_dimension: None,
         },
         provider: ProviderKind::Local,
         engine_origin: None,

@@ -850,13 +850,23 @@ pub fn config_value_declares_unversioned_rwkv(value: &Value) -> bool {
 
 pub fn read_rwkv_config(path: &Path) -> Result<(Config, Vec<u32>), ModelRuntimeError> {
     let value = read_config_value(path)?;
-    let config = serde_json::from_value::<Config>(value.clone()).map_err(|error| {
+    decode_rwkv_config_value(&value).map_err(|error| {
         ModelRuntimeError::LoadError(format!(
             "failed to decode Candle RWKV config {}: {error}",
             path.display()
         ))
+    })
+}
+
+pub(super) fn decode_rwkv_config_value(
+    value: &Value,
+) -> Result<(Config, Vec<u32>), ModelRuntimeError> {
+    let config = serde_json::from_value::<Config>(value.clone()).map_err(|error| {
+        ModelRuntimeError::LoadError(format!(
+            "failed to decode captured Candle RWKV config: {error}"
+        ))
     })?;
-    Ok((config, eos_token_ids(&value)))
+    Ok((config, eos_token_ids(value)))
 }
 
 fn read_config_value(path: &Path) -> Result<Value, ModelRuntimeError> {
@@ -874,7 +884,7 @@ fn read_config_value(path: &Path) -> Result<Value, ModelRuntimeError> {
     })
 }
 
-fn eos_token_ids(value: &Value) -> Vec<u32> {
+pub(super) fn eos_token_ids(value: &Value) -> Vec<u32> {
     match value.get("eos_token_id") {
         Some(Value::Number(number)) => number
             .as_u64()

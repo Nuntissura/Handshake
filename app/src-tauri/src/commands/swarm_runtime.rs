@@ -16,22 +16,15 @@
 //!
 //! ## Why a session side-table lives here
 //!
-//! The `SwarmCoordinator` (in `handshake_core`, off-limits to this layer) is the
-//! multi-instance authority: it owns the session registry, the bounds, the
-//! lease/TTL reaper, and the ledger. It deliberately exposes only
-//! `spawn_session` / `cancel_session` / `session_state` / `live_session_count` /
-//! `remaining` — there is NO public accessor that hands an
-//! `Arc<dyn ModelRuntime>` (or the runtime-minted `ModelId`) back out of a live
-//! session. The operator chat box needs exactly that to run a real generate.
+//! The `SwarmCoordinator` is the multi-instance authority: it owns the session
+//! registry, bounds, lease/TTL reaper, ledger, runtime, and LlmClient facade.
+//! Tauri retains no generation-capable runtime handle.
 //!
 //! Rather than double-loading the model, the app wraps the production
 //! [`ProductionModelSessionFactory`] in a [`TrackingFactory`]. The coordinator
-//! still owns the canonical session; the wrapper, on the SAME successful load,
-//! clones the session's runtime `Arc` + `ModelId` + descriptor into an app-side
-//! side-table keyed by `ModelInstanceId`. There is exactly ONE load and ONE
-//! engine: the `Arc<dyn ModelRuntime>` in the side-table is the very handle the
-//! coordinator registered (the factory's `SharedRuntimeHandle`), so a generate
-//! through it drives the real, live session. The side-table is pruned lazily —
+//! still owns the canonical session; the wrapper records only `ModelId` and
+//! descriptive metadata in an app-side table keyed by `ModelInstanceId`.
+//! Generation enters the coordinator's managed LlmClient stream. The table is pruned lazily —
 //! every list/generate/cancel reconciles it against
 //! `coordinator.session_state(iid)`, dropping entries the coordinator has
 //! already evicted (terminal / reaped) so the table cannot leak.
@@ -57,7 +50,7 @@
 //! `production_with_cloud_vault` to inject a specific vault + lane ids (tests,
 //! or a shared vault handle).
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -68,8 +61,9 @@ use handshake_core::distillation::swarm_trace::{
     SwarmTraceCandidate, SwarmTraceRouteMetadata, SwarmTraceRouteOutcome,
 };
 use handshake_core::flight_recorder::FlightRecorder;
+use handshake_core::model_runtime::catalog::ModelCatalog;
 use handshake_core::model_runtime::cloud::{
-    CliBridgeConfig, CliSubprocessSpawner, LiveCliSpawner, SecretsVault,
+    AllowlistedCliBridgeConfig, CliSubprocessSpawner, LiveCliSpawner, SecretsVault,
 };
 use handshake_core::model_runtime::registry::RuntimeBinding;
 use handshake_core::model_runtime::{
@@ -77,13 +71,19 @@ use handshake_core::model_runtime::{
     SamplingParams, WarmVmSnapshotManifest,
 };
 use handshake_core::process_ledger::{
-    LedgerBatcher, LedgerBatcherConfig, LedgerEvent, LedgerOverflowEvent, ProcessLedgerError,
-    ProcessLedgerOverflowSink, ProcessLedgerStore,
+    LedgerBatcher, LedgerBatcherConfig, LedgerEvent, LedgerOverflowEvent,
+    PostgresProcessLedgerStore, ProcessLedgerError, ProcessLedgerOverflowSink, ProcessLedgerStore,
+    ProcessReclaimRuntime, RetainedLedgerBatcher,
 };
 use handshake_core::sandbox::SandboxAdapterRegistry;
 use handshake_core::storage::ControlPlaneStorage;
 use handshake_core::swarm_orchestration::ids::LocalExecutionMode;
 use handshake_core::swarm_orchestration::model_lane::{DexterityLaunchContract, ModelLaneStore};
+use handshake_core::swarm_orchestration::operator_chat::{
+    OperatorChatLaunchService, OperatorChatRoutingAuthorityRequest,
+    OperatorChatRoutingCancelRequest, OperatorChatRoutingLifecycleRequest,
+    OperatorChatRoutingStageRequest,
+};
 use handshake_core::swarm_orchestration::state_recovery::{
     AgentLaneIdentity, AgentLaneKind, AttributionMode, CloudAssistanceOutputKind,
     CloudAssistanceRequest, CloudFallbackBasisRequest, CloudFallbackReason, LocalCloudAttribution,
@@ -124,6 +124,12 @@ pub const KERNEL_SWARM_RESOURCE_SNAPSHOT_IPC_CHANNEL: &str = "kernel_swarm_resou
 pub const KERNEL_SWARM_CHAT_GENERATE_IPC_CHANNEL: &str = "kernel_swarm_chat_generate";
 pub const KERNEL_SWARM_CHAT_GENERATE_WITH_CLOUD_ESCALATION_IPC_CHANNEL: &str =
     "kernel_swarm_chat_generate_with_cloud_escalation";
+pub const KERNEL_SWARM_EXECUTE_ROUTING_WAVE_IPC_CHANNEL: &str = "kernel_swarm_execute_routing_wave";
+pub const KERNEL_SWARM_COMPLETE_ROUTING_AUTHORITY_IPC_CHANNEL: &str =
+    "kernel_swarm_complete_routing_authority";
+pub const KERNEL_SWARM_CANCEL_ROUTING_EXECUTION_IPC_CHANNEL: &str =
+    "kernel_swarm_cancel_routing_execution";
+pub const KERNEL_SWARM_RECOVER_ROUTING_WAVE_IPC_CHANNEL: &str = "kernel_swarm_recover_routing_wave";
 pub const KERNEL_SWARM_LIST_WORKTREES_IPC_CHANNEL: &str = "kernel_swarm_list_worktrees";
 pub const KERNEL_SWARM_RESUME_SESSION_IPC_CHANNEL: &str = "kernel_swarm_resume_session";
 pub const KERNEL_SWARM_GET_SPAWN_TEMPLATE_IPC_CHANNEL: &str = "kernel_swarm_get_spawn_template";
@@ -134,10 +140,10 @@ const CHAT_MAX_TOKENS: u32 = 256;
 const SWARM_COMMITTED_MEMORY_CEILING_BYTES_ENV: &str =
     "HANDSHAKE_SWARM_COMMITTED_MEMORY_CEILING_BYTES";
 
-/// In-process [`ProcessLedgerStore`] the app owns for the swarm coordinator. Not
-/// a fake: it durably accumulates every START/STOP row for the running session
-/// so the orchestration ledger is real and inspectable. A Postgres-backed store
-/// replaces this when the app gains a configured pool (out of MT-204 scope).
+/// In-process observation mirror for the swarm process ledger. Production uses
+/// PostgreSQL as the acknowledged primary store and writes this mirror only
+/// after the durable write succeeds; test-only constructors may use the mirror
+/// directly when no control-plane pool is supplied.
 #[derive(Clone, Default)]
 pub struct InProcessLedgerStore {
     events: Arc<Mutex<Vec<LedgerEvent>>>,
@@ -163,6 +169,19 @@ impl ProcessLedgerStore for InProcessLedgerStore {
     }
 }
 
+struct MirroredPostgresLedgerStore {
+    primary: PostgresProcessLedgerStore,
+    mirror: InProcessLedgerStore,
+}
+
+#[async_trait]
+impl ProcessLedgerStore for MirroredPostgresLedgerStore {
+    async fn write_batch(&self, events: Vec<LedgerEvent>) -> Result<(), ProcessLedgerError> {
+        self.primary.write_batch(events.clone()).await?;
+        self.mirror.write_batch(events).await
+    }
+}
+
 /// Overflow sink for the swarm ledger: counts dropped rows so an overflow is
 /// observable rather than silent.
 #[derive(Clone, Default)]
@@ -183,14 +202,15 @@ impl ProcessLedgerOverflowSink for CountingOverflowSink {
     }
 }
 
-/// A descriptor + live handle for a session the app tracks alongside the
-/// coordinator's canonical registry. The `runtime` is the SAME `Arc` the
-/// coordinator registered (cloned, not re-loaded), so a generate through it
-/// drives the real live session.
+/// App-side descriptive projection for a coordinator-owned live session.
+/// Generation authority and runtime ownership never leave the coordinator.
 #[derive(Clone)]
 struct TrackedSession {
+    /// Unique identity for this Ready publication. Reconciliation snapshots use
+    /// it to avoid deleting a newer same-instance publication when an older
+    /// snapshot observes the coordinator entry as terminal or absent.
+    publication_id: Uuid,
     model_id: ModelId,
-    runtime: Arc<dyn ModelRuntime>,
     runtime_binding: RuntimeBinding,
     provider: ProviderKind,
     /// For local sessions, the artifact path the operator spawned from (for the
@@ -222,11 +242,10 @@ struct TrackedSession {
 /// Shared app-side side-table of tracked sessions keyed by instance id.
 type SessionTable = Arc<Mutex<HashMap<ModelInstanceId, TrackedSession>>>;
 
-/// Factory wrapper that records every successfully-created session's runtime +
-/// model id into the app-side side-table while delegating the real load to the
-/// inner production factory. This is the seam that lets the operator chat box
-/// reach the live runtime WITHOUT a second load and WITHOUT touching the
-/// off-limits coordinator internals.
+/// Factory wrapper that prepares app-side tracking while delegating the real
+/// load to the production factory. Publication is attached as a coordinator
+/// ready hook, so cancellation, duplicate loss, or launch-persistence failure
+/// cannot leave a stale strong runtime reference in the app table.
 struct TrackingFactory {
     inner: ProductionModelSessionFactory,
     table: SessionTable,
@@ -236,19 +255,18 @@ struct TrackingFactory {
 impl ModelSessionFactory for TrackingFactory {
     async fn create(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
         let live = self.inner.create(request).await?;
-        // Clone the SAME runtime Arc + model id the coordinator will own. One
-        // load, one engine; the side-table just holds a second strong reference
-        // for the chat/generate path. Pruned lazily against session_state.
+        // Retain only descriptive identity. The coordinator remains the sole
+        // owner of the runtime and its traced/budgeted LlmClient facade.
         let tracked = TrackedSession {
+            publication_id: Uuid::now_v7(),
             model_id: live.model_id,
-            runtime: live.runtime.clone(),
             runtime_binding: request.runtime_binding,
             provider: request.provider.unwrap_or(ProviderKind::Local),
             artifact_path: request.model_artifact_path().map(|s| s.to_string()),
             cloud_model_name: request.cloud_model_name.clone(),
-            // Recorded assignment/attribution, drained from the SAME SpawnRequest
-            // at the SAME atomic insert point as the runtime handle — no second
-            // post-spawn insert, so there is no race with a fast list/generate.
+            // Recorded assignment/attribution is drained from the same
+            // SpawnRequest and published with the descriptive Ready projection.
+            // The coordinator retains sole ownership of the runtime handle.
             worktree_id: request.worktree_id().map(|s| s.to_string()),
             working_dir: request.working_dir().map(|s| s.to_string()),
             isolation_tier: request
@@ -259,11 +277,15 @@ impl ModelSessionFactory for TrackingFactory {
                 .map(SwarmLocalExecutionModeIpc::from_core),
             warm_vm_restore_manifest: live.warm_vm_restore_manifest.clone(),
         };
-        self.table
-            .lock()
-            .expect("swarm session table poisoned")
-            .insert(request.instance_id, tracked);
-        Ok(live)
+        let table = Arc::clone(&self.table);
+        let instance_id = request.instance_id;
+        Ok(live.with_ready_hook(Arc::new(move || {
+            table
+                .lock()
+                .map_err(|_| SwarmError::LedgerFailed("swarm session table poisoned".to_string()))?
+                .insert(instance_id, tracked.clone());
+            Ok(())
+        })))
     }
 }
 
@@ -272,13 +294,21 @@ impl ModelSessionFactory for TrackingFactory {
 /// it is not dropped (which would stop the background ledger writer).
 pub struct SwarmRuntimeState {
     coordinator: Arc<SwarmCoordinator>,
+    /// Legacy Tauri routing IPC delegates to this canonical core service. It
+    /// never replays, validates, mutates, builds, or executes lifecycle state.
+    operator_chat_launch_service: Option<Arc<OperatorChatLaunchService>>,
     ledger_store: InProcessLedgerStore,
     sessions: SessionTable,
     /// The concurrency cap the coordinator's semaphore was built with. The
     /// coordinator does not expose its `max_concurrent` publicly, so the app
     /// records the value it constructed the budget with for the resource bar.
     concurrency_cap: usize,
-    _writer_task: tokio::task::JoinHandle<Result<(), ProcessLedgerError>>,
+    process_ledger_runtime: RetainedLedgerBatcher,
+    process_reclaim_runtime: Option<ProcessReclaimRuntime>,
+    /// Exact production Official-CLI subprocess authority shared by the live
+    /// lane and the settings preflight. `None` means the app-owned sandbox
+    /// registry was unavailable and both surfaces fail closed.
+    official_cli_preflight_spawner: Option<Arc<LiveCliSpawner>>,
     /// rank-4: the live board broadcast source. The coordinator's sink fans out to
     /// this (alongside the FR sink); the Tauri board forwarder subscribes here and
     /// re-emits typed deltas to the React board, replacing the 1500ms poll.
@@ -286,7 +316,8 @@ pub struct SwarmRuntimeState {
     /// rank-3: the durable FR bridge drain task (when a recorder is wired). Held
     /// so it lives for the app's lifetime; dropping it stops persisting swarm
     /// events. `None` when no recorder was supplied (the eprintln fallback).
-    _fr_drain_task: Option<tokio::task::JoinHandle<()>>,
+    fr_bridge: Option<DurableSwarmFrBridge>,
+    fr_drain_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
     /// Integrated Terminal capture seam (spec §10.1). When wired (by lib.rs from
     /// the managed `TerminalRuntimeState`), a swarm spawn ALSO opens a read-only
     /// AiJob capture session bound to the swarm_id swimlane, so the operator can
@@ -322,10 +353,23 @@ pub struct SwarmRuntimeState {
     cloud_assistance_recorder: Option<Arc<dyn CloudAssistanceReceiptRecorder>>,
 }
 
+#[derive(Debug)]
+pub enum SwarmShutdownDrainOutcome {
+    Completed {
+        process_ledger: handshake_core::process_ledger::LedgerDrainJoinOutcome,
+    },
+    CoordinatorTimedOut,
+    CoordinatorFailed(String),
+}
+
 impl std::fmt::Debug for SwarmRuntimeState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SwarmRuntimeState")
             .field("coordinator", &"<SwarmCoordinator>")
+            .field(
+                "operator_chat_launch_service",
+                &self.operator_chat_launch_service.is_some(),
+            )
             .field("ledger_store", &"<InProcessLedgerStore>")
             .field("sessions", &"<SessionTable>")
             .field("dexterity_launch_required", &self.dexterity_launch_required)
@@ -344,16 +388,19 @@ impl std::fmt::Debug for SwarmRuntimeState {
 /// subprocess START/STOP row is attributable + reclaimable in the live ledger.
 fn load_official_cli_lane(
     app_data_root: &Path,
-    ledger: &LedgerBatcher,
-) -> Option<(Arc<dyn CliSubprocessSpawner>, CliBridgeConfig)> {
+    spawner: Option<&Arc<LiveCliSpawner>>,
+) -> Option<(Arc<dyn CliSubprocessSpawner>, AllowlistedCliBridgeConfig)> {
     let store = super::cli_bridge_store::CliBridgeConfigStore::new(app_data_root);
     let doc = store.load().ok()?;
     if !doc.configured {
         return None;
     }
-    let config = doc.to_cli_bridge_config().ok()?;
-    let spawner: Arc<dyn CliSubprocessSpawner> =
-        Arc::new(LiveCliSpawner::new(Arc::new(ledger.clone())));
+    let config =
+        AllowlistedCliBridgeConfig::from_config_metadata(doc.to_cli_bridge_config().ok()?).ok()?;
+    // The CLI lane and settings preflight share this exact production spawner:
+    // one process ledger, one app-owned sandbox registry, and one pinned
+    // executable graph. Missing composition authority keeps both fail-closed.
+    let spawner: Arc<dyn CliSubprocessSpawner> = spawner?.clone();
     Some((spawner, config))
 }
 
@@ -421,25 +468,75 @@ impl SwarmRuntimeState {
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     ) -> Self {
-        Self::production_with_registry_internal(app_data_root, sandbox_registry, None)
+        Self::production_with_registry_internal(app_data_root, sandbox_registry, None, None)
     }
 
-    pub fn production_with_registry_and_model_lane_store(
+    /// Compatibility constructor for a ModelLane-backed Tauri runtime. Product
+    /// boot recovery is owned by `handshake_core/src/main.rs`; keeping it out of
+    /// this legacy host prevents two boot owners and makes Tauri removable.
+    pub async fn production_bootstrap_with_model_lane_store(
+        recorder: Option<Arc<dyn FlightRecorder>>,
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
         model_lane_store: ModelLaneStore,
-    ) -> Self {
-        Self::production_with_registry_internal(
-            app_data_root,
-            sandbox_registry,
-            Some(model_lane_store),
+        process_ledger_store: PostgresProcessLedgerStore,
+        host_scope_id: String,
+    ) -> Result<Self, String> {
+        let sandbox_registry = sandbox_registry
+            .unwrap_or_else(handshake_core::process_ledger::production_process_sandbox_registry);
+        let pool = process_ledger_store.pool().clone();
+        if host_scope_id.trim().is_empty() {
+            return Err("Tauri process-runtime host scope must not be empty".to_string());
+        }
+        let mirror = InProcessLedgerStore::default();
+        let overflow: Arc<dyn ProcessLedgerOverflowSink> =
+            Arc::new(CountingOverflowSink::default());
+        let shared_process_runtime = ProcessReclaimRuntime::production(
+            pool.clone(),
+            Arc::new(MirroredPostgresLedgerStore {
+                primary: process_ledger_store,
+                mirror: mirror.clone(),
+            }),
+            Some(overflow),
+            Arc::clone(&sandbox_registry),
+            host_scope_id,
+            std::time::Duration::from_secs(30),
         )
+        .await
+        .map_err(|error| error.to_string())?;
+        let vault: Arc<dyn SecretsVault> = Arc::new(
+            handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
+                handshake_core::model_runtime::cloud::secrets_vault::HANDSHAKE_KEYCHAIN_SERVICE,
+            ),
+        );
+        let anthropic_lane = std::env::var("HANDSHAKE_SWARM_ANTHROPIC_LANE")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| "anthropic".to_string());
+        let openai_lane = std::env::var("HANDSHAKE_SWARM_OPENAI_LANE")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| "openai".to_string());
+        let cloud =
+            CloudLaneFactoryConfig::from_vault(vault, Some(anthropic_lane), Some(openai_lane));
+        Ok(Self::production_with_cloud_and_recorder_and_committed_memory_ceiling_with_model_lane_store(
+            cloud,
+            recorder,
+            app_data_root,
+            Some(sandbox_registry),
+            committed_memory_ceiling_from_env(),
+            Some(model_lane_store),
+            None,
+            true,
+            Some((shared_process_runtime, mirror, pool)),
+        ))
     }
 
     fn production_with_registry_internal(
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
         model_lane_store: Option<ModelLaneStore>,
+        process_ledger_store: Option<PostgresProcessLedgerStore>,
     ) -> Self {
         let vault: Arc<dyn SecretsVault> = Arc::new(
             handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
@@ -462,6 +559,7 @@ impl SwarmRuntimeState {
             app_data_root,
             sandbox_registry,
             model_lane_store,
+            process_ledger_store,
             true,
         )
     }
@@ -501,20 +599,12 @@ impl SwarmRuntimeState {
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
     ) -> Self {
-        Self::production_with_fr_recorder_internal(recorder, app_data_root, sandbox_registry, None)
-    }
-
-    pub fn production_with_fr_recorder_and_model_lane_store(
-        recorder: Arc<dyn FlightRecorder>,
-        app_data_root: &Path,
-        sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
-        model_lane_store: ModelLaneStore,
-    ) -> Self {
         Self::production_with_fr_recorder_internal(
             recorder,
             app_data_root,
             sandbox_registry,
-            Some(model_lane_store),
+            None,
+            None,
         )
     }
 
@@ -523,6 +613,7 @@ impl SwarmRuntimeState {
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
         model_lane_store: Option<ModelLaneStore>,
+        process_ledger_store: Option<PostgresProcessLedgerStore>,
     ) -> Self {
         let vault: Arc<dyn SecretsVault> = Arc::new(
             handshake_core::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault::new(
@@ -545,6 +636,7 @@ impl SwarmRuntimeState {
             app_data_root,
             sandbox_registry,
             model_lane_store,
+            process_ledger_store,
             true,
         )
     }
@@ -561,6 +653,7 @@ impl SwarmRuntimeState {
             app_data_root,
             sandbox_registry,
             None,
+            None,
             true,
         )
     }
@@ -571,6 +664,7 @@ impl SwarmRuntimeState {
         app_data_root: &Path,
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
         model_lane_store: Option<ModelLaneStore>,
+        process_ledger_store: Option<PostgresProcessLedgerStore>,
         dexterity_launch_required: bool,
     ) -> Self {
         let committed_memory_ceiling_bytes = committed_memory_ceiling_from_env();
@@ -581,7 +675,9 @@ impl SwarmRuntimeState {
             sandbox_registry,
             committed_memory_ceiling_bytes,
             model_lane_store,
+            process_ledger_store,
             dexterity_launch_required,
+            None,
         )
     }
 
@@ -599,7 +695,9 @@ impl SwarmRuntimeState {
             sandbox_registry,
             committed_memory_ceiling_bytes,
             None,
+            None,
             true,
+            None,
         )
     }
 
@@ -614,7 +712,9 @@ impl SwarmRuntimeState {
             None,
             None,
             None,
+            None,
             false,
+            None,
         )
     }
 
@@ -633,7 +733,9 @@ impl SwarmRuntimeState {
             sandbox_registry,
             committed_memory_ceiling_bytes,
             None,
+            None,
             false,
+            None,
         )
     }
 
@@ -644,15 +746,50 @@ impl SwarmRuntimeState {
         sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
         committed_memory_ceiling_bytes: Option<u64>,
         model_lane_store: Option<ModelLaneStore>,
+        process_ledger_store: Option<PostgresProcessLedgerStore>,
         dexterity_launch_required: bool,
+        prebuilt_process_runtime: Option<(
+            ProcessReclaimRuntime,
+            InProcessLedgerStore,
+            sqlx::PgPool,
+        )>,
     ) -> Self {
-        let store = InProcessLedgerStore::default();
-        let overflow = Arc::new(CountingOverflowSink::default());
-        let (ledger, writer_task) = LedgerBatcher::spawn(
-            Arc::new(store.clone()),
-            overflow,
-            LedgerBatcherConfig::default(),
-        );
+        let operator_chat_recorder = recorder.clone();
+        let (process_reclaim_runtime, process_ledger_runtime, store, terminal_outbox_pool) =
+            match prebuilt_process_runtime {
+                Some((runtime, store, pool)) => {
+                    let ledger = runtime.ledger();
+                    (Some(runtime), ledger, store, Some(pool))
+                }
+                None => {
+                    let store = InProcessLedgerStore::default();
+                    let overflow = Arc::new(CountingOverflowSink::default());
+                    let terminal_outbox_pool = process_ledger_store
+                        .as_ref()
+                        .map(|store| store.pool().clone());
+                    let process_ledger_store: Arc<dyn ProcessLedgerStore> =
+                        match process_ledger_store {
+                            Some(primary) => Arc::new(MirroredPostgresLedgerStore {
+                                primary,
+                                mirror: store.clone(),
+                            }),
+                            None => Arc::new(store.clone()),
+                        };
+                    let ledger = RetainedLedgerBatcher::spawn(
+                        process_ledger_store,
+                        overflow,
+                        LedgerBatcherConfig::default(),
+                    );
+                    (None, ledger, store, terminal_outbox_pool)
+                }
+            };
+        let ledger = process_ledger_runtime.ledger();
+        let official_cli_preflight_spawner = sandbox_registry.as_ref().map(|registry| {
+            Arc::new(LiveCliSpawner::new(
+                Arc::new(ledger.clone()),
+                Arc::clone(registry),
+            ))
+        });
 
         // Flip the official_cli swarm lane live from the operator's stored
         // CLI-bridge config (WP-KERNEL-004 follow-up). The spawner is built from
@@ -660,23 +797,24 @@ impl SwarmRuntimeState {
         // rows land in the live ledger (no throwaway, no unattributed process).
         // Missing/corrupt/unconfigured config => None => the lane stays an honest
         // ProviderNotConfigured.
-        let cloud = match load_official_cli_lane(app_data_root, &ledger) {
-            Some((spawner, config)) => {
-                // When a Flight Recorder is wired, thread it as cloud-lane
-                // observability so the CLI lane emits FR-EVT-LLM-INFER-* like the
-                // BYOK siblings. No recorder => FR-INFER-silent, otherwise identical.
-                let observability = recorder.clone().map(|fr| {
-                    Arc::new(
-                        handshake_core::model_runtime::cloud::CloudLaneObservability {
-                            flight_recorder: fr,
-                            consent: None,
-                        },
-                    )
-                });
-                cloud.with_official_cli_observed(spawner, config, observability)
-            }
-            None => cloud,
-        };
+        let cloud =
+            match load_official_cli_lane(app_data_root, official_cli_preflight_spawner.as_ref()) {
+                Some((spawner, config)) => {
+                    // When a Flight Recorder is wired, thread it as cloud-lane
+                    // observability so the CLI lane emits FR-EVT-LLM-INFER-* like the
+                    // BYOK siblings. No recorder => FR-INFER-silent, otherwise identical.
+                    let observability = recorder.clone().map(|fr| {
+                        Arc::new(
+                            handshake_core::model_runtime::cloud::CloudLaneObservability {
+                                flight_recorder: fr,
+                                consent: None,
+                            },
+                        )
+                    });
+                    cloud.with_official_cli_observed(spawner, config, observability)
+                }
+                None => cloud,
+            };
 
         let sessions: SessionTable = Arc::new(Mutex::new(HashMap::new()));
 
@@ -714,27 +852,54 @@ impl SwarmRuntimeState {
         // rank-3: when a recorder is supplied, persist every SwarmEvent durably
         // via the bridge (sync sink emit -> bounded channel -> async record_event);
         // otherwise fall back to structured stderr. Hold the bridge drain task.
-        let (fr_sink, fr_drain): (Arc<dyn SwarmEventSink>, Option<tokio::task::JoinHandle<()>>) =
-            match recorder {
-                Some(rec) => {
-                    let (bridge, drain) = DurableSwarmFrBridge::spawn(rec, 1024);
-                    let sink: Arc<dyn SwarmEventSink> =
-                        Arc::new(FlightRecorderSwarmSink::new(trace_id, move |fr_event| {
-                            bridge.emit(fr_event);
-                        }));
-                    (sink, Some(drain))
-                }
-                None => {
-                    let sink: Arc<dyn SwarmEventSink> =
-                        Arc::new(FlightRecorderSwarmSink::new(trace_id, |event| {
-                            eprintln!(
-                                "{FR_EVT_SWARM_LIFECYCLE}: {}",
-                                serde_json::to_string(&event.payload).unwrap_or_default()
-                            );
-                        }));
-                    (sink, None)
-                }
-            };
+        let (fr_sink, fr_bridge, fr_drain): (
+            Arc<dyn SwarmEventSink>,
+            Option<DurableSwarmFrBridge>,
+            Option<tokio::task::JoinHandle<()>>,
+        ) = match (recorder, terminal_outbox_pool) {
+            (Some(rec), Some(pool)) => {
+                let (bridge, drain) =
+                    DurableSwarmFrBridge::spawn_with_postgres_outbox(rec, pool, 1024);
+                let sink_bridge = bridge.clone();
+                let sink: Arc<dyn SwarmEventSink> =
+                    Arc::new(FlightRecorderSwarmSink::new(trace_id, move |fr_event| {
+                        sink_bridge.emit(fr_event)
+                    }));
+                (sink, Some(bridge), Some(drain))
+            }
+            (Some(_), None) => {
+                // A deployed recorder without PostgreSQL outbox authority is
+                // fail-closed. The old recorder-only bridge could acknowledge
+                // a terminal event without a recoverable outbox row.
+                let sink: Arc<dyn SwarmEventSink> = Arc::new(FlightRecorderSwarmSink::new(
+                    trace_id,
+                    |_fr_event| {
+                        Err("durable swarm terminal outbox unavailable: PostgreSQL authority is required".to_string())
+                    },
+                ));
+                (sink, None, None)
+            }
+            (None, Some(pool)) => {
+                let (bridge, drain) = DurableSwarmFrBridge::spawn_outbox_only(pool, 1024);
+                let sink_bridge = bridge.clone();
+                let sink: Arc<dyn SwarmEventSink> =
+                    Arc::new(FlightRecorderSwarmSink::new(trace_id, move |fr_event| {
+                        sink_bridge.emit(fr_event)
+                    }));
+                (sink, Some(bridge), Some(drain))
+            }
+            (None, None) => {
+                let sink: Arc<dyn SwarmEventSink> =
+                    Arc::new(FlightRecorderSwarmSink::new(trace_id, |event| {
+                        eprintln!(
+                            "{FR_EVT_SWARM_LIFECYCLE}: {}",
+                            serde_json::to_string(&event.payload).unwrap_or_default()
+                        );
+                        Ok(())
+                    }));
+                (sink, None, None)
+            }
+        };
         // rank-4: fan out to BOTH the FR sink and the live board broadcast, so one
         // coordinator drives durable capture + the live operator board.
         let board_events = Arc::new(BroadcastSwarmSink::new(1024));
@@ -768,7 +933,24 @@ impl SwarmRuntimeState {
                 panic!("ModelLaneStore-backed swarm runtime cannot disable Dexterity launch")
             }
         };
+        let process_reclaimer: Option<Arc<handshake_core::process_ledger::Reclaim>> =
+            process_reclaim_runtime
+                .as_ref()
+                .map(ProcessReclaimRuntime::reclaim);
+        let coordinator = if let Some(process_reclaimer) = process_reclaimer {
+            coordinator.with_process_reclaimer(process_reclaimer)
+        } else {
+            coordinator
+        };
         coordinator.start_reaper();
+        let coordinator = Arc::new(coordinator);
+        let operator_chat_launch_service = operator_chat_recorder.map(|recorder| {
+            Arc::new(OperatorChatLaunchService::new(
+                coordinator.clone(),
+                ModelCatalog::empty(),
+                recorder,
+            ))
+        });
 
         // ROI#3: the resume-template store is rooted at the SAME `app_data_root`
         // every other durable store uses (cli-bridge config, schedules). An empty
@@ -777,13 +959,17 @@ impl SwarmRuntimeState {
         let spawn_template_store = SpawnTemplateStore::new(app_data_root);
 
         Self {
-            coordinator: Arc::new(coordinator),
+            coordinator,
+            operator_chat_launch_service,
             ledger_store: store,
             sessions,
             concurrency_cap: concurrency,
-            _writer_task: writer_task,
+            process_ledger_runtime,
+            process_reclaim_runtime,
+            official_cli_preflight_spawner,
             board_events,
-            _fr_drain_task: fr_drain,
+            fr_bridge,
+            fr_drain_task: Mutex::new(fr_drain),
             terminal_capture: None,
             capture_sinks: Arc::new(Mutex::new(HashMap::new())),
             spawn_template_store,
@@ -791,6 +977,13 @@ impl SwarmRuntimeState {
             dexterity_launch_required,
             cloud_assistance_recorder: None,
         }
+    }
+
+    /// Return the exact production subprocess authority used by the live
+    /// Official-CLI lane. The settings preflight must never construct a raw
+    /// `Command` or a private sandbox/ledger composition.
+    pub fn official_cli_preflight_spawner(&self) -> Option<Arc<LiveCliSpawner>> {
+        self.official_cli_preflight_spawner.clone()
     }
 
     /// Wire the Integrated Terminal capture seam so each swarm spawn opens a
@@ -808,6 +1001,13 @@ impl SwarmRuntimeState {
     /// The capture-seam runtime handle, if wired.
     pub fn terminal_capture(&self) -> Option<handshake_core::terminal::TerminalRuntime> {
         self.terminal_capture.clone()
+    }
+
+    fn canonical_operator_chat_service(&self) -> Result<Arc<OperatorChatLaunchService>, String> {
+        self.operator_chat_launch_service.clone().ok_or_else(|| {
+            "legacy Tauri routing is unavailable without the canonical core OperatorChatLaunchService"
+                .to_string()
+        })
     }
 
     /// Open a read-only capture session bound to a swarm spawn (the first real
@@ -942,31 +1142,150 @@ impl SwarmRuntimeState {
         self.ledger_store.rows()
     }
 
+    pub async fn drain_process_ledger(
+        &self,
+        timeout: std::time::Duration,
+    ) -> handshake_core::process_ledger::LedgerDrainJoinOutcome {
+        self.process_ledger_runtime.drain_and_join(timeout).await
+    }
+
+    /// Orderly app shutdown is two-phase: first terminate every coordinator
+    /// session so each live START can enqueue its matching STOP, then close and
+    /// flush the retained durable writer. The writer is deliberately left open
+    /// when coordinator cleanup fails or times out; closing it first would make
+    /// a later STOP impossible and manufacture a durable orphan.
+    pub async fn shutdown_drain(&self, timeout: std::time::Duration) -> SwarmShutdownDrainOutcome {
+        let started = std::time::Instant::now();
+        let coordinator_error =
+            match tokio::time::timeout(timeout, self.coordinator.drain_all()).await {
+                Err(_) => Some(SwarmShutdownDrainOutcome::CoordinatorTimedOut),
+                Ok(Err(error)) => Some(SwarmShutdownDrainOutcome::CoordinatorFailed(
+                    error.to_string(),
+                )),
+                Ok(Ok(())) => None,
+            };
+        let mut remaining = timeout.saturating_sub(started.elapsed());
+        let fr_error = if let Some(bridge) = &self.fr_bridge {
+            bridge.begin_shutdown();
+            let drain = self
+                .fr_drain_task
+                .lock()
+                .expect("Flight Recorder drain task mutex poisoned")
+                .take();
+            if let Some(mut drain) = drain {
+                match tokio::time::timeout(remaining, &mut drain).await {
+                    Ok(Ok(())) => None,
+                    Ok(Err(error)) => {
+                        Some(format!("swarm Flight Recorder bridge join failed: {error}"))
+                    }
+                    Err(_) => {
+                        drain.abort();
+                        let _ = drain.await;
+                        Some(format!(
+                            "swarm Flight Recorder bridge drain timed out with {} terminal retries and {} rejected events",
+                            bridge.terminal_retry_count(),
+                            bridge.dropped_count()
+                        ))
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(coordinator_error) = coordinator_error {
+            if let Some(fr_error) = fr_error {
+                tracing::error!(
+                    target: "handshake_app::swarm_runtime",
+                    %fr_error,
+                    "Flight Recorder bridge also failed while closing after coordinator shutdown failure"
+                );
+            }
+            return coordinator_error;
+        }
+        remaining = timeout.saturating_sub(started.elapsed());
+        if let Some(runtime) = &self.process_reclaim_runtime {
+            let report = runtime.shutdown_and_drain(remaining).await;
+            if !report.reclaim_task_quiesced || !report.lease_released {
+                return SwarmShutdownDrainOutcome::CoordinatorFailed(format!(
+                    "process reclaim shutdown incomplete: reclaim_task_quiesced={}, lease_released={}, ledger={:?}",
+                    report.reclaim_task_quiesced, report.lease_released, report.ledger
+                ));
+            }
+            if let Some(error) = fr_error {
+                return SwarmShutdownDrainOutcome::CoordinatorFailed(error);
+            }
+            return SwarmShutdownDrainOutcome::Completed {
+                process_ledger: report.ledger,
+            };
+        }
+        let process_ledger = self.process_ledger_runtime.drain_and_join(remaining).await;
+        if let Some(error) = fr_error {
+            SwarmShutdownDrainOutcome::CoordinatorFailed(error)
+        } else {
+            SwarmShutdownDrainOutcome::Completed { process_ledger }
+        }
+    }
+
     /// Reconcile the app-side side-table against the coordinator's registry,
     /// dropping any entry the coordinator no longer has live (terminal/reaped),
     /// and return the still-live tracked sessions paired with their current
     /// lifecycle state. This is the single source for `list_active_sessions`.
     fn live_tracked_sessions(&self) -> Vec<(ModelInstanceId, TrackedSession, ModelSessionState)> {
-        let mut table = self.sessions.lock().expect("swarm session table poisoned");
+        self.live_tracked_sessions_after_snapshot(|| {})
+    }
+
+    fn live_tracked_sessions_after_snapshot(
+        &self,
+        after_snapshot: impl FnOnce(),
+    ) -> Vec<(ModelInstanceId, TrackedSession, ModelSessionState)> {
+        // Never hold SessionTable while consulting the coordinator registry. The
+        // Ready publication hook intentionally takes those locks in the opposite
+        // direction (registry -> SessionTable) so terminal publication is fenced.
+        let tracked_snapshot = {
+            let table = self.sessions.lock().expect("swarm session table poisoned");
+            table
+                .iter()
+                .map(|(iid, tracked)| (*iid, tracked.clone()))
+                .collect::<Vec<_>>()
+        };
+        after_snapshot();
+
+        let observations = tracked_snapshot
+            .into_iter()
+            .map(|(iid, tracked)| (iid, tracked, self.coordinator.session_state(iid)))
+            .collect::<Vec<_>>();
+
+        // Re-enter SessionTable only after every coordinator lookup has
+        // released the registry lock. Select the current publication for live
+        // rows, and remove a stale row only when its generation still matches
+        // the snapshot. This prevents both stale deletion and stale return when
+        // a newer same-instance Ready hook publishes during reconciliation.
         let mut out = Vec::new();
-        table.retain(|iid, tracked| match self.coordinator.session_state(*iid) {
-            Some(state) if !state.is_terminal() => {
-                out.push((*iid, tracked.clone(), state));
-                true
+        let mut table = self.sessions.lock().expect("swarm session table poisoned");
+        for (iid, tracked, state) in observations {
+            match state {
+                Some(state) if !state.is_terminal() => {
+                    if let Some(current) = table.get(&iid) {
+                        out.push((iid, current.clone(), state));
+                    }
+                }
+                _ if table
+                    .get(&iid)
+                    .is_some_and(|current| current.publication_id == tracked.publication_id) =>
+                {
+                    table.remove(&iid);
+                }
+                _ => {}
             }
-            // Terminal or unknown (evicted/reaped): drop from the side-table.
-            _ => false,
-        });
+        }
         out
     }
 
-    /// Resolve the live runtime + model id for a tracked instance, reconciling
-    /// the side-table first. Returns `None` if the session is gone (so the chat
-    /// command can surface a typed "session no longer live" error).
-    fn resolve_runtime(
-        &self,
-        iid: ModelInstanceId,
-    ) -> Option<(Arc<dyn ModelRuntime>, ModelId, ProviderKind)> {
+    /// Resolve descriptive live-session identity after reconciling the app
+    /// projection. No generation-capable runtime handle crosses this boundary.
+    fn resolve_session_identity(&self, iid: ModelInstanceId) -> Option<(ModelId, ProviderKind)> {
         // Reconcile first so a stale entry does not hand back a freed runtime.
         let live = match self.coordinator.session_state(iid) {
             Some(state) if !state.is_terminal() => true,
@@ -977,9 +1296,7 @@ impl SwarmRuntimeState {
             table.remove(&iid);
             return None;
         }
-        table
-            .get(&iid)
-            .map(|t| (t.runtime.clone(), t.model_id, t.provider))
+        table.get(&iid).map(|t| (t.model_id, t.provider))
     }
 
     fn tracked_warm_vm_restore_manifest(
@@ -1238,6 +1555,31 @@ pub struct SwarmLocalCloudPairRequestIpc {
 pub struct SwarmCloudEscalationRequestIpc {
     pub local: SwarmSpawnRequestIpc,
     pub cloud: SwarmSpawnRequestIpc,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmRoutingStageLaunchIpc {
+    pub stage_id: String,
+    #[serde(default)]
+    pub lane_id: Option<String>,
+    #[serde(default)]
+    pub spawn: Option<SwarmSpawnRequestIpc>,
+    #[serde(default)]
+    pub prompt: Option<String>,
+    #[serde(default)]
+    pub authority_lane_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SwarmExecuteRoutingWaveRequestIpc {
+    pub execution_id: String,
+    pub selecting_decision_id: String,
+    pub authority: handshake_core::swarm_orchestration::routing::ModelLaneRoutingAuthority,
+    pub context:
+        handshake_core::swarm_orchestration::routing_execution::ModelLaneRoutingExecutionContext,
+    pub stages: Vec<SwarmRoutingStageLaunchIpc>,
 }
 
 // ---------------------------------------------------------------------------
@@ -2005,7 +2347,7 @@ async fn spawn_session_once(
             // Reconcile the side-table: a failed spawn must not leave a tracked
             // entry (the TrackingFactory only inserts on success, but a
             // duplicate-rollback can race — reconcile to be safe).
-            let _ = state.resolve_runtime(instance_id);
+            let _ = state.resolve_session_identity(instance_id);
             eprintln!("{FR_EVT_SWARM_LIFECYCLE}: spawn failed: {error}");
             Err(SpawnCommandError::Swarm(error))
         }
@@ -2176,7 +2518,7 @@ pub async fn kernel_swarm_cancel_session(
     // panel marks it exited (and does not leak a ghost capture tab).
     state.close_capture_sink(&iid.to_string(), 0).await;
     // Reconcile regardless of outcome so a now-terminal session leaves the table.
-    let _ = state.resolve_runtime(iid);
+    let _ = state.resolve_session_identity(iid);
     result
 }
 
@@ -2464,11 +2806,9 @@ pub async fn kernel_swarm_resource_snapshot(
     })
 }
 
-/// Run a REAL generate against a spawned LOCAL-model session and return the
-/// produced text. This is the operator <-> local-model chat box backend: it
-/// resolves the live `Arc<dyn ModelRuntime>` the coordinator registered for the
-/// instance (NOT a second load, NOT faked text), drives the runtime's real
-/// `generate` stream, and concatenates the produced token text.
+/// Run a real generate against a spawned local-model session. The coordinator
+/// owns the engine and drives its traced/budgeted LlmClient stream; Tauri only
+/// consumes the managed token stream.
 #[tauri::command]
 pub async fn kernel_swarm_chat_generate(
     instance_id: String,
@@ -2479,20 +2819,135 @@ pub async fn kernel_swarm_chat_generate(
     chat_generate_inner(&instance_id, &prompt, &state).await
 }
 
+#[tauri::command]
+pub async fn kernel_swarm_execute_routing_wave(
+    request: SwarmExecuteRoutingWaveRequestIpc,
+    state: State<'_, SwarmRuntimeState>,
+) -> Result<
+    handshake_core::swarm_orchestration::routing_execution::ModelLaneRoutingDispatchBatch,
+    String,
+> {
+    let _ = KERNEL_SWARM_EXECUTE_ROUTING_WAVE_IPC_CHANNEL;
+    routing_wave_inner(request, &state, false).await
+}
+
+async fn routing_wave_inner(
+    request: SwarmExecuteRoutingWaveRequestIpc,
+    state: &SwarmRuntimeState,
+    recover: bool,
+) -> Result<
+    handshake_core::swarm_orchestration::routing_execution::ModelLaneRoutingDispatchBatch,
+    String,
+> {
+    let canonical = canonical_operator_chat_routing_request(request)?;
+    let service = state.canonical_operator_chat_service()?;
+    if recover {
+        service.recover_routing_lifecycle(canonical).await
+    } else {
+        service.execute_routing_lifecycle(canonical).await
+    }
+    .map_err(|error| error.to_string())
+}
+
+fn canonical_operator_chat_routing_request(
+    request: SwarmExecuteRoutingWaveRequestIpc,
+) -> Result<OperatorChatRoutingLifecycleRequest, String> {
+    let stages = request
+        .stages
+        .into_iter()
+        .map(canonical_operator_chat_routing_stage)
+        .collect::<Result<Vec<_>, String>>()?;
+    Ok(OperatorChatRoutingLifecycleRequest {
+        execution_id: request.execution_id,
+        selecting_decision_id: request.selecting_decision_id,
+        authority: request.authority,
+        context: request.context,
+        stages,
+    })
+}
+
+fn canonical_operator_chat_routing_stage(
+    stage: SwarmRoutingStageLaunchIpc,
+) -> Result<OperatorChatRoutingStageRequest, String> {
+    if stage.spawn.is_some() || stage.prompt.is_some() {
+        return Err(format!(
+            "routing stage {} uses retired Tauri spawn/prompt authority; call the canonical core /operator-chat/routing lifecycle API with OperatorChatSelection",
+            stage.stage_id
+        ));
+    }
+    Ok(OperatorChatRoutingStageRequest {
+        stage_id: stage.stage_id,
+        lane_id: stage.lane_id,
+        selection: None,
+        authority_lane_id: stage.authority_lane_id,
+    })
+}
+
+#[tauri::command]
+pub async fn kernel_swarm_recover_routing_wave(
+    request: SwarmExecuteRoutingWaveRequestIpc,
+    state: State<'_, SwarmRuntimeState>,
+) -> Result<
+    handshake_core::swarm_orchestration::routing_execution::ModelLaneRoutingDispatchBatch,
+    String,
+> {
+    let _ = KERNEL_SWARM_RECOVER_ROUTING_WAVE_IPC_CHANNEL;
+    routing_wave_inner(request, &state, true).await
+}
+
+#[tauri::command]
+pub async fn kernel_swarm_complete_routing_authority(
+    execution_id: String,
+    stage_id: String,
+    message_id: String,
+    routing_request: SwarmExecuteRoutingWaveRequestIpc,
+    state: State<'_, SwarmRuntimeState>,
+) -> Result<
+    handshake_core::swarm_orchestration::routing_execution::ModelLaneRoutingDispatchBatch,
+    String,
+> {
+    let _ = KERNEL_SWARM_COMPLETE_ROUTING_AUTHORITY_IPC_CHANNEL;
+    let routing_request = canonical_operator_chat_routing_request(routing_request)?;
+    state
+        .canonical_operator_chat_service()?
+        .complete_routing_authority(OperatorChatRoutingAuthorityRequest {
+            execution_id,
+            stage_id,
+            message_id,
+            routing_request,
+        })
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn kernel_swarm_cancel_routing_execution(
+    execution_id: String,
+    reason: String,
+    state: State<'_, SwarmRuntimeState>,
+) -> Result<
+    handshake_core::swarm_orchestration::routing_execution::ModelLaneRoutingExecutionState,
+    String,
+> {
+    let _ = KERNEL_SWARM_CANCEL_ROUTING_EXECUTION_IPC_CHANNEL;
+    state
+        .canonical_operator_chat_service()?
+        .cancel_routing_lifecycle(OperatorChatRoutingCancelRequest {
+            execution_id,
+            reason,
+        })
+        .await
+        .map_err(|error| error.to_string())
+}
+
 async fn chat_generate_inner(
     instance_id: &str,
     prompt: &str,
     state: &SwarmRuntimeState,
 ) -> Result<SwarmChatResponseIpc, String> {
     let trimmed = validate_chat_prompt(prompt)?;
-    let (iid, runtime, model_id, provider) = resolve_chat_target(instance_id, state)?;
-    if provider != ProviderKind::Local {
-        return Err(
-            "direct chat is local-only; cloud output requires receipt-gated cloud escalation"
-                .to_string(),
-        );
-    }
-    chat_generate_resolved_inner(iid, runtime, model_id, trimmed, state).await
+    let (iid, model_id) = resolve_local_chat_target(instance_id, state)?;
+    chat_generate_resolved_inner(iid, model_id, trimmed, state).await
 }
 
 fn validate_chat_prompt(prompt: &str) -> Result<&str, String> {
@@ -2507,46 +2962,45 @@ fn validate_chat_prompt(prompt: &str) -> Result<&str, String> {
 fn resolve_chat_target(
     instance_id: &str,
     state: &SwarmRuntimeState,
-) -> Result<
-    (
-        ModelInstanceId,
-        Arc<dyn ModelRuntime>,
-        ModelId,
-        ProviderKind,
-    ),
-    String,
-> {
+) -> Result<(ModelInstanceId, ModelId, ProviderKind), String> {
     let iid = parse_instance_id(instance_id)?;
-    let (runtime, model_id, provider) = state
-        .resolve_runtime(iid)
+    let (model_id, provider) = state
+        .resolve_session_identity(iid)
         .ok_or_else(|| format!("swarm session {iid} is no longer live (cancelled or reaped)"))?;
-    Ok((iid, runtime, model_id, provider))
+    Ok((iid, model_id, provider))
+}
+
+fn resolve_local_chat_target(
+    instance_id: &str,
+    state: &SwarmRuntimeState,
+) -> Result<(ModelInstanceId, ModelId), String> {
+    let (iid, model_id, provider) = resolve_chat_target(instance_id, state)?;
+    if provider != ProviderKind::Local {
+        return Err(
+            "direct chat is local-only; cloud output requires receipt-gated cloud escalation"
+                .to_string(),
+        );
+    }
+    Ok((iid, model_id))
 }
 
 async fn chat_generate_resolved_inner(
     iid: ModelInstanceId,
-    runtime: Arc<dyn ModelRuntime>,
     model_id: ModelId,
     trimmed: &str,
     state: &SwarmRuntimeState,
 ) -> Result<SwarmChatResponseIpc, String> {
-    chat_generate_resolved_inner_with_capture(iid, runtime, model_id, trimmed, state, true).await
+    chat_generate_resolved_inner_with_capture(iid, model_id, trimmed, state, true).await
 }
 
 async fn chat_generate_resolved_inner_with_capture(
     iid: ModelInstanceId,
-    runtime: Arc<dyn ModelRuntime>,
     model_id: ModelId,
     trimmed: &str,
     state: &SwarmRuntimeState,
     capture_live: bool,
 ) -> Result<SwarmChatResponseIpc, String> {
     let coordinator = state.coordinator();
-    // Drive the lifecycle: READY -> GENERATING for the turn, then back to READY.
-    // A failed transition is non-fatal to the generate (the session may already
-    // be Generating from a concurrent turn); the real bound is the runtime's own
-    // busy guard, which returns a typed error stream rather than deadlocking.
-    let _ = coordinator.transition(iid, ModelSessionState::Generating);
 
     let request = GenerateRequest {
         id: model_id,
@@ -2578,7 +3032,9 @@ async fn chat_generate_resolved_inner_with_capture(
             .await;
     }
 
-    let mut stream = runtime.generate(request);
+    let mut stream = coordinator
+        .generate_session_managed(iid, request)
+        .map_err(|error| error.to_string())?;
     let mut text = String::new();
     let mut token_count = 0usize;
     let mut finish_reason: Option<String> = None;
@@ -2610,9 +3066,6 @@ async fn chat_generate_resolved_inner_with_capture(
         // Terminate the captured turn with a newline so the next turn is framed.
         sink.feed(b"\r\n").await;
     }
-
-    // Return the session to READY for the next turn (best-effort).
-    let _ = coordinator.transition(iid, ModelSessionState::Ready);
 
     if let Some(error) = error {
         eprintln!("{FR_EVT_SWARM_LIFECYCLE}: chat generate failed for {iid}: {error}");
@@ -2650,8 +3103,8 @@ async fn chat_generate_with_cloud_escalation_inner(
         request.task_class,
         Some(SwarmEscalationTaskClassIpc::ForceLocal)
     ) {
-        let (local_iid, local_runtime, local_model_id, _) =
-            match resolve_chat_target(&request.local_instance_id, state) {
+        let (local_iid, local_model_id) =
+            match resolve_local_chat_target(&request.local_instance_id, state) {
                 Ok(target) => target,
                 Err(local_error) => {
                     return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
@@ -2670,7 +3123,6 @@ async fn chat_generate_with_cloud_escalation_inner(
             };
         return match chat_generate_resolved_inner(
             local_iid,
-            local_runtime,
             local_model_id,
             &prompt,
             state,
@@ -2722,8 +3174,8 @@ async fn chat_generate_with_cloud_escalation_inner(
         .await;
     }
 
-    let (local_iid, local_runtime, local_model_id, _) =
-        match resolve_chat_target(&request.local_instance_id, state) {
+    let (local_iid, local_model_id) =
+        match resolve_local_chat_target(&request.local_instance_id, state) {
             Ok(target) => target,
             Err(local_error) => {
                 return Ok(SwarmChatGenerateWithCloudEscalationResponseIpc {
@@ -2743,8 +3195,7 @@ async fn chat_generate_with_cloud_escalation_inner(
             }
         };
 
-    match chat_generate_resolved_inner(local_iid, local_runtime, local_model_id, &prompt, state)
-        .await
+    match chat_generate_resolved_inner(local_iid, local_model_id, &prompt, state).await
     {
         Ok(local) => {
             if let Some(escalation_reason) = low_confidence_escalation_reason(&request) {
@@ -2948,18 +3399,11 @@ async fn spawn_generate_cloud_escalation(
         }
     };
     let cloud_iid = parse_instance_id(&cloud_instance.composite)?;
-    let (cloud_runtime, cloud_model_id, _) = state
-        .resolve_runtime(cloud_iid)
+    let (cloud_model_id, _) = state
+        .resolve_session_identity(cloud_iid)
         .ok_or_else(|| format!("swarm session {cloud_iid} is no longer live after spawn"))?;
-    match chat_generate_resolved_inner_with_capture(
-        cloud_iid,
-        cloud_runtime,
-        cloud_model_id,
-        prompt,
-        state,
-        false,
-    )
-    .await
+    match chat_generate_resolved_inner_with_capture(cloud_iid, cloud_model_id, prompt, state, false)
+        .await
     {
         Ok(cloud) => {
             let distillation_trace = build_distillation_trace_queue_entry(
@@ -3420,8 +3864,13 @@ fn apply_recorded_assignment(
     if let Some(wd) = trimmed_opt(&request.working_dir) {
         spawn = spawn.with_working_dir(wd);
     }
-    if let Some(tier) = request.isolation_tier {
-        spawn = spawn.with_isolation_tier(tier.to_isolation_tier());
+    // Official CLI isolation is backend-owned.  The webview may retain an old
+    // or malicious tier value in its DTO, but it must not override the fixed
+    // attached-process posture established by `build_spawn_request`.
+    if !matches!(request.provider, SwarmProviderIpc::OfficialCli) {
+        if let Some(tier) = request.isolation_tier {
+            spawn = spawn.with_isolation_tier(tier.to_isolation_tier());
+        }
     }
     if matches!(request.provider, SwarmProviderIpc::Local) {
         if let Some(bytes) = request.committed_memory_bytes.filter(|bytes| *bytes > 0) {
@@ -3536,6 +3985,21 @@ fn build_spawn_request(request: &SwarmSpawnRequestIpc) -> Result<SpawnRequest, S
                     spawn = spawn.with_byok_cloud_provider(provider.to_core());
                 }
             }
+            if matches!(request.provider, SwarmProviderIpc::OfficialCli) {
+                // The webview chooses a configured provider/model only. Trust,
+                // isolation, capabilities, networking, and execution policy
+                // are backend-owned constants and cannot be supplied or
+                // weakened by IPC input.
+                spawn = spawn.with_sandbox_posture(
+                    handshake_core::sandbox::TrustClass::Trusted,
+                    handshake_core::sandbox::IsolationTier::Tier1Container,
+                    BTreeSet::from([
+                        handshake_core::sandbox::RequiredCapability::HighStdioThroughput,
+                    ]),
+                    handshake_core::sandbox::NetPolicy::HostInherited,
+                    format!("execution-policy://{DEXTERITY_APP_WP_ID}/official-cli-attached-v1"),
+                );
+            }
             spawn
         }
     };
@@ -3619,9 +4083,106 @@ mod tests {
     use super::*;
     use handshake_core::capabilities::CapabilityRegistry;
     use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
+    use handshake_core::sandbox::AdapterId;
     use handshake_core::swarm_orchestration::state_recovery::AttributionMode;
     use handshake_core::terminal::TerminalRuntime;
     use std::collections::VecDeque;
+
+    #[tokio::test]
+    async fn official_cli_lane_requires_the_authoritative_sandbox_registry() {
+        use crate::commands::cli_bridge_store::{
+            CliBridgeConfigDoc, CliBridgeConfigStore, StoredCliKind, StoredOutputFormat,
+            CLI_BRIDGE_CONFIG_SCHEMA_VERSION,
+        };
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        CliBridgeConfigStore::new(tmp.path())
+            .save(&CliBridgeConfigDoc {
+                schema_version: CLI_BRIDGE_CONFIG_SCHEMA_VERSION,
+                configured: true,
+                cli_kind: StoredCliKind::Other,
+                executable_path: std::env::current_exe()
+                    .expect("current executable")
+                    .to_string_lossy()
+                    .into_owned(),
+                args_template: vec![
+                    "--model".to_string(),
+                    "{model}".to_string(),
+                    "{prompt}".to_string(),
+                ],
+                output_format: StoredOutputFormat::RawText,
+                model_allowlist: vec!["test-model".to_string()],
+                working_dir: None,
+                timeout_seconds: 30,
+                env_vars: Default::default(),
+                updated_at_utc: None,
+            })
+            .expect("save configured CLI lane");
+
+        let store = InProcessLedgerStore::default();
+        let (ledger, writer) = LedgerBatcher::spawn(
+            Arc::new(store),
+            Arc::new(CountingOverflowSink::default()),
+            LedgerBatcherConfig::default(),
+        );
+
+        assert!(
+            load_official_cli_lane(tmp.path(), None).is_none(),
+            "configured CLI lane must fail closed without the app-owned registry"
+        );
+
+        let authoritative_registry = Arc::new(SandboxAdapterRegistry::new(AdapterId::new(
+            "authoritative-test-adapter",
+        )));
+        let spawner = Arc::new(LiveCliSpawner::new(
+            Arc::new(ledger.clone()),
+            authoritative_registry,
+        ));
+        assert!(
+            load_official_cli_lane(tmp.path(), Some(&spawner)).is_some(),
+            "configured CLI lane must be composed from the supplied app-owned registry"
+        );
+
+        drop(ledger);
+        writer.abort();
+    }
+
+    #[test]
+    fn ac9_production_routing_lifecycle_commands_are_shipped() {
+        assert_eq!(
+            KERNEL_SWARM_EXECUTE_ROUTING_WAVE_IPC_CHANNEL,
+            "kernel_swarm_execute_routing_wave"
+        );
+        assert_eq!(
+            KERNEL_SWARM_RECOVER_ROUTING_WAVE_IPC_CHANNEL,
+            "kernel_swarm_recover_routing_wave"
+        );
+        assert_eq!(
+            KERNEL_SWARM_COMPLETE_ROUTING_AUTHORITY_IPC_CHANNEL,
+            "kernel_swarm_complete_routing_authority"
+        );
+        assert_eq!(
+            KERNEL_SWARM_CANCEL_ROUTING_EXECUTION_IPC_CHANNEL,
+            "kernel_swarm_cancel_routing_execution"
+        );
+        let _execute = kernel_swarm_execute_routing_wave;
+        let _recover = kernel_swarm_recover_routing_wave;
+        let _complete = kernel_swarm_complete_routing_authority;
+        let _cancel = kernel_swarm_cancel_routing_execution;
+    }
+
+    #[test]
+    fn ac9_tauri_routing_rejects_legacy_spawn_authority_before_core_mutation() {
+        let error = canonical_operator_chat_routing_stage(SwarmRoutingStageLaunchIpc {
+            stage_id: "legacy-local-stage".to_string(),
+            lane_id: Some("lane-legacy".to_string()),
+            spawn: Some(local_request("model.safetensors")),
+            prompt: Some("should not dispatch".to_string()),
+            authority_lane_id: None,
+        })
+        .expect_err("legacy Tauri spawn-shaped routing must not remain lifecycle authority");
+        assert!(error.contains("canonical core /operator-chat/routing"));
+    }
 
     #[derive(Default)]
     struct RecordingCloudAssistanceRecorder {
@@ -3798,6 +4359,40 @@ mod tests {
         assert!(state.ledger_rows().is_empty());
         // The side-table starts empty.
         assert!(state.live_tracked_sessions().is_empty());
+        assert!(matches!(
+            state
+                .drain_process_ledger(std::time::Duration::from_secs(2))
+                .await,
+            handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+        ));
+    }
+
+    #[tokio::test]
+    async fn postgres_ledger_failure_does_not_advance_the_observation_mirror() {
+        let unavailable_pool = sqlx::postgres::PgPoolOptions::new()
+            .acquire_timeout(std::time::Duration::from_millis(100))
+            .connect_lazy("postgresql://127.0.0.1:1/handshake_swarm_ledger_unavailable")
+            .expect("create deterministic unavailable PostgreSQL pool");
+        let mirror = InProcessLedgerStore::default();
+        let store = MirroredPostgresLedgerStore {
+            primary: PostgresProcessLedgerStore::new(unavailable_pool),
+            mirror: mirror.clone(),
+        };
+        let result = store
+            .write_batch(vec![LedgerEvent::Start(
+                handshake_core::process_ledger::ProcessStart::new(
+                    handshake_core::process_ledger::ProcessEngineKind::ExternalCompat,
+                    "postgres-primary-test",
+                    None,
+                ),
+            )])
+            .await;
+
+        assert!(result.is_err(), "unavailable PostgreSQL must fail closed");
+        assert!(
+            mirror.rows().is_empty(),
+            "the observation mirror must not advance before PostgreSQL acknowledges durability"
+        );
     }
 
     #[tokio::test]
@@ -4018,6 +4613,28 @@ mod tests {
         assert!(state.live_tracked_sessions().is_empty());
     }
 
+    #[tokio::test]
+    async fn tauri_process_runtime_fails_closed_when_reclaim_authority_is_unavailable() {
+        let unavailable_pool = sqlx::postgres::PgPoolOptions::new()
+            .acquire_timeout(std::time::Duration::from_millis(100))
+            .connect_lazy("postgresql://127.0.0.1:1/handshake_ac10_unavailable")
+            .expect("create deterministic unavailable PostgreSQL pool");
+        let result = SwarmRuntimeState::production_bootstrap_with_model_lane_store(
+            None,
+            std::path::Path::new(""),
+            None,
+            ModelLaneStore::new(unavailable_pool.clone()),
+            PostgresProcessLedgerStore::new(unavailable_pool),
+            "test-unavailable-host-scope".to_string(),
+        )
+        .await;
+
+        assert!(
+            result.is_err(),
+            "production Tauri boot must not launch model work without bounded reclaim reconciliation"
+        );
+    }
+
     #[test]
     fn byok_cloud_provider_ipc_wire_uses_openai_not_open_ai() {
         assert_eq!(
@@ -4084,6 +4701,34 @@ mod tests {
             Some(handshake_core::sandbox::adapter::IsolationTier::Tier1Container)
         );
         assert_eq!(spawn.committed_memory_bytes, None);
+    }
+
+    #[test]
+    fn official_cli_ignores_ipc_isolation_and_keeps_backend_owned_tier_one() {
+        let request = SwarmSpawnRequestIpc {
+            provider: SwarmProviderIpc::OfficialCli,
+            artifact_path: None,
+            sha256_expected: None,
+            runtime_binding: None,
+            local_execution_mode: None,
+            warm_vm_restore_manifest: None,
+            cloud_model_name: Some("gpt-5.2-codex".to_string()),
+            byok_cloud_provider: None,
+            instance: 0,
+            parent_session_id: None,
+            swarm_id: None,
+            worktree_id: None,
+            working_dir: None,
+            isolation_tier: Some(SwarmIsolationTierIpc::Tier3Microvm),
+            committed_memory_bytes: None,
+        };
+
+        let spawn = build_spawn_request(&request).expect("valid official CLI request");
+        assert_eq!(
+            spawn.isolation_tier(),
+            Some(handshake_core::sandbox::adapter::IsolationTier::Tier1Container),
+            "IPC tier must not override the backend-owned Official CLI posture"
+        );
     }
 
     #[test]
@@ -4342,13 +4987,13 @@ mod tests {
         assert!(state.live_tracked_sessions().is_empty());
     }
 
-    /// `resolve_runtime` on an instance that was never spawned returns None
+    /// Resolving an instance that was never spawned returns None
     /// (the chat command then surfaces a typed "no longer live" error).
     #[tokio::test]
-    async fn resolve_runtime_unknown_instance_is_none() {
+    async fn resolve_session_identity_unknown_instance_is_none() {
         let state = SwarmRuntimeState::production(std::path::Path::new(""));
         let iid = ModelInstanceId::new(ModelId::new_v7(), 0);
-        assert!(state.resolve_runtime(iid).is_none());
+        assert!(state.resolve_session_identity(iid).is_none());
     }
 
     // ---- MT-206: vault-backed cloud lane dispatch (no live network) ----
@@ -4369,6 +5014,7 @@ mod tests {
     struct StaticCloudBuilder {
         provider: ProviderKind,
         builds: Arc<Mutex<Vec<Option<String>>>>,
+        generations: Arc<Mutex<usize>>,
         responses: Arc<Mutex<VecDeque<StaticGenerateResponse>>>,
         fallback: StaticGenerateResponse,
     }
@@ -4379,6 +5025,7 @@ mod tests {
             Self {
                 provider: ProviderKind::ByokCloud,
                 builds: Arc::new(Mutex::new(Vec::new())),
+                generations: Arc::new(Mutex::new(0)),
                 responses: Arc::new(Mutex::new(VecDeque::new())),
                 fallback: response,
             }
@@ -4392,6 +5039,7 @@ mod tests {
             Self {
                 provider: ProviderKind::ByokCloud,
                 builds: Arc::new(Mutex::new(Vec::new())),
+                generations: Arc::new(Mutex::new(0)),
                 responses: Arc::new(Mutex::new(VecDeque::from(responses))),
                 fallback,
             }
@@ -4399,6 +5047,10 @@ mod tests {
 
         fn build_count(&self) -> usize {
             self.builds.lock().expect("static builder lock").len()
+        }
+
+        fn generation_count(&self) -> usize {
+            *self.generations.lock().expect("static builder lock")
         }
 
         fn next_response(&self) -> StaticGenerateResponse {
@@ -4419,15 +5071,17 @@ mod tests {
         async fn build_loaded(
             &self,
             _model_name: &str,
-            session_id: Option<String>,
+            invocation_context: Option<handshake_core::model_runtime::cloud::CliInvocationContext>,
+            _working_dir: Option<&str>,
         ) -> Result<CloudLiveRuntime, String> {
             self.builds
                 .lock()
                 .expect("static builder lock")
-                .push(session_id);
+                .push(invocation_context.and_then(|context| context.session_id));
             Ok(CloudLiveRuntime {
                 runtime: Arc::new(StaticTokenRuntime {
                     response: self.next_response(),
+                    generations: Arc::clone(&self.generations),
                 }),
                 model_id: ModelId::new_v7(),
             })
@@ -4436,6 +5090,7 @@ mod tests {
 
     struct StaticTokenRuntime {
         response: StaticGenerateResponse,
+        generations: Arc<Mutex<usize>>,
     }
 
     #[async_trait]
@@ -4453,6 +5108,7 @@ mod tests {
         }
 
         fn generate(&self, _req: GenerateRequest) -> TokenStream {
+            *self.generations.lock().expect("static runtime lock") += 1;
             match &self.response {
                 StaticGenerateResponse::Text(text) => {
                     Box::pin(futures_util::stream::iter(vec![Ok(GeneratedToken {
@@ -4533,6 +5189,7 @@ mod tests {
                 anthropic: None,
                 openai: Some(builder),
                 official_cli: None,
+                official_cli_by_provider: HashMap::new(),
             },
         )
         .with_spawn_template_store(SpawnTemplateStore::new(app_data_root))
@@ -4549,6 +5206,7 @@ mod tests {
                 anthropic: None,
                 openai: Some(builder),
                 official_cli: None,
+                official_cli_by_provider: HashMap::new(),
             },
         )
         .with_spawn_template_store(SpawnTemplateStore::new(app_data_root))
@@ -4570,29 +5228,64 @@ mod tests {
     async fn configured_cloud_lane_builds_a_live_cloud_session() {
         let vault = Arc::new(InMemorySecretsVault::default());
         vault
-            .put("anthropic", "sk-ant-test-key-do-not-log".to_string())
+            .put("anthropic", "sk-ant-test-key-do-not-log")
             .expect("store anthropic key");
-        let state = SwarmRuntimeState::production_with_cloud_vault(
-            vault,
-            Some("anthropic".to_string()),
-            // No openai lane so ByokCloud resolves to the anthropic builder.
-            None,
+        let state = SwarmRuntimeState::production_with_cloud_legacy_without_dexterity_for_tests(
+            CloudLaneFactoryConfig::from_vault(
+                vault,
+                Some("anthropic".to_string()),
+                // No openai lane so ByokCloud resolves to the anthropic builder.
+                None,
+            ),
         );
         let coordinator = state.coordinator();
+        let checkout = tempfile::tempdir().expect("checkout tempdir");
+        std::fs::create_dir_all(checkout.path().join(".git")).expect("create checkout marker");
+        let checkout_path = checkout.path().display().to_string();
         // Assign the spawn to a worktree so the recorded grouping + the
         // list_worktrees discovery are provable end-to-end through the real
         // coordinator (not just the pure build_spawn_request mapping).
         let mut req = cloud_request("claude-sonnet-4");
+        req.byok_cloud_provider = Some(ByokCloudProviderIpc::Anthropic);
         req.worktree_id = Some("  wt-x  ".to_string());
-        req.working_dir = Some("D:/work/wt-x".to_string());
-        let spawn = build_spawn_request(&req).expect("valid cloud request");
-        let iid = coordinator
-            .spawn_session(spawn)
+        req.working_dir = Some(checkout_path.clone());
+        let spawned = spawn_session_inner(req, &state)
             .await
             .expect("configured cloud spawn builds a live session");
+        let iid = parse_instance_id(&spawned.composite).expect("spawned instance id round-trips");
         assert_eq!(coordinator.live_session_count(), 1);
-        // The session is tracked and resolvable (real Arc<dyn ModelRuntime>).
-        assert!(state.resolve_runtime(iid).is_some());
+        // The session is tracked and resolvable without exporting runtime ownership.
+        assert!(state.resolve_session_identity(iid).is_some());
+        // Enumeration must release SessionTable before it asks the coordinator
+        // for lifecycle state. Ready publication holds the coordinator registry
+        // while entering SessionTable, so retaining the inverse nested lock here
+        // would form an app-level ABBA deadlock.
+        let session_table = state.sessions.clone();
+        let tracked = state.live_tracked_sessions_after_snapshot(|| {
+            assert!(
+                session_table.try_lock().is_ok(),
+                "SessionTable must be unlocked before coordinator state lookup"
+            );
+        });
+        assert_eq!(tracked.len(), 1);
+        // If a newer same-instance Ready publication replaces the snapshot
+        // while reconciliation consults the coordinator, enumeration must
+        // return that current generation rather than the stale runtime row.
+        let mut live_replacement = tracked[0].1.clone();
+        live_replacement.publication_id = Uuid::now_v7();
+        let live_replacement_id = live_replacement.publication_id;
+        let session_table = state.sessions.clone();
+        let tracked = state.live_tracked_sessions_after_snapshot(|| {
+            session_table
+                .lock()
+                .expect("swarm session table poisoned")
+                .insert(iid, live_replacement);
+        });
+        assert_eq!(tracked.len(), 1);
+        assert_eq!(
+            tracked[0].1.publication_id, live_replacement_id,
+            "live reconciliation must return the current publication generation"
+        );
         // The coordinator reports the trimmed worktree in its grouping (drives the
         // board swimlane), and list_worktrees enumerates it with a live count of 1.
         assert_eq!(
@@ -4610,17 +5303,85 @@ mod tests {
             .find(|s| s.instance_id.composite == iid.to_string())
             .expect("session row present");
         assert_eq!(row.worktree_id.as_deref(), Some("wt-x"));
-        assert_eq!(row.working_dir.as_deref(), Some("D:/work/wt-x"));
+        assert_eq!(row.working_dir.as_deref(), Some(checkout_path.as_str()));
+        let older_publication = state
+            .sessions
+            .lock()
+            .expect("swarm session table poisoned")
+            .get(&iid)
+            .cloned()
+            .expect("ready publication is tracked");
         // Clean teardown: cancel evicts the session with no orphan.
         coordinator
             .cancel_session(iid, "test_cancel")
             .await
             .expect("cancel");
         assert_eq!(coordinator.live_session_count(), 0);
+        // Deterministically replace the snapshotted stale publication after the
+        // reconciliation snapshot but before its coordinator lookup. Cleanup
+        // must not erase the newer generation merely because the instance id is
+        // the same.
+        let mut newer_publication = older_publication;
+        newer_publication.publication_id = Uuid::now_v7();
+        let newer_publication_id = newer_publication.publication_id;
+        let session_table = state.sessions.clone();
+        let tracked = state.live_tracked_sessions_after_snapshot(|| {
+            session_table
+                .lock()
+                .expect("swarm session table poisoned")
+                .insert(iid, newer_publication);
+        });
+        assert!(tracked.is_empty());
+        assert_eq!(
+            state
+                .sessions
+                .lock()
+                .expect("swarm session table poisoned")
+                .get(&iid)
+                .map(|tracked| tracked.publication_id),
+            Some(newer_publication_id),
+            "stale reconciliation snapshot must preserve a newer Ready publication"
+        );
         // After cancel the worktree no longer appears (live-only discovery is
         // reconciled against the registry each call).
         let worktrees = list_worktrees_inner(&state);
         assert!(worktrees.is_empty(), "worktrees: {worktrees:?}");
+    }
+
+    #[tokio::test]
+    async fn shutdown_drain_terminates_live_sessions_before_closing_the_writer() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai("shutdown-order-ok"));
+        let state = state_with_static_openai_cloud(builder, tmp.path());
+        let coordinator = state.coordinator();
+        let mut request = cloud_request("gpt-4o");
+        request.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let spawn = build_spawn_request(&request).expect("valid cloud request");
+        coordinator
+            .spawn_session(spawn)
+            .await
+            .expect("live cloud session");
+        assert_eq!(coordinator.live_session_count(), 1);
+
+        let outcome = state
+            .shutdown_drain(std::time::Duration::from_secs(5))
+            .await;
+        assert!(matches!(
+            outcome,
+            SwarmShutdownDrainOutcome::Completed {
+                process_ledger: handshake_core::process_ledger::LedgerDrainJoinOutcome::Flushed
+            }
+        ));
+        assert_eq!(
+            coordinator.live_session_count(),
+            0,
+            "coordinator sessions must terminate before the writer is closed"
+        );
+        let rows = state.ledger_rows();
+        assert!(matches!(
+            rows.as_slice(),
+            [LedgerEvent::Start(_), LedgerEvent::Stop(_)]
+        ));
     }
 
     /// A credentialed CLOUD session may stay live in the coordinator, but generic
@@ -4630,7 +5391,7 @@ mod tests {
     async fn direct_chat_rejects_cloud_session_without_receipt_gate() {
         let vault = Arc::new(InMemorySecretsVault::default());
         vault
-            .put("anthropic", "sk-ant-test-key-do-not-log".to_string())
+            .put("anthropic", "sk-ant-test-key-do-not-log")
             .expect("store anthropic key");
         let state = SwarmRuntimeState::production_with_cloud_vault(
             vault,
@@ -4646,12 +5407,12 @@ mod tests {
             .await
             .expect("configured cloud spawn builds a live session");
 
-        let resolved = state.resolve_runtime(iid);
+        let resolved = state.resolve_session_identity(iid);
         assert!(
             resolved.is_some(),
             "cloud session remains live for cancellation and receipt-gated escalation"
         );
-        let (_runtime, model_id, provider) = resolved.expect("resolved");
+        let (model_id, provider) = resolved.expect("resolved");
         assert_eq!(provider, ProviderKind::ByokCloud);
         assert_ne!(
             model_id, iid.model_id,
@@ -4677,7 +5438,7 @@ mod tests {
             .cancel_session(iid, "test_cancel")
             .await
             .expect("cancel");
-        assert!(state.resolve_runtime(iid).is_none());
+        assert!(state.resolve_session_identity(iid).is_none());
     }
 
     /// A configured lane whose vault has NO key still surfaces the honest
@@ -4708,7 +5469,7 @@ mod tests {
     async fn configured_lane_rejects_non_allowlisted_model_honestly() {
         let vault = Arc::new(InMemorySecretsVault::default());
         vault
-            .put("anthropic", "sk-ant-test-key".to_string())
+            .put("anthropic", "sk-ant-test-key")
             .expect("store key");
         let state = SwarmRuntimeState::production_with_cloud_vault(
             vault,
@@ -4735,6 +5496,7 @@ mod tests {
                     anthropic: None,
                     openai: Some(builder.clone()),
                     official_cli: None,
+                    official_cli_by_provider: HashMap::new(),
                 },
                 None,
                 tmp.path(),
@@ -4777,7 +5539,7 @@ mod tests {
     async fn mixed_local_and_cloud_spawn_route_through_one_coordinator() {
         let vault = Arc::new(InMemorySecretsVault::default());
         vault
-            .put("anthropic", "sk-ant-test-key".to_string())
+            .put("anthropic", "sk-ant-test-key")
             .expect("store key");
         let state = SwarmRuntimeState::production_with_cloud_vault(
             vault,
@@ -4863,6 +5625,158 @@ mod tests {
             "force_local must not even spawn the explicit cloud request"
         );
         assert_eq!(state.coordinator().live_session_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn chat_generate_force_local_rejects_cloud_backed_local_instance_without_generation() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai(
+            "cloud-backed-output-must-not-appear",
+        ));
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let mut cloud_backed_candidate = cloud_request("gpt-4o");
+        cloud_backed_candidate.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let cloud_backed_instance = spawn_session_inner(cloud_backed_candidate, &state)
+            .await
+            .expect("cloud-backed candidate live");
+        assert_eq!(builder.build_count(), 1);
+        assert_eq!(builder.generation_count(), 0);
+
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let response = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: cloud_backed_instance.composite.clone(),
+                prompt: "must remain local".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::ForceLocal),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
+                cloud_assistance_receipt: None,
+            },
+            &state,
+        )
+        .await
+        .expect("command result");
+
+        assert_eq!(response.selected, None);
+        assert!(!response.escalated);
+        assert!(response.local.is_none());
+        assert!(response.cloud.is_none());
+        assert!(response.cloud_instance.is_none());
+        assert!(response.cloud_assistance_receipt.is_none());
+        assert!(
+            response
+                .local_error
+                .as_deref()
+                .is_some_and(|error| error.contains("receipt-gated cloud escalation")),
+            "local_error: {:?}",
+            response.local_error
+        );
+        assert!(
+            response
+                .cloud_error
+                .as_deref()
+                .is_some_and(|error| error.contains("force_local")),
+            "cloud_error: {:?}",
+            response.cloud_error
+        );
+        assert_eq!(
+            builder.build_count(),
+            1,
+            "force_local must not spawn another cloud session"
+        );
+        assert_eq!(
+            builder.generation_count(),
+            0,
+            "cloud-backed local_instance_id must not generate output"
+        );
+
+        state
+            .coordinator()
+            .cancel_session(
+                parse_instance_id(&cloud_backed_instance.composite).expect("parse cloud id"),
+                "test_cancel",
+            )
+            .await
+            .expect("cancel cloud-backed candidate");
+    }
+
+    #[tokio::test]
+    async fn chat_generate_routine_rejects_cloud_backed_local_instance_without_generation() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let builder = Arc::new(StaticCloudBuilder::openai(
+            "cloud-backed-output-must-not-appear",
+        ));
+        let state = state_with_static_openai_cloud(builder.clone(), tmp.path());
+        let mut cloud_backed_candidate = cloud_request("gpt-4o");
+        cloud_backed_candidate.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let cloud_backed_instance = spawn_session_inner(cloud_backed_candidate, &state)
+            .await
+            .expect("cloud-backed candidate live");
+        assert_eq!(builder.build_count(), 1);
+        assert_eq!(builder.generation_count(), 0);
+
+        let mut cloud = cloud_request("gpt-4o");
+        cloud.byok_cloud_provider = Some(ByokCloudProviderIpc::OpenAi);
+        let response = chat_generate_with_cloud_escalation_inner(
+            SwarmChatGenerateWithCloudEscalationRequestIpc {
+                local_instance_id: cloud_backed_instance.composite.clone(),
+                prompt: "routine local attempt".to_string(),
+                cloud,
+                task_class: Some(SwarmEscalationTaskClassIpc::Routine),
+                local_confidence_basis_points: None,
+                min_local_confidence_basis_points: None,
+                validation_labels: Vec::new(),
+                cloud_assistance_receipt: None,
+            },
+            &state,
+        )
+        .await
+        .expect("command result");
+
+        assert_eq!(response.selected, None);
+        assert!(!response.escalated);
+        assert!(response.local.is_none());
+        assert!(response.cloud.is_none());
+        assert!(response.cloud_instance.is_none());
+        assert!(response.cloud_assistance_receipt.is_none());
+        assert!(
+            response
+                .local_error
+                .as_deref()
+                .is_some_and(|error| error.contains("receipt-gated cloud escalation")),
+            "local_error: {:?}",
+            response.local_error
+        );
+        assert!(
+            response
+                .cloud_error
+                .as_deref()
+                .is_some_and(|error| error.contains("live local session attempt")),
+            "cloud_error: {:?}",
+            response.cloud_error
+        );
+        assert_eq!(
+            builder.build_count(),
+            1,
+            "routine rejection must not spawn an escalation session"
+        );
+        assert_eq!(
+            builder.generation_count(),
+            0,
+            "cloud-backed local_instance_id must not generate output"
+        );
+
+        state
+            .coordinator()
+            .cancel_session(
+                parse_instance_id(&cloud_backed_instance.composite).expect("parse cloud id"),
+                "test_cancel",
+            )
+            .await
+            .expect("cancel cloud-backed candidate");
     }
 
     #[tokio::test]
@@ -5690,10 +6604,8 @@ mod tests {
         state.sessions.lock().expect("session table").insert(
             iid,
             TrackedSession {
+                publication_id: Uuid::now_v7(),
                 model_id: iid.model_id,
-                runtime: Arc::new(StaticTokenRuntime {
-                    response: StaticGenerateResponse::Text("warm".to_string()),
-                }),
                 runtime_binding: RuntimeBinding::LlamaCpp,
                 provider: ProviderKind::Local,
                 artifact_path: Some("D:/models/model.gguf".to_string()),
@@ -5741,10 +6653,8 @@ mod tests {
         state.sessions.lock().expect("session table").insert(
             iid,
             TrackedSession {
+                publication_id: Uuid::now_v7(),
                 model_id: iid.model_id,
-                runtime: Arc::new(StaticTokenRuntime {
-                    response: StaticGenerateResponse::Text("warm".to_string()),
-                }),
                 runtime_binding: RuntimeBinding::LlamaCpp,
                 provider: ProviderKind::Local,
                 artifact_path: Some("D:/models/model.gguf".to_string()),
@@ -5823,7 +6733,7 @@ mod tests {
         let store = SpawnTemplateStore::new(tmp.path());
         let vault = Arc::new(InMemorySecretsVault::default());
         vault
-            .put("anthropic", "sk-ant-test-key".to_string())
+            .put("anthropic", "sk-ant-test-key")
             .expect("store key");
         let state = SwarmRuntimeState::production_with_cloud_vault(
             vault,

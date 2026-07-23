@@ -1,0 +1,15 @@
+{
+  "schema_version": 3,
+  "templates": {
+    "019f7c95-604d-7401-ae80-22ed8f5831db#0": {
+      "provider": "byok_cloud",
+      "cloud_model_name": "claude-sonnet-4",
+      "byok_cloud_provider": "anthropic",
+      "instance": 0,
+      "worktree_id": "wt-x",
+      "working_dir": "C:\\Users\\ILJASM~1\\AppData\\Local\\Temp\\.tmppw8ad0",
+      "origin_session_id": "019f7c95-604d-7401-ae80-22ed8f5831db#0",
+      "captured_at": "2026-07-19T22:53:12.146451200Z"
+    }
+  }
+}

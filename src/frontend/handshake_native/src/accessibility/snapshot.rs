@@ -245,9 +245,40 @@ fn node_actions(node: &accesskit::Node) -> Vec<String> {
         .collect()
 }
 
+/// Whether an AccessKit `author_id` denotes a secret-bearing input whose value must never be
+/// projected or mutated through the generic Argus surface.
+///
+/// BYOK key inputs are intentionally addressable for visibility/click proof, but key material may
+/// cross only the dedicated OS-keychain submission path. Keeping this predicate beside snapshot
+/// projection gives both the read and write boundaries one canonical classification rule.
+pub fn is_sensitive_author_id(author_id: &str) -> bool {
+    let mut parts = author_id.split('.');
+    matches!(
+        (
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+            parts.next(),
+        ),
+        (
+            Some("settings"),
+            Some("cloud"),
+            Some("byok"),
+            Some(provider),
+            Some("key"),
+            None,
+        ) if !provider.is_empty()
+    )
+}
+
 /// Build a leaf [`UiTreeNode`] (no children yet) from a live AccessKit node + its id.
 fn leaf_node(node_id: accesskit::NodeId, node: &accesskit::Node) -> UiTreeNode {
     let author_id = node.author_id().map(|a| a.to_owned());
+    let sensitive = author_id
+        .as_deref()
+        .is_some_and(is_sensitive_author_id);
     let id = author_id
         .clone()
         .unwrap_or_else(|| format!("node:{}", node_id.0));
@@ -275,9 +306,16 @@ fn leaf_node(node_id: accesskit::NodeId, node: &accesskit::Node) -> UiTreeNode {
         node_id: node_id.0,
         role: format!("{:?}", node.role()),
         label: node.label().map(|l| l.to_owned()),
-        value: node.value().map(|v| v.to_owned()),
+        value: if sensitive {
+            None
+        } else {
+            node.value().map(|v| v.to_owned())
+        },
         disabled: node.is_disabled(),
-        actions: node_actions(node),
+        actions: node_actions(node)
+            .into_iter()
+            .filter(|action| !(sensitive && action == "SetValue"))
+            .collect(),
         bounds,
         children: Vec::new(),
     }
@@ -560,6 +598,39 @@ mod ui_tree_tests {
         // Round-trips (would fail if NaN serialized to null and back to f32).
         let restored: UiTreeSnapshot = serde_json::from_str(&snap.to_json()).unwrap();
         assert_eq!(restored, snap);
+    }
+
+    #[test]
+    fn secret_input_value_and_generic_mutation_are_redacted() {
+        let mut update = accesskit::TreeUpdate {
+            nodes: Vec::new(),
+            tree: Some(accesskit::Tree::new(accesskit::NodeId(1))),
+            focus: accesskit::NodeId(2),
+        };
+        let mut root = node(accesskit::Role::Window);
+        root.set_children([accesskit::NodeId(2)]);
+        update.nodes.push((accesskit::NodeId(1), root));
+
+        let canary = "argus-secret-canary-never-project";
+        let mut secret = node(accesskit::Role::TextInput);
+        secret.set_author_id("settings.cloud.byok.openai.key".to_owned());
+        secret.set_value(canary.to_owned());
+        secret.add_action(accesskit::Action::SetValue);
+        update.nodes.push((accesskit::NodeId(2), secret));
+
+        let snapshot = collect_ui_tree_snapshot(&update);
+        let secret = snapshot
+            .find_by_author_id("settings.cloud.byok.openai.key")
+            .expect("secret input remains inspectable by stable author_id");
+        assert_eq!(secret.value, None);
+        assert!(!secret.actions.iter().any(|action| action == "SetValue"));
+        assert!(!snapshot.to_json().contains(canary));
+        assert!(is_sensitive_author_id(
+            "settings.cloud.byok.anthropic.key"
+        ));
+        assert!(!is_sensitive_author_id(
+            "settings.cloud.byok.openai.save"
+        ));
     }
 
     /// The node cap bounds output and appends a single visible overflow marker (no silent truncation,

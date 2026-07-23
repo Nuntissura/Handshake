@@ -1,6 +1,8 @@
 #[cfg(feature = "candle-runtime-engine")]
 pub mod abliteration_io;
 pub mod adapter;
+#[cfg(feature = "candle-runtime-engine")]
+mod artifact_snapshot;
 pub mod device;
 #[cfg(feature = "candle-runtime-engine")]
 pub mod generate;
@@ -30,8 +32,8 @@ pub mod transformer;
 #[cfg(feature = "candle-runtime-engine")]
 pub use abliteration_io::run_abliteration_model_io;
 pub use adapter::{
-    load_local_candle_model, validate_candle_load_spec, CandleRuntime, LoadedCandleModel,
-    CANDLE_NATIVE_FEATURE_DISABLED,
+    load_local_candle_model, validate_candle_load_spec, AttestedCandleLoad, CandleRuntime,
+    LoadedCandleModel, CANDLE_NATIVE_FEATURE_DISABLED,
 };
 pub use device::{
     select_candle_device, CandleDeviceKind, CandleDevicePreference, CandleDeviceSelection,

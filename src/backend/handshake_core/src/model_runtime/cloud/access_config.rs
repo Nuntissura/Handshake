@@ -33,19 +33,27 @@
 //!   recorded so it is not silently "restored" later.
 //! * CLI-bridge login is operator-initiated and uses ONLY the provider's own
 //!   official login command (surfaced by [`CliBridgeProvider::login_command`])
-//!   launched in a visible terminal by the native shell. Handshake never
-//!   captures, stores, or automates the provider credentials that login
-//!   establishes. Live logged-in / expired detection is DEFERRED per provider
-//!   (no official whoami probe exists on the bridge yet).
+//!   launched in a visible terminal by the native shell. Auth status is read
+//!   only through the provider's own non-interactive status command. Handshake
+//!   never reads credential files directly. Bounded provider output is reduced
+//!   to a typed state, zeroized, and never logged, persisted, or returned.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, RwLock};
+use std::thread;
+use std::time::Duration;
 
 use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
 use thiserror::Error;
+use zeroize::Zeroize;
 
+use super::official_cli_bridge::{CliBridgeConfig, CliInvocationContext, LiveCliSpawner};
 use super::secrets_vault::{SecretsVault, SecretsVaultError};
+use crate::sandbox::{
+    IsolationTier, NetPolicy, RequiredCapability, TrustClass,
+    CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF,
+};
 
 /// BYOK providers Handshake OFFERS an operator-facing API-key entry for.
 ///
@@ -144,16 +152,13 @@ impl CliBridgeProvider {
     ///
     /// Handshake NEVER captures or stores the credentials this command
     /// establishes; it only starts the provider's official interactive flow.
-    /// The exact login sub-command is best-effort (there is no network to
-    /// re-verify vendor docs here); the operator sees the full command before
-    /// it runs and can adjust it. Getting the sub-command wrong is a
-    /// usability nit, not a security issue — no credential is handled by
-    /// Handshake either way.
+    /// The fixed argv vectors are the provider-owned login surfaces; neither
+    /// operator text nor provider response data is interpolated.
     pub fn login_command(self) -> OfficialLoginCommand {
         match self {
             CliBridgeProvider::ClaudeCode => OfficialLoginCommand {
                 program: "claude",
-                args: &["/login"],
+                args: &["auth", "login"],
                 hint: "Starts the official Claude Code CLI login. Handshake stores no credential; \
                        your Claude subscription session lives in the Claude Code CLI.",
             },
@@ -162,6 +167,24 @@ impl CliBridgeProvider {
                 args: &["login"],
                 hint: "Starts the official Codex/GPT CLI login. Handshake stores no credential; \
                        your ChatGPT/Codex session lives in the Codex CLI.",
+            },
+        }
+    }
+
+    /// The provider's own non-interactive authentication-status command.
+    ///
+    /// These commands report auth metadata/status only. Handshake parses them
+    /// into [`CliBridgeAuthStatus`] and discards their raw output; it never
+    /// reads either provider's credential files.
+    pub fn auth_status_command(self) -> OfficialAuthStatusCommand {
+        match self {
+            CliBridgeProvider::ClaudeCode => OfficialAuthStatusCommand {
+                program: "claude",
+                args: &["auth", "status", "--json"],
+            },
+            CliBridgeProvider::Codex => OfficialAuthStatusCommand {
+                program: "codex",
+                args: &["login", "status"],
             },
         }
     }
@@ -174,6 +197,194 @@ pub struct OfficialLoginCommand {
     pub program: &'static str,
     pub args: &'static [&'static str],
     pub hint: &'static str,
+}
+
+/// A provider's own non-interactive auth-status command. Non-secret static
+/// data; output is never part of this type or the public API.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OfficialAuthStatusCommand {
+    pub program: &'static str,
+    pub args: &'static [&'static str],
+}
+
+/// Non-secret authentication state for an official CLI bridge.
+///
+/// `Unavailable` is deliberately distinct from `LoggedOut`: a missing CLI,
+/// timeout, or unrecognized provider response is not evidence that the
+/// operator has logged out.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CliBridgeAuthStatus {
+    LoggedIn,
+    LoggedOut,
+    Expired,
+    Unavailable,
+}
+
+/// Typed auth-status seam used by the route and operator picker. Implementations
+/// return status only; raw CLI output and credentials can never cross this
+/// boundary.
+pub trait CliBridgeAuthStatusProbe: Send + Sync {
+    fn auth_status(&self, provider: CliBridgeProvider) -> CliBridgeAuthStatus;
+}
+
+/// One canonical, launchable CLI target. It reuses the exact configured launch
+/// graph and live spawner already accepted by Operator Chat; status probing
+/// never performs an independent PATH lookup.
+#[derive(Clone)]
+struct CanonicalCliAuthTarget {
+    spawner: Arc<LiveCliSpawner>,
+    config: CliBridgeConfig,
+}
+
+/// Production provider-owned CLI status probe.
+///
+/// Targets are supplied only after the production launch factory has validated
+/// and pinned them. Commands execute through the existing attached Official-CLI
+/// sandbox lifecycle: Windows uses creation-time Job Object containment and
+/// bounded pipe drainage; other hosts fail closed until an equivalent attached
+/// implementation exists. Raw provider output is reduced to a typed state,
+/// zeroized, and never returned or logged.
+#[derive(Clone, Default)]
+pub struct ProductionCliBridgeAuthStatusProbe {
+    targets: BTreeMap<CliBridgeProvider, CanonicalCliAuthTarget>,
+}
+
+impl std::fmt::Debug for ProductionCliBridgeAuthStatusProbe {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ProductionCliBridgeAuthStatusProbe")
+            .field(
+                "providers",
+                &self.targets.keys().map(|provider| provider.id()).collect::<Vec<_>>(),
+            )
+            .finish()
+    }
+}
+
+impl ProductionCliBridgeAuthStatusProbe {
+    pub fn from_canonical_launches(
+        spawner: Arc<LiveCliSpawner>,
+        launches: impl IntoIterator<Item = (CliBridgeProvider, CliBridgeConfig)>,
+    ) -> Self {
+        Self {
+            targets: launches
+                .into_iter()
+                .map(|(provider, config)| {
+                    (
+                        provider,
+                        CanonicalCliAuthTarget {
+                            spawner: spawner.clone(),
+                            config,
+                        },
+                    )
+                })
+                .collect(),
+        }
+    }
+}
+
+impl CliBridgeAuthStatusProbe for ProductionCliBridgeAuthStatusProbe {
+    fn auth_status(&self, provider: CliBridgeProvider) -> CliBridgeAuthStatus {
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = provider;
+            return CliBridgeAuthStatus::Unavailable;
+        }
+
+        #[cfg(target_os = "windows")]
+        let Some(target) = self.targets.get(&provider) else {
+            return CliBridgeAuthStatus::Unavailable;
+        };
+        #[cfg(target_os = "windows")]
+        let command = provider.auth_status_command();
+        #[cfg(target_os = "windows")]
+        let Ok(mut output) = target.spawner.run_auxiliary_fixed_command(
+            &target.config,
+            command.args,
+            AUTH_STATUS_TIMEOUT,
+            &auth_status_invocation(provider),
+            AUTH_STATUS_OUTPUT_LIMIT,
+        ) else {
+            return CliBridgeAuthStatus::Unavailable;
+        };
+        #[cfg(target_os = "windows")]
+        {
+            let status = parse_official_auth_status(provider, output.success, &output.stdout);
+            output.stdout.zeroize();
+            status
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct UnavailableCliBridgeAuthStatusProbe;
+
+impl CliBridgeAuthStatusProbe for UnavailableCliBridgeAuthStatusProbe {
+    fn auth_status(&self, _provider: CliBridgeProvider) -> CliBridgeAuthStatus {
+        CliBridgeAuthStatus::Unavailable
+    }
+}
+
+const AUTH_STATUS_TIMEOUT: Duration = Duration::from_secs(5);
+const AUTH_STATUS_OUTPUT_LIMIT: usize = 64 * 1024;
+
+fn auth_status_invocation(provider: CliBridgeProvider) -> CliInvocationContext {
+    let mut context = CliInvocationContext::new(
+        "MODEL_ACCESS_AUTH_STATUS",
+        format!("official-cli-auth-status:{}", provider.id()),
+    );
+    context.owner_wp = Some("WP-1".to_string());
+    context.role_id = Some("MODEL_ACCESS_AUTH_STATUS".to_string());
+    context.wp_id = Some("WP-1".to_string());
+    context.mt_id = Some("MT-015".to_string());
+    context.session_id = Some(format!("model-access-auth-status-{}", provider.id()));
+    context.reclaim_key = Some(format!("model-access-auth-status-{}", provider.id()));
+    context.requested_trust_class = Some(TrustClass::Reviewed);
+    context.requested_isolation_tier = Some(IsolationTier::Tier1Container);
+    context.requested_sandbox_capabilities =
+        Some(BTreeSet::from([RequiredCapability::HighStdioThroughput]));
+    context.requested_net_policy = Some(NetPolicy::HostInherited);
+    context.requested_execution_policy_ref =
+        Some(CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF.to_string());
+    context
+}
+
+fn parse_official_auth_status(
+    provider: CliBridgeProvider,
+    success: bool,
+    stdout: &[u8],
+) -> CliBridgeAuthStatus {
+    match provider {
+        CliBridgeProvider::ClaudeCode => {
+            let Ok(value) = serde_json::from_slice::<serde_json::Value>(stdout) else {
+                return CliBridgeAuthStatus::Unavailable;
+            };
+            match value.get("loggedIn").and_then(serde_json::Value::as_bool) {
+                Some(true)
+                    if success
+                        && value
+                            .get("subscriptionType")
+                            .and_then(serde_json::Value::as_str)
+                            .is_some_and(|value| !value.trim().is_empty()) =>
+                {
+                    CliBridgeAuthStatus::LoggedIn
+                }
+                Some(false) => CliBridgeAuthStatus::LoggedOut,
+                _ => CliBridgeAuthStatus::Unavailable,
+            }
+        }
+        CliBridgeProvider::Codex => {
+            let Ok(text) = std::str::from_utf8(stdout) else {
+                return CliBridgeAuthStatus::Unavailable;
+            };
+            match text.trim() {
+                "Not logged in" => CliBridgeAuthStatus::LoggedOut,
+                "Logged in using ChatGPT" if success => CliBridgeAuthStatus::LoggedIn,
+                _ => CliBridgeAuthStatus::Unavailable,
+            }
+        }
+    }
 }
 
 /// Non-secret access status for one provider. `ProviderNotConfigured`
@@ -200,6 +411,7 @@ pub struct ByokAccessRow {
 pub struct CliBridgeAccessRow {
     pub provider: &'static str,
     pub label: &'static str,
+    pub auth_status: CliBridgeAuthStatus,
     pub login: OfficialLoginCommand,
 }
 
@@ -278,7 +490,12 @@ impl InMemoryAccessRegistry {
 
 impl ProviderAccessRegistry for InMemoryAccessRegistry {
     fn byok_status(&self, provider: ByokProvider) -> ProviderAccessStatus {
-        if self.configured.read().expect("registry lock").contains(&provider) {
+        if self
+            .configured
+            .read()
+            .expect("registry lock")
+            .contains(&provider)
+        {
             ProviderAccessStatus::Configured
         } else {
             ProviderAccessStatus::Unavailable
@@ -299,23 +516,50 @@ pub fn enumerate_byok(registry: &dyn ProviderAccessRegistry) -> Vec<ByokAccessRo
         .collect()
 }
 
-/// Enumerate every offered CLI-bridge provider with its official login command.
+/// Enumerate every offered CLI-bridge provider with its typed auth state and
+/// official login command.
 pub fn enumerate_cli_bridge() -> Vec<CliBridgeAccessRow> {
-    CliBridgeProvider::OFFERED
-        .iter()
-        .map(|provider| CliBridgeAccessRow {
-            provider: provider.id(),
-            label: provider.label(),
-            login: provider.login_command(),
-        })
-        .collect()
+    enumerate_cli_bridge_with_probe(&UnavailableCliBridgeAuthStatusProbe)
+}
+
+/// Deterministic/injectable form used by HTTP route tests and other consumers
+/// that already own an auth-status probe.
+pub fn enumerate_cli_bridge_with_probe(
+    probe: &dyn CliBridgeAuthStatusProbe,
+) -> Vec<CliBridgeAccessRow> {
+    // Provider probes are independent and each may take up to the bounded
+    // subprocess timeout. Run the two offered providers concurrently so a
+    // settings refresh is bounded by one timeout window rather than two.
+    thread::scope(|scope| {
+        let probes = CliBridgeProvider::OFFERED
+            .map(|provider| (provider, scope.spawn(move || probe.auth_status(provider))));
+        probes
+            .into_iter()
+            .map(|(provider, handle)| CliBridgeAccessRow {
+                provider: provider.id(),
+                label: provider.label(),
+                auth_status: handle.join().unwrap_or(CliBridgeAuthStatus::Unavailable),
+                login: provider.login_command(),
+            })
+            .collect()
+    })
 }
 
 /// Build the full non-secret enumeration surface for the model picker.
 pub fn enumerate(registry: &dyn ProviderAccessRegistry) -> CloudAccessEnumeration {
+    enumerate_with_cli_auth_probe(registry, &UnavailableCliBridgeAuthStatusProbe)
+}
+
+/// Build the full non-secret enumeration surface with an injected CLI-status
+/// probe. Gemini remains excluded by construction: the probe is invoked only
+/// for [`CliBridgeProvider::OFFERED`].
+pub fn enumerate_with_cli_auth_probe(
+    registry: &dyn ProviderAccessRegistry,
+    probe: &dyn CliBridgeAuthStatusProbe,
+) -> CloudAccessEnumeration {
     CloudAccessEnumeration {
         byok: enumerate_byok(registry),
-        cli_bridge: enumerate_cli_bridge(),
+        cli_bridge: enumerate_cli_bridge_with_probe(probe),
         // Deliberately not offered (reset brief §6.11 divergence — CLI
         // deprecating). Surfaced so the exclusion is visible + testable.
         excluded: vec!["gemini"],
@@ -439,10 +683,7 @@ impl CloudModelAccess {
     /// is the ONLY method that returns key material and exists so the MT-006
     /// CloudLane/BYOK backend (via `VaultApiKeyProvider`) — and the leak test —
     /// can prove the key still round-trips. Callers MUST NOT log the result.
-    pub fn fetch_byok_key(
-        &self,
-        provider: ByokProvider,
-    ) -> Result<String, AccessConfigError> {
+    pub fn fetch_byok_key(&self, provider: ByokProvider) -> Result<String, AccessConfigError> {
         // The vault read is `Zeroizing`; the owned `String` returned here is the
         // deliberate transient copy the caller (the BYOK backend / the leak
         // test) uses, and the `Zeroizing` original is wiped as it drops.
@@ -459,6 +700,16 @@ impl CloudModelAccess {
     pub fn enumerate(&self) -> CloudAccessEnumeration {
         enumerate(&self.registry())
     }
+
+    /// The full non-secret enumeration surface with an injected official-CLI
+    /// auth probe. The model-access route uses this seam so tests never invoke
+    /// host CLIs and production remains provider-owned.
+    pub fn enumerate_with_cli_auth_probe(
+        &self,
+        probe: &dyn CliBridgeAuthStatusProbe,
+    ) -> CloudAccessEnumeration {
+        enumerate_with_cli_auth_probe(&self.registry(), probe)
+    }
 }
 
 #[cfg(test)]
@@ -473,7 +724,10 @@ mod tests {
     fn byok_providers_are_anthropic_and_openai_only_no_gemini() {
         let ids: Vec<&str> = ByokProvider::OFFERED.iter().map(|p| p.id()).collect();
         assert_eq!(ids, vec!["anthropic", "openai"]);
-        assert!(!ids.contains(&"gemini"), "Gemini must never be offered for BYOK");
+        assert!(
+            !ids.contains(&"gemini"),
+            "Gemini must never be offered for BYOK"
+        );
         // No id string can parse to a Gemini provider (there is no variant).
         assert!(ByokProvider::from_id("gemini").is_none());
         assert!(ByokProvider::from_id("google").is_none());
@@ -502,8 +756,96 @@ mod tests {
     fn cli_bridge_login_commands_are_the_providers_own_official_commands() {
         let claude = CliBridgeProvider::ClaudeCode.login_command();
         assert_eq!(claude.program, "claude");
+        assert_eq!(claude.args, &["auth", "login"]);
         let codex = CliBridgeProvider::Codex.login_command();
         assert_eq!(codex.program, "codex");
+
+        let claude_status = CliBridgeProvider::ClaudeCode.auth_status_command();
+        assert_eq!(claude_status.program, "claude");
+        assert_eq!(claude_status.args, &["auth", "status", "--json"]);
+        let codex_status = CliBridgeProvider::Codex.auth_status_command();
+        assert_eq!(codex_status.program, "codex");
+        assert_eq!(codex_status.args, &["login", "status"]);
+    }
+
+    #[test]
+    fn production_auth_probe_fails_closed_without_canonical_launch_targets() {
+        let probe = ProductionCliBridgeAuthStatusProbe::default();
+        for provider in CliBridgeProvider::OFFERED {
+            assert_eq!(
+                probe.auth_status(provider),
+                CliBridgeAuthStatus::Unavailable
+            );
+        }
+    }
+
+    #[test]
+    fn auth_status_module_has_no_independent_path_discovery_or_raw_command_spawn() {
+        let source = include_str!("access_config.rs");
+        assert!(!source.contains("std::env::var_os(\"PATH\")"));
+        assert!(!source.contains("Command::new("));
+        assert!(source.contains("run_auxiliary_fixed_command"));
+    }
+
+    #[test]
+    fn official_auth_status_parsing_uses_exact_subscription_grammar_and_never_returns_output() {
+        const CANARY: &str = "oauth-refresh-token-NEVER-RETURN";
+        assert_eq!(
+            parse_official_auth_status(
+                CliBridgeProvider::ClaudeCode,
+                true,
+                br#"{"loggedIn":true,"subscriptionType":"max","email":"operator@example.invalid"}"#,
+            ),
+            CliBridgeAuthStatus::LoggedIn
+        );
+        assert_eq!(
+            parse_official_auth_status(
+                CliBridgeProvider::ClaudeCode,
+                false,
+                format!(
+                    r#"{{"loggedIn":false,"refresh_token":"{CANARY}","email":"expired@example.invalid"}}"#
+                )
+                .as_bytes(),
+            ),
+            CliBridgeAuthStatus::LoggedOut
+        );
+        assert_eq!(
+            parse_official_auth_status(
+                CliBridgeProvider::ClaudeCode,
+                true,
+                br#"{"loggedIn":true,"authMethod":"api_key"}"#,
+            ),
+            CliBridgeAuthStatus::Unavailable,
+            "API-key auth is not subscription-plan availability"
+        );
+        assert_eq!(
+            parse_official_auth_status(
+                CliBridgeProvider::Codex,
+                false,
+                b"Not logged in",
+            ),
+            CliBridgeAuthStatus::LoggedOut
+        );
+        assert_eq!(
+            parse_official_auth_status(
+                CliBridgeProvider::Codex,
+                true,
+                b"Logged in using ChatGPT",
+            ),
+            CliBridgeAuthStatus::LoggedIn
+        );
+        for unsupported in [
+            b"Logged in using an API key - sk-proj-redacted".as_slice(),
+            b"Logged in using Agent Identity".as_slice(),
+            b"refresh token expired".as_slice(),
+            b"token not expired".as_slice(),
+            CANARY.as_bytes(),
+        ] {
+            assert_eq!(
+                parse_official_auth_status(CliBridgeProvider::Codex, true, unsupported),
+                CliBridgeAuthStatus::Unavailable
+            );
+        }
     }
 
     // ------------------------------------------------------------------
@@ -610,7 +952,9 @@ mod tests {
         // Remove a never-stored key: must succeed (rotation-safe).
         service.remove_byok_key(ByokProvider::Anthropic).unwrap();
         let key = SecretString::from("sk-rotate-me".to_string());
-        service.store_byok_key(ByokProvider::Anthropic, &key).unwrap();
+        service
+            .store_byok_key(ByokProvider::Anthropic, &key)
+            .unwrap();
         service.remove_byok_key(ByokProvider::Anthropic).unwrap();
         assert_eq!(
             service.byok_status(ByokProvider::Anthropic),
@@ -666,8 +1010,7 @@ mod tests {
         );
         // ...but the first lane launch still hits the fail-closed MT-006 gate (no approval was created).
         let gate = ConsentGate::new();
-        let first_launch =
-            gate.check_or_prompt("session-mt015", ByokProvider::OpenAi.id(), &Deny);
+        let first_launch = gate.check_or_prompt("session-mt015", ByokProvider::OpenAi.id(), &Deny);
         assert!(
             matches!(first_launch, Err(ConsentGateError::ConsentDenied { .. })),
             "saving a key must not grant consent; first launch must fail closed"

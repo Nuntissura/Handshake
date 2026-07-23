@@ -51,10 +51,13 @@ pub mod store;
 pub use behavior_coverage::{
     cloud_model_access_behavior_coverage_matrix,
     dedicated_embedding_model_behavior_coverage_matrix, embedded_model_behavior_coverage_matrix,
-    model_lane_behavior_coverage_matrix, operator_chat_launch_behavior_coverage_matrix,
+    model_lane_behavior_coverage_matrix, model_runtime_registry_behavior_coverage_matrix,
+    operator_chat_launch_behavior_coverage_matrix,
     verify_cloud_model_access_behavior_coverage, verify_embedded_model_behavior_coverage,
-    verify_model_lane_behavior_coverage, BehaviorCoverageError, BehaviorCoverageRow,
-    DiagnosticTierPosture,
+    verify_model_lane_behavior_coverage, verify_model_runtime_registry_behavior_coverage,
+    BehaviorConsistencyProof, BehaviorCoverageError, BehaviorCoverageRow, DiagnosticTierPosture,
+    ModelRuntimeProofExecutionStatus, ModelRuntimeRegistryBehaviorCoverageRow,
+    MODEL_RUNTIME_REGISTRY_DECLARED_PROOF_SCOPE, MODEL_RUNTIME_REGISTRY_MANUAL_FEATURE_ID,
 };
 pub use migration_plan::{
     naming_migration_plan, LegacyAlias, LegacyKind, MigrationPhase, NamingMigrationPlan, PlanRow,
@@ -71,7 +74,7 @@ pub use store::{
 /// content change — the freshness check (MT-204) compares stored
 /// `content_hash` per page, and `user_manual_versions` records each seeded
 /// version.
-pub const USER_MANUAL_VERSION: &str = "2.0.8";
+pub const USER_MANUAL_VERSION: &str = "2.0.15";
 
 /// The canonical stuck-together product term (operator decision; constraint in
 /// every MT-193..MT-208 contract). Route namespace, slugs, and citations all

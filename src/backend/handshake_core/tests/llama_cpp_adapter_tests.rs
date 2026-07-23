@@ -182,6 +182,8 @@ fn capabilities(supports_activation_steering: bool) -> ModelCapabilities {
         supports_subquadratic: false,
         supports_speculative_draft: true,
         supports_eagle3: false,
+        supports_embedding: false,
+        embedding_dimension: None,
     }
 }
 

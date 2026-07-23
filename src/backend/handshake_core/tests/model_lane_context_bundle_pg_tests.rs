@@ -7,11 +7,26 @@
 mod knowledge_pg_support;
 mod model_lane_cloud_support;
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use handshake_core::kernel::{DummyEchoModelAdapter, KernelActor};
+use base64::Engine;
+use handshake_core::kernel::crdt::actor_site::{
+    derive_knowledge_site_id, knowledge_crdt_identity, KnowledgeActorIdV1, KnowledgeActorKind,
+};
+use handshake_core::kernel::crdt::agent_lease::{
+    claim_lease, expire_due_leases, release_lease, KnowledgeLeaseScopeKind, LeaseClaimOutcomeV1,
+    LeaseClaimRequestV1,
+};
+use handshake_core::kernel::crdt::snapshot::{new_crdt_snapshot_record, CrdtSnapshotRecordInputV1};
+use handshake_core::kernel::crdt::state_vector::KnowledgeStateVectorV1;
+use handshake_core::kernel::crdt::yjs_bridge::{
+    push_yjs_update, YjsPushOutcomeV1, YjsUpdateEnvelopeV1, YJS_UPDATE_ENCODING_V1,
+    YJS_UPDATE_ENVELOPE_SCHEMA_ID,
+};
+use handshake_core::kernel::{DummyEchoModelAdapter, KernelActor, KernelEventType, NewKernelEvent};
 use handshake_core::process_ledger::{LedgerBatcher, LedgerBatcherConfig, NoopOverflowSink};
+use handshake_core::storage::Database;
 use handshake_core::swarm_orchestration::model_lane::{
     model_lane_context_bundle_id_for_handoff, LaunchAuthority, ModelLaneAuthority,
     ModelLaneContextBundleHandoffRecord, ModelLaneCrdtHandoffMetadata,
@@ -28,6 +43,8 @@ use handshake_core::swarm_orchestration::{
 };
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use yrs::updates::{decoder::Decode, encoder::Encode};
+use yrs::{Doc, ReadTxn, StateVector, Text, Transact, Update};
 
 #[tokio::test]
 async fn model_lane_context_bundle_persists_selection_state_and_replays() {
@@ -43,7 +60,6 @@ async fn model_lane_context_bundle_persists_selection_state_and_replays() {
         artifact_payload_hash("msg-proposal-001"),
         ModelLaneHandoffSelectionState::Selected,
     );
-    selected.crdt_payload = Some(sample_crdt_payload());
     selected.context_bundle_id =
         model_lane_context_bundle_id_for_handoff(&selected).expect("derive ContextBundle id");
     let mut handoffs = vec![
@@ -258,6 +274,28 @@ async fn model_lane_context_bundle_persists_selection_state_and_replays() {
             .iter()
             .any(|row| row.schema_id == "hsk.model_lane_context_bundle_artifact@1"),
         "ContextBundle artifact binding schema must be registered for state recovery"
+    );
+
+    sqlx::query(
+        r#"
+        UPDATE model_lane_context_bundle_handoffs
+        SET record_json = jsonb_set(record_json, '{context_bundle_hash}', '"forged-projection-hash"')
+        WHERE handoff_id = $1
+        "#,
+    )
+    .bind(&stored[0].handoff_id)
+    .execute(&pool)
+    .await
+    .expect("tamper mutable ContextBundle projection for negative-path proof");
+    let projection_tamper = store
+        .replay_context_bundle_handoffs("run-mt005", &context_bundle_id)
+        .await
+        .expect_err("tampered ContextBundle projection must fail closed");
+    assert!(
+        projection_tamper
+            .to_string()
+            .contains("context_bundle_hash"),
+        "projection tamper denial must identify hash authority: {projection_tamper}"
     );
 }
 
@@ -605,117 +643,878 @@ async fn model_lane_context_bundle_missing_artifact_ref_fails_closed() {
 
 #[tokio::test]
 async fn model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable() {
-    let (_pool, store) = model_lane_store().await;
+    const DOCUMENT_SCHEMA_ID: &str = "hsk.doc.rich_document@1";
+    const SOURCE_MESSAGE_ID: &str = "msg-crdt-replayable-001";
+    const UPDATE_ID: &str = "mt005-crdt-update-2";
+
+    let kpg = knowledge_pg_support::knowledge_pg()
+        .await
+        .expect("PostgreSQL/EventLedger is required for MT-005 CRDT replay proof");
+    let workspace_id = kpg.create_workspace().await;
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&kpg.schema_url)
+        .await
+        .expect("connect isolated MT-005 CRDT schema");
+    let store = ModelLaneStore::new(pool.clone());
     seed_run_with_messages(&store).await;
 
-    let mut handoff = sample_handoff(
-        "handoff-crdt-loom",
-        "idem-handoff-crdt-loom",
-        "msg-proposal-001",
-        "lane-local",
-        ModelLaneHandoffSourceKind::Proposal,
-        artifact_payload_hash("msg-proposal-001"),
-        ModelLaneHandoffSelectionState::Selected,
-    );
-    handoff.crdt_payload = Some(sample_crdt_payload());
-    handoff.loom_refs = vec![sample_loom_ref()];
-    handoff.memory_pack_refs = vec![sample_memory_pack(true)];
-    handoff.context_bundle_id =
-        model_lane_context_bundle_id_for_handoff(&handoff).expect("derive ContextBundle id");
+    let document_id = format!("doc-mt005-{workspace_id}");
+    let crdt_document_id = format!("crdt-mt005-{workspace_id}");
+    let actor = KnowledgeActorIdV1::new(KnowledgeActorKind::LocalModel, "mt005-lane-local")
+        .expect("typed local actor");
+    let site = derive_knowledge_site_id(&workspace_id, &crdt_document_id, &actor);
+    let canonical = Doc::new();
+    let mut state_vector = KnowledgeStateVectorV1::new();
 
-    let stored = store
-        .record_context_bundle_handoff(handoff.clone())
-        .await
-        .expect("record CRDT/Loom ContextBundle handoff");
-    let replay = store
-        .replay_context_bundle_handoffs("run-mt005", &stored.context_bundle_id)
-        .await
-        .expect("replay CRDT/Loom handoff");
-    assert_eq!(replay.len(), 1);
-    let crdt = replay[0].crdt_payload.as_ref().expect("replayed CRDT");
-    assert_eq!(crdt.schema_id, "hsk.model_lane_crdt_payload@1");
-    assert_eq!(
-        crdt.update_bytes_ref,
-        "crdt-update://mt005/msg-proposal-001"
+    let base_update_bytes = mt005_append_yjs_text_update(
+        &canonical,
+        u64::from(site.yjs_client_id),
+        "base snapshot text",
     );
-    assert_eq!(crdt.state_vector, "sv:mt005:1");
-    assert_eq!(crdt.base_snapshot_ref, "crdt-snapshot://mt005/base-v1");
-    assert_eq!(crdt.authority_effect, "advisory_only");
-    assert_eq!(
-        crdt.replay_metadata["yjs_compatible"],
-        json!(true),
-        "CRDT payload must carry Yjs-compatible replay metadata"
+    let base_update = mt005_yjs_envelope(
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        "mt005-crdt-update-1",
+        &actor,
+        "session-mt005-bootstrap",
+        &base_update_bytes,
+        &state_vector,
+        &site.site_id,
     );
-    assert_eq!(replay[0].loom_refs[0].workspace_id, "workspace-mt005");
-    assert_eq!(
-        replay[0].loom_refs[0].flight_recorder_evidence_ref,
-        "flight-recorder://mt005/loom/block-001"
-    );
-    assert_eq!(replay[0].memory_pack_refs[0].cloud_safe, true);
-    assert_eq!(
-        replay[0].memory_pack_refs[0].memory_pack_hash,
-        sample_sha256('a')
-    );
+    state_vector.increment(&site.site_id);
+    assert!(matches!(
+        push_yjs_update(&kpg.db, &base_update)
+            .await
+            .expect("persist base Yjs update"),
+        YjsPushOutcomeV1::Stored { update_seq: 1, .. }
+    ));
 
-    let mut missing_crdt = sample_handoff(
-        "handoff-crdt-missing",
-        "idem-handoff-crdt-missing",
-        "msg-proposal-001",
-        "lane-local",
-        ModelLaneHandoffSourceKind::Proposal,
-        artifact_payload_hash("msg-proposal-001"),
-        ModelLaneHandoffSelectionState::Selected,
+    let snapshot_state_vector = state_vector.encode();
+    let snapshot_bytes = canonical
+        .transact()
+        .encode_state_as_update_v1(&StateVector::default());
+    let snapshot_identity = knowledge_crdt_identity(
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        &actor,
+        "trace-mt005-crdt-snapshot",
     );
-    missing_crdt.crdt_payload = None;
-    let missing_crdt_err = store
-        .record_context_bundle_handoff(missing_crdt)
+    let snapshot_event = NewKernelEvent::builder(
+        format!("KTR-MT005-CRDT-SNAPSHOT-{workspace_id}"),
+        "session-lane-local".to_string(),
+        KernelEventType::KnowledgeCrdtSnapshotRecorded,
+        actor.to_kernel_actor(),
+    )
+    .aggregate("knowledge_crdt_document", crdt_document_id.clone())
+    .idempotency_key(format!("mt005:{workspace_id}:snapshot"))
+    .source_component("model_lane_context_bundle_pg_tests")
+    .payload(json!({
+        "covered_update_seq": 1,
+        "state_vector": &snapshot_state_vector,
+        "document_id": &document_id,
+    }))
+    .build()
+    .expect("build CRDT snapshot event");
+    let snapshot_event = kpg
+        .db
+        .append_kernel_event(snapshot_event)
         .await
-        .expect_err("CRDT source message requires CRDT handoff metadata");
+        .expect("append CRDT snapshot event");
+    let snapshot_ref =
+        format!("postgres://kernel_crdt_snapshots/{crdt_document_id}/mt005-crdt-snapshot-1");
+    let snapshot = new_crdt_snapshot_record(CrdtSnapshotRecordInputV1 {
+        identity: &snapshot_identity,
+        snapshot_id: "mt005-crdt-snapshot-1",
+        covered_update_seq: 1,
+        snapshot_bytes: &snapshot_bytes,
+        snapshot_bytes_ref: &snapshot_ref,
+        state_vector: &snapshot_state_vector,
+        event_ledger_event_id: &snapshot_event.event_id,
+        promotion_evidence_update_ids: &[],
+    });
+    kpg.db
+        .append_kernel_crdt_snapshot(snapshot.clone(), snapshot_bytes)
+        .await
+        .expect("persist CRDT base snapshot");
+
+    let update_bytes =
+        mt005_append_yjs_text_update(&canonical, u64::from(site.yjs_client_id), " lane update");
+    let update = mt005_yjs_envelope(
+        &workspace_id,
+        &document_id,
+        &crdt_document_id,
+        DOCUMENT_SCHEMA_ID,
+        UPDATE_ID,
+        &actor,
+        "session-lane-local",
+        &update_bytes,
+        &state_vector,
+        &site.site_id,
+    );
+    state_vector.increment(&site.site_id);
+    assert!(matches!(
+        push_yjs_update(&kpg.db, &update)
+            .await
+            .expect("persist lane Yjs update"),
+        YjsPushOutcomeV1::Stored { update_seq: 2, .. }
+    ));
+    let records = kpg
+        .db
+        .list_kernel_crdt_updates(&workspace_id, &document_id, &crdt_document_id)
+        .await
+        .expect("list authoritative CRDT updates");
+    let update_record = records
+        .iter()
+        .find(|record| record.update_id == UPDATE_ID)
+        .expect("lane update receipt");
+    let materialized_projection = canonical
+        .transact()
+        .encode_state_as_update_v1(&StateVector::default());
+    let materialized_projection_hash = sha256_hex(&materialized_projection);
+
+    let mut source = advisory_message(
+        SOURCE_MESSAGE_ID,
+        "idem-message-crdt-replayable-001",
+        "lane-local",
+        ModelLaneMessageKind::Status,
+        artifact_payload_hash(SOURCE_MESSAGE_ID),
+        "local lane submits replayable CRDT state",
+    );
+    source.crdt_update_ref = Some(update_record.update_bytes_ref.clone());
+    source.crdt_base_snapshot_ref = Some(snapshot.snapshot_bytes_ref.clone());
+    source.crdt_state_vector = Some(update_record.state_vector_after.clone());
+    source.linked_span_contexts.push(update.trace_id.clone());
+    store
+        .record_context_bundle_artifact_binding(sample_artifact_binding_for_message(&source))
+        .await
+        .expect("persist source ArtifactStore binding");
+    let missing_lease_error = store
+        .record_message(source.clone())
+        .await
+        .expect_err("CRDT actor without a persisted lane lease must fail closed");
     assert!(
-        missing_crdt_err.to_string().contains("crdt_payload"),
-        "missing CRDT metadata must fail closed: {missing_crdt_err}"
+        missing_lease_error
+            .to_string()
+            .contains("no persisted knowledge-agent lease binding"),
+        "missing actor/lane lease denial must be explicit: {missing_lease_error}"
+    );
+    let authority_probe = |suffix: &str| {
+        let mut probe = source.clone();
+        probe.message_id = format!("msg-crdt-lease-{suffix}");
+        probe.message_span_id = format!("span-crdt-lease-{suffix}");
+        probe.idempotency_key = format!("idem-message-crdt-lease-{suffix}");
+        probe
+    };
+
+    // A release on a second PostgreSQL connection must serialize behind the
+    // same workspace/document authority lock held by ModelLane admission.
+    let release_race_lease = match claim_lease(
+        &kpg.db,
+        &pool,
+        LeaseClaimRequestV1 {
+            lane_id: "lane-local".into(),
+            actor: actor.clone(),
+            session_id: "session-lane-local".into(),
+            correlation_id: update.trace_id.clone(),
+            scope_kind: KnowledgeLeaseScopeKind::Document,
+            scope_id: crdt_document_id.clone(),
+            ttl_seconds: 3600,
+        },
+    )
+    .await
+    .expect("claim admission-vs-release race lease")
+    {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("admission-vs-release race lease must claim: {other:?}"),
+    };
+    let release_entered = Arc::new(tokio::sync::Notify::new());
+    let release_admission = Arc::new(tokio::sync::Notify::new());
+    let release_race_message = authority_probe("release-race");
+    let admission_future = store.test_record_message_holding_crdt_authority_lock(
+        release_race_message.clone(),
+        release_entered.clone(),
+        release_admission.clone(),
+    );
+    let release_future = async {
+        release_entered.notified().await;
+        let mut release = Box::pin(release_lease(
+            &kpg.db,
+            &pool,
+            &release_race_lease.lease_id,
+            &actor,
+        ));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), &mut release)
+                .await
+                .is_err(),
+            "lease release must block while ModelLane admission owns the CRDT authority lock"
+        );
+        release_admission.notify_one();
+        release.await
+    };
+    let (admitted, released) = tokio::join!(admission_future, release_future);
+    let admitted = admitted.expect("admission wins release race");
+    assert_eq!(admitted.message_id, release_race_message.message_id);
+    released
+        .expect("release after admission")
+        .expect("race lease remains releasable after admission commits");
+
+    // A second covering workspace claim cannot appear as a phantom between
+    // the admission query and the durable MODEL_RESPONSE_RECORDED append.
+    let claim_race_lease = match claim_lease(
+        &kpg.db,
+        &pool,
+        LeaseClaimRequestV1 {
+            lane_id: "lane-local".into(),
+            actor: actor.clone(),
+            session_id: "session-lane-local".into(),
+            correlation_id: update.trace_id.clone(),
+            scope_kind: KnowledgeLeaseScopeKind::Document,
+            scope_id: crdt_document_id.clone(),
+            ttl_seconds: 3600,
+        },
+    )
+    .await
+    .expect("claim admission-vs-second-claim race lease")
+    {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("admission-vs-second-claim race lease must claim: {other:?}"),
+    };
+    let claim_entered = Arc::new(tokio::sync::Notify::new());
+    let claim_admission = Arc::new(tokio::sync::Notify::new());
+    let claim_race_message = authority_probe("second-claim-race");
+    let admission_future = store.test_record_message_holding_crdt_authority_lock(
+        claim_race_message.clone(),
+        claim_entered.clone(),
+        claim_admission.clone(),
+    );
+    let second_claim_future = async {
+        claim_entered.notified().await;
+        let mut second_claim = Box::pin(claim_lease(
+            &kpg.db,
+            &pool,
+            LeaseClaimRequestV1 {
+                lane_id: "lane-local".into(),
+                actor: actor.clone(),
+                session_id: "session-lane-local".into(),
+                correlation_id: update.trace_id.clone(),
+                scope_kind: KnowledgeLeaseScopeKind::Workspace,
+                scope_id: workspace_id.clone(),
+                ttl_seconds: 3600,
+            },
+        ));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), &mut second_claim)
+                .await
+                .is_err(),
+            "covering workspace claim must block while ModelLane admission owns the lock domain"
+        );
+        claim_admission.notify_one();
+        second_claim.await
+    };
+    let (admitted, second_claim) = tokio::join!(admission_future, second_claim_future);
+    let admitted = admitted.expect("admission wins second-covering-claim race");
+    assert_eq!(admitted.message_id, claim_race_message.message_id);
+    let workspace_race_lease = match second_claim.expect("second claim after admission") {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("workspace claim must complete after admission: {other:?}"),
+    };
+    for lease_id in [&claim_race_lease.lease_id, &workspace_race_lease.lease_id] {
+        release_lease(&kpg.db, &pool, lease_id, &actor)
+            .await
+            .expect("release second-claim race lease")
+            .expect("second-claim race lease exists");
+    }
+
+    // Natural expiry after the admission instant remains a valid immutable
+    // receipt. The production sweep must wait for admission to commit, and a
+    // later replay must revalidate the historical lease proof rather than
+    // requiring the lease to still be active.
+    let expiry_race_lease = match claim_lease(
+        &kpg.db,
+        &pool,
+        LeaseClaimRequestV1 {
+            lane_id: "lane-local".into(),
+            actor: actor.clone(),
+            session_id: "session-lane-local".into(),
+            correlation_id: update.trace_id.clone(),
+            scope_kind: KnowledgeLeaseScopeKind::Document,
+            scope_id: crdt_document_id.clone(),
+            ttl_seconds: 5,
+        },
+    )
+    .await
+    .expect("claim short-TTL admission-vs-sweep lease")
+    {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("short-TTL admission-vs-sweep lease must claim: {other:?}"),
+    };
+    let sweep_entered = Arc::new(tokio::sync::Notify::new());
+    let sweep_admission = Arc::new(tokio::sync::Notify::new());
+    let expiry_race_message = authority_probe("natural-expiry-sweep-race");
+    let admission_future = store.test_record_message_holding_crdt_authority_lock(
+        expiry_race_message.clone(),
+        sweep_entered.clone(),
+        sweep_admission.clone(),
+    );
+    let sweep_future = async {
+        sweep_entered.notified().await;
+        tokio::time::sleep(Duration::from_millis(5_200)).await;
+        let mut sweep = Box::pin(expire_due_leases(&kpg.db, &pool));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(100), &mut sweep)
+                .await
+                .is_err(),
+            "expiry sweep must block while ModelLane admission owns the CRDT authority lock"
+        );
+        sweep_admission.notify_one();
+        sweep.await
+    };
+    let (admitted, swept) = tokio::join!(admission_future, sweep_future);
+    let admitted = admitted.expect("admission remains valid across natural expiry");
+    assert_eq!(admitted.message_id, expiry_race_message.message_id);
+    let swept = swept.expect("sweep after admission");
+    assert!(
+        swept
+            .iter()
+            .any(|lease| lease.lease_id == expiry_race_lease.lease_id),
+        "production sweep must stamp the naturally expired admitted lease"
+    );
+    release_lease(&kpg.db, &pool, &expiry_race_lease.lease_id, &actor)
+        .await
+        .expect("release naturally expired lease")
+        .expect("naturally expired lease exists");
+    let replay_after_natural_expiry = store
+        .replay_run("run-mt005")
+        .await
+        .expect("historically admitted CRDT message replays after natural lease expiry");
+    assert!(replay_after_natural_expiry
+        .messages
+        .iter()
+        .any(|message| message.message_id == expiry_race_message.message_id));
+
+    let released_lease = match claim_lease(
+        &kpg.db,
+        &pool,
+        LeaseClaimRequestV1 {
+            lane_id: "lane-local".into(),
+            actor: actor.clone(),
+            session_id: "session-lane-local".into(),
+            correlation_id: update.trace_id.clone(),
+            scope_kind: KnowledgeLeaseScopeKind::Document,
+            scope_id: crdt_document_id.clone(),
+            ttl_seconds: 3600,
+        },
+    )
+    .await
+    .expect("claim released-lease denial probe")
+    {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("released-lease denial probe must claim: {other:?}"),
+    };
+    release_lease(&kpg.db, &pool, &released_lease.lease_id, &actor)
+        .await
+        .expect("release denial-probe lease")
+        .expect("released denial-probe lease exists");
+    let released_error = store
+        .record_message(authority_probe("released"))
+        .await
+        .expect_err("released CRDT lane lease must fail closed");
+    assert!(released_error.to_string().contains("exact and active"));
+
+    let expired_lease = match claim_lease(
+        &kpg.db,
+        &pool,
+        LeaseClaimRequestV1 {
+            lane_id: "lane-local".into(),
+            actor: actor.clone(),
+            session_id: "session-lane-local".into(),
+            correlation_id: update.trace_id.clone(),
+            scope_kind: KnowledgeLeaseScopeKind::Document,
+            scope_id: crdt_document_id.clone(),
+            ttl_seconds: 3600,
+        },
+    )
+    .await
+    .expect("claim expired-lease denial probe")
+    {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("expired-lease denial probe must claim: {other:?}"),
+    };
+    sqlx::query(
+        "UPDATE knowledge_crdt_agent_lane_leases SET expires_at_utc = claimed_at_utc + INTERVAL '1 microsecond' WHERE lease_id = $1",
+    )
+    .bind(&expired_lease.lease_id)
+    .execute(&pool)
+    .await
+    .expect("move denial-probe lease expiry behind the database clock");
+    let expired_error = store
+        .record_message(authority_probe("expired"))
+        .await
+        .expect_err("expired CRDT lane lease must fail closed");
+    assert!(expired_error.to_string().contains("exact and active"));
+    release_lease(&kpg.db, &pool, &expired_lease.lease_id, &actor)
+        .await
+        .expect("release expired denial-probe lease")
+        .expect("expired denial-probe lease exists");
+
+    let correlation_mismatch_lease = match claim_lease(
+        &kpg.db,
+        &pool,
+        LeaseClaimRequestV1 {
+            lane_id: "lane-local".into(),
+            actor: actor.clone(),
+            session_id: "session-lane-local".into(),
+            correlation_id: "trace-unrelated-crdt-update".into(),
+            scope_kind: KnowledgeLeaseScopeKind::Document,
+            scope_id: crdt_document_id.clone(),
+            ttl_seconds: 3600,
+        },
+    )
+    .await
+    .expect("claim correlation-mismatch denial probe")
+    {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("correlation-mismatch denial probe must claim: {other:?}"),
+    };
+    let correlation_error = store
+        .record_message(authority_probe("correlation-mismatch"))
+        .await
+        .expect_err("foreign-correlation CRDT lane lease must fail closed");
+    assert!(correlation_error.to_string().contains("exact and active"));
+    release_lease(&kpg.db, &pool, &correlation_mismatch_lease.lease_id, &actor)
+        .await
+        .expect("release correlation-mismatch denial-probe lease")
+        .expect("correlation-mismatch denial-probe lease exists");
+
+    let scope_mismatch_lease = match claim_lease(
+        &kpg.db,
+        &pool,
+        LeaseClaimRequestV1 {
+            lane_id: "lane-local".into(),
+            actor: actor.clone(),
+            session_id: "session-lane-local".into(),
+            correlation_id: update.trace_id.clone(),
+            scope_kind: KnowledgeLeaseScopeKind::IndexRun,
+            scope_id: format!("unrelated-index-run-{workspace_id}"),
+            ttl_seconds: 3600,
+        },
+    )
+    .await
+    .expect("claim scope-mismatch denial probe")
+    {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("scope-mismatch denial probe must claim: {other:?}"),
+    };
+    let scope_error = store
+        .record_message(authority_probe("scope-mismatch"))
+        .await
+        .expect_err("unrelated-scope CRDT lane lease must fail closed");
+    assert!(scope_error.to_string().contains("exact and active"));
+    release_lease(&kpg.db, &pool, &scope_mismatch_lease.lease_id, &actor)
+        .await
+        .expect("release scope-mismatch denial-probe lease")
+        .expect("scope-mismatch denial-probe lease exists");
+
+    let workspace_lease = match claim_lease(
+        &kpg.db,
+        &pool,
+        LeaseClaimRequestV1 {
+            lane_id: "lane-local".into(),
+            actor: actor.clone(),
+            session_id: "session-lane-local".into(),
+            correlation_id: update.trace_id.clone(),
+            scope_kind: KnowledgeLeaseScopeKind::Workspace,
+            scope_id: workspace_id.clone(),
+            ttl_seconds: 3600,
+        },
+    )
+    .await
+    .expect("claim ambiguous workspace lease")
+    {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("ambiguous workspace lease must claim: {other:?}"),
+    };
+    let document_lease = match claim_lease(
+        &kpg.db,
+        &pool,
+        LeaseClaimRequestV1 {
+            lane_id: "lane-local".into(),
+            actor: actor.clone(),
+            session_id: "session-lane-local".into(),
+            correlation_id: update.trace_id.clone(),
+            scope_kind: KnowledgeLeaseScopeKind::Document,
+            scope_id: crdt_document_id.clone(),
+            ttl_seconds: 3600,
+        },
+    )
+    .await
+    .expect("claim ambiguous document lease")
+    {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("ambiguous document lease must claim: {other:?}"),
+    };
+    let ambiguous_error = store
+        .record_message(authority_probe("ambiguous"))
+        .await
+        .expect_err("multiple covering CRDT lane leases must fail closed");
+    assert!(
+        ambiguous_error.to_string().contains("ambiguous active"),
+        "ambiguous lease denial must be explicit: {ambiguous_error}"
+    );
+    for lease_id in [&workspace_lease.lease_id, &document_lease.lease_id] {
+        release_lease(&kpg.db, &pool, lease_id, &actor)
+            .await
+            .expect("release ambiguous denial-probe lease")
+            .expect("ambiguous denial-probe lease exists");
+    }
+
+    let active_lease = match claim_lease(
+        &kpg.db,
+        &pool,
+        LeaseClaimRequestV1 {
+            lane_id: "lane-local".into(),
+            actor: actor.clone(),
+            session_id: "session-lane-local".into(),
+            correlation_id: update.trace_id.clone(),
+            scope_kind: KnowledgeLeaseScopeKind::Document,
+            scope_id: crdt_document_id.clone(),
+            ttl_seconds: 3600,
+        },
+    )
+    .await
+    .expect("claim MT-005 actor/lane binding lease")
+    {
+        LeaseClaimOutcomeV1::Claimed(lease) => lease,
+        other => panic!("MT-005 actor/lane binding lease must claim: {other:?}"),
+    };
+    let stored_source = store
+        .record_message(source.clone())
+        .await
+        .expect("persist lane-bound CRDT source message");
+    let authority_binding = stored_source
+        .crdt_authority_binding
+        .as_ref()
+        .expect("source message carries durable CRDT lane binding");
+    assert_eq!(authority_binding.run_id, "run-mt005");
+    assert_eq!(authority_binding.lane_id, "lane-local");
+    assert_eq!(authority_binding.lease_id, active_lease.lease_id);
+    assert_eq!(authority_binding.lease_correlation_id, update.trace_id);
+    assert_eq!(authority_binding.lease_scope_kind, "document");
+    assert_eq!(authority_binding.lease_scope_id, crdt_document_id);
+    assert_eq!(
+        authority_binding.lease_claimed_at_utc,
+        active_lease.claimed_at_utc
+    );
+    assert_eq!(
+        authority_binding.lease_expires_at_utc,
+        active_lease.expires_at_utc
+    );
+    assert!(authority_binding.lease_admitted_at_utc >= active_lease.claimed_at_utc);
+    assert!(authority_binding.lease_admitted_at_utc < active_lease.expires_at_utc);
+    assert_eq!(
+        authority_binding.materialized_projection_hash,
+        materialized_projection_hash
+    );
+    assert_eq!(
+        authority_binding.yjs_state_vector_b64,
+        base64::engine::general_purpose::STANDARD
+            .encode(canonical.transact().state_vector().encode_v1()),
+        "stored CRDT authority must equal the Yjs state vector derived from persisted bytes"
+    );
+    let event_ledger_binding: serde_json::Value = sqlx::query_scalar(
+        "SELECT payload->'crdt_authority_binding' FROM kernel_event_ledger WHERE event_id = $1",
+    )
+    .bind(&stored_source.event_ledger_event_id)
+    .fetch_one(&pool)
+    .await
+    .expect("read immutable CRDT lease authority from EventLedger");
+    assert_eq!(
+        event_ledger_binding,
+        serde_json::to_value(authority_binding).expect("serialize CRDT lease authority binding"),
+        "projection and EventLedger must persist the same full CRDT lease authority proof"
+    );
+    release_lease(&kpg.db, &pool, &active_lease.lease_id, &actor)
+        .await
+        .expect("release admitted MT-005 actor/lane binding lease")
+        .expect("admitted MT-005 actor/lane binding lease exists");
+    let replay_after_release = store
+        .replay_run("run-mt005")
+        .await
+        .expect("historical CRDT replay remains valid after its admitted lease is released");
+    assert_eq!(
+        replay_after_release
+            .messages
+            .iter()
+            .find(|message| message.message_id == SOURCE_MESSAGE_ID)
+            .and_then(|message| message.crdt_authority_binding.as_ref()),
+        Some(authority_binding)
     );
 
-    let mut wrong_update_ref = handoff;
-    wrong_update_ref.handoff_id = "handoff-crdt-wrong-update-ref".into();
-    wrong_update_ref.idempotency_key = "idem-handoff-crdt-wrong-update-ref".into();
-    wrong_update_ref.replay_order_key = "00000052/handoff-crdt-wrong-update-ref".into();
-    wrong_update_ref
+    let mut proposal_without_crdt_proposal = source.clone();
+    proposal_without_crdt_proposal.message_id = "msg-crdt-proposal-ref-required".into();
+    proposal_without_crdt_proposal.idempotency_key =
+        "idem-message-crdt-proposal-ref-required".into();
+    proposal_without_crdt_proposal.kind = ModelLaneMessageKind::Proposal;
+    let proposal_error = store
+        .record_message(proposal_without_crdt_proposal)
+        .await
+        .expect_err("Proposal messages carrying CRDT updates require persisted proposal authority");
+    assert!(
+        proposal_error.to_string().contains("crdt_proposal_ref"),
+        "missing CRDT proposal authority denial must be explicit: {proposal_error}"
+    );
+
+    let mut cross_lane = source.clone();
+    cross_lane.message_id = "msg-crdt-cross-lane-denied".into();
+    cross_lane.idempotency_key = "idem-message-crdt-cross-lane-denied".into();
+    cross_lane.from_lane_id = "lane-cloud".into();
+    cross_lane.parent_span_id = Some("span-lane-cloud".into());
+    cross_lane.locus_binding = Some(sample_locus(
+        "session-lane-cloud",
+        "model-session-lane-cloud",
+    ));
+    let cross_lane_error = store
+        .record_message(cross_lane)
+        .await
+        .expect_err("another lane cannot claim the local lane CRDT update");
+    assert!(cross_lane_error
+        .to_string()
+        .contains("cannot be attributed"));
+
+    let mut handoff = sample_handoff(
+        "handoff-crdt-replayable",
+        "idem-handoff-crdt-replayable",
+        SOURCE_MESSAGE_ID,
+        "lane-local",
+        ModelLaneHandoffSourceKind::Proposal,
+        source.payload_sha256.clone(),
+        ModelLaneHandoffSelectionState::Selected,
+    );
+    handoff.crdt_payload = Some(ModelLaneCrdtHandoffMetadata {
+        schema_id: "hsk.model_lane_crdt_payload@1".into(),
+        document_id: document_id.clone(),
+        workspace_id: workspace_id.clone(),
+        actor_id: actor.canonical(),
+        actor_kind: KnowledgeActorKind::LocalModel.as_str().into(),
+        lane_id: "lane-local".into(),
+        crdt_site_id: site.site_id.clone(),
+        update_seq: 2,
+        update_bytes_ref: update_record.update_bytes_ref.clone(),
+        update_sha256: update_record.update_sha256.clone(),
+        state_vector: update_record.state_vector_after.clone(),
+        base_snapshot_ref: snapshot.snapshot_bytes_ref.clone(),
+        materialized_projection_hash: materialized_projection_hash.clone(),
+        replay_metadata: json!({
+            "format": "yjs_update_v1",
+            "yjs_compatible": true,
+            "replay_order_key": update_record.replay_metadata.replay_order_key,
+            "dependency_update_ids": update_record.replay_metadata.dependency_update_ids,
+            "schema_version": update_record.replay_metadata.schema_version,
+        }),
+        promotion_gate_ref: format!("promotion-gate://model-lane-message/{SOURCE_MESSAGE_ID}"),
+        promotion_receipt_ref: None,
+        validation_runner_ref: format!("eventledger://{}", update_record.event_ledger_event_id),
+        authority_effect: "advisory_only".into(),
+    });
+    handoff.loom_refs = vec![sample_loom_ref()];
+    handoff.context_bundle_id =
+        model_lane_context_bundle_id_for_handoff(&handoff).expect("derive CRDT ContextBundle id");
+    let context_bundle_id = handoff.context_bundle_id.clone();
+    let mut forged_projection = handoff.clone();
+    forged_projection.handoff_id = "handoff-crdt-forged-projection".into();
+    forged_projection.idempotency_key = "idem-handoff-crdt-forged-projection".into();
+    forged_projection
         .crdt_payload
         .as_mut()
         .expect("CRDT payload")
-        .update_bytes_ref = "crdt-update://mt005/not-the-source".into();
-    let wrong_update_err = store
-        .record_context_bundle_handoff(wrong_update_ref)
+        .materialized_projection_hash = sample_sha256('f');
+    forged_projection.context_bundle_id =
+        model_lane_context_bundle_id_for_handoff(&forged_projection)
+            .expect("derive forged projection ContextBundle id");
+    let forged_projection_error = store
+        .record_context_bundle_handoff(forged_projection)
         .await
-        .expect_err("CRDT update ref must match source message replay ref");
+        .expect_err("fabricated materialized projection hash must fail closed");
+    assert!(forged_projection_error
+        .to_string()
+        .contains("materialized_projection_hash"));
+    for (suffix, field, forged_value) in [
+        ("order", "replay_order_key", json!("forged/replay/order")),
+        ("schema", "schema_version", json!("forged-crdt-schema-v9")),
+        (
+            "dependencies",
+            "dependency_update_ids",
+            json!(["forged-missing-dependency"]),
+        ),
+    ] {
+        let mut forged_replay = handoff.clone();
+        forged_replay.handoff_id = format!("handoff-crdt-forged-replay-{suffix}");
+        forged_replay.idempotency_key = format!("idem-handoff-crdt-forged-replay-{suffix}");
+        forged_replay
+            .crdt_payload
+            .as_mut()
+            .expect("CRDT payload")
+            .replay_metadata[field] = forged_value;
+        forged_replay.context_bundle_id = model_lane_context_bundle_id_for_handoff(&forged_replay)
+            .expect("derive forged replay ContextBundle id");
+        let forged_handoff_id = forged_replay.handoff_id.clone();
+        let forged_replay_error = store
+            .record_context_bundle_handoff(forged_replay)
+            .await
+            .expect_err("fabricated replay metadata must fail closed");
+        assert!(forged_replay_error
+            .to_string()
+            .contains(&format!("replay_metadata.{field}")));
+        let forged_replay_rows: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM model_lane_context_bundle_handoffs WHERE handoff_id = $1",
+        )
+        .bind(&forged_handoff_id)
+        .fetch_one(&pool)
+        .await
+        .expect("count rejected forged replay handoff rows");
+        assert_eq!(
+            forged_replay_rows, 0,
+            "forged replay authority must leave no durable handoff row"
+        );
+    }
+    store
+        .record_context_bundle_handoff(handoff)
+        .await
+        .expect("persist authoritative CRDT ContextBundle handoff");
+
+    let restarted = ModelLaneStore::new(pool.clone());
+    let replay = restarted
+        .replay_context_bundle_handoffs("run-mt005", &context_bundle_id)
+        .await
+        .expect("replay CRDT ContextBundle after store restart");
+    assert_eq!(replay.len(), 1);
+    assert_eq!(replay[0].loom_refs, vec![sample_loom_ref()]);
+    let replayed_crdt = replay[0]
+        .crdt_payload
+        .as_ref()
+        .expect("replayed CRDT payload");
+    assert_eq!(replayed_crdt.state_vector, update_record.state_vector_after);
+    assert_eq!(
+        replayed_crdt.materialized_projection_hash,
+        materialized_projection_hash
+    );
+    let consumed = restarted
+        .consume_context_bundle_for_downstream("run-mt005", &context_bundle_id, "lane-cloud")
+        .await
+        .expect("downstream consumes replayed CRDT ContextBundle");
+    assert_eq!(consumed.run_id, "run-mt005");
+    assert_eq!(consumed.context_bundle_id, context_bundle_id);
+    assert_eq!(consumed.downstream_lane_id, "lane-cloud");
+    assert_eq!(consumed.records.len(), 1);
+    assert_eq!(consumed.records.as_slice(), replay.as_slice());
+
+    let update_mutation = sqlx::query(
+        "UPDATE kernel_crdt_updates SET trace_id = trace_id || '-forged' WHERE update_id = $1",
+    )
+    .bind(UPDATE_ID)
+    .execute(&pool)
+    .await
+    .expect_err("persisted CRDT update authority must be immutable");
+    assert!(update_mutation
+        .to_string()
+        .contains("append-only CRDT authority"));
+    let snapshot_mutation = sqlx::query(
+        "UPDATE kernel_crdt_snapshots SET actor_kind = 'system' WHERE snapshot_id = $1",
+    )
+    .bind(&snapshot.snapshot_id)
+    .execute(&pool)
+    .await
+    .expect_err("persisted CRDT snapshot authority must be immutable");
+    assert!(snapshot_mutation
+        .to_string()
+        .contains("append-only CRDT authority"));
+
+    let stored_handoff = &replay[0];
+    sqlx::query(
+        r#"
+        UPDATE kernel_event_ledger
+        SET payload = jsonb_set(payload, '{record,context_bundle_hash}', '"forged-ledger-hash"')
+        WHERE event_id = $1
+        "#,
+    )
+    .bind(&stored_handoff.event_ledger_event_id)
+    .execute(&pool)
+    .await
+    .expect("tamper ContextBundle EventLedger payload for negative-path proof");
+    let ledger_tamper = restarted
+        .replay_context_bundle_handoffs("run-mt005", &context_bundle_id)
+        .await
+        .expect_err("tampered CONTEXT_BUNDLE_RECORDED payload must fail closed");
     assert!(
-        wrong_update_err.to_string().contains("update_bytes_ref"),
-        "CRDT update ref mismatch must be explicit: {wrong_update_err}"
+        ledger_tamper
+            .to_string()
+            .contains("CONTEXT_BUNDLE_RECORDED"),
+        "ledger tamper denial must identify ContextBundle EventLedger authority: {ledger_tamper}"
     );
 
-    let mut non_yjs = sample_handoff(
-        "handoff-crdt-non-yjs",
-        "idem-handoff-crdt-non-yjs",
+    sqlx::query(
+        "UPDATE model_lane_messages SET record_json = record_json - 'crdt_authority_binding' WHERE message_id = $1",
+    )
+    .bind(SOURCE_MESSAGE_ID)
+    .execute(&pool)
+    .await
+    .expect("remove legacy CRDT binding for fail-closed replay proof");
+    let missing_binding = restarted
+        .replay_run("run-mt005")
+        .await
+        .expect_err("legacy CRDT message without full binding must fail closed");
+    assert!(
+        missing_binding
+            .to_string()
+            .contains("no persisted lease authority binding"),
+        "missing binding denial must be explicit: {missing_binding}"
+    );
+}
+
+#[tokio::test]
+async fn model_lane_context_bundle_rejects_fabricated_crdt_authority_before_persistence() {
+    let (_pool, store) = model_lane_store().await;
+    seed_run_with_messages(&store).await;
+
+    let mut fabricated = sample_handoff(
+        "handoff-crdt-fabricated",
+        "idem-handoff-crdt-fabricated",
         "msg-proposal-001",
         "lane-local",
         ModelLaneHandoffSourceKind::Proposal,
         artifact_payload_hash("msg-proposal-001"),
         ModelLaneHandoffSelectionState::Selected,
     );
-    let mut non_yjs_payload = sample_crdt_payload();
-    non_yjs_payload.replay_metadata = json!({
-        "format": "opaque_patch",
-        "yjs_compatible": false
-    });
-    non_yjs.crdt_payload = Some(non_yjs_payload);
-    let non_yjs_err = store
-        .record_context_bundle_handoff(non_yjs)
+    fabricated.crdt_payload = Some(sample_crdt_payload());
+    fabricated.loom_refs = vec![sample_loom_ref()];
+    fabricated.memory_pack_refs = vec![sample_memory_pack(true)];
+    fabricated.context_bundle_id = model_lane_context_bundle_id_for_handoff(&fabricated)
+        .expect("derive fabricated ContextBundle id");
+    let bundle_id = fabricated.context_bundle_id.clone();
+
+    let fabricated_err = store
+        .record_context_bundle_handoff(fabricated)
         .await
-        .expect_err("non-Yjs CRDT replay metadata must fail closed");
+        .expect_err("syntax-shaped CRDT metadata must not satisfy PostgreSQL/Yjs authority");
     assert!(
-        non_yjs_err.to_string().contains("Yjs-compatible"),
-        "non-Yjs failure must be explicit: {non_yjs_err}"
+        fabricated_err
+            .to_string()
+            .contains("CRDT authority resolution failed"),
+        "fabricated CRDT authority failure must be explicit: {fabricated_err}"
+    );
+    assert!(
+        store
+            .replay_context_bundle_handoffs("run-mt005", &bundle_id)
+            .await
+            .expect("replay after rejected handoff")
+            .is_empty(),
+        "rejected fabricated CRDT handoff must leave no durable row"
     );
 }
 
@@ -976,7 +1775,6 @@ fn advisory_message(
     payload_sha256: String,
     summary: &str,
 ) -> NewModelLaneMessage {
-    let proposal_fields = kind == ModelLaneMessageKind::Proposal;
     NewModelLaneMessage {
         message_id: message_id.into(),
         run_id: "run-mt005".into(),
@@ -1018,11 +1816,11 @@ fn advisory_message(
         idempotency_key: idempotency_key.into(),
         replay_order_key: format!("00000010/{message_id}"),
         replay_after_event_ledger_seq: Some(1),
-        proposal_ref: proposal_fields.then_some(format!("proposal://mt005/{message_id}")),
-        crdt_update_ref: proposal_fields.then_some(format!("crdt-update://mt005/{message_id}")),
-        crdt_base_snapshot_ref: proposal_fields.then_some("crdt-snapshot://mt005/base-v1".into()),
-        crdt_state_vector: proposal_fields.then_some("sv:mt005:1".into()),
-        crdt_proposal_ref: proposal_fields.then_some(format!("crdt-proposal://mt005/{message_id}")),
+        proposal_ref: None,
+        crdt_update_ref: None,
+        crdt_base_snapshot_ref: None,
+        crdt_state_vector: None,
+        crdt_proposal_ref: None,
         crdt_stale_base_ref: None,
         failstate_code: None,
         reason_ref: None,
@@ -1088,6 +1886,64 @@ fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     format!("{:x}", hasher.finalize())
+}
+
+fn mt005_append_yjs_text_update(canonical: &Doc, client_id: u64, text: &str) -> Vec<u8> {
+    let canonical_state = canonical
+        .transact()
+        .encode_state_as_update_v1(&StateVector::default());
+    let author = Doc::with_client_id(client_id);
+    let author_text = author.get_or_insert_text("mt005-shared-document");
+    author
+        .transact_mut()
+        .apply_update(Update::decode_v1(&canonical_state).expect("decode canonical Yjs state"))
+        .expect("apply canonical Yjs state to author replica");
+    let before = author.transact().state_vector();
+    {
+        let mut transaction = author.transact_mut();
+        let offset = author_text.len(&transaction);
+        author_text.insert(&mut transaction, offset, text);
+    }
+    let update = author.transact().encode_diff_v1(&before);
+    canonical
+        .transact_mut()
+        .apply_update(Update::decode_v1(&update).expect("decode generated Yjs update"))
+        .expect("apply generated Yjs update to canonical replica");
+    update
+}
+
+#[allow(clippy::too_many_arguments)]
+fn mt005_yjs_envelope(
+    workspace_id: &str,
+    document_id: &str,
+    crdt_document_id: &str,
+    document_schema_id: &str,
+    update_id: &str,
+    actor: &KnowledgeActorIdV1,
+    session_id: &str,
+    update_bytes: &[u8],
+    before: &KnowledgeStateVectorV1,
+    site_id: &str,
+) -> YjsUpdateEnvelopeV1 {
+    let mut after = before.clone();
+    after.increment(site_id);
+    YjsUpdateEnvelopeV1 {
+        schema_id: YJS_UPDATE_ENVELOPE_SCHEMA_ID.into(),
+        workspace_id: workspace_id.into(),
+        document_id: document_id.into(),
+        crdt_document_id: crdt_document_id.into(),
+        update_id: update_id.into(),
+        actor_id: actor.canonical(),
+        site_id: site_id.into(),
+        session_id: session_id.into(),
+        trace_id: format!("trace-{update_id}"),
+        document_schema_id: document_schema_id.into(),
+        update_b64: base64::engine::general_purpose::STANDARD.encode(update_bytes),
+        update_sha256: sha256_hex(update_bytes),
+        state_vector_before: before.encode(),
+        state_vector_after: after.encode(),
+        encoding: YJS_UPDATE_ENCODING_V1.into(),
+    }
 }
 
 fn canonical_json_bytes(value: &serde_json::Value) -> Vec<u8> {
@@ -1217,6 +2073,9 @@ fn sample_crdt_payload() -> ModelLaneCrdtHandoffMetadata {
         replay_metadata: json!({
             "format": "yjs_update_v1",
             "yjs_compatible": true,
+            "replay_order_key": "workspace-mt005/doc-mt005/00000000000000000001",
+            "dependency_update_ids": [],
+            "schema_version": "kernel-crdt-update-v1",
             "flight_recorder": "eventledger://mt005/crdt/msg-proposal-001"
         }),
         promotion_gate_ref: "promotion-gate://mt005/preflight".into(),

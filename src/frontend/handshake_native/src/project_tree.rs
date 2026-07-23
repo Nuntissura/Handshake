@@ -70,6 +70,18 @@ pub const BOOKMARKS_NODE_ID: u64 = 91;
 /// Stable out-of-process author_id for the bookmarks-group container.
 pub const BOOKMARKS_AUTHOR_ID: &str = "project-tree.bookmarks";
 
+pub fn document_author_id(document_id: &str) -> String {
+    format!("project-tree.doc.{}", stable_part(document_id))
+}
+
+pub fn canvas_author_id(canvas_id: &str) -> String {
+    format!("project-tree.canvas.{}", stable_part(canvas_id))
+}
+
+pub fn bookmark_author_id(block_id: &str) -> String {
+    format!("project-tree.bookmark.{}", stable_part(block_id))
+}
+
 /// One project document, reduced to the two fields the tree needs (mirrors the React
 /// `DocumentSummary` shape mapped from `GET /workspaces/{id}/documents`).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -519,7 +531,7 @@ impl ProjectTree {
         }
         if self.documents_open {
             for doc in &self.documents {
-                let author_id = format!("project-tree.doc.{}", stable_part(&doc.id));
+                let author_id = document_author_id(&doc.id);
                 let width = *self
                     .width_cache
                     .entry(author_id.clone())
@@ -553,7 +565,7 @@ impl ProjectTree {
         }
         if self.canvases_open {
             for canvas in &self.canvases {
-                let author_id = format!("project-tree.canvas.{}", stable_part(&canvas.id));
+                let author_id = canvas_author_id(&canvas.id);
                 let width = *self
                     .width_cache
                     .entry(author_id.clone())
@@ -592,8 +604,7 @@ impl ProjectTree {
         }
         if self.bookmarks_open {
             for bookmark in &self.bookmarks {
-                let author_id =
-                    format!("project-tree.bookmark.{}", stable_part(&bookmark.block_id));
+                let author_id = bookmark_author_id(&bookmark.block_id);
                 let label_text = format!("{}  [{}]", bookmark.title, bookmark.kind);
                 let width = *self
                     .width_cache
@@ -695,6 +706,7 @@ impl ProjectTree {
         let mut changed = false;
         if resp.clicked() {
             *open = !*open;
+            crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author_id);
             changed = true;
         }
         changed

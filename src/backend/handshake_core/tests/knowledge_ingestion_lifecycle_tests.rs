@@ -8,7 +8,6 @@
 //! failure -> queued -> retry -> resolved and through dead-letter exhaustion.
 
 mod knowledge_ingestion_support;
-mod knowledge_pg_support;
 
 use std::path::Path;
 

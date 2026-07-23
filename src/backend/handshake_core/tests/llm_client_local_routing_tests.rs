@@ -19,9 +19,13 @@ use handshake_core::{
     },
     model_runtime::{
         BaseModelTag, CancellationToken, Embedding, FinishReason, GenPrompt, GenerateRequest,
-        GeneratedToken, KvCacheHandle, LoraStackHandle, ModelCapabilities, ModelId,
+        GeneratedToken, KvCacheHandle, LoraStackHandle, ModelCapabilities, ModelCatalog, ModelId,
         ModelRegistration, ModelRegistry, ModelRuntime, ModelRuntimeError, OperatorId,
         ProviderKind, RuntimeBinding, Score, SteeringHookHandle, TokenStream,
+    },
+    workflows::{
+        ModelSwapPriority, ModelSwapRequestV0_4, ModelSwapRequesterSubsystem,
+        ModelSwapRequesterV0_4, ModelSwapRole, ModelSwapStrategy,
     },
 };
 use tokio::{sync::Notify, time::Duration};
@@ -301,6 +305,123 @@ async fn wait_for_runtime_request(runtime: &RecordingRuntime) -> GenerateRequest
     panic!("timed out waiting for runtime request");
 }
 
+fn ready_model_swap_request(current: ModelId, target: ModelId) -> ModelSwapRequestV0_4 {
+    let mut metadata = std::collections::BTreeMap::new();
+    metadata.insert(
+        "actor".to_owned(),
+        serde_json::json!("native-model-runtime-panel"),
+    );
+    ModelSwapRequestV0_4 {
+        schema_version: "hsk.model_swap@0.4".to_owned(),
+        request_id: format!("swap{}", uuid::Uuid::now_v7().simple()),
+        current_model_id: current.to_string(),
+        target_model_id: target.to_string(),
+        role: ModelSwapRole::Orchestrator,
+        priority: ModelSwapPriority::Normal,
+        reason: "operator READY-model selection".to_owned(),
+        swap_strategy: ModelSwapStrategy::KeepHotSwap,
+        state_persist_refs: vec!["model-runtime-selection://state/current".to_owned()],
+        state_hash: "7".repeat(64),
+        context_compile_ref: "model-runtime-panel://selection/test".to_owned(),
+        max_vram_mb: 0,
+        max_ram_mb: 0,
+        timeout_ms: 10_000,
+        requester: ModelSwapRequesterV0_4 {
+            subsystem: ModelSwapRequesterSubsystem::Ui,
+            job_id: None,
+            wp_id: Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".to_owned()),
+            mt_id: Some("MT-014".to_owned()),
+        },
+        metadata: Some(metadata),
+    }
+}
+
+#[tokio::test]
+async fn ready_model_swap_is_serialized_audited_and_changes_default_routing() {
+    let current = ModelId::new_v7();
+    let target = ModelId::new_v7();
+    let not_ready = ModelId::new_v7();
+    let mut registry = ModelRegistry::default();
+    let mut current_registration = registration(current, RuntimeBinding::Candle);
+    current_registration.sha256 = [1; 32];
+    current_registration.base_model_tag = BaseModelTag::new("current-ready");
+    registry
+        .register(current_registration)
+        .expect("register current READY model");
+    let mut target_registration = registration(target, RuntimeBinding::Candle);
+    target_registration.sha256 = [2; 32];
+    target_registration.base_model_tag = BaseModelTag::new("target-ready");
+    registry
+        .register(target_registration)
+        .expect("register target READY model");
+    let mut dormant_registration = registration(not_ready, RuntimeBinding::Candle);
+    dormant_registration.sha256 = [3; 32];
+    dormant_registration.base_model_tag = BaseModelTag::new("not-ready");
+    registry
+        .register(dormant_registration)
+        .expect("register non-READY model");
+    registry.mark_loaded(current).expect("mark current loaded");
+    registry.mark_loaded(target).expect("mark target loaded");
+
+    let registry = Arc::new(registry);
+    let catalog = ModelCatalog::from_registry(registry.clone());
+    let runtime = Arc::new(RecordingRuntime::new("candle", &["target response"]));
+    let router = LocalRouter::new(
+        registry,
+        Arc::new(RecordingRuntime::new("llama", &["wrong"])),
+        runtime.clone(),
+    );
+    let recorder = Arc::new(CapturingRecorder::default());
+    let client = LocalModelRuntimeLlmClient::new(
+        router,
+        Arc::new(RecordingFallbackClient::new("fallback")),
+        recorder.clone(),
+        ModelProfile::new(current.to_string(), 8192).with_streaming(true),
+    )
+    .with_catalog(catalog);
+
+    client
+        .swap_model(ready_model_swap_request(current, target))
+        .await
+        .expect("switch between current READY models");
+    assert_eq!(client.selected_model_id(), target.to_string());
+    let response = client
+        .completion(CompletionRequest::new(
+            uuid::Uuid::now_v7(),
+            "use the active default".to_owned(),
+            client.selected_model_id(),
+        ))
+        .await
+        .expect("new default-routed call uses the selected target");
+    assert_eq!(response.text, "target response");
+    assert_eq!(runtime.last_request().id, target);
+    assert!(recorder.events().iter().any(|event| {
+        event.payload["fr_event"] == "FR-EVT-MODEL-SELECTION-RECORDED"
+            && event.payload["selected_model_id"] == target.to_string()
+            && event.payload["actor"] == "native-model-runtime-panel"
+    }));
+
+    let stale = client
+        .swap_model(ready_model_swap_request(current, target))
+        .await
+        .expect_err("stale concurrent selector state must fail closed");
+    assert!(
+        stale.to_string().contains("stale model swap"),
+        "got {stale}"
+    );
+    assert_eq!(client.selected_model_id(), target.to_string());
+
+    let not_ready_error = client
+        .swap_model(ready_model_swap_request(target, not_ready))
+        .await
+        .expect_err("a catalog row without READY state must not be selectable");
+    assert!(
+        not_ready_error.to_string().contains("not READY"),
+        "got {not_ready_error}"
+    );
+    assert_eq!(client.selected_model_id(), target.to_string());
+}
+
 #[tokio::test]
 async fn local_llamacpp_model_completion_routes_through_model_runtime_and_emits_fr_event() {
     let model_id = ModelId::new_v7();
@@ -542,6 +663,114 @@ async fn cancel_cancels_the_active_local_generate_request_token() {
         .expect("completion task joins")
         .expect("completion succeeds after release");
     assert_eq!(response.text, "partial");
+}
+
+#[tokio::test]
+async fn cancel_cancels_every_concurrent_request_for_the_same_local_model() {
+    let model_id = ModelId::new_v7();
+    let mut registry = ModelRegistry::default();
+    registry
+        .register(registration(model_id, RuntimeBinding::LlamaCpp))
+        .expect("register llama model");
+    let release = Arc::new(Notify::new());
+    let llama = Arc::new(RecordingRuntime::new_blocking(
+        "llama",
+        &["partial"],
+        release.clone(),
+    ));
+    let candle = Arc::new(RecordingRuntime::new("candle", &["candle"]));
+    let fallback = Arc::new(RecordingFallbackClient::new("fallback"));
+    let recorder = Arc::new(CapturingRecorder::default());
+    let client = Arc::new(client_for_registry(
+        registry,
+        llama.clone(),
+        candle,
+        fallback,
+        recorder,
+    ));
+
+    let mut tasks = Vec::new();
+    for trace in [uuid::Uuid::now_v7(), uuid::Uuid::now_v7()] {
+        let request = CompletionRequest::new(
+            trace,
+            "cancel all concurrent requests".to_string(),
+            model_id.to_string(),
+        );
+        let client = Arc::clone(&client);
+        tasks.push(tokio::spawn(
+            async move { client.completion(request).await },
+        ));
+    }
+
+    for _ in 0..100 {
+        if llama.request_count() == 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert_eq!(llama.request_count(), 2, "both requests must be active");
+
+    let caller_token = CancellationToken::new();
+    client.cancel(&model_id.to_string(), caller_token.clone());
+
+    assert!(caller_token.is_cancelled());
+    let requests = llama.requests.lock().expect("requests lock").clone();
+    assert!(
+        requests.iter().all(|request| request.cancel.is_cancelled()),
+        "same-model cancellation must not overwrite or miss a concurrent request token"
+    );
+    assert_eq!(
+        llama.cancel_count(),
+        3,
+        "two active tokens and the caller token must reach the runtime cancellation seam"
+    );
+
+    for task in tasks {
+        task.abort();
+        let _ = task.await;
+    }
+}
+
+#[tokio::test]
+async fn aborting_completion_future_cancels_its_detached_runtime_request_token() {
+    let model_id = ModelId::new_v7();
+    let mut registry = ModelRegistry::default();
+    registry
+        .register(registration(model_id, RuntimeBinding::LlamaCpp))
+        .expect("register llama model");
+    let llama = Arc::new(RecordingRuntime::new_blocking(
+        "llama",
+        &["partial"],
+        Arc::new(Notify::new()),
+    ));
+    let client = Arc::new(client_for_registry(
+        registry,
+        llama.clone(),
+        Arc::new(RecordingRuntime::new("candle", &["candle"])),
+        Arc::new(RecordingFallbackClient::new("fallback")),
+        Arc::new(CapturingRecorder::default()),
+    ));
+    let task = tokio::spawn({
+        let client = Arc::clone(&client);
+        async move {
+            client
+                .completion(CompletionRequest::new(
+                    uuid::Uuid::now_v7(),
+                    "caller disappears".to_string(),
+                    model_id.to_string(),
+                ))
+                .await
+        }
+    });
+
+    let routed_request = wait_for_runtime_request(&llama).await;
+    assert!(!routed_request.cancel.is_cancelled());
+    task.abort();
+    let _ = task.await;
+    assert!(
+        routed_request.cancel.is_cancelled(),
+        "dropping the caller future must cancel the token owned by the detached runtime worker"
+    );
 }
 
 // ===========================================================================

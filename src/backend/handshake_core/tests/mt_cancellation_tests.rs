@@ -266,7 +266,10 @@ fn mt_186_cooperative_drain_completes_within_one_second_timeout() {
         std::thread::sleep(Duration::from_millis(5));
     }
     flipper.join().expect("flipper join");
-    assert!(observed, "cooperative cancellation must be observed within 1s");
+    assert!(
+        observed,
+        "cooperative cancellation must be observed within 1s"
+    );
     assert_eq!(
         token.reason(),
         Some(MtCancellationReason::BudgetExceeded),
@@ -294,9 +297,12 @@ fn mt_186_forced_cancellation_bypasses_cooperative_drain() {
     // No cooperative request, no polling loop, no waiting period:
     // force() runs the hook chain immediately.
     let start = Instant::now();
-    let report = c.force(id, MtCancellationReason::OperatorRequested {
-        operator_id: "op-1".to_string(),
-    });
+    let report = c.force(
+        id,
+        MtCancellationReason::OperatorRequested {
+            operator_id: "op-1".to_string(),
+        },
+    );
     let elapsed = start.elapsed();
 
     assert!(
@@ -478,14 +484,14 @@ fn mt_186_cleanup_hook_error_does_not_abort_chain() {
     );
     // Reverse-order check: registration was [fail_a, fail_b, recorder,
     // fail_c]; expected force order is [fail_c, recorder, fail_b, fail_a].
-    let names: Vec<String> = report
-        .errors
-        .iter()
-        .map(|f| f.hook_name.clone())
-        .collect();
+    let names: Vec<String> = report.errors.iter().map(|f| f.hook_name.clone()).collect();
     assert_eq!(
         names,
-        vec!["fail_c".to_string(), "fail_b".to_string(), "fail_a".to_string()],
+        vec![
+            "fail_c".to_string(),
+            "fail_b".to_string(),
+            "fail_a".to_string()
+        ],
         "failure ordering reflects reverse-registration order"
     );
 }
@@ -684,7 +690,10 @@ use handshake_core::mt_executor::cancellation::{
     CancelledJobState, EscalationOutcome, ForceCancelError, ForcedCancelEvent,
     ForcedCancelEventSink, ForcedCancelReclaimer, MtCancellationConfig, ReclaimRecord,
 };
-use handshake_core::process_ledger::ProcessLedgerError;
+use handshake_core::process_ledger::{
+    KillOutcome, LedgerEventKind, ProcessEngineKind, ProcessLedgerError, ReclaimReport,
+    ReclaimTrigger, ReclaimedProcess,
+};
 
 /// In-process model of the ProcessOwnershipLedger. A session "owns" a set of
 /// live PIDs; reclaim kills them and records the kill. This is the real
@@ -736,12 +745,42 @@ struct FakeLedgerReclaimer {
     fail: bool,
 }
 
+struct ReportBackedReclaimer {
+    report: ReclaimReport,
+}
+
 #[async_trait::async_trait]
-impl ForcedCancelReclaimer for FakeLedgerReclaimer {
+impl ForcedCancelReclaimer for ReportBackedReclaimer {
     async fn reclaim_session(
         &self,
-        session_id: &str,
+        _session_id: &str,
     ) -> Result<ReclaimRecord, ProcessLedgerError> {
+        ReclaimRecord::try_from(self.report.clone())
+    }
+}
+
+fn reclaim_report_with_outcome(
+    session_id: &str,
+    kill_result: KillOutcome,
+    stop_event_kind: Option<LedgerEventKind>,
+) -> ReclaimReport {
+    ReclaimReport {
+        session_id: session_id.to_string(),
+        trigger: ReclaimTrigger::OperatorCancel,
+        processes_reclaimed: vec![ReclaimedProcess {
+            process_uuid: Uuid::now_v7(),
+            engine_kind: ProcessEngineKind::HelperSubprocess,
+            sandbox_adapter_id: Some("reclaim-proof-test".to_string()),
+            kill_result,
+            stop_event_kind,
+        }],
+        total_duration_ms: 1,
+    }
+}
+
+#[async_trait::async_trait]
+impl ForcedCancelReclaimer for FakeLedgerReclaimer {
+    async fn reclaim_session(&self, session_id: &str) -> Result<ReclaimRecord, ProcessLedgerError> {
         if self.fail {
             return Err(ProcessLedgerError::Store(
                 "simulated reclaim store failure".to_string(),
@@ -813,7 +852,11 @@ async fn mt_186_forced_cancel_always_reclaims_without_user_hook() {
     ledger.spawn(session, 1003);
 
     let sink = Arc::new(CapturingEventSink::default());
-    let c = reclaim_canceller(Arc::clone(&ledger), Arc::clone(&sink), Duration::from_secs(30));
+    let c = reclaim_canceller(
+        Arc::clone(&ledger),
+        Arc::clone(&sink),
+        Duration::from_secs(30),
+    );
 
     let id = MicroTaskJobId::new_v7();
     c.register_with_session(id, session);
@@ -858,7 +901,11 @@ async fn mt_186_forced_cancel_runs_builtin_reclaim_and_user_hooks() {
     let ledger = Arc::new(FakeProcessLedger::default());
     ledger.spawn(session, 2001);
     let sink = Arc::new(CapturingEventSink::default());
-    let c = reclaim_canceller(Arc::clone(&ledger), Arc::clone(&sink), Duration::from_secs(30));
+    let c = reclaim_canceller(
+        Arc::clone(&ledger),
+        Arc::clone(&sink),
+        Duration::from_secs(30),
+    );
 
     let id = MicroTaskJobId::new_v7();
     c.register_with_session(id, session);
@@ -923,6 +970,87 @@ async fn mt_186_forced_cancel_fails_loud_when_reclaim_errors() {
     }
 }
 
+#[test]
+fn mt_186_reclaim_record_counts_only_killed_processes_with_durable_stop() {
+    let report = reclaim_report_with_outcome(
+        "sess-proven-reclaim",
+        KillOutcome::Killed,
+        Some(LedgerEventKind::Stop),
+    );
+    let expected_process_uuid = report.processes_reclaimed[0].process_uuid;
+
+    let record = ReclaimRecord::try_from(report).expect("durable kill plus STOP is proven reclaim");
+
+    assert_eq!(record.processes_reclaimed, 1);
+    assert_eq!(record.reclaimed_process_uuids, vec![expected_process_uuid]);
+}
+
+#[tokio::test]
+async fn mt_186_forced_cancel_rejects_failed_pending_and_missing_stop_reclaim_outcomes() {
+    let cases = [
+        (
+            "failed",
+            KillOutcome::Failed {
+                error: "simulated kill failure".to_string(),
+            },
+            None,
+            "failed to kill",
+        ),
+        (
+            "pending-stop",
+            KillOutcome::KilledPendingStop {
+                error: "simulated STOP timeout".to_string(),
+            },
+            None,
+            "durable STOP is pending",
+        ),
+        (
+            "missing-stop",
+            KillOutcome::Killed,
+            None,
+            "without a durable STOP",
+        ),
+    ];
+
+    for (case, kill_result, stop_event_kind, expected_message) in cases {
+        let session_id = format!("sess-unproven-reclaim-{case}");
+        let sink = Arc::new(CapturingEventSink::default());
+        let event_sink: Arc<dyn ForcedCancelEventSink> = sink.clone();
+        let canceller = MtCanceller::with_reclaim(
+            Arc::new(ReportBackedReclaimer {
+                report: reclaim_report_with_outcome(&session_id, kill_result, stop_event_kind),
+            }),
+            event_sink,
+            MtCancellationConfig::default(),
+        );
+        let job_id = MicroTaskJobId::new_v7();
+        canceller.register_with_session(job_id, session_id);
+
+        let error = canceller
+            .force_cancel(job_id, MtCancellationReason::SessionShutdown, None)
+            .await
+            .expect_err("unproven reclaim must prevent forced-cancel success");
+
+        match error {
+            ForceCancelError::ReclaimFailed {
+                job_id: failed_job_id,
+                message,
+            } => {
+                assert_eq!(failed_job_id, job_id);
+                assert!(
+                    message.contains(expected_message),
+                    "{case} error must explain missing reclaim proof: {message}"
+                );
+            }
+            other => panic!("{case} expected ReclaimFailed, got {other:?}"),
+        }
+        assert!(
+            sink.events.lock().unwrap().is_empty(),
+            "{case} must not emit a forced-cancel success event"
+        );
+    }
+}
+
 // (b) The force_after escalation fires BUILT-IN: a session that ignores the
 // cooperative token is force-killed + reclaimed after the (short) timeout
 // WITHOUT the caller driving the escalation.
@@ -947,12 +1075,9 @@ async fn mt_186_escalation_timer_fires_builtin_for_hung_executor() {
     // `drained` always returns false: the executor is hung and never honours
     // the cooperative token. The canceller drives the timer itself.
     let outcome = c
-        .request_with_force_after(
-            id,
-            MtCancellationReason::EscalationToHardGate,
-            None,
-            || false,
-        )
+        .request_with_force_after(id, MtCancellationReason::EscalationToHardGate, None, || {
+            false
+        })
         .await
         .expect("escalation path must succeed (reclaimer wired)");
     let elapsed = start.elapsed();
@@ -968,7 +1093,10 @@ async fn mt_186_escalation_timer_fires_builtin_for_hung_executor() {
                 "hung executor's processes were force-reclaimed"
             );
             assert_eq!(forced.reclaim.processes_reclaimed, 2);
-            assert!(forced.cancelled_state.force_used, "force_used recorded true");
+            assert!(
+                forced.cancelled_state.force_used,
+                "force_used recorded true"
+            );
         }
         EscalationOutcome::Cooperative { .. } => {
             panic!("hung executor must escalate to forced, not cooperative")
@@ -1008,12 +1136,9 @@ async fn mt_186_escalation_timer_no_force_when_cooperative_drains() {
     });
 
     let outcome = c
-        .request_with_force_after(
-            id,
-            MtCancellationReason::SessionShutdown,
-            None,
-            || drained_flag.load(Ordering::SeqCst),
-        )
+        .request_with_force_after(id, MtCancellationReason::SessionShutdown, None, || {
+            drained_flag.load(Ordering::SeqCst)
+        })
         .await
         .expect("cooperative path returns Ok");
 
@@ -1028,7 +1153,11 @@ async fn mt_186_escalation_timer_no_force_when_cooperative_drains() {
         1,
         "cooperative drain must not trigger forced reclaim"
     );
-    assert_eq!(sink.events.lock().unwrap().len(), 0, "no forced-cancel event");
+    assert_eq!(
+        sink.events.lock().unwrap().len(),
+        0,
+        "no forced-cancel event"
+    );
 }
 
 // (c) force_used=true + FR-EVT-MT-CANCEL-FORCED are recorded.
@@ -1038,7 +1167,11 @@ async fn mt_186_force_used_and_forced_cancel_event_recorded() {
     let ledger = Arc::new(FakeProcessLedger::default());
     ledger.spawn(session, 6001);
     let sink = Arc::new(CapturingEventSink::default());
-    let c = reclaim_canceller(Arc::clone(&ledger), Arc::clone(&sink), Duration::from_secs(30));
+    let c = reclaim_canceller(
+        Arc::clone(&ledger),
+        Arc::clone(&sink),
+        Duration::from_secs(30),
+    );
 
     let id = MicroTaskJobId::new_v7();
     c.register_with_session(id, session);
@@ -1086,7 +1219,11 @@ async fn mt_186_force_cancel_session_override_used_for_reclaim() {
     let ledger = Arc::new(FakeProcessLedger::default());
     ledger.spawn(session, 7001);
     let sink = Arc::new(CapturingEventSink::default());
-    let c = reclaim_canceller(Arc::clone(&ledger), Arc::clone(&sink), Duration::from_secs(30));
+    let c = reclaim_canceller(
+        Arc::clone(&ledger),
+        Arc::clone(&sink),
+        Duration::from_secs(30),
+    );
 
     let id = MicroTaskJobId::new_v7();
     // NOTE: register WITHOUT a session.

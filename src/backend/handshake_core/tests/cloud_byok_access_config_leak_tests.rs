@@ -8,10 +8,10 @@
 //!
 //! * the cloud-invocation audit rows (the `cloud_invocations` surface — the
 //!   `CloudInvocationAuditSink`);
-//! * captured `tracing` output (which is also where any Flight-Recorder /
-//!   EventLedger event that leaked the key would surface, since no PG
-//!   `cloud_invocations` table or cloud EventLedger sink exists yet — the
-//!   audit sink IS that surface);
+//! * captured application `tracing` output. This test does not claim
+//!   Flight-Recorder/EventLedger coverage because no real FR/EventLedger sink is
+//!   attached here; the explicit cloud invocation audit sink is asserted
+//!   separately;
 //! * every `Debug` of the runtime, the access service, the vault provider,
 //!   and the non-secret enumeration JSON;
 //! * the HTTP request body (the key may appear ONLY as the `Authorization:
@@ -23,13 +23,11 @@
 //! * saving a key creates NO consent approval — a fresh `ConsentGate` still
 //!   fails closed on first prompt (MT-006 boundary intact).
 //!
-//! Gated to `os-keychain` + Windows because the round-trip proof talks to the
-//! real Windows Credential Manager (matching `cloud_os_keychain_vault_tests`).
-//! A UNIQUE service namespace + explicit delete keep the host keychain clean;
-//! the key is deleted BEFORE assertions run so a failing assertion never
+//! The full-path leak scenario runs cross-platform against the production
+//! in-memory vault boundary. A second Windows-only proof keeps the real
+//! Credential Manager round-trip. That proof uses a UNIQUE service namespace
+//! and deletes the key BEFORE assertions run so a failing assertion never
 //! leaves a credential behind.
-
-#![cfg(all(feature = "os-keychain", target_os = "windows"))]
 
 use std::io::Write;
 use std::sync::{Arc, Mutex, Once, OnceLock};
@@ -39,9 +37,11 @@ use futures::StreamExt;
 use handshake_core::model_runtime::cloud::{
     ApiKeyProvider, ByokProvider, CloudInvocationAuditRow, CloudInvocationAuditSink,
     CloudModelAccess, ConsentDecision, ConsentGate, ConsentGateError, ConsentProvider,
-    OpenAiByokError, OpenAiByokRuntime, OsKeychainSecretsVault, SecretsVault, VaultApiKeyProvider,
-    OPENAI_CHAT_COMPLETIONS_PATH,
+    InMemorySecretsVault, OpenAiByokError, OpenAiByokRuntime, SecretsVault,
+    VaultApiKeyProvider, OPENAI_CHAT_COMPLETIONS_PATH,
 };
+#[cfg(all(feature = "os-keychain", target_os = "windows"))]
+use handshake_core::model_runtime::cloud::OsKeychainSecretsVault;
 use handshake_core::model_runtime::{
     CancellationToken, GenPrompt, GenerateRequest, ModelId, SamplingParams,
 };
@@ -51,6 +51,7 @@ use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
 /// The canary. If this string appears anywhere it should not, the test fails.
 const CANARY_KEY: &str = "sk-CANARY-mt015-NEVER-LEAK-THIS-KEY-0xDEADBEEF";
+const TRACE_CAPTURE_MARKER: &str = "mt017-byok-tracing-capture-installed";
 
 // ---------------------------------------------------------------------------
 // Capturing sinks: audit rows, request inspector, and a global tracing buffer.
@@ -81,8 +82,7 @@ impl RequestInspector {
 }
 
 /// Shared byte buffer usable as a `tracing_subscriber` writer so we can assert
-/// the canary never reaches any tracing sink (Flight Recorder / EventLedger /
-/// audit logging all ultimately surface here in the current wiring).
+/// the canary never reaches ordinary application tracing.
 #[derive(Clone, Default)]
 struct SharedBuf(Arc<Mutex<Vec<u8>>>);
 impl Write for SharedBuf {
@@ -109,13 +109,245 @@ fn capture_tracing() -> SharedBuf {
     static INIT: Once = Once::new();
     let buf = BUF.get_or_init(SharedBuf::default).clone();
     INIT.call_once(|| {
-        let _ = tracing_subscriber::fmt()
+        tracing_subscriber::fmt()
             .with_writer(buf.clone())
             .with_max_level(tracing::Level::TRACE)
             .with_ansi(false)
-            .try_init();
+            .try_init()
+            .expect("install dedicated MT-017 tracing capture subscriber");
     });
+    tracing::info!(
+        target: "handshake_core::tests::mt017_byok",
+        marker = TRACE_CAPTURE_MARKER,
+        "MT-017 public tracing capture marker"
+    );
     buf
+}
+
+/// Armed immediately after a test key is stored. A panic/error anywhere after
+/// storage still deletes the key, while `cleanup_now` performs and proves the
+/// same idempotent double-delete before assertions inspect post-removal state.
+struct StoredVaultKeyCleanup<V: SecretsVault> {
+    vault: Arc<V>,
+    lane: String,
+    armed: bool,
+}
+
+impl<V: SecretsVault> StoredVaultKeyCleanup<V> {
+    fn new(vault: Arc<V>, lane: impl Into<String>) -> Self {
+        Self {
+            vault,
+            lane: lane.into(),
+            armed: true,
+        }
+    }
+
+    fn cleanup_now(&mut self) {
+        self.vault
+            .delete(&self.lane)
+            .expect("delete stored BYOK key during cleanup");
+        match self.vault.delete(&self.lane) {
+            Ok(())
+            | Err(
+                handshake_core::model_runtime::cloud::SecretsVaultError::NoSecretForLane(_),
+            ) => {}
+            Err(err) => panic!("BYOK idempotent cleanup retry failed: {err}"),
+        }
+        match self.vault.get(&self.lane) {
+            Err(handshake_core::model_runtime::cloud::SecretsVaultError::NoSecretForLane(_)) => {
+                self.armed = false;
+            }
+            Ok(_) => panic!("BYOK cleanup must verify the key is absent before disarming"),
+            Err(err) => panic!("BYOK cleanup absence verification failed: {err}"),
+        }
+    }
+}
+
+impl<V: SecretsVault> Drop for StoredVaultKeyCleanup<V> {
+    fn drop(&mut self) {
+        if self.armed {
+            let _ = self.vault.delete(&self.lane);
+            let _ = self.vault.delete(&self.lane);
+            match self.vault.get(&self.lane) {
+                Err(
+                    handshake_core::model_runtime::cloud::SecretsVaultError::NoSecretForLane(_),
+                ) => {}
+                Ok(_) => tracing::error!(
+                    target: "handshake_core::tests::mt017_byok_cleanup",
+                    credential_id = %self.lane,
+                    recovery_action = "retry SecretsVault::delete for credential_id",
+                    "BYOK cleanup retry exhausted; credential remains present"
+                ),
+                Err(_) => tracing::error!(
+                    target: "handshake_core::tests::mt017_byok_cleanup",
+                    credential_id = %self.lane,
+                    recovery_action = "probe credential_id then retry SecretsVault::delete",
+                    "BYOK cleanup retry outcome is unverified"
+                ),
+            }
+        }
+    }
+}
+
+struct FailFirstDeleteVault {
+    inner: InMemorySecretsVault,
+    delete_attempts: std::sync::atomic::AtomicUsize,
+    fail_first: bool,
+    fail_all: bool,
+}
+
+impl Default for FailFirstDeleteVault {
+    fn default() -> Self {
+        Self {
+            inner: InMemorySecretsVault::default(),
+            delete_attempts: std::sync::atomic::AtomicUsize::new(0),
+            fail_first: true,
+            fail_all: false,
+        }
+    }
+}
+
+impl SecretsVault for FailFirstDeleteVault {
+    fn put(
+        &self,
+        lane: &str,
+        secret: &str,
+    ) -> Result<(), handshake_core::model_runtime::cloud::SecretsVaultError> {
+        self.inner.put(lane, secret)
+    }
+
+    fn get(
+        &self,
+        lane: &str,
+    ) -> Result<zeroize::Zeroizing<String>, handshake_core::model_runtime::cloud::SecretsVaultError>
+    {
+        self.inner.get(lane)
+    }
+
+    fn delete(
+        &self,
+        lane: &str,
+    ) -> Result<(), handshake_core::model_runtime::cloud::SecretsVaultError> {
+        let attempt = self
+            .delete_attempts
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        if self.fail_all {
+            return Err(handshake_core::model_runtime::cloud::SecretsVaultError::KeychainBackend(
+                "injected persistent delete failure".to_string(),
+            ));
+        }
+        if self.fail_first && attempt == 0 {
+            return Err(handshake_core::model_runtime::cloud::SecretsVaultError::KeychainBackend(
+                "injected first delete failure".to_string(),
+            ));
+        }
+        let repeated_after_success = if self.fail_first {
+            attempt > 1
+        } else {
+            attempt > 0
+        };
+        if repeated_after_success {
+            return Err(
+                handshake_core::model_runtime::cloud::SecretsVaultError::NoSecretForLane(
+                    lane.to_string(),
+                ),
+            );
+        }
+        self.inner.delete(lane)
+    }
+
+    fn list_lanes(
+        &self,
+    ) -> Result<Vec<String>, handshake_core::model_runtime::cloud::SecretsVaultError> {
+        self.inner.list_lanes()
+    }
+}
+
+#[test]
+fn cleanup_guard_accepts_second_delete_not_found_only_after_absence_verification() {
+    const LANE: &str = "openai-delete-then-not-found";
+    let vault = Arc::new(FailFirstDeleteVault {
+        inner: InMemorySecretsVault::default(),
+        delete_attempts: std::sync::atomic::AtomicUsize::new(0),
+        fail_first: false,
+        fail_all: false,
+    });
+    vault.put(LANE, CANARY_KEY).expect("store cleanup proof key");
+
+    {
+        let mut cleanup = StoredVaultKeyCleanup::new(vault.clone(), LANE);
+        cleanup.cleanup_now();
+    }
+
+    assert!(matches!(
+        vault.get(LANE),
+        Err(handshake_core::model_runtime::cloud::SecretsVaultError::NoSecretForLane(_))
+    ));
+    assert_eq!(
+        vault
+            .delete_attempts
+            .load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "verified absence disarms the guard instead of triggering Drop retries"
+    );
+}
+
+#[test]
+fn cleanup_guard_persistent_failure_is_observable_and_recoverable_without_secret_echo() {
+    const LANE: &str = "openai-persistent-cleanup-failure";
+    let trace_buffer = capture_tracing();
+    let vault = Arc::new(FailFirstDeleteVault {
+        inner: InMemorySecretsVault::default(),
+        delete_attempts: std::sync::atomic::AtomicUsize::new(0),
+        fail_first: false,
+        fail_all: true,
+    });
+    vault.put(LANE, CANARY_KEY).expect("store cleanup proof key");
+
+    {
+        let _cleanup = StoredVaultKeyCleanup::new(vault.clone(), LANE);
+    }
+
+    assert_eq!(
+        vault
+            .delete_attempts
+            .load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "Drop performs two bounded cleanup retries"
+    );
+    assert_eq!(vault.get(LANE).expect("injected delete failure retains key").as_str(), CANARY_KEY);
+    let tracing = String::from_utf8_lossy(&trace_buffer.0.lock().unwrap()).into_owned();
+    assert!(tracing.contains(LANE), "cleanup log must identify the non-secret credential id");
+    assert!(tracing.contains("retry SecretsVault::delete"), "cleanup log must provide recovery action");
+    assert!(!tracing.contains(CANARY_KEY), "cleanup observability must not echo credential material");
+}
+
+#[test]
+fn cleanup_guard_retries_in_drop_after_first_delete_panics() {
+    const LANE: &str = "openai-fail-first-cleanup";
+    let vault = Arc::new(FailFirstDeleteVault::default());
+    vault.put(LANE, CANARY_KEY).expect("store cleanup proof key");
+
+    let unwind = std::panic::catch_unwind(std::panic::AssertUnwindSafe({
+        let vault = vault.clone();
+        move || {
+            let mut cleanup = StoredVaultKeyCleanup::new(vault, LANE);
+            cleanup.cleanup_now();
+        }
+    }));
+
+    assert!(unwind.is_err(), "injected first deletion must unwind");
+    assert!(matches!(
+        vault.get(LANE),
+        Err(handshake_core::model_runtime::cloud::SecretsVaultError::NoSecretForLane(_))
+    ));
+    assert_eq!(
+        vault
+            .delete_attempts
+            .load(std::sync::atomic::Ordering::SeqCst),
+        3,
+        "one failed cleanup attempt plus two idempotent Drop attempts"
+    );
 }
 
 struct AlwaysDeny;
@@ -170,10 +402,18 @@ fn generate_request(model_id: ModelId) -> GenerateRequest {
 // ---------------------------------------------------------------------------
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain() {
-    let trace_buf = capture_tracing();
+async fn byok_canary_key_never_leaks_cross_platform_in_memory_vault() {
+    assert_byok_canary_never_leaks(
+        Arc::new(InMemorySecretsVault::default()),
+        "InMemorySecretsVault",
+    )
+    .await;
+}
 
-    // (1) The PRODUCTION wiring must be the OS keychain, never in-memory.
+#[cfg(all(feature = "os-keychain", target_os = "windows"))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain() {
+    // The PRODUCTION wiring must be the OS keychain, never in-memory.
     let production = CloudModelAccess::production().expect("os-keychain production service");
     assert_eq!(
         production.vault_kind(),
@@ -185,13 +425,25 @@ async fn byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain() 
     // never touches the operator's default Handshake keychain entries.
     let namespace = format!("handshake-mt015-leak-test-{}", ModelId::new_v7());
     let keychain = Arc::new(OsKeychainSecretsVault::new(namespace.clone()));
-    let service = CloudModelAccess::with_vault(keychain.clone(), "OsKeychainSecretsVault");
+    assert_byok_canary_never_leaks(keychain, "OsKeychainSecretsVault").await;
+}
+
+async fn assert_byok_canary_never_leaks<V>(keychain: Arc<V>, vault_kind: &'static str)
+where
+    V: SecretsVault + 'static,
+{
+    let trace_buf = capture_tracing();
+    let service = CloudModelAccess::with_vault(keychain.clone(), vault_kind);
 
     // (2) Store the canary via the REAL settings path. The key is a SecretString
     // at the trust boundaries; only a transient String exists on the transport.
     service
         .store_byok_key(ByokProvider::OpenAi, &SecretString::from(CANARY_KEY.to_string()))
         .expect("store canary in OS keychain");
+    let mut key_cleanup = StoredVaultKeyCleanup::new(
+        keychain.clone(),
+        ByokProvider::OpenAi.vault_lane(),
+    );
 
     // (3) The key round-trips OUT of the vault for use.
     let round_tripped = service
@@ -257,11 +509,7 @@ async fn byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain() 
     let trace_output = String::from_utf8_lossy(&trace_buf.0.lock().unwrap()).into_owned();
 
     // ---- CLEAN UP THE KEYCHAIN FIRST (so a failing assertion leaves nothing).
-    service
-        .remove_byok_key(ByokProvider::OpenAi)
-        .expect("remove canary from keychain");
-    // Idempotent second delete tolerated.
-    let _ = keychain.delete(ByokProvider::OpenAi.vault_lane());
+    key_cleanup.cleanup_now();
 
     // ---- ASSERTIONS -------------------------------------------------------
 
@@ -293,11 +541,14 @@ async fn byok_canary_key_never_leaks_and_round_trips_only_through_os_keychain() 
     }
     assert!(!audit_rows.is_empty(), "the call must have produced audit rows");
 
-    // The canary is absent from captured tracing (FR/EventLedger/audit logging
-    // all surface here in the current wiring).
+    assert!(
+        trace_output.contains(TRACE_CAPTURE_MARKER),
+        "the dedicated tracing capture must contain its public installation marker"
+    );
+    // The canary is absent from captured ordinary application tracing.
     assert!(
         !trace_output.contains(CANARY_KEY),
-        "the key leaked into tracing/Flight-Recorder/EventLedger output"
+        "the key leaked into application tracing output"
     );
 
     // The canary is absent from every Debug / enumeration surface.

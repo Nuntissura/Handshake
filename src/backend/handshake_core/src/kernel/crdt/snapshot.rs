@@ -1,16 +1,18 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
 use super::identity::CrdtWorkspaceIdentityV1;
 use super::persistence::{
-    CrdtReplayStepV1, CrdtStorageAuthorityPosture, CrdtUpdateRecordV1,
-    CrdtUpdateRecordValidationError, sha256_hex, validate_crdt_update_record,
+    sha256_hex, validate_crdt_update_record, CrdtReplayMetadataV1, CrdtReplayStepV1,
+    CrdtStorageAuthorityPosture, CrdtUpdateRecordV1, CrdtUpdateRecordValidationError,
 };
 
 pub const CRDT_SNAPSHOT_RECORD_SCHEMA_ID: &str = "hsk.kernel.crdt_snapshot_record@1";
 pub const CRDT_BOUNDED_REPLAY_PLAN_SCHEMA_ID: &str = "hsk.kernel.crdt_bounded_replay_plan@1";
 pub const CRDT_COMPACTION_PLAN_SCHEMA_ID: &str = "hsk.kernel.crdt_compaction_plan@1";
+pub const CRDT_APPLIED_COMPACTION_SCHEMA_ID: &str = "hsk.kernel.crdt_applied_compaction@1";
+pub const CRDT_COMPACTED_UPDATE_AUDIT_SCHEMA_ID: &str = "hsk.kernel.crdt_compacted_update_audit@1";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CrdtSnapshotRecordV1 {
@@ -97,6 +99,42 @@ pub struct CrdtCompactionPlanV1 {
     pub decisions: Vec<CrdtCompactionDecisionV1>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CrdtCompactedUpdateAuditV1 {
+    pub schema_id: String,
+    pub workspace_id: String,
+    pub document_id: String,
+    pub crdt_document_id: String,
+    pub update_id: String,
+    pub update_seq: u64,
+    pub update_sha256: String,
+    pub update_bytes_ref: String,
+    pub state_vector_before: String,
+    pub state_vector_after: String,
+    pub replay_metadata: CrdtReplayMetadataV1,
+    pub actor_id: String,
+    pub actor_kind: String,
+    pub session_id: String,
+    pub trace_id: String,
+    pub event_ledger_stream_id: String,
+    pub event_ledger_event_id: String,
+    pub audit_ref: String,
+    pub storage_authority: CrdtStorageAuthorityPosture,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CrdtAppliedCompactionV1 {
+    pub schema_id: String,
+    pub snapshot_id: String,
+    pub snapshot_sha256: String,
+    pub snapshot_state_vector: String,
+    pub policy_id: String,
+    pub compact_through_update_seq: u64,
+    pub retained_updates: Vec<CrdtUpdateRecordV1>,
+    pub compacted_update_audits: Vec<CrdtCompactedUpdateAuditV1>,
+    pub final_state_vector: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrdtSnapshotRecordValidationError {
     pub field: &'static str,
@@ -131,6 +169,16 @@ pub enum CrdtSnapshotReplayError {
         update_id: String,
     },
     CompactionWithoutAudit {
+        update_id: String,
+    },
+    InvalidCompactionPlan {
+        field: &'static str,
+        message: String,
+    },
+    MissingCompactionDecision {
+        update_id: String,
+    },
+    DuplicateCompactionDecision {
         update_id: String,
     },
 }
@@ -337,6 +385,141 @@ pub fn plan_crdt_compaction(
         policy_id: policy.policy_id.clone(),
         compact_through_update_seq: policy.compact_through_update_seq,
         decisions,
+    })
+}
+
+pub fn apply_crdt_compaction(
+    snapshot: &CrdtSnapshotRecordV1,
+    updates: &[CrdtUpdateRecordV1],
+    plan: &CrdtCompactionPlanV1,
+) -> Result<CrdtAppliedCompactionV1, CrdtSnapshotReplayError> {
+    validate_snapshot_and_updates(snapshot, updates)?;
+    if plan.schema_id != CRDT_COMPACTION_PLAN_SCHEMA_ID {
+        return Err(CrdtSnapshotReplayError::InvalidCompactionPlan {
+            field: "schema_id",
+            message: "unexpected compaction plan schema".into(),
+        });
+    }
+    if plan.snapshot_id != snapshot.snapshot_id {
+        return Err(CrdtSnapshotReplayError::InvalidCompactionPlan {
+            field: "snapshot_id",
+            message: format!(
+                "plan snapshot {} does not match {}",
+                plan.snapshot_id, snapshot.snapshot_id
+            ),
+        });
+    }
+
+    let mut decisions = HashMap::with_capacity(plan.decisions.len());
+    for decision in &plan.decisions {
+        if decisions
+            .insert(decision.update_id.as_str(), decision)
+            .is_some()
+        {
+            return Err(CrdtSnapshotReplayError::DuplicateCompactionDecision {
+                update_id: decision.update_id.clone(),
+            });
+        }
+    }
+    if decisions.len() != updates.len() {
+        return Err(CrdtSnapshotReplayError::InvalidCompactionPlan {
+            field: "decisions",
+            message: format!(
+                "plan has {} decisions for {} updates",
+                decisions.len(),
+                updates.len()
+            ),
+        });
+    }
+
+    let mut ordered_updates = updates.to_vec();
+    ordered_updates.sort_by_key(|record| record.update_seq);
+    let promotion_evidence = snapshot
+        .promotion_evidence_update_ids
+        .iter()
+        .cloned()
+        .collect::<HashSet<_>>();
+    let mut retained_updates = Vec::new();
+    let mut compacted_update_audits = Vec::new();
+    for record in ordered_updates {
+        let decision = decisions.get(record.update_id.as_str()).ok_or_else(|| {
+            CrdtSnapshotReplayError::MissingCompactionDecision {
+                update_id: record.update_id.clone(),
+            }
+        })?;
+        if decision.update_seq != record.update_seq {
+            return Err(CrdtSnapshotReplayError::InvalidCompactionPlan {
+                field: "decisions[].update_seq",
+                message: format!(
+                    "decision for {} has seq {}, expected {}",
+                    record.update_id, decision.update_seq, record.update_seq
+                ),
+            });
+        }
+        let expected_audit_ref = format!(
+            "eventledger://{}/{}",
+            record.event_ledger_stream_id, record.event_ledger_event_id
+        );
+        if decision.audit_ref != expected_audit_ref {
+            return Err(CrdtSnapshotReplayError::InvalidCompactionPlan {
+                field: "decisions[].audit_ref",
+                message: format!("decision for {} has a forged audit ref", record.update_id),
+            });
+        }
+        if decision.disposition == CrdtCompactionDisposition::CompactWithAudit {
+            if promotion_evidence.contains(&record.update_id) {
+                return Err(CrdtSnapshotReplayError::PromotionEvidenceWouldBeDropped {
+                    update_id: record.update_id.clone(),
+                });
+            }
+            if record.update_seq > snapshot.covered_update_seq
+                || record.update_seq > plan.compact_through_update_seq
+            {
+                return Err(CrdtSnapshotReplayError::InvalidCompactionPlan {
+                    field: "decisions[].disposition",
+                    message: format!(
+                        "decision attempts to compact replay-required update {}",
+                        record.update_id
+                    ),
+                });
+            }
+            compacted_update_audits.push(CrdtCompactedUpdateAuditV1 {
+                schema_id: CRDT_COMPACTED_UPDATE_AUDIT_SCHEMA_ID.into(),
+                workspace_id: record.workspace_id,
+                document_id: record.document_id,
+                crdt_document_id: record.crdt_document_id,
+                update_id: record.update_id,
+                update_seq: record.update_seq,
+                update_sha256: record.update_sha256,
+                update_bytes_ref: record.update_bytes_ref,
+                state_vector_before: record.state_vector_before,
+                state_vector_after: record.state_vector_after,
+                replay_metadata: record.replay_metadata,
+                actor_id: record.actor_id,
+                actor_kind: record.actor_kind,
+                session_id: record.session_id,
+                trace_id: record.trace_id,
+                event_ledger_stream_id: record.event_ledger_stream_id,
+                event_ledger_event_id: record.event_ledger_event_id,
+                audit_ref: decision.audit_ref.clone(),
+                storage_authority: record.storage_authority,
+            });
+        } else {
+            retained_updates.push(record);
+        }
+    }
+
+    let bounded_replay = build_snapshot_bounded_replay_plan(snapshot, &retained_updates)?;
+    Ok(CrdtAppliedCompactionV1 {
+        schema_id: CRDT_APPLIED_COMPACTION_SCHEMA_ID.into(),
+        snapshot_id: snapshot.snapshot_id.clone(),
+        snapshot_sha256: snapshot.snapshot_sha256.clone(),
+        snapshot_state_vector: snapshot.state_vector.clone(),
+        policy_id: plan.policy_id.clone(),
+        compact_through_update_seq: plan.compact_through_update_seq,
+        retained_updates,
+        compacted_update_audits,
+        final_state_vector: bounded_replay.final_state_vector,
     })
 }
 

@@ -25,9 +25,12 @@ use handshake_core::process_ledger::{
     ProcessOwnershipRecordId, ProcessStart,
 };
 use handshake_core::swarm_orchestration::model_lane::{
-    DexterityLaunchAdapterKind, DexterityLaunchAdapterRegistry, DexterityLaunchAdapterRequest,
-    DexterityLaunchContract, DexterityNormalizedLaunch, ModelLaneRecoveryState, ModelLaneStatus,
-    ModelLaneStore, RuntimeBinding,
+    dexterity_spawn_model_session_id, DexterityLaunchAdapterKind, DexterityLaunchAdapterRegistry,
+    DexterityLaunchAdapterRequest, DexterityLaunchContract, DexterityNormalizedLaunch,
+    ModelLaneCloudConsentReceiptStatus, ModelLaneCloudConsentScope, ModelLaneCloudExportPosture,
+    ModelLaneCloudProjectionPlanStatus, ModelLaneCloudRetentionPolicy, ModelLaneRecoveryState,
+    ModelLaneStatus, ModelLaneStore, NewModelLaneCloudConsentReceipt,
+    NewModelLaneCloudProjectionPlan, RuntimeBinding,
 };
 use handshake_core::swarm_orchestration::production_factory::{
     build_production_swarm_coordinator, CloudLaneFactoryConfig,
@@ -36,6 +39,7 @@ use handshake_core::swarm_orchestration::{
     ByokCloudProvider, LiveSession, ModelInstanceId, ModelSessionFactory, ModelSessionState,
     RecordingSwarmSink, RunBudget, SpawnRequest, SwarmConfig, SwarmCoordinator, SwarmError,
 };
+use serde_json::json;
 
 #[tokio::test]
 async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
@@ -97,6 +101,7 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
                 idx,
                 spawn_contract_from_normalized(&launch),
             );
+            seed_cloud_launch_authority(&store, &spawn, &adapter_kind, idx).await;
             let instance_id = spawn.instance_id;
             let spawned = coordinator
                 .spawn_session(spawn)
@@ -167,6 +172,131 @@ async fn model_lane_launch_all_lane_kinds_through_rust_registry() {
         .await
         .expect("drain Dexterity runtime proof");
     assert_eq!(unloads.load(Ordering::SeqCst), process_backed_count);
+}
+
+async fn seed_cloud_launch_authority(
+    store: &ModelLaneStore,
+    spawn: &SpawnRequest,
+    adapter_kind: &DexterityLaunchAdapterKind,
+    idx: usize,
+) {
+    let (provider_kind, cloud_model_name) = match adapter_kind {
+        DexterityLaunchAdapterKind::ByokCloudOpenAi => ("openai", "gpt-4o"),
+        DexterityLaunchAdapterKind::ByokCloudAnthropic => ("anthropic", "claude-sonnet-4"),
+        _ => return,
+    };
+    let contract = spawn
+        .dexterity_launch
+        .as_ref()
+        .expect("cloud launch has Dexterity contract");
+    let projection_plan_id = contract
+        .projection_plan_ref
+        .clone()
+        .expect("cloud launch has ProjectionPlan ref");
+    let consent_receipt_id = contract
+        .consent_receipt_ref
+        .clone()
+        .expect("cloud launch has ConsentReceipt ref");
+    let model_session_id = dexterity_spawn_model_session_id(spawn);
+    let requested_model_id = format!("model://dexterity/byok_cloud/{cloud_model_name}");
+    let scope_hash = sample_sha256();
+    let fan_out_targets = vec![format!("provider://{provider_kind}/byok")];
+
+    let plan = store
+        .record_cloud_projection_plan(NewModelLaneCloudProjectionPlan {
+            projection_plan_id: projection_plan_id.clone(),
+            run_id: contract.run_id.clone(),
+            trace_id: contract.trace_id.clone(),
+            lane_id: Some(contract.lane_id.clone()),
+            model_session_id: Some(model_session_id.clone()),
+            provider_kind: Some(provider_kind.into()),
+            requested_model_id: Some(requested_model_id.clone()),
+            scope_hash: scope_hash.clone(),
+            source_artifact_refs: vec![format!("artifact-store://mt003/{idx}/cloud-context.json")],
+            payload_artifact_ref: format!("artifact-store://mt003/{idx}/cloud-payload.json"),
+            payload_sha256: sample_sha256(),
+            redaction_policy_ref: "redaction-policy://mt003/cloud-safe".into(),
+            redaction_summary: "workspace-local secrets and local-only memory are excluded".into(),
+            retention_policy: ModelLaneCloudRetentionPolicy::NoTrainingEphemeral,
+            export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
+            provider_profile_ref: contract.adapter_id.clone(),
+            fan_out_targets: fan_out_targets.clone(),
+            consent_scope: ModelLaneCloudConsentScope::SingleLane,
+            target_bindings: vec![],
+            status: ModelLaneCloudProjectionPlanStatus::Active,
+            event_ledger_stream_id: contract.event_ledger_stream_id.clone(),
+            work_packet_id: spawn
+                .wp_id
+                .clone()
+                .expect("cloud launch has work packet binding"),
+            micro_task_id: spawn
+                .mt_id
+                .clone()
+                .expect("cloud launch has micro-task binding"),
+            task_board_id: contract.task_board_id.clone(),
+            owner_session: spawn.owner_role.clone(),
+            idempotency_key: format!("idem-projection-mt003-{idx}"),
+            created_at_utc: "2026-07-19T00:00:00Z".into(),
+            user_manual_behavior_ref: "usermanual://model-lane-cloud-projection-consent#launch"
+                .into(),
+            diagnostic_payload: json!({
+                "flight_recorder": "EventLedger",
+                "provider_call_attempted": false,
+                "locus": contract.locus_binding_ref,
+            }),
+        })
+        .await
+        .expect("record MT-003 cloud ProjectionPlan authority");
+
+    store
+        .record_cloud_consent_receipt(NewModelLaneCloudConsentReceipt {
+            consent_receipt_id,
+            projection_plan_id,
+            projection_plan_hash: plan.projection_plan_hash,
+            run_id: contract.run_id.clone(),
+            trace_id: contract.trace_id.clone(),
+            lane_id: Some(contract.lane_id.clone()),
+            model_session_id: Some(model_session_id),
+            provider_kind: Some(provider_kind.into()),
+            requested_model_id: Some(requested_model_id),
+            scope_hash,
+            consent_scope: ModelLaneCloudConsentScope::SingleLane,
+            target_bindings: vec![],
+            retention_policy: ModelLaneCloudRetentionPolicy::NoTrainingEphemeral,
+            export_posture: ModelLaneCloudExportPosture::RedactedContextOnly,
+            fan_out_targets,
+            approved: true,
+            approved_by_ref: "operator://mt003/approval".into(),
+            approved_at_utc: "2026-07-19T00:00:10Z".into(),
+            valid_from_utc: "2026-01-01T00:00:00Z".into(),
+            valid_until_utc: "2027-01-01T00:00:00Z".into(),
+            revoked_at_utc: None,
+            revocation_ref: None,
+            revocation_input_hash: None,
+            status: ModelLaneCloudConsentReceiptStatus::Approved,
+            event_ledger_stream_id: contract.event_ledger_stream_id.clone(),
+            work_packet_id: spawn
+                .wp_id
+                .clone()
+                .expect("cloud launch has work packet binding"),
+            micro_task_id: spawn
+                .mt_id
+                .clone()
+                .expect("cloud launch has micro-task binding"),
+            task_board_id: contract.task_board_id.clone(),
+            owner_session: spawn.owner_role.clone(),
+            idempotency_key: format!("idem-consent-mt003-{idx}"),
+            created_at_utc: "2026-07-19T00:00:15Z".into(),
+            user_manual_behavior_ref: "usermanual://model-lane-cloud-projection-consent#launch"
+                .into(),
+            diagnostic_payload: json!({
+                "flight_recorder": "EventLedger",
+                "provider_call_attempted": false,
+                "locus": contract.locus_binding_ref,
+            }),
+        })
+        .await
+        .expect("record MT-003 cloud ConsentReceipt authority");
 }
 
 #[tokio::test]
@@ -484,7 +614,7 @@ async fn production_builder_wires_model_lane_store_for_failed_dexterity_launch()
         store.clone(),
         Some(1),
         uuid::Uuid::now_v7(),
-        |_ev| {},
+        |_ev| Ok(()),
     );
     let request = SpawnRequest::new(
         ModelInstanceId::new(ModelId::new_v7(), 36),
@@ -953,12 +1083,28 @@ fn spawn_request_for_adapter(
         DexterityLaunchAdapterKind::ByokCloudAnthropic => request
             .with_cloud_provider(ProviderKind::ByokCloud, "claude-sonnet-4")
             .with_byok_cloud_provider(ByokCloudProvider::Anthropic),
-        DexterityLaunchAdapterKind::OfficialCliBridge => {
-            request.with_cloud_provider(ProviderKind::OfficialCli, "claude-sonnet")
-        }
-        DexterityLaunchAdapterKind::CliBridge => {
-            request.with_cloud_provider(ProviderKind::OfficialCli, "generic-cli-bridge-model")
-        }
+        DexterityLaunchAdapterKind::OfficialCliBridge => request
+            .with_cloud_provider(ProviderKind::OfficialCli, "claude-sonnet")
+            .with_sandbox_posture(
+                handshake_core::sandbox::TrustClass::Trusted,
+                handshake_core::sandbox::IsolationTier::Tier1Container,
+                std::collections::BTreeSet::from([
+                    handshake_core::sandbox::RequiredCapability::HighStdioThroughput,
+                ]),
+                handshake_core::sandbox::NetPolicy::HostInherited,
+                "execution-policy://test/model-lane-official-cli",
+            ),
+        DexterityLaunchAdapterKind::CliBridge => request
+            .with_cloud_provider(ProviderKind::OfficialCli, "generic-cli-bridge-model")
+            .with_sandbox_posture(
+                handshake_core::sandbox::TrustClass::Trusted,
+                handshake_core::sandbox::IsolationTier::Tier1Container,
+                std::collections::BTreeSet::from([
+                    handshake_core::sandbox::RequiredCapability::HighStdioThroughput,
+                ]),
+                handshake_core::sandbox::NetPolicy::HostInherited,
+                "execution-policy://test/model-lane-cli-bridge",
+            ),
         other => panic!("adapter {other:?} is not process-backed"),
     }
 }
@@ -981,6 +1127,13 @@ fn launch_request(
         DexterityLaunchAdapterKind::ByokCloudOpenAi
             | DexterityLaunchAdapterKind::ByokCloudAnthropic
     );
+    let candidate_model_id = match &adapter_kind {
+        DexterityLaunchAdapterKind::ByokCloudOpenAi => "model://dexterity/byok_cloud/gpt-4o".into(),
+        DexterityLaunchAdapterKind::ByokCloudAnthropic => {
+            "model://dexterity/byok_cloud/claude-sonnet-4".into()
+        }
+        _ => format!("model://mt003/candidate/{idx}"),
+    };
     DexterityLaunchAdapterRequest {
         adapter_kind,
         run_id: format!("run-mt003-{idx}"),
@@ -1038,7 +1191,7 @@ fn launch_request(
         determinism_mode: "deterministic_replay".into(),
         budget_summary_ref: "budget://mt003".into(),
         selected_model_id: None,
-        candidate_model_ids: vec![format!("model://mt003/candidate/{idx}")],
+        candidate_model_ids: vec![candidate_model_id],
         procedural_review_status: "preflight_reviewed_and_registry_normalized".into(),
         truncation_warning_ref: None,
         rejection_reason_refs: vec![],
@@ -1174,11 +1327,15 @@ impl ModelSessionFactory for DexterityLaunchProofFactory {
             .load(dexterity_load_spec_for_request(request))
             .await
             .map_err(|err| SwarmError::FactoryFailed(err.to_string()))?;
+        let owned_runtime = Arc::new(tokio::sync::Mutex::new(owned_runtime));
         let shared_runtime =
             DexterityLaunchProofRuntime::new(self.loads.clone(), self.unloads.clone());
-        let teardown: handshake_core::swarm_orchestration::SessionTeardown = Box::new(move || {
+        let teardown: handshake_core::swarm_orchestration::SessionTeardown = Arc::new(move || {
+            let owned_runtime = Arc::clone(&owned_runtime);
             Box::pin(async move {
                 owned_runtime
+                    .lock()
+                    .await
                     .unload(model_id)
                     .await
                     .map_err(|err| SwarmError::Internal(err.to_string()))

@@ -34,6 +34,7 @@
 //!   techniques work through a CLI subprocess (the bridge is a
 //!   usability-not-feature lane; capabilities are all-false).
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -43,7 +44,8 @@ use uuid::Uuid;
 
 use super::agent_activity::parse_line as parse_agent_line;
 use super::official_cli_bridge::{
-    CliBridgeConfig, CliKind, CliOutputFormat, CliSubprocessSpawner, OfficialCliBridgeRuntime,
+    CliBridgeConfig, CliCancellationContext, CliInvocationContext, CliKind, CliOutputFormat,
+    CliSubprocessSpawner, OfficialCliBridgeRuntime,
 };
 use super::CloudLaneObservability;
 use crate::flight_recorder::events_agent_activity::agent_activity_event;
@@ -65,6 +67,94 @@ use crate::terminal::redaction::{PatternRedactor, SecretRedactor};
 /// (which the defensive parser turns into an `Other` activity — never dropped,
 /// never OOM). 1 MiB comfortably exceeds any real JSONL event line.
 const AGENT_ACTIVITY_MAX_LINE_BYTES: usize = 1024 * 1024;
+
+/// Reserved composition metadata used by the durable Tauri CLI-bridge store to
+/// carry its operator-approved model allowlist through the legacy
+/// `CliBridgeConfig` boundary. `CliBridgeModelRuntime::new` consumes and removes
+/// this entry before the config reaches executable registration or child env
+/// projection, so it is never exposed to the spawned CLI process.
+pub const CLI_BRIDGE_MODEL_ALLOWLIST_METADATA_ENV: &str =
+    "HANDSHAKE_INTERNAL_CLI_MODEL_ALLOWLIST_V1";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CliModelAllowlist {
+    allowed: BTreeSet<String>,
+}
+
+impl CliModelAllowlist {
+    pub fn new(models: impl IntoIterator<Item = String>) -> Result<Self, String> {
+        let allowed = models
+            .into_iter()
+            .map(|model| model.trim().to_string())
+            .filter(|model| !model.is_empty())
+            .collect::<BTreeSet<_>>();
+        if allowed.is_empty() {
+            Err("official CLI model allowlist must not be empty".to_string())
+        } else {
+            Ok(Self { allowed })
+        }
+    }
+
+    pub fn contains(&self, model_name: &str) -> bool {
+        self.allowed.contains(model_name)
+    }
+
+    fn validate(&self, model_name: &str) -> Result<(), ModelRuntimeError> {
+        if self.contains(model_name) {
+            Ok(())
+        } else {
+            Err(ModelRuntimeError::LoadError(format!(
+                "official CLI model '{model_name}' is not in the operator allowlist [{}]",
+                self.allowed.iter().cloned().collect::<Vec<_>>().join(", ")
+            )))
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct AllowlistedCliBridgeConfig {
+    config: CliBridgeConfig,
+    model_allowlist: CliModelAllowlist,
+}
+
+impl AllowlistedCliBridgeConfig {
+    pub fn new(mut config: CliBridgeConfig, model_allowlist: CliModelAllowlist) -> Self {
+        config
+            .env_vars
+            .remove(CLI_BRIDGE_MODEL_ALLOWLIST_METADATA_ENV);
+        Self {
+            config,
+            model_allowlist,
+        }
+    }
+
+    pub fn from_config_metadata(mut config: CliBridgeConfig) -> Result<Self, String> {
+        let encoded = config
+            .env_vars
+            .remove(CLI_BRIDGE_MODEL_ALLOWLIST_METADATA_ENV)
+            .ok_or_else(|| {
+                "official CLI model allowlist metadata is required; refusing unrestricted runtime construction"
+                    .to_string()
+            })?;
+        let decoded = serde_json::from_str::<Vec<String>>(&encoded).map_err(|error| {
+            format!("stored official CLI model allowlist metadata is invalid: {error}")
+        })?;
+        let model_allowlist = CliModelAllowlist::new(decoded)
+            .map_err(|_| "stored official CLI model allowlist is empty".to_string())?;
+        Ok(Self::new(config, model_allowlist))
+    }
+
+    pub fn into_parts(self) -> (CliBridgeConfig, CliModelAllowlist) {
+        (self.config, self.model_allowlist)
+    }
+
+    /// Borrow the exact launch configuration that was paired with the model
+    /// allowlist. Auxiliary provider-owned probes use this accessor so they
+    /// cannot rediscover and execute an independent PATH candidate.
+    pub fn launch_config(&self) -> &CliBridgeConfig {
+        &self.config
+    }
+}
 
 /// Accumulates decoded stdout text and splits it into complete lines on `\n`,
 /// so the structured agent-activity parser sees one JSON event per line even
@@ -135,6 +225,54 @@ async fn emit_infer(recorder: &Option<Arc<dyn FlightRecorder>>, event: FlightRec
     }
 }
 
+type InferEmitMessage = (
+    FlightRecorderEvent,
+    Option<tokio::sync::oneshot::Sender<()>>,
+);
+
+struct InferEventEmitter {
+    tx: Option<tokio::sync::mpsc::UnboundedSender<InferEmitMessage>>,
+}
+
+impl InferEventEmitter {
+    fn new(recorder: Option<Arc<dyn FlightRecorder>>) -> Self {
+        let Some(recorder) = recorder else {
+            return Self { tx: None };
+        };
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<InferEmitMessage>();
+        let worker = async move {
+            while let Some((event, acknowledgement)) = rx.recv().await {
+                emit_infer(&Some(recorder.clone()), event).await;
+                if let Some(acknowledgement) = acknowledgement {
+                    let _ = acknowledgement.send(());
+                }
+            }
+        };
+        match tokio::runtime::Handle::try_current() {
+            Ok(runtime) => {
+                runtime.spawn(worker);
+            }
+            Err(_) => {
+                std::thread::spawn(move || futures::executor::block_on(worker));
+            }
+        }
+        Self { tx: Some(tx) }
+    }
+
+    fn emit(&self, event: FlightRecorderEvent) -> Option<tokio::sync::oneshot::Receiver<()>> {
+        let tx = self.tx.as_ref()?;
+        let (acknowledgement, received) = tokio::sync::oneshot::channel();
+        tx.send((event, Some(acknowledgement))).ok()?;
+        Some(received)
+    }
+
+    async fn emit_and_wait(&self, event: FlightRecorderEvent) {
+        if let Some(received) = self.emit(event) {
+            let _ = received.await;
+        }
+    }
+}
+
 /// Best-effort emit of an `FR-EVT-AGENT-*` event. Same posture as
 /// [`emit_infer`]: a `None` recorder is a no-op, a recorder error is logged and
 /// ignored — structured agent-activity capture NEVER affects generation.
@@ -199,6 +337,7 @@ async fn emit_agent_line(
 struct InferEmitStreamState {
     rx: tokio::sync::mpsc::UnboundedReceiver<Result<GeneratedToken, ModelRuntimeError>>,
     recorder: Option<Arc<dyn FlightRecorder>>,
+    infer_emitter: InferEventEmitter,
     model_id: ModelId,
     request_id: Uuid,
     start: Instant,
@@ -207,11 +346,48 @@ struct InferEmitStreamState {
     generated: u32,
     finish: FinishReason,
     ended: bool,
+    /// Per-generation cancellation owned by the returned stream. Dropping an
+    /// unpolled or silent stream cancels the blocking CLI invocation instead of
+    /// leaving it alive until its configured timeout.
+    stream_cancel: CancellationToken,
     /// Structured agent-activity capture (JSON-stream modes only). When
     /// `agent_capture` is `Some`, each streamed token's text is fed through the
     /// line buffer and complete lines are parsed into `FR-EVT-AGENT-*` events.
     /// `None` in `RawText` mode => zero structured behaviour, unchanged output.
     agent_capture: Option<AgentCaptureState>,
+}
+
+impl Drop for InferEmitStreamState {
+    fn drop(&mut self) {
+        if !self.ended {
+            self.stream_cancel.cancel();
+            let _ = self.claim_terminal_emit(FinishReason::Cancelled);
+        }
+    }
+}
+
+impl InferEmitStreamState {
+    fn claim_terminal_emit(
+        &mut self,
+        finish: FinishReason,
+    ) -> Option<tokio::sync::oneshot::Receiver<()>> {
+        if !self.started || self.ended {
+            return None;
+        }
+        self.ended = true;
+        let total = self.start.elapsed().as_millis() as u64;
+        self.infer_emitter.emit(infer_end_event(
+            self.model_id,
+            self.request_id,
+            self.prompt_tokens,
+            self.generated,
+            total,
+            0,
+            total,
+            finish,
+            CLI_BRIDGE_ADAPTER,
+        ))
+    }
 }
 
 /// Per-request structured agent-activity capture state, carried on the async
@@ -315,6 +491,11 @@ pub struct CliBridgeModelRuntime {
     /// The operator CLI config registered on every `load()` (exe path, args
     /// template, env, timeout). One runtime serves one configured CLI.
     config_template: CliBridgeConfig,
+    model_allowlist: CliModelAllowlist,
+    /// Governance and correlation captured at the production spawn boundary.
+    /// Generation clones this template and adds only request-scoped identifiers;
+    /// it never invents an owner, role, work packet, or parent session.
+    invocation_context: Option<CliInvocationContext>,
     /// Runtime-wide cancellation flag, set by `cancel()`; mirrors the BYOK
     /// `runtime_cancel`. Polled by `generate()`'s cancel hook so a runtime-level
     /// cancel kills in-flight CLI subprocesses.
@@ -365,11 +546,14 @@ impl CliBridgeModelRuntime {
     /// Construct a CLI-bridge swarm runtime from a live byte-source spawner
     /// (`LiveCliSpawner` in production, a mock in tests) and the operator CLI
     /// config that every `load()` registers.
-    pub fn new(spawner: Arc<dyn CliSubprocessSpawner>, config_template: CliBridgeConfig) -> Self {
+    pub fn new(spawner: Arc<dyn CliSubprocessSpawner>, config: AllowlistedCliBridgeConfig) -> Self {
+        let (config_template, model_allowlist) = config.into_parts();
         Self {
             inner: OfficialCliBridgeRuntime::new(spawner.clone()),
             spawner,
             config_template,
+            model_allowlist,
+            invocation_context: None,
             runtime_cancel: CancellationToken::new(),
             declared_capabilities: OfficialCliBridgeRuntime::cli_bridge_capabilities(),
             lane_obs: None,
@@ -377,6 +561,15 @@ impl CliBridgeModelRuntime {
             redactor: Arc::new(PatternRedactor),
             emit_agent_activity_events: true,
         }
+    }
+
+    /// Attach the authoritative invocation context composed from the swarm
+    /// [`SpawnRequest`](crate::swarm_orchestration::SpawnRequest). A runtime
+    /// without this context fails generation closed before spawning a child.
+    pub fn with_invocation_context(mut self, context: CliInvocationContext) -> Self {
+        self.session_instance_id = context.session_id.clone();
+        self.invocation_context = Some(context);
+        self
     }
 
     /// Thread a [`CloudLaneObservability`] bundle so `generate()` emits
@@ -399,7 +592,11 @@ impl CliBridgeModelRuntime {
     /// seam, only the composite session-id seams. Never dropped, but invisible to
     /// the per-session timeline until correlation is threaded.
     pub fn with_session_correlation(mut self, instance_id: impl Into<String>) -> Self {
-        self.session_instance_id = Some(instance_id.into());
+        let instance_id = instance_id.into();
+        self.session_instance_id = Some(instance_id.clone());
+        if let Some(context) = self.invocation_context.as_mut() {
+            context.session_id = Some(instance_id);
+        }
         self
     }
 
@@ -455,25 +652,49 @@ impl CliBridgeModelRuntime {
         let prompt = req.prompt.text.clone();
         let req_cancel = req.cancel.clone();
         let runtime_cancel = self.runtime_cancel.clone();
+        let stream_cancel = CancellationToken::new();
+        let worker_stream_cancel = stream_cancel.clone();
+        let request_correlation = request_id.to_string();
+        let mut invocation = match self.invocation_context.clone() {
+            Some(context) => context,
+            None => {
+                return single_error_stream(ModelRuntimeError::GenerateError(
+                    "official CLI bridge generate: missing authoritative invocation context"
+                        .to_string(),
+                ));
+            }
+        };
+        invocation.registered_model_id = Some(req.id);
+        invocation.model_identity = model_name.clone();
+        let session_id = invocation.session_id.clone();
+        if invocation.trace_id.is_none() {
+            invocation.trace_id = Some(
+                invocation
+                    .parent_session_id
+                    .clone()
+                    .or_else(|| session_id.clone())
+                    .unwrap_or_else(|| request_correlation.clone()),
+            );
+        }
+        invocation.span_id = Some(request_correlation.clone());
+        invocation.cancellation_id = Some(format!("cli-cancel-{request_correlation}"));
+        invocation.reclaim_key = Some(format!("cli-reclaim-{request_correlation}"));
 
-        // The blocking, poll-based spawn must NOT run on a tokio worker thread:
-        // run it on a dedicated OS thread that owns the (non-Send-friendly)
-        // `on_chunk` closure and sends each decoded chunk onto the tokio channel.
+        // The blocking, poll-based spawn must NOT run on a tokio worker thread.
+        // A separate owned decoder worker consumes a bounded chunk queue; the
+        // subprocess timeout/cancel loop never executes decoding or callbacks.
         std::thread::spawn(move || {
-            let mut token_index: u32 = 0;
-            let mut decoder = Utf8ChunkDecoder::new();
-            let mut send_failed = false;
-
-            {
-                let tx_chunks = &tx;
-                let mut on_chunk = |bytes: &[u8]| {
-                    if send_failed {
-                        return;
-                    }
-                    let text = decoder.push(bytes);
+            let (chunk_tx, mut chunk_rx) = tokio::sync::mpsc::channel::<Vec<u8>>(32);
+            let token_tx = tx.clone();
+            let decoder_worker = std::thread::spawn(move || {
+                let mut token_index: u32 = 0;
+                let mut decoder = Utf8ChunkDecoder::new();
+                let mut send_failed = false;
+                while let Some(bytes) = chunk_rx.blocking_recv() {
+                    let text = decoder.push(&bytes);
                     if !text.is_empty() {
                         token_index = token_index.saturating_add(1);
-                        if tx_chunks
+                        if token_tx
                             .send(Ok(GeneratedToken {
                                 token_id: token_index,
                                 text,
@@ -482,55 +703,53 @@ impl CliBridgeModelRuntime {
                             }))
                             .is_err()
                         {
-                            // Receiver dropped: caller no longer cares. Stop
-                            // forwarding; the spawn loop still drains the pipe.
                             send_failed = true;
+                            break;
                         }
                     }
-                };
-                let should_cancel = || req_cancel.is_cancelled() || runtime_cancel.is_cancelled();
-
-                let result = spawner.spawn_streaming_cancellable(
-                    &config,
-                    &model_name,
-                    &prompt,
-                    &mut on_chunk,
-                    &should_cancel,
-                );
-
-                // Flush any trailing bytes left in the decoder as a final token.
+                }
                 let tail = decoder.finish();
                 if !send_failed && !tail.is_empty() {
                     token_index = token_index.saturating_add(1);
-                    if tx
+                    send_failed = token_tx
                         .send(Ok(GeneratedToken {
                             token_id: token_index,
                             text: tail,
                             logprob: None,
                             finish_reason: None,
                         }))
-                        .is_err()
-                    {
-                        send_failed = true;
-                    }
+                        .is_err();
                 }
+                send_failed
+            });
 
-                if !send_failed {
-                    match result {
-                        Ok(receipt) => {
-                            let finish = if receipt.cancelled {
-                                FinishReason::Cancelled
-                            } else {
-                                FinishReason::Stop
-                            };
-                            let _ = tx.send(Ok(terminal_token(finish)));
-                        }
-                        Err(err) => {
-                            // HONEST error item — not a silent empty stream.
-                            let _ = tx.send(Err(ModelRuntimeError::GenerateError(format!(
-                                "official CLI bridge generate failed: {err}"
-                            ))));
-                        }
+            let cancellation =
+                CliCancellationContext::new(vec![req_cancel, runtime_cancel, worker_stream_cancel]);
+            let result = spawner.spawn_streaming_cancellable(
+                &config,
+                &invocation,
+                &model_name,
+                &prompt,
+                &chunk_tx,
+                &cancellation,
+            );
+            drop(chunk_tx);
+            let send_failed = decoder_worker.join().unwrap_or(true);
+
+            if !send_failed {
+                match result {
+                    Ok(receipt) => {
+                        let finish = if receipt.cancelled {
+                            FinishReason::Cancelled
+                        } else {
+                            FinishReason::Stop
+                        };
+                        let _ = tx.send(Ok(terminal_token(finish)));
+                    }
+                    Err(err) => {
+                        let _ = tx.send(Err(ModelRuntimeError::GenerateError(format!(
+                            "official CLI bridge generate failed: {err}"
+                        ))));
                     }
                 }
             }
@@ -556,6 +775,7 @@ impl CliBridgeModelRuntime {
 
         let state = InferEmitStreamState {
             rx,
+            infer_emitter: InferEventEmitter::new(recorder.clone()),
             recorder,
             model_id: infer_model_id,
             request_id,
@@ -565,6 +785,7 @@ impl CliBridgeModelRuntime {
             generated: 0,
             finish: FinishReason::Stop,
             ended: false,
+            stream_cancel,
             agent_capture,
         };
 
@@ -573,17 +794,15 @@ impl CliBridgeModelRuntime {
             // so START/END are paired even for an empty/immediately-failing run.
             if !st.started {
                 st.started = true;
-                emit_infer(
-                    &st.recorder,
-                    infer_start_event(
+                st.infer_emitter
+                    .emit_and_wait(infer_start_event(
                         st.model_id,
                         st.request_id,
                         st.prompt_tokens,
                         "",
                         CLI_BRIDGE_ADAPTER,
-                    ),
-                )
-                .await;
+                    ))
+                    .await;
             }
             match st.rx.recv().await {
                 Some(item) => {
@@ -598,9 +817,8 @@ impl CliBridgeModelRuntime {
                                 // long generation does not flood the recorder.
                                 if should_emit_token_event(st.generated) {
                                     let latency = st.start.elapsed().as_millis() as u64;
-                                    emit_infer(
-                                        &st.recorder,
-                                        infer_token_event(
+                                    st.infer_emitter
+                                        .emit_and_wait(infer_token_event(
                                             st.model_id,
                                             st.request_id,
                                             st.generated,
@@ -608,9 +826,8 @@ impl CliBridgeModelRuntime {
                                             &token.text,
                                             latency,
                                             CLI_BRIDGE_ADAPTER,
-                                        ),
-                                    )
-                                    .await;
+                                        ))
+                                        .await;
                                 }
                                 // STRUCTURED: in a JSON-stream mode, feed the raw
                                 // token text through the line buffer and emit an
@@ -678,24 +895,9 @@ impl CliBridgeModelRuntime {
                             }
                         }
                     }
-                    if !st.ended {
-                        st.ended = true;
-                        let total = st.start.elapsed().as_millis() as u64;
-                        emit_infer(
-                            &st.recorder,
-                            infer_end_event(
-                                st.model_id,
-                                st.request_id,
-                                st.prompt_tokens,
-                                st.generated,
-                                total,
-                                0,
-                                total,
-                                st.finish,
-                                CLI_BRIDGE_ADAPTER,
-                            ),
-                        )
-                        .await;
+                    let finish = st.finish;
+                    if let Some(received) = st.claim_terminal_emit(finish) {
+                        let _ = received.await;
                     }
                     None
                 }
@@ -740,6 +942,7 @@ impl ModelRuntime for CliBridgeModelRuntime {
                     .to_string(),
             )
         })?;
+        self.model_allowlist.validate(model_name)?;
         let now_utc = chrono::Utc::now().to_rfc3339();
         // register_bridge validates exe-exists / {prompt}-placeholder / timeout
         // and mints the runtime-keyed ModelId v7 — the existing tested path.
@@ -834,7 +1037,7 @@ mod tests {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml")
     }
 
-    fn good_config() -> CliBridgeConfig {
+    fn raw_good_config() -> CliBridgeConfig {
         CliBridgeConfig {
             cli_kind: CliKind::ClaudeCode,
             executable_path: temp_exe(),
@@ -846,12 +1049,47 @@ mod tests {
         }
     }
 
+    fn allowlisted_config(config: CliBridgeConfig, models: &[&str]) -> AllowlistedCliBridgeConfig {
+        AllowlistedCliBridgeConfig::new(
+            config,
+            CliModelAllowlist::new(models.iter().map(|model| (*model).to_string()))
+                .expect("test allowlist"),
+        )
+    }
+
+    fn good_config() -> AllowlistedCliBridgeConfig {
+        allowlisted_config(raw_good_config(), &["claude-sonnet"])
+    }
+
     /// A Claude-dialect config in JSON-stream mode (structured agent-activity
     /// capture ON).
-    fn good_config_json() -> CliBridgeConfig {
-        CliBridgeConfig {
-            output_format: CliOutputFormat::JsonStream,
-            ..good_config()
+    fn good_config_json() -> AllowlistedCliBridgeConfig {
+        let mut config = raw_good_config();
+        config.output_format = CliOutputFormat::JsonStream;
+        allowlisted_config(config, &["claude-sonnet"])
+    }
+
+    fn config_with_model_allowlist(models: &[&str]) -> AllowlistedCliBridgeConfig {
+        let mut config = raw_good_config();
+        config.env_vars.insert(
+            CLI_BRIDGE_MODEL_ALLOWLIST_METADATA_ENV.to_string(),
+            serde_json::to_string(models).expect("encode model allowlist fixture"),
+        );
+        AllowlistedCliBridgeConfig::from_config_metadata(config)
+            .expect("decode model allowlist fixture")
+    }
+
+    fn official_cli_load_spec(model_name: &str) -> LoadSpec {
+        LoadSpec {
+            artifact_path: PathBuf::new(),
+            sha256_expected: String::new(),
+            runtime_kind: crate::model_runtime::RuntimeKind::Candle,
+            sampling_defaults: SamplingParams::default(),
+            kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
+            declared_capabilities: ModelCapabilities::default(),
+            provider: ProviderKind::OfficialCli,
+            engine_origin: Some(model_name.to_string()),
+            external_engine_import: None,
         }
     }
 
@@ -877,10 +1115,36 @@ mod tests {
     struct ChunkSpawner {
         chunks: Vec<Vec<u8>>,
     }
+
+    #[derive(Default)]
+    struct PinCapturingSpawner {
+        pinned: Mutex<Vec<CliBridgeConfig>>,
+    }
+
+    impl CliSubprocessSpawner for PinCapturingSpawner {
+        fn pin_config(&self, config: &CliBridgeConfig) -> Result<(), OfficialCliBridgeError> {
+            self.pinned
+                .lock()
+                .expect("pin capture")
+                .push(config.clone());
+            Ok(())
+        }
+
+        fn spawn(
+            &self,
+            _config: &CliBridgeConfig,
+            _invocation: &CliInvocationContext,
+            _model_name: &str,
+            _prompt: &str,
+        ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
+            unreachable!("model allowlist tests do not spawn")
+        }
+    }
     impl CliSubprocessSpawner for ChunkSpawner {
         fn spawn(
             &self,
             _config: &CliBridgeConfig,
+            _invocation: &CliInvocationContext,
             _model_name: &str,
             _prompt: &str,
         ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
@@ -900,13 +1164,19 @@ mod tests {
         fn spawn_streaming(
             &self,
             _config: &CliBridgeConfig,
+            _invocation: &CliInvocationContext,
             _model_name: &str,
             _prompt: &str,
-            on_chunk: &mut dyn FnMut(&[u8]),
+            chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
         ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
             let mut full = Vec::new();
             for chunk in &self.chunks {
-                on_chunk(chunk);
+                chunk_sender.try_send(chunk.clone()).map_err(|failure| {
+                    OfficialCliBridgeError::SpawnFailed {
+                        reason: failure.to_string(),
+                        exit_code: None,
+                    }
+                })?;
                 full.extend_from_slice(chunk);
             }
             Ok(CliInvocationReceipt {
@@ -924,6 +1194,7 @@ mod tests {
         fn spawn(
             &self,
             _config: &CliBridgeConfig,
+            _invocation: &CliInvocationContext,
             _model_name: &str,
             _prompt: &str,
         ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
@@ -934,16 +1205,19 @@ mod tests {
         }
     }
 
-    /// Spawner that loops emitting chunks until `should_cancel()` is observed,
+    /// Spawner that loops emitting chunks until cancellation is observed,
     /// then kills (simulated) and returns a cancelled receipt. Records that the
     /// cancel hook fired so the test can assert the kill path was driven.
     struct CancelAwareSpawner {
         observed_cancel: Arc<AtomicBool>,
+        finished: Arc<AtomicBool>,
+        emit_initial_chunk: bool,
     }
     impl CliSubprocessSpawner for CancelAwareSpawner {
         fn spawn(
             &self,
             _config: &CliBridgeConfig,
+            _invocation: &CliInvocationContext,
             _model_name: &str,
             _prompt: &str,
         ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
@@ -958,17 +1232,27 @@ mod tests {
         fn spawn_streaming_cancellable(
             &self,
             _config: &CliBridgeConfig,
+            _invocation: &CliInvocationContext,
             _model_name: &str,
             _prompt: &str,
-            on_chunk: &mut dyn FnMut(&[u8]),
-            should_cancel: &dyn Fn() -> bool,
+            chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
+            cancellation: &CliCancellationContext,
         ) -> Result<CliInvocationReceipt, OfficialCliBridgeError> {
-            // Emit a first chunk, then spin until cancellation is observed.
-            on_chunk(b"first ");
+            // Optionally remain completely silent so drop-cancellation does not
+            // depend on receiver-loss being discovered through token delivery.
+            if self.emit_initial_chunk {
+                chunk_sender
+                    .try_send(b"first ".to_vec())
+                    .map_err(|failure| OfficialCliBridgeError::SpawnFailed {
+                        reason: failure.to_string(),
+                        exit_code: None,
+                    })?;
+            }
             let mut spins = 0u32;
             loop {
-                if should_cancel() {
+                if cancellation.is_cancelled() {
                     self.observed_cancel.store(true, Ordering::SeqCst);
+                    self.finished.store(true, Ordering::SeqCst);
                     return Ok(CliInvocationReceipt {
                         model_id: ModelId::new_v7(),
                         stdout: "first ".to_string(),
@@ -981,6 +1265,7 @@ mod tests {
                 spins += 1;
                 if spins > 2000 {
                     // Safety valve so a broken test never hangs CI.
+                    self.finished.store(true, Ordering::SeqCst);
                     return Ok(CliInvocationReceipt {
                         model_id: ModelId::new_v7(),
                         stdout: "first ".to_string(),
@@ -993,10 +1278,33 @@ mod tests {
         }
     }
 
+    fn test_invocation_context() -> CliInvocationContext {
+        let mut context = CliInvocationContext::new("TEST_ROLE", "claude-sonnet");
+        context.owner_wp = Some("WP-TEST".to_string());
+        context.role_id = Some("TEST_ROLE".to_string());
+        context.wp_id = Some("WP-TEST".to_string());
+        context.mt_id = Some("MT-003".to_string());
+        context.session_id = Some("mid#0".to_string());
+        context.parent_session_id = Some("parent-test".to_string());
+        context.trace_id = Some("trace-test".to_string());
+        context.requested_trust_class = Some(crate::sandbox::TrustClass::Trusted);
+        context.requested_isolation_tier = Some(crate::sandbox::IsolationTier::Tier1Container);
+        context.requested_sandbox_capabilities = Some(std::collections::BTreeSet::from([
+            crate::sandbox::RequiredCapability::HighStdioThroughput,
+        ]));
+        context.requested_net_policy = Some(crate::sandbox::NetPolicy::HostInherited);
+        context.requested_execution_policy_ref =
+            Some("execution-policy://test/cli-runtime".to_string());
+        context.swarm_id = Some("runtime-test-swarm".to_string());
+        context.worktree_id = Some("runtime-test-worktree".to_string());
+        context
+    }
+
     async fn loaded_runtime(
         spawner: Arc<dyn CliSubprocessSpawner>,
     ) -> (CliBridgeModelRuntime, ModelId) {
-        let mut rt = CliBridgeModelRuntime::new(spawner, good_config());
+        let mut rt = CliBridgeModelRuntime::new(spawner, good_config())
+            .with_invocation_context(test_invocation_context());
         let spec = crate::model_runtime::LoadSpec {
             artifact_path: PathBuf::new(),
             sha256_expected: String::new(),
@@ -1010,6 +1318,62 @@ mod tests {
         };
         let id = rt.load(spec).await.expect("load registers the bridge");
         (rt, id)
+    }
+
+    #[tokio::test]
+    async fn stored_model_allowlist_accepts_only_declared_model_and_is_not_child_env() {
+        let spawner = Arc::new(PinCapturingSpawner::default());
+        let mut runtime = CliBridgeModelRuntime::new(
+            spawner.clone(),
+            config_with_model_allowlist(&["gpt-5.4", "gpt-5.3-codex"]),
+        );
+
+        runtime
+            .load(official_cli_load_spec("gpt-5.4"))
+            .await
+            .expect("allowlisted official CLI model loads");
+
+        let pinned = spawner.pinned.lock().expect("pin capture");
+        assert_eq!(pinned.len(), 1);
+        assert!(
+            !pinned[0]
+                .env_vars
+                .contains_key(CLI_BRIDGE_MODEL_ALLOWLIST_METADATA_ENV),
+            "internal allowlist metadata must be consumed before executable config pinning or child env projection"
+        );
+    }
+
+    #[tokio::test]
+    async fn stored_model_allowlist_rejects_undeclared_model_before_registration() {
+        let spawner = Arc::new(PinCapturingSpawner::default());
+        let mut runtime =
+            CliBridgeModelRuntime::new(spawner.clone(), config_with_model_allowlist(&["gpt-5.4"]));
+
+        let error = runtime
+            .load(official_cli_load_spec("gpt-5.3-codex"))
+            .await
+            .expect_err("undeclared official CLI model must fail closed");
+
+        assert!(error.to_string().contains("not in the operator allowlist"));
+        assert!(
+            spawner.pinned.lock().expect("pin capture").is_empty(),
+            "rejected model must fail before executable registration"
+        );
+    }
+
+    #[tokio::test]
+    async fn malformed_stored_model_allowlist_fails_closed_before_registration() {
+        let spawner = Arc::new(PinCapturingSpawner::default());
+        let mut config = raw_good_config();
+        config.env_vars.insert(
+            CLI_BRIDGE_MODEL_ALLOWLIST_METADATA_ENV.to_string(),
+            "not-json".to_string(),
+        );
+        let error = AllowlistedCliBridgeConfig::from_config_metadata(config)
+            .expect_err("malformed stored allowlist must fail closed at construction");
+
+        assert!(error.contains("allowlist metadata is invalid"));
+        assert!(spawner.pinned.lock().expect("pin capture").is_empty());
     }
 
     /// Test 1: generate streams stdout AS TOKENS live (>=3 tokens, in order,
@@ -1074,8 +1438,11 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn generate_cancellation_kills_child_and_ends_stream() {
         let observed = Arc::new(AtomicBool::new(false));
+        let finished = Arc::new(AtomicBool::new(false));
         let spawner = Arc::new(CancelAwareSpawner {
             observed_cancel: observed.clone(),
+            finished: finished.clone(),
+            emit_initial_chunk: true,
         });
         let (rt, id) = loaded_runtime(spawner).await;
         let mut req = gen_req(id);
@@ -1104,6 +1471,34 @@ mod tests {
         assert!(
             observed.load(Ordering::SeqCst),
             "the spawner must have observed the cancel hook (kill path driven)"
+        );
+        assert!(finished.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dropping_unpolled_silent_stream_cancels_and_finishes_spawner() {
+        let observed = Arc::new(AtomicBool::new(false));
+        let finished = Arc::new(AtomicBool::new(false));
+        let spawner = Arc::new(CancelAwareSpawner {
+            observed_cancel: observed.clone(),
+            finished: finished.clone(),
+            emit_initial_chunk: false,
+        });
+        let (rt, id) = loaded_runtime(spawner).await;
+
+        let stream = rt.generate(gen_req(id));
+        drop(stream);
+
+        tokio::time::timeout(std::time::Duration::from_secs(1), async {
+            while !finished.load(Ordering::SeqCst) {
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .expect("silent spawner must finish after its unpolled stream is dropped");
+        assert!(
+            observed.load(Ordering::SeqCst),
+            "stream drop must reach the spawner cancellation context"
         );
     }
 
@@ -1221,6 +1616,7 @@ mod tests {
         // sampled TOKEN event (LLM_INFER_TOKEN_SAMPLE_INTERVAL = 16).
         let chunks: Vec<Vec<u8>> = (0..20).map(|_| b"x".to_vec()).collect();
         let mut rt = CliBridgeModelRuntime::new(Arc::new(ChunkSpawner { chunks }), good_config())
+            .with_invocation_context(test_invocation_context())
             .with_lane_observability(obs);
         let spec = crate::model_runtime::LoadSpec {
             artifact_path: PathBuf::new(),
@@ -1379,6 +1775,7 @@ mod tests {
 
         let mut rt =
             CliBridgeModelRuntime::new(Arc::new(ChunkSpawner { chunks }), good_config_json())
+                .with_invocation_context(test_invocation_context())
                 .with_lane_observability(obs_with(recorder.clone()))
                 .with_session_correlation("mid#0");
         let id = rt.load(cli_spec()).await.expect("load");
@@ -1452,6 +1849,7 @@ mod tests {
 
         let mut rt =
             CliBridgeModelRuntime::new(Arc::new(ChunkSpawner { chunks }), good_config_json())
+                .with_invocation_context(test_invocation_context())
                 .with_lane_observability(obs_with(recorder.clone()))
                 .without_agent_activity_events();
         let id = rt.load(cli_spec()).await.expect("load");
@@ -1489,6 +1887,7 @@ mod tests {
             Arc::new(ChunkSpawner { chunks }),
             good_config(), // RawText
         )
+        .with_invocation_context(test_invocation_context())
         .with_lane_observability(obs_with(recorder.clone()))
         .with_session_correlation("mid#0");
         let id = rt.load(cli_spec()).await.expect("load");
@@ -1514,6 +1913,7 @@ mod tests {
         let chunks: Vec<Vec<u8>> = vec![line.as_bytes().to_vec()];
         let mut rt =
             CliBridgeModelRuntime::new(Arc::new(ChunkSpawner { chunks }), good_config_json())
+                .with_invocation_context(test_invocation_context())
                 .with_lane_observability(obs_with(recorder.clone()))
                 .with_session_correlation("mid#0");
         let id = rt.load(cli_spec()).await.expect("load");
@@ -1542,6 +1942,7 @@ mod tests {
         let chunks: Vec<Vec<u8>> = vec![line.into_bytes()];
         let mut rt =
             CliBridgeModelRuntime::new(Arc::new(ChunkSpawner { chunks }), good_config_json())
+                .with_invocation_context(test_invocation_context())
                 .with_lane_observability(obs_with(recorder.clone()));
         let id = rt.load(cli_spec()).await.expect("load");
         let _ = drain_text(rt.generate(gen_req(id))).await;
@@ -1699,8 +2100,11 @@ mod tests {
         // model id — or they never match the transcript's session scope.
         const INSTANCE: u32 = 3;
         let coordinator_session = format!("{}#{INSTANCE}", ModelId::new_v7());
+        let mut invocation_context = test_invocation_context();
+        invocation_context.session_id = Some(coordinator_session.clone());
+        invocation_context.parent_session_id = Some("parent-production-test".to_string());
         let live = builder
-            .build_loaded("claude-sonnet", Some(coordinator_session.clone()), None)
+            .build_loaded("claude-sonnet", Some(invocation_context), None)
             .await
             .expect("production builder build_loaded");
         let model_id = live.model_id;

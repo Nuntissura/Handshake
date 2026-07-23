@@ -53,8 +53,8 @@
 // It then SPAWNS the real `handshake-native` binary (`env!("CARGO_BIN_EXE_handshake-native")`), which
 // opens a genuine wgpu window on the current desktop and binds its MT-027 `SwarmMcpServer` (writing the
 // `swarm_mcp_binding.json` discovery file under a redirected `%LOCALAPPDATA%`). The audit discovers that
-// binding file, then drives ~20 foreground-candidate swarm actions (list_widgets, click_widget,
-// set_value, screenshot, focus) + ~10 keyboard-driving actions over the REAL TCP socket — the genuine
+// binding file, then drives canonical Argus inspect/click/screenshot requests plus ~10
+// keyboard-driving set-value actions over the REAL TCP socket — the genuine
 // swarm channel this crate owns (MT-027 ActionChannel / SwarmMcpServer), NOT an HTTP /action on
 // handshake_core (a forbidden path here). After the action window closes, it unhooks, drains the hook
 // logs, and asserts:
@@ -82,10 +82,10 @@
 //
 // ## Deviations from the contract body (adapted to the REAL shell + forbidden paths; disclosed)
 //
-//   * The contract drives actions through `handshake_core`'s HTTP `/action` and depends on
-//     `src/backend/handshake_core` (a forbidden_path for this MT). This audit instead drives the REAL
-//     MT-027 `SwarmMcpServer` over its TCP socket via the `swarm_mcp_binding.json` discovery file — the
-//     genuine in-crate swarm channel this shell owns (the same one MT-029 steers). No backend dep.
+//   * The action path is the native shell's REAL MT-027 `SwarmMcpServer`, not a backend `/action`
+//     surrogate. The live proof nevertheless REQUIRES an already-running Palmistry-ready
+//     `handshake_core` on 127.0.0.1:37501 and a shared `HANDSHAKE_DIAGNOSTICS_DIR`: production Argus
+//     mutations are counted only after an applied receipt is durably acknowledged by that backend.
 //   * The contract assumed a `--headless-test-mode --swarm-port 0` flag with a `SWARM_PORT=<n>` stdout
 //     protocol. The shell has no such flag; the production binary ALREADY binds the swarm server on
 //     startup (`app.rs::spawn_mcp_server`) and writes the binding file, so the audit discovers the port
@@ -535,6 +535,133 @@ fn rpc(addr: &str, request: &serde_json::Value) -> std::io::Result<serde_json::V
     Ok(serde_json::from_str(resp.trim()).unwrap_or(serde_json::Value::Null))
 }
 
+fn require_palmistry_ready_backend() -> PathBuf {
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+
+    assert_eq!(
+        std::env::var("HANDSHAKE_ARGUS_LIVE_BACKEND_READY").as_deref(),
+        Ok("1"),
+        "set HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1 only after managed PostgreSQL and the production \
+         handshake_core backend are running and Palmistry launch prerequisites are satisfied"
+    );
+    let diagnostics_dir = PathBuf::from(std::env::var("HANDSHAKE_DIAGNOSTICS_DIR").expect(
+        "HANDSHAKE_DIAGNOSTICS_DIR must point to the existing absolute directory shared by \
+             handshake-native, Palmistry, and handshake_core",
+    ));
+    assert!(
+        diagnostics_dir.is_absolute() && diagnostics_dir.is_dir(),
+        "HANDSHAKE_DIAGNOSTICS_DIR must be an existing absolute directory; got {}",
+        diagnostics_dir.display()
+    );
+
+    let mut stream = TcpStream::connect_timeout(
+        &"127.0.0.1:37501".parse().expect("fixed backend address"),
+        Duration::from_secs(3),
+    )
+    .expect("Palmistry-ready handshake_core is not accepting connections on 127.0.0.1:37501");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(3)))
+        .expect("set backend health read timeout");
+    stream
+        .write_all(b"GET /health HTTP/1.1\r\nHost: 127.0.0.1:37501\r\nConnection: close\r\n\r\n")
+        .expect("write backend health probe");
+    let mut response = String::new();
+    stream
+        .read_to_string(&mut response)
+        .expect("read backend health probe");
+    assert!(
+        response.starts_with("HTTP/1.1 200") || response.starts_with("HTTP/1.0 200"),
+        "handshake_core /health was not ready: {}",
+        response.lines().next().unwrap_or("<empty response>")
+    );
+    diagnostics_dir
+}
+
+fn canonical_request(
+    id: u64,
+    method: &str,
+    params: serde_json::Value,
+    token: &str,
+    agent_token: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": method,
+        "params": params,
+        "session_token": token,
+        "agent_token": agent_token,
+        "agent_label": "focus-audit-live",
+    })
+}
+
+fn authenticate_agent(addr: &str, token: &str) -> String {
+    let request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "argus.authenticate_agent",
+        "params": {},
+        "session_token": token,
+        "agent_label": "focus-audit-live",
+    });
+    let response = rpc(addr, &request).expect("broker agent authentication transport");
+    response["result"]["agent_token"]
+        .as_str()
+        .expect("broker returned agent_token")
+        .to_owned()
+}
+
+fn proof_request(request: &serde_json::Value) -> serde_json::Value {
+    let mut redacted = request.clone();
+    if let Some(object) = redacted.as_object_mut() {
+        for key in ["session_token", "agent_token"] {
+            if object.contains_key(key) {
+                object.insert(
+                    key.to_owned(),
+                    serde_json::Value::String("[REDACTED]".to_owned()),
+                );
+            }
+        }
+    }
+    redacted
+}
+
+fn successful_result(response: &serde_json::Value) -> Option<&serde_json::Value> {
+    (response.get("error").is_none())
+        .then(|| response.get("result"))
+        .flatten()
+}
+
+fn applied_durable_receipt(response: &serde_json::Value) -> bool {
+    let Some(result) = successful_result(response) else {
+        return false;
+    };
+    result.get("status").and_then(|value| value.as_str()) == Some("applied")
+        && result
+            .get("after_revision")
+            .and_then(|value| value.as_u64())
+            .zip(
+                result
+                    .get("before_revision")
+                    .and_then(|value| value.as_u64()),
+            )
+            .is_some_and(|(after, before)| after > before)
+        && result
+            .get("evidence_ref")
+            .and_then(|value| value.as_str())
+            .is_some_and(|value| !value.is_empty())
+        && result
+            .get("durability_error")
+            .is_some_and(|value| value.is_null())
+}
+
+fn inspected_revision(response: &serde_json::Value) -> Option<u64> {
+    successful_result(response)?
+        .get("revision")
+        .and_then(|value| value.as_u64())
+}
+
 /// Poll the binding file (under the redirected LOCALAPPDATA) until the spawned child writes it with its
 /// own PID, or time out. Returns the discovered binding, or `None` on timeout.
 fn discover_binding(
@@ -562,11 +689,16 @@ fn discover_binding(
 ///   `cargo test -p handshake-native --test test_focus_audit_live -- --ignored --nocapture`
 #[ignore = "LIVE Win32 audit: spawns a real on-screen window AND installs a GLOBAL WH_KEYBOARD_LL \
             keyboard hook (would itself pop a window + intercept all keystrokes in a non-interactive \
-            session); requires an interactive desktop + a running message pump. Run on a controlled \
-            CI/test desktop with `--ignored`, like the GPU-gated pixel proofs and cfg-gated live-PG \
-            tests."]
+            session); requires an interactive desktop, managed PostgreSQL, a Palmistry-ready \
+            handshake_core on 127.0.0.1:37501, HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, and a shared \
+            HANDSHAKE_DIAGNOSTICS_DIR. Run on a controlled CI/test desktop with `--ignored`."]
 #[test]
 fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
+    // Production receipts are part of the proof: fail before installing global hooks or opening a
+    // window unless the operator explicitly declares and the test independently probes the
+    // Palmistry-ready backend prerequisites.
+    let diagnostics_dir = require_palmistry_ready_backend();
+
     // Redirect %LOCALAPPDATA% so the spawned child writes its binding file into a per-run temp dir we
     // can discover, never touching the real user binding.
     let tmp = std::env::temp_dir().join(format!("hsk_mt030_live_{}", std::process::id()));
@@ -587,7 +719,7 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     let exe = env!("CARGO_BIN_EXE_handshake-native");
     let spawn = std::process::Command::new(exe)
         .env("LOCALAPPDATA", &tmp)
-        .env("HANDSHAKE_NATIVE_TEST", "1")
+        .env("HANDSHAKE_DIAGNOSTICS_DIR", &diagnostics_dir)
         .spawn();
 
     let mut child = match spawn {
@@ -624,83 +756,209 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     let mut driven_actions = 0usize;
     let mut keyboard_actions = 0usize;
     let mut transcript: Vec<serde_json::Value> = Vec::new();
+    let mut failed_actions: Vec<serde_json::Value> = Vec::new();
     let mut connect_ok = false;
 
     if let Some(b) = &binding {
-        connect_ok = true;
-        // 20 foreground-CANDIDATE actions: every one of these is a model/swarm-driven interaction that
-        // MUST NOT raise the window or steal focus. list_widgets (read) x4, screenshot (vision) x2,
-        // click_widget (theme toggle / rails) x8, focus + set_value (keyboard-driving) x6.
-        let foreground_candidate: Vec<serde_json::Value> = vec![
-            serde_json::json!({"method": "list_widgets", "params": {}}),
-            serde_json::json!({"method": "screenshot", "params": {}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "shell.chrome.theme-toggle"}}),
-            serde_json::json!({"method": "list_widgets", "params": {}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "shell.chrome.theme-toggle"}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "left-rail.activity.files"}}),
-            serde_json::json!({"method": "list_widgets", "params": {}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "left-rail.activity.agenda"}}),
-            serde_json::json!({"method": "screenshot", "params": {}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "left-rail.activity.notes"}}),
-            serde_json::json!({"method": "list_widgets", "params": {}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "left-rail.activity.mail"}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "left-rail.collapse-toggle"}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "left-rail.collapse-toggle"}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "shell.chrome.theme-toggle"}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "left-rail.stash-toggle"}}),
-            serde_json::json!({"method": "list_widgets", "params": {}}),
-            serde_json::json!({"method": "screenshot", "params": {}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "left-rail.stash-toggle"}}),
-            serde_json::json!({"method": "click_widget", "params": {"target": "shell.chrome.theme-toggle"}}),
-        ];
-
-        // 10 keyboard-driving actions: focus the bottom-rail input then set_value (Focus + synthetic
-        // characters via the swarm channel). These exercise the IN-APP keyboard path; the WH_KEYBOARD_LL
-        // hook proves none of these leaks into the OS input queue as injected keystrokes.
-        let keyboard_driving: Vec<serde_json::Value> = (0..10)
-            .map(|i| {
-                if i % 2 == 0 {
-                    serde_json::json!({"method": "set_value", "params": {"target": "bottom-rail.input", "value": format!("audit-probe-{i}")}})
-                } else {
-                    serde_json::json!({"method": "click_widget", "params": {"target": "bottom-rail.clear"}})
-                }
-            })
-            .collect();
-
         let mut id = 1u64;
-        for action in &foreground_candidate {
-            let req = serde_json::json!({
-                "jsonrpc": "2.0", "id": id, "method": action["method"],
-                "params": action["params"], "session_token": b.token,
-            });
+        let agent_token = authenticate_agent(&b.tcp_addr, &b.token);
+        let initial = canonical_request(
+            id,
+            "argus.inspect",
+            serde_json::json!({"window_id": "main"}),
+            &b.token,
+            &agent_token,
+        );
+        id += 1;
+        match rpc(&b.tcp_addr, &initial) {
+            Ok(response) => {
+                connect_ok = inspected_revision(&response).is_some();
+                transcript.push(
+                    serde_json::json!({"request": proof_request(&initial), "response": response}),
+                );
+            }
+            Err(error) => transcript.push(
+                serde_json::json!({"request": proof_request(&initial), "transport_error": error.to_string()}),
+            ),
+        }
+
+        // Every mutation is fenced by a fresh canonical inspect revision and counts only if the socket
+        // returns an applied, newer, durable receipt. A JSON-RPC error is evidence of a failed drive,
+        // never a driven action.
+        let foreground_candidate = [
+            ("argus.inspect", None),
+            ("argus.screenshot", None),
+            ("argus.click", Some("shell.chrome.theme-toggle")),
+            ("argus.inspect", None),
+            ("argus.click", Some("shell.chrome.theme-toggle")),
+            ("argus.click", Some("left-rail.activity.files")),
+            ("argus.inspect", None),
+            ("argus.click", Some("left-rail.activity.agenda")),
+            ("argus.screenshot", None),
+            ("argus.click", Some("left-rail.activity.notes")),
+            ("argus.inspect", None),
+            ("argus.click", Some("left-rail.activity.mail")),
+            ("argus.click", Some("left-rail.collapse-toggle")),
+            ("argus.click", Some("left-rail.collapse-toggle")),
+            ("argus.click", Some("shell.chrome.theme-toggle")),
+            ("argus.click", Some("left-rail.stash-toggle")),
+            ("argus.inspect", None),
+            ("argus.screenshot", None),
+            ("argus.click", Some("left-rail.stash-toggle")),
+            ("argus.click", Some("shell.chrome.theme-toggle")),
+        ];
+        for (method, target) in foreground_candidate {
+            let params = if let Some(author_id) = target {
+                let inspect = canonical_request(
+                    id,
+                    "argus.inspect",
+                    serde_json::json!({"window_id": "main"}),
+                    &b.token,
+                    &agent_token,
+                );
+                id += 1;
+                let revision = match rpc(&b.tcp_addr, &inspect) {
+                    Ok(response) => {
+                        let revision = inspected_revision(&response);
+                        transcript.push(
+                            serde_json::json!({"request": proof_request(&inspect), "response": response}),
+                        );
+                        revision
+                    }
+                    Err(error) => {
+                        transcript.push(serde_json::json!({
+                            "request": proof_request(&inspect),
+                            "transport_error": error.to_string()
+                        }));
+                        None
+                    }
+                };
+                let Some(revision) = revision else {
+                    failed_actions.push(serde_json::json!({
+                        "method": method,
+                        "author_id": author_id,
+                        "failure": "fresh canonical inspect failed"
+                    }));
+                    continue;
+                };
+                serde_json::json!({
+                    "window_id": "main",
+                    "author_id": author_id,
+                    "expected_snapshot_revision": revision
+                })
+            } else {
+                serde_json::json!({"window_id": "main"})
+            };
+            let request = canonical_request(id, method, params, &b.token, &agent_token);
             id += 1;
-            match rpc(&b.tcp_addr, &req) {
-                Ok(resp) => {
-                    driven_actions += 1;
-                    transcript.push(
-                        serde_json::json!({"req": action, "ok": resp.get("error").is_none()}),
-                    );
+            match rpc(&b.tcp_addr, &request) {
+                Ok(response) => {
+                    let succeeded = if target.is_some() {
+                        applied_durable_receipt(&response)
+                    } else {
+                        successful_result(&response).is_some()
+                    };
+                    transcript.push(serde_json::json!({
+                        "request": proof_request(&request),
+                        "response": response.clone()
+                    }));
+                    if succeeded {
+                        driven_actions += 1;
+                    } else {
+                        failed_actions.push(serde_json::json!({
+                            "request": proof_request(&request),
+                            "response": response
+                        }));
+                    }
                 }
-                Err(e) => transcript
-                    .push(serde_json::json!({"req": action, "transport_error": e.to_string()})),
+                Err(error) => {
+                    transcript.push(serde_json::json!({
+                        "request": proof_request(&request),
+                        "transport_error": error.to_string()
+                    }));
+                    failed_actions.push(serde_json::json!({
+                        "request": proof_request(&request),
+                        "transport_error": error.to_string()
+                    }));
+                }
             }
             std::thread::sleep(Duration::from_millis(120));
         }
-        for action in &keyboard_driving {
-            let req = serde_json::json!({
-                "jsonrpc": "2.0", "id": id, "method": action["method"],
-                "params": action["params"], "session_token": b.token,
-            });
+
+        // Ten canonical set-value receipts exercise egui's in-process Event::Text path. Each one gets
+        // its own fresh revision fence; failed/error receipts do not inflate keyboard_actions.
+        for index in 0..10 {
+            let inspect = canonical_request(
+                id,
+                "argus.inspect",
+                serde_json::json!({"window_id": "main"}),
+                &b.token,
+                &agent_token,
+            );
             id += 1;
-            match rpc(&b.tcp_addr, &req) {
-                Ok(resp) => {
-                    keyboard_actions += 1;
+            let revision = match rpc(&b.tcp_addr, &inspect) {
+                Ok(response) => {
+                    let revision = inspected_revision(&response);
                     transcript.push(
-                        serde_json::json!({"req": action, "ok": resp.get("error").is_none()}),
+                        serde_json::json!({"request": proof_request(&inspect), "response": response}),
                     );
+                    revision
                 }
-                Err(e) => transcript
-                    .push(serde_json::json!({"req": action, "transport_error": e.to_string()})),
+                Err(error) => {
+                    transcript.push(serde_json::json!({
+                        "request": proof_request(&inspect),
+                        "transport_error": error.to_string()
+                    }));
+                    None
+                }
+            };
+            let Some(revision) = revision else {
+                failed_actions.push(serde_json::json!({
+                    "method": "argus.set_value",
+                    "index": index,
+                    "failure": "fresh canonical inspect failed"
+                }));
+                continue;
+            };
+            let request = canonical_request(
+                id,
+                "argus.set_value",
+                serde_json::json!({
+                    "window_id": "main",
+                    "author_id": "bottom-rail.input",
+                    "value": format!("audit-probe-{index}"),
+                    "expected_snapshot_revision": revision
+                }),
+                &b.token,
+                &agent_token,
+            );
+            id += 1;
+            match rpc(&b.tcp_addr, &request) {
+                Ok(response) => {
+                    let succeeded = applied_durable_receipt(&response);
+                    transcript.push(serde_json::json!({
+                        "request": proof_request(&request),
+                        "response": response.clone()
+                    }));
+                    if succeeded {
+                        keyboard_actions += 1;
+                    } else {
+                        failed_actions.push(serde_json::json!({
+                            "request": proof_request(&request),
+                            "response": response
+                        }));
+                    }
+                }
+                Err(error) => {
+                    transcript.push(serde_json::json!({
+                        "request": proof_request(&request),
+                        "transport_error": error.to_string()
+                    }));
+                    failed_actions.push(serde_json::json!({
+                        "request": proof_request(&request),
+                        "transport_error": error.to_string()
+                    }));
+                }
             }
             std::thread::sleep(Duration::from_millis(120));
         }
@@ -730,7 +988,12 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     drop(foreground_hook); // unhook WinEvent
 
     // ── 5. Build the reports. `audited` ONLY when both hooks installed and we actually drove actions. ──
-    let audited = foreground_installed && keyboard_installed && connect_ok && driven_actions > 0;
+    let audited = foreground_installed
+        && keyboard_installed
+        && connect_ok
+        && driven_actions > 0
+        && keyboard_actions > 0
+        && failed_actions.is_empty();
     let audit_status = if audited {
         "audited"
     } else {
@@ -744,6 +1007,7 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
         "app_pid": child_pid,
         "foreground_hook_installed": foreground_installed,
         "driven_actions": driven_actions,
+        "failed_actions": failed_actions,
         // FocusAuditReport-compatible field: foreground steals attributed to the app (must be empty).
         "handshake_owned_events": (0..fg.app_attributable_events)
             .map(|_| serde_json::json!({"pid": child_pid, "event": "EVENT_SYSTEM_FOREGROUND"}))
@@ -761,6 +1025,7 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
         "app_pid": child_pid,
         "keyboard_hook_installed": keyboard_installed,
         "keyboard_actions_driven": keyboard_actions,
+        "failed_actions": failed_actions,
         // CTRL-030-05 liveness: total_key_events MUST be > 0 (proven by the single TEST keystroke we
         // injected) before injected_from_app can be trusted. test_keystroke_events records how many
         // synthetic inputs SendInput accepted for that one liveness probe (2 = SPACE down + up).
@@ -802,7 +1067,8 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     assert!(
         binding.is_some(),
         "the spawned shell never published its swarm binding file at {} within the deadline — the app \
-         did not start its MT-027 server (likely no interactive desktop / GPU); run on a real desktop",
+         did not start its MT-027 server (likely no interactive desktop/GPU or Palmistry startup \
+         prerequisite); run on a controlled desktop with the declared backend prerequisites",
         binding_path.display()
     );
     assert!(
@@ -810,6 +1076,21 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
         "drove zero swarm actions — the audit observed an idle window, not a real swarm session \
          (CTRL-030-04). total_foreground_events={}",
         fg.total_events
+    );
+    assert!(
+        keyboard_actions > 0,
+        "drove zero successful keyboard actions — no applied durable argus.set_value receipt was \
+         observed, so the keyboard path was not exercised"
+    );
+    assert!(
+        failed_actions.is_empty(),
+        "{} canonical Argus action(s) failed or lacked an applied durable receipt; RPC errors cannot \
+         count as driven actions. First failure: {}",
+        failed_actions.len(),
+        failed_actions
+            .first()
+            .map(serde_json::Value::to_string)
+            .unwrap_or_else(|| "<none>".to_owned())
     );
 
     // The core invariants (HBR-QUIET): the shell never foregrounded itself, never injected keystrokes.

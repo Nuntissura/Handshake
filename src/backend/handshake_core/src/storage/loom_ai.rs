@@ -304,7 +304,10 @@ pub async fn apply_loom_block_auto_derived(
     // jsonb_set/||-merge so unrelated derived keys (metrics, preview) survive.
     let mut patch = serde_json::Map::new();
     if let Some(caption) = auto_caption {
-        patch.insert("auto_caption".to_string(), Value::String(caption.to_string()));
+        patch.insert(
+            "auto_caption".to_string(),
+            Value::String(caption.to_string()),
+        );
     }
     if let Some(tags) = auto_tags {
         patch.insert(
