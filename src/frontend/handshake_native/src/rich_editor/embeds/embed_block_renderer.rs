@@ -1101,12 +1101,24 @@ fn render_album(
     }
 }
 
-/// Render the Resolving spinner state (an `egui::Spinner` + a label). Non-interactive.
+/// Render the Resolving spinner state (an `egui::Spinner` + a label). Non-interactive, but
+/// AccessKit-addressable as `embed-loading-{token}` so the LOADING state is observable through
+/// Argus/an out-of-process agent (HBR-VIS): without a stable id the mounted loading state was
+/// invisible to canonical inspection, so a swarm agent could not distinguish "still resolving"
+/// from "not present". Uses the same first-comma `token` shape as the error chip.
 fn render_spinner(ui: &mut egui::Ui, kind: MediaEmbedKind, ref_value: &str) {
-    ui.horizontal(|ui| {
-        ui.add(egui::Spinner::new());
-        ui.label(format!("Resolving {} embed {ref_value}…", kind.ref_kind()));
-    });
+    let resp = ui
+        .horizontal(|ui| {
+            ui.add(egui::Spinner::new());
+            ui.label(format!("Resolving {} embed {ref_value}…", kind.ref_kind()));
+        })
+        .response;
+    emit_node_author(
+        ui.ctx(),
+        resp.id,
+        accesskit::Role::Label,
+        &format!("embed-loading-{}", error_chip_token(ref_value)),
+    );
 }
 
 /// Render a typed, VISIBLE, fail-closed embed error chip (never blank). A colored rounded rect

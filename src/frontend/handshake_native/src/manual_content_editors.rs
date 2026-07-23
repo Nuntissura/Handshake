@@ -1129,8 +1129,20 @@ code refs insert inline atoms through Step::InsertInlineChild with a pushed hist
     with a typed visible error. Click a single image to open embed-image-modal-{asset_id}, close it with \
     embed-image-modal-close-{asset_id}, or retry a transient asset failure with embed-retry-{asset_id}. Changing \
     workspace cancels owned work and clears metadata, decoded-image, texture, sequence, modal, and failure caches so \
-    an asset id cannot leak content from the prior workspace. Export starts at rich-editor-export-button and opens \
-export-format-picker for HTML/MD/TXT/JSON output."
+    an asset id cannot leak content from the prior workspace. A still-resolving embed is the addressable loading \
+    state embed-loading-{asset_id}; a missing or undecodable asset renders the typed chip embed-error-{asset_id} \
+    (never blank, never a panic). HBR-INT-009 diagnostic posture for embeds, verified against the current worktree: \
+    Tier 1 Flight Recorder is NOT repurposed for the embed read/render path — resolving and decoding an asset is a \
+    read, so no embed-render business event is fabricated; the underlying asset/Loom block the embed resolves \
+    already carries its handshake_core Flight Recorder/EventLedger events. Tier 2 internal_diagnostics is SHIPPED in \
+    this worktree (NOT deferred): embed failures degrade to typed visible chips and all metadata, body-fetch, and \
+    decode work is bounded by a shared six-operation budget plus a 15s per-operation timeout, so a stuck asset \
+    becomes a typed timed-out chip rather than a permanent spinner, and Settings -> Diagnostics projects live in-app \
+    health; the embed pipeline does not yet emit dedicated internal_diagnostics rows (a follow-up), but the tier \
+    itself exists here. Tier 3 Palmistry is SHIPPED in this worktree (NOT deferred): image decode runs off the UI \
+    thread (tokio::spawn_blocking) so the frame loop stays responsive, and a genuine freeze/crash is covered by the \
+    external out-of-process watcher at the app boundary; there is no embed-specific Palmistry child. Export starts \
+    at rich-editor-export-button and opens export-format-picker for HTML/MD/TXT/JSON output."
         .to_owned()
 }
 

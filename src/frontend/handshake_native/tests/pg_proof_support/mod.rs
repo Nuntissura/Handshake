@@ -752,6 +752,28 @@ impl LiveBackend {
         (status, value)
     }
 
+    /// PUT counterpart of [`Self::post_json_response`]: returns the status + parsed body without
+    /// asserting success, so a proof can exercise a typed non-2xx rejection (e.g. a 400 preference
+    /// validation error) directly.
+    pub fn put_json_response(
+        &self,
+        path: &str,
+        body: &serde_json::Value,
+    ) -> (u16, serde_json::Value) {
+        let label = format!("PUT {path}");
+        let (status, text) = self.request_text_response(
+            self.ident(self.client.put(format!("{}{path}", self.base)))
+                .json(body),
+            &label,
+        );
+        let value = if text.is_empty() {
+            serde_json::Value::Null
+        } else {
+            serde_json::from_str(&text).unwrap_or(serde_json::Value::String(text))
+        };
+        (status, value)
+    }
+
     pub fn put_json(&self, path: &str, body: &serde_json::Value) -> serde_json::Value {
         self.request_json_allow_empty(
             self.ident(self.client.put(format!("{}{path}", self.base)))

@@ -2278,6 +2278,64 @@ pub trait Database: Send + Sync {
     ) -> StorageResult<WorkspaceSettingsState> {
         Err(StorageError::NotImplemented("workspace settings backend"))
     }
+    // ---- WP-KERNEL-012 MT-072 Settings & Preferences domain (Master Spec §10.17) ----
+    // Canonical typed PreferenceRecord authority in PostgreSQL. `entry` is the registry schema entry
+    // (default, value_type, namespace, redaction). The value passed to `preference_set` MUST already be
+    // typed-validated by the caller (`PreferenceSchemaEntry::validate`) — the store enforces authority,
+    // EventLedger receipts, and revisions, not re-validation of user input semantics.
+    /// Resolve the record for `entry` in `scope`; returns the registry-default record (revision 0) when
+    /// unset (SET-REC-003 — never null for a defined preference).
+    async fn preference_get(
+        &self,
+        _scope: &crate::preferences::PreferenceScope,
+        _entry: &crate::preferences::PreferenceSchemaEntry,
+    ) -> StorageResult<crate::preferences::PreferenceRecord> {
+        Err(StorageError::NotImplemented("preference store"))
+    }
+    /// Set the value, bumping revision, emitting the EventLedger `PreferenceRecordChanged` receipt, and
+    /// appending a recoverable change receipt in the same transaction (SET-EVT-001/002/003).
+    async fn preference_set(
+        &self,
+        _scope: &crate::preferences::PreferenceScope,
+        _entry: &crate::preferences::PreferenceSchemaEntry,
+        _value: Value,
+        _source: crate::preferences::PreferenceSource,
+        _actor: &str,
+    ) -> StorageResult<(
+        crate::preferences::PreferenceRecord,
+        crate::preferences::PreferenceChangeReceipt,
+    )> {
+        Err(StorageError::NotImplemented("preference store"))
+    }
+    /// Reset to the registry default, modeled as an explicit mutation with a receipt (SET-UI-002 — never
+    /// a provenance-losing delete).
+    async fn preference_reset(
+        &self,
+        _scope: &crate::preferences::PreferenceScope,
+        _entry: &crate::preferences::PreferenceSchemaEntry,
+        _actor: &str,
+    ) -> StorageResult<(
+        crate::preferences::PreferenceRecord,
+        crate::preferences::PreferenceChangeReceipt,
+    )> {
+        Err(StorageError::NotImplemented("preference store"))
+    }
+    /// The change-history receipts for one preference in `scope`, newest first (SET-UI-003).
+    async fn preference_history(
+        &self,
+        _scope: &crate::preferences::PreferenceScope,
+        _preference_id: &str,
+    ) -> StorageResult<Vec<crate::preferences::PreferenceChangeReceipt>> {
+        Err(StorageError::NotImplemented("preference store"))
+    }
+    /// The deterministic redacted projection over the given registry entries in `scope` (SET-PROJ-002).
+    async fn preference_projection(
+        &self,
+        _scope: &crate::preferences::PreferenceScope,
+        _entries: &[crate::preferences::PreferenceSchemaEntry],
+    ) -> StorageResult<Vec<crate::preferences::PreferenceProjectionRow>> {
+        Err(StorageError::NotImplemented("preference store"))
+    }
     /// MT-258 durable workspace search bookmarks (saved searches). Replaces the
     /// localStorage-only authority with PostgreSQL + EventLedger persistence.
     async fn get_workspace_search_bookmark_state(

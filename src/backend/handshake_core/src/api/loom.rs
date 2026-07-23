@@ -1293,6 +1293,31 @@ struct CreateLoomFolderRequest {
     project_ref: Option<String>,
 }
 
+/// WP-KERNEL-012 E3 MT-022: best-effort Tier-1 Flight Recorder mirror of a Loom
+/// folder mutation. The DURABLE receipt is the atomic KNOWLEDGE_LOOM_FOLDER_MUTATED
+/// EventLedger row appended inside the storage transaction; this DuckDB mirror is
+/// observability only and its failure never affects the committed mutation.
+async fn record_loom_folder_flight_event(
+    state: &AppState,
+    workspace_id: &str,
+    folder_id: &str,
+    operation: &str,
+) {
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomFolderMutated,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_folder_mutated",
+            "workspace_id": workspace_id,
+            "folder_id": folder_id,
+            "operation": operation,
+        }),
+    )
+    .with_wsids(vec![workspace_id.to_string()]);
+    let _ = state.flight_recorder.record_event(event).await;
+}
+
 async fn create_loom_folder(
     State(state): State<AppState>,
     Path(workspace_id): Path<String>,
@@ -1318,6 +1343,7 @@ async fn create_loom_folder(
         )
         .await
         .map_err(map_storage_error)?;
+    record_loom_folder_flight_event(&state, &workspace_id, &folder.folder_id, "create").await;
     Ok(Json(folder))
 }
 
@@ -1358,6 +1384,7 @@ async fn update_loom_folder(
         .update_loom_folder(&workspace_id, &folder_id, update)
         .await
         .map_err(map_storage_error)?;
+    record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "update").await;
     Ok(Json(folder))
 }
 
@@ -1371,6 +1398,7 @@ async fn delete_loom_folder(
         .delete_loom_folder(&workspace_id, &folder_id)
         .await
         .map_err(map_storage_error)?;
+    record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "delete").await;
     Ok(Json(json!({ "status": "deleted" })))
 }
 
@@ -1391,6 +1419,7 @@ async fn add_block_to_loom_folder(
         .add_block_to_loom_folder(&workspace_id, &folder_id, &block_id, payload.sort_order)
         .await
         .map_err(map_storage_error)?;
+    record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "add_member").await;
     Ok(Json(json!({ "status": "added" })))
 }
 
@@ -1404,6 +1433,7 @@ async fn remove_block_from_loom_folder(
         .remove_block_from_loom_folder(&workspace_id, &folder_id, &block_id)
         .await
         .map_err(map_storage_error)?;
+    record_loom_folder_flight_event(&state, &workspace_id, &folder_id, "remove_member").await;
     Ok(Json(json!({ "status": "removed" })))
 }
 

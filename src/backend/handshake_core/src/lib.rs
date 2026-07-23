@@ -240,6 +240,8 @@ pub mod observability;
 #[cfg(feature = "runtime-full")]
 pub mod operator_foreground;
 #[cfg(feature = "runtime-full")]
+pub mod preferences;
+
 pub mod process_ledger;
 #[cfg(feature = "runtime-full")]
 pub mod role_mailbox;

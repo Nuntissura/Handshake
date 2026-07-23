@@ -615,6 +615,113 @@ fn page_permissions_and_safety() -> NewUserManualPage {
     }
 }
 
+/// WP-KERNEL-012 MT-072: the editor Settings & Preferences surface, authored as the canonical typed
+/// PreferenceRecord authority (Master Spec §10.17). Lists every editor `preference_id`, its value type,
+/// default, and the exact recovery/inspection routes so a no-context model/operator can set, reset, and
+/// audit editor preferences without reading source.
+fn page_editor_preferences() -> NewUserManualPage {
+    NewUserManualPage {
+        slug: "editor-preferences-surface".into(),
+        title: "Editor Settings & Preferences (PreferenceRecord)".into(),
+        page_kind: "surface_guide",
+        audience: "model_and_operator",
+        spec_anchors: vec!["10.17".into()],
+        sections: vec![
+            section(
+                "purpose",
+                "What this surface is",
+                "Editor settings (font size, tab size, word wrap, syntax palette, keybinding overrides, \
+                 and the code-editor view toggles) persist as the canonical typed **PreferenceRecord** \
+                 authority in PostgreSQL — NOT as an opaque workspace-settings JSON blob. Every editor \
+                 preference has a stable `preference_id`, a declared `value_type`, a registry `default`, a \
+                 `scope` (workspace), a `source` (`default`/`operator`/`migration`), a monotonically \
+                 increasing `revision`, typed validation, reset-to-default semantics, a full change \
+                 history, and recoverable EventLedger receipts. Authority is the PostgreSQL row + the \
+                 `PREFERENCE_RECORD_CHANGED` EventLedger receipt — never a projection or the settings UI.",
+            ),
+            section_with_json(
+                "usage",
+                "Routes and preference ids",
+                "All routes are workspace-scoped under `/workspaces/{workspace_id}/preferences`:\n\n\
+                 - `GET /workspaces/{workspace_id}/preferences` — the redacted projection (effective \
+                 value, default, scope, source, revision for every editor preference).\n\
+                 - `GET /workspaces/{workspace_id}/preferences/{preference_id}` — the resolved record; an \
+                 unset defined preference resolves to its registry default (never null), `revision=0`.\n\
+                 - `PUT /workspaces/{workspace_id}/preferences/{preference_id}` body `{\"value\": ...}` — \
+                 set a typed value. Out-of-range / wrong-type / unknown-enum values are rejected with a \
+                 structured HTTP 400 (`preference_validation_failed`), never coerced.\n\
+                 - `POST /workspaces/{workspace_id}/preferences/{preference_id}/reset` — reset to the \
+                 registry default (a mutation with `source=operator` and its own receipt; NOT a delete).\n\
+                 - `GET /workspaces/{workspace_id}/preferences/{preference_id}/history` — the change \
+                 receipts, newest first, each pointing at its EventLedger event id.\n\n\
+                 Defined editor `preference_id`s (namespace `view-defaults`): `view-defaults.editor.font-size` \
+                 (float 6..48, default 13.0), `view-defaults.editor.tab-size` (int 1..16, default 4), \
+                 `view-defaults.editor.insert-spaces` (bool, default true), `view-defaults.editor.word-wrap` \
+                 (enum off|on|bounded, default off), `view-defaults.editor.word-wrap-column` (int 20..400, \
+                 default 80), `view-defaults.editor.render-whitespace` (enum none|boundary|all, default \
+                 none), `view-defaults.editor.minimap-enabled`, `view-defaults.editor.sticky-scroll`, \
+                 `view-defaults.editor.line-numbers` (bool, default true), `view-defaults.editor.line-height` \
+                 (float 1.0..2.0, default 1.0), `view-defaults.editor.bracket-matching`, \
+                 `view-defaults.editor.indent-guides` (bool, default true), \
+                 `view-defaults.editor.reading-mode-default` (bool, default false), \
+                 `view-defaults.editor.syntax-palette-mode` (enum muted|standard|custom, default standard), \
+                 `view-defaults.editor.syntax-custom-colors` (json-object of scope->sRGBA), \
+                 `view-defaults.editor.keybinding-overrides` (json-object of action->chord).",
+                json!({
+                    "namespace": "view-defaults",
+                    "preference_ids": [
+                        "view-defaults.editor.font-size",
+                        "view-defaults.editor.tab-size",
+                        "view-defaults.editor.insert-spaces",
+                        "view-defaults.editor.word-wrap",
+                        "view-defaults.editor.word-wrap-column",
+                        "view-defaults.editor.render-whitespace",
+                        "view-defaults.editor.minimap-enabled",
+                        "view-defaults.editor.sticky-scroll",
+                        "view-defaults.editor.line-numbers",
+                        "view-defaults.editor.line-height",
+                        "view-defaults.editor.bracket-matching",
+                        "view-defaults.editor.indent-guides",
+                        "view-defaults.editor.reading-mode-default",
+                        "view-defaults.editor.syntax-palette-mode",
+                        "view-defaults.editor.syntax-custom-colors",
+                        "view-defaults.editor.keybinding-overrides"
+                    ],
+                    "event_ledger_type": "PREFERENCE_RECORD_CHANGED"
+                }),
+            ),
+            section(
+                "recovery",
+                "Failure and recovery steps",
+                "- A preference that seems 'stuck' on the wrong value: `GET \
+                 .../preferences/{preference_id}` shows the effective value + `revision` + `source`. If \
+                 `source=default` and `revision=0`, no explicit value is stored (the registry default is \
+                 in force).\n\
+                 - Undo a bad change: `POST .../preferences/{preference_id}/reset` restores the default \
+                 and appends a receipt; the prior value is preserved in the change history (`GET \
+                 .../history`), so a reset never loses provenance and can be re-applied by reading the old \
+                 `new_value` from the history and PUTting it back.\n\
+                 - Audit who changed what: `GET .../preferences/{preference_id}/history` returns every \
+                 receipt (before/after revision, old/new value, actor, `event_ledger_event_id`). Correlate \
+                 the `event_ledger_event_id` on `/events` for the durable EventLedger receipt.\n\
+                 - A rejected write (HTTP 400 `preference_validation_failed`) never persisted anything — \
+                 re-read the record to confirm it is unchanged, then PUT an in-range value.\n\
+                 - Diagnostic posture (HBR-INT-009): Tier 1 Flight Recorder = WIRED (the \
+                 `PREFERENCE_RECORD_CHANGED` EventLedger receipt is the durable, Flight-Recorder-backed \
+                 change evidence, appended in the same PostgreSQL transaction as the record write). Tier 2 \
+                 internal_diagnostics and Tier 3 Palmistry = DEFERRED (not yet shipped in this worktree; \
+                 preference reads/writes surface through the standard backend request diagnostics until \
+                 they land).",
+            ),
+        ],
+        anchors: vec![
+            page_link("rich-documents-surface"),
+            page_link("failure-modes-and-recovery"),
+            spec_anchor("10.17"),
+        ],
+    }
+}
+
 fn surface_page(
     slug: &str,
     title: &str,
@@ -778,6 +885,31 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  (`POST .../loom/metrics/recompute`). Re-run unlinked-mention scans after bulk \
                  imports. Deleted blocks cascade their bridge rows; knowledge entities are \
                  retired, not hard-deleted, so detection history survives.",
+            ),
+            section(
+                "durable_mutation_receipts",
+                "Durable folder/tag mutation receipts and diagnostic posture",
+                "Folder-tree mutations (`POST/PATCH/DELETE .../loom/folders...` and folder \
+                 membership `PUT/DELETE .../loom/folders/:folder_id/blocks/:block_id`) and \
+                 tag-edge mutations (`POST/DELETE .../loom/edges` with `edge_type='tag'`) each \
+                 append a durable EventLedger receipt in the SAME PostgreSQL transaction as the \
+                 domain write. Event types: `KNOWLEDGE_LOOM_FOLDER_MUTATED` \
+                 (aggregate_type=`loom_folder`, aggregate_id=folder_id) and \
+                 `KNOWLEDGE_LOOM_TAG_MUTATED` (aggregate_type=`loom_edge`, aggregate_id=edge_id). \
+                 The receipt id is stored on `loom_folders.event_ledger_event_id`, \
+                 `loom_folder_members.event_ledger_event_id`, and \
+                 `loom_edges.event_ledger_event_id` with a foreign key to `kernel_event_ledger`, \
+                 so a committed mutation can never lack durable evidence and a failed receipt \
+                 append rolls the whole mutation back — no partial folder/edge row survives a \
+                 restart. Correlate the receipt on `GET .../events`.\n\
+                 - Diagnostic posture (HBR-INT-009): Tier 1 Flight Recorder = WIRED (folder \
+                 mutations emit `loom_folder_mutated`; tag-edge mutations emit \
+                 `loom_edge_created`/`loom_edge_deleted`; these best-effort DuckDB mirrors are \
+                 secondary to the durable atomic EventLedger receipt above). Tier 2 \
+                 internal_diagnostics = WIRED (the native diag_ring event ring, frame-timing \
+                 sampler, and panic hook observe the folder-tree and tags/tag-hub panels). \
+                 Tier 3 Palmistry = WIRED (the external out-of-process watcher survives GUI \
+                 freezes/crashes while these panels are open).",
             ),
         ],
         vec![

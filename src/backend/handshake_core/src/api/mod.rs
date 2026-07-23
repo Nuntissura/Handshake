@@ -24,6 +24,7 @@ pub mod logs;
 pub mod loom;
 pub mod memory;
 pub mod paths;
+pub mod preferences;
 pub mod role_mailbox;
 pub mod source_control;
 pub mod stage;
@@ -32,6 +33,7 @@ pub mod workspaces;
 
 pub fn routes(state: AppState) -> Router {
     let workspace_routes = workspaces::routes(state.clone());
+    let preferences_routes = preferences::routes(state.clone());
     let calendar_routes = calendar::routes(state.clone());
     let code_nav_index_routes = code_nav_index::routes(state.clone());
     let locus_routes = locus::routes(state.clone());
@@ -61,6 +63,7 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state.clone());
 
     workspace_routes
+        .merge(preferences_routes)
         .merge(calendar_routes)
         .merge(code_nav_index_routes)
         .merge(locus_routes)

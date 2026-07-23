@@ -284,6 +284,17 @@ pub enum KernelEventType {
     KnowledgeWorkspaceSearchBookmarkStateRecorded,
     KnowledgeLoomCanvasBoardRecorded,
     SourceControlOperationRecorded,
+    // WP-KERNEL-012 E3 (MT-022/MT-023) durable Loom-surface mutation receipts.
+    // Spec 2.3.13.11: Loom mutations MUST leave EventLedger receipts. Folder
+    // tree (MT-181) and tag-edge (MT-182) mutations are appended atomically in
+    // the same PostgreSQL transaction as the domain write so a committed
+    // mutation can never lack durable evidence.
+    KnowledgeLoomFolderMutated,
+    KnowledgeLoomTagMutated,
+    // WP-KERNEL-012 MT-072 (Settings & Preferences domain, Master Spec §10.17 SET-EVT-001):
+    // every set/reset/import/migration of a PreferenceRecord appends this EventLedger receipt,
+    // which is also the Flight-Recorder-backed durable change evidence (SET-EVT-003).
+    PreferenceRecordChanged,
 }
 
 impl KernelEventType {
@@ -370,6 +381,9 @@ impl KernelEventType {
             }
             Self::KnowledgeLoomCanvasBoardRecorded => "KNOWLEDGE_LOOM_CANVAS_BOARD_RECORDED",
             Self::SourceControlOperationRecorded => "SOURCE_CONTROL_OPERATION_RECORDED",
+            Self::KnowledgeLoomFolderMutated => "KNOWLEDGE_LOOM_FOLDER_MUTATED",
+            Self::KnowledgeLoomTagMutated => "KNOWLEDGE_LOOM_TAG_MUTATED",
+            Self::PreferenceRecordChanged => "PREFERENCE_RECORD_CHANGED",
         }
     }
 
@@ -444,6 +458,9 @@ impl KernelEventType {
             KernelEventType::KnowledgeWorkspaceSearchBookmarkStateRecorded,
             KernelEventType::KnowledgeLoomCanvasBoardRecorded,
             KernelEventType::SourceControlOperationRecorded,
+            KernelEventType::KnowledgeLoomFolderMutated,
+            KernelEventType::KnowledgeLoomTagMutated,
+            KernelEventType::PreferenceRecordChanged,
         ]
     }
 }

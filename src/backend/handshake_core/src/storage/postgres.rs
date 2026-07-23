@@ -44,6 +44,11 @@ use crate::kernel::{
     KernelActor, KernelEvent, KernelEventType, KernelSessionLease, NewKernelEvent, SessionBroker,
     SessionRun, SessionRunState,
 };
+use crate::preferences::{
+    preference_changed_event_payload, PreferenceChangeReceipt, PreferenceProjectionRow,
+    PreferenceRecord, PreferenceScope, PreferenceSchemaEntry, PreferenceSource, RedactionClass,
+    PREFERENCE_CHANGE_RECEIPT_SCHEMA_ID, PREFERENCE_RECORD_SCHEMA_ID,
+};
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc};
 use serde_json::{json, Value};
@@ -2308,6 +2313,199 @@ fn map_workspace_settings_state(row: &PgRow) -> StorageResult<WorkspaceSettingsS
     })
 }
 
+// ---- WP-KERNEL-012 MT-072 Settings & Preferences domain (Master Spec §10.17) ----
+
+/// Map a `preference_records` row to a resolved [`PreferenceRecord`].
+fn map_preference_record(row: &PgRow) -> PreferenceRecord {
+    PreferenceRecord {
+        schema_id: PREFERENCE_RECORD_SCHEMA_ID.to_owned(),
+        preference_id: row.get("preference_id"),
+        namespace: row.get("namespace"),
+        value_type: row.get("value_type"),
+        value: row.get("value"),
+        scope: row.get("scope_kind"),
+        scope_ref: row.get("scope_ref"),
+        default_value: row.get("default_value"),
+        source: row.get("source"),
+        revision: row.get("revision"),
+        redaction_class: row.get("redaction_class"),
+        updated_by: row.get("updated_by"),
+        event_ledger_event_id: row.get("event_ledger_event_id"),
+    }
+}
+
+/// Map a `preference_change_receipts` row to a [`PreferenceChangeReceipt`].
+fn map_preference_change_receipt(row: &PgRow) -> PreferenceChangeReceipt {
+    let created_at: chrono::DateTime<Utc> = row.get("created_at");
+    PreferenceChangeReceipt {
+        schema_id: PREFERENCE_CHANGE_RECEIPT_SCHEMA_ID.to_owned(),
+        receipt_id: row.get("receipt_id"),
+        preference_id: row.get("preference_id"),
+        scope: row.get("scope_kind"),
+        scope_ref: row.get("scope_ref"),
+        before_revision: row.get("before_revision"),
+        after_revision: row.get("after_revision"),
+        old_value: row.get("old_value"),
+        new_value: row.get("new_value"),
+        source: row.get("source"),
+        actor: row.get("actor"),
+        event_ledger_event_id: row.get("event_ledger_event_id"),
+        created_at: created_at.to_rfc3339(),
+    }
+}
+
+/// Core preference mutation (SET-EVT-001/002/003). Reads the current row for old-value/revision, emits
+/// the EventLedger `PreferenceRecordChanged` receipt, upserts the canonical record with the bumped
+/// revision, and appends the recoverable change receipt — all in ONE PostgreSQL transaction so a
+/// committed value can never lack durable evidence. `value` MUST already be typed-validated by the
+/// caller. Reset is this same path with `value = entry.default_value` and `source = Operator`.
+async fn preference_write(
+    pool: &PgPool,
+    scope: &PreferenceScope,
+    entry: &PreferenceSchemaEntry,
+    value: Value,
+    source: PreferenceSource,
+    actor: &str,
+) -> StorageResult<(PreferenceRecord, PreferenceChangeReceipt)> {
+    let now = Utc::now();
+    let preference_id = entry.preference_id;
+    let scope_kind = scope.kind.as_str();
+    let scope_ref = scope.scope_ref.as_str();
+    let value_type = entry.value_type();
+    let redaction = entry.redaction_class;
+
+    let mut tx = pool.begin().await?;
+    let existing = sqlx::query(
+        r#"SELECT value, revision FROM preference_records
+           WHERE preference_id = $1 AND scope_kind = $2 AND scope_ref = $3"#,
+    )
+    .bind(preference_id)
+    .bind(scope_kind)
+    .bind(scope_ref)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let (before_revision, old_value): (Option<i64>, Option<Value>) = match &existing {
+        Some(row) => (Some(row.get("revision")), Some(row.get("value"))),
+        None => (None, None),
+    };
+    let after_revision = before_revision.unwrap_or(0) + 1;
+    let receipt_id = uuid::Uuid::new_v4().to_string();
+
+    let mut receipt = PreferenceChangeReceipt {
+        schema_id: PREFERENCE_CHANGE_RECEIPT_SCHEMA_ID.to_owned(),
+        receipt_id: receipt_id.clone(),
+        preference_id: preference_id.to_owned(),
+        scope: scope_kind.to_owned(),
+        scope_ref: scope_ref.to_owned(),
+        before_revision,
+        after_revision,
+        old_value: old_value.clone(),
+        new_value: value.clone(),
+        source: source.as_str().to_owned(),
+        actor: actor.to_owned(),
+        event_ledger_event_id: String::new(),
+        created_at: now.to_rfc3339(),
+    };
+
+    let scope_ref_tag = if scope_ref.is_empty() { "_" } else { scope_ref };
+    let run_id = format!("PREFERENCE-{scope_kind}-{scope_ref_tag}-{preference_id}");
+    let payload = preference_changed_event_payload(&receipt, redaction, value_type);
+    let actor_kernel = if actor.trim().is_empty() {
+        KernelActor::System("preferences".to_owned())
+    } else {
+        KernelActor::Operator(actor.to_owned())
+    };
+    let event = NewKernelEvent::builder(
+        run_id.clone(),
+        run_id,
+        KernelEventType::PreferenceRecordChanged,
+        actor_kernel,
+    )
+    .aggregate(
+        "preference_record",
+        format!("{scope_kind}:{scope_ref}:{preference_id}"),
+    )
+    .source_component("preferences")
+    .payload(payload)
+    .build()
+    .map_err(|_| StorageError::Validation("invalid preference change event"))?;
+    let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
+    receipt.event_ledger_event_id = stored_event.event_id.clone();
+
+    sqlx::query(
+        r#"INSERT INTO preference_records (
+              preference_id, scope_kind, scope_ref, namespace, value_type, value, default_value,
+              source, redaction_class, revision, updated_at, updated_by, event_ledger_event_id)
+           VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10,$11,$12,$13)
+           ON CONFLICT (preference_id, scope_kind, scope_ref) DO UPDATE SET
+              value = EXCLUDED.value,
+              source = EXCLUDED.source,
+              redaction_class = EXCLUDED.redaction_class,
+              revision = EXCLUDED.revision,
+              updated_at = EXCLUDED.updated_at,
+              updated_by = EXCLUDED.updated_by,
+              event_ledger_event_id = EXCLUDED.event_ledger_event_id"#,
+    )
+    .bind(preference_id)
+    .bind(scope_kind)
+    .bind(scope_ref)
+    .bind(entry.namespace)
+    .bind(value_type.as_str())
+    .bind(&value)
+    .bind(&entry.default_value)
+    .bind(source.as_str())
+    .bind(redaction.as_str())
+    .bind(after_revision)
+    .bind(now)
+    .bind(actor)
+    .bind(&stored_event.event_id)
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query(
+        r#"INSERT INTO preference_change_receipts (
+              receipt_id, preference_id, scope_kind, scope_ref, before_revision, after_revision,
+              old_value, new_value, value_type, source, actor, redaction_class,
+              event_ledger_event_id, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11,$12,$13,$14)"#,
+    )
+    .bind(&receipt_id)
+    .bind(preference_id)
+    .bind(scope_kind)
+    .bind(scope_ref)
+    .bind(before_revision)
+    .bind(after_revision)
+    .bind(&old_value)
+    .bind(&value)
+    .bind(value_type.as_str())
+    .bind(source.as_str())
+    .bind(actor)
+    .bind(redaction.as_str())
+    .bind(&stored_event.event_id)
+    .bind(now)
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    let record = PreferenceRecord {
+        schema_id: PREFERENCE_RECORD_SCHEMA_ID.to_owned(),
+        preference_id: preference_id.to_owned(),
+        namespace: entry.namespace.to_owned(),
+        value_type: value_type.as_str().to_owned(),
+        value,
+        scope: scope_kind.to_owned(),
+        scope_ref: scope_ref.to_owned(),
+        default_value: entry.default_value.clone(),
+        source: source.as_str().to_owned(),
+        revision: after_revision,
+        redaction_class: redaction.as_str().to_owned(),
+        updated_by: actor.to_owned(),
+        event_ledger_event_id: stored_event.event_id,
+    };
+    Ok((record, receipt))
+}
+
 fn map_workspace_search_bookmark_state(row: &PgRow) -> StorageResult<WorkspaceSearchBookmarkState> {
     Ok(WorkspaceSearchBookmarkState {
         workspace_id: row.get("workspace_id"),
@@ -3977,6 +4175,83 @@ fn build_kernel_session_event(
     builder
         .build()
         .map_err(|err| StorageError::Serialization(err.to_string()))
+}
+
+/// WP-KERNEL-012 E3 MT-022: build the durable EventLedger receipt for a Loom
+/// folder-tree mutation. Appended in the SAME PostgreSQL transaction as the
+/// domain write so a committed folder mutation can never lack durable evidence
+/// (FAIL_V2 remediation). `detail` supplies operation-specific fields (e.g.
+/// `block_id` for membership ops) and is merged into the event payload.
+fn build_loom_folder_mutation_event(
+    workspace_id: &str,
+    folder_id: &str,
+    operation: &str,
+    detail: Value,
+) -> StorageResult<NewKernelEvent> {
+    let run_id = format!("LOOM-FOLDER-{workspace_id}");
+    let mut payload = json!({
+        "type": "knowledge_loom_folder_mutated",
+        "schema_id": "hsk.loom_folder_mutation@1",
+        "workspace_id": workspace_id,
+        "folder_id": folder_id,
+        "operation": operation,
+    });
+    if let (Value::Object(map), Value::Object(detail_map)) = (&mut payload, detail) {
+        for (key, value) in detail_map {
+            map.insert(key, value);
+        }
+    }
+    NewKernelEvent::builder(
+        run_id.clone(),
+        run_id,
+        KernelEventType::KnowledgeLoomFolderMutated,
+        KernelActor::System("loom-folder".to_string()),
+    )
+    .aggregate("loom_folder", folder_id.to_string())
+    .source_component("loom_folder")
+    .payload(payload)
+    .build()
+    .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))
+}
+
+/// WP-KERNEL-012 E3 MT-023: build the durable EventLedger receipt for a Loom
+/// edge mutation (tag/mention/parent/sub_tag/ai_suggested). Appended in the SAME
+/// PostgreSQL transaction as the edge write so a committed tag mutation can never
+/// lack durable evidence, independent of the best-effort Flight Recorder mirror
+/// (FAIL_V2 remediation).
+fn build_loom_edge_mutation_event(
+    workspace_id: &str,
+    edge_id: &str,
+    edge_type: &str,
+    operation: &str,
+    actor: KernelActor,
+    detail: Value,
+) -> StorageResult<NewKernelEvent> {
+    let run_id = format!("LOOM-EDGE-{workspace_id}");
+    let mut payload = json!({
+        "type": "knowledge_loom_tag_mutated",
+        "schema_id": "hsk.loom_edge_mutation@1",
+        "workspace_id": workspace_id,
+        "edge_id": edge_id,
+        "edge_type": edge_type,
+        "operation": operation,
+    });
+    if let (Value::Object(map), Value::Object(detail_map)) = (&mut payload, detail) {
+        for (key, value) in detail_map {
+            map.insert(key, value);
+        }
+    }
+    NewKernelEvent::builder(
+        run_id.clone(),
+        run_id,
+        KernelEventType::KnowledgeLoomTagMutated,
+        actor,
+    )
+    .aggregate("loom_edge", edge_id.to_string())
+    .source_component("loom_edge")
+    .payload(payload)
+    .build()
+    .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))
 }
 
 pub(crate) async fn append_kernel_event_with_executor(
@@ -6590,6 +6865,30 @@ impl super::Database for PostgresDatabase {
                 None => (None, None, None, None),
             };
 
+        // Atomic boundary (MT-023 FAIL_V2): append the durable EventLedger receipt
+        // in the SAME transaction as the edge write, BEFORE the row insert so the
+        // FK (loom_edges.event_ledger_event_id -> kernel_event_ledger.event_id)
+        // is satisfiable. The best-effort Flight Recorder mirror at the API layer
+        // is no longer the only observability for a committed tag write.
+        let ledger_actor = match actor_kind {
+            "AI" => KernelActor::ModelAdapter(actor_id.clone()),
+            "HUMAN" => KernelActor::Operator(actor_id.clone()),
+            _ => KernelActor::System(actor_id.clone()),
+        };
+        let ledger_event = build_loom_edge_mutation_event(
+            &edge.workspace_id,
+            &id,
+            edge.edge_type.as_str(),
+            "create",
+            ledger_actor,
+            json!({
+                "source_block_id": edge.source_block_id,
+                "target_block_id": edge.target_block_id,
+                "created_by": edge.created_by.as_str(),
+            }),
+        )?;
+        let stored_ledger = append_kernel_event_with_executor(&mut *tx, ledger_event).await?;
+
         let row = sqlx::query(
             r#"
             INSERT INTO loom_edges (
@@ -6609,12 +6908,13 @@ impl super::Database for PostgresDatabase {
                 source_document_id,
                 source_text_block_id,
                 offset_start,
-                offset_end
+                offset_end,
+                event_ledger_event_id
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6,
                 $7, $8, $9, $10, $11,
-                $12, $13, $14, $15, $16, $17
+                $12, $13, $14, $15, $16, $17, $18
             )
             RETURNING
                 edge_id,
@@ -6648,6 +6948,7 @@ impl super::Database for PostgresDatabase {
         .bind(source_text_block_id)
         .bind(offset_start)
         .bind(offset_end)
+        .bind(&stored_ledger.event_id)
         .fetch_one(&mut *tx)
         .await?;
 
@@ -6681,7 +6982,7 @@ impl super::Database for PostgresDatabase {
         edge_id: &str,
     ) -> StorageResult<LoomEdge> {
         let mut tx = self.pool.begin().await?;
-        self.guard.validate_write(ctx, edge_id).await?;
+        let metadata = self.guard.validate_write(ctx, edge_id).await?;
 
         let existing = sqlx::query(
             r#"
@@ -6709,6 +7010,26 @@ impl super::Database for PostgresDatabase {
 
         let existing = existing.ok_or(StorageError::NotFound("loom_edge"))?;
         let mapped_existing = map_loom_edge(existing)?;
+
+        // Atomic boundary (MT-023 FAIL_V2): durable EventLedger delete receipt in
+        // the SAME transaction as the edge delete.
+        let ledger_actor = match metadata.actor_kind.as_str() {
+            "AI" => KernelActor::ModelAdapter(metadata.actor_id.clone()),
+            "HUMAN" => KernelActor::Operator(metadata.actor_id.clone()),
+            _ => KernelActor::System(metadata.actor_id.clone()),
+        };
+        let ledger_event = build_loom_edge_mutation_event(
+            workspace_id,
+            edge_id,
+            mapped_existing.edge_type.as_str(),
+            "delete",
+            ledger_actor,
+            json!({
+                "source_block_id": mapped_existing.source_block_id,
+                "target_block_id": mapped_existing.target_block_id,
+            }),
+        )?;
+        append_kernel_event_with_executor(&mut *tx, ledger_event).await?;
 
         sqlx::query(
             r#"
@@ -10290,6 +10611,108 @@ impl super::Database for PostgresDatabase {
         Ok(state)
     }
 
+    // ---- WP-KERNEL-012 MT-072 Settings & Preferences domain (Master Spec §10.17) ----
+
+    async fn preference_get(
+        &self,
+        scope: &PreferenceScope,
+        entry: &PreferenceSchemaEntry,
+    ) -> StorageResult<PreferenceRecord> {
+        let row = sqlx::query(
+            r#"SELECT preference_id, scope_kind, scope_ref, namespace, value_type, value,
+                      default_value, source, redaction_class, revision, updated_by, event_ledger_event_id
+               FROM preference_records
+               WHERE preference_id = $1 AND scope_kind = $2 AND scope_ref = $3"#,
+        )
+        .bind(entry.preference_id)
+        .bind(scope.kind.as_str())
+        .bind(scope.scope_ref.as_str())
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(match row {
+            Some(row) => map_preference_record(&row),
+            None => PreferenceRecord::resolved_default(entry, scope),
+        })
+    }
+
+    async fn preference_set(
+        &self,
+        scope: &PreferenceScope,
+        entry: &PreferenceSchemaEntry,
+        value: Value,
+        source: PreferenceSource,
+        actor: &str,
+    ) -> StorageResult<(PreferenceRecord, PreferenceChangeReceipt)> {
+        preference_write(&self.pool, scope, entry, value, source, actor).await
+    }
+
+    async fn preference_reset(
+        &self,
+        scope: &PreferenceScope,
+        entry: &PreferenceSchemaEntry,
+        actor: &str,
+    ) -> StorageResult<(PreferenceRecord, PreferenceChangeReceipt)> {
+        // SET-UI-002 / SET-EVT-002: reset is a mutation to the registry default with source=operator and
+        // an explicit receipt, never a provenance-losing delete.
+        preference_write(
+            &self.pool,
+            scope,
+            entry,
+            entry.default_value.clone(),
+            PreferenceSource::Operator,
+            actor,
+        )
+        .await
+    }
+
+    async fn preference_history(
+        &self,
+        scope: &PreferenceScope,
+        preference_id: &str,
+    ) -> StorageResult<Vec<PreferenceChangeReceipt>> {
+        let rows = sqlx::query(
+            r#"SELECT receipt_id, preference_id, scope_kind, scope_ref, before_revision, after_revision,
+                      old_value, new_value, source, actor, event_ledger_event_id, created_at
+               FROM preference_change_receipts
+               WHERE preference_id = $1 AND scope_kind = $2 AND scope_ref = $3
+               ORDER BY after_revision DESC"#,
+        )
+        .bind(preference_id)
+        .bind(scope.kind.as_str())
+        .bind(scope.scope_ref.as_str())
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.iter().map(map_preference_change_receipt).collect())
+    }
+
+    async fn preference_projection(
+        &self,
+        scope: &PreferenceScope,
+        entries: &[PreferenceSchemaEntry],
+    ) -> StorageResult<Vec<PreferenceProjectionRow>> {
+        let mut out = Vec::with_capacity(entries.len());
+        for entry in entries {
+            let record = self.preference_get(scope, entry).await?;
+            let redacted = record.redaction_class == RedactionClass::NonPublic.as_str();
+            let value = if redacted {
+                Value::String(crate::preferences::value_hash_ref(&record.value))
+            } else {
+                record.value.clone()
+            };
+            out.push(PreferenceProjectionRow {
+                preference_id: record.preference_id,
+                namespace: record.namespace,
+                scope: record.scope,
+                value,
+                default_value: record.default_value,
+                source: record.source,
+                revision: record.revision,
+                redacted,
+            });
+        }
+        Ok(out)
+    }
+
     async fn get_workspace_search_bookmark_state(
         &self,
         workspace_id: &str,
@@ -11192,12 +11615,18 @@ impl super::Database for PostgresDatabase {
         let id = folder
             .folder_id
             .unwrap_or_else(|| format!("LFD-{}", Uuid::now_v7().simple()));
+        // Atomic boundary: append the durable EventLedger receipt and insert the
+        // folder row in ONE transaction. If either fails the whole thing rolls
+        // back, so a committed folder can never lack its receipt (MT-022 FAIL_V2).
+        let mut tx = self.pool.begin().await?;
+        let event = build_loom_folder_mutation_event(workspace_id, &id, "create", json!({}))?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
         let row = sqlx::query(
             r#"
             INSERT INTO loom_folders
                 (folder_id, workspace_id, parent_folder_id, name, color,
-                 sort_mode, sort_order, project_ref)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 sort_mode, sort_order, project_ref, event_ledger_event_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING folder_id, workspace_id, parent_folder_id, name, color,
                       sort_mode, sort_order, project_ref, created_at, updated_at
             "#,
@@ -11210,10 +11639,13 @@ impl super::Database for PostgresDatabase {
         .bind(folder.sort_mode.as_str())
         .bind(folder.sort_order)
         .bind(folder.project_ref.as_deref())
-        .fetch_one(&self.pool)
+        .bind(&stored_event.event_id)
+        .fetch_one(&mut *tx)
         .await
         .map_err(map_loom_folder_write_error)?;
-        map_loom_folder(&row)
+        let folder = map_loom_folder(&row)?;
+        tx.commit().await?;
+        Ok(folder)
     }
 
     async fn get_loom_folder(
@@ -11327,6 +11759,10 @@ impl super::Database for PostgresDatabase {
                 return Err(StorageError::Validation("loom folder name is required"));
             }
         }
+        // Atomic boundary: durable EventLedger receipt + row update in one tx.
+        let mut tx = self.pool.begin().await?;
+        let event = build_loom_folder_mutation_event(workspace_id, folder_id, "update", json!({}))?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
         let row = sqlx::query(
             r#"
             UPDATE loom_folders
@@ -11337,6 +11773,7 @@ impl super::Database for PostgresDatabase {
                 sort_order = CASE WHEN $7::BOOL THEN $8 ELSE sort_order END,
                 parent_folder_id = CASE WHEN $9::BOOL THEN $10 ELSE parent_folder_id END,
                 project_ref = CASE WHEN $11::BOOL THEN $12 ELSE project_ref END,
+                event_ledger_event_id = $13,
                 updated_at = NOW()
             WHERE workspace_id = $1 AND folder_id = $2
             RETURNING folder_id, workspace_id, parent_folder_id, name, color,
@@ -11355,22 +11792,32 @@ impl super::Database for PostgresDatabase {
         .bind(update.parent_folder_id.clone().flatten())
         .bind(update.project_ref.is_some())
         .bind(update.project_ref.clone().flatten().as_deref())
-        .fetch_one(&self.pool)
+        .bind(&stored_event.event_id)
+        .fetch_one(&mut *tx)
         .await
         .map_err(map_loom_folder_write_error)?;
-        map_loom_folder(&row)
+        let folder = map_loom_folder(&row)?;
+        tx.commit().await?;
+        Ok(folder)
     }
 
     async fn delete_loom_folder(&self, workspace_id: &str, folder_id: &str) -> StorageResult<()> {
+        // Atomic boundary: append the durable delete receipt and delete the row
+        // in one tx. A NotFound delete rolls the receipt back (no phantom event).
+        let mut tx = self.pool.begin().await?;
+        let event = build_loom_folder_mutation_event(workspace_id, folder_id, "delete", json!({}))?;
+        append_kernel_event_with_executor(&mut *tx, event).await?;
         let res =
             sqlx::query("DELETE FROM loom_folders WHERE workspace_id = $1 AND folder_id = $2")
                 .bind(workspace_id)
                 .bind(folder_id)
-                .execute(&self.pool)
+                .execute(&mut *tx)
                 .await?;
         if res.rows_affected() == 0 {
+            // Drops `tx` -> rollback: the delete receipt is discarded too.
             return Err(StorageError::NotFound("loom_folder"));
         }
+        tx.commit().await?;
         Ok(())
     }
 
@@ -11384,20 +11831,33 @@ impl super::Database for PostgresDatabase {
         // Folder + block must both exist in the workspace (fail-closed).
         self.get_loom_folder(workspace_id, folder_id).await?;
         self.get_loom_block(workspace_id, block_id).await?;
+        // Atomic boundary: durable EventLedger receipt + membership upsert in one tx.
+        let mut tx = self.pool.begin().await?;
+        let event = build_loom_folder_mutation_event(
+            workspace_id,
+            folder_id,
+            "add_member",
+            json!({ "block_id": block_id }),
+        )?;
+        let stored_event = append_kernel_event_with_executor(&mut *tx, event).await?;
         sqlx::query(
             r#"
-            INSERT INTO loom_folder_members (folder_id, block_id, workspace_id, sort_order)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO loom_folder_members
+                (folder_id, block_id, workspace_id, sort_order, event_ledger_event_id)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (folder_id, block_id)
-            DO UPDATE SET sort_order = EXCLUDED.sort_order
+            DO UPDATE SET sort_order = EXCLUDED.sort_order,
+                          event_ledger_event_id = EXCLUDED.event_ledger_event_id
             "#,
         )
         .bind(folder_id)
         .bind(block_id)
         .bind(workspace_id)
         .bind(sort_order)
-        .execute(&self.pool)
+        .bind(&stored_event.event_id)
+        .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
         Ok(())
     }
 
@@ -11407,15 +11867,29 @@ impl super::Database for PostgresDatabase {
         folder_id: &str,
         block_id: &str,
     ) -> StorageResult<()> {
-        sqlx::query(
+        // Atomic boundary: durable EventLedger receipt + membership delete in one
+        // tx. A no-op delete (member absent) commits without appending a phantom
+        // receipt, so the ledger only records removals that actually happened.
+        let mut tx = self.pool.begin().await?;
+        let res = sqlx::query(
             r#"DELETE FROM loom_folder_members
                WHERE workspace_id = $1 AND folder_id = $2 AND block_id = $3"#,
         )
         .bind(workspace_id)
         .bind(folder_id)
         .bind(block_id)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        if res.rows_affected() > 0 {
+            let event = build_loom_folder_mutation_event(
+                workspace_id,
+                folder_id,
+                "remove_member",
+                json!({ "block_id": block_id }),
+            )?;
+            append_kernel_event_with_executor(&mut *tx, event).await?;
+        }
+        tx.commit().await?;
         Ok(())
     }
 

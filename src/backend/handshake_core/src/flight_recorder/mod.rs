@@ -179,6 +179,12 @@ pub enum FlightRecorderEventType {
     LoomSearchExecuted,
     /// MT-190: a wiki/topic-page projection was compiled or regenerated.
     LoomProjectionRebuilt,
+    /// WP-KERNEL-012 E3 (MT-022): a Loom folder-tree mutation (create/update/
+    /// delete/add_member/remove_member) committed with an atomic EventLedger
+    /// receipt. Tier-1 Flight Recorder mirror of the durable PostgreSQL receipt.
+    /// (Tag-edge mutations reuse the existing LoomEdgeCreated/LoomEdgeDeleted
+    /// events, so no separate tag variant is needed.)
+    LoomFolderMutated,
     /// FR-EVT-SESS-SCHED-001..004: Session Scheduler events [4.3.9.13]
     SessionSchedulerEnqueue,
     SessionSchedulerDispatch,
@@ -391,6 +397,9 @@ impl fmt::Display for FlightRecorderEventType {
             FlightRecorderEventType::LoomSearchExecuted => write!(f, "loom_search_executed"),
             FlightRecorderEventType::LoomProjectionRebuilt => {
                 write!(f, "loom_projection_rebuilt")
+            }
+            FlightRecorderEventType::LoomFolderMutated => {
+                write!(f, "loom_folder_mutated")
             }
             FlightRecorderEventType::SessionSchedulerEnqueue => {
                 write!(f, "session_scheduler.enqueue")
@@ -1006,6 +1015,9 @@ impl FlightRecorderEvent {
             }
             FlightRecorderEventType::LoomProjectionRebuilt => {
                 validate_loom_projection_rebuilt_payload(&self.payload)
+            }
+            FlightRecorderEventType::LoomFolderMutated => {
+                validate_loom_folder_mutated_payload(&self.payload)
             }
             FlightRecorderEventType::SessionSchedulerEnqueue => {
                 validate_session_scheduler_enqueue_payload(&self.payload)
@@ -2700,6 +2712,24 @@ fn validate_loom_projection_rebuilt_payload(payload: &Value) -> Result<(), Recor
     require_safe_id_string(map, "projection_id")?;
     require_limited_choice(map, "operation", &["compile", "regenerate"])?;
     require_number(map, "source_block_count")?;
+    Ok(())
+}
+
+fn validate_loom_folder_mutated_payload(payload: &Value) -> Result<(), RecorderError> {
+    let map = payload_object(payload)?;
+    require_exact_keys(map, &["type", "workspace_id", "folder_id", "operation"])?;
+    require_fixed_string(map, "type", "loom_folder_mutated")?;
+    require_safe_id_string(map, "workspace_id")?;
+    require_string(map, "folder_id")?;
+    require_limited_choice(
+        map,
+        "operation",
+        &["create", "update", "delete", "add_member", "remove_member"],
+    )?;
+    // The durable receipt is the atomic KNOWLEDGE_LOOM_FOLDER_MUTATED EventLedger
+    // row (aggregate_type='loom_folder', aggregate_id=folder_id) appended in the
+    // same PostgreSQL transaction as the folder mutation; this Flight Recorder
+    // event is the best-effort Tier-1 mirror only.
     Ok(())
 }
 
