@@ -1015,6 +1015,65 @@ mod tests {
     }
 
     #[test]
+    fn screenshot_capture_error_is_json_rpc_error_without_visual_payload() {
+        let token = SessionToken::from_hex("secret");
+        let mut channel = ActionChannel::new();
+        let response = dispatch_request(
+            &req("argus.screenshot", serde_json::json!({}), "secret"),
+            &token,
+            &snap(),
+            &mut channel,
+            || Err(ScreenshotError("capture-error-canary".to_owned())),
+        );
+
+        assert!(response.is_error_code(ERR_TOOL_FAILED));
+        let json = response.to_json();
+        assert!(json.get("result").is_none());
+        assert!(json.get("error").is_some());
+        assert!(!json.to_string().contains("png_base64"));
+    }
+
+    #[test]
+    fn screenshot_of_closed_window_is_json_rpc_error_without_capture_payload() {
+        let token = SessionToken::from_hex("secret");
+        let windows = WindowSnapshotRegistry::new();
+        windows.publish(
+            ArgusWindowDescriptor {
+                window_id: "closed-window".to_owned(),
+                viewport_id: "CLOSED".to_owned(),
+                title: "Closed".to_owned(),
+            },
+            snap(),
+        );
+        windows.unregister("closed-window");
+        let request = McpRequest::from_json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 44,
+            "method": "argus.screenshot",
+            "params": {"window_id": "closed-window"},
+            "session_token": "secret",
+            "agent_label": "closed-window-test"
+        }))
+        .unwrap();
+        let mut channel = ActionChannel::new();
+        let response = dispatch_windowed_request(
+            &request,
+            &token,
+            &windows,
+            &mut channel,
+            "connection-test",
+            "agent-test",
+            |_| panic!("capture must not run for an unknown or closed window"),
+        );
+
+        assert!(response.is_error_code(ERR_ARGUS_CONFLICT));
+        let json = response.to_json();
+        assert!(json.get("result").is_none());
+        assert!(json.get("error").is_some());
+        assert!(!json.to_string().contains("png_base64"));
+    }
+
+    #[test]
     fn unknown_method_is_minus_32601() {
         let token = SessionToken::from_hex("secret");
         let mut chan = ActionChannel::new();

@@ -208,9 +208,13 @@ fn routes_with_operator_chat_runtime(
     // rediscovers or executes PATH candidates.
     let cli_auth_probe: Arc<dyn crate::model_runtime::cloud::CliBridgeAuthStatusProbe> =
         Arc::new(operator_chat_cloud_wiring.auth_probe.clone());
-    let model_access_routes = model_access::routes(
-        model_access::ModelAccessState::production_with_cli_auth_probe(cli_auth_probe.clone()),
-    );
+    let cli_login_launcher: Arc<dyn crate::model_runtime::cloud::CliBridgeLoginLauncher> =
+        Arc::new(operator_chat_cloud_wiring.auth_probe.clone());
+    let model_access_routes =
+        model_access::routes(model_access::ModelAccessState::production_with_cli_runtime(
+            cli_auth_probe.clone(),
+            cli_login_launcher,
+        ));
     let operator_chat_launch_service =
         crate::swarm_orchestration::production_factory::build_operator_chat_launch_service(
             state.postgres_pool.clone(),
@@ -327,11 +331,11 @@ fn operator_chat_cloud_wiring(
             ),
         );
 
-    let live_spawner = Arc::new(
-        crate::model_runtime::cloud::LiveCliSpawner::new(Arc::new(ledger), sandbox_registry),
-    );
-    let spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner> =
-        live_spawner.clone();
+    let live_spawner = Arc::new(crate::model_runtime::cloud::LiveCliSpawner::new(
+        Arc::new(ledger),
+        sandbox_registry,
+    ));
+    let spawner: Arc<dyn crate::model_runtime::cloud::CliSubprocessSpawner> = live_spawner.clone();
     let observability = Some(Arc::new(
         crate::model_runtime::cloud::CloudLaneObservability {
             flight_recorder: recorder,
@@ -354,9 +358,9 @@ fn operator_chat_cloud_wiring(
     let auth_probe =
         crate::model_runtime::cloud::ProductionCliBridgeAuthStatusProbe::from_canonical_launches(
             live_spawner,
-            provider_configs.iter().map(|(provider, config)| {
-                (*provider, config.launch_config().clone())
-            }),
+            provider_configs
+                .iter()
+                .map(|(provider, config)| (*provider, config.launch_config().clone())),
         );
     let launchable_providers = provider_configs
         .iter()

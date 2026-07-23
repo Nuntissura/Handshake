@@ -43,9 +43,10 @@ pub use access_config::{
     enumerate as enumerate_cloud_access, enumerate_byok, enumerate_cli_bridge,
     enumerate_cli_bridge_with_probe, enumerate_with_cli_auth_probe, AccessConfigError,
     ByokAccessRow, ByokProvider, CliBridgeAccessRow, CliBridgeAuthStatus, CliBridgeAuthStatusProbe,
-    CliBridgeProvider, CloudAccessEnumeration, CloudModelAccess, InMemoryAccessRegistry,
-    OfficialAuthStatusCommand, OfficialLoginCommand, ProductionCliBridgeAuthStatusProbe,
-    ProviderAccessRegistry, ProviderAccessStatus, VaultBackedAccessRegistry,
+    CliBridgeLoginLaunchError, CliBridgeLoginLauncher, CliBridgeProvider, CloudAccessEnumeration,
+    CloudModelAccess, InMemoryAccessRegistry, OfficialAuthStatusCommand, OfficialLoginCommand,
+    ProductionCliBridgeAuthStatusProbe, ProviderAccessRegistry, ProviderAccessStatus,
+    VaultBackedAccessRegistry,
 };
 pub use agent_activity::{
     parse_line as parse_agent_activity_line, AgentActivity, AgentActivityKind,
@@ -62,7 +63,7 @@ pub use consent_gate::{ConsentDecision, ConsentGate, ConsentGateError, ConsentPr
 pub use official_cli_bridge::{
     validate_cli_executable_path, CliBridgeConfig, CliBridgeHandle, CliCancellationContext,
     CliInvocationContext, CliInvocationReceipt, CliKind, CliOutputFormat, CliSubprocessSpawner,
-    LiveCliSpawner, OfficialCliBridgeError, OfficialCliBridgeRuntime,
+    ForegroundCliLaunchHandle, LiveCliSpawner, OfficialCliBridgeError, OfficialCliBridgeRuntime,
 };
 pub use openai_byok::{
     ApiKeyFetchCode, ApiKeyProvider, CloudCallKind, CloudCallStatus, CloudInvocationAuditRow,

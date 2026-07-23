@@ -666,9 +666,11 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  reports `unavailable` rather than guessing. Non-Windows probing is fail-closed \
                  `unavailable` until an equivalent process-tree-contained adapter exists. The row provides \
                  an operator-initiated 'Log in…' button. The first click opens an in-app \
-                 confirmation that discloses the new foreground terminal; only `Start login` launches \
-                 one of the fixed `claude auth login` or `codex login` command vectors. Provider response \
-                 data is never interpolated into a shell command.\n\
+                 confirmation that discloses the new foreground terminal; only `Start login` calls the \
+                 backend-owned launch endpoint. The backend uses the same pinned executable graph and \
+                 fixed `claude auth login` or `codex login` argv, returning only an opaque pid handle. \
+                 The GUI performs no shell or PATH resolution, and provider response data is never \
+                 interpolated into a command.\n\
                  - BYOK (available, not required): paste an Anthropic or OpenAI API key. The key is \
                  stored ONLY in the OS keychain (Windows Credential Manager / macOS Keychain / Linux \
                  Secret Service). It is NEVER written to logs, the Flight Recorder, the EventLedger, the \
@@ -692,6 +694,9 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  never echoed. `{provider}` is `anthropic` or `openai`; any other id (including \
                  `gemini`) returns 404 `provider_not_offered`.\n\
                  - `DELETE /model-access/byok/{provider}/key` — remove / rotate a key (idempotent).\n\n\
+                 - `POST /model-access/cli-bridge/{provider}/login` — after operator confirmation, \
+                 ask the backend to launch the same provider's already-pinned foreground login graph. \
+                 The response contains only the provider id and pid launch handle.\n\n\
                  There is no route to read a stored key back out over HTTP.",
             ),
             section(
@@ -724,6 +729,7 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  `model_access_route_tests::delete_byok_key_is_idempotent_and_updates_status`; \
                  `model_access_route_tests::get_providers_reflects_configured_and_excludes_gemini`; \
                  `model_access_route_tests::cli_bridge_typed_status_wire_mapping_excludes_account_fields_and_gemini`; \
+                 `model_access_route_tests::cli_login_route_returns_only_backend_owned_launch_handle`; \
                  `model_access_route_tests::put_empty_key_is_400`; \
                  `model_access_route_tests::put_gemini_is_404_excluded`; \
                  `model_access_route_tests::keychain_unavailable_is_503`. These cover \
@@ -758,6 +764,7 @@ fn page_cloud_model_access() -> NewUserManualPage {
             route_anchor("GET", "/model-access/providers"),
             route_anchor("PUT", "/model-access/byok/:provider/key"),
             route_anchor("DELETE", "/model-access/byok/:provider/key"),
+            route_anchor("POST", "/model-access/cli-bridge/:provider/login"),
             spec_anchor("2.3.13.11"),
             spec_anchor("10.15.8"),
         ],
@@ -4077,22 +4084,24 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         http_route: Some("/model-access/providers".into()),
         http_method: String::new(),
         description:
-            "Exact Rust route proof targets for MT-015 model-access HTTP behavior: non-secret provider enumeration, typed auth-status wire mapping without account fields or Gemini, BYOK store without echoing the key, idempotent delete/rotate, Gemini exclusion, empty-key rejection, and keychain-unavailable fail-closed 503. Production parser, attached-runner, and picker-launchability proofs are separate unit/integration targets documented on the Cloud Model Access page."
+            "Exact Rust route proof targets for MT-015 model-access HTTP behavior: non-secret provider enumeration, typed auth-status wire mapping without account fields or Gemini, backend-owned CLI login returning only an opaque pid handle, BYOK store without echoing the key, idempotent delete/rotate, Gemini exclusion, empty-key rejection, and keychain-unavailable fail-closed 503. Production parser, attached-runner, pinned foreground launcher, and picker-launchability proofs are separate unit/integration targets documented on the Cloud Model Access page."
                 .into(),
         expected_input:
             "test-utils feature enabled; injected InMemorySecretsVault provider for 200/400/404/delete paths; injected KeychainUnavailableProvider for 503 path; loopback Axum model-access router."
                 .into(),
         expected_output:
-            "GET /model-access/providers returns non-secret BYOK configured/unavailable rows, typed CLI auth_status rows, and excluded=[gemini]; PUT stores only in the injected vault and never echoes the key; DELETE removes the vault key idempotently; invalid providers and empty keys return stable errors."
+            "GET /model-access/providers returns non-secret BYOK configured/unavailable rows, typed CLI auth_status rows, and excluded=[gemini]; POST /model-access/cli-bridge/{provider}/login returns only provider plus pid launch handle; PUT stores only in the injected vault and never echoes the key; DELETE removes the vault key idempotently; invalid providers and empty keys return stable errors."
                 .into(),
         schema_fields: vec![
             "GET /model-access/providers".into(),
             "PUT /model-access/byok/{provider}/key".into(),
             "DELETE /model-access/byok/{provider}/key".into(),
+            "POST /model-access/cli-bridge/{provider}/login".into(),
             "put_store_returns_200_and_never_echoes_the_key".into(),
             "delete_byok_key_is_idempotent_and_updates_status".into(),
             "get_providers_reflects_configured_and_excludes_gemini".into(),
             "cli_bridge_typed_status_wire_mapping_excludes_account_fields_and_gemini".into(),
+            "cli_login_route_returns_only_backend_owned_launch_handle".into(),
             "put_empty_key_is_400".into(),
             "put_gemini_is_404_excluded".into(),
             "keychain_unavailable_is_503".into(),
@@ -6098,4 +6107,8 @@ mod tests {
             let slug = format!("quickstart-{area}");
             assert!(
                 corpus.pages.iter().any(|p| p.slug == slug),
-           
+                "missing quickstart page {slug}"
+            );
+        }
+    }
+}

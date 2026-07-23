@@ -26,7 +26,9 @@
 //! `$XDG_DATA_HOME` or `$HOME/.local/share` on Unix), with the contract's `.` fallback. This is the
 //! same directory `dirs` returns, resolved dependency-free.
 
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
 
@@ -72,6 +74,8 @@ impl std::error::Error for BindingError {}
 
 /// The fixed file name of the discovery artifact within the `handshake/` app-data subdirectory.
 pub const BINDING_FILE_NAME: &str = "swarm_mcp_binding.json";
+const BINDING_LOCK_FILE_NAME: &str = "swarm_mcp_binding.lock";
+static TEMP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// Resolve the local app-data directory dependency-free (see module docs). Returns the platform
 /// per-user data dir, or `.` as the contract-specified last-resort fallback.
@@ -107,28 +111,122 @@ pub fn binding_path() -> PathBuf {
 ///
 /// Returns the path written on success so the caller can log/expose it.
 pub fn write_binding(binding: &McpBinding) -> Result<PathBuf, BindingError> {
-    let _ownership_guard = BindingOwnershipGuard::acquire()?;
     let path = binding_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|e| BindingError(format!("create {}: {e}", parent.display())))?;
     }
+    let _ownership_guard = BindingOwnershipGuard::acquire()?;
     let json = binding.to_json_string()?;
-    std::fs::write(&path, json)
-        .map_err(|e| BindingError(format!("write {}: {e}", path.display())))?;
-    restrict_to_owner(&path);
+    atomic_replace_binding(&path, json.as_bytes())?;
     Ok(path)
 }
 
 /// Remove the binding file (called on graceful shutdown so an agent does not connect to a closed port).
 /// Missing-file is success (idempotent). Other I/O errors are returned for the caller to log.
 pub fn remove_binding() -> Result<(), BindingError> {
+    let _ownership_guard = BindingOwnershipGuard::acquire()?;
     let path = binding_path();
     match std::fs::remove_file(&path) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(BindingError(format!("remove {}: {e}", path.display()))),
     }
+}
+
+fn binding_lock_path() -> PathBuf {
+    binding_path().with_file_name(BINDING_LOCK_FILE_NAME)
+}
+
+fn atomic_replace_binding(path: &Path, body: &[u8]) -> Result<(), BindingError> {
+    let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let temp_name = format!(
+        "{BINDING_FILE_NAME}.{}.{}.tmp",
+        std::process::id(),
+        sequence
+    );
+    let temp_path = path.with_file_name(temp_name);
+    let mut temp = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temp_path)
+        .map_err(|error| BindingError(format!("create {}: {error}", temp_path.display())))?;
+    let write_result = (|| {
+        temp.write_all(body)
+            .map_err(|error| BindingError(format!("write {}: {error}", temp_path.display())))?;
+        temp.sync_all()
+            .map_err(|error| BindingError(format!("sync {}: {error}", temp_path.display())))?;
+        restrict_to_owner(&temp_path);
+        atomic_replace_file(&temp_path, path)
+    })();
+    if write_result.is_err() {
+        let _ = std::fs::remove_file(&temp_path);
+    }
+    write_result
+}
+
+#[cfg(unix)]
+fn atomic_replace_file(temp_path: &Path, path: &Path) -> Result<(), BindingError> {
+    std::fs::rename(temp_path, path).map_err(|error| {
+        BindingError(format!(
+            "replace {} with {}: {error}",
+            path.display(),
+            temp_path.display()
+        ))
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn atomic_replace_file(temp_path: &Path, path: &Path) -> Result<(), BindingError> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::{
+        MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+    };
+
+    let temp_wide: Vec<u16> = temp_path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let path_wide: Vec<u16> = path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let moved = unsafe {
+        MoveFileExW(
+            temp_wide.as_ptr(),
+            path_wide.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+    if moved == 0 {
+        return Err(BindingError(format!(
+            "replace {} with {}: {}",
+            path.display(),
+            temp_path.display(),
+            std::io::Error::last_os_error()
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(not(any(unix, target_os = "windows")))]
+fn atomic_replace_file(temp_path: &Path, path: &Path) -> Result<(), BindingError> {
+    match std::fs::remove_file(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(BindingError(format!("remove {}: {error}", path.display())));
+        }
+    }
+    std::fs::rename(temp_path, path).map_err(|error| {
+        BindingError(format!(
+            "replace {} with {}: {error}",
+            path.display(),
+            temp_path.display()
+        ))
+    })
 }
 
 /// Remove the discovery file only when it still belongs to `expected`.
@@ -169,9 +267,7 @@ struct BindingOwnershipGuard(windows_sys::Win32::Foundation::HANDLE);
 impl BindingOwnershipGuard {
     fn acquire() -> Result<Self, BindingError> {
         use windows_sys::Win32::Foundation::{CloseHandle, WAIT_ABANDONED, WAIT_OBJECT_0};
-        use windows_sys::Win32::System::Threading::{
-            CreateMutexW, WaitForSingleObject, INFINITE,
-        };
+        use windows_sys::Win32::System::Threading::{CreateMutexW, WaitForSingleObject, INFINITE};
 
         let name: Vec<u16> = "Local\\HandshakeSwarmMcpBindingOwnership\0"
             .encode_utf16()
@@ -182,6 +278,8 @@ impl BindingOwnershipGuard {
                 "create cross-process binding ownership mutex failed".to_owned(),
             ));
         }
+        #[cfg(test)]
+        publish_binding_lock_attempt();
         let wait = unsafe { WaitForSingleObject(handle, INFINITE) };
         if wait != WAIT_OBJECT_0 && wait != WAIT_ABANDONED {
             unsafe {
@@ -207,10 +305,60 @@ impl Drop for BindingOwnershipGuard {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(unix)]
+struct BindingOwnershipGuard(std::fs::File);
+
+#[cfg(unix)]
+impl BindingOwnershipGuard {
+    fn acquire() -> Result<Self, BindingError> {
+        use std::os::fd::AsRawFd;
+
+        unsafe extern "C" {
+            fn flock(fd: std::ffi::c_int, operation: std::ffi::c_int) -> std::ffi::c_int;
+        }
+        const LOCK_EX: std::ffi::c_int = 2;
+
+        let path = binding_lock_path();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|error| BindingError(format!("create {}: {error}", parent.display())))?;
+        }
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&path)
+            .map_err(|error| BindingError(format!("open {}: {error}", path.display())))?;
+        #[cfg(test)]
+        publish_binding_lock_attempt();
+        if unsafe { flock(file.as_raw_fd(), LOCK_EX) } != 0 {
+            return Err(BindingError(format!(
+                "lock {}: {}",
+                path.display(),
+                std::io::Error::last_os_error()
+            )));
+        }
+        Ok(Self(file))
+    }
+}
+
+#[cfg(unix)]
+impl Drop for BindingOwnershipGuard {
+    fn drop(&mut self) {
+        use std::os::fd::AsRawFd;
+
+        unsafe extern "C" {
+            fn flock(fd: std::ffi::c_int, operation: std::ffi::c_int) -> std::ffi::c_int;
+        }
+        const LOCK_UN: std::ffi::c_int = 8;
+        let _ = unsafe { flock(self.0.as_raw_fd(), LOCK_UN) };
+    }
+}
+
+#[cfg(not(any(unix, target_os = "windows")))]
 struct BindingOwnershipGuard(std::sync::MutexGuard<'static, ()>);
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(any(unix, target_os = "windows")))]
 impl BindingOwnershipGuard {
     fn acquire() -> Result<Self, BindingError> {
         static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
@@ -220,6 +368,15 @@ impl BindingOwnershipGuard {
                 .unwrap_or_else(|poisoned| poisoned.into_inner()),
         ))
     }
+}
+
+#[cfg(test)]
+fn publish_binding_lock_attempt() {
+    let Some(marker) = std::env::var_os("HSK_BINDING_LOCK_ATTEMPT_MARKER") else {
+        return;
+    };
+    std::fs::write(PathBuf::from(marker), b"attempting")
+        .expect("publish binding ownership-lock attempt");
 }
 
 /// Best-effort owner-only permission restriction on the binding file. Failures are logged, never fatal:
@@ -414,5 +571,223 @@ mod tests {
             None => std::env::remove_var(var),
         }
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    #[ignore = "invoked as a child process by cross_process_writes_overlap_under_one_lock"]
+    fn binding_cross_process_helper() {
+        let Ok(mode) = std::env::var("HSK_BINDING_HELPER_MODE") else {
+            return;
+        };
+        let root = PathBuf::from(
+            std::env::var_os("HSK_BINDING_HELPER_ROOT").expect("helper root environment"),
+        );
+        #[cfg(target_os = "windows")]
+        std::env::set_var("LOCALAPPDATA", &root);
+        #[cfg(not(target_os = "windows"))]
+        std::env::set_var("XDG_DATA_HOME", &root);
+
+        let binding = McpBinding {
+            tcp_addr: if mode == "hold" {
+                "127.0.0.1:21001"
+            } else {
+                "127.0.0.1:21002"
+            }
+            .to_owned(),
+            pipe_name: None,
+            token: if mode == "hold" {
+                "a".repeat(64)
+            } else {
+                "b".repeat(64)
+            },
+            pid: if mode == "hold" { 21001 } else { 21002 },
+        };
+        if matches!(mode.as_str(), "write" | "write-bypass") {
+            let ready = root.join("contender-ready");
+            std::fs::write(&ready, b"ready").expect("publish contender readiness");
+            let go = root.join("contender-go");
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+            while !go.exists() {
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "parent did not release contender start barrier"
+                );
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+
+            let attempting = root.join("contender-lock-attempt");
+            if mode == "write" {
+                std::env::set_var("HSK_BINDING_LOCK_ATTEMPT_MARKER", &attempting);
+                write_binding(&binding).expect("contending helper writes binding");
+            } else {
+                // Test-only mutation control: use the exact atomic writer while intentionally bypassing
+                // BindingOwnershipGuard. The parent applies the same overlap assertion and requires it
+                // to go RED, proving the helper protocol detects a missing cross-process lock.
+                let path = binding_path();
+                std::fs::create_dir_all(path.parent().expect("binding parent"))
+                    .expect("create binding dir");
+                let json = binding.to_json_string().expect("serialize bypass binding");
+                std::fs::write(&attempting, b"attempting")
+                    .expect("publish bypassed binding-lock attempt");
+                atomic_replace_binding(&path, json.as_bytes())
+                    .expect("test-only bypass writes binding atomically");
+            }
+            std::fs::write(root.join("contender-complete"), b"complete")
+                .expect("publish contender completion");
+            return;
+        }
+        assert_eq!(mode, "hold");
+        let path = binding_path();
+        std::fs::create_dir_all(path.parent().expect("binding parent"))
+            .expect("create binding dir");
+        let _guard = BindingOwnershipGuard::acquire().expect("holder acquires ownership lock");
+        let json = binding.to_json_string().expect("serialize holder binding");
+        atomic_replace_binding(&path, json.as_bytes()).expect("holder writes atomically");
+        let ready = root.join("holder-ready");
+        std::fs::write(&ready, b"ready").expect("publish holder readiness");
+        let release = root.join("holder-release");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while !release.exists() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "parent did not release helper lock"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+
+    #[cfg(any(unix, target_os = "windows"))]
+    fn cross_process_overlap_case(contender_mode: &str) -> bool {
+        let _guard = BINDING_ENV_GUARD
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let root = std::env::temp_dir().join(format!(
+            "hsk_binding_cross_process_{}_{}_{}",
+            std::process::id(),
+            contender_mode,
+            TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).expect("create helper root");
+        let executable = std::env::current_exe().expect("current test executable");
+        let spawn_helper = |mode: &str| {
+            std::process::Command::new(&executable)
+                .args([
+                    "--ignored",
+                    "--exact",
+                    "mcp::binding::tests::binding_cross_process_helper",
+                    "--nocapture",
+                ])
+                .env("HSK_BINDING_HELPER_MODE", mode)
+                .env("HSK_BINDING_HELPER_ROOT", &root)
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .expect("spawn binding helper")
+        };
+
+        let mut holder = spawn_helper("hold");
+        let ready = root.join("holder-ready");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while !ready.exists() {
+            assert!(
+                holder.try_wait().expect("poll holder").is_none(),
+                "holder exited before acquiring the ownership lock"
+            );
+            assert!(
+                std::time::Instant::now() < deadline,
+                "holder did not publish ownership-lock readiness"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+
+        let mut contender = spawn_helper(contender_mode);
+        let contender_ready = root.join("contender-ready");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while !contender_ready.exists() {
+            assert!(
+                contender.try_wait().expect("poll contender").is_none(),
+                "contender exited before reaching the start barrier"
+            );
+            assert!(
+                std::time::Instant::now() < deadline,
+                "contender did not publish start-barrier readiness"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        std::fs::write(root.join("contender-go"), b"go").expect("release contender start barrier");
+
+        let attempting = root.join("contender-lock-attempt");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while !attempting.exists() {
+            assert!(
+                contender.try_wait().expect("poll contender").is_none(),
+                "contender exited before reaching the binding ownership acquire boundary"
+            );
+            assert!(
+                std::time::Instant::now() < deadline,
+                "contender did not reach the binding ownership acquire boundary"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+
+        let complete = root.join("contender-complete");
+        let observation_deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while !complete.exists() && std::time::Instant::now() < observation_deadline {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let completed_while_holder_owned_lock = complete.exists();
+        assert!(
+            completed_while_holder_owned_lock
+                || contender
+                    .try_wait()
+                    .expect("poll blocked contender")
+                    .is_none(),
+            "contender exited without publishing completion"
+        );
+
+        std::fs::write(root.join("holder-release"), b"release").expect("release holder");
+        assert!(holder.wait().expect("wait holder").success());
+        assert!(contender.wait().expect("wait contender").success());
+
+        #[cfg(target_os = "windows")]
+        let app_data_var = "LOCALAPPDATA";
+        #[cfg(not(target_os = "windows"))]
+        let app_data_var = "XDG_DATA_HOME";
+        let previous_app_data = std::env::var_os(app_data_var);
+        std::env::set_var(app_data_var, &root);
+        let body = std::fs::read_to_string(binding_path()).expect("read final binding");
+        let final_binding: McpBinding = serde_json::from_str(&body).expect("complete binding JSON");
+        assert_eq!(final_binding.pid, 21002);
+        assert_eq!(final_binding.token, "b".repeat(64));
+        match previous_app_data {
+            Some(value) => std::env::set_var(app_data_var, value),
+            None => std::env::remove_var(app_data_var),
+        }
+        let _ = std::fs::remove_dir_all(&root);
+        completed_while_holder_owned_lock
+    }
+
+    #[cfg(any(unix, target_os = "windows"))]
+    fn assert_cross_process_write_is_serialized(contender_mode: &str) {
+        assert!(
+            !cross_process_overlap_case(contender_mode),
+            "cross-process overlap detector: contender completed while holder owned the ownership lock"
+        );
+    }
+
+    #[cfg(any(unix, target_os = "windows"))]
+    #[test]
+    fn cross_process_writes_overlap_under_one_lock() {
+        assert_cross_process_write_is_serialized("write");
+    }
+
+    #[cfg(any(unix, target_os = "windows"))]
+    #[test]
+    #[should_panic(
+        expected = "cross-process overlap detector: contender completed while holder owned the ownership lock"
+    )]
+    fn cross_process_overlap_detector_goes_red_when_lock_is_bypassed() {
+        assert_cross_process_write_is_serialized("write-bypass");
     }
 }

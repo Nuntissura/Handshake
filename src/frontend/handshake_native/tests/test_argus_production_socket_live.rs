@@ -37,6 +37,7 @@ struct ArgusClient {
     token: String,
     next_id: u64,
     agent_token: Option<String>,
+    agent_id: Option<String>,
     transcript: Vec<serde_json::Value>,
 }
 
@@ -67,16 +68,17 @@ impl ArgusClient {
             .unwrap_or_else(|error| panic!("{method} transport failed: {error}"));
         self.transcript.push(serde_json::json!({
             "request": redact_request_for_proof(&request),
-            "response": response,
+            "response": redact_response_for_proof(&response),
         }));
         response
     }
 
     fn authenticate_agent(&mut self) -> String {
+        let session_token = self.token.clone();
         let response = self.call_with_credentials(
             "argus.authenticate_agent",
             serde_json::json!({}),
-            &self.token.clone(),
+            &session_token,
             "production-socket-live",
         );
         assert_success(&response, "argus.authenticate_agent");
@@ -90,6 +92,7 @@ impl ArgusClient {
                 .expect("broker returned agent_token")
                 .to_owned(),
         );
+        self.agent_id = Some(agent_id.clone());
         agent_id
     }
 
@@ -129,6 +132,15 @@ impl ArgusClient {
         }
         let response = self.call(method, serde_json::Value::Object(params));
         assert_applied_durable(&response, revision, method);
+        assert_eq!(
+            response["result"]["agent_id"].as_str(),
+            self.agent_id.as_deref(),
+            "{method} receipt was not attributed to the broker-authenticated principal"
+        );
+        assert_eq!(
+            response["result"]["agent_label"], "production-socket-live",
+            "{method} receipt lost its distinct caller-controlled display label"
+        );
         response
     }
 }
@@ -159,6 +171,24 @@ fn redact_request_for_proof(request: &serde_json::Value) -> serde_json::Value {
             if sensitive && params.contains_key("value") {
                 params.insert(
                     "value".to_owned(),
+                    serde_json::Value::String("[REDACTED]".to_owned()),
+                );
+            }
+        }
+    }
+    redacted
+}
+
+fn redact_response_for_proof(response: &serde_json::Value) -> serde_json::Value {
+    let mut redacted = response.clone();
+    if let Some(result) = redacted
+        .get_mut("result")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        for key in ["session_token", "agent_token"] {
+            if result.contains_key(key) {
+                result.insert(
+                    key.to_owned(),
                     serde_json::Value::String("[REDACTED]".to_owned()),
                 );
             }
@@ -351,7 +381,8 @@ fn proof_dir() -> PathBuf {
 }
 
 fn request_child_close(pid: u32) {
-    use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM};
+    use windows_sys::core::BOOL;
+    use windows_sys::Win32::Foundation::{HWND, LPARAM};
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         EnumWindows, GetWindowThreadProcessId, PostMessageW, WM_CLOSE,
     };
@@ -404,6 +435,7 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
         token: binding.token,
         next_id: 1,
         agent_token: None,
+        agent_id: None,
         transcript: Vec::new(),
     };
     let authenticated_agent_id = client.authenticate_agent();
@@ -466,15 +498,8 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
     assert_visual_png(&png, "main-window capture");
 
     // Exercise the actual MT-015 Settings/cloud-access surface through the production socket.
-    client.mutation("argus.click", "main", "menu-help", None);
-    let help_menu = client.inspect("main");
-    assert!(
-        contains_author_id(&help_menu["snapshot"]["root"], "menu.help.settings"),
-        "HELP menu did not expose Open Settings"
-    );
-    client.mutation("argus.click", "main", "menu.help.settings", None);
-    let settings = client.inspect("main");
-    for author_id in [
+    let secret_canary = "production-socket-secret-canary";
+    let settings_landmarks = [
         "settings.dialog",
         "settings.cloud.byok.openai.key",
         "settings.cloud.byok.openai.status",
@@ -483,18 +508,115 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
         "settings.cloud.byok.anthropic.status",
         "settings.cloud.cli.claude_code.status",
         "settings.cloud.cli.codex.status",
-    ] {
+    ];
+    client.mutation("argus.click", "main", "menu-help", None);
+    let help_menu = client.inspect("main");
+    assert!(
+        contains_author_id(&help_menu["snapshot"]["root"], "menu.help.settings"),
+        "HELP menu did not expose Open Settings"
+    );
+    client.mutation("argus.click", "main", "menu.help.settings", None);
+    let settings = client.inspect("main");
+    for author_id in settings_landmarks {
         assert!(
             contains_author_id(&settings["snapshot"]["root"], author_id),
             "production Settings snapshot omitted {author_id}"
         );
     }
-    let settings_json =
-        serde_json::to_string(&settings["snapshot"]["root"]).expect("serialize Settings tree");
+    let settings_revision = settings["revision"]
+        .as_u64()
+        .expect("Settings inspect revision is numeric");
+    let secret_denial = client.call(
+        "argus.set_value",
+        serde_json::json!({
+            "window_id": "main",
+            "author_id": "settings.cloud.byok.openai.key",
+            "expected_snapshot_revision": settings_revision,
+            "value": secret_canary
+        }),
+    );
     assert!(
-        !settings_json.contains("production-socket-secret-canary"),
+        secret_denial.get("error").is_some(),
+        "secret-bearing input accepted generic Argus set_value"
+    );
+    assert!(
+        !secret_denial.to_string().contains(secret_canary),
+        "secret-bearing denial echoed its value"
+    );
+    let settings_after_denial = client.inspect("main");
+    assert_eq!(
+        settings_after_denial["revision"].as_u64(),
+        Some(settings_revision),
+        "denied secret input unexpectedly advanced the Settings revision"
+    );
+    for author_id in settings_landmarks {
+        assert!(
+            contains_author_id(&settings_after_denial["snapshot"]["root"], author_id),
+            "Settings landmark disappeared before visual capture: {author_id}"
+        );
+    }
+    let settings_json = serde_json::to_string(&settings_after_denial["snapshot"]["root"])
+        .expect("serialize Settings tree");
+    assert!(
+        !settings_json.contains(secret_canary),
         "Settings snapshot disclosed the BYOK canary"
     );
+
+    // Bracket the targeted capture with canonical Settings snapshots. This proves the live main-window
+    // PNG was captured while the Settings/cloud controls were rendered, not from an earlier frame.
+    let settings_shot = client.call("argus.screenshot", serde_json::json!({"window_id": "main"}));
+    assert_success(&settings_shot, "argus.screenshot(main Settings-open)");
+    assert_eq!(settings_shot["result"]["window_id"], "main");
+    assert_eq!(settings_shot["result"]["pid"], child_pid);
+    assert!(
+        settings_shot["result"]["width"]
+            .as_u64()
+            .is_some_and(|value| value > 0)
+            && settings_shot["result"]["height"]
+                .as_u64()
+                .is_some_and(|value| value > 0),
+        "Settings-open capture had zero dimensions"
+    );
+    assert!(
+        !settings_shot.to_string().contains(secret_canary),
+        "Settings-open screenshot response disclosed the BYOK canary"
+    );
+    let settings_png = base64::engine::general_purpose::STANDARD
+        .decode(
+            settings_shot["result"]["png_base64"]
+                .as_str()
+                .expect("Settings screenshot png_base64"),
+        )
+        .expect("decode Settings screenshot PNG");
+    assert!(
+        settings_png.starts_with(b"\x89PNG\r\n\x1a\n"),
+        "Settings-open capture is not PNG"
+    );
+    assert_eq!(
+        settings_shot["result"]["sha256"],
+        format!("{:x}", Sha256::digest(&settings_png))
+    );
+    assert_visual_png(&settings_png, "Settings-open main-window capture");
+    assert!(
+        !settings_png
+            .windows(secret_canary.len())
+            .any(|window| window == secret_canary.as_bytes()),
+        "Settings-open PNG bytes disclosed the BYOK canary"
+    );
+    let settings_after_capture = client.inspect("main");
+    for author_id in settings_landmarks {
+        assert!(
+            contains_author_id(&settings_after_capture["snapshot"]["root"], author_id),
+            "Settings landmark was not present after visual capture: {author_id}"
+        );
+    }
+    assert!(
+        !serde_json::to_string(&settings_after_capture["snapshot"]["root"])
+            .expect("serialize post-capture Settings tree")
+            .contains(secret_canary),
+        "post-capture Settings snapshot disclosed the BYOK canary"
+    );
+    client.mutation("argus.click", "main", "settings.close", None);
 
     // Canonical non-pointer context-menu opening, causal menu-item acknowledgement, and real pop-out.
     client.mutation(
@@ -594,23 +716,6 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
         wrong_window.get("error").is_some(),
         "unknown window was accepted"
     );
-    let secret_canary = "production-socket-secret-canary";
-    let secret_denial = client.call(
-        "argus.set_value",
-        serde_json::json!({
-            "window_id": "main",
-            "author_id": "settings.cloud.byok.openai.key",
-            "value": secret_canary
-        }),
-    );
-    assert!(
-        secret_denial.get("error").is_some(),
-        "secret-bearing input accepted generic Argus set_value"
-    );
-    assert!(
-        !secret_denial.to_string().contains(secret_canary),
-        "secret-bearing denial echoed its value"
-    );
     let current_revision = client.inspect("main")["revision"]
         .as_u64()
         .expect("current main revision");
@@ -628,6 +733,11 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
     std::fs::create_dir_all(&proof_dir).expect("create external proof directory");
     std::fs::write(proof_dir.join("argus_production_socket_main.png"), &png)
         .expect("write production screenshot proof");
+    std::fs::write(
+        proof_dir.join("argus_production_socket_settings_open.png"),
+        &settings_png,
+    )
+    .expect("write production Settings-open screenshot proof");
     std::fs::write(
         proof_dir.join("argus_production_socket_popout_pane_a.png"),
         &popout_png,
@@ -651,9 +761,74 @@ fn production_binary_argus_socket_inspect_click_set_screenshot_receipts_and_popo
     );
     std::fs::write(
         proof_dir.join("argus_production_socket_transcript.json"),
-        transcript,
+        &transcript,
     )
     .expect("write production socket transcript");
+    let provenance = serde_json::json!({
+        "schema_id": "handshake.argus.production_socket_provenance@1",
+        "child_pid": child_pid,
+        "authenticated_agent_id": authenticated_agent_id,
+        "transcript": "argus_production_socket_transcript.json",
+        "captures": [
+            {
+                "artifact": "argus_production_socket_main.png",
+                "purpose": "main-window-before-settings",
+                "window_id": screenshot["result"]["window_id"],
+                "pid": screenshot["result"]["pid"],
+                "width": screenshot["result"]["width"],
+                "height": screenshot["result"]["height"],
+                "captured_at_utc": screenshot["result"]["captured_at_utc"],
+                "sha256": screenshot["result"]["sha256"],
+            },
+            {
+                "artifact": "argus_production_socket_settings_open.png",
+                "purpose": "main-window-settings-cloud-controls-open",
+                "window_id": settings_shot["result"]["window_id"],
+                "pid": settings_shot["result"]["pid"],
+                "width": settings_shot["result"]["width"],
+                "height": settings_shot["result"]["height"],
+                "captured_at_utc": settings_shot["result"]["captured_at_utc"],
+                "sha256": settings_shot["result"]["sha256"],
+                "snapshot_revision_before_capture": settings_after_denial["revision"],
+                "snapshot_revision_after_capture": settings_after_capture["revision"],
+                "required_author_id_landmarks": settings_landmarks,
+                "landmarks_present_before_and_after_capture": true,
+                "sensitive_values_redacted": true,
+            },
+            {
+                "artifact": "argus_production_socket_popout_pane_a.png",
+                "purpose": "detached-window-targeting-and-capture",
+                "window_id": popout_shot["result"]["window_id"],
+                "pid": popout_shot["result"]["pid"],
+                "width": popout_shot["result"]["width"],
+                "height": popout_shot["result"]["height"],
+                "captured_at_utc": popout_shot["result"]["captured_at_utc"],
+                "sha256": popout_shot["result"]["sha256"],
+            }
+        ],
+        "redaction": {
+            "session_token_absent_from_transcript": true,
+            "agent_token_absent_from_transcript": true,
+            "sensitive_canary_absent_from_transcript_and_settings_capture": true,
+        }
+    });
+    let provenance =
+        serde_json::to_vec_pretty(&provenance).expect("serialize production proof provenance");
+    let provenance_text = String::from_utf8_lossy(&provenance);
+    assert!(
+        !provenance_text.contains(client.token.as_str())
+            && client
+                .agent_token
+                .as_deref()
+                .is_none_or(|agent_token| !provenance_text.contains(agent_token))
+            && !provenance_text.contains(secret_canary),
+        "production proof provenance retained a secret"
+    );
+    std::fs::write(
+        proof_dir.join("argus_production_socket_provenance.json"),
+        provenance,
+    )
+    .expect("write production screenshot provenance");
 
     request_child_close(child_pid);
     let exit_deadline = Instant::now() + Duration::from_secs(10);

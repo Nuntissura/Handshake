@@ -31,7 +31,8 @@ use std::sync::{Arc, Mutex, Once, OnceLock, RwLock};
 use handshake_core::api::model_access::{routes, CloudAccessProvider, ModelAccessState};
 use handshake_core::model_runtime::cloud::{
     AccessConfigError, ByokProvider, CliBridgeAuthStatus, CliBridgeAuthStatusProbe,
-    CliBridgeProvider, CloudModelAccess, InMemorySecretsVault, SecretsVault, SecretsVaultError,
+    CliBridgeLoginLaunchError, CliBridgeLoginLauncher, CliBridgeProvider, CloudModelAccess,
+    ForegroundCliLaunchHandle, InMemorySecretsVault, SecretsVault, SecretsVaultError,
 };
 use serde_json::Value;
 use zeroize::Zeroizing;
@@ -171,6 +172,21 @@ impl CliBridgeAuthStatusProbe for TypedCliAuthProbe {
     }
 }
 
+#[derive(Default)]
+struct CapturingCliLoginLauncher {
+    calls: Mutex<Vec<CliBridgeProvider>>,
+}
+
+impl CliBridgeLoginLauncher for CapturingCliLoginLauncher {
+    fn launch_login(
+        &self,
+        provider: CliBridgeProvider,
+    ) -> Result<ForegroundCliLaunchHandle, CliBridgeLoginLaunchError> {
+        self.calls.lock().expect("login calls lock").push(provider);
+        Ok(ForegroundCliLaunchHandle { pid: 4242 })
+    }
+}
+
 fn in_memory_state() -> (ModelAccessState, Arc<InMemorySecretsVault>) {
     let vault = Arc::new(InMemorySecretsVault::default());
     let state = ModelAccessState::with_provider_and_cli_auth_probe(
@@ -194,6 +210,37 @@ async fn start_server(state: ModelAccessState) -> (String, tokio::task::JoinHand
             .expect("model-access server");
     });
     (format!("http://{addr}"), handle)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cli_login_route_returns_only_backend_owned_launch_handle() {
+    let vault = Arc::new(InMemorySecretsVault::default());
+    let launcher = Arc::new(CapturingCliLoginLauncher::default());
+    let state = ModelAccessState::with_provider_cli_runtime(
+        Arc::new(InMemoryProvider { vault }),
+        Arc::new(TypedCliAuthProbe::default()),
+        launcher.clone(),
+    );
+    let (base, server) = start_server(state).await;
+    let response = reqwest::Client::new()
+        .post(format!("{base}/model-access/cli-bridge/codex/login"))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .expect("launch login request");
+    assert_eq!(response.status().as_u16(), 200);
+    let body = response.text().await.expect("login launch body");
+    assert!(!body.contains("executable"), "{body}");
+    assert!(!body.contains("args"), "{body}");
+    assert!(!body.contains("PATH"), "{body}");
+    let value: Value = serde_json::from_str(&body).expect("login launch JSON");
+    assert_eq!(value["provider"], "codex");
+    assert_eq!(value["launch_handle"]["pid"], 4242);
+    assert_eq!(
+        launcher.calls.lock().expect("login calls lock").as_slice(),
+        &[CliBridgeProvider::Codex]
+    );
+    server.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

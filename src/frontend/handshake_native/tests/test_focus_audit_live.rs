@@ -103,18 +103,28 @@ use std::time::{Duration, Instant};
 mod live {
     use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
     use std::sync::Mutex;
+    use std::time::{Duration, Instant};
 
-    use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+    use windows_sys::Win32::Foundation::{
+        CloseHandle, HWND, INVALID_HANDLE_VALUE, LPARAM, LRESULT, WPARAM,
+    };
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+        TH32CS_SNAPPROCESS,
+    };
     use windows_sys::Win32::System::Threading::GetCurrentThreadId;
-    use windows_sys::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
+    use windows_sys::Win32::UI::Accessibility::{
+        NotifyWinEvent, SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK,
+    };
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
         SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_SPACE,
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         CallNextHookEx, DispatchMessageW, GetForegroundWindow, GetMessageW,
-        GetWindowThreadProcessId, PostThreadMessageW, SetWindowsHookExW, TranslateMessage,
-        UnhookWindowsHookEx, EVENT_SYSTEM_FOREGROUND, KBDLLHOOKSTRUCT, LLKHF_INJECTED,
-        LLKHF_LOWER_IL_INJECTED, MSG, WH_KEYBOARD_LL, WINEVENT_OUTOFCONTEXT, WM_QUIT,
+        GetWindowThreadProcessId, PeekMessageW, PostThreadMessageW, SetWindowsHookExW,
+        TranslateMessage, UnhookWindowsHookEx, CHILDID_SELF, EVENT_SYSTEM_FOREGROUND,
+        KBDLLHOOKSTRUCT, LLKHF_INJECTED, LLKHF_LOWER_IL_INJECTED, MSG, OBJID_WINDOW, PM_NOREMOVE,
+        WH_KEYBOARD_LL, WINEVENT_OUTOFCONTEXT, WM_QUIT,
     };
 
     /// The TEST-HARNESS injection cookie. The audit's own single liveness keystroke (sent via
@@ -134,8 +144,15 @@ mod live {
     // ── Shared hook state (the hooks are `extern "system"` C callbacks; they cannot capture, so they
     //    write into these process-globals, drained after unhook). ──
 
-    /// One recorded foreground change: the PID that owned the newly-foregrounded window.
-    static FOREGROUND_PIDS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
+    /// Durable event-time ancestry. Capturing the chain in the callback lets the audit classify a
+    /// descendant after both the root PID is published and the short-lived descendant has exited.
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct ForegroundEventEvidence {
+        pid: u32,
+        ancestors: Vec<u32>,
+    }
+    static FOREGROUND_EVENTS: Mutex<Vec<ForegroundEventEvidence>> = Mutex::new(Vec::new());
+    static LIVE_AUDIT_TEST_LOCK: Mutex<()> = Mutex::new(());
     /// Total foreground events the WinEvent hook observed (liveness proof: > 0 means the hook fired).
     static FOREGROUND_EVENT_COUNT: AtomicUsize = AtomicUsize::new(0);
     /// Total key events the LL keyboard hook observed (liveness proof).
@@ -164,8 +181,47 @@ mod live {
     /// signal is simply not credited; the PRIMARY cookie-based gate is unaffected by this value).
     static APP_PID: AtomicU32 = AtomicU32::new(0);
 
+    /// Snapshot the complete parent chain while the event-owning process still exists. This deliberately
+    /// does not depend on APP_PID: foreground events can arrive after spawn but before PID publication.
+    unsafe fn process_ancestry(mut candidate_pid: u32) -> Vec<u32> {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+        if snapshot == INVALID_HANDLE_VALUE {
+            return Vec::new();
+        }
+        let mut parents = std::collections::HashMap::<u32, u32>::new();
+        let mut entry: PROCESSENTRY32W = std::mem::zeroed();
+        entry.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+        if Process32FirstW(snapshot, &mut entry) != 0 {
+            loop {
+                parents.insert(entry.th32ProcessID, entry.th32ParentProcessID);
+                if Process32NextW(snapshot, &mut entry) == 0 {
+                    break;
+                }
+            }
+        }
+        CloseHandle(snapshot);
+
+        let mut ancestors = Vec::new();
+        for _ in 0..64 {
+            let Some(parent_pid) = parents.get(&candidate_pid).copied() else {
+                break;
+            };
+            if parent_pid == 0 || parent_pid == candidate_pid {
+                break;
+            }
+            ancestors.push(parent_pid);
+            candidate_pid = parent_pid;
+        }
+        ancestors
+    }
+
+    fn evidence_belongs_to_tree(event: &ForegroundEventEvidence, root_pid: u32) -> bool {
+        root_pid != 0 && (event.pid == root_pid || event.ancestors.contains(&root_pid))
+    }
+
     /// WinEvent callback: fired for every EVENT_SYSTEM_FOREGROUND on the desktop. Records the PID that
-    /// owns the now-foreground HWND so the audit can attribute foreground steals to the app child.
+    /// owns the now-foreground HWND plus its event-time ancestry. Attribution is deferred until the app
+    /// root PID is known, closing the spawn-to-PID-publication blind spot.
     unsafe extern "system" fn win_event_proc(
         _hook: HWINEVENTHOOK,
         event: u32,
@@ -182,8 +238,12 @@ mod live {
         let mut pid: u32 = 0;
         GetWindowThreadProcessId(hwnd, &mut pid);
         if pid != 0 {
-            if let Ok(mut v) = FOREGROUND_PIDS.lock() {
-                v.push(pid);
+            let evidence = ForegroundEventEvidence {
+                pid,
+                ancestors: process_ancestry(pid),
+            };
+            if let Ok(mut events) = FOREGROUND_EVENTS.lock() {
+                events.push(evidence);
             }
         }
     }
@@ -288,53 +348,167 @@ mod live {
         }
     }
 
-    /// A live foreground (WinEvent) hook handle. Installed on the calling thread; `WINEVENT_OUTOFCONTEXT`
-    /// means our callback runs in our own process so no DLL injection is needed (the FocusAuditHandle
-    /// pattern). The hook is unhooked on drop.
+    const FOREGROUND_THREAD_STOP_TIMEOUT: Duration = Duration::from_secs(5);
+
+    pub fn audit_test_lock() -> std::sync::MutexGuard<'static, ()> {
+        LIVE_AUDIT_TEST_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    pub fn reset_foreground_observations() {
+        FOREGROUND_EVENT_COUNT.store(0, Ordering::Relaxed);
+        if let Ok(mut events) = FOREGROUND_EVENTS.lock() {
+            events.clear();
+        }
+    }
+
+    /// A live foreground (WinEvent) hook installed, pumped, and unhooked on one dedicated OS thread.
+    /// `WINEVENT_OUTOFCONTEXT` delivers callbacks on the installing thread, so that thread must keep a
+    /// message loop alive for the entire audit. Shutdown posts `WM_QUIT`, waits for an explicit
+    /// completion acknowledgement with a fixed deadline, and joins only after the thread has unhooked.
     pub struct ForegroundAuditHook {
-        hook: HWINEVENTHOOK,
+        thread_id: u32,
+        installed: bool,
+        stopped_rx: Option<std::sync::mpsc::Receiver<()>>,
+        join: Option<std::thread::JoinHandle<()>>,
+        stopped_cleanly: bool,
     }
 
     impl ForegroundAuditHook {
-        /// Install the real `EVENT_SYSTEM_FOREGROUND` WinEvent hook. Returns `None` if the OS refused
-        /// (NULL handle) so the caller can record an honest "hook not installed" blocker rather than a
-        /// false PASS.
-        pub fn install() -> Option<Self> {
-            // SAFETY: a valid Win32 call; the callback is a `'static` fn item and writes only into the
-            // process-global statics above. NULL module + 0/0 process/thread = all processes, all
-            // threads, out-of-context (callback in our process). Unhooked in Drop.
-            let hook = unsafe {
-                SetWinEventHook(
-                    EVENT_SYSTEM_FOREGROUND,
-                    EVENT_SYSTEM_FOREGROUND,
-                    std::ptr::null_mut(),
-                    Some(win_event_proc),
-                    0,
-                    0,
-                    WINEVENT_OUTOFCONTEXT,
-                )
-            };
-            if hook.is_null() {
-                None
-            } else {
-                Some(Self { hook })
+        /// Spawn the message-pump thread and block until it reports whether installation succeeded.
+        pub fn install() -> Self {
+            let (ready_tx, ready_rx) = std::sync::mpsc::channel::<(u32, bool)>();
+            let (stopped_tx, stopped_rx) = std::sync::mpsc::channel::<()>();
+            let join = std::thread::spawn(move || {
+                let thread_id = unsafe { GetCurrentThreadId() };
+                let mut msg: MSG = unsafe { std::mem::zeroed() };
+                // SAFETY: `PeekMessageW(..., PM_NOREMOVE)` creates this thread's message queue before
+                // the parent can post WM_QUIT. The local MSG storage is valid for the call.
+                unsafe {
+                    PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_NOREMOVE);
+                }
+                // SAFETY: the callback is a static function and writes only to synchronized process
+                // globals. NULL module + 0/0 process/thread scopes the out-of-context hook globally.
+                let hook = unsafe {
+                    SetWinEventHook(
+                        EVENT_SYSTEM_FOREGROUND,
+                        EVENT_SYSTEM_FOREGROUND,
+                        std::ptr::null_mut(),
+                        Some(win_event_proc),
+                        0,
+                        0,
+                        WINEVENT_OUTOFCONTEXT,
+                    )
+                };
+                let installed = !hook.is_null();
+                let _ = ready_tx.send((thread_id, installed));
+                if !installed {
+                    let _ = stopped_tx.send(());
+                    return;
+                }
+
+                loop {
+                    // SAFETY: the hook and message queue belong to this thread. GetMessageW returns
+                    // zero for WM_QUIT and a negative value on failure.
+                    let result = unsafe { GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) };
+                    if result <= 0 {
+                        break;
+                    }
+                    unsafe {
+                        TranslateMessage(&msg);
+                        DispatchMessageW(&msg);
+                    }
+                }
+                // SAFETY: this thread owns the non-null hook returned above and unhooks it once.
+                unsafe {
+                    UnhookWinEvent(hook);
+                }
+                let _ = stopped_tx.send(());
+            });
+            let (thread_id, installed) = ready_rx.recv().unwrap_or((0, false));
+            Self {
+                thread_id,
+                installed,
+                stopped_rx: Some(stopped_rx),
+                join: Some(join),
+                stopped_cleanly: false,
             }
         }
 
         pub fn installed(&self) -> bool {
-            !self.hook.is_null()
+            self.installed
+        }
+
+        /// Request shutdown and wait no longer than the fixed deadline for unhook + thread exit.
+        pub fn stop_and_join(&mut self) -> bool {
+            if self.join.is_none() {
+                return self.stopped_cleanly;
+            }
+            if self.thread_id != 0 {
+                // SAFETY: the queue was created before install() returned. WM_QUIT is the documented
+                // way to terminate this thread's GetMessageW loop.
+                unsafe {
+                    PostThreadMessageW(self.thread_id, WM_QUIT, 0, 0);
+                }
+            }
+            let stopped = self.stopped_rx.take().is_some_and(|receiver| {
+                receiver
+                    .recv_timeout(FOREGROUND_THREAD_STOP_TIMEOUT)
+                    .is_ok()
+            });
+            if stopped {
+                self.stopped_cleanly = self.join.take().is_some_and(|join| join.join().is_ok());
+            } else {
+                // Detach rather than violating the bounded-shutdown contract with an unbounded join.
+                self.join.take();
+                self.stopped_cleanly = false;
+            }
+            self.stopped_cleanly
         }
     }
 
     impl Drop for ForegroundAuditHook {
         fn drop(&mut self) {
-            if !self.hook.is_null() {
-                // SAFETY: `hook` was returned by SetWinEventHook and is unhooked exactly once.
-                unsafe {
-                    UnhookWinEvent(self.hook);
-                }
-            }
+            let _ = self.stop_and_join();
         }
+    }
+
+    #[ignore = "LIVE WinEvent liveness proof: installs a system-wide foreground hook and requires an \
+                interactive Windows desktop"]
+    #[test]
+    fn foreground_hook_thread_pumps_callbacks_and_stops_bounded() {
+        let _audit_lock = audit_test_lock();
+        reset_foreground_observations();
+        let mut hook = ForegroundAuditHook::install();
+        assert!(hook.installed(), "SetWinEventHook failed");
+        let foreground = unsafe { GetForegroundWindow() };
+        assert!(
+            !foreground.is_null(),
+            "interactive desktop has no foreground window"
+        );
+        // SAFETY: publish a standard WinEvent for the current foreground HWND. This does not activate
+        // or move the window; it deterministically exercises the out-of-context callback delivery.
+        unsafe {
+            NotifyWinEvent(
+                EVENT_SYSTEM_FOREGROUND,
+                foreground,
+                OBJID_WINDOW,
+                CHILDID_SELF as i32,
+            );
+        }
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while FOREGROUND_EVENT_COUNT.load(Ordering::Relaxed) == 0 && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(
+            FOREGROUND_EVENT_COUNT.load(Ordering::Relaxed) > 0,
+            "the dedicated WinEvent message pump never delivered the liveness callback"
+        );
+        assert!(
+            hook.stop_and_join(),
+            "foreground hook thread did not unhook and join within the bounded deadline"
+        );
     }
 
     /// A live low-level keyboard (WH_KEYBOARD_LL) hook running on a dedicated message-pump thread. A
@@ -416,21 +590,24 @@ mod live {
         }
     }
 
-    /// Snapshot of the foreground-hook observations, attributed against the app child PID.
+    /// Snapshot of the foreground-hook observations, attributed against the app process tree.
     pub struct ForegroundObservations {
         pub total_events: usize,
         pub app_attributable_events: usize,
         pub distinct_pids: usize,
     }
 
-    /// Drain the foreground hook log and attribute events to `app_pid`.
+    /// Drain the foreground hook log and attribute events to the app's complete process tree.
     pub fn foreground_observations(app_pid: u32) -> ForegroundObservations {
-        let pids = FOREGROUND_PIDS
+        let events = FOREGROUND_EVENTS
             .lock()
-            .map(|v| v.clone())
+            .map(|events| events.clone())
             .unwrap_or_default();
-        let app_attributable_events = pids.iter().filter(|&&p| p == app_pid).count();
-        let mut distinct: Vec<u32> = pids.clone();
+        let app_attributable_events = events
+            .iter()
+            .filter(|event| evidence_belongs_to_tree(event, app_pid))
+            .count();
+        let mut distinct: Vec<u32> = events.iter().map(|event| event.pid).collect();
         distinct.sort_unstable();
         distinct.dedup();
         ForegroundObservations {
@@ -438,6 +615,20 @@ mod live {
             app_attributable_events,
             distinct_pids: distinct.len(),
         }
+    }
+
+    #[test]
+    fn event_time_ancestry_classifies_prepublication_descendant_after_exit() {
+        // This evidence is intentionally classified only after the root PID is available. It models a
+        // foreground event from a short-lived grandchild captured in the spawn-to-publication window;
+        // no live process lookup is needed at drain time.
+        let event = ForegroundEventEvidence {
+            pid: 30_003,
+            ancestors: vec![30_002, 30_001, 4],
+        };
+        assert!(evidence_belongs_to_tree(&event, 30_001));
+        assert!(evidence_belongs_to_tree(&event, 30_002));
+        assert!(!evidence_belongs_to_tree(&event, 40_001));
     }
 
     /// Snapshot of the keyboard-hook observations, with injection attributed by cookie (PRIMARY) and
@@ -623,6 +814,21 @@ fn proof_request(request: &serde_json::Value) -> serde_json::Value {
                 );
             }
         }
+        if let Some(params) = object
+            .get_mut("params")
+            .and_then(serde_json::Value::as_object_mut)
+        {
+            let sensitive = params
+                .get("author_id")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(handshake_native::accessibility::is_sensitive_author_id);
+            if sensitive && params.contains_key("value") {
+                params.insert(
+                    "value".to_owned(),
+                    serde_json::Value::String("[REDACTED]".to_owned()),
+                );
+            }
+        }
     }
     redacted
 }
@@ -694,6 +900,9 @@ fn discover_binding(
             HANDSHAKE_DIAGNOSTICS_DIR. Run on a controlled CI/test desktop with `--ignored`."]
 #[test]
 fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
+    let _audit_lock = live::audit_test_lock();
+    live::reset_foreground_observations();
+
     // Production receipts are part of the proof: fail before installing global hooks or opening a
     // window unless the operator explicitly declares and the test independently probes the
     // Palmistry-ready backend prerequisites.
@@ -707,12 +916,9 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     let binding_path = tmp.join("handshake").join("swarm_mcp_binding.json");
 
     // ── 1. Install the REAL hooks BEFORE spawning the app, so we observe its entire lifetime. ──
-    let foreground_hook = live::ForegroundAuditHook::install();
+    let mut foreground_hook = live::ForegroundAuditHook::install();
     let mut keyboard_hook = live::KeyboardAuditHook::install();
-    let foreground_installed = foreground_hook
-        .as_ref()
-        .map(|h| h.installed())
-        .unwrap_or(false);
+    let foreground_installed = foreground_hook.installed();
     let keyboard_installed = keyboard_hook.installed();
 
     // ── 2. Spawn the REAL shell binary (opens a genuine wgpu window + binds the MT-027 swarm server). ──
@@ -758,10 +964,12 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     let mut transcript: Vec<serde_json::Value> = Vec::new();
     let mut failed_actions: Vec<serde_json::Value> = Vec::new();
     let mut connect_ok = false;
+    let mut authenticated_agent_token: Option<String> = None;
 
     if let Some(b) = &binding {
         let mut id = 1u64;
         let agent_token = authenticate_agent(&b.tcp_addr, &b.token);
+        authenticated_agent_token = Some(agent_token.clone());
         let initial = canonical_request(
             id,
             "argus.inspect",
@@ -966,6 +1174,24 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
         std::thread::sleep(Duration::from_millis(500));
     }
 
+    let proof_payload = serde_json::to_string(&serde_json::json!({
+        "transcript": &transcript,
+        "failed_actions": &failed_actions,
+    }))
+    .expect("serialize focus-audit proof payload");
+    if let Some(binding) = &binding {
+        assert!(
+            !proof_payload.contains(&binding.token),
+            "focus-audit proof retained the live session token"
+        );
+    }
+    if let Some(agent_token) = &authenticated_agent_token {
+        assert!(
+            !proof_payload.contains(agent_token),
+            "focus-audit proof retained the broker-minted agent token"
+        );
+    }
+
     // ── 3b. CTRL-030-05 liveness gate (MAJOR #2): emit EXACTLY ONE controlled real keystroke (carrying
     //        the TEST cookie) so the WH_KEYBOARD_LL hook is PROVEN live (total_key_events > 0) before we
     //        trust an empty app-injection result. Without this, an automated desktop with no human typing
@@ -983,12 +1209,13 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     let _ = child.kill();
     let _ = child.wait();
     keyboard_hook.stop_and_join();
+    let foreground_stopped_cleanly = foreground_hook.stop_and_join();
     let fg = live::foreground_observations(child_pid);
     let kb = live::keyboard_observations();
-    drop(foreground_hook); // unhook WinEvent
 
     // ── 5. Build the reports. `audited` ONLY when both hooks installed and we actually drove actions. ──
     let audited = foreground_installed
+        && foreground_stopped_cleanly
         && keyboard_installed
         && connect_ok
         && driven_actions > 0
@@ -1003,14 +1230,20 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     let focus_report = serde_json::json!({
         "run_id": format!("focus-audit-live-{}", std::process::id()),
         "audit_status": audit_status,
-        "audit_method": "live_win32_winevent_foreground_hook",
+        "audit_method": "live_win32_winevent_foreground_hook_process_tree",
+        "attribution_scope": "app_root_pid_and_event_time_descendant_ancestry",
         "app_pid": child_pid,
         "foreground_hook_installed": foreground_installed,
+        "foreground_hook_stopped_cleanly": foreground_stopped_cleanly,
         "driven_actions": driven_actions,
         "failed_actions": failed_actions,
         // FocusAuditReport-compatible field: foreground steals attributed to the app (must be empty).
         "handshake_owned_events": (0..fg.app_attributable_events)
-            .map(|_| serde_json::json!({"pid": child_pid, "event": "EVENT_SYSTEM_FOREGROUND"}))
+            .map(|_| serde_json::json!({
+                "root_pid": child_pid,
+                "event": "EVENT_SYSTEM_FOREGROUND",
+                "scope": "root_or_descendant"
+            }))
             .collect::<Vec<_>>(),
         "total_foreground_events": fg.total_events,
         "distinct_foreground_pids": fg.distinct_pids,
@@ -1059,6 +1292,10 @@ fn live_focus_and_keyboard_audit_is_quiet_under_swarm() {
     assert!(
         foreground_installed,
         "WINEVENT_SYSTEM_FOREGROUND hook failed to install — cannot prove quiet operation (no false PASS)"
+    );
+    assert!(
+        foreground_stopped_cleanly,
+        "WINEVENT_SYSTEM_FOREGROUND hook did not unhook and join within its bounded deadline"
     );
     assert!(
         keyboard_installed,

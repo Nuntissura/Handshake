@@ -36,12 +36,16 @@ use std::os::windows::fs::OpenOptionsExt;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::model_runtime::{ModelCapabilities, ModelId};
 use crate::process_ledger::{
     ActiveProcessLifecycle, LedgerBatcher, ProcessEngineKind, ProcessOwnershipRecordId,
     ProcessStart, SpawnMeta, StopRecordOutcome,
+};
+#[cfg(target_os = "windows")]
+use crate::process_ledger::{
+    ProcessLedgerDurabilityAck, ProcessLedgerError, ReservedProcessLifecycle,
 };
 use crate::sandbox::{
     select, AdapterCapabilities, AdapterId, AttachedNetworkMode, AttachedProcessSpec,
@@ -324,7 +328,14 @@ pub struct CliInvocationReceipt {
 /// drop it immediately.
 pub(crate) struct AuxiliaryCliCommandOutput {
     pub(crate) success: bool,
-    pub(crate) stdout: Vec<u8>,
+    pub(crate) stdout: Zeroizing<Vec<u8>>,
+}
+
+/// Non-secret receipt for an operator-confirmed foreground login process.
+/// The executable path and argv deliberately never cross the backend boundary.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ForegroundCliLaunchHandle {
+    pub pid: u32,
 }
 
 pub struct OfficialCliBridgeRuntime {
@@ -1608,6 +1619,266 @@ fn wait_stop_durability_blocking(
     })?
 }
 
+#[cfg(target_os = "windows")]
+struct ForegroundWatchPayload {
+    owner: ForegroundChildOwner,
+}
+
+#[cfg(target_os = "windows")]
+fn record_foreground_stop(
+    lifecycle: Arc<ActiveProcessLifecycle>,
+    pid: u32,
+    exit_code: Option<i32>,
+    reason: &str,
+) -> Result<(), OfficialCliBridgeError> {
+    match wait_stop_durability_blocking(lifecycle, exit_code, reason.to_string()) {
+        Ok(StopRecordOutcome::Recorded | StopRecordOutcome::AlreadyStopped) => Ok(()),
+        Ok(
+            StopRecordOutcome::LeftOpenForReconciliation
+            | StopRecordOutcome::DurabilityUnconfirmed,
+        ) => Err(OfficialCliBridgeError::LedgerRegistration {
+            pid,
+            reason: format!(
+                "foreground login child was reaped but STOP authority remains open or durability-unconfirmed ({reason})"
+            ),
+        }),
+        Err(error) => Err(OfficialCliBridgeError::LedgerRegistration {
+            pid,
+            reason: format!(
+                "foreground login child was reaped but STOP durability failed ({reason}): {error}"
+            ),
+        }),
+    }
+}
+
+/// Immediate owner installed on the first instruction after a foreground
+/// process is spawned. Until ownership transfers into `ForegroundWatchPayload`,
+/// every error and panic path kills and synchronously reaps the exact child.
+///
+/// Identity locks remain in this owner through reap and the matching STOP
+/// attempt. A failed wait restores the child into the owner so Drop gets one
+/// final recovery attempt instead of silently dropping a potentially-live
+/// `std::process::Child`.
+#[cfg(target_os = "windows")]
+struct ForegroundChildOwner {
+    child: Option<std::process::Child>,
+    lifecycle: Option<Arc<ActiveProcessLifecycle>>,
+    _identity_locks: Vec<File>,
+}
+
+#[cfg(target_os = "windows")]
+impl ForegroundChildOwner {
+    fn new(child: std::process::Child, identity_locks: Vec<File>) -> Self {
+        Self {
+            child: Some(child),
+            lifecycle: None,
+            _identity_locks: identity_locks,
+        }
+    }
+
+    fn pid(&self) -> u32 {
+        self.child
+            .as_ref()
+            .expect("foreground child owner retains exact child")
+            .id()
+    }
+
+    fn attach_lifecycle(&mut self, lifecycle: ActiveProcessLifecycle) {
+        self.lifecycle = Some(Arc::new(lifecycle));
+    }
+
+    fn terminate_reap_and_record(&mut self, reason: &str) -> Result<(), OfficialCliBridgeError> {
+        let pid = self.pid();
+        let mut child = self
+            .child
+            .take()
+            .expect("foreground child owner retains exact child");
+        let kill_error = child.kill().err();
+        let status = match child.wait() {
+            Ok(status) => status,
+            Err(wait_error) => {
+                self.child = Some(child);
+                if let Some(lifecycle) = self.lifecycle.as_ref() {
+                    let _ = lifecycle.leave_open_for_reconciliation();
+                }
+                return Err(OfficialCliBridgeError::SpawnFailed {
+                    reason: format!(
+                        "foreground login exact child {pid} could not be killed/reaped during {reason} (kill={kill_error:?}, wait={wait_error})"
+                    ),
+                    exit_code: None,
+                });
+            }
+        };
+        if let Some(lifecycle) = self.lifecycle.take() {
+            record_foreground_stop(lifecycle, pid, status.code(), reason)?;
+        }
+        Ok(())
+    }
+
+    fn wait_and_record(&mut self, reason: &str) -> Result<(), OfficialCliBridgeError> {
+        let pid = self.pid();
+        let mut child = self
+            .child
+            .take()
+            .expect("foreground child owner retains exact child");
+        let status = match child.wait() {
+            Ok(status) => status,
+            Err(wait_error) => {
+                self.child = Some(child);
+                return Err(OfficialCliBridgeError::SpawnFailed {
+                    reason: format!(
+                        "foreground login exact child {pid} wait failed during {reason}: {wait_error}"
+                    ),
+                    exit_code: None,
+                });
+            }
+        };
+        if let Some(lifecycle) = self.lifecycle.take() {
+            record_foreground_stop(lifecycle, pid, status.code(), reason)?;
+        }
+        Ok(())
+    }
+
+    fn fail(
+        mut self,
+        primary: OfficialCliBridgeError,
+        cleanup_reason: &str,
+    ) -> OfficialCliBridgeError {
+        match self.terminate_reap_and_record(cleanup_reason) {
+            Ok(()) => primary,
+            Err(cleanup_error) => cleanup_error,
+        }
+    }
+
+    fn into_watch_payload(self) -> Result<ForegroundWatchPayload, OfficialCliBridgeError> {
+        let pid = self.pid();
+        if self.lifecycle.is_none() {
+            return Err(OfficialCliBridgeError::LedgerRegistration {
+                pid,
+                reason: "foreground watcher handoff attempted without lifecycle authority"
+                    .to_string(),
+            });
+        }
+        Ok(ForegroundWatchPayload { owner: self })
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for ForegroundChildOwner {
+    fn drop(&mut self) {
+        if self.child.is_none() {
+            return;
+        }
+        if let Err(error) =
+            self.terminate_reap_and_record("official_cli_foreground_login_owner_drop")
+        {
+            tracing::error!(
+                target: "handshake_core::official_cli_bridge",
+                error = %error,
+                "foreground login owner Drop could not prove exact child cleanup"
+            );
+            // `Child::drop` is not a process-lifecycle operation. If two exact
+            // handle reap attempts both fail, permanently retain the complete
+            // ownership bundle. This deliberately leaks the child handle,
+            // identity locks, and open lifecycle authority rather than dropping
+            // any of them while the process may still be live.
+            if let Some(child) = self.child.take() {
+                let lifecycle = self.lifecycle.take();
+                let identity_locks = std::mem::take(&mut self._identity_locks);
+                std::mem::forget((child, lifecycle, identity_locks));
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl ForegroundWatchPayload {
+    fn pid(&self) -> u32 {
+        self.owner.pid()
+    }
+
+    fn wait_and_record_stop(mut self) {
+        let pid = self.pid();
+        if let Err(initial_error) = self
+            .owner
+            .wait_and_record("official_cli_foreground_login_exit")
+        {
+            if self.owner.child.is_some() {
+                if let Err(recovery_error) = self
+                    .owner
+                    .terminate_reap_and_record("official_cli_foreground_login_wait_failed_kill")
+                {
+                    tracing::error!(
+                        target: "handshake_core::official_cli_bridge",
+                        pid,
+                        initial_error = %initial_error,
+                        recovery_error = %recovery_error,
+                        "foreground login wait recovery failed; exact owner retained through Drop"
+                    );
+                }
+            } else {
+                tracing::error!(
+                    target: "handshake_core::official_cli_bridge",
+                    pid,
+                    error = %initial_error,
+                    "foreground login exact child was reaped but STOP durability was not confirmed"
+                );
+            }
+        }
+    }
+
+    /// Recover ownership after a failed watcher handoff. STOP is attempted
+    /// only after `wait` proves that the exact child handle has terminated.
+    fn terminate_after_handoff_failure(mut self) -> Result<(), OfficialCliBridgeError> {
+        self.owner
+            .terminate_reap_and_record("official_cli_foreground_login_watcher_handoff_failed")
+    }
+}
+
+#[cfg(target_os = "windows")]
+type ForegroundWatcherSender = mpsc::SyncSender<ForegroundWatchPayload>;
+
+#[cfg(target_os = "windows")]
+fn spawn_foreground_watcher() -> Result<ForegroundWatcherSender, OfficialCliBridgeError> {
+    let (sender, receiver) = mpsc::sync_channel::<ForegroundWatchPayload>(1);
+    thread::Builder::new()
+        .name("handshake-cli-foreground-watch".to_string())
+        .spawn(move || {
+            if let Ok(payload) = receiver.recv() {
+                payload.wait_and_record_stop();
+            }
+        })
+        .map_err(|error| OfficialCliBridgeError::SpawnFailed {
+            reason: format!(
+                "foreground login watcher could not be established before process creation: {error}"
+            ),
+            exit_code: None,
+        })?;
+    Ok(sender)
+}
+
+#[cfg(target_os = "windows")]
+fn handoff_foreground_watch(
+    sender: ForegroundWatcherSender,
+    payload: ForegroundWatchPayload,
+) -> Result<(), OfficialCliBridgeError> {
+    match sender.send(payload) {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            let pid = error.0.pid();
+            match error.0.terminate_after_handoff_failure() {
+                Ok(()) => Err(OfficialCliBridgeError::SpawnFailed {
+                    reason: format!(
+                        "foreground login watcher rejected exact child {pid}; child was killed and reaped"
+                    ),
+                    exit_code: None,
+                }),
+                Err(cleanup_error) => Err(cleanup_error),
+            }
+        }
+    }
+}
+
 /// Cancellation-aware owner for a streaming stdout/stderr reader.
 ///
 /// A pipe `Read` can remain blocked when a sandbox adapter fails to terminate
@@ -1617,24 +1888,28 @@ fn wait_stop_durability_blocking(
 /// the child lifecycle remains open for authoritative reconciliation.
 struct StreamingPipeReader {
     cancel: Arc<std::sync::atomic::AtomicBool>,
-    worker: Option<thread::JoinHandle<Vec<u8>>>,
+    worker: Option<thread::JoinHandle<Zeroizing<Vec<u8>>>>,
 }
 
 impl StreamingPipeReader {
     fn spawn(
         mut stream: Box<dyn std::io::Read + Send>,
-        chunk_sender: Option<mpsc::SyncSender<Vec<u8>>>,
+        chunk_sender: Option<mpsc::SyncSender<Zeroizing<Vec<u8>>>>,
     ) -> Self {
         let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let worker_cancel = Arc::clone(&cancel);
         let worker = thread::spawn(move || {
-            let mut buffer = [0u8; 8192];
-            let mut bytes = Vec::new();
+            // Wipe both worker-owned buffers on every exit path. If bounded
+            // cleanup detaches this JoinHandle, the thread retains these
+            // wrappers and zeroizes them when the blocked read eventually
+            // returns or reaches EOF.
+            let mut buffer = Zeroizing::new([0u8; 8192]);
+            let mut bytes = Zeroizing::new(Vec::new());
             loop {
                 if worker_cancel.load(std::sync::atomic::Ordering::Acquire) {
                     break;
                 }
-                match stream.read(&mut buffer) {
+                match stream.read(&mut *buffer) {
                     Ok(0) => break,
                     Ok(count) => {
                         let forwarded =
@@ -1642,7 +1917,10 @@ impl StreamingPipeReader {
                         append_capped(&mut bytes, &buffer[..count]);
                         if forwarded > 0 {
                             if let Some(sender) = chunk_sender.as_ref() {
-                                if sender.send(buffer[..forwarded].to_vec()).is_err() {
+                                if sender
+                                    .send(Zeroizing::new(buffer[..forwarded].to_vec()))
+                                    .is_err()
+                                {
                                     break;
                                 }
                             }
@@ -1676,7 +1954,7 @@ impl StreamingPipeReader {
                 // failed child closes the pipe or the blocked read returns.
                 drop(worker);
                 return PipeReaderFinish {
-                    bytes: Vec::new(),
+                    bytes: Zeroizing::new(Vec::new()),
                     completed: false,
                 };
             };
@@ -1688,7 +1966,7 @@ impl StreamingPipeReader {
                 completed: true,
             },
             Err(_) => PipeReaderFinish {
-                bytes: Vec::new(),
+                bytes: Zeroizing::new(Vec::new()),
                 completed: false,
             },
         }
@@ -1701,10 +1979,18 @@ impl Drop for StreamingPipeReader {
     }
 }
 
-#[derive(Default)]
 struct PipeReaderFinish {
-    bytes: Vec<u8>,
+    bytes: Zeroizing<Vec<u8>>,
     completed: bool,
+}
+
+impl Default for PipeReaderFinish {
+    fn default() -> Self {
+        Self {
+            bytes: Zeroizing::new(Vec::new()),
+            completed: false,
+        }
+    }
 }
 
 struct StreamingPipeReaders {
@@ -1713,8 +1999,8 @@ struct StreamingPipeReaders {
 }
 
 struct StreamingPipeReadersFinish {
-    stdout: Vec<u8>,
-    stderr: Vec<u8>,
+    stdout: Zeroizing<Vec<u8>>,
+    stderr: Zeroizing<Vec<u8>>,
     completed: bool,
 }
 
@@ -1738,7 +2024,7 @@ impl StreamingPipeReaders {
             .take()
             .map(|reader| reader.finish_until(deadline))
             .unwrap_or(PipeReaderFinish {
-                bytes: Vec::new(),
+                bytes: Zeroizing::new(Vec::new()),
                 completed: true,
             });
         let stderr = self
@@ -1746,7 +2032,7 @@ impl StreamingPipeReaders {
             .take()
             .map(|reader| reader.finish_until(deadline))
             .unwrap_or(PipeReaderFinish {
-                bytes: Vec::new(),
+                bytes: Zeroizing::new(Vec::new()),
                 completed: true,
             });
         StreamingPipeReadersFinish {
@@ -1787,7 +2073,7 @@ pub fn hostile_never_eof_reader_cleanup_probe() -> (bool, Duration) {
 
 fn drain_streaming_pipe(
     stream: Option<Box<dyn std::io::Read + Send>>,
-    chunk_sender: Option<mpsc::SyncSender<Vec<u8>>>,
+    chunk_sender: Option<mpsc::SyncSender<Zeroizing<Vec<u8>>>>,
 ) -> Option<StreamingPipeReader> {
     stream.map(|stream| StreamingPipeReader::spawn(stream, chunk_sender))
 }
@@ -1810,7 +2096,7 @@ fn deliver_cli_chunk(
 }
 
 fn drain_chunks_until(
-    receiver: &mpsc::Receiver<Vec<u8>>,
+    receiver: &mpsc::Receiver<Zeroizing<Vec<u8>>>,
     chunk_sender: &tokio::sync::mpsc::Sender<Vec<u8>>,
     deadline: Instant,
 ) -> Result<bool, OfficialCliBridgeError> {
@@ -1826,7 +2112,7 @@ fn drain_chunks_until(
 
 fn cleanup_chunk_delivery_failure(
     child: &mut GuardedCliChild,
-    receiver: mpsc::Receiver<Vec<u8>>,
+    receiver: mpsc::Receiver<Zeroizing<Vec<u8>>>,
     mut readers: StreamingPipeReaders,
     error: OfficialCliBridgeError,
 ) -> OfficialCliBridgeError {
@@ -2178,7 +2464,7 @@ impl LiveCliSpawner {
         let mut auxiliary_config = config.clone();
         auxiliary_config.args_template = args.iter().map(|arg| (*arg).to_string()).collect();
         auxiliary_config.timeout_seconds = timeout.as_secs().max(1);
-        self.pin_config(&auxiliary_config)?;
+        self.require_previously_pinned_config(&auxiliary_config)?;
 
         let lifecycle_reservation = self.reserve_process_lifecycle()?;
         let rendered = OfficialCliBridgeRuntime::render_args(
@@ -2186,8 +2472,7 @@ impl LiveCliSpawner {
             "official-cli-auth-status",
             "",
         );
-        let mut child =
-            self.spawn_attached_child(&auxiliary_config, rendered, invocation)?;
+        let mut child = self.spawn_attached_child(&auxiliary_config, rendered, invocation)?;
         let record_id = ProcessOwnershipRecordId::new_v7();
         let start = cli_bridge_process_start(
             record_id,
@@ -2255,8 +2540,7 @@ impl LiveCliSpawner {
             }
         };
 
-        let mut output =
-            readers.collect_until(Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT);
+        let mut output = readers.collect_until(Instant::now() + CLI_PIPE_READER_CLEANUP_TIMEOUT);
         if !output.completed {
             output.stdout.zeroize();
             output.stderr.zeroize();
@@ -2281,6 +2565,196 @@ impl LiveCliSpawner {
             success: exit_status.success(),
             stdout: output.stdout,
         })
+    }
+
+    fn require_previously_pinned_config(
+        &self,
+        config: &CliBridgeConfig,
+    ) -> Result<(), OfficialCliBridgeError> {
+        validate_config_environment(&config.env_vars)?;
+        let identity = cli_launch_plan(&config.executable_path, Vec::new())?.identity;
+        let key = identity.requested_entrypoint.canonical_path.clone();
+        let pinned = self
+            .pinned_identities
+            .read()
+            .map_err(|error| OfficialCliBridgeError::LockPoisoned(error.to_string()))?;
+        match pinned.get(&key) {
+            Some(existing) if existing == &identity => Ok(()),
+            Some(_) => Err(OfficialCliBridgeError::ExecutableIdentity(format!(
+                "registered executable graph changed for {}",
+                key.display()
+            ))),
+            None => Err(OfficialCliBridgeError::ExecutableIdentity(format!(
+                "auxiliary command target was not registered by the canonical launch builder: {}",
+                key.display()
+            ))),
+        }
+    }
+
+    fn foreground_fixed_launch_plan(
+        &self,
+        config: &CliBridgeConfig,
+        args: &[&str],
+    ) -> Result<CliLaunchPlan, OfficialCliBridgeError> {
+        self.require_previously_pinned_config(config)?;
+        let launch = cli_launch_plan(
+            &config.executable_path,
+            args.iter().map(|arg| (*arg).to_string()).collect(),
+        )?;
+        let key = launch.identity.requested_entrypoint.canonical_path.clone();
+        let pinned = self
+            .pinned_identities
+            .read()
+            .map_err(|error| OfficialCliBridgeError::LockPoisoned(error.to_string()))?;
+        if pinned.get(&key) != Some(&launch.identity) {
+            return Err(OfficialCliBridgeError::ExecutableIdentity(format!(
+                "foreground login executable graph no longer matches its canonical pin: {}",
+                key.display()
+            )));
+        }
+        drop(pinned);
+        Ok(launch)
+    }
+
+    /// Launch a provider-owned interactive login in a new Windows console.
+    ///
+    /// The executable graph must already be pinned by the canonical launch
+    /// builder. Resolution happens here in the backend, and the GUI receives
+    /// only the resulting pid handle—never a path or argv to re-resolve.
+    #[cfg(target_os = "windows")]
+    pub(crate) fn launch_foreground_fixed_command(
+        &self,
+        config: &CliBridgeConfig,
+        args: &[&str],
+    ) -> Result<ForegroundCliLaunchHandle, OfficialCliBridgeError> {
+        self.launch_foreground_fixed_command_with_watcher(config, args, spawn_foreground_watcher)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn launch_foreground_fixed_command_with_watcher(
+        &self,
+        config: &CliBridgeConfig,
+        args: &[&str],
+        establish_watcher: impl FnOnce() -> Result<ForegroundWatcherSender, OfficialCliBridgeError>,
+    ) -> Result<ForegroundCliLaunchHandle, OfficialCliBridgeError> {
+        self.launch_foreground_fixed_command_with_hooks(
+            config,
+            args,
+            Vec::new(),
+            establish_watcher,
+            |pid| {
+                crate::sandbox::handshake_native::process_creation_time_100ns(pid)
+                    .map_err(|error| error.to_string())
+            },
+            |reservation, start| reservation.begin_with_durable_ack(start),
+            wait_start_durability_blocking,
+        )
+    }
+
+    #[cfg(target_os = "windows")]
+    fn launch_foreground_fixed_command_with_hooks(
+        &self,
+        config: &CliBridgeConfig,
+        args: &[&str],
+        mut additional_identity_locks: Vec<File>,
+        establish_watcher: impl FnOnce() -> Result<ForegroundWatcherSender, OfficialCliBridgeError>,
+        attest_process: impl FnOnce(u32) -> Result<u64, String>,
+        begin_lifecycle: impl FnOnce(
+            ReservedProcessLifecycle,
+            ProcessStart,
+        ) -> Result<
+            (ActiveProcessLifecycle, ProcessLedgerDurabilityAck),
+            ProcessLedgerError,
+        >,
+        await_start: impl FnOnce(ProcessLedgerDurabilityAck) -> Result<(), ProcessLedgerError>,
+    ) -> Result<ForegroundCliLaunchHandle, OfficialCliBridgeError> {
+        use std::os::windows::process::CommandExt;
+
+        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+        let lifecycle_reservation = self.reserve_process_lifecycle()?;
+        let launch = self.foreground_fixed_launch_plan(config, args)?;
+        // Establish watcher capacity before process creation. No foreground
+        // child can exist if the OS cannot create its ownership thread.
+        let watcher = establish_watcher()?;
+
+        let mut command = std::process::Command::new(&launch.executable_path);
+        command
+            .args(&launch.args)
+            .env_clear()
+            .envs(attached_child_env(config))
+            .creation_flags(CREATE_NEW_CONSOLE);
+        if let Some(working_dir) = config.working_dir.as_ref() {
+            command.current_dir(working_dir);
+        }
+        let child = command
+            .spawn()
+            .map_err(|error| OfficialCliBridgeError::SpawnFailed {
+                reason: format!("foreground official CLI login spawn failed: {error}"),
+                exit_code: None,
+            })?;
+        // Install exact-child ownership immediately after spawn, before any
+        // attestation, allocation, ledger, or watcher-handoff work can fail.
+        let mut identity_locks = launch.identity_locks;
+        identity_locks.append(&mut additional_identity_locks);
+        let mut child_owner = ForegroundChildOwner::new(child, identity_locks);
+        let pid = child_owner.pid();
+        let creation_time_100ns = match attest_process(pid) {
+            Ok(value) => value,
+            Err(error) => {
+                return Err(child_owner.fail(
+                    OfficialCliBridgeError::SpawnFailed {
+                        reason: format!(
+                            "foreground login process-generation attestation failed: {error}"
+                        ),
+                        exit_code: None,
+                    },
+                    "official_cli_foreground_login_attestation_failed",
+                ));
+            }
+        };
+        let record_id = ProcessOwnershipRecordId::new_v7();
+        let mut meta = SpawnMeta::new(
+            pid,
+            ProcessEngineKind::OfficialCliBridge,
+            "MODEL_ACCESS_CLI_LOGIN",
+        );
+        meta.owner_wp = Some("WP-1".to_string());
+        meta.role_id = Some("MODEL_ACCESS_CLI_LOGIN".to_string());
+        meta.wp_id = Some("WP-1".to_string());
+        meta.mt_id = Some("MT-015".to_string());
+        meta.reclaim_key = Some(format!("model-access-cli-login-{pid}"));
+        meta.model_identity = Some(config.cli_kind.label().to_string());
+        meta.metadata_blob = json!({
+            "launch_kind": "operator_confirmed_foreground_login",
+            "requested_entrypoint_sha256": launch.identity.requested_entrypoint.sha256,
+            "effective_executable_sha256": launch.identity.effective_executable.sha256,
+            "os_creation_time_100ns": creation_time_100ns,
+        });
+        let start = cli_bridge_process_start(record_id, meta);
+        let (lifecycle, acknowledgement) = match begin_lifecycle(lifecycle_reservation, start) {
+            Ok(value) => value,
+            Err(error) => {
+                return Err(child_owner.fail(
+                    OfficialCliBridgeError::LedgerRegistration {
+                        pid,
+                        reason: error.to_string(),
+                    },
+                    "official_cli_foreground_login_start_begin_failed",
+                ));
+            }
+        };
+        child_owner.attach_lifecycle(lifecycle);
+        if let Err(error) = await_start(acknowledgement) {
+            return Err(child_owner.fail(
+                OfficialCliBridgeError::LedgerRegistration {
+                    pid,
+                    reason: error.to_string(),
+                },
+                "official_cli_foreground_login_start_not_durable",
+            ));
+        }
+        handoff_foreground_watch(watcher, child_owner.into_watch_payload()?)?;
+        Ok(ForegroundCliLaunchHandle { pid })
     }
 
     fn spawn_attached_child(
@@ -2886,7 +3360,8 @@ impl CliSubprocessSpawner for LiveCliSpawner {
         // never deadlock the child.
         let child_stdout = child.take_stdout()?;
         let child_stderr = child.take_stderr()?;
-        let (chunk_tx, chunk_rx) = mpsc::sync_channel::<Vec<u8>>(MAX_PENDING_STREAM_CHUNKS);
+        let (chunk_tx, chunk_rx) =
+            mpsc::sync_channel::<Zeroizing<Vec<u8>>>(MAX_PENDING_STREAM_CHUNKS);
         let mut readers = StreamingPipeReaders::new(
             drain_streaming_pipe(child_stdout, Some(chunk_tx.clone())),
             drain_streaming_pipe(child_stderr, None),
@@ -3059,7 +3534,8 @@ impl CliSubprocessSpawner for LiveCliSpawner {
 
         let child_stdout = child.take_stdout()?;
         let child_stderr = child.take_stderr()?;
-        let (chunk_tx, chunk_rx) = mpsc::sync_channel::<Vec<u8>>(MAX_PENDING_STREAM_CHUNKS);
+        let (chunk_tx, chunk_rx) =
+            mpsc::sync_channel::<Zeroizing<Vec<u8>>>(MAX_PENDING_STREAM_CHUNKS);
         let mut readers = StreamingPipeReaders::new(
             drain_streaming_pipe(child_stdout, Some(chunk_tx.clone())),
             drain_streaming_pipe(child_stderr, None),
@@ -3264,11 +3740,22 @@ mod sandbox_composition_regression_tests {
         assert!(production.contains("tokio::sync::mpsc::Sender<Vec<u8>>"));
         assert!(production.contains("sandbox adapter rejected"));
         assert!(production.contains("terminate_tree_and_wait"));
-        assert!(!production.contains("Command::new"));
-        assert!(!production.contains("cmd.exe"));
+        assert_eq!(
+            production.matches("std::process::Command::new").count(),
+            1,
+            "the only direct OS spawn is the explicit operator-confirmed foreground login; model and status execution stay adapter-owned"
+        );
+        assert!(production.contains("launch_foreground_fixed_command"));
+        assert!(!production.contains("Command::new(\"cmd.exe\")"));
+        assert!(!production.contains("Command::new(\"cmd\")"));
         assert!(production.contains("args: rendered"));
         assert!(!production.contains("taskkill"));
         assert!(!production.contains("kill_process_tree"));
+        assert!(production.contains("JoinHandle<Zeroizing<Vec<u8>>>"));
+        assert!(production.contains("Zeroizing::new([0u8; 8192])"));
+        assert!(production.contains("SyncSender<Zeroizing<Vec<u8>>>"));
+        assert!(production.contains("stdout: Zeroizing<Vec<u8>>"));
+        assert!(production.contains("stderr: Zeroizing<Vec<u8>>"));
         assert!(windows_attached_adapter
             .contains("wait_with_timeout(Some(ATTACHED_TERMINATION_REAP_TIMEOUT))"));
         assert!(windows_attached_adapter.contains(
@@ -3949,7 +4436,729 @@ mod tests {
 
     #[cfg(target_os = "windows")]
     #[test]
-    fn auxiliary_auth_status_runner_is_job_contained_bounded_and_reduces_output() {
+    #[ignore]
+    fn foreground_watcher_sleep_child() {
+        let ready_path = std::env::var_os("NO_COLOR").expect("foreground watcher readiness path");
+        std::fs::write(&ready_path, std::process::id().to_string())
+            .expect("publish foreground watcher child pid");
+        std::thread::sleep(Duration::from_secs(60));
+    }
+
+    #[cfg(target_os = "windows")]
+    const FOREGROUND_SLEEP_ARGS: &[&str] = &[
+        "--ignored",
+        "--exact",
+        "model_runtime::cloud::official_cli_bridge::tests::foreground_watcher_sleep_child",
+        "--nocapture",
+    ];
+
+    #[cfg(target_os = "windows")]
+    fn foreground_failure_fixture(
+        label: &str,
+    ) -> (
+        tempfile::TempDir,
+        PathBuf,
+        PathBuf,
+        PathBuf,
+        File,
+        CliBridgeConfig,
+    ) {
+        let temp = tempfile::Builder::new()
+            .prefix(&format!("foreground-{label}-"))
+            .tempdir()
+            .expect("foreground failure tempdir");
+        let executable = temp.path().join("foreground-fixture.exe");
+        std::fs::copy(
+            std::env::current_exe().expect("current test executable"),
+            &executable,
+        )
+        .expect("copy foreground fixture executable");
+        let ready_path = temp.path().join("child.ready");
+        let lock_canary_path = temp.path().join("identity-lock-canary.bin");
+        std::fs::write(&lock_canary_path, b"foreground-identity-lock-canary")
+            .expect("write foreground identity-lock canary");
+        let (_lock_canary_identity, lock_canary) =
+            locked_file_identity(&lock_canary_path).expect("lock foreground identity canary");
+        let mut config = CliBridgeConfig {
+            cli_kind: CliKind::Other,
+            executable_path: executable.clone(),
+            args_template: vec!["{prompt}".to_string()],
+            output_format: CliOutputFormat::RawText,
+            env_vars: HashMap::new(),
+            working_dir: None,
+            timeout_seconds: 5,
+        };
+        config.env_vars.insert(
+            "NO_COLOR".to_string(),
+            ready_path.to_string_lossy().into_owned(),
+        );
+        (
+            temp,
+            executable,
+            ready_path,
+            lock_canary_path,
+            lock_canary,
+            config,
+        )
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn foreground_attestation_failure_reaps_exact_child_before_lock_release() {
+        use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+
+        let (_temp, executable, _ready_path, lock_canary_path, lock_canary, config) =
+            foreground_failure_fixture("attestation");
+        let (ledger, _drain) = test_ledger();
+        let spawner = LiveCliSpawner::new(ledger, LiveCliSpawner::native_cli_registry());
+        spawner
+            .pin_config(&config)
+            .expect("pin attestation fixture");
+        let observed_pid = Arc::new(AtomicU32::new(0));
+        let lock_was_held = Arc::new(AtomicBool::new(false));
+        let pid_slot = Arc::clone(&observed_pid);
+        let lock_slot = Arc::clone(&lock_was_held);
+        let locked_canary = lock_canary_path.clone();
+
+        let error = spawner
+            .launch_foreground_fixed_command_with_hooks(
+                &config,
+                FOREGROUND_SLEEP_ARGS,
+                vec![lock_canary],
+                spawn_foreground_watcher,
+                move |pid| {
+                    pid_slot.store(pid, Ordering::SeqCst);
+                    lock_slot.store(
+                        std::fs::remove_file(&locked_canary).is_err(),
+                        Ordering::SeqCst,
+                    );
+                    Err("injected generation-attestation failure".to_string())
+                },
+                |reservation, start| reservation.begin_with_durable_ack(start),
+                wait_start_durability_blocking,
+            )
+            .expect_err("attestation failure must fail closed");
+        assert!(error.to_string().contains("attestation failed"));
+        let pid = observed_pid.load(Ordering::SeqCst);
+        assert_ne!(pid, 0);
+        assert!(lock_was_held.load(Ordering::SeqCst));
+        assert!(
+            !process_is_still_active(pid),
+            "attestation-failed foreground child {pid} survived owner cleanup"
+        );
+        std::fs::remove_file(&lock_canary_path)
+            .expect("identity lock canary releases only after attestation-failed child reap");
+        std::fs::remove_file(&executable).expect("remove attestation fixture executable");
+    }
+
+    #[cfg(target_os = "windows")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn foreground_ledger_begin_failure_reaps_exact_child_without_false_stop() {
+        use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+
+        let (_temp, executable, _ready_path, lock_canary_path, lock_canary, config) =
+            foreground_failure_fixture("begin");
+        let (ledger, drain) = test_ledger();
+        let spawner = LiveCliSpawner::new(ledger, LiveCliSpawner::native_cli_registry());
+        spawner.pin_config(&config).expect("pin begin fixture");
+        let observed_pid = Arc::new(AtomicU32::new(0));
+        let lock_was_held = Arc::new(AtomicBool::new(false));
+        let pid_slot = Arc::clone(&observed_pid);
+        let lock_slot = Arc::clone(&lock_was_held);
+        let locked_canary = lock_canary_path.clone();
+
+        let error = spawner
+            .launch_foreground_fixed_command_with_hooks(
+                &config,
+                FOREGROUND_SLEEP_ARGS,
+                vec![lock_canary],
+                spawn_foreground_watcher,
+                move |pid| {
+                    pid_slot.store(pid, Ordering::SeqCst);
+                    crate::sandbox::handshake_native::process_creation_time_100ns(pid)
+                        .map_err(|error| error.to_string())
+                },
+                move |_reservation, _start| {
+                    lock_slot.store(
+                        std::fs::remove_file(&locked_canary).is_err(),
+                        Ordering::SeqCst,
+                    );
+                    Err(ProcessLedgerError::InvalidConfig(
+                        "injected foreground START begin failure".to_string(),
+                    ))
+                },
+                wait_start_durability_blocking,
+            )
+            .expect_err("ledger begin failure must fail closed");
+        assert!(matches!(
+            error,
+            OfficialCliBridgeError::LedgerRegistration { .. }
+        ));
+        let pid = observed_pid.load(Ordering::SeqCst);
+        assert_ne!(pid, 0);
+        assert!(lock_was_held.load(Ordering::SeqCst));
+        assert!(
+            !process_is_still_active(pid),
+            "ledger-begin-failed foreground child {pid} survived owner cleanup"
+        );
+        std::fs::remove_file(&lock_canary_path)
+            .expect("identity lock canary releases only after ledger-begin-failed child reap");
+        std::fs::remove_file(&executable).expect("remove ledger-begin fixture executable");
+        let store = ReconciliationLedgerStore::default();
+        drain
+            .drain_available_to(Arc::new(store.clone()))
+            .await
+            .expect("drain begin-failure ledger");
+        assert!(
+            store.events.lock().unwrap().is_empty(),
+            "failed START begin must emit neither START nor false STOP"
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn foreground_start_ack_failure_reaps_before_matching_stop_and_lock_release() {
+        use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+
+        #[derive(Clone)]
+        struct StopOrderingStore {
+            events: Arc<Mutex<Vec<crate::process_ledger::LedgerEvent>>>,
+            pid: Arc<AtomicU32>,
+            stop_observed_live: Arc<AtomicBool>,
+            lock_canary_path: PathBuf,
+            stop_observed_lock_held: Arc<AtomicBool>,
+        }
+
+        #[async_trait::async_trait]
+        impl crate::process_ledger::ProcessLedgerStore for StopOrderingStore {
+            async fn write_batch(
+                &self,
+                events: Vec<crate::process_ledger::LedgerEvent>,
+            ) -> Result<(), ProcessLedgerError> {
+                if events
+                    .iter()
+                    .any(|event| matches!(event, crate::process_ledger::LedgerEvent::Stop(_)))
+                {
+                    self.stop_observed_live.store(
+                        process_is_still_active(self.pid.load(Ordering::SeqCst)),
+                        Ordering::SeqCst,
+                    );
+                    self.stop_observed_lock_held.store(
+                        std::fs::remove_file(&self.lock_canary_path).is_err(),
+                        Ordering::SeqCst,
+                    );
+                }
+                self.events.lock().unwrap().extend(events);
+                Ok(())
+            }
+        }
+
+        let (_temp, executable, _ready_path, lock_canary_path, lock_canary, config) =
+            foreground_failure_fixture("start-ack");
+        let observed_pid = Arc::new(AtomicU32::new(0));
+        let stop_observed_live = Arc::new(AtomicBool::new(false));
+        let stop_observed_lock_held = Arc::new(AtomicBool::new(false));
+        let store = StopOrderingStore {
+            events: Arc::new(Mutex::new(Vec::new())),
+            pid: Arc::clone(&observed_pid),
+            stop_observed_live: Arc::clone(&stop_observed_live),
+            lock_canary_path: lock_canary_path.clone(),
+            stop_observed_lock_held: Arc::clone(&stop_observed_lock_held),
+        };
+        let retained = crate::process_ledger::RetainedLedgerBatcher::spawn(
+            Arc::new(store.clone()),
+            Arc::new(crate::process_ledger::NoopOverflowSink),
+            crate::process_ledger::LedgerBatcherConfig::default(),
+        );
+        let spawner = LiveCliSpawner::new(
+            Arc::new(retained.ledger()),
+            LiveCliSpawner::native_cli_registry(),
+        );
+        spawner.pin_config(&config).expect("pin START-ack fixture");
+        let pid_slot = Arc::clone(&observed_pid);
+        let locked_canary = lock_canary_path.clone();
+
+        let error = spawner
+            .launch_foreground_fixed_command_with_hooks(
+                &config,
+                FOREGROUND_SLEEP_ARGS,
+                vec![lock_canary],
+                spawn_foreground_watcher,
+                move |pid| {
+                    pid_slot.store(pid, Ordering::SeqCst);
+                    crate::sandbox::handshake_native::process_creation_time_100ns(pid)
+                        .map_err(|error| error.to_string())
+                },
+                |reservation, start| reservation.begin_with_durable_ack(start),
+                move |acknowledgement| {
+                    wait_start_durability_blocking(acknowledgement)?;
+                    assert!(
+                        std::fs::remove_file(&locked_canary).is_err(),
+                        "identity lock released before injected START-ack cleanup"
+                    );
+                    Err(ProcessLedgerError::InvalidConfig(
+                        "injected post-ack foreground failure".to_string(),
+                    ))
+                },
+            )
+            .expect_err("injected START-ack failure must fail closed");
+        assert!(matches!(
+            error,
+            OfficialCliBridgeError::LedgerRegistration { .. }
+        ));
+        let pid = observed_pid.load(Ordering::SeqCst);
+        assert_ne!(pid, 0);
+        assert!(
+            !process_is_still_active(pid),
+            "START-ack-failed foreground child {pid} survived owner cleanup"
+        );
+        assert!(
+            !stop_observed_live.load(Ordering::SeqCst),
+            "matching STOP reached the store before exact-child reap"
+        );
+        assert!(
+            stop_observed_lock_held.load(Ordering::SeqCst),
+            "identity lock canary was not held through matching STOP durability"
+        );
+        std::fs::remove_file(&lock_canary_path).expect(
+            "identity lock canary releases only after START-ack child reap and STOP attempt",
+        );
+        std::fs::remove_file(&executable).expect("remove START-ack fixture executable");
+        assert!(matches!(
+            retained.drain_and_join(Duration::from_secs(5)).await,
+            crate::process_ledger::LedgerDrainJoinOutcome::Flushed
+        ));
+        let events = store.events.lock().unwrap().clone();
+        let (start, stop) = match events.as_slice() {
+            [crate::process_ledger::LedgerEvent::Start(start), crate::process_ledger::LedgerEvent::Stop(stop)] => {
+                (start, stop)
+            }
+            other => panic!("unexpected START-ack failure lifecycle: {other:?}"),
+        };
+        assert_eq!(start.process_uuid, stop.process_uuid);
+        assert_eq!(start.os_pid, Some(pid));
+        assert_eq!(
+            stop.stop_reason.as_deref(),
+            Some("official_cli_foreground_login_start_not_durable")
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn foreground_watcher_spawn_failure_prevents_process_and_ledger_start() {
+        let ready_path = std::env::temp_dir().join(format!(
+            "handshake-cli-foreground-watch-spawn-{}.ready",
+            uuid::Uuid::now_v7()
+        ));
+        let _ = std::fs::remove_file(&ready_path);
+        let (ledger, drain) = test_ledger();
+        let spawner = LiveCliSpawner::new(ledger, LiveCliSpawner::native_cli_registry());
+        let mut config = CliBridgeConfig {
+            cli_kind: CliKind::Other,
+            executable_path: std::env::current_exe().expect("current test executable"),
+            args_template: vec!["{prompt}".to_string()],
+            output_format: CliOutputFormat::RawText,
+            env_vars: HashMap::new(),
+            working_dir: None,
+            timeout_seconds: 5,
+        };
+        config.env_vars.insert(
+            "NO_COLOR".to_string(),
+            ready_path.to_string_lossy().into_owned(),
+        );
+        spawner
+            .pin_config(&config)
+            .expect("pin watcher-spawn fixture");
+
+        let error = spawner
+            .launch_foreground_fixed_command_with_watcher(
+                &config,
+                &[
+                    "--ignored",
+                    "--exact",
+                    "model_runtime::cloud::official_cli_bridge::tests::foreground_watcher_sleep_child",
+                    "--nocapture",
+                ],
+                || {
+                    Err(OfficialCliBridgeError::SpawnFailed {
+                        reason: "injected watcher creation failure".to_string(),
+                        exit_code: None,
+                    })
+                },
+            )
+            .expect_err("watcher failure must prevent foreground process creation");
+        assert!(error
+            .to_string()
+            .contains("injected watcher creation failure"));
+        std::thread::sleep(Duration::from_millis(100));
+        assert!(
+            !ready_path.exists(),
+            "foreground child ran even though watcher capacity was unavailable"
+        );
+
+        let store = ReconciliationLedgerStore::default();
+        drain
+            .drain_available_to(Arc::new(store.clone()))
+            .await
+            .expect("drain watcher-spawn ledger");
+        assert!(
+            store.events.lock().unwrap().is_empty(),
+            "watcher creation failure before process spawn must emit neither START nor STOP"
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn foreground_watcher_send_failure_reaps_child_before_stop_and_lock_release() {
+        use std::os::windows::process::CommandExt;
+
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let ready_path = std::env::temp_dir().join(format!(
+            "handshake-cli-foreground-watch-send-{}.ready",
+            uuid::Uuid::now_v7()
+        ));
+        let lock_path = std::env::temp_dir().join(format!(
+            "handshake-cli-foreground-watch-lock-{}.bin",
+            uuid::Uuid::now_v7()
+        ));
+        let _ = std::fs::remove_file(&ready_path);
+        let _ = std::fs::remove_file(&lock_path);
+        std::fs::write(&lock_path, b"identity-lock-canary").expect("write identity lock fixture");
+        let (_identity, identity_lock) =
+            locked_file_identity(&lock_path).expect("hold executable identity lock");
+
+        let mut child = std::process::Command::new(
+            std::env::current_exe().expect("current test executable"),
+        )
+        .args([
+            "--ignored",
+            "--exact",
+            "model_runtime::cloud::official_cli_bridge::tests::foreground_watcher_sleep_child",
+            "--nocapture",
+        ])
+        .env("NO_COLOR", &ready_path)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .expect("spawn watcher-send fixture child");
+        let pid = child.id();
+        let ready_deadline = Instant::now() + Duration::from_secs(3);
+        while !ready_path.exists() && Instant::now() < ready_deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        if !ready_path.exists() {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("fixture child {pid} did not start");
+        }
+        assert!(process_is_still_active(pid), "fixture child must be live");
+
+        let store = ReconciliationLedgerStore::default();
+        let retained = crate::process_ledger::RetainedLedgerBatcher::spawn(
+            Arc::new(store.clone()),
+            Arc::new(crate::process_ledger::NoopOverflowSink),
+            crate::process_ledger::LedgerBatcherConfig::default(),
+        );
+        let reservation = retained
+            .ledger()
+            .try_reserve_lifecycles(1)
+            .expect("reserve foreground lifecycle")
+            .pop()
+            .expect("one foreground lifecycle");
+        let start = ProcessStart::new(
+            ProcessEngineKind::OfficialCliBridge,
+            "MODEL_ACCESS_CLI_LOGIN",
+            Some("WP-1".to_string()),
+        )
+        .with_os_pid(pid)
+        .with_mt_id("MT-015");
+        let (lifecycle, acknowledgement) = reservation
+            .begin_with_durable_ack(start)
+            .expect("begin foreground START");
+        wait_start_durability_blocking(acknowledgement).expect("foreground START durable");
+        {
+            let events = store.events.lock().unwrap();
+            assert!(
+                matches!(
+                    events.as_slice(),
+                    [crate::process_ledger::LedgerEvent::Start(start)]
+                        if start.os_pid == Some(pid)
+                ),
+                "live child must have exactly one durable START and no false STOP before watcher handoff: {events:?}"
+            );
+        }
+
+        let (sender, receiver) = mpsc::sync_channel::<ForegroundWatchPayload>(1);
+        drop(receiver);
+        let mut owner = ForegroundChildOwner::new(child, vec![identity_lock]);
+        owner.attach_lifecycle(lifecycle);
+        let payload = ForegroundWatchPayload { owner };
+        assert!(
+            std::fs::remove_file(&lock_path).is_err(),
+            "identity lock was released while the exact child was still live"
+        );
+        let error = handoff_foreground_watch(sender, payload)
+            .expect_err("closed watcher receiver must fail the handoff");
+        assert!(error.to_string().contains("killed and reaped"), "{error}");
+        assert!(
+            !process_is_still_active(pid),
+            "exact child {pid} survived watcher handoff recovery"
+        );
+        std::fs::remove_file(&lock_path)
+            .expect("identity lock releases only after exact-child reap and STOP attempt");
+        std::fs::remove_file(&ready_path).expect("remove watcher readiness file");
+
+        assert!(matches!(
+            retained.drain_and_join(Duration::from_secs(5)).await,
+            crate::process_ledger::LedgerDrainJoinOutcome::Flushed
+        ));
+        let events = store.events.lock().unwrap().clone();
+        assert_eq!(events.len(), 2, "reaped child must emit START then STOP");
+        let (start, stop) = match events.as_slice() {
+            [crate::process_ledger::LedgerEvent::Start(start), crate::process_ledger::LedgerEvent::Stop(stop)] => {
+                (start, stop)
+            }
+            other => panic!("unexpected foreground lifecycle: {other:?}"),
+        };
+        assert_eq!(start.process_uuid, stop.process_uuid);
+        assert_eq!(start.os_pid, Some(pid));
+        assert_eq!(
+            stop.stop_reason.as_deref(),
+            Some("official_cli_foreground_login_watcher_handoff_failed")
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore]
+    fn auxiliary_auth_status_pipe_holding_grandchild() {
+        use std::io::Write;
+
+        println!("GRANDCHILD_STDOUT_CREDENTIAL_CANARY");
+        eprintln!("GRANDCHILD_STDERR_CREDENTIAL_CANARY");
+        std::io::stdout().flush().expect("flush grandchild stdout");
+        std::io::stderr().flush().expect("flush grandchild stderr");
+        let ready_path = std::env::var_os("NO_COLOR").expect("readiness path in NO_COLOR");
+        std::fs::write(&ready_path, std::process::id().to_string())
+            .expect("record pipe-holding grandchild pid");
+        std::thread::sleep(Duration::from_secs(60));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore]
+    fn auxiliary_auth_status_nonzero_tree_child() {
+        use std::io::Write;
+
+        let grandchild = std::process::Command::new(
+            std::env::current_exe().expect("current test executable"),
+        )
+        .args([
+            "--ignored",
+            "--exact",
+            "model_runtime::cloud::official_cli_bridge::tests::auxiliary_auth_status_pipe_holding_grandchild",
+            "--nocapture",
+        ])
+        .spawn()
+        .expect("spawn pipe-holding grandchild");
+        let ready_path = std::env::var_os("NO_COLOR").expect("readiness path in NO_COLOR");
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while !std::path::Path::new(&ready_path).exists() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(
+            std::path::Path::new(&ready_path).exists(),
+            "grandchild {} did not confirm inherited stdout/stderr pipes",
+            grandchild.id()
+        );
+        println!("CHILD_STDOUT_CREDENTIAL_CANARY");
+        eprintln!("CHILD_STDERR_CREDENTIAL_CANARY");
+        std::io::stdout().flush().expect("flush child stdout");
+        std::io::stderr().flush().expect("flush child stderr");
+        std::process::exit(23);
+    }
+
+    #[cfg(target_os = "windows")]
+    fn process_is_still_active(pid: u32) -> bool {
+        use windows_sys::Win32::{
+            Foundation::{CloseHandle, STILL_ACTIVE},
+            System::Threading::{
+                GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+            },
+        };
+
+        let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+        if process.is_null() {
+            return false;
+        }
+        let mut exit_code = 0u32;
+        let ok = unsafe { GetExitCodeProcess(process, &mut exit_code) };
+        unsafe {
+            let _ = CloseHandle(process);
+        }
+        ok != 0 && exit_code == STILL_ACTIVE as u32
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn auxiliary_auth_status_nonzero_tree_is_reaped_and_pipe_canaries_are_bounded() {
+        let ready_path = std::env::temp_dir().join(format!(
+            "handshake-cli-auth-tree-{}.ready",
+            uuid::Uuid::now_v7()
+        ));
+        let _ = std::fs::remove_file(&ready_path);
+        let (ledger, _drain) = test_ledger();
+        let spawner = LiveCliSpawner::new(ledger, LiveCliSpawner::native_cli_registry());
+        let mut config = CliBridgeConfig {
+            cli_kind: CliKind::Other,
+            executable_path: std::env::current_exe().expect("current test executable"),
+            args_template: vec!["{prompt}".to_string()],
+            output_format: CliOutputFormat::RawText,
+            env_vars: HashMap::new(),
+            working_dir: None,
+            timeout_seconds: 5,
+        };
+        config.env_vars.insert(
+            "NO_COLOR".to_string(),
+            ready_path.to_string_lossy().into_owned(),
+        );
+        spawner
+            .pin_config(&config)
+            .expect("pin child-grandchild executable graph");
+
+        let started = Instant::now();
+        let mut output = spawner
+            .run_auxiliary_fixed_command(
+                &config,
+                &[
+                    "--ignored",
+                    "--exact",
+                    "model_runtime::cloud::official_cli_bridge::tests::auxiliary_auth_status_nonzero_tree_child",
+                    "--nocapture",
+                ],
+                Duration::from_secs(5),
+                &test_invocation(),
+                64 * 1024,
+            )
+            .expect("nonzero provider status remains typed runner output");
+        assert!(!output.success, "child must preserve its nonzero exit");
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "grandchild pipe hold must be ended by bounded Job-tree reap"
+        );
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains("CHILD_STDOUT_CREDENTIAL_CANARY"),
+            "{stdout}"
+        );
+        assert!(
+            stdout.contains("GRANDCHILD_STDOUT_CREDENTIAL_CANARY"),
+            "{stdout}"
+        );
+        assert!(
+            !stdout.contains("CHILD_STDERR_CREDENTIAL_CANARY"),
+            "{stdout}"
+        );
+        assert!(
+            !stdout.contains("GRANDCHILD_STDERR_CREDENTIAL_CANARY"),
+            "{stdout}"
+        );
+        drop(stdout);
+        output.stdout.zeroize();
+
+        let grandchild_pid = std::fs::read_to_string(&ready_path)
+            .expect("read recorded grandchild pid")
+            .parse::<u32>()
+            .expect("parse recorded grandchild pid");
+        let inactive_deadline = Instant::now() + Duration::from_secs(1);
+        while process_is_still_active(grandchild_pid) && Instant::now() < inactive_deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(
+            !process_is_still_active(grandchild_pid),
+            "grandchild {grandchild_pid} survived successful Job-tree reap"
+        );
+        std::fs::remove_file(&ready_path).expect("remove grandchild readiness file");
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn foreground_login_plan_uses_pinned_absolute_graph_not_shadowed_cwd_or_bare_path() {
+        let shadow_dir = std::env::temp_dir().join(format!(
+            "handshake-cli-login-shadow-{}",
+            uuid::Uuid::now_v7()
+        ));
+        std::fs::create_dir(&shadow_dir).expect("create shadow cwd");
+        let executable = std::env::current_exe().expect("current test executable");
+        let shadow_executable =
+            shadow_dir.join(executable.file_name().expect("test executable filename"));
+        std::fs::write(
+            &shadow_executable,
+            b"shadow executable must never be selected",
+        )
+        .expect("write cwd shadow");
+        let (ledger, _drain) = test_ledger();
+        let spawner = LiveCliSpawner::new(ledger, LiveCliSpawner::native_cli_registry());
+        let config = CliBridgeConfig {
+            cli_kind: CliKind::Other,
+            executable_path: executable.clone(),
+            args_template: vec!["{prompt}".to_string()],
+            output_format: CliOutputFormat::RawText,
+            env_vars: HashMap::new(),
+            working_dir: Some(shadow_dir.clone()),
+            timeout_seconds: 5,
+        };
+        spawner
+            .pin_config(&config)
+            .expect("pin canonical absolute executable");
+        let plan = spawner
+            .foreground_fixed_launch_plan(&config, &["--version"])
+            .expect("build foreground plan from canonical pin");
+        assert_eq!(
+            plan.identity.requested_entrypoint.canonical_path,
+            executable
+                .canonicalize()
+                .expect("canonical test executable")
+        );
+        assert_ne!(
+            plan.identity.requested_entrypoint.canonical_path,
+            shadow_executable
+                .canonicalize()
+                .expect("canonical cwd shadow executable")
+        );
+
+        let shadow_codex = shadow_dir.join("codex.exe");
+        std::fs::write(&shadow_codex, b"PATH shadow must never be selected")
+            .expect("write PATH shadow");
+        let bare_cwd_config = CliBridgeConfig {
+            executable_path: PathBuf::from("codex"),
+            working_dir: Some(shadow_dir.clone()),
+            ..config
+        };
+        assert!(
+            spawner
+                .foreground_fixed_launch_plan(&bare_cwd_config, &["login"])
+                .is_err(),
+            "bare program names must not resolve against a shadowed working directory"
+        );
+        let mut path_shadow_config = bare_cwd_config;
+        path_shadow_config.env_vars.insert(
+            "PATH".to_string(),
+            shadow_dir.to_string_lossy().into_owned(),
+        );
+        assert!(matches!(
+            spawner.foreground_fixed_launch_plan(&path_shadow_config, &["login"]),
+            Err(OfficialCliBridgeError::UnsafeEnvironmentVariable(name)) if name == "PATH"
+        ));
+        std::fs::remove_file(&shadow_codex).expect("remove PATH shadow");
+        std::fs::remove_file(&shadow_executable).expect("remove cwd shadow executable");
+        std::fs::remove_dir(&shadow_dir).expect("remove shadow cwd");
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn auxiliary_auth_status_runner_is_job_contained_bounded_and_zeroizes_canary_output() {
         let (ledger, _drain) = test_ledger();
         let spawner = LiveCliSpawner::new(ledger, LiveCliSpawner::native_cli_registry());
         let config = CliBridgeConfig {
@@ -3961,6 +5170,25 @@ mod tests {
             working_dir: None,
             timeout_seconds: 5,
         };
+        let unpinned_error = spawner
+            .run_auxiliary_fixed_command(
+                &config,
+                &["--version"],
+                Duration::from_secs(1),
+                &test_invocation(),
+                64 * 1024,
+            )
+            .err()
+            .expect("auxiliary runner must not register or execute an unpinned target");
+        assert!(
+            unpinned_error
+                .to_string()
+                .contains("was not registered by the canonical launch builder"),
+            "{unpinned_error}"
+        );
+        spawner
+            .pin_config(&config)
+            .expect("canonical builder pins canary executable graph");
         let mut output = spawner
             .run_auxiliary_fixed_command(
                 &config,
@@ -3977,14 +5205,19 @@ mod tests {
             .expect("attached auxiliary canary command");
         assert!(output.success);
         assert!(
-            String::from_utf8_lossy(&output.stdout)
-                .contains("oauth-refresh-token-NEVER-RETURN"),
+            String::from_utf8_lossy(&output.stdout).contains("oauth-refresh-token-NEVER-RETURN"),
             "test precondition: provider output contains the credential canary"
         );
         output.stdout.zeroize();
-        assert!(output.stdout.iter().all(|byte| *byte == 0));
+        assert!(
+            output.stdout.is_empty() || output.stdout.iter().all(|byte| *byte == 0),
+            "zeroize may clear or overwrite the private output buffer"
+        );
 
         let timeout = timeout_config();
+        spawner
+            .pin_config(&timeout)
+            .expect("canonical builder pins timeout executable graph");
         let started = Instant::now();
         let error = spawner
             .run_auxiliary_fixed_command(
@@ -3994,7 +5227,8 @@ mod tests {
                 &test_invocation(),
                 64 * 1024,
             )
-            .expect_err("non-terminating auxiliary command must time out");
+            .err()
+            .expect("non-terminating auxiliary command must time out");
         assert!(
             started.elapsed() < Duration::from_secs(5),
             "auxiliary timeout must include tree termination and bounded pipe cleanup"

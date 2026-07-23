@@ -66,6 +66,8 @@ pub struct AttributedAction {
     pub seq: u64,
     /// The short deterministic per-session id (see [`agent_id_for_token`]).
     pub agent_id: String,
+    /// Caller-supplied display metadata retained separately from the authenticated principal.
+    pub agent_label: String,
     /// The tool / operation name (`"click_widget"`, `"set_value"`, `"list_widgets"`, …).
     pub op_name: String,
     /// The stable widget `author_id` the action targeted (empty for non-targeted ops like
@@ -103,12 +105,26 @@ impl ActionLog {
     /// oldest entry if the buffer is at [`ACTION_LOG_CAPACITY`]. Returns the assigned seq. Never blocks on
     /// an await; recovers a poisoned lock so one panicking reader cannot wedge the log.
     pub fn record(&self, agent_id: &str, op_name: &str, target_key: &str, node_id: u64) -> u64 {
+        self.record_with_label(agent_id, "", op_name, target_key, node_id)
+    }
+
+    /// Append an action while retaining caller display metadata separately from the authenticated
+    /// principal. `agent_label` never participates in authentication or principal selection.
+    pub fn record_with_label(
+        &self,
+        agent_id: &str,
+        agent_label: &str,
+        op_name: &str,
+        target_key: &str,
+        node_id: u64,
+    ) -> u64 {
         let mut state = self.inner.lock().unwrap_or_else(|p| p.into_inner());
         let seq = state.next_seq + 1;
         state.next_seq = seq;
         let entry = AttributedAction {
             seq,
             agent_id: agent_id.to_owned(),
+            agent_label: agent_label.to_owned(),
             op_name: op_name.to_owned(),
             target_key: target_key.to_owned(),
             node_id,

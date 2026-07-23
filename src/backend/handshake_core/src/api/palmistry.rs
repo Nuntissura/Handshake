@@ -2199,7 +2199,10 @@ fn validate_argus_receipt(request: &ArgusActionReceiptRequest) -> Result<(), Pal
         !value.is_empty() && value.len() <= max && value.bytes().all(|byte| byte.is_ascii_graphic())
     }
     if !bounded_identifier(&request.action_id, 96)
-        || !matches!(request.action.as_str(), "argus.click" | "argus.set_value")
+        || !matches!(
+            request.action.as_str(),
+            "argus.click" | "argus.set_value" | "argus.show_context_menu"
+        )
         || !bounded_identifier(&request.connection_id, 96)
         || request.diagnostics_session_id.is_nil()
         || !bounded_identifier(&request.agent_id, 96)
@@ -2505,6 +2508,23 @@ mod tests {
     use super::*;
     use ed25519_dalek::Signer;
 
+    fn valid_argus_receipt(action: &str) -> ArgusActionReceiptRequest {
+        ArgusActionReceiptRequest {
+            diagnostics_session_id: Uuid::now_v7(),
+            action_id: format!("argus-action-{}", Uuid::now_v7()),
+            action: action.to_owned(),
+            connection_id: "mcp-connection-1".to_owned(),
+            agent_id: "agent-a1b2c3d4".to_owned(),
+            agent_label: "reviewer-lane-1".to_owned(),
+            window_id: "main".to_owned(),
+            author_id: "model-runtime.action.refresh".to_owned(),
+            before_revision: 4,
+            after_revision: Some(5),
+            status: "applied".to_owned(),
+            proof: "ab".repeat(32),
+        }
+    }
+
     #[test]
     fn observation_freshness_rejects_stale_and_far_future_timestamps() {
         let now = 10_000;
@@ -2662,20 +2682,7 @@ mod tests {
 
     #[test]
     fn argus_receipt_is_a_strict_mechanical_allowlist() {
-        let valid = ArgusActionReceiptRequest {
-            diagnostics_session_id: Uuid::now_v7(),
-            action_id: format!("argus-action-{}", Uuid::now_v7()),
-            action: "argus.click".to_owned(),
-            connection_id: "mcp-connection-1".to_owned(),
-            agent_id: "agent-a1b2c3d4".to_owned(),
-            agent_label: "reviewer-lane-1".to_owned(),
-            window_id: "main".to_owned(),
-            author_id: "model-runtime.action.refresh".to_owned(),
-            before_revision: 4,
-            after_revision: Some(5),
-            status: "applied".to_owned(),
-            proof: "ab".repeat(32),
-        };
+        let valid = valid_argus_receipt("argus.click");
         assert!(validate_argus_receipt(&valid).is_ok());
         let mut graphic_attribution = valid.clone();
         graphic_attribution.agent_id = "reviewer@lane/1".to_owned();
@@ -2693,6 +2700,30 @@ mod tests {
         let mut secret_field = serde_json::to_value(valid).expect("serialize receipt");
         secret_field["value"] = json!("canary-secret");
         assert!(serde_json::from_value::<ArgusActionReceiptRequest>(secret_field).is_err());
+    }
+
+    #[test]
+    fn argus_receipt_accepts_durable_context_menu_action() {
+        let context_menu = valid_argus_receipt("argus.show_context_menu");
+        assert!(
+            validate_argus_receipt(&context_menu).is_ok(),
+            "the native canonical durable context-menu action must cross the Palmistry boundary"
+        );
+    }
+
+    #[test]
+    fn argus_receipt_rejects_unallowlisted_context_menu_lookalikes() {
+        for action in [
+            "argus.context_menu",
+            "argus.show-context-menu",
+            "argus.show_context_menu\n",
+        ] {
+            let receipt = valid_argus_receipt(action);
+            assert!(
+                validate_argus_receipt(&receipt).is_err(),
+                "unexpected durable action was accepted: {action:?}"
+            );
+        }
     }
 
     #[test]

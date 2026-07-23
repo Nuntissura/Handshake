@@ -17,6 +17,9 @@
 //!   launch).
 //! * `DELETE /model-access/byok/:provider/key` — remove / rotate a key
 //!   (idempotent), reusing `vault.delete`.
+//! * `POST /model-access/cli-bridge/:provider/login` — launch the provider's
+//!   exact already-pinned executable graph in a foreground console. Returns
+//!   only an opaque pid handle; no path, argv, credential, or account metadata.
 //!
 //! ## Leak discipline
 //!
@@ -30,8 +33,9 @@
 //!
 //! The service is resolved through a [`CloudAccessProvider`] held on
 //! [`ModelAccessState`], NOT hardcoded to [`CloudModelAccess::production`]. The
-//! real server wires [`ModelAccessState::production`] (OS keychain); a route
-//! test injects an in-memory-vault-backed provider via
+//! real server wires [`ModelAccessState::production_with_cli_runtime`] after
+//! the canonical launch graph is pinned (plus the OS keychain); a route test
+//! injects an in-memory-vault-backed provider via
 //! [`ModelAccessState::with_provider_and_cli_auth_probe`] and mounts [`routes`]
 //! directly — it never builds a full [`crate::AppState`], touches the host
 //! keychain, or invokes an installed CLI.
@@ -41,7 +45,7 @@ use std::sync::Arc;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::{get, put},
+    routing::{get, post, put},
     Json, Router,
 };
 use secrecy::SecretString;
@@ -50,9 +54,10 @@ use serde_json::{json, Value};
 
 use crate::model_runtime::cloud::access_config::{
     enumerate_with_cli_auth_probe, AccessConfigError, ByokProvider, CliBridgeAuthStatusProbe,
-    CloudAccessEnumeration, CloudModelAccess, InMemoryAccessRegistry,
+    CliBridgeLoginLaunchError, CliBridgeLoginLauncher, CliBridgeProvider, CloudAccessEnumeration,
+    CloudModelAccess, InMemoryAccessRegistry,
 };
-use crate::model_runtime::cloud::SecretsVaultError;
+use crate::model_runtime::cloud::{ForegroundCliLaunchHandle, SecretsVaultError};
 
 type ApiError = (StatusCode, Json<Value>);
 
@@ -98,25 +103,36 @@ impl CliBridgeAuthStatusProbe for UnavailableCliAuthProbe {
     }
 }
 
+impl CliBridgeLoginLauncher for UnavailableCliAuthProbe {
+    fn launch_login(
+        &self,
+        _provider: CliBridgeProvider,
+    ) -> Result<ForegroundCliLaunchHandle, CliBridgeLoginLaunchError> {
+        Err(CliBridgeLoginLaunchError::Unavailable)
+    }
+}
+
 /// Axum state for the model-access router. Holds the
-/// [`CloudAccessProvider`] and typed [`CliBridgeAuthStatusProbe`] seams — no key
-/// material, no [`crate::AppState`] — so a route test can mount [`routes`] with
-/// injected providers and never build a full `AppState` (which needs a live
-/// PostgreSQL pool), touch the host keychain, or invoke installed CLIs.
+/// [`CloudAccessProvider`], typed [`CliBridgeAuthStatusProbe`], and backend-owned
+/// [`CliBridgeLoginLauncher`] seams—no key material, no [`crate::AppState`]—so a
+/// route test can mount [`routes`] with injected providers and never build a
+/// full `AppState`, touch the host keychain, or invoke installed CLIs.
 #[derive(Clone)]
 pub struct ModelAccessState {
     provider: Arc<dyn CloudAccessProvider>,
     cli_auth_probe: Arc<dyn CliBridgeAuthStatusProbe>,
+    cli_login_launcher: Arc<dyn CliBridgeLoginLauncher>,
 }
 
 impl ModelAccessState {
     /// Production keychain wiring with CLI status fail-closed. The real server
-    /// uses [`Self::production_with_cli_auth_probe`] after it has built and
+    /// uses [`Self::production_with_cli_runtime`] after it has built and
     /// pinned the canonical launch configurations.
     pub fn production() -> Self {
         Self {
             provider: Arc::new(ProductionCloudAccessProvider),
             cli_auth_probe: Arc::new(UnavailableCliAuthProbe),
+            cli_login_launcher: Arc::new(UnavailableCliAuthProbe),
         }
     }
 
@@ -126,6 +142,18 @@ impl ModelAccessState {
         Self {
             provider: Arc::new(ProductionCloudAccessProvider),
             cli_auth_probe,
+            cli_login_launcher: Arc::new(UnavailableCliAuthProbe),
+        }
+    }
+
+    pub fn production_with_cli_runtime(
+        cli_auth_probe: Arc<dyn CliBridgeAuthStatusProbe>,
+        cli_login_launcher: Arc<dyn CliBridgeLoginLauncher>,
+    ) -> Self {
+        Self {
+            provider: Arc::new(ProductionCloudAccessProvider),
+            cli_auth_probe,
+            cli_login_launcher,
         }
     }
 
@@ -135,6 +163,7 @@ impl ModelAccessState {
         Self {
             provider,
             cli_auth_probe: Arc::new(UnavailableCliAuthProbe),
+            cli_login_launcher: Arc::new(UnavailableCliAuthProbe),
         }
     }
 
@@ -147,6 +176,19 @@ impl ModelAccessState {
         Self {
             provider,
             cli_auth_probe,
+            cli_login_launcher: Arc::new(UnavailableCliAuthProbe),
+        }
+    }
+
+    pub fn with_provider_cli_runtime(
+        provider: Arc<dyn CloudAccessProvider>,
+        cli_auth_probe: Arc<dyn CliBridgeAuthStatusProbe>,
+        cli_login_launcher: Arc<dyn CliBridgeLoginLauncher>,
+    ) -> Self {
+        Self {
+            provider,
+            cli_auth_probe,
+            cli_login_launcher,
         }
     }
 }
@@ -260,12 +302,51 @@ async fn remove_byok_key(
     })))
 }
 
+async fn launch_cli_login(
+    State(state): State<ModelAccessState>,
+    Path(provider_id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    let provider = CliBridgeProvider::from_id(&provider_id).ok_or_else(|| {
+        (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "provider_not_offered"})),
+        )
+    })?;
+    let launcher = state.cli_login_launcher.clone();
+    let handle = tokio::task::spawn_blocking(move || launcher.launch_login(provider))
+        .await
+        .map_err(|_| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "cli_login_launch_failed"})),
+            )
+        })?
+        .map_err(|error| match error {
+            CliBridgeLoginLaunchError::Unavailable => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error": "cli_login_unavailable"})),
+            ),
+            CliBridgeLoginLaunchError::LaunchFailed => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "cli_login_launch_failed"})),
+            ),
+        })?;
+    Ok(Json(json!({
+        "provider": provider.id(),
+        "launch_handle": {"pid": handle.pid},
+    })))
+}
+
 pub fn routes(state: ModelAccessState) -> Router {
     Router::new()
         .route("/model-access/providers", get(list_providers))
         .route(
             "/model-access/byok/:provider/key",
             put(store_byok_key).delete(remove_byok_key),
+        )
+        .route(
+            "/model-access/cli-bridge/:provider/login",
+            post(launch_cli_login),
         )
         .with_state(state)
 }

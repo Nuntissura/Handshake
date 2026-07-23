@@ -3,9 +3,10 @@
 //! MT-027's [`crate::mcp::tools::dispatch_request`] turns one parsed request into one response with auth
 //! + the four tools. [`McpSession`] is the MT-028 wrapper that makes the SAME dispatch safe under N concurrent agents.
 //!
-//! 1. Every accepted connection gets one `McpSession` holding a deterministic `agent_id` derived from
-//!    its session token (see [`crate::mcp::attribution::agent_id_for_token`]) — so every action that
-//!    session dispatches is ATTRIBUTABLE.
+//! 1. Production clients exchange the root discovery token for a broker-minted agent credential.
+//!    Every mutation is attributed to the credential-derived `agent_id`; the caller-controlled
+//!    `agent_label` remains display metadata and cannot select that identity. Legacy non-durable
+//!    in-process sessions retain the deterministic root-token fallback.
 //! 2. A mutating tool (`click_widget` / `set_value`) acquires an EXCLUSIVE lease on its target widget
 //!    key before the action is enqueued, and a reading tool (`list_widgets`) acquires a SHARED lease on
 //!    the snapshot resource — so two agents cannot drive the same widget at once, but many can read
@@ -128,15 +129,15 @@ enum DispatchPlan {
     },
 }
 
-/// One MCP connection's session: a deterministic `agent_id`, plus clones of the shared lease registry,
-/// action log, session token, and the dispatch state (snapshot + channel) the tools act on.
+/// One MCP connection's session: a legacy fallback `agent_id`, the production credential broker, plus
+/// clones of the shared lease registry, action log, session token, and dispatch state.
 ///
 /// Cloneable-by-construction over `Arc`s: the server builds one per accepted connection from the shared
 /// `ServerState`, so all sessions contend on the SAME [`LeaseRegistry`] and append to the SAME
 /// [`ActionLog`].
 #[derive(Clone)]
 pub struct McpSession {
-    /// The short deterministic per-session id (first 8 hex of SHA-256(token)).
+    /// Legacy non-durable fallback identity; production dispatches use a broker-minted credential.
     agent_id: String,
     /// The per-session HMAC token (the dispatch auth-gates every request against this).
     token: SessionToken,
@@ -203,11 +204,7 @@ impl McpSession {
         self
     }
 
-    fn with_agent_credentials(
-        mut self,
-        broker: AgentCredentialBroker,
-        required: bool,
-    ) -> Self {
+    fn with_agent_credentials(mut self, broker: AgentCredentialBroker, required: bool) -> Self {
         self.agent_credentials = broker;
         self.require_agent_credentials = required;
         self
@@ -417,7 +414,8 @@ impl McpSession {
                     request.id.clone(),
                     crate::mcp::tools::McpError {
                         code: crate::mcp::tools::ERR_INVALID_PARAMS,
-                        message: "agent_label must be non-empty bounded ASCII graphic text".to_owned(),
+                        message: "agent_label must be non-empty bounded ASCII graphic text"
+                            .to_owned(),
                     },
                 );
             }
@@ -504,13 +502,8 @@ impl McpSession {
                         capture,
                     )
                 };
-                self.attribute_and_wait(
-                    response,
-                    request,
-                    channel,
-                    &authenticated_agent_id,
-                )
-                .await
+                self.attribute_and_wait(response, request, channel, &authenticated_agent_id)
+                    .await
             }
         }
     }
@@ -539,9 +532,13 @@ impl McpSession {
             .get("node_id")
             .and_then(|value| value.as_u64())
             .unwrap_or(0);
-        let seq = self
-            .log
-            .record(authenticated_agent_id, &request.method, target, node_id);
+        let seq = self.log.record_with_label(
+            authenticated_agent_id,
+            request.agent_label(),
+            &request.method,
+            target,
+            node_id,
+        );
         let tracker = lock_channel(channel).receipt_tracker();
         tracker.set_evidence_ref(action_id, format!("native-action-log://{seq}"));
         let action_id_owned = action_id.to_owned();
@@ -572,9 +569,7 @@ impl McpSession {
         if !self.durable_receipts {
             return McpResponse::ok_value(
                 request.id.clone(),
-                serde_json::to_value(receipt).unwrap_or_else(
-                    |_| serde_json::json!({"status": "failed", "error": "receipt serialize failed"}),
-                ),
+                attributed_receipt_value(&receipt, authenticated_agent_id),
             );
         }
         let Some(provenance) = self.receipt_provenance.clone() else {
@@ -583,9 +578,7 @@ impl McpSession {
             receipt.durability_error = Some(error);
             return McpResponse::ok_value(
                 request.id.clone(),
-                serde_json::to_value(receipt).unwrap_or_else(
-                    |_| serde_json::json!({"status": "failed", "error": "receipt serialize failed"}),
-                ),
+                attributed_receipt_value(&receipt, authenticated_agent_id),
             );
         };
         match persist_argus_receipt(&receipt, authenticated_agent_id, provenance).await {
@@ -632,9 +625,7 @@ impl McpSession {
         }
         McpResponse::ok_value(
             request.id.clone(),
-            serde_json::to_value(receipt).unwrap_or_else(
-                |_| serde_json::json!({"status": "failed", "error": "receipt serialize failed"}),
-            ),
+            attributed_receipt_value(&receipt, authenticated_agent_id),
         )
     }
 
@@ -674,8 +665,13 @@ impl McpSession {
             Err(_) => return response, // unreachable given `queued`, but keep the type total.
         };
         let node_id = result.get("node_id").and_then(|v| v.as_u64()).unwrap_or(0);
-        self.log
-            .record(&self.agent_id, &request.method, target, node_id);
+        self.log.record_with_label(
+            &self.agent_id,
+            request.agent_label(),
+            &request.method,
+            target,
+            node_id,
+        );
         // Rebuild the result Value with the acting agent_id added (AC#2).
         let mut stamped = result;
         if let Some(obj) = stamped.as_object_mut() {
@@ -688,19 +684,41 @@ impl McpSession {
     }
 }
 
+fn attributed_receipt_value(
+    receipt: &crate::mcp::argus::ArgusActionReceipt,
+    authenticated_agent_id: &str,
+) -> serde_json::Value {
+    let mut value = serde_json::to_value(receipt).unwrap_or_else(
+        |_| serde_json::json!({"status": "failed", "error": "receipt serialize failed"}),
+    );
+    if let Some(object) = value.as_object_mut() {
+        object.insert(
+            "agent_id".to_owned(),
+            serde_json::Value::String(authenticated_agent_id.to_owned()),
+        );
+    }
+    value
+}
+
 #[derive(Clone, Default)]
 struct AgentCredentialBroker {
     credentials: Arc<Mutex<Vec<(SessionToken, String)>>>,
 }
 
 impl AgentCredentialBroker {
+    const MAX_ACTIVE_CREDENTIALS: usize = 1_024;
+
     fn mint(&self) -> (String, String) {
         let token = SessionToken::generate();
         let agent_id = agent_id_for_token(token.as_hex());
-        self.credentials
+        let mut credentials = self
+            .credentials
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .push((token.clone(), agent_id.clone()));
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if credentials.len() >= Self::MAX_ACTIVE_CREDENTIALS {
+            credentials.remove(0);
+        }
+        credentials.push((token.clone(), agent_id.clone()));
         (agent_id, token.as_hex().to_owned())
     }
 
@@ -745,26 +763,21 @@ async fn persist_argus_receipt(
         .map_err(|_| "invalid Argus proof key".to_owned())?;
     mac.update(&proof_bytes);
     let proof = lower_hex(&mac.finalize().into_bytes());
+    let payload = argus_durable_receipt_payload(
+        provenance.diagnostics_session_id,
+        receipt,
+        action,
+        authenticated_agent_id,
+        status,
+        &proof,
+    );
     let response = reqwest::Client::new()
         .post(format!(
             "{}/internal-diagnostics/argus/action-receipt",
             crate::backend_client::BACKEND_BASE_URL
         ))
         .timeout(Duration::from_secs(5))
-        .json(&serde_json::json!({
-            "diagnostics_session_id": provenance.diagnostics_session_id,
-            "action_id": receipt.action_id,
-            "action": action,
-            "connection_id": receipt.connection_id,
-            "agent_id": authenticated_agent_id,
-            "agent_label": receipt.agent_label,
-            "window_id": receipt.window_id,
-            "author_id": receipt.author_id,
-            "before_revision": receipt.before_revision,
-            "after_revision": receipt.after_revision,
-            "status": status,
-            "proof": proof,
-        }))
+        .json(&payload)
         .send()
         .await
         .map_err(|error| error.to_string())?;
@@ -777,6 +790,30 @@ async fn persist_argus_receipt(
         ));
     }
     serde_json::from_slice(&bytes).map_err(|error| error.to_string())
+}
+
+fn argus_durable_receipt_payload(
+    diagnostics_session_id: uuid::Uuid,
+    receipt: &crate::mcp::argus::ArgusActionReceipt,
+    action: &str,
+    authenticated_agent_id: &str,
+    status: &str,
+    proof: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "diagnostics_session_id": diagnostics_session_id,
+        "action_id": receipt.action_id,
+        "action": action,
+        "connection_id": receipt.connection_id,
+        "agent_id": authenticated_agent_id,
+        "agent_label": receipt.agent_label,
+        "window_id": receipt.window_id,
+        "author_id": receipt.author_id,
+        "before_revision": receipt.before_revision,
+        "after_revision": receipt.after_revision,
+        "status": status,
+        "proof": proof,
+    })
 }
 
 fn lower_hex(bytes: &[u8]) -> String {
@@ -1076,16 +1113,15 @@ mod tests {
         no_capture()
     }
 
-    #[tokio::test]
-    async fn broker_mints_distinct_two_client_principals_and_label_cannot_spoof() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn relabelled_mutation_retains_authenticated_principal_in_all_evidence() {
         let token = SessionToken::from_hex("production-root");
         let snapshot = Arc::new(Mutex::new(snap()));
         let channel = Arc::new(Mutex::new(ActionChannel::default()));
-        let state = SwarmSafetyState::new(token.clone(), snapshot, channel)
-            .with_durable_receipts(ArgusReceiptProvenance::new(
-                uuid::Uuid::nil(),
-                zeroize::Zeroizing::new([7_u8; 32]),
-            ));
+        let mut state = SwarmSafetyState::new(token.clone(), snapshot, channel);
+        // Enforce broker credentials without making a unit test call the live durability backend. The
+        // exact production durable payload builder is asserted after the real mutation completes.
+        state.require_agent_credentials = true;
         let first_session = state.session();
         let second_session = state.session();
         let auth = |id: u64, label: &str| {
@@ -1117,25 +1153,144 @@ mod tests {
             .await;
         let first_result = first.result_ref().unwrap();
         let second_result = second.result_ref().unwrap();
-        let first_id = first_result["agent_id"].as_str().unwrap();
-        let second_id = second_result["agent_id"].as_str().unwrap();
-        let first_token = first_result["agent_token"].as_str().unwrap();
-        let second_token = second_result["agent_token"].as_str().unwrap();
+        let first_id = first_result["agent_id"].as_str().unwrap().to_owned();
+        let second_id = second_result["agent_id"].as_str().unwrap().to_owned();
+        let first_token = first_result["agent_token"].as_str().unwrap().to_owned();
+        let second_token = second_result["agent_token"].as_str().unwrap().to_owned();
         assert_ne!(first_id, second_id);
         assert_ne!(first_token, second_token);
         assert_eq!(
-            state.agent_credentials.authenticate(first_token).as_deref(),
-            Some(first_id)
+            state
+                .agent_credentials
+                .authenticate(&first_token)
+                .as_deref(),
+            Some(first_id.as_str())
         );
         assert_eq!(
-            state.agent_credentials.authenticate(second_token).as_deref(),
-            Some(second_id)
+            state
+                .agent_credentials
+                .authenticate(&second_token)
+                .as_deref(),
+            Some(second_id.as_str())
         );
-        // A caller-controlled display label never participates in credential
-        // resolution, so relabeling cannot turn client one into client two.
         assert_ne!(
-            state.agent_credentials.authenticate(first_token).as_deref(),
-            Some(second_id)
+            state
+                .agent_credentials
+                .authenticate(&first_token)
+                .as_deref(),
+            Some(second_id.as_str())
+        );
+
+        // Principal A intentionally presents the display label used by principal B and performs a real
+        // mutation. Credential identity must win everywhere; the label remains display metadata only.
+        let spoofed = McpRequest::from_json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "argus.click",
+            "params": {
+                "window_id": MAIN_WINDOW_ID,
+                "author_id": "btn",
+                "expected_snapshot_revision": 1
+            },
+            "session_token": token.as_hex(),
+            "agent_token": first_token,
+            "agent_label": "agent-two",
+        }))
+        .unwrap();
+        assert_eq!(
+            state
+                .agent_credentials
+                .authenticate(spoofed.agent_credential())
+                .as_deref(),
+            Some(first_id.as_str()),
+            "a caller-controlled display label cannot spoof another broker-minted principal"
+        );
+        let windows = state.windows.clone();
+        let channel = state.channel.clone();
+        let dispatch_windows = windows.clone();
+        let dispatch_channel = channel.clone();
+        let dispatched = tokio::spawn(async move {
+            second_session
+                .dispatch_argus_shared_async(
+                    &spoofed,
+                    &dispatch_windows,
+                    &dispatch_channel,
+                    targeted_no_capture,
+                )
+                .await
+        });
+        let deadline = std::time::Instant::now() + Duration::from_secs(1);
+        while channel.lock().unwrap().pending() == 0 {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "relabelled mutation queued"
+            );
+            tokio::task::yield_now().await;
+        }
+        let (batch, tracker) = {
+            let mut channel = channel.lock().unwrap();
+            let tracker = channel.receipt_tracker();
+            (channel.drain_for_window(MAIN_WINDOW_ID), tracker)
+        };
+        assert_eq!(batch.action_ids.len(), 1);
+        let action_id = batch.action_ids[0].clone();
+        let current = windows.get(MAIN_WINDOW_ID).unwrap();
+        let snapshot = current.snapshot.clone();
+        let revision = windows.publish(current.window, current.snapshot);
+        tracker.acknowledge_effect(&action_id);
+        tracker.observe_postcondition(&action_id, revision, &snapshot);
+
+        let response_json = dispatched
+            .await
+            .expect("relabelled dispatch task")
+            .to_json();
+        assert_eq!(response_json["result"]["status"], "applied");
+        assert_eq!(response_json["result"]["agent_id"], first_id);
+        assert_eq!(response_json["result"]["agent_label"], "agent-two");
+
+        let log = state.log.drain_log();
+        assert_eq!(log.len(), 1);
+        assert_eq!(log[0].agent_id, first_id);
+        assert_eq!(log[0].agent_label, "agent-two");
+        assert_eq!(log[0].op_name, "argus.click");
+        assert_eq!(log[0].target_key, "btn");
+
+        let final_receipt = tracker
+            .wait(&action_id, Duration::ZERO)
+            .expect("terminal receipt");
+        assert_eq!(final_receipt.agent_label, "agent-two");
+        let durable_payload = argus_durable_receipt_payload(
+            uuid::Uuid::nil(),
+            &final_receipt,
+            canonical_receipt_action(&final_receipt.action).unwrap(),
+            &first_id,
+            "applied",
+            "proof-canary",
+        );
+        assert_eq!(durable_payload["agent_id"], first_id);
+        assert_eq!(durable_payload["agent_label"], "agent-two");
+
+        let missing_credential = McpRequest::from_json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "argus.list_windows",
+            "params": {},
+            "session_token": token.as_hex(),
+            "agent_label": "agent-one",
+        }))
+        .unwrap();
+        let rejected = state
+            .session()
+            .dispatch_argus_shared_async(
+                &missing_credential,
+                &state.windows,
+                &state.channel,
+                targeted_no_capture,
+            )
+            .await;
+        assert!(
+            rejected.is_error_code(crate::mcp::ERR_UNAUTHORIZED),
+            "a caller-controlled label is not an authentication credential"
         );
     }
 

@@ -27,7 +27,7 @@ use std::time::Duration;
 use sqlx::postgres::PgConnectOptions;
 use thiserror::Error;
 use tokio::process::Command;
-use tokio::time::{sleep, Instant};
+use tokio::time::{sleep, timeout_at, Instant};
 
 /// Environment variable that toggles the managed cluster on/off.
 pub const MANAGED_PG_ENABLED_ENV: &str = "HANDSHAKE_MANAGED_PG_ENABLED";
@@ -482,7 +482,7 @@ impl ManagedPostgres {
         // we launched ourselves.  Otherwise a stale/adopted cluster can pass
         // readiness while every product Postgres/EventLedger connection fails
         // with 3D000 because `handshake` was never created.
-        if is_ready(&pg_isready, config.port).await {
+        if is_ready(&pg_isready, config.port, config.startup_timeout).await? {
             // Readiness on localhost is not provenance: the port could be an
             // unrelated PostgreSQL instance or a tunnel. Prove that pg_ctl and
             // postmaster.pid identify this configured data directory before
@@ -747,6 +747,33 @@ fn prove_live_launch_identity(
     config: &ManagedPostgresConfig,
     identity: &ManagedPostgresLaunchIdentity,
 ) -> Result<u32, ManagedPostgresError> {
+    let current_pid = prove_launch_attempt_identity(config, identity)?;
+    let confirmed_postmaster_pid = identity.confirmed_postmaster_pid.ok_or_else(|| {
+        ManagedPostgresError::LaunchOwnershipUncertain(format!(
+            "launch token {} has no endpoint-confirmed postmaster pid",
+            identity.token
+        ))
+    })?;
+    if confirmed_postmaster_pid != current_pid {
+        return Err(ManagedPostgresError::LaunchOwnershipUncertain(format!(
+            "live postmaster pid {current_pid} differs from confirmed launch pid {confirmed_postmaster_pid} for token {}",
+            identity.token
+        )));
+    }
+    Ok(current_pid)
+}
+
+/// Attribute the live PID file to one exact `pg_ctl start` attempt without
+/// treating the derived PID as general endpoint proof.
+///
+/// This narrower proof exists only for cancellation/error cleanup before SQL
+/// endpoint confirmation can complete. The changed PID-file snapshot and the
+/// unique launch token in `postmaster.opts` must both match. Normal startup and
+/// adopted-cluster paths continue to require `prove_live_launch_identity`.
+fn prove_launch_attempt_identity(
+    config: &ManagedPostgresConfig,
+    identity: &ManagedPostgresLaunchIdentity,
+) -> Result<u32, ManagedPostgresError> {
     let pid_path = config.data_dir.join("postmaster.pid");
     let current_pid_file = std::fs::read(&pid_path).map_err(|error| {
         ManagedPostgresError::LaunchOwnershipUncertain(format!(
@@ -772,18 +799,6 @@ fn prove_live_launch_identity(
                 identity.token
             ))
         })?;
-    let confirmed_postmaster_pid = identity.confirmed_postmaster_pid.ok_or_else(|| {
-        ManagedPostgresError::LaunchOwnershipUncertain(format!(
-            "launch token {} has no endpoint-confirmed postmaster pid",
-            identity.token
-        ))
-    })?;
-    if confirmed_postmaster_pid != current_pid {
-        return Err(ManagedPostgresError::LaunchOwnershipUncertain(format!(
-            "live postmaster pid {current_pid} differs from confirmed launch pid {confirmed_postmaster_pid} for token {}",
-            identity.token
-        )));
-    }
 
     let opts_path = config.data_dir.join("postmaster.opts");
     let opts = std::fs::read_to_string(&opts_path).map_err(|error| {
@@ -811,7 +826,18 @@ fn authorize_destructive_stop<T>(
     identity: &ManagedPostgresLaunchIdentity,
     invoke_pg_ctl_stop: impl FnOnce() -> Result<T, ManagedPostgresError>,
 ) -> Result<T, ManagedPostgresError> {
-    prove_live_launch_identity(config, identity)?;
+    if identity.confirmed_postmaster_pid.is_some() {
+        prove_live_launch_identity(config, identity)?;
+    } else {
+        // A cancelled startup may never reach endpoint confirmation even
+        // though its exact pg_ctl attempt already created the postmaster. Bind
+        // the token-attributed PID only in this stop authorization copy; never
+        // promote it to adopted/live endpoint authority.
+        let derived_pid = prove_launch_attempt_identity(config, identity)?;
+        let mut cleanup_identity = identity.clone();
+        cleanup_identity.confirmed_postmaster_pid = Some(derived_pid);
+        prove_live_launch_identity(config, &cleanup_identity)?;
+    }
     invoke_pg_ctl_stop()
 }
 
@@ -837,6 +863,9 @@ async fn stop_owned_cluster(
 
     let pg_isready = resolve_bin(&config.bin_dir, "pg_isready")?;
 
+    let timeout = config.startup_timeout;
+    let deadline = Instant::now() + timeout;
+
     // `pg_ctl stop` can retain a Windows process handle even after it has
     // successfully asked the postmaster to shut down.  Its exit status is
     // therefore not the lifecycle authority: the owned cluster is stopped
@@ -844,8 +873,14 @@ async fn stop_owned_cluster(
     // gone.  This is the shutdown counterpart to startup's readiness
     // polling and avoids a false StopTimeout caused by pg_ctl's inherited
     // postmaster handles.
-    if !is_ready(&pg_isready, config.port).await && read_postmaster_pid(&config.data_dir).is_none()
-    {
+    let initial_probe_timeout = deadline.saturating_duration_since(Instant::now());
+    if initial_probe_timeout.is_zero() {
+        return Err(ManagedPostgresError::StopTimeout(timeout));
+    }
+    let initially_ready = is_ready(&pg_isready, config.port, initial_probe_timeout)
+        .await
+        .map_err(|_| ManagedPostgresError::StopTimeout(timeout))?;
+    if !initially_ready && read_postmaster_pid(&config.data_dir).is_none() {
         tracing::debug!(
             target: "handshake_core::managed_postgres",
             port = config.port,
@@ -859,7 +894,6 @@ async fn stop_owned_cluster(
             "owned stop lacks a launch-attempt identity".to_string(),
         )
     })?;
-    let timeout = config.startup_timeout;
     let mut child = authorize_destructive_stop(config, launch_identity, || {
         no_window(Command::new(&pg_ctl))
             .kill_on_drop(true)
@@ -874,11 +908,17 @@ async fn stop_owned_cluster(
             .spawn()
             .map_err(ManagedPostgresError::from)
     })?;
-    let deadline = Instant::now() + timeout;
     loop {
-        if !is_ready(&pg_isready, config.port).await
-            && read_postmaster_pid(&config.data_dir).is_none()
-        {
+        let probe_timeout = deadline.saturating_duration_since(Instant::now());
+        if probe_timeout.is_zero() {
+            let _ = child.start_kill();
+            let _ = child.wait().await;
+            return Err(ManagedPostgresError::StopTimeout(timeout));
+        }
+        let ready = is_ready(&pg_isready, config.port, probe_timeout)
+            .await
+            .map_err(|_| ManagedPostgresError::StopTimeout(timeout))?;
+        if !ready && read_postmaster_pid(&config.data_dir).is_none() {
             tracing::info!(
                 target: "handshake_core::managed_postgres",
                 "Managed PostgreSQL stopped"
@@ -1051,18 +1091,44 @@ fn cluster_initialized(data_dir: &Path) -> bool {
     data_dir.join("PG_VERSION").is_file()
 }
 
-/// Run `pg_isready -h 127.0.0.1 -p <port>` and report whether it exited 0.
-async fn is_ready(pg_isready: &Path, port: u16) -> bool {
-    match no_window(Command::new(pg_isready))
+/// Run one bounded `pg_isready -h 127.0.0.1 -p <port>` probe.
+///
+/// A reserve inside `timeout` is held back for exact child termination and
+/// reaping. Consequently a hung probe cannot defeat a caller's startup/stop
+/// deadline and cannot survive the dropped future as an orphan.
+async fn is_ready(
+    pg_isready: &Path,
+    port: u16,
+    timeout: Duration,
+) -> Result<bool, ManagedPostgresError> {
+    if timeout.is_zero() {
+        return Err(ManagedPostgresError::Timeout(timeout));
+    }
+    let started = Instant::now();
+    let deadline = started + timeout;
+    let reap_reserve = timeout / 2;
+    let execution_deadline = deadline - reap_reserve;
+    let mut child = no_window(Command::new(pg_isready))
+        .kill_on_drop(true)
         .arg("-h")
         .arg(MANAGED_PG_LOOPBACK_HOST)
         .arg("-p")
         .arg(port.to_string())
-        .output()
-        .await
-    {
-        Ok(output) => output.status.success(),
-        Err(_) => false,
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+    match timeout_at(execution_deadline, child.wait()).await {
+        Ok(Ok(status)) => Ok(status.success()),
+        Ok(Err(error)) => Err(ManagedPostgresError::Io(error)),
+        Err(_) => {
+            let _ = child.start_kill();
+            match timeout_at(deadline, child.wait()).await {
+                Ok(Ok(_)) => Err(ManagedPostgresError::Timeout(timeout)),
+                Ok(Err(error)) => Err(ManagedPostgresError::Io(error)),
+                Err(_) => Err(ManagedPostgresError::Timeout(timeout)),
+            }
+        }
     }
 }
 
@@ -1163,7 +1229,11 @@ async fn wait_until_ready(
     let deadline = Instant::now() + timeout;
     let poll_interval = Duration::from_millis(250);
     loop {
-        if is_ready(pg_isready, port).await {
+        let probe_timeout = deadline.saturating_duration_since(Instant::now());
+        if probe_timeout.is_zero() {
+            return Err(ManagedPostgresError::Timeout(timeout));
+        }
+        if is_ready(pg_isready, port, probe_timeout).await? {
             return Ok(());
         }
         if Instant::now() >= deadline {
@@ -1196,7 +1266,7 @@ async fn prove_local_postgres_endpoint(
     psql: &Path,
     config: &ManagedPostgresConfig,
 ) -> Result<ProvenLocalPostgresEndpoint, ManagedPostgresError> {
-    if !is_ready(pg_isready, config.port).await {
+    if !is_ready(pg_isready, config.port, config.startup_timeout).await? {
         return Err(ManagedPostgresError::LocalEndpointProofFailed(format!(
             "configured endpoint {}:{} is not ready",
             MANAGED_PG_LOOPBACK_HOST, config.port
@@ -1781,6 +1851,60 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn hung_pg_isready_is_killed_and_reaped_within_probe_timeout() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let survived_marker = temp.path().join("pg_isready-survived.txt");
+        #[cfg(windows)]
+        let command_path = {
+            let path = temp.path().join("pg_isready_hang.cmd");
+            std::fs::write(
+                &path,
+                format!(
+                    "@echo off\r\nping 127.0.0.1 -n 3 >NUL\r\necho survived>\"{}\"\r\n",
+                    survived_marker.display()
+                ),
+            )
+            .expect("write hanging pg_isready shim");
+            path
+        };
+        #[cfg(unix)]
+        let command_path = {
+            use std::os::unix::fs::PermissionsExt;
+            let path = temp.path().join("pg_isready_hang");
+            std::fs::write(
+                &path,
+                format!(
+                    "#!/bin/sh\nsleep 1\nprintf survived > \"{}\"\n",
+                    survived_marker.display()
+                ),
+            )
+            .expect("write hanging pg_isready shim");
+            let mut permissions = std::fs::metadata(&path)
+                .expect("shim metadata")
+                .permissions();
+            permissions.set_mode(0o700);
+            std::fs::set_permissions(&path, permissions).expect("make shim executable");
+            path
+        };
+
+        let timeout = Duration::from_millis(100);
+        let started = Instant::now();
+        let error = is_ready(&command_path, 6008, timeout)
+            .await
+            .expect_err("a hung pg_isready probe must time out");
+        assert!(matches!(error, ManagedPostgresError::Timeout(duration) if duration == timeout));
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "the probe timeout plus exact reap must remain bounded under load"
+        );
+        sleep(Duration::from_millis(1_500)).await;
+        assert!(
+            !survived_marker.exists(),
+            "a timed-out pg_isready child must be killed and reaped before its shim can continue"
+        );
+    }
+
     #[test]
     fn concurrent_start_identity_refuses_cancellation_cleanup() {
         let temp = tempfile::tempdir().expect("tempdir");
@@ -1834,8 +1958,8 @@ mod tests {
         let current_pid_file = b"4242\n/data\n0\n6005\n".to_vec();
         let cases = [
             (
-                "missing_confirmed_pid",
-                None,
+                "unchanged_preconfirmation_pid_snapshot",
+                Some(current_pid_file.clone()),
                 None,
                 Some("\"postgres\" \"-c\" \"cluster_name=hsk_matrix_owned\"\n"),
             ),
@@ -1851,17 +1975,17 @@ mod tests {
                 Some(9999),
                 Some("\"postgres\" \"-c\" \"cluster_name=hsk_matrix_owned\"\n"),
             ),
-            ("missing_opts_file", None, Some(4242), None),
+            ("missing_preconfirmation_opts_file", None, None, None),
             (
-                "missing_opts_token",
+                "missing_preconfirmation_opts_token",
                 None,
-                Some(4242),
+                None,
                 Some("\"postgres\" \"-D\" \"/data\"\n"),
             ),
             (
-                "foreign_opts_token",
+                "foreign_preconfirmation_opts_token",
                 None,
-                Some(4242),
+                None,
                 Some("\"postgres\" \"-c\" \"cluster_name=hsk_foreign_attempt\"\n"),
             ),
         ];
@@ -1909,7 +2033,7 @@ mod tests {
     }
 
     #[test]
-    fn endpoint_confirmation_precedes_authorization_and_survives_cleanup_sequencing() {
+    fn cancelled_start_preconfirmation_identity_authorizes_only_exact_cleanup() {
         use std::cell::Cell;
 
         let temp = tempfile::tempdir().expect("tempdir");
@@ -1943,8 +2067,14 @@ mod tests {
             stop_invocations.set(stop_invocations.get().saturating_add(1));
             Ok(())
         })
-        .expect_err("authorization before endpoint confirmation must fail closed");
-        assert_eq!(stop_invocations.get(), 0);
+        .expect(
+            "changed PID snapshot plus exact launch token must authorize cancelled-start cleanup",
+        );
+        assert_eq!(stop_invocations.get(), 1);
+        assert_eq!(
+            guard.launch_identity.confirmed_postmaster_pid, None,
+            "cleanup-only PID derivation must not promote endpoint authority into the startup guard"
+        );
 
         let confirmed = guard.bind_confirmed_postmaster_pid(5151);
         assert_eq!(confirmed.confirmed_postmaster_pid, Some(5151));
@@ -1958,7 +2088,7 @@ mod tests {
             Ok(())
         })
         .expect("authorization after endpoint confirmation must reach owned cleanup");
-        assert_eq!(stop_invocations.get(), 1);
+        assert_eq!(stop_invocations.get(), 2);
 
         let transferred = guard.disarm_and_transfer();
         assert_eq!(

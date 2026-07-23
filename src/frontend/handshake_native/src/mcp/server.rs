@@ -197,13 +197,19 @@ impl SwarmMcpServer {
             token: state.safety.token.as_hex().to_owned(),
             pid: std::process::id(),
         };
-        match binding::write_binding(&binding) {
-            Ok(path) => {
+        let binding_for_write = binding.clone();
+        match tokio::task::spawn_blocking(move || binding::write_binding(&binding_for_write)).await
+        {
+            Ok(Ok(path)) => {
                 tracing::info!(path = %path.display(), tcp = %binding.tcp_addr, "mcp binding written")
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 tracing::warn!(error = %e, "mcp binding file write failed (server still running)")
             }
+            Err(error) => tracing::warn!(
+                error = %error,
+                "mcp binding writer task failed (server still running)"
+            ),
         }
 
         Ok(Self {

@@ -47,7 +47,7 @@ mod windows_e2e {
         Foundation::{CloseHandle, FILETIME, HANDLE, WAIT_FAILED, WAIT_OBJECT_0, WAIT_TIMEOUT},
         System::Threading::{
             GetProcessTimes, OpenProcess, TerminateProcess, WaitForSingleObject,
-            PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE, SYNCHRONIZE,
+            PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_TERMINATE,
         },
     };
 
@@ -61,6 +61,7 @@ mod windows_e2e {
     const OFFSET_ACTIVE_SLOT: usize = 12;
     const OFFSET_GENERATION: usize = 16;
     const PROCESS_WAIT_MS: u32 = 5_000;
+    const SYNCHRONIZE_ACCESS: u32 = 0x0010_0000;
 
     type TestResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -895,8 +896,13 @@ mod windows_e2e {
     }
 
     fn exact_process_is_alive(pid: u32, creation_time_100ns: u64) -> TestResult<bool> {
-        let handle =
-            unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE, 0, pid) };
+        let handle = unsafe {
+            OpenProcess(
+                PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE_ACCESS,
+                0,
+                pid,
+            )
+        };
         if handle.is_null() {
             let error = io::Error::last_os_error();
             return if error.raw_os_error() == Some(87) {
@@ -905,7 +911,7 @@ mod windows_e2e {
                 Err(Box::new(error))
             };
         }
-        let result: TestResult<bool> = (|| {
+        let result = (|| -> TestResult<bool> {
             if process_creation_time_100ns(handle)? != creation_time_100ns {
                 return Ok(false);
             }
@@ -927,7 +933,7 @@ mod windows_e2e {
     fn terminate_exact_process(pid: u32, creation_time_100ns: u64) -> TestResult<()> {
         let handle = unsafe {
             OpenProcess(
-                PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE,
+                PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE_ACCESS,
                 0,
                 pid,
             )
@@ -940,7 +946,7 @@ mod windows_e2e {
                 Err(Box::new(error))
             };
         }
-        let result: TestResult<()> = (|| {
+        let result = (|| -> TestResult<()> {
             if process_creation_time_100ns(handle)? != creation_time_100ns {
                 return Ok(());
             }

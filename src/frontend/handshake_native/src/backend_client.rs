@@ -1629,14 +1629,44 @@ impl CloudAccessClient {
         let url = format!("{}/model-access/byok/{}/key", self.base_url, provider);
         delete_expect_success(&self.client, &url).await
     }
+
+    /// Ask the backend to launch the already-pinned provider login graph.
+    /// The response is an opaque pid handle; executable paths and argv never
+    /// cross into the GUI for local PATH/shell resolution.
+    pub async fn launch_cli_login(&self, provider: &str) -> Result<u32, AppError> {
+        if !matches!(provider, "claude_code" | "codex") {
+            return Err(AppError::Parse(
+                "unsupported CLI login provider".to_string(),
+            ));
+        }
+        let url = format!("{}/model-access/cli-bridge/{provider}/login", self.base_url);
+        let value = post_json(&self.client, &url, &serde_json::json!({})).await?;
+        if value.get("provider").and_then(Value::as_str) != Some(provider) {
+            return Err(AppError::Parse(
+                "CLI login receipt provider mismatch".to_string(),
+            ));
+        }
+        value
+            .pointer("/launch_handle/pid")
+            .and_then(Value::as_u64)
+            .and_then(|pid| u32::try_from(pid).ok())
+            .filter(|pid| *pid != 0)
+            .ok_or_else(|| AppError::Parse("invalid CLI login launch handle".to_string()))
+    }
 }
 
 /// Parse the `GET /model-access/providers` JSON into the UI snapshot. Defensive:
-/// only the exact compiled provider IDs are accepted. A stale/spoofed response
-/// therefore cannot surface Gemini, case variants, or an unknown provider row.
+/// only the exact compiled provider IDs and fixed official login command vectors
+/// are accepted. A stale/spoofed response therefore cannot surface Gemini, case
+/// variants, an unknown provider row, or substitute an executable/argv.
 fn parse_cloud_access_snapshot(value: &Value) -> CloudAccessSnapshot {
     let is_allowed_byok = |provider: &str| matches!(provider, "anthropic" | "openai");
     let is_allowed_cli = |provider: &str| matches!(provider, "claude_code" | "codex");
+    let expected_cli_login = |provider: &str| match provider {
+        "claude_code" => Some(("claude", &["auth", "login"][..])),
+        "codex" => Some(("codex", &["login"][..])),
+        _ => None,
+    };
     let byok = value
         .get("byok")
         .and_then(Value::as_array)
@@ -1684,15 +1714,26 @@ fn parse_cloud_access_snapshot(value: &Value) -> CloudAccessSnapshot {
                         .and_then(Value::as_str)
                         .unwrap_or("")
                         .to_owned();
-                    let login_args = login
+                    let login_args_json = login
                         .and_then(|l| l.get("args"))
-                        .and_then(Value::as_array)
-                        .map(|args| {
-                            args.iter()
-                                .filter_map(|a| a.as_str().map(str::to_owned))
-                                .collect()
-                        })
-                        .unwrap_or_default();
+                        .and_then(Value::as_array)?;
+                    let (expected_program, expected_args) = expected_cli_login(&provider)?;
+                    if login_program != expected_program
+                        || login_args_json.len() != expected_args.len()
+                    {
+                        return None;
+                    }
+                    let login_args = login_args_json
+                        .iter()
+                        .map(|arg| arg.as_str().map(str::to_owned))
+                        .collect::<Option<Vec<_>>>()?;
+                    if login_args
+                        .iter()
+                        .map(String::as_str)
+                        .ne(expected_args.iter().copied())
+                    {
+                        return None;
+                    }
                     let hint = login
                         .and_then(|l| l.get("hint"))
                         .and_then(Value::as_str)
@@ -2348,6 +2389,30 @@ mod tests {
                     "label": "Codex",
                     "auth_status": "logged_in",
                     "login": {"program": "codex", "args": ["login"], "hint": ""}
+                },
+                {
+                    "provider": "claude_code",
+                    "label": "Spoofed Claude",
+                    "auth_status": "logged_in",
+                    "login": {"program": "powershell", "args": ["-Command", "whoami"], "hint": ""}
+                },
+                {
+                    "provider": "codex",
+                    "label": "Non-string argv",
+                    "auth_status": "logged_in",
+                    "login": {"program": "codex", "args": ["login", 7], "hint": ""}
+                },
+                {
+                    "provider": "codex",
+                    "label": "Extra argv",
+                    "auth_status": "logged_in",
+                    "login": {"program": "codex", "args": ["login", "--unexpected"], "hint": ""}
+                },
+                {
+                    "provider": "codex",
+                    "label": "Duplicate argv",
+                    "auth_status": "logged_in",
+                    "login": {"program": "codex", "args": ["login", "login"], "hint": ""}
                 },
                 {
                     "provider": "GEMINI_CLI",

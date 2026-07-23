@@ -123,41 +123,6 @@ fn allowlisted_cli_login_command(
     }
 }
 
-/// Launch one allowlisted official CLI login in a new visible console after the Settings surface's
-/// explicit operator confirmation. Provider data never becomes a shell fragment.
-fn launch_visible_login_terminal(provider: &str) -> std::io::Result<()> {
-    let (program, args) = allowlisted_cli_login_command(provider).ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "unsupported CLI login provider",
-        )
-    })?;
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
-        let fixed_command = match provider {
-            "claude_code" => "claude auth login",
-            "codex" => "codex login",
-            _ => unreachable!("provider was checked by allowlisted_cli_login_command"),
-        };
-        std::process::Command::new("cmd.exe")
-            .args(["/D", "/S", "/K", fixed_command])
-            .creation_flags(CREATE_NEW_CONSOLE)
-            .spawn()
-            .map(|_| ())
-    }
-    #[cfg(not(windows))]
-    {
-        // Best-effort on non-Windows: spawn the program directly (the product ships Windows-first; a
-        // richer terminal-emulator launch on other platforms is a follow-up).
-        std::process::Command::new(program)
-            .args(args)
-            .spawn()
-            .map(|_| ())
-    }
-}
-
 pub struct HandshakeApp {
     health_status: HealthDisplayState,
     rt: tokio::runtime::Runtime,
@@ -376,11 +341,12 @@ pub struct HandshakeApp {
     /// MT-015: set when the Cloud Models enumeration should be (re)fetched — on settings open and after a
     /// key save/remove — so the status rows reflect durable state.
     cloud_access_refresh_pending: bool,
-    /// MT-015: the last CLI-bridge official-login command the operator launched (observability; also lets
-    /// a test assert launch intent without spawning a real terminal).
+    /// MT-015: the last fixed CLI-bridge login intent the operator confirmed
+    /// (observability; also lets a test assert intent without sending a backend
+    /// launch request).
     last_cli_login_launch: Option<(String, Vec<String>)>,
-    /// MT-015: when true, a CLI-bridge login records the launch intent but does NOT spawn a terminal
-    /// (tests set this so a focus-stealing console never opens during a headless run).
+    /// MT-015: when true, a CLI-bridge login records the launch intent but does
+    /// not call the backend (tests use this so no foreground console opens).
     suppress_cli_login_launch: bool,
     /// A pending theme flip to apply at the START of the next frame, BEFORE any panel renders (red-team
     /// R4/MC4): applying egui `Visuals` mid-frame would leave already-rendered widgets on the old theme
@@ -512,6 +478,10 @@ pub struct HandshakeApp {
     /// pipe), bound at startup on the app runtime. `None` in the headless/test shell and until bind
     /// completes. Dropping it on app exit removes the discovery binding file.
     mcp_server: Option<crate::mcp::SwarmMcpServer>,
+    /// Completion slot for the background MCP bind. The frame loop only polls this lock; socket
+    /// binding and discovery-file ACL work never run on the UI thread.
+    mcp_bind_cell: Arc<Mutex<Option<Result<crate::mcp::SwarmMcpServer, String>>>>,
+    mcp_bind_in_flight: bool,
     /// Set only when a backend-authenticated Palmistry launch has returned the
     /// session signing key and the production MCP bind has been attempted.
     mcp_bind_attempted: bool,
@@ -931,6 +901,8 @@ impl HandshakeApp {
             // runtime. A bind failure is logged + degrades to "no MCP server" rather than blocking the
             // window from opening (the shell must always start).
             mcp_server: None,
+            mcp_bind_cell: Arc::new(Mutex::new(None)),
+            mcp_bind_in_flight: false,
             mcp_bind_attempted: false,
             mcp_bind_attempts: 0,
             mcp_bind_retry_at: None,
@@ -1002,7 +974,7 @@ impl HandshakeApp {
     /// Bind the MCP transport (MT-027) on the app's tokio runtime and store the handle. Logged + non-fatal
     /// on failure so the shell always opens. Only the production shell (with a multi-thread runtime) binds;
     /// the headless/test shell drives the server's `dispatch_request` directly instead.
-    fn spawn_mcp_server(&mut self) -> bool {
+    fn spawn_mcp_server(&mut self, ctx: &egui::Context) -> bool {
         let token = self.mcp_token.clone();
         let snapshot = self.mcp_snapshot.clone();
         let windows = self.mcp_windows.clone();
@@ -1025,8 +997,10 @@ impl HandshakeApp {
             diagnostics.argus_signing_secret_provider(),
         );
         let capture = crate::mcp::SwarmMcpServer::os_window_capture();
-        let result = self.rt.block_on(async move {
-            crate::mcp::SwarmMcpServer::bind_with_windows(
+        let completion = self.mcp_bind_cell.clone();
+        let repaint = ctx.clone();
+        self.rt.handle().spawn(async move {
+            let result = crate::mcp::SwarmMcpServer::bind_with_windows(
                 token,
                 snapshot,
                 windows,
@@ -1035,18 +1009,15 @@ impl HandshakeApp {
                 capture,
             )
             .await
+            .map_err(|error| error.to_string());
+            match completion.lock() {
+                Ok(mut slot) => *slot = Some(result),
+                Err(poisoned) => *poisoned.into_inner() = Some(result),
+            }
+            repaint.request_repaint();
         });
-        match result {
-            Ok(server) => {
-                tracing::info!(tcp = %server.tcp_addr(), pipe = ?server.pipe_name(), "MCP swarm server bound");
-                self.mcp_server = Some(server);
-                true
-            }
-            Err(e) => {
-                tracing::warn!(error = %e, "MCP swarm server bind failed; model-steering transport disabled this session");
-                false
-            }
-        }
+        self.mcp_bind_in_flight = true;
+        true
     }
 
     fn main_argus_window() -> crate::mcp::ArgusWindowDescriptor {
@@ -1245,6 +1216,8 @@ impl HandshakeApp {
             // dispatch + frame-drain steering loop in-process; the over-the-wire test binds its OWN
             // `SwarmMcpServer` on a `#[tokio::test]` runtime.
             mcp_server: None,
+            mcp_bind_cell: Arc::new(Mutex::new(None)),
+            mcp_bind_in_flight: false,
             mcp_bind_attempted: false,
             mcp_bind_attempts: 0,
             mcp_bind_retry_at: None,
@@ -3144,10 +3117,10 @@ impl HandshakeApp {
         }
     }
 
-    /// MT-015: launch a CLI-bridge provider's OWN official login command in a visible terminal
-    /// (operator-initiated — HBR-QUIET allows an operator-triggered foreground window). Handshake never
-    /// captures or stores the credential this login establishes. Records the launch intent; the terminal
-    /// spawn is suppressed in headless test shells so no console steals focus during `cargo test`.
+    /// MT-015: ask the backend to launch the CLI provider's exact pinned graph in
+    /// a visible terminal. The GUI records only the fixed intent and receives an
+    /// opaque pid handle; it never resolves PATH, invokes a shell, or receives
+    /// the executable path. Headless shells suppress the request.
     fn launch_cli_bridge_login(&mut self, provider: &str) {
         let Some((program, args)) = allowlisted_cli_login_command(provider) else {
             self.cloud_models
@@ -3165,9 +3138,31 @@ impl HandshakeApp {
         if self.suppress_cli_login_launch {
             return;
         }
-        if let Err(err) = launch_visible_login_terminal(provider) {
-            self.cloud_models
-                .set_message(provider, format!("Could not launch terminal: {err}"));
+        match (
+            self.cloud_access_client.clone(),
+            self.runtime_handle.clone(),
+        ) {
+            (Some(client), Some(handle)) => {
+                let provider_owned = provider.to_owned();
+                let cell = self.cloud_access_cell.clone();
+                handle.spawn(async move {
+                    let message = match client.launch_cli_login(&provider_owned).await {
+                        Ok(pid) => format!("Official login launched (handle {pid})."),
+                        Err(error) => format!("Could not launch official login: {error}"),
+                    };
+                    if let Ok(mut slot) = cell.lock() {
+                        slot.push(crate::backend_client::CloudAccessDelivery::OpResult {
+                            provider: provider_owned,
+                            message,
+                            snapshot: None,
+                        });
+                    }
+                });
+            }
+            _ => {
+                self.cloud_models
+                    .set_message(provider, "Backend not reachable — login not launched.");
+            }
         }
     }
 
@@ -5568,7 +5563,34 @@ impl eframe::App for HandshakeApp {
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let frame_started = std::time::Instant::now();
+        if self.mcp_bind_in_flight {
+            let completed = match self.mcp_bind_cell.lock() {
+                Ok(mut slot) => slot.take(),
+                Err(poisoned) => poisoned.into_inner().take(),
+            };
+            if let Some(result) = completed {
+                self.mcp_bind_in_flight = false;
+                match result {
+                    Ok(server) => {
+                        tracing::info!(tcp = %server.tcp_addr(), pipe = ?server.pipe_name(), "MCP swarm server bound");
+                        self.mcp_server = Some(server);
+                        self.mcp_bind_attempted = true;
+                        self.mcp_bind_retry_at = None;
+                    }
+                    Err(error) => {
+                        tracing::warn!(error = %error, "MCP swarm server bind failed; retry scheduled");
+                        let backoff =
+                            200_u64.saturating_mul(1_u64 << self.mcp_bind_attempts.min(4));
+                        self.mcp_bind_retry_at = Some(
+                            std::time::Instant::now() + std::time::Duration::from_millis(backoff),
+                        );
+                        ctx.request_repaint_after(std::time::Duration::from_millis(backoff));
+                    }
+                }
+            }
+        }
         if !self.mcp_bind_attempted
+            && !self.mcp_bind_in_flight
             && self.mcp_bind_attempts < 6
             && self
                 .mcp_bind_retry_at
@@ -5580,13 +5602,11 @@ impl eframe::App for HandshakeApp {
                 .is_some()
         {
             self.mcp_bind_attempts += 1;
-            if self.spawn_mcp_server() {
-                self.mcp_bind_attempted = true;
-                self.mcp_bind_retry_at = None;
-            } else {
+            if !self.spawn_mcp_server(ctx) {
                 let backoff = 200_u64.saturating_mul(1_u64 << self.mcp_bind_attempts.min(4));
                 self.mcp_bind_retry_at =
                     Some(std::time::Instant::now() + std::time::Duration::from_millis(backoff));
+                ctx.request_repaint_after(std::time::Duration::from_millis(backoff));
             }
         }
         self.ui(ctx);

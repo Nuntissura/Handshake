@@ -151,6 +151,7 @@ windows-sys = { version = "0.61", features = [
     "Win32_Storage_FileSystem",
     "Win32_System_Kernel",
     "Win32_System_Memory",
+    "Win32_System_Diagnostics_ToolHelp",
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_Accessibility",
     "Win32_UI_Input_KeyboardAndMouse",

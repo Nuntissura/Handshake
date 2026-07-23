@@ -44,11 +44,13 @@ use std::thread;
 use std::time::Duration;
 
 use secrecy::{ExposeSecret, SecretString};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zeroize::Zeroize;
 
-use super::official_cli_bridge::{CliBridgeConfig, CliInvocationContext, LiveCliSpawner};
+use super::official_cli_bridge::{
+    CliBridgeConfig, CliInvocationContext, ForegroundCliLaunchHandle, LiveCliSpawner,
+};
 use super::secrets_vault::{SecretsVault, SecretsVaultError};
 use crate::sandbox::{
     IsolationTier, NetPolicy, RequiredCapability, TrustClass,
@@ -228,6 +230,23 @@ pub trait CliBridgeAuthStatusProbe: Send + Sync {
     fn auth_status(&self, provider: CliBridgeProvider) -> CliBridgeAuthStatus;
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Error)]
+pub enum CliBridgeLoginLaunchError {
+    #[error("official CLI login is unavailable")]
+    Unavailable,
+    #[error("official CLI login launch failed")]
+    LaunchFailed,
+}
+
+/// Backend-owned interactive login launcher. Implementations return only an
+/// opaque pid handle; executable paths and argv never cross into the GUI.
+pub trait CliBridgeLoginLauncher: Send + Sync {
+    fn launch_login(
+        &self,
+        provider: CliBridgeProvider,
+    ) -> Result<ForegroundCliLaunchHandle, CliBridgeLoginLaunchError>;
+}
+
 /// One canonical, launchable CLI target. It reuses the exact configured launch
 /// graph and live spawner already accepted by Operator Chat; status probing
 /// never performs an independent PATH lookup.
@@ -256,7 +275,11 @@ impl std::fmt::Debug for ProductionCliBridgeAuthStatusProbe {
             .debug_struct("ProductionCliBridgeAuthStatusProbe")
             .field(
                 "providers",
-                &self.targets.keys().map(|provider| provider.id()).collect::<Vec<_>>(),
+                &self
+                    .targets
+                    .keys()
+                    .map(|provider| provider.id())
+                    .collect::<Vec<_>>(),
             )
             .finish()
     }
@@ -317,12 +340,46 @@ impl CliBridgeAuthStatusProbe for ProductionCliBridgeAuthStatusProbe {
     }
 }
 
+impl CliBridgeLoginLauncher for ProductionCliBridgeAuthStatusProbe {
+    fn launch_login(
+        &self,
+        provider: CliBridgeProvider,
+    ) -> Result<ForegroundCliLaunchHandle, CliBridgeLoginLaunchError> {
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = provider;
+            Err(CliBridgeLoginLaunchError::Unavailable)
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            let target = self
+                .targets
+                .get(&provider)
+                .ok_or(CliBridgeLoginLaunchError::Unavailable)?;
+            target
+                .spawner
+                .launch_foreground_fixed_command(&target.config, provider.login_command().args)
+                .map_err(|_| CliBridgeLoginLaunchError::LaunchFailed)
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 struct UnavailableCliBridgeAuthStatusProbe;
 
 impl CliBridgeAuthStatusProbe for UnavailableCliBridgeAuthStatusProbe {
     fn auth_status(&self, _provider: CliBridgeProvider) -> CliBridgeAuthStatus {
         CliBridgeAuthStatus::Unavailable
+    }
+}
+
+impl CliBridgeLoginLauncher for UnavailableCliBridgeAuthStatusProbe {
+    fn launch_login(
+        &self,
+        _provider: CliBridgeProvider,
+    ) -> Result<ForegroundCliLaunchHandle, CliBridgeLoginLaunchError> {
+        Err(CliBridgeLoginLaunchError::Unavailable)
     }
 }
 
@@ -357,20 +414,27 @@ fn parse_official_auth_status(
 ) -> CliBridgeAuthStatus {
     match provider {
         CliBridgeProvider::ClaudeCode => {
-            let Ok(value) = serde_json::from_slice::<serde_json::Value>(stdout) else {
+            #[derive(Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct ClaudeAuthStatus {
+                logged_in: bool,
+                #[serde(default)]
+                subscription_type: Option<String>,
+            }
+
+            let Ok(status) = serde_json::from_slice::<ClaudeAuthStatus>(stdout) else {
                 return CliBridgeAuthStatus::Unavailable;
             };
-            match value.get("loggedIn").and_then(serde_json::Value::as_bool) {
-                Some(true)
-                    if success
-                        && value
-                            .get("subscriptionType")
-                            .and_then(serde_json::Value::as_str)
-                            .is_some_and(|value| !value.trim().is_empty()) =>
-                {
+            match status {
+                ClaudeAuthStatus {
+                    logged_in: true,
+                    subscription_type: Some(subscription_type),
+                } if success && !subscription_type.trim().is_empty() => {
                     CliBridgeAuthStatus::LoggedIn
                 }
-                Some(false) => CliBridgeAuthStatus::LoggedOut,
+                ClaudeAuthStatus {
+                    logged_in: false, ..
+                } if success => CliBridgeAuthStatus::LoggedOut,
                 _ => CliBridgeAuthStatus::Unavailable,
             }
         }
@@ -379,7 +443,7 @@ fn parse_official_auth_status(
                 return CliBridgeAuthStatus::Unavailable;
             };
             match text.trim() {
-                "Not logged in" => CliBridgeAuthStatus::LoggedOut,
+                "Not logged in" if success => CliBridgeAuthStatus::LoggedOut,
                 "Logged in using ChatGPT" if success => CliBridgeAuthStatus::LoggedIn,
                 _ => CliBridgeAuthStatus::Unavailable,
             }
@@ -801,13 +865,22 @@ mod tests {
         assert_eq!(
             parse_official_auth_status(
                 CliBridgeProvider::ClaudeCode,
-                false,
+                true,
                 format!(
                     r#"{{"loggedIn":false,"refresh_token":"{CANARY}","email":"expired@example.invalid"}}"#
                 )
                 .as_bytes(),
             ),
             CliBridgeAuthStatus::LoggedOut
+        );
+        assert_eq!(
+            parse_official_auth_status(
+                CliBridgeProvider::ClaudeCode,
+                false,
+                br#"{"loggedIn":false}"#,
+            ),
+            CliBridgeAuthStatus::Unavailable,
+            "a recognized payload from a failed command is not authoritative"
         );
         assert_eq!(
             parse_official_auth_status(
@@ -819,19 +892,16 @@ mod tests {
             "API-key auth is not subscription-plan availability"
         );
         assert_eq!(
-            parse_official_auth_status(
-                CliBridgeProvider::Codex,
-                false,
-                b"Not logged in",
-            ),
+            parse_official_auth_status(CliBridgeProvider::Codex, true, b"Not logged in",),
             CliBridgeAuthStatus::LoggedOut
         );
         assert_eq!(
-            parse_official_auth_status(
-                CliBridgeProvider::Codex,
-                true,
-                b"Logged in using ChatGPT",
-            ),
+            parse_official_auth_status(CliBridgeProvider::Codex, false, b"Not logged in",),
+            CliBridgeAuthStatus::Unavailable,
+            "a recognized string from a failed command is not authoritative"
+        );
+        assert_eq!(
+            parse_official_auth_status(CliBridgeProvider::Codex, true, b"Logged in using ChatGPT",),
             CliBridgeAuthStatus::LoggedIn
         );
         for unsupported in [
