@@ -4254,6 +4254,82 @@ fn build_loom_edge_mutation_event(
     .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))
 }
 
+/// WP-KERNEL-012 E3 MT-024: build the durable EventLedger receipt for a Loom
+/// block pin/favorite mutation. Appended in the SAME PostgreSQL transaction as
+/// the block write so a committed pin/favorite mutation — and, critically, an
+/// atomic pin removal (clear pin_order + unpin) — can never lack durable
+/// evidence or leave partial persisted state (FAIL_V2 remediation).
+fn build_loom_block_mutation_event(
+    workspace_id: &str,
+    block_id: &str,
+    operation: &str,
+    detail: Value,
+) -> StorageResult<NewKernelEvent> {
+    let run_id = format!("LOOM-BLOCK-{workspace_id}");
+    let mut payload = json!({
+        "type": "knowledge_loom_block_mutated",
+        "schema_id": "hsk.loom_block_mutation@1",
+        "workspace_id": workspace_id,
+        "block_id": block_id,
+        "operation": operation,
+    });
+    if let (Value::Object(map), Value::Object(detail_map)) = (&mut payload, detail) {
+        for (key, value) in detail_map {
+            map.insert(key, value);
+        }
+    }
+    NewKernelEvent::builder(
+        run_id.clone(),
+        run_id,
+        KernelEventType::KnowledgeLoomBlockMutated,
+        KernelActor::System("loom-block".to_string()),
+    )
+    .aggregate("loom_block", block_id.to_string())
+    .source_component("loom_block")
+    .payload(payload)
+    .build()
+    .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))
+}
+
+/// WP-KERNEL-012 E3 MT-025: build the durable EventLedger receipt for a Loom
+/// wiki projection overlay mutation. Appended in the SAME PostgreSQL transaction
+/// as the overlay write so a committed overlay annotation can never lack durable
+/// evidence (FAIL_V2 remediation — the overlay POST previously persisted with no
+/// business-event receipt).
+fn build_loom_wiki_mutation_event(
+    workspace_id: &str,
+    projection_id: &str,
+    overlay_id: &str,
+    operation: &str,
+    detail: Value,
+) -> StorageResult<NewKernelEvent> {
+    let run_id = format!("LOOM-WIKI-{workspace_id}");
+    let mut payload = json!({
+        "type": "knowledge_loom_wiki_mutated",
+        "schema_id": "hsk.loom_wiki_mutation@1",
+        "workspace_id": workspace_id,
+        "projection_id": projection_id,
+        "overlay_id": overlay_id,
+        "operation": operation,
+    });
+    if let (Value::Object(map), Value::Object(detail_map)) = (&mut payload, detail) {
+        for (key, value) in detail_map {
+            map.insert(key, value);
+        }
+    }
+    NewKernelEvent::builder(
+        run_id.clone(),
+        run_id,
+        KernelEventType::KnowledgeLoomWikiMutated,
+        KernelActor::System("loom-wiki".to_string()),
+    )
+    .aggregate("loom_wiki_overlay", overlay_id.to_string())
+    .source_component("loom_wiki")
+    .payload(payload)
+    .build()
+    .map_err(|err| StorageError::Validation(kernel_event_build_error(err)))
+}
+
 pub(crate) async fn append_kernel_event_with_executor(
     executor: &mut PgConnection,
     event: NewKernelEvent,
@@ -6627,7 +6703,39 @@ impl super::Database for PostgresDatabase {
         let favorite: Option<i32> = update.favorite.map(|v| if v { 1 } else { 0 });
 
         let mut tx = self.pool.begin().await?;
+
+        // WP-KERNEL-012 MT-024 FAIL_V2: a pin/favorite/pin-order mutation must
+        // carry a durable EventLedger receipt appended in the SAME transaction as
+        // the block write, so a committed bookmark mutation can never lack durable
+        // evidence. Title-only edits keep their prior receipt (COALESCE below).
+        let touches_bookmark =
+            update.pinned.is_some() || update.favorite.is_some() || update.pin_order.is_some();
+        let receipt_id: Option<String> = if touches_bookmark {
+            let mut fields_changed: Vec<&'static str> = Vec::new();
+            if update.pinned.is_some() {
+                fields_changed.push("pinned");
+            }
+            if update.favorite.is_some() {
+                fields_changed.push("favorite");
+            }
+            if update.pin_order.is_some() {
+                fields_changed.push("pin_order");
+            }
+            let event = build_loom_block_mutation_event(
+                workspace_id,
+                block_id,
+                "update",
+                json!({ "fields_changed": fields_changed }),
+            )?;
+            let stored = append_kernel_event_with_executor(&mut *tx, event).await?;
+            Some(stored.event_id)
+        } else {
+            None
+        };
+
         let row = sqlx::query(
+            // WP-KERNEL-012 MT-024: $15 = the receipt id (None on a non-bookmark
+            // update keeps the prior receipt via COALESCE).
             r#"
             UPDATE loom_blocks
             SET
@@ -6641,7 +6749,8 @@ impl super::Database for PostgresDatabase {
                 last_job_id = $8,
                 last_workflow_id = $9,
                 edit_event_id = $10,
-                updated_at = $11
+                updated_at = $11,
+                event_ledger_event_id = COALESCE($15, event_ledger_event_id)
             WHERE workspace_id = $12
               AND block_id = $13
               AND ($14::timestamptz IS NULL OR updated_at = $14)
@@ -6684,6 +6793,7 @@ impl super::Database for PostgresDatabase {
         .bind(workspace_id)
         .bind(block_id)
         .bind(update.expected_updated_at.as_ref())
+        .bind(receipt_id.as_deref())
         .fetch_optional(&mut *tx)
         .await?;
 
@@ -11564,6 +11674,23 @@ impl super::Database for PostgresDatabase {
         let workflow_id = metadata.workflow_id.map(|v| v.to_string());
         let edit_event_id = metadata.edit_event_id.to_string();
 
+        // WP-KERNEL-012 MT-024 FAIL_V2: the pin-order set/clear write and its
+        // durable EventLedger receipt are ONE PostgreSQL transaction, so a
+        // committed reorder can never lack durable evidence.
+        let mut tx = self.pool.begin().await?;
+        let operation = if pin_order.is_some() {
+            "pin_order_set"
+        } else {
+            "pin_order_clear"
+        };
+        let event = build_loom_block_mutation_event(
+            workspace_id,
+            block_id,
+            operation,
+            json!({ "fields_changed": ["pin_order"] }),
+        )?;
+        let stored = append_kernel_event_with_executor(&mut *tx, event).await?;
+
         // Directly SET pin_order (NULL clears it). $1 is bound as Option<i32>,
         // so NULL is a real value here, not a no-op like COALESCE.
         let row = sqlx::query(
@@ -11576,7 +11703,8 @@ impl super::Database for PostgresDatabase {
                 last_job_id = $4,
                 last_workflow_id = $5,
                 edit_event_id = $6,
-                updated_at = $7
+                updated_at = $7,
+                event_ledger_event_id = $10
             WHERE workspace_id = $8 AND block_id = $9
             RETURNING
                 block_id, workspace_id, content_type, document_id, asset_id,
@@ -11595,11 +11723,87 @@ impl super::Database for PostgresDatabase {
         .bind(now)
         .bind(workspace_id)
         .bind(block_id)
-        .fetch_optional(&self.pool)
+        .bind(&stored.event_id)
+        .fetch_optional(&mut *tx)
         .await?;
 
         match row {
-            Some(row) => map_loom_block(row),
+            Some(row) => {
+                let block = map_loom_block(row)?;
+                tx.commit().await?;
+                Ok(block)
+            }
+            None => Err(StorageError::NotFound("loom_block")),
+        }
+    }
+
+    /// WP-KERNEL-012 MT-024 FAIL_V2: atomically remove a pin. Clearing the
+    /// pin_order ordinal AND unpinning the block are performed as ONE PostgreSQL
+    /// transaction alongside the durable EventLedger receipt, so a pin removal can
+    /// never leave the partial `pin_order cleared but still pinned` state the
+    /// old two-call flow (PUT /pin-order(null) THEN PATCH {pinned:false}) risked.
+    async fn remove_loom_block_pin(
+        &self,
+        ctx: &WriteContext,
+        workspace_id: &str,
+        block_id: &str,
+    ) -> StorageResult<LoomBlock> {
+        let now = Utc::now();
+        let metadata = self.guard.validate_write(ctx, block_id).await?;
+        let actor_kind = metadata.actor_kind.as_str();
+        let actor_id = metadata.actor_id.clone();
+        let job_id = metadata.job_id.map(|v| v.to_string());
+        let workflow_id = metadata.workflow_id.map(|v| v.to_string());
+        let edit_event_id = metadata.edit_event_id.to_string();
+
+        let mut tx = self.pool.begin().await?;
+        let event = build_loom_block_mutation_event(
+            workspace_id,
+            block_id,
+            "pin_removed",
+            json!({ "fields_changed": ["pin_order", "pinned"] }),
+        )?;
+        let stored = append_kernel_event_with_executor(&mut *tx, event).await?;
+        let row = sqlx::query(
+            r#"
+            UPDATE loom_blocks
+            SET
+                pinned = 0,
+                pin_order = NULL,
+                last_actor_kind = $1,
+                last_actor_id = $2,
+                last_job_id = $3,
+                last_workflow_id = $4,
+                edit_event_id = $5,
+                updated_at = $6,
+                event_ledger_event_id = $9
+            WHERE workspace_id = $7 AND block_id = $8
+            RETURNING
+                block_id, workspace_id, content_type, document_id, asset_id,
+                title, original_filename, content_hash, pinned, favorite, pin_order,
+                journal_date, created_at, updated_at, imported_at,
+                backlink_count, mention_count, tag_count, derived_json,
+                preview_status, thumbnail_asset_id, proxy_asset_id
+            "#,
+        )
+        .bind(actor_kind)
+        .bind(actor_id)
+        .bind(job_id)
+        .bind(workflow_id)
+        .bind(edit_event_id)
+        .bind(now)
+        .bind(workspace_id)
+        .bind(block_id)
+        .bind(&stored.event_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        match row {
+            Some(row) => {
+                let block = map_loom_block(row)?;
+                tx.commit().await?;
+                Ok(block)
+            }
             None => Err(StorageError::NotFound("loom_block")),
         }
     }
@@ -12143,11 +12347,24 @@ impl super::Database for PostgresDatabase {
         self.get_loom_wiki_projection(workspace_id, projection_id)
             .await?;
         let overlay_id = format!("LWO-{}", Uuid::now_v7().simple());
+        // WP-KERNEL-012 MT-025 FAIL_V2: the overlay insert and its durable
+        // EventLedger receipt are ONE PostgreSQL transaction, so a committed
+        // overlay annotation can never lack a durable business-event receipt.
+        let mut tx = self.pool.begin().await?;
+        let event = build_loom_wiki_mutation_event(
+            workspace_id,
+            projection_id,
+            &overlay_id,
+            "overlay_added",
+            json!({ "has_anchor": anchor.map(str::trim).filter(|s| !s.is_empty()).is_some() }),
+        )?;
+        let stored = append_kernel_event_with_executor(&mut *tx, event).await?;
         let row = sqlx::query(
             r#"
             INSERT INTO loom_wiki_overlays
-                (overlay_id, projection_id, workspace_id, annotation, anchor)
-            VALUES ($1, $2, $3, $4, $5)
+                (overlay_id, projection_id, workspace_id, annotation, anchor,
+                 event_ledger_event_id)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING overlay_id, projection_id, workspace_id, annotation, anchor,
                       created_at, updated_at
             "#,
@@ -12157,9 +12374,12 @@ impl super::Database for PostgresDatabase {
         .bind(workspace_id)
         .bind(annotation)
         .bind(anchor.map(str::trim).filter(|s| !s.is_empty()))
-        .fetch_one(&self.pool)
+        .bind(&stored.event_id)
+        .fetch_one(&mut *tx)
         .await?;
-        Ok(map_loom_wiki_overlay(&row))
+        let overlay = map_loom_wiki_overlay(&row);
+        tx.commit().await?;
+        Ok(overlay)
     }
 
     async fn list_loom_wiki_overlays(

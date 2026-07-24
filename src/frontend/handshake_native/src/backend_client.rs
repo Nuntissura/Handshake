@@ -5584,6 +5584,14 @@ impl LoomSidebarClient {
         )
     }
 
+    /// WP-KERNEL-012 MT-024 FAIL_V2: the single atomic pin-removal endpoint.
+    fn remove_pin_url(&self, workspace_id: &str, block_id: &str) -> String {
+        format!(
+            "{}/workspaces/{}/loom/blocks/{}/remove-pin",
+            self.base_url, workspace_id, block_id
+        )
+    }
+
     fn backlinks_url(&self, workspace_id: &str, block_id: &str) -> String {
         format!(
             "{}/workspaces/{}/loom/blocks/{}/backlinks",
@@ -5638,23 +5646,16 @@ impl LoomSidebarClient {
         }
     }
 
-    /// Pure request builder for the pin-order CLEAR (the FIRST of the two-call pin removal):
-    /// `PUT /loom/blocks/{id}/pin-order` body `{ "pin_order": null }` (RISK-1 / MC-1).
-    pub fn clear_pin_order_request(&self, workspace_id: &str, block_id: &str) -> RequestSpec {
+    /// WP-KERNEL-012 MT-024 FAIL_V2: pure request builder for the SINGLE ATOMIC
+    /// pin removal. `POST /loom/blocks/{id}/remove-pin` clears pin_order AND
+    /// unpins the block in one server transaction alongside the durable
+    /// EventLedger receipt, so the running app can never leave the partial
+    /// `pin_order cleared but still pinned` state the old two-call flow risked.
+    pub fn remove_pin_request(&self, workspace_id: &str, block_id: &str) -> RequestSpec {
         RequestSpec {
-            method: HttpMethod::Put,
-            url: self.pin_order_url(workspace_id, block_id),
-            body: Some(serde_json::json!({ "pin_order": serde_json::Value::Null })),
-        }
-    }
-
-    /// Pure request builder for the unpin PATCH (the SECOND of the two-call pin removal):
-    /// `PATCH /loom/blocks/{id}` body `{ "pinned": false }`.
-    pub fn unpin_request(&self, workspace_id: &str, block_id: &str) -> RequestSpec {
-        RequestSpec {
-            method: HttpMethod::Patch,
-            url: self.block_url(workspace_id, block_id),
-            body: Some(serde_json::json!({ "pinned": false })),
+            method: HttpMethod::Post,
+            url: self.remove_pin_url(workspace_id, block_id),
+            body: None,
         }
     }
 
@@ -5823,20 +5824,19 @@ impl LoomSidebarClient {
         sequence: u64,
         cell: SidebarActionCell,
     ) {
-        let clear = self.clear_pin_order_request(workspace_id, block_id);
-        let unpin = self.unpin_request(workspace_id, block_id);
-        let clear_body = clear.body.unwrap_or_default();
-        let unpin_body = unpin.body.unwrap_or_default();
+        // WP-KERNEL-012 MT-024 FAIL_V2: ONE atomic POST /remove-pin. The server
+        // clears pin_order AND unpins the block in a single transaction with its
+        // durable EventLedger receipt, so there is no between-call window that can
+        // persist the partial `pin_order cleared but still pinned` state the old
+        // two-call PUT-then-PATCH flow risked. On failure the whole mutation rolls
+        // back server-side and the host rolls the optimistic row back.
+        let remove = self.remove_pin_request(workspace_id, block_id);
+        let remove_body = remove.body.unwrap_or_default();
         let client = self.client.clone();
         let delivered_workspace = workspace_id.to_owned();
         let delivered_block = block_id.to_owned();
         self.runtime.spawn(async move {
-            // Call 1: clear the pin order. A failure here aborts the unpin (true partial state -> the host
-            // re-fetches), exactly the RISK-1 recovery.
-            let result = match put_expect_success(&client, &clear.url, &clear_body).await {
-                Ok(()) => patch_expect_success(&client, &unpin.url, &unpin_body).await,
-                Err(e) => Err(e),
-            };
+            let result = post_expect_success(&client, &remove.url, &remove_body).await;
             if let Ok(mut queue) = cell.lock() {
                 queue.push_back((
                     delivered_workspace,

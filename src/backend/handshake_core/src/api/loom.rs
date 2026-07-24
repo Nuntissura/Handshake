@@ -126,6 +126,13 @@ pub fn routes(state: AppState) -> Router {
             "/workspaces/:workspace_id/loom/blocks/:block_id/pin-order",
             axum::routing::put(set_loom_block_pin_order),
         )
+        // WP-KERNEL-012 MT-024 FAIL_V2: single atomic pin removal (clear pin_order
+        // + unpin + durable receipt in one transaction). Collapses the old
+        // two-call remove flow so no partial persisted state is possible.
+        .route(
+            "/workspaces/:workspace_id/loom/blocks/:block_id/remove-pin",
+            axum::routing::post(remove_loom_block_pin),
+        )
         // MT-188: navigation breadcrumbs across the entity spine
         .route(
             "/workspaces/:workspace_id/loom/blocks/:block_id/breadcrumbs",
@@ -764,6 +771,41 @@ async fn set_loom_block_pin_order(
             "type": "loom_block_updated",
             "block_id": block.block_id,
             "fields_changed": ["pin_order"],
+            "updated_by": "user",
+        }),
+    )
+    .with_wsids(vec![workspace_id]);
+    let _ = state.flight_recorder.record_event(event).await;
+
+    Ok(Json(block))
+}
+
+/// WP-KERNEL-012 MT-024 FAIL_V2: atomically remove a pin in ONE backend call.
+/// Storage clears pin_order AND unpins the block alongside the durable
+/// EventLedger receipt in a single transaction, so the running app can never
+/// leave the partial `pin_order cleared but still pinned` state the old two-call
+/// remove flow risked. The Flight Recorder mirror stays a best-effort Tier-1
+/// mirror; the durable authority receipt is now atomic in storage.
+async fn remove_loom_block_pin(
+    State(state): State<AppState>,
+    Path((workspace_id, block_id)): Path<(String, String)>,
+) -> ApiResult<Json<LoomBlock>> {
+    ensure_workspace_exists(&state, &workspace_id).await?;
+    let ctx = WriteContext::human(None);
+    let block = state
+        .storage
+        .remove_loom_block_pin(&ctx, &workspace_id, &block_id)
+        .await
+        .map_err(map_storage_error)?;
+
+    let event = FlightRecorderEvent::new(
+        FlightRecorderEventType::LoomBlockUpdated,
+        FlightRecorderActor::Human,
+        Uuid::now_v7(),
+        json!({
+            "type": "loom_block_updated",
+            "block_id": block.block_id,
+            "fields_changed": ["pin_order", "pinned"],
             "updated_by": "user",
         }),
     )

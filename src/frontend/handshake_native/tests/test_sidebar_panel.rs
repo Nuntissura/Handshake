@@ -257,36 +257,33 @@ fn proof3_remove_pin_fires_event_and_drops_row() {
 
 #[test]
 fn proof3_remove_pin_request_shapes() {
-    use handshake_native::backend_client::LoomSidebarClient;
+    use handshake_native::backend_client::{HttpMethod, LoomSidebarClient};
 
-    // The two-call pin removal hits the verified routes with the verified bodies (RISK-1 / MC-1). We
-    // assert the EXACT URLs + bodies the production spawn path routes through (NO Tauri — the WP-011
-    // backend_client typed HTTP client). The PUT clears pin-order; the PATCH unpins.
+    // WP-KERNEL-012 MT-024 FAIL_V2: pin removal is now ONE atomic server call.
+    // We assert the EXACT URL + method the production spawn path routes through
+    // (NO Tauri — the WP-011 backend_client typed HTTP client). POST /remove-pin
+    // clears pin_order AND unpins in a single transaction with its durable
+    // EventLedger receipt, so the old two-call between-request partial-state
+    // window (pin_order cleared but still pinned) is impossible.
     let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
     let client = LoomSidebarClient::new("http://test.local:1234", rt.handle().clone());
 
-    let clear = client.clear_pin_order_request("ws1", "block-001");
+    let remove = client.remove_pin_request("ws1", "block-001");
     assert_eq!(
-        clear.url, "http://test.local:1234/workspaces/ws1/loom/blocks/block-001/pin-order",
-        "PROOF3: pin-order clear hits the verified /pin-order route"
+        remove.url,
+        "http://test.local:1234/workspaces/ws1/loom/blocks/block-001/remove-pin",
+        "PROOF3: pin removal hits the atomic /remove-pin route"
     );
     assert_eq!(
-        clear.body,
-        Some(serde_json::json!({ "pin_order": serde_json::Value::Null })),
-        "PROOF3: pin-order clear body is the verified SetPinOrderRequest {{ pin_order: null }}"
-    );
-
-    let unpin = client.unpin_request("ws1", "block-001");
-    assert_eq!(
-        unpin.url, "http://test.local:1234/workspaces/ws1/loom/blocks/block-001",
-        "PROOF3: unpin PATCH hits the verified /loom/blocks/:id route"
+        remove.method,
+        HttpMethod::Post,
+        "PROOF3: pin removal is a single POST (atomic clear + unpin server-side)"
     );
     assert_eq!(
-        unpin.body,
-        Some(serde_json::json!({ "pinned": false })),
-        "PROOF3: unpin body is the verified LoomBlockUpdate {{ pinned: false }}"
+        remove.body, None,
+        "PROOF3: the atomic remove-pin request carries no body (the server derives both column changes)"
     );
-    println!("PROOF3: two-call pin removal request shapes verified (PUT pin-order null + PATCH pinned:false)");
+    println!("PROOF3: atomic pin removal request shape verified (single POST /remove-pin)");
 }
 
 // ── AC3: favorite remove fires RemoveFavorite + the verified un-favorite PATCH shape ──────────────────
@@ -1138,8 +1135,9 @@ fn sidebar_live_pg_self_seeds_mounted_round_trip() {
     );
     dispatch_mounted_click(&mut harness, &section_header_author_id(SectionKind::Pins));
 
-    // Click the mounted Remove controls. The app performs optimistic removal, the production two-call
-    // mutation/PATCH, shared change notification, and authoritative refetch.
+    // Click the mounted Remove controls. The app performs optimistic removal, the production single
+    // atomic POST /remove-pin (clear pin_order + unpin + durable receipt in one server transaction,
+    // MT-024 FAIL_V2), shared change notification, and authoritative refetch.
     let pin_remove = pin_remove_author_id(&pin_one);
     dispatch_mounted_click(&mut harness, &pin_remove);
     let favorite_remove =

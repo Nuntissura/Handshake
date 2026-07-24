@@ -372,9 +372,24 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "JSON {entity_id, ledger_event_id} bridge row."),
     surface!("loom.blocks.pin_order", SurfaceGroup::NotesLoom, "PUT",
         "/workspaces/:workspace_id/loom/blocks/:block_id/pin-order",
-        "Set the block's ordinal in the reorderable Pins grid.",
-        "JSON {pin_order}.",
+        "Set/clear the block's ordinal in the reorderable Pins grid. The set/clear \
+         and its durable KNOWLEDGE_LOOM_BLOCK_MUTATED EventLedger receipt commit \
+         in one PostgreSQL transaction (MT-024 atomic-receipt boundary). Tier 1 \
+         Flight Recorder/EventLedger WIRED; Tier 2 internal_diagnostics and Tier 3 \
+         Palmistry DEFERRED (not yet shipped in this worktree).",
+        "JSON {pin_order} (null clears).",
         "JSON updated pin state."),
+    surface!("loom.blocks.remove_pin", SurfaceGroup::NotesLoom, "POST",
+        "/workspaces/:workspace_id/loom/blocks/:block_id/remove-pin",
+        "Atomically remove a pin: clear pin_order AND unpin the block in ONE \
+         PostgreSQL transaction alongside its durable KNOWLEDGE_LOOM_BLOCK_MUTATED \
+         EventLedger receipt. Replaces the old two-call PUT /pin-order(null) + PATCH \
+         {pinned:false} flow so no partial `cleared-but-still-pinned` state can \
+         persist on failure (MT-024 FAIL_V2). Failure rolls the whole mutation back. \
+         Tier 1 Flight Recorder/EventLedger WIRED; Tier 2 internal_diagnostics and \
+         Tier 3 Palmistry DEFERRED.",
+        "Path params (no body).",
+        "JSON updated block (pinned=false, pin_order=null)."),
     surface!("loom.blocks.breadcrumbs", SurfaceGroup::NotesLoom, "GET",
         "/workspaces/:workspace_id/loom/blocks/:block_id/breadcrumbs",
         "Navigation breadcrumbs across the entity spine for a block.",
@@ -482,7 +497,13 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "JSON overlay rows."),
     surface!("loom.wiki.overlays.add", SurfaceGroup::NotesLoom, "POST",
         "/workspaces/:workspace_id/loom/wiki/:projection_id/overlays",
-        "Attach an editable overlay to a wiki page (operator edits survive regeneration).",
+        "Attach an editable overlay to a wiki page (operator edits survive \
+         regeneration). The overlay insert and its durable KNOWLEDGE_LOOM_WIKI_MUTATED \
+         EventLedger receipt commit in ONE PostgreSQL transaction (MT-025 FAIL_V2 \
+         atomic-receipt boundary); a committed overlay can never lack durable \
+         evidence, and a failed receipt rolls the overlay back. Tier 1 Flight \
+         Recorder/EventLedger WIRED; Tier 2 internal_diagnostics and Tier 3 \
+         Palmistry DEFERRED.",
         "JSON overlay spec.",
         "JSON created overlay row."),
     surface!("loom.wiki.overlays.delete", SurfaceGroup::NotesLoom, "DELETE",

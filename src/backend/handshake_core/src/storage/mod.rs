@@ -2732,6 +2732,20 @@ pub trait Database: Send + Sync {
         Err(StorageError::NotImplemented("loom pin order backend"))
     }
 
+    /// WP-KERNEL-012 MT-024 FAIL_V2: atomically remove a pin — clear the pin_order
+    /// ordinal AND unpin the block in ONE transaction alongside the durable
+    /// EventLedger receipt. Collapses the old two-call remove flow (PUT
+    /// /pin-order(null) THEN PATCH {pinned:false}) so a pin removal can never
+    /// leave partial persisted state. Returns the updated block.
+    async fn remove_loom_block_pin(
+        &self,
+        _ctx: &WriteContext,
+        _workspace_id: &str,
+        _block_id: &str,
+    ) -> StorageResult<LoomBlock> {
+        Err(StorageError::NotImplemented("loom pin removal backend"))
+    }
+
     // -- MT-181 FolderTreeAndColorLabels ---------------------------------------
     /// Create a Loom folder (optionally nested under a parent). The parent, when
     /// given, must exist in the workspace; sibling names are unique.

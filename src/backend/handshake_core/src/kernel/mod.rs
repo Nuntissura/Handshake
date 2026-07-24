@@ -291,6 +291,15 @@ pub enum KernelEventType {
     // mutation can never lack durable evidence.
     KnowledgeLoomFolderMutated,
     KnowledgeLoomTagMutated,
+    // WP-KERNEL-012 E3 (MT-024/MT-025) durable Loom-surface mutation receipts.
+    // FAIL_V2 remediation: block pin/favorite mutations (MT-024) and wiki
+    // projection overlay mutations (MT-025) previously persisted their domain
+    // write WITHOUT a transactional EventLedger append, so a committed mutation
+    // (or a two-call pin removal that partially applied) could lack durable
+    // evidence and reliable recovery. These receipts are appended atomically in
+    // the same PostgreSQL transaction as the domain write.
+    KnowledgeLoomBlockMutated,
+    KnowledgeLoomWikiMutated,
     // WP-KERNEL-012 MT-072 (Settings & Preferences domain, Master Spec §10.17 SET-EVT-001):
     // every set/reset/import/migration of a PreferenceRecord appends this EventLedger receipt,
     // which is also the Flight-Recorder-backed durable change evidence (SET-EVT-003).
@@ -383,6 +392,8 @@ impl KernelEventType {
             Self::SourceControlOperationRecorded => "SOURCE_CONTROL_OPERATION_RECORDED",
             Self::KnowledgeLoomFolderMutated => "KNOWLEDGE_LOOM_FOLDER_MUTATED",
             Self::KnowledgeLoomTagMutated => "KNOWLEDGE_LOOM_TAG_MUTATED",
+            Self::KnowledgeLoomBlockMutated => "KNOWLEDGE_LOOM_BLOCK_MUTATED",
+            Self::KnowledgeLoomWikiMutated => "KNOWLEDGE_LOOM_WIKI_MUTATED",
             Self::PreferenceRecordChanged => "PREFERENCE_RECORD_CHANGED",
         }
     }
@@ -460,6 +471,8 @@ impl KernelEventType {
             KernelEventType::SourceControlOperationRecorded,
             KernelEventType::KnowledgeLoomFolderMutated,
             KernelEventType::KnowledgeLoomTagMutated,
+            KernelEventType::KnowledgeLoomBlockMutated,
+            KernelEventType::KnowledgeLoomWikiMutated,
             KernelEventType::PreferenceRecordChanged,
         ]
     }
