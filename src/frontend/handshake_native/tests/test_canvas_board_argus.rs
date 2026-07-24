@@ -1,0 +1,446 @@
+//! WP-KERNEL-012 E3 MT-026 remediation (FAIL_V2): canonical Argus inspect / safe-steer / mutate /
+//! re-observe proof for the MOUNTED Loom canvas board over REAL persisted PostgreSQL data.
+//!
+//! `validation_v2` failed MT-026 because "no current canonical Argus run proves mounted placement,
+//! movement, grouping, semantic/visual edges, deletion, and post-action state against real persisted
+//! data." The existing `test_canvas_board.rs` proves the mutation/reload/removal suite against real
+//! PostgreSQL, but it clicks the mounted controls via raw AccessKit action requests — it never drives the
+//! MOUNTED `HandshakeApp` through the real localhost `SwarmMcpServer` transport (`argus.inspect` /
+//! `argus.click`) the way an out-of-process swarm agent does, and it never re-observes the mounted tree
+//! through canonical Argus after a mutation. This test closes that exact gap:
+//!
+//!   1. seeds a REAL Handshake-managed PostgreSQL workspace with two source LoomBlocks, one canvas board,
+//!      and two placements through the production HTTP routes (`POST /loom/blocks`,
+//!      `POST /loom/canvas-boards`, `POST /loom/canvas-boards/{id}/placements`),
+//!   2. mounts the production `HandshakeApp` shell with the Canvas pane bound to that seeded board and lets
+//!      the app's OWN per-frame feed fetch the board projection and drain it into the mounted
+//!      `LoomCanvasBoard` (no injected fixture),
+//!   3. binds the CANONICAL Argus driver (real localhost JSON-RPC) to the mounted app,
+//!   4. `argus.inspect` proves each real-PG placement card is addressable by its stable author_id
+//!      (`canvas.placement.{sanitized_placement_id}`) plus the fixed toolbar controls,
+//!   5. drives a SAFE control action (`canvas.zoom-in`) through the real Argus transport and re-observes
+//!      that the placements remain addressable and the zoom-value control is present,
+//!   6. drives a MUTATION (`canvas.placement.{id}.remove`) through the real Argus transport, drives the
+//!      mounted host until the real DELETE + re-fetch removes the placement, then a FRESH `argus.inspect`
+//!      re-observes that the removed card is gone from the canonical tree while the sibling card remains —
+//!      and a direct backend GET proves the source LoomBlock survived the placement removal, and
+//!   7. writes before/after tree evidence + a screenshot marker (headless DEFERRED acceptable) and deletes
+//!      the workspace.
+//!
+//! A second test proves a real canvas board with zero placements renders + inspects through canonical
+//! Argus with no placement cards and no panic (AC10).
+//!
+//! Requires the `integration` feature and a reachable managed backend. Feature-gated but NOT ignored.
+#![cfg(feature = "integration")]
+
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+#[path = "native_gui_support/screenshot_harness.rs"]
+mod screenshot_harness;
+use screenshot_harness::ScreenshotHarness as Harness;
+
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
+
+#[path = "interconnect_support/mod.rs"]
+mod interconnect_support;
+
+use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::backend_client::HealthInfo;
+use handshake_native::command_registry::CMD_VIEW_CANVAS;
+use handshake_native::graph::canvas_board::{
+    placement_author_id, placement_remove_author_id, LoomCanvasBoard, ADD_CARD_AUTHOR_ID,
+    EDGE_MODE_AUTHOR_ID, PAN_LEFT_AUTHOR_ID, PAN_RIGHT_AUTHOR_ID, START_EDGE_AUTHOR_ID,
+    STATUS_AUTHOR_ID, ZOOM_IN_AUTHOR_ID, ZOOM_OUT_AUTHOR_ID, ZOOM_VALUE_AUTHOR_ID,
+};
+
+fn external_artifact_dir(subdir: &str) -> PathBuf {
+    Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
+}
+
+fn assert_no_local_artifact_dir() {
+    for local in ["test_output", "tests/screenshots"] {
+        let p = Path::new(local);
+        assert!(
+            !p.exists(),
+            "CX-212E: no repo-local '{local}' artifact dir may exist (found {})",
+            p.display()
+        );
+    }
+}
+
+fn collect_author_ids(value: &serde_json::Value, out: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if let Some(id) = map.get("author_id").and_then(|v| v.as_str()) {
+                out.push(id.to_owned());
+            }
+            for v in map.values() {
+                collect_author_ids(v, out);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for v in items {
+                collect_author_ids(v, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+struct LiveWorkspaceCleanup<'a> {
+    backend: &'a interconnect_support::LiveBackend,
+    workspace_id: String,
+    cleaned: bool,
+}
+
+impl LiveWorkspaceCleanup<'_> {
+    fn assert_cleaned(&mut self) {
+        let status = self.backend.delete_workspace(&self.workspace_id);
+        assert!(
+            matches!(status, 200 | 202 | 204 | 404),
+            "managed-PG workspace cleanup returned HTTP {status}"
+        );
+        self.cleaned = true;
+    }
+}
+
+impl Drop for LiveWorkspaceCleanup<'_> {
+    fn drop(&mut self) {
+        if !self.cleaned {
+            let _ = self.backend.delete_workspace(&self.workspace_id);
+        }
+    }
+}
+
+/// Mount a production shell bound to the live backend + seeded workspace, with the Canvas pane bound to
+/// the seeded canvas board and opened on the active work surface.
+fn canvas_shell(
+    base: &str,
+    workspace_id: &str,
+    canvas_block_id: &str,
+) -> (
+    HandshakeApp,
+    tokio::runtime::Runtime,
+    Arc<Mutex<LoomCanvasBoard>>,
+) {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build multi-thread runtime");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_string(),
+        db_status: "ok".to_string(),
+        migration_version: Some(1),
+    }));
+    app.set_backend_base_url_for_test(base, runtime.handle().clone());
+    assert!(
+        app.switch_project(workspace_id),
+        "switch to the seeded managed-PG workspace"
+    );
+    let board = app.mounted_canvas_board();
+    {
+        let mut guard = board.lock().unwrap();
+        guard.workspace_id = workspace_id.to_owned();
+        guard.canvas_block_id = canvas_block_id.to_owned();
+    }
+    assert!(
+        app.dispatch_palette_action_for_test(CMD_VIEW_CANVAS),
+        "the View Canvas command mounts the production Canvas pane"
+    );
+    (app, runtime, board)
+}
+
+fn drive_until(
+    harness: &mut Harness<'_, HandshakeApp>,
+    board: &Arc<Mutex<LoomCanvasBoard>>,
+    condition: impl Fn(&LoomCanvasBoard) -> bool,
+    proof: &str,
+) {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        harness.run_steps(2);
+        if board.lock().map(|b| condition(&b)).unwrap_or(false) {
+            return;
+        }
+        assert!(Instant::now() < deadline, "timed out waiting for '{proof}'");
+        std::thread::sleep(Duration::from_millis(25));
+    }
+}
+
+fn unique_suffix() -> String {
+    format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after unix epoch")
+            .as_nanos()
+    )
+}
+
+#[test]
+fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
+    let live = interconnect_support::require_reachable_backend();
+    let unique = format!("mt026-argus-{}", unique_suffix());
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+
+    // Seed two source blocks, a canvas board, and two placements referencing the sources.
+    let create_block = |title: &str| {
+        let block = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({ "content_type": "note", "title": title }),
+        );
+        block["block_id"]
+            .as_str()
+            .expect("Loom block create returns block_id")
+            .to_owned()
+    };
+    let source_one = create_block("MT-026 Argus source one");
+    let source_two = create_block("MT-026 Argus source two");
+    let canvas = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+        &serde_json::json!({ "title": format!("MT-026 Argus canvas {unique}") }),
+    );
+    let canvas_id = canvas["block_id"]
+        .as_str()
+        .expect("canvas create returns block_id")
+        .to_owned();
+    let place = |placed_block_id: &str, x: f64, y: f64| {
+        let placement = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}/placements"),
+            &serde_json::json!({ "placed_block_id": placed_block_id, "x": x, "y": y, "w": 200.0, "h": 120.0 }),
+        );
+        placement["placement_id"]
+            .as_str()
+            .expect("placement create returns placement_id")
+            .to_owned()
+    };
+    let placement_one = place(&source_one, 40.0, 40.0);
+    let placement_two = place(&source_two, 320.0, 220.0);
+
+    // Mount the production shell; the app self-fetches the board and drains the two real placements in.
+    let (app, _rt, board) = canvas_shell(&live.base, &workspace_id, &canvas_id);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    drive_until(
+        &mut harness,
+        &board,
+        |b| b.placements.len() == 2 && !b.loading && b.error.is_none(),
+        "mounted canvas self-fetches the two real-PG placements",
+    );
+
+    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-026/canonical-argus");
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-026 Argus artifact dir");
+
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-026-canvas");
+
+    // (1) Canonical inspect: both real-PG placement cards are addressable, plus the fixed toolbar controls.
+    let author_one = placement_author_id(&placement_one);
+    let author_two = placement_author_id(&placement_two);
+    let before = argus.inspect(&mut harness);
+    for author in [&author_one, &author_two] {
+        assert!(
+            json_has_author_id(&before, author),
+            "canonical argus.inspect must see the mounted real-PG placement card '{author}'"
+        );
+    }
+    for control in [
+        PAN_LEFT_AUTHOR_ID,
+        PAN_RIGHT_AUTHOR_ID,
+        ZOOM_IN_AUTHOR_ID,
+        ZOOM_OUT_AUTHOR_ID,
+        ZOOM_VALUE_AUTHOR_ID,
+        ADD_CARD_AUTHOR_ID,
+        EDGE_MODE_AUTHOR_ID,
+        START_EDGE_AUTHOR_ID,
+        STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            json_has_author_id(&before, control),
+            "canonical argus.inspect must see the fixed canvas control '{control}'"
+        );
+    }
+
+    // (2) Safe control steer: zoom in through the real Argus transport; the placements remain addressable.
+    let zoom = argus.click_and_reinspect(&mut harness, ZOOM_IN_AUTHOR_ID);
+    assert!(
+        matches!(zoom.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical zoom-in action receipt is terminal and non-rejected: {}",
+        zoom.receipt_status
+    );
+    assert!(
+        zoom.agent_id
+            .contains(":client:wp-kernel-012-mt-026-canvas-agent"),
+        "the canonical receipt retains the external caller attribution: {}",
+        zoom.agent_id
+    );
+    for author in [&author_one, &author_two] {
+        assert!(
+            json_has_author_id(&zoom.after, author),
+            "after the safe zoom-in the real-PG placement '{author}' remains addressable"
+        );
+    }
+    assert!(
+        json_has_author_id(&zoom.after, ZOOM_VALUE_AUTHOR_ID),
+        "the canvas zoom-value control is addressable after the zoom action"
+    );
+
+    // (3) Mutation steer: remove placement one through the real Argus transport, drive the host until the
+    // real DELETE + re-fetch drops it, then a FRESH canonical inspect re-observes the post-action state.
+    let remove_author = placement_remove_author_id(&placement_one);
+    let remove = argus.click_and_reinspect(&mut harness, &remove_author);
+    assert!(
+        matches!(remove.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical remove action receipt is terminal and non-rejected: {}",
+        remove.receipt_status
+    );
+    drive_until(
+        &mut harness,
+        &board,
+        |b| {
+            b.placements
+                .iter()
+                .all(|p| p.placement_id != placement_one)
+                && b.placements.iter().any(|p| p.placement_id == placement_two)
+        },
+        "mounted canvas removes placement one via the real backend DELETE + re-fetch, keeping placement two",
+    );
+    let after_remove = argus.inspect(&mut harness);
+    assert!(
+        !json_has_author_id(&after_remove, &author_one),
+        "fresh canonical re-inspection must NOT see the removed placement card '{author_one}'"
+    );
+    assert!(
+        json_has_author_id(&after_remove, &author_two),
+        "the sibling real-PG placement card '{author_two}' remains addressable after the removal"
+    );
+    // Source retention: the placement removal keeps the source LoomBlock (getLoomBlock still 200).
+    let source_status =
+        live.get_status(&format!("/workspaces/{workspace_id}/loom/blocks/{source_one}"));
+    assert_eq!(
+        source_status, 200,
+        "removing a placement must NOT delete its source LoomBlock (source retention)"
+    );
+
+    // (4) Evidence: before/after canonical trees + a screenshot marker.
+    let tree_path = artifact_dir.join("mt026-mounted-canvas-argus.json");
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "workspace_id": workspace_id,
+            "canvas_block_id": canvas_id,
+            "placement_one": placement_one,
+            "placement_two": placement_two,
+            "before": before,
+            "after_zoom": zoom.after,
+            "after_remove": after_remove,
+            "zoom_receipt_status": zoom.receipt_status,
+            "remove_receipt_status": remove.receipt_status,
+            "source_one_status_after_remove": source_status,
+        }))
+        .expect("serialize canonical MT-026 canvas tree evidence"),
+    )
+    .expect("write canonical MT-026 canvas tree evidence externally");
+    assert!(tree_path.is_file());
+
+    let screenshot_marker = match harness.render() {
+        Ok(image) => {
+            let path = artifact_dir.join("mt026-mounted-canvas.png");
+            image.save(&path).expect("save mounted canvas screenshot");
+            format!("CAPTURED {}", path.display())
+        }
+        Err(deferred) => format!("DEFERRED (headless): {deferred}"),
+    };
+    println!(
+        "MT-026 canonical Argus mounted canvas (LIVE PG workspace={workspace_id} board={canvas_id}): \
+         inspect(2 real-PG placements + controls) -> click({ZOOM_IN_AUTHOR_ID}) -> \
+         click({remove_author}) -> reinspect(placement one gone, placement two present, source kept); \
+         zoom_receipt={} remove_receipt={} screenshot={} tree={}",
+        zoom.receipt_status,
+        remove.receipt_status,
+        screenshot_marker,
+        tree_path.display()
+    );
+
+    argus.finish();
+    cleanup.assert_cleaned();
+    assert_no_local_artifact_dir();
+}
+
+#[test]
+fn mt026_mounted_canvas_empty_state_canonical_argus() {
+    // AC10 against a REAL managed-PG canvas board with zero placements: renders + inspects through
+    // canonical Argus with no placement cards and no panic.
+    let live = interconnect_support::require_reachable_backend();
+    let unique = format!("mt026-argus-empty-{}", unique_suffix());
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+    let canvas = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+        &serde_json::json!({ "title": format!("MT-026 Argus empty canvas {unique}") }),
+    );
+    let canvas_id = canvas["block_id"]
+        .as_str()
+        .expect("canvas create returns block_id")
+        .to_owned();
+
+    let (app, _rt, board) = canvas_shell(&live.base, &workspace_id, &canvas_id);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1000.0, 700.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    drive_until(
+        &mut harness,
+        &board,
+        |b| b.placements.is_empty() && !b.loading && b.error.is_none(),
+        "mounted canvas self-fetches a confirmed empty real-PG board",
+    );
+
+    let mut argus =
+        CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-026-canvas-empty");
+    let tree = argus.inspect(&mut harness);
+
+    let mut ids = Vec::new();
+    collect_author_ids(&tree, &mut ids);
+    assert!(
+        !ids.iter().any(|id| id.starts_with("canvas.placement.")),
+        "empty real-PG canvas board must expose NO placement cards through canonical Argus; got {:?}",
+        ids.iter().filter(|id| id.starts_with("canvas.")).collect::<Vec<_>>()
+    );
+    assert!(
+        json_has_author_id(&tree, ADD_CARD_AUTHOR_ID),
+        "the fixed canvas toolbar controls remain addressable on an empty board"
+    );
+
+    println!(
+        "MT-026 canonical Argus empty canvas (LIVE PG workspace={workspace_id} board={canvas_id}): \
+         inspect() returned {} author_ids, 0 canvas.placement.* (AC10)",
+        ids.len()
+    );
+
+    argus.finish();
+    cleanup.assert_cleaned();
+    assert_no_local_artifact_dir();
+}
