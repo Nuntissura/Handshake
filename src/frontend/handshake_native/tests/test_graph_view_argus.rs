@@ -330,6 +330,176 @@ fn mt021_mounted_graph_canonical_argus_inspect_steer_reobserve() {
 }
 
 #[test]
+fn mt021_mounted_graph_canonical_argus_local_global_switch_distinct_queries() {
+    // V2 R1 (distinct local vs global queries) + R2 (safe switching): drive the local/global mode control
+    // through canonical Argus and prove the switch produces a DISTINCT real-PostgreSQL query result, not a
+    // client-side re-render. Global returns all 4 seeded nodes; Local (focused on beta) returns only
+    // beta's real neighbourhood {alpha,beta,gamma} — the disconnected `isolated` block is a real seeded
+    // node that a client-side filter could not remove but a distinct backend /loom/graph/local query does.
+    let live = interconnect_support::require_reachable_backend();
+    let unique = format!("mt021-argus-switch-{}", unique_suffix());
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+
+    let seed_block = |title: &str| {
+        let block = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({ "content_type": "note", "title": title }),
+        );
+        block["block_id"]
+            .as_str()
+            .expect("block create returns block_id")
+            .to_owned()
+    };
+    let alpha = seed_block("MT-021 Switch Alpha");
+    let beta = seed_block("MT-021 Switch Beta");
+    let gamma = seed_block("MT-021 Switch Gamma");
+    let isolated = seed_block("MT-021 Switch Isolated");
+    for (source, target) in [(&alpha, &beta), (&beta, &gamma)] {
+        live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/edges"),
+            &serde_json::json!({
+                "source_block_id": source,
+                "target_block_id": target,
+                "edge_type": "mention",
+                "created_by": "user"
+            }),
+        );
+    }
+
+    let (app, _rt) = graph_shell(&live.base, &workspace_id);
+    let graph_view = app.mounted_graph_view();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    drive_until(
+        &mut harness,
+        &graph_view,
+        |g| g.nodes.len() == 4 && !g.loading && g.error.is_none(),
+        "mounted graph self-fetches the four real-PG Global nodes",
+    );
+
+    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-021/canonical-argus");
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-021 Argus artifact dir");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-021-graph-switch");
+
+    // (1) Global inspect: all four seeded nodes are addressable, including the disconnected `isolated`.
+    let global_before = argus.inspect(&mut harness);
+    let author = |id: &str| node_author_id(id);
+    for id in [&alpha, &beta, &gamma, &isolated] {
+        assert!(
+            json_has_author_id(&global_before, &author(id)),
+            "Global canonical inspect sees every seeded node incl. isolated ('{}')",
+            author(id)
+        );
+    }
+
+    // (2) Canonically SELECT the focus node (no navigation) via a parameterized swarm dispatch, then
+    // canonically SWITCH to Local mode. The host reads the selected focus and issues a real /loom/graph
+    // local neighbourhood query.
+    argus.click_with_payload_and_reinspect(
+        &mut harness,
+        "graph.select-node",
+        serde_json::json!({ "block_id": beta }),
+    );
+    let switch_local = argus.click_and_reinspect(&mut harness, MODE_LOCAL_AUTHOR_ID);
+    assert!(
+        matches!(
+            switch_local.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
+        "the canonical local-switch receipt is terminal: {}",
+        switch_local.receipt_status
+    );
+    let isolated_for_local = isolated.clone();
+    drive_until(
+        &mut harness,
+        &graph_view,
+        move |g| {
+            !g.loading
+                && g.error.is_none()
+                && g.nodes.len() == 3
+                && g.nodes.iter().all(|n| n.block_id != isolated_for_local)
+        },
+        "canonical local switch issues a distinct real-PG neighbourhood query (3 nodes, no isolated)",
+    );
+
+    // (3) Fresh inspect proves the DISTINCT local node set: neighbourhood present, isolated absent.
+    let local_tree = argus.inspect(&mut harness);
+    for id in [&alpha, &beta, &gamma] {
+        assert!(
+            json_has_author_id(&local_tree, &author(id)),
+            "Local canonical inspect sees the neighbourhood node '{}'",
+            author(id)
+        );
+    }
+    assert!(
+        !json_has_author_id(&local_tree, &author(&isolated)),
+        "Local canonical inspect must NOT see the disconnected 'isolated' node — the switch produced a \
+         distinct real-PG neighbourhood query, not a re-render of the global set"
+    );
+
+    // (4) Canonically SWITCH back to Global; the distinct query restores the full set incl. isolated.
+    let switch_global = argus.click_and_reinspect(&mut harness, MODE_GLOBAL_AUTHOR_ID);
+    assert!(
+        matches!(
+            switch_global.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
+        "the canonical global-switch receipt is terminal: {}",
+        switch_global.receipt_status
+    );
+    drive_until(
+        &mut harness,
+        &graph_view,
+        |g| g.nodes.len() == 4 && !g.loading && g.error.is_none(),
+        "canonical global switch re-queries the full real-PG projection (4 nodes)",
+    );
+    let global_after = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&global_after, &author(&isolated)),
+        "switching back to Global re-queries real PG and the disconnected 'isolated' node returns"
+    );
+
+    let tree_path = artifact_dir.join("mt021-graph-local-global-switch-argus.json");
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "workspace_id": workspace_id,
+            "seeded": { "alpha": alpha, "beta": beta, "gamma": gamma, "isolated": isolated },
+            "global_before": global_before,
+            "local_after_switch": local_tree,
+            "global_after_switch_back": global_after,
+            "local_switch_receipt": switch_local.receipt_status,
+            "global_switch_receipt": switch_global.receipt_status,
+        }))
+        .expect("serialize MT-021 switch tree evidence"),
+    )
+    .expect("write MT-021 switch tree evidence externally");
+    assert!(tree_path.is_file());
+
+    println!(
+        "MT-021 canonical Argus local/global switch (LIVE PG workspace={workspace_id}): \
+         Global inspect(4 incl isolated) -> select-node(beta) + click({MODE_LOCAL_AUTHOR_ID}) \
+         -> Local inspect(3 neighbourhood, isolated ABSENT = distinct real-PG query) \
+         -> click({MODE_GLOBAL_AUTHOR_ID}) -> Global inspect(isolated returns). tree={}",
+        tree_path.display()
+    );
+
+    argus.finish();
+    cleanup.assert_cleaned();
+    assert_no_local_artifact_dir();
+}
+
+#[test]
 fn mt021_mounted_graph_empty_state_canonical_argus() {
     // AC7 against a REAL unseeded managed-PG workspace: the mounted panel renders + inspects through
     // canonical Argus with no graph nodes and no panic.

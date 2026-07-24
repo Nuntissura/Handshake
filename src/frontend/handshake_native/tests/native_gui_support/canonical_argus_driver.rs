@@ -297,6 +297,81 @@ impl CanonicalArgusDriver {
         }
     }
 
+    /// Click a target carrying a parameterized JSON payload (`argus.click { target, payload }` ->
+    /// `ClickWithPayload` -> AccessKit `ActionData::Value`). This is the swarm's parameterized-action path
+    /// (e.g. `graph.select-node {block_id}`, `canvas.add-edge {source_id,target_id,edge_mode}`) — the same
+    /// canonical localhost transport as [`Self::click_and_reinspect`], only carrying data.
+    pub fn click_with_payload_and_reinspect(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+        author_id: &str,
+        payload: serde_json::Value,
+    ) -> ArgusObservation {
+        let before = self.inspect(harness);
+        assert!(
+            json_has_author_id(&before, author_id),
+            "canonical argus.inspect sees parameterized target {author_id}"
+        );
+        let click = self.rpc(
+            ARGUS_CLICK_METHOD,
+            serde_json::json!({ "target": author_id, "payload": payload }),
+        );
+        assert_eq!(click["result"]["queued"], true);
+        let agent_id = click["result"]["agent_id"]
+            .as_str()
+            .expect("Argus parameterized click returns caller attribution")
+            .to_owned();
+        assert!(
+            agent_id.ends_with(&format!(":client:{}", self.client_session_id)),
+            "Argus parameterized click must retain caller attribution: {click}"
+        );
+        let receipt_id = click["result"]["receipt_id"]
+            .as_u64()
+            .expect("Argus parameterized click returns a receipt id");
+
+        let mut raw_input = egui::RawInput::default();
+        <HandshakeApp as eframe::App>::raw_input_hook(
+            harness.state_mut(),
+            &egui::Context::default(),
+            &mut raw_input,
+        );
+        assert_eq!(
+            raw_input.events.len(),
+            1,
+            "one canonical parameterized Argus click drains as one production egui event"
+        );
+        for event in raw_input.events {
+            harness.event(event);
+        }
+        harness.run_steps(3);
+
+        let after = self.inspect(harness);
+        let receipt = after["action_receipts"]
+            .as_array()
+            .and_then(|receipts| {
+                receipts
+                    .iter()
+                    .find(|receipt| receipt["receipt_id"].as_u64() == Some(receipt_id))
+            })
+            .expect("fresh argus.inspect returns the parameterized click receipt");
+        let receipt_status = receipt["status"]
+            .as_str()
+            .expect("Argus receipt has a typed status")
+            .to_owned();
+        assert!(
+            matches!(receipt_status.as_str(), "applied" | "indeterminate"),
+            "Argus parameterized receipt is terminal and non-rejected: {receipt}"
+        );
+        self.clicked_targets.push(author_id.to_owned());
+        ArgusObservation {
+            before,
+            after,
+            receipt_id,
+            receipt_status,
+            agent_id,
+        }
+    }
+
     pub fn finish(mut self) {
         let entries = self.server.action_log().drain_log();
         assert_eq!(entries.len(), self.clicked_targets.len());

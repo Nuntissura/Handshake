@@ -49,7 +49,9 @@ use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
 mod interconnect_support;
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
-use handshake_native::backend_client::HealthInfo;
+use handshake_native::backend_client::{
+    HealthInfo, LoomGraphCell, LoomGraphClient, LoomGraphRequestIdentity,
+};
 use handshake_native::command_registry::CMD_VIEW_CANVAS;
 use handshake_native::graph::canvas_board::{
     placement_author_id, placement_remove_author_id, LoomCanvasBoard, ADD_CARD_AUTHOR_ID,
@@ -374,6 +376,209 @@ fn mt026_mounted_canvas_canonical_argus_inspect_steer_mutate_reobserve() {
         zoom.receipt_status,
         remove.receipt_status,
         screenshot_marker,
+        tree_path.display()
+    );
+
+    argus.finish();
+    cleanup.assert_cleaned();
+    assert_no_local_artifact_dir();
+}
+
+/// Fetch the current Global-graph edge count from real PG through the real Loom graph client.
+fn global_edge_count(client: &LoomGraphClient, workspace_id: &str, generation: u64) -> usize {
+    let cell: LoomGraphCell = Arc::new(Mutex::new(std::collections::VecDeque::new()));
+    client.fetch_global(workspace_id, generation, Arc::clone(&cell));
+    let expected = LoomGraphRequestIdentity::global(generation, workspace_id);
+    for _ in 0..200 {
+        if let Some(delivery) = cell.lock().unwrap().pop_front() {
+            assert_eq!(&delivery.request, &expected, "global fetch identity matches");
+            return delivery
+                .result
+                .expect("global graph fetch from real PG succeeds")
+                .edges
+                .len();
+        }
+        std::thread::sleep(Duration::from_millis(25));
+    }
+    panic!("global graph fetch did not resolve within 5s");
+}
+
+#[test]
+fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
+    // V2 (edges): prove SEMANTIC and VISUAL canvas edges between placements through canonical Argus over
+    // real PostgreSQL. Both are driven by a single parameterized swarm dispatch `canvas.add-edge`
+    // (`{source_id,target_id,edge_mode}`) — the real localhost MCP transport, not event injection.
+    let live = interconnect_support::require_reachable_backend();
+    let unique = format!("mt026-argus-edges-{}", unique_suffix());
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+
+    let create_block = |title: &str| {
+        let block = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({ "content_type": "note", "title": title }),
+        );
+        block["block_id"]
+            .as_str()
+            .expect("Loom block create returns block_id")
+            .to_owned()
+    };
+    let source_one = create_block("MT-026 Argus edge source one");
+    let source_two = create_block("MT-026 Argus edge source two");
+    let canvas = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+        &serde_json::json!({ "title": format!("MT-026 Argus edges canvas {unique}") }),
+    );
+    let canvas_id = canvas["block_id"]
+        .as_str()
+        .expect("canvas create returns block_id")
+        .to_owned();
+    let place = |placed_block_id: &str, x: f64, y: f64| {
+        let placement = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}/placements"),
+            &serde_json::json!({ "placed_block_id": placed_block_id, "x": x, "y": y, "w": 200.0, "h": 120.0 }),
+        );
+        placement["placement_id"]
+            .as_str()
+            .expect("placement create returns placement_id")
+            .to_owned()
+    };
+    let placement_one = place(&source_one, 40.0, 40.0);
+    let placement_two = place(&source_two, 360.0, 260.0);
+
+    let (app, rt, board) = canvas_shell(&live.base, &workspace_id, &canvas_id);
+    let graph_client = LoomGraphClient::new(live.base.clone(), rt.handle().clone());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    drive_until(
+        &mut harness,
+        &board,
+        |b| b.placements.len() == 2 && !b.loading && b.error.is_none(),
+        "mounted canvas self-fetches the two real-PG placements",
+    );
+
+    // Baseline: no loom edges and no visual edges yet.
+    assert_eq!(
+        global_edge_count(&graph_client, &workspace_id, 1),
+        0,
+        "baseline: real PG has zero loom edges before the semantic-edge dispatch"
+    );
+    assert_eq!(board.lock().unwrap().visual_edges.len(), 0, "baseline: no visual edges");
+
+    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-026/canonical-argus");
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-026 Argus artifact dir");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-026-canvas-edges");
+
+    let before = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&before, "canvas.add-edge"),
+        "the canonical canvas.add-edge swarm control is addressable in the mounted tree"
+    );
+
+    // (1) SEMANTIC edge between the two source BLOCKS via parameterized canonical Argus dispatch.
+    let semantic = argus.click_with_payload_and_reinspect(
+        &mut harness,
+        "canvas.add-edge",
+        serde_json::json!({
+            "source_id": source_one,
+            "target_id": source_two,
+            "edge_mode": "semantic"
+        }),
+    );
+    assert!(
+        matches!(semantic.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical semantic add-edge receipt is terminal: {}",
+        semantic.receipt_status
+    );
+    // Drive the host until the real POST /loom/edges persists, observed via a fresh real-PG graph fetch.
+    let mut generation = 2u64;
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let semantic_edges = loop {
+        harness.run_steps(2);
+        let count = global_edge_count(&graph_client, &workspace_id, generation);
+        generation += 1;
+        if count == 1 {
+            break count;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "canonical semantic edge did not persist to real PG within 30s (edges={count})"
+        );
+        std::thread::sleep(Duration::from_millis(25));
+    };
+    assert_eq!(
+        semantic_edges, 1,
+        "canonical Argus semantic add-edge persisted exactly one real loom edge in PostgreSQL"
+    );
+
+    // (2) VISUAL edge between the two PLACEMENTS via parameterized canonical Argus dispatch.
+    let visual = argus.click_with_payload_and_reinspect(
+        &mut harness,
+        "canvas.add-edge",
+        serde_json::json!({
+            "source_id": placement_one,
+            "target_id": placement_two,
+            "edge_mode": "visual"
+        }),
+    );
+    assert!(
+        matches!(visual.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical visual add-edge receipt is terminal: {}",
+        visual.receipt_status
+    );
+    drive_until(
+        &mut harness,
+        &board,
+        |b| b.visual_edges.len() == 1 && !b.loading,
+        "mounted canvas re-fetch reflects the persisted visual edge from real PG",
+    );
+    // Independent backend confirmation of the persisted visual edge.
+    let board_json =
+        live.get_json(&format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"));
+    let visual_count = board_json["visual_edges"]
+        .as_array()
+        .map(|a| a.len())
+        .unwrap_or(0);
+    assert_eq!(
+        visual_count, 1,
+        "backend GET confirms exactly one persisted canvas visual edge: {board_json}"
+    );
+
+    let after = argus.inspect(&mut harness);
+    let tree_path = artifact_dir.join("mt026-canvas-edges-argus.json");
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "workspace_id": workspace_id,
+            "canvas_block_id": canvas_id,
+            "source_one": source_one,
+            "source_two": source_two,
+            "placement_one": placement_one,
+            "placement_two": placement_two,
+            "semantic_receipt": semantic.receipt_status,
+            "visual_receipt": visual.receipt_status,
+            "loom_edges_after_semantic": semantic_edges,
+            "visual_edges_after_visual": visual_count,
+            "after": after,
+        }))
+        .expect("serialize MT-026 edges tree evidence"),
+    )
+    .expect("write MT-026 edges tree evidence externally");
+    assert!(tree_path.is_file());
+
+    println!(
+        "MT-026 canonical Argus canvas edges (LIVE PG workspace={workspace_id} board={canvas_id}): \
+         click(canvas.add-edge semantic) -> real loom edge persisted (edges={semantic_edges}); \
+         click(canvas.add-edge visual) -> persisted visual edge (backend visual_edges={visual_count}). tree={}",
         tree_path.display()
     );
 
