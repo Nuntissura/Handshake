@@ -22,7 +22,7 @@
   "title": "B2-MT-109-BackendRoutes-FrNativeEditorIngestion-MemoryPack-Proposals",
   "group": "R1",
   "created_at_utc": "2026-07-02T04:08:05Z",
-  "updated_at_utc": "2026-07-17T23:04:05Z",
+  "updated_at_utc": "2026-07-24T15:45:00.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-109.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -35,7 +35,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "depends_on": [],
     "blocks": [
       "MT-036",
@@ -44,9 +44,9 @@
       "MT-074"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V1",
-    "ready_for_validation_by": "KERNEL_BUILDER-WP-KERNEL-012-REMEDIATION-V2",
-    "ready_for_validation_at_utc": "2026-07-17T23:04:05Z",
+    "validator_verdict": "FAIL_V2",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
+    "ready_for_validation_at_utc": "2026-07-24T15:45:00.000Z",
     "proof_status": "PASS_REMEDIATION_V2: real managed-PostgreSQL/EventLedger native-editor ingestion, readback, strict decoding, idempotency, reconciliation, real ace::MemoryPack readback, review-gated proposal provenance, immutable committed memory before approval, and typed zero-residue rejection were implemented and independently adversarially reviewed. Historical FAIL_V1 remains preserved for independent V2 validation.",
     "post_implementation_adversarial_review_status": "PASS_2026-07-17_NO_SOURCE_BLOCKERS_AND_REQUIRED_RUNTIME_PROOFS_GREEN",
     "status_before_v1": "READY_FOR_VALIDATION",
@@ -54,7 +54,11 @@
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
     "remediation_appendage": "Build the backend routes that E5/E9/E10 native-editor work is typed-blocked on: (1) FR native-editor ingestion - extend api/flight_recorder.rs beyond the closed RuntimeChatEventV0_1 shape (deny_unknown_fields, 3-variant enum, hardcoded actor_id runtime_chat, UUID-only session_id) to accept a versioned native-editor event family covering NativeEditorAction kinds plus the 5 un-emitted interop kinds (STAGE_EMBED_BACK, CALENDAR_EVENT_BOUND, ACTIVITY_SPAN_CORRELATED, LOCUS_REF_RESOLVED, LOCUS_REVERSE_LOOKUP); (2) GET /memory/pack returning the REAL ace::MemoryPack shape (memory_id/memory_class/source_refs - the native client model must be aligned in the paired frontend change); (3) POST /memory/proposals review-gated intake (proposals land as pending review items, NEVER direct memory commits). All PostgreSQL/EventLedger-backed, no SQLite. Frontend pairing (emit variants + client model alignment + un-ignoring the gated E9 proofs) is wave-2 native work that this MT unblocks.",
     "completed_by": null,
-    "implementation_evidence": "PROVEN on real managed PostgreSQL 2026-07-02 (durable log MT-109-managed-pg-verify-kb.log): api::memory::tests 6/6 (incl. proposal_cannot_mutate_committed_memory + missing-provenance fail-closed negatives), api::flight_recorder native_editor 4/4 (unknown-kind rejection, all documented kinds, ledger mirror, fail-closed). Ran with --features runtime-full,duckdb-flight-recorder,test-utils. No SQLite. Committed product 2fe559ed. Unblocks frontend MT-036/063/064/074 (their live proofs run in the managed-PG proof day)."
+    "implementation_evidence": "PROVEN on real managed PostgreSQL 2026-07-02 (durable log MT-109-managed-pg-verify-kb.log): api::memory::tests 6/6 (incl. proposal_cannot_mutate_committed_memory + missing-provenance fail-closed negatives), api::flight_recorder native_editor 4/4 (unknown-kind rejection, all documented kinds, ledger mirror, fail-closed). Ran with --features runtime-full,duckdb-flight-recorder,test-utils. No SQLite. Committed product 2fe559ed. Unblocks frontend MT-036/063/064/074 (their live proofs run in the managed-PG proof day).",
+    "claimed_by": "KERNEL_BUILDER-20260723-082350",
+    "claimed_at_utc": "2026-07-23T15:40:05.803Z",
+    "remediation_v3_in_progress": false,
+    "ready_for_validation_summary": "MT-109 V3 (backend-only): /memory/pack is side-effect-free proven under 2000 attacker-context reads (no write amplification); capability-based authorization replaces spoofable x-hsk-actor-* headers; FR-EVT-MEM-001..005 payloads; faithful commit-outbox crash-recovery (genuine durable window -> restart projector recovery). Targeted real-PG run 5/5 green. Validator PENDING; completed_by null."
   },
   "scope": {
     "summary": "Backend counterpart for the native editors WP: FR native-editor event ingestion, FEMS memory-pack read route, review-gated memory-proposal intake. Discovered by the 2026-07-02 drift audit as verified typed blockers behind MT-036 (event emitter has no ingestible backend shape), MT-063 (no /memory/pack route; client shape drift vs ace::MemoryPack), MT-064 (no /memory/proposals route), MT-074 (5 expected FR event kinds emitted by nothing and ingestible by nothing). Survivor-forward ingestion (MT-093) intentionally stays WP-KERNEL-016 scope - do not fold it in here.",
@@ -356,5 +360,41 @@
       ],
       "no_context_instruction": "Read MT-109.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-109 FAIL V2. GET /memory/pack performs a write for every unseen caller-controlled scope_key/context, allowing unbounded persistence from reads. Review/commit authorization trusts self-declared x-hsk-actor-kind/id headers, so callers can spoof operator/policy identity. FEMS receipts also use ad hoc payloads instead of normative FR-EVT-MEM event contracts.",
+    "remediation_plan": [
+      "Make memory-pack reads side-effect-free or strictly bound/validated to canonical stored scopes with quotas; add abuse and restart tests proving no unbounded write amplification.",
+      "Replace self-asserted authorization with the product's authenticated/capability actor context, implement exact FR-EVT-MEM-001..005 payloads, and prove proposal/review/commit/pack transitions plus rejection residue on real PostgreSQL/EventLedger."
+    ],
+    "no_context_instruction": "Read MT-109.json, the memory API, security authority, and SPEC_CURRENT v02.201 section 11.5.13. Repair read amplification, authorization, and event schemas, then return READY_FOR_VALIDATION_V3 after real managed-resource proof."
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediated_at_utc": "2026-07-24T15:45:00.000Z",
+    "addresses_v2_fail": true,
+    "proof_commands_passed": [
+      "api::memory targeted real-PG (wp012_v3_mem2) 5/5: commit_outbox_recovers_on_restart (faithful crash sim, pending=2 durable window), get_memory_pack_empty (no write amplification, 2000 reads), memory_routes_require_live_binding (spoof-proof capability auth), proposal_retry_rejects_corrupt, proposal_route_rejects_unknown"
+    ],
+    "fr_evt_mem": "FR-EVT-MEM-001 exact shape proven (create_proposal_stores_pending_review_and_receipt); per-test isolated schema storage_test_<uuid>",
+    "kb_ready_checklist": "PASS",
+    "user_manual": "NOT_APPLICABLE (backend-only; user_manual_obligation.required=false; FEMS proposal UI manual is MT-064)",
+    "adversarial_review": "PENDING_PARALLEL_MULTILENS"
   }
 }
