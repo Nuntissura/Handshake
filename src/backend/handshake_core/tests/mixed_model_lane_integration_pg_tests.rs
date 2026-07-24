@@ -2570,11 +2570,16 @@ async fn mt009_crdt_update_bytes_hash_mismatch_fails_closed() {
         "tampered update clone must be inserted exactly once"
     );
 
+    // The posture must be COMPLETE: validate_message_authority (~15137) rejects a
+    // partial CRDT posture synchronously, which would short-circuit this test
+    // before the durable stored-bytes hash check it exists to prove.
     let mut message = sample_message(MESSAGE_ID, RUN_ID, LANE_ID, "local", 2);
     message.kind = ModelLaneMessageKind::Status;
+    message.proposal_ref = Some("proposal://mt009/update-hash-mismatch".into());
     message.crdt_update_ref = Some(tampered_update_ref);
     message.crdt_base_snapshot_ref = Some(receipts.snapshot_bytes_ref.clone());
     message.crdt_state_vector = Some(receipts.post_update_state_vector_after.clone());
+    message.crdt_proposal_ref = Some("crdt-proposal://mt009-update-hash-mismatch".into());
     let error = store
         .record_message(message.clone())
         .await
@@ -2662,11 +2667,15 @@ async fn mt009_crdt_snapshot_bytes_hash_mismatch_fails_closed() {
         "cloned snapshot must remain causally before the referenced post-update seq"
     );
 
+    // COMPLETE posture -- see the update-hash test above for why a partial
+    // posture would never reach the durable snapshot integrity gate.
     let mut message = sample_message(MESSAGE_ID, RUN_ID, LANE_ID, "local", 2);
     message.kind = ModelLaneMessageKind::Status;
+    message.proposal_ref = Some("proposal://mt009/snapshot-hash-mismatch".into());
     message.crdt_update_ref = Some(receipts.post_update_bytes_ref.clone());
     message.crdt_base_snapshot_ref = Some(tampered_snapshot_ref);
     message.crdt_state_vector = Some(receipts.post_update_state_vector_after.clone());
+    message.crdt_proposal_ref = Some("crdt-proposal://mt009-snapshot-hash-mismatch".into());
     let error = store
         .record_message(message.clone())
         .await
@@ -2731,13 +2740,17 @@ async fn mt009_crdt_unrelated_document_state_vector_fails_closed() {
 
     seed_run_lane(&store, RUN_ID, LANE_ID, RuntimeBinding::Local).await;
 
+    // COMPLETE posture -- a partial one is rejected synchronously and would
+    // never reach the state-vector identity check under test.
     let mut message = sample_message(MESSAGE_ID, RUN_ID, LANE_ID, "local", 2);
     message.kind = ModelLaneMessageKind::Status;
+    message.proposal_ref = Some("proposal://mt009/foreign-state-vector".into());
     message.crdt_update_ref = Some(receipts_a.post_update_bytes_ref.clone());
     message.crdt_base_snapshot_ref = Some(receipts_a.snapshot_bytes_ref.clone());
     // Real, but from document B -- it does not match document A's persisted
     // state_vector_after.
     message.crdt_state_vector = Some(receipts_b.post_update_state_vector_after.clone());
+    message.crdt_proposal_ref = Some("crdt-proposal://mt009-foreign-state-vector".into());
     let error = store
         .record_message(message.clone())
         .await
@@ -2750,6 +2763,796 @@ async fn mt009_crdt_unrelated_document_state_vector_fails_closed() {
         mt009_model_lane_message_event_count(&pool, MESSAGE_ID).await,
         0,
         "a foreign-document state vector must not append a ModelLane message EventLedger event"
+    );
+}
+
+// ===========================================================================
+// MT-004 remediation step 3 -- all-six-policy CRDT admission negatives.
+//
+// MT-004 `validation_v4.remediation_plan[2]` requires "all-six-policy negative
+// tests for missing rows, hash mismatch, stale vectors, duplicates, and replay
+// order against real PostgreSQL". MT-009 `validation_v2.remediation_plan[1]`
+// states the same requirement per routing policy.
+//
+// Why the tests are shaped this way (read before adding a 7th policy):
+//
+//   Every routing policy commits its stage output through ONE shared admission
+//   path -- `ModelLaneStore::record_message*` -> `record_message_tx`
+//   (`swarm_orchestration/model_lane.rs` ~342) -> duplicate/idempotency gate
+//   (~357-384) -> `validate_message_crdt_authority_tx` (~13705) ->
+//   `resolve_model_lane_crdt_authority_tx` (~13011). `ModelLaneRoutingPolicy`
+//   is not an argument to any of those functions, so no per-policy CRDT
+//   admission branch exists that could diverge.
+//
+//   That structural fact is proven, not assumed, by
+//   `mt004_every_routing_policy_stage_output_routes_through_shared_crdt_admission_boundary`,
+//   which walks EVERY stage of EVERY policy graph. The five class tests below
+//   additionally drive each negative through all six policies on their own
+//   run/lane/message identities, so a failure names the exact policy instead of
+//   relying on the shared-boundary argument alone. Proving one policy and
+//   inferring the rest is deliberately NOT done here.
+//
+// All six policies come from `ModelLaneRoutingPolicy::all()`, so a new policy
+// variant is picked up automatically and the drift guard in the structural
+// test fails loudly if the canonical set changes.
+// ===========================================================================
+
+/// One routing policy's isolated durable identity for an MT-004 negative probe.
+struct Mt004PolicyProbe {
+    policy: ModelLaneRoutingPolicy,
+    run_id: String,
+    lane_id: String,
+}
+
+/// Seed one real ModelLaneRun + lane per routing policy inside a single
+/// isolated schema. Distinct ids per policy mean an assertion failure names the
+/// exact policy that regressed rather than a shared fixture.
+async fn mt004_seed_policy_probes(store: &ModelLaneStore, case: &str) -> Vec<Mt004PolicyProbe> {
+    let mut probes = Vec::new();
+    for policy in ModelLaneRoutingPolicy::all().iter().copied() {
+        let run_id = format!("run-mt004-{case}-{}", policy.as_str());
+        let lane_id = format!("lane-mt004-{case}-{}", policy.as_str());
+        seed_run_lane(store, &run_id, &lane_id, RuntimeBinding::Local).await;
+        probes.push(Mt004PolicyProbe {
+            policy,
+            run_id,
+            lane_id,
+        });
+    }
+    assert_eq!(
+        probes.len(),
+        6,
+        "MT-004 requires all six routing policies to be probed; ModelLaneRoutingPolicy::all() returned {}",
+        probes.len()
+    );
+    probes
+}
+
+/// Assert one CRDT-bearing ModelLaneMessage is denied at the shared admission
+/// boundary and leaves no durable trace: no `model_lane_messages` row and no
+/// `model_lane_message` EventLedger append. `expected_detail` pins the exact
+/// resolver gate that fired so a test cannot pass on an unrelated denial.
+async fn mt004_assert_crdt_admission_denied(
+    store: &ModelLaneStore,
+    pool: &PgPool,
+    policy: ModelLaneRoutingPolicy,
+    message: NewModelLaneMessage,
+    expected_detail: &str,
+) {
+    let message_id = message.message_id.clone();
+    let error = store.record_message(message).await.expect_err(&format!(
+        "routing policy {} must fail closed on: {expected_detail}",
+        policy.as_str()
+    ));
+    // CX-MM-006 is the declared ModelLane CRDT authority failstate code.
+    assert_error_contains(&error, "CX-MM-006");
+    assert_error_contains(&error, "CRDT authority resolution failed");
+    assert_error_contains(&error, expected_detail);
+    assert_no_message_row(pool, &message_id).await;
+    assert_eq!(
+        mt009_model_lane_message_event_count(pool, &message_id).await,
+        0,
+        "policy {} denied message {message_id} must not append a ModelLane EventLedger event",
+        policy.as_str()
+    );
+}
+
+/// Build a CRDT-bearing probe message on one policy's run/lane.
+///
+/// The COMPLETE CRDT posture is supplied deliberately. `validate_message_authority`
+/// (`model_lane.rs` ~15137) treats any single `crdt_*` field as a declaration of
+/// CRDT authority and then requires `proposal_ref`, `crdt_update_ref`,
+/// `crdt_base_snapshot_ref`, `crdt_state_vector` and `crdt_proposal_ref` to all
+/// be present. A partial posture is therefore rejected synchronously, before the
+/// durable resolver ever runs -- which would silently turn these tests into
+/// field-presence tests instead of the authority-resolution tests they must be.
+/// `Status` kind additionally keeps the `Proposal`-only precondition
+/// (~13737) from pre-empting the gate under test.
+fn mt004_crdt_probe_message(
+    probe: &Mt004PolicyProbe,
+    case: &str,
+    arm: &str,
+    update_ref: String,
+    snapshot_ref: String,
+    state_vector: String,
+) -> NewModelLaneMessage {
+    let policy = probe.policy.as_str();
+    let message_id = format!("msg-mt004-{case}-{arm}-{policy}");
+    let mut message = sample_message(&message_id, &probe.run_id, &probe.lane_id, "local", 2);
+    message.kind = ModelLaneMessageKind::Status;
+    message.proposal_ref = Some(format!("proposal://mt004/{case}/{arm}/{policy}"));
+    message.crdt_update_ref = Some(update_ref);
+    message.crdt_base_snapshot_ref = Some(snapshot_ref);
+    message.crdt_state_vector = Some(state_vector);
+    // Resolution of the update/snapshot refs happens before the proposal is
+    // dereferenced (~13743 vs ~13747), so every arm below still fails on the
+    // gate it names rather than on the proposal lookup.
+    message.crdt_proposal_ref = Some(format!("crdt-proposal://mt004-{case}-{arm}-{policy}"));
+    message
+}
+
+/// Open an isolated real-PostgreSQL schema plus one seeded real CRDT document
+/// for an MT-004 all-six-policy negative test. Returns `None` only when the
+/// PostgreSQL binaries are genuinely absent (the helper never falls back to a
+/// mock or SQLite path).
+async fn mt004_case_fixture(
+    label: &str,
+) -> Option<(
+    PgPool,
+    ModelLaneStore,
+    PostgresDatabase,
+    String,
+    String,
+    Mt009RealCrdtReceipts,
+)> {
+    let kpg = knowledge_pg_support::knowledge_pg().await?;
+    let schema_url = kpg.schema_url.clone();
+    let workspace_id = kpg.create_workspace().await;
+    let db = kpg.db;
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&schema_url)
+        .await
+        .expect("connect isolated schema for MT-004 all-six-policy CRDT negative proof");
+    let store = ModelLaneStore::new(pool.clone());
+    let document_id = format!("doc-{label}-{workspace_id}");
+    let crdt_document_id = format!("crdt-{label}-{workspace_id}");
+    let receipts =
+        mt009_seed_real_crdt_document(&db, &workspace_id, &document_id, &crdt_document_id, label)
+            .await;
+    Some((
+        pool,
+        store,
+        db,
+        workspace_id,
+        crdt_document_id,
+        receipts,
+    ))
+}
+
+/// MT-004 class 1/5 -- MISSING ROWS, all six routing policies.
+///
+/// A syntactically perfect `postgres://kernel_crdt_updates/...` /
+/// `postgres://kernel_crdt_snapshots/...` reference that has no backing row is
+/// exactly the FAIL_V4 finding ("successful routing can emit ... authority
+/// references that are not backed by a persisted kernel_crdt_updates/Yjs
+/// object"). Both arms must be denied for every policy before persistence.
+#[tokio::test]
+async fn mt004_all_six_policies_reject_missing_crdt_rows() {
+    const CASE: &str = "missingrow";
+    const LABEL: &str = "mt004-missing";
+
+    let Some((pool, store, _db, _workspace_id, crdt_document_id, receipts)) =
+        mt004_case_fixture(LABEL).await
+    else {
+        eprintln!(
+            "SKIP mt004_all_six_policies_reject_missing_crdt_rows: PostgreSQL binaries absent"
+        );
+        return;
+    };
+    let probes = mt004_seed_policy_probes(&store, CASE).await;
+
+    for probe in &probes {
+        // Arm A: fabricated update ref, real snapshot and real state vector.
+        mt004_assert_crdt_admission_denied(
+            &store,
+            &pool,
+            probe.policy,
+            mt004_crdt_probe_message(
+                probe,
+                CASE,
+                "update",
+                format!(
+                    "postgres://kernel_crdt_updates/{crdt_document_id}/{}-fabricated",
+                    probe.policy.as_str()
+                ),
+                receipts.snapshot_bytes_ref.clone(),
+                receipts.post_update_state_vector_after.clone(),
+            ),
+            "does not resolve to kernel_crdt_updates",
+        )
+        .await;
+
+        // Arm B: real update ref, fabricated base snapshot ref. Proves the
+        // snapshot arm of the resolver is not satisfied by a valid update.
+        mt004_assert_crdt_admission_denied(
+            &store,
+            &pool,
+            probe.policy,
+            mt004_crdt_probe_message(
+                probe,
+                CASE,
+                "snapshot",
+                receipts.post_update_bytes_ref.clone(),
+                format!(
+                    "postgres://kernel_crdt_snapshots/{crdt_document_id}/{}-fabricated",
+                    probe.policy.as_str()
+                ),
+                receipts.post_update_state_vector_after.clone(),
+            ),
+            "does not resolve to kernel_crdt_snapshots",
+        )
+        .await;
+    }
+}
+
+/// MT-004 class 2/5 -- HASH MISMATCH, all six routing policies.
+///
+/// Canonical clones of a real update and a real snapshot are INSERTed with only
+/// the persisted digest corrupted (migration 0358 blocks UPDATE/DELETE/TRUNCATE,
+/// not INSERT). Bytes, schema, storage authority, EventLedger event and causal
+/// ordering all stay valid, so the recomputed-vs-persisted hash comparison is
+/// the single reason admission fails for every policy.
+#[tokio::test]
+async fn mt004_all_six_policies_reject_crdt_hash_mismatch() {
+    const CASE: &str = "hashmismatch";
+    const LABEL: &str = "mt004-hash";
+
+    let Some((pool, store, _db, _workspace_id, crdt_document_id, receipts)) =
+        mt004_case_fixture(LABEL).await
+    else {
+        eprintln!(
+            "SKIP mt004_all_six_policies_reject_crdt_hash_mismatch: PostgreSQL binaries absent"
+        );
+        return;
+    };
+    let wrong_sha = "0".repeat(64);
+
+    let tampered_update_ref =
+        format!("postgres://kernel_crdt_updates/{crdt_document_id}/{LABEL}-badhash");
+    let inserted = sqlx::query(
+        r#"
+        INSERT INTO kernel_crdt_updates
+            (schema_id, workspace_id, document_id, crdt_document_id, update_id, update_seq,
+             update_sha256, update_bytes_ref, update_bytes, actor_id, actor_kind, session_id,
+             trace_id, state_vector_before, state_vector_after, replay_metadata_json,
+             event_ledger_stream_id, event_ledger_event_id, storage_authority)
+        SELECT schema_id, workspace_id, document_id, crdt_document_id,
+               $2, update_seq + 100000, $3, $4, update_bytes, actor_id, actor_kind, session_id,
+               trace_id, state_vector_before, state_vector_after, replay_metadata_json,
+               $5, event_ledger_event_id, storage_authority
+        FROM kernel_crdt_updates
+        WHERE update_bytes_ref = $1
+        "#,
+    )
+    .bind(&receipts.post_update_bytes_ref)
+    .bind(format!("{LABEL}-badhash"))
+    .bind(&wrong_sha)
+    .bind(&tampered_update_ref)
+    .bind(format!("knowledge-crdt-mt004-badhash:{crdt_document_id}"))
+    .execute(&pool)
+    .await
+    .expect("INSERT hash-tampered kernel_crdt_updates clone");
+    assert_eq!(inserted.rows_affected(), 1);
+
+    let tampered_snapshot_ref =
+        format!("postgres://kernel_crdt_snapshots/{crdt_document_id}/{LABEL}-badhash");
+    let inserted = sqlx::query(
+        r#"
+        INSERT INTO kernel_crdt_snapshots
+            (schema_id, snapshot_id, workspace_id, document_id, crdt_document_id, covered_update_seq,
+             state_vector, snapshot_sha256, snapshot_bytes_ref, snapshot_bytes, actor_id, actor_kind,
+             event_ledger_stream_id, event_ledger_event_id, promotion_evidence_update_ids,
+             storage_authority)
+        SELECT schema_id, $2, workspace_id, document_id, crdt_document_id, covered_update_seq,
+               state_vector, $3, $4, snapshot_bytes, actor_id, actor_kind,
+               $5, event_ledger_event_id, promotion_evidence_update_ids, storage_authority
+        FROM kernel_crdt_snapshots
+        WHERE snapshot_bytes_ref = $1
+        "#,
+    )
+    .bind(&receipts.snapshot_bytes_ref)
+    .bind(format!("{LABEL}-badhash"))
+    .bind(&wrong_sha)
+    .bind(&tampered_snapshot_ref)
+    .bind(format!("knowledge-crdt-mt004-badhash-snap:{crdt_document_id}"))
+    .execute(&pool)
+    .await
+    .expect("INSERT hash-tampered kernel_crdt_snapshots clone");
+    assert_eq!(inserted.rows_affected(), 1);
+    assert!(
+        receipts.snapshot_covered_seq < 2,
+        "cloned snapshot must stay causally before the referenced post-update seq"
+    );
+
+    let probes = mt004_seed_policy_probes(&store, CASE).await;
+    for probe in &probes {
+        // Arm A: update bytes no longer hash to the persisted update_sha256.
+        mt004_assert_crdt_admission_denied(
+            &store,
+            &pool,
+            probe.policy,
+            mt004_crdt_probe_message(
+                probe,
+                CASE,
+                "update",
+                tampered_update_ref.clone(),
+                receipts.snapshot_bytes_ref.clone(),
+                receipts.post_update_state_vector_after.clone(),
+            ),
+            "does not match persisted update_sha256",
+        )
+        .await;
+
+        // Arm B: snapshot bytes no longer hash to the persisted snapshot_sha256.
+        mt004_assert_crdt_admission_denied(
+            &store,
+            &pool,
+            probe.policy,
+            mt004_crdt_probe_message(
+                probe,
+                CASE,
+                "snapshot",
+                receipts.post_update_bytes_ref.clone(),
+                tampered_snapshot_ref.clone(),
+                receipts.post_update_state_vector_after.clone(),
+            ),
+            "does not match persisted snapshot_sha256",
+        )
+        .await;
+    }
+}
+
+/// MT-004 class 3/5 -- STALE STATE VECTORS, all six routing policies.
+///
+/// Arm A supplies the document's own causally EARLIER state vector (the
+/// snapshot's, covering update_seq 1) against the seq-2 update -- the literal
+/// "stale vector" case. Arm B supplies a genuine server-derived vector that
+/// belongs to a DIFFERENT CRDT document, proving the binding is by persisted
+/// entity identity and not merely by string shape. Both are real vectors, so
+/// neither negative can pass for a formatting reason.
+#[tokio::test]
+async fn mt004_all_six_policies_reject_stale_crdt_state_vectors() {
+    const CASE: &str = "stalevector";
+    const LABEL: &str = "mt004-stale";
+    const FOREIGN_LABEL: &str = "mt004-stale-foreign";
+
+    let Some((pool, store, db, workspace_id, _crdt_document_id, receipts)) =
+        mt004_case_fixture(LABEL).await
+    else {
+        eprintln!(
+            "SKIP mt004_all_six_policies_reject_stale_crdt_state_vectors: PostgreSQL binaries absent"
+        );
+        return;
+    };
+
+    // The snapshot covers update_seq 1; the referenced update is seq 2. Its
+    // state vector is therefore genuine, server-derived, and stale.
+    let stale_state_vector: String = sqlx::query_scalar(
+        "SELECT state_vector FROM kernel_crdt_snapshots WHERE snapshot_bytes_ref = $1",
+    )
+    .bind(&receipts.snapshot_bytes_ref)
+    .fetch_one(&pool)
+    .await
+    .expect("read the real snapshot's causally earlier state vector");
+    assert_ne!(
+        stale_state_vector, receipts.post_update_state_vector_after,
+        "the pre-update snapshot vector must differ from the post-update vector for a real negative"
+    );
+
+    let foreign_document_id = format!("doc-{FOREIGN_LABEL}-{workspace_id}");
+    let foreign_crdt_document_id = format!("crdt-{FOREIGN_LABEL}-{workspace_id}");
+    let foreign = mt009_seed_real_crdt_document(
+        &db,
+        &workspace_id,
+        &foreign_document_id,
+        &foreign_crdt_document_id,
+        FOREIGN_LABEL,
+    )
+    .await;
+    assert_ne!(
+        foreign.post_update_state_vector_after, receipts.post_update_state_vector_after,
+        "distinct CRDT documents must yield distinct state vectors for a real negative"
+    );
+
+    let probes = mt004_seed_policy_probes(&store, CASE).await;
+    for probe in &probes {
+        // Arm A: the document's own stale (pre-update) state vector.
+        mt004_assert_crdt_admission_denied(
+            &store,
+            &pool,
+            probe.policy,
+            mt004_crdt_probe_message(
+                probe,
+                CASE,
+                "stale",
+                receipts.post_update_bytes_ref.clone(),
+                receipts.snapshot_bytes_ref.clone(),
+                stale_state_vector.clone(),
+            ),
+            "does not match persisted state_vector_after",
+        )
+        .await;
+
+        // Arm B: a real state vector belonging to a different document.
+        mt004_assert_crdt_admission_denied(
+            &store,
+            &pool,
+            probe.policy,
+            mt004_crdt_probe_message(
+                probe,
+                CASE,
+                "foreign",
+                receipts.post_update_bytes_ref.clone(),
+                receipts.snapshot_bytes_ref.clone(),
+                foreign.post_update_state_vector_after.clone(),
+            ),
+            "does not match persisted state_vector_after",
+        )
+        .await;
+    }
+}
+
+/// MT-004 class 4/5 -- DUPLICATES, all six routing policies.
+///
+/// The duplicate gate lives at the top of `record_message_tx` (~357-384), ahead
+/// of CRDT resolution, so it is proven with a real admitted baseline message
+/// per policy plus two retries:
+///   Arm A: same `idempotency_key`, different payload -> `IdempotencyConflict`.
+///   Arm B: same `idempotency_key` AND same payload hash, but the retry adds
+///          fabricated CRDT authority fields. An idempotent replay MUST NOT be
+///          a smuggling channel for authority the original never carried, so
+///          the semantic-hash comparison must reject it instead of returning
+///          the stored row.
+/// The baseline record also proves these probes fail for the intended reason
+/// and not because the message shape itself is inadmissible for that policy.
+#[tokio::test]
+async fn mt004_all_six_policies_reject_duplicate_idempotency_keys() {
+    const CASE: &str = "duplicate";
+    const LABEL: &str = "mt004-dup";
+
+    let Some((pool, store, _db, _workspace_id, crdt_document_id, receipts)) =
+        mt004_case_fixture(LABEL).await
+    else {
+        eprintln!(
+            "SKIP mt004_all_six_policies_reject_duplicate_idempotency_keys: PostgreSQL binaries absent"
+        );
+        return;
+    };
+    let probes = mt004_seed_policy_probes(&store, CASE).await;
+
+    for probe in &probes {
+        let policy = probe.policy.as_str();
+        let baseline_id = format!("msg-mt004-{CASE}-baseline-{policy}");
+        let baseline = sample_message(&baseline_id, &probe.run_id, &probe.lane_id, "local", 2);
+        let baseline_key = baseline.idempotency_key.clone();
+        let stored = store
+            .record_message_with_payload_binding(
+                baseline.clone(),
+                sample_artifact_binding_for_message(&baseline),
+            )
+            .await
+            .unwrap_or_else(|error| {
+                panic!("policy {policy} baseline message must be admitted: {error}")
+            });
+        assert_eq!(stored.message_id, baseline_id);
+
+        // Arm A: same idempotency_key, different payload hash.
+        let conflicting_id = format!("msg-mt004-{CASE}-conflict-{policy}");
+        let mut conflicting =
+            sample_message(&conflicting_id, &probe.run_id, &probe.lane_id, "local", 3);
+        conflicting.idempotency_key = baseline_key.clone();
+        assert_ne!(
+            conflicting.payload_sha256, baseline.payload_sha256,
+            "the conflicting retry must carry a genuinely different payload hash"
+        );
+        let error = store
+            .record_message(conflicting)
+            .await
+            .expect_err(&format!(
+                "policy {policy} must reject a duplicate idempotency_key with a different payload"
+            ));
+        assert_error_contains(&error, "idempotency conflict");
+        assert_error_contains(&error, "already belongs to payload_sha256");
+        assert_no_message_row(&pool, &conflicting_id).await;
+
+        // Arm B: byte-identical replay that tries to add CRDT authority.
+        let mut smuggling = sample_message(&baseline_id, &probe.run_id, &probe.lane_id, "local", 2);
+        assert_eq!(
+            smuggling.payload_sha256, baseline.payload_sha256,
+            "the smuggling retry must be an otherwise byte-identical idempotent replay"
+        );
+        // A COMPLETE posture is attached so the retry is rejected by the
+        // duplicate gate rather than by the synchronous completeness check --
+        // this arm must prove the idempotency path itself refuses the upgrade.
+        smuggling.proposal_ref = Some(format!("proposal://mt004/{CASE}/smuggled/{policy}"));
+        smuggling.crdt_update_ref = Some(format!(
+            "postgres://kernel_crdt_updates/{crdt_document_id}/{policy}-smuggled"
+        ));
+        smuggling.crdt_base_snapshot_ref = Some(receipts.snapshot_bytes_ref.clone());
+        smuggling.crdt_state_vector = Some(receipts.post_update_state_vector_after.clone());
+        smuggling.crdt_proposal_ref = Some(format!("crdt-proposal://mt004-{CASE}-smuggled-{policy}"));
+        let error = store
+            .record_message(smuggling)
+            .await
+            .expect_err(&format!(
+                "policy {policy} must not let an idempotent replay attach CRDT authority"
+            ));
+        assert_error_contains(&error, "idempotency conflict");
+        assert_error_contains(&error, "already belongs to semantic_hash");
+
+        // Exactly one durable row survives both retries, still without CRDT
+        // authority.
+        let rows: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM model_lane_messages WHERE idempotency_key = $1",
+        )
+        .bind(&baseline_key)
+        .fetch_one(&pool)
+        .await
+        .expect("count durable rows for the baseline idempotency key");
+        assert_eq!(
+            rows, 1,
+            "policy {policy} must keep exactly one durable row for idempotency_key {baseline_key}"
+        );
+        // record_json is the durable projection of the stored message record
+        // (NewModelLaneMessage is serde-flattened into it), so this reads the
+        // authority the row actually kept, not a test-side copy.
+        let stored_update_ref: Option<String> = sqlx::query_scalar(
+            "SELECT record_json->>'crdt_update_ref' FROM model_lane_messages WHERE message_id = $1",
+        )
+        .bind(&baseline_id)
+        .fetch_one(&pool)
+        .await
+        .expect("read the stored baseline crdt_update_ref from record_json");
+        assert!(
+            stored_update_ref.is_none(),
+            "policy {policy} baseline row must still carry null CRDT authority after the smuggling retry"
+        );
+    }
+}
+
+/// MT-004 class 5/5 -- REPLAY ORDER, all six routing policies.
+///
+/// Arm A pairs a real update with a base snapshot that is NOT causally before
+/// it (`covered_update_seq >= update_seq`, the resolver's replay-order gate at
+/// `model_lane.rs` ~13257), which is how a stale/rewound base would try to
+/// re-enter authority. Arm B corrupts the update's persisted replay metadata
+/// encoding so the canonical Yjs-v1 replay contract (~13105) no longer holds --
+/// a row that cannot be deterministically replayed must never back a
+/// ModelLaneMessage.
+#[tokio::test]
+async fn mt004_all_six_policies_reject_crdt_replay_order_violations() {
+    const CASE: &str = "replayorder";
+    const LABEL: &str = "mt004-replay";
+
+    let Some((pool, store, _db, _workspace_id, crdt_document_id, receipts)) =
+        mt004_case_fixture(LABEL).await
+    else {
+        eprintln!(
+            "SKIP mt004_all_six_policies_reject_crdt_replay_order_violations: PostgreSQL binaries absent"
+        );
+        return;
+    };
+
+    // Arm A fixture: canonical snapshot clone whose covered_update_seq is at or
+    // after the referenced update, so it cannot be a causal base for it.
+    let non_causal_snapshot_ref =
+        format!("postgres://kernel_crdt_snapshots/{crdt_document_id}/{LABEL}-noncausal");
+    let inserted = sqlx::query(
+        r#"
+        INSERT INTO kernel_crdt_snapshots
+            (schema_id, snapshot_id, workspace_id, document_id, crdt_document_id, covered_update_seq,
+             state_vector, snapshot_sha256, snapshot_bytes_ref, snapshot_bytes, actor_id, actor_kind,
+             event_ledger_stream_id, event_ledger_event_id, promotion_evidence_update_ids,
+             storage_authority)
+        SELECT schema_id, $2, workspace_id, document_id, crdt_document_id, $3,
+               state_vector, snapshot_sha256, $4, snapshot_bytes, actor_id, actor_kind,
+               $5, event_ledger_event_id, promotion_evidence_update_ids, storage_authority
+        FROM kernel_crdt_snapshots
+        WHERE snapshot_bytes_ref = $1
+        "#,
+    )
+    .bind(&receipts.snapshot_bytes_ref)
+    .bind(format!("{LABEL}-noncausal"))
+    .bind(999_i64)
+    .bind(&non_causal_snapshot_ref)
+    .bind(format!("knowledge-crdt-mt004-noncausal:{crdt_document_id}"))
+    .execute(&pool)
+    .await
+    .expect("INSERT non-causal kernel_crdt_snapshots clone");
+    assert_eq!(inserted.rows_affected(), 1);
+
+    // Arm B fixture: canonical update clone whose replay metadata no longer
+    // declares the canonical Yjs v1 encoding. Bytes and digest stay valid so the
+    // replay-metadata gate is the only reason admission fails.
+    let non_replayable_update_ref =
+        format!("postgres://kernel_crdt_updates/{crdt_document_id}/{LABEL}-nonreplayable");
+    let inserted = sqlx::query(
+        r#"
+        INSERT INTO kernel_crdt_updates
+            (schema_id, workspace_id, document_id, crdt_document_id, update_id, update_seq,
+             update_sha256, update_bytes_ref, update_bytes, actor_id, actor_kind, session_id,
+             trace_id, state_vector_before, state_vector_after, replay_metadata_json,
+             event_ledger_stream_id, event_ledger_event_id, storage_authority)
+        SELECT schema_id, workspace_id, document_id, crdt_document_id,
+               $2, update_seq + 200000, update_sha256, $3, update_bytes, actor_id, actor_kind,
+               session_id, trace_id, state_vector_before, state_vector_after,
+               jsonb_set(replay_metadata_json, '{encoding}', '"yjs-update-v0-out-of-order"'),
+               $4, event_ledger_event_id, storage_authority
+        FROM kernel_crdt_updates
+        WHERE update_bytes_ref = $1
+        "#,
+    )
+    .bind(&receipts.post_update_bytes_ref)
+    .bind(format!("{LABEL}-nonreplayable"))
+    .bind(&non_replayable_update_ref)
+    .bind(format!("knowledge-crdt-mt004-nonreplayable:{crdt_document_id}"))
+    .execute(&pool)
+    .await
+    .expect("INSERT non-replayable kernel_crdt_updates clone");
+    assert_eq!(inserted.rows_affected(), 1);
+
+    let probes = mt004_seed_policy_probes(&store, CASE).await;
+    for probe in &probes {
+        // Arm A: base snapshot is not causally before the referenced update.
+        mt004_assert_crdt_admission_denied(
+            &store,
+            &pool,
+            probe.policy,
+            mt004_crdt_probe_message(
+                probe,
+                CASE,
+                "noncausal",
+                receipts.post_update_bytes_ref.clone(),
+                non_causal_snapshot_ref.clone(),
+                receipts.post_update_state_vector_after.clone(),
+            ),
+            "is not causally before update_seq",
+        )
+        .await;
+
+        // Arm B: persisted replay metadata is not canonical Yjs v1.
+        mt004_assert_crdt_admission_denied(
+            &store,
+            &pool,
+            probe.policy,
+            mt004_crdt_probe_message(
+                probe,
+                CASE,
+                "nonreplayable",
+                non_replayable_update_ref.clone(),
+                receipts.snapshot_bytes_ref.clone(),
+                receipts.post_update_state_vector_after.clone(),
+            ),
+            "replay metadata is not canonical Yjs v1",
+        )
+        .await;
+    }
+}
+
+/// MT-004 structural proof: EVERY stage of EVERY routing policy graph commits
+/// its output through the one shared CRDT admission boundary.
+///
+/// The five class tests above prove the gates. This test proves there is no
+/// per-policy or per-stage bypass around them: for each policy returned by
+/// `ModelLaneRoutingPolicy::all()` it walks every stage of
+/// `ModelLaneRoutingGraph::for_policy`, rebuilds the exact message shape
+/// `routing_execution.rs` commits for that stage (advisory, coordinator-target,
+/// per-stage kind), poisons it with a fabricated CRDT reference, and requires
+/// the shared boundary to deny it.
+///
+/// Production keeps routing-stage CRDT fields null (`routing_execution.rs`
+/// ~1681-1756) precisely because a stage output is advisory; this test proves
+/// that if any stage ever started emitting CRDT authority, it could not
+/// fabricate it. `CoordinatorJoin` stages commit through
+/// `record_context_bundle_artifact_binding_with_validation_tx` rather than a
+/// message in production, and are probed here too so a future change that gives
+/// them a message cannot land unguarded.
+///
+/// The drift guard makes a newly added seventh policy fail this test loudly
+/// instead of silently going uncovered.
+#[tokio::test]
+async fn mt004_every_routing_policy_stage_output_routes_through_shared_crdt_admission_boundary() {
+    const CASE: &str = "structural";
+    const LABEL: &str = "mt004-structural";
+
+    let policies: Vec<ModelLaneRoutingPolicy> =
+        ModelLaneRoutingPolicy::all().iter().copied().collect();
+    let policy_names: Vec<&str> = policies.iter().map(|policy| policy.as_str()).collect();
+    assert_eq!(
+        policy_names,
+        vec![
+            "local_first",
+            "cloud_review",
+            "cloud_plan_local_execute",
+            "parallel_debate",
+            "validator_lane",
+            "operator_lane",
+        ],
+        "MT-004 acceptance names exactly these six routing policies; update the MT-004 \
+         all-six-policy negative tests before changing the canonical policy set"
+    );
+
+    let Some((pool, store, _db, _workspace_id, crdt_document_id, receipts)) =
+        mt004_case_fixture(LABEL).await
+    else {
+        eprintln!(
+            "SKIP mt004_every_routing_policy_stage_output_routes_through_shared_crdt_admission_boundary: PostgreSQL binaries absent"
+        );
+        return;
+    };
+    let probes = mt004_seed_policy_probes(&store, CASE).await;
+
+    let mut probed_stages = 0usize;
+    for probe in &probes {
+        let policy = probe.policy.as_str();
+        let graph = ModelLaneRoutingGraph::for_policy(probe.policy);
+        assert!(
+            !graph.stages.is_empty(),
+            "policy {policy} must declare at least one executable stage"
+        );
+        for stage in &graph.stages {
+            let stage_id = stage.stage_id.as_str();
+            let message_id = format!("routing-output:mt004-{CASE}:{policy}:{stage_id}:1");
+            let mut message =
+                sample_message(&message_id, &probe.run_id, &probe.lane_id, "local", 2);
+            // Mirror routing_execution.rs commit_stage_output message shaping.
+            message.kind = if stage_id == "cloud-review" {
+                ModelLaneMessageKind::Critique
+            } else if stage.target == ModelLaneRoutingDispatchTarget::CoordinatorJoin {
+                ModelLaneMessageKind::Status
+            } else {
+                ModelLaneMessageKind::Proposal
+            };
+            message.authority = ModelLaneAuthority::Advisory;
+            message.promotion_decision_id = None;
+            message.promotion_gate_ref = None;
+            message.promotion_receipt_ref = None;
+            message.promoted_artifact_ref = None;
+            message.promoted_artifact_sha256 = None;
+            message.promoted_artifact_version = None;
+            message.idempotency_key = message_id.clone();
+            message.replay_order_key = format!("routing/mt004-{CASE}/{policy}/{stage_id}/0001");
+            // Fabricated but COMPLETE authority posture: the synchronous
+            // completeness check (~15137) and the Proposal-kind precondition
+            // (~13737) are both satisfied, so every stage of every policy fails
+            // at the same durable resolution gate for the same reason.
+            message.proposal_ref =
+                Some(format!("proposal://mt004/{CASE}/{policy}/{stage_id}"));
+            message.crdt_update_ref = Some(format!(
+                "postgres://kernel_crdt_updates/{crdt_document_id}/{policy}-{stage_id}-fabricated"
+            ));
+            message.crdt_base_snapshot_ref = Some(receipts.snapshot_bytes_ref.clone());
+            message.crdt_state_vector = Some(receipts.post_update_state_vector_after.clone());
+            message.crdt_proposal_ref =
+                Some(format!("crdt-proposal://mt004-{CASE}-{policy}-{stage_id}"));
+
+            mt004_assert_crdt_admission_denied(
+                &store,
+                &pool,
+                probe.policy,
+                message,
+                "does not resolve to kernel_crdt_updates",
+            )
+            .await;
+            probed_stages += 1;
+        }
+    }
+
+    assert_eq!(
+        probed_stages, 13,
+        "the six canonical routing graphs declare 13 stages in total; a changed stage set must \
+         be re-reviewed against the MT-004 all-six-policy negative coverage"
     );
 }
 

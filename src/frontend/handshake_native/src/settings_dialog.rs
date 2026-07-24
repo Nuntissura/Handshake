@@ -52,6 +52,21 @@
 //!
 //! The dialog renders ONLY while `settings_open` is true (closed by default), so the default-seed live
 //! tree never contains any of these nodes — exactly like the palette / switcher overlays.
+//!
+//! ## Two hosts: root-viewport modal and detached OS window (MT-015)
+//!
+//! The SAME surface renders in one of two mutually exclusive hosts, never both:
+//!
+//! | Host | Entry | Root node | Argus window |
+//! |------|-------|-----------|--------------|
+//! | modal (default) | `settings_open = true` | `settings.dialog` (`Role::Dialog`, modal) | `main` |
+//! | detached window | `settings.popout` -> [`SettingsOutcome::PopOut`] | `popout-window-settings` (`Role::Window`) | `popout-settings` |
+//!
+//! [`show`] draws the modal; [`show_detached`] draws the detached window's body. Both call the SAME
+//! [`render_search_and_sections`] -> [`render_sections`] path over the same shell-owned state, so every
+//! section, control, and author_id is identical in both hosts — only the surrounding chrome differs.
+//! `settings.redock` returns the surface to the modal; the detached window's Close control and its OS
+//! close button close settings outright (a later re-open comes back as the modal).
 
 use egui::accesskit;
 
@@ -111,8 +126,31 @@ pub const RESOURCE_SAMPLING_CHECKBOX_AUTHOR_ID: &str =
 pub const PALMISTRY_STATUS_AUTHOR_ID: &str = "settings.diagnostics.palmistry-status";
 /// WP-1 (c): stable author_id for the internal-diagnostics subsystem status label (real state).
 pub const DIAGNOSTICS_SUBSYSTEM_STATUS_AUTHOR_ID: &str = "settings.diagnostics.subsystem-status";
-/// Stable author_id for the Close button.
+/// Stable author_id for the Close button. Rendered in BOTH the root-viewport modal header and the
+/// detached-window header (the same control in two hosts; Argus scopes targets per window).
 pub const CLOSE_AUTHOR_ID: &str = "settings.close";
+/// Stable author_id for the modal header's "Pop out" control: moves the whole settings surface into its
+/// OWN OS window ([`show_detached`]). The shell flips its detached flag on the returned
+/// [`SettingsOutcome::PopOut`], and from the next frame the modal no longer renders — the two hosts are
+/// mutually exclusive, so there is never a double settings UI.
+pub const SETTINGS_POPOUT_AUTHOR_ID: &str = "settings.popout";
+/// Stable author_id for the detached window's "Re-dock" control: returns the surface to the
+/// root-viewport modal WITHOUT closing settings ([`SettingsOutcome::Redock`]).
+pub const SETTINGS_REDOCK_AUTHOR_ID: &str = "settings.redock";
+/// The pop-out KEY the detached Settings window feeds to the generic pane pop-out id scheme in
+/// [`crate::popout_window`], so the detached Settings window is addressed by exactly the same scheme as
+/// every pane pop-out:
+/// - Argus window id `popout-settings` ([`crate::popout_window::argus_window_id`]) — what
+///   `argus.list_windows` enumerates and what `screenshot` targets by recorded OS window handle;
+/// - root AccessKit node `popout-window-settings`
+///   ([`crate::popout_window::popout_window_author_id`], `Role::Window`).
+///
+/// Settings is NOT a pane; this key only feeds those two pure id formatters (and the stable
+/// `ViewportId`), it never enters the pane registry.
+pub const SETTINGS_POPOUT_KEY: &str = "settings";
+/// The surface label the detached window title is built from:
+/// `"Handshake – Settings"` via [`crate::popout_window::popout_title_for`].
+pub const SETTINGS_WINDOW_LABEL: &str = "Settings";
 /// Author_id prefix for a per-action keybinding text input (`{prefix}{action_id}`).
 pub const KEYBINDING_INPUT_AUTHOR_ID_PREFIX: &str = "settings.keybinding.";
 /// Author_id prefix for a per-action keybinding Reset button (`{prefix}{action_id}`).
@@ -434,6 +472,13 @@ pub enum SettingsOutcome {
     /// MT-015: Log-in clicked for a CLI-bridge provider. The shell launches the provider's OWN official
     /// login command in a visible terminal (operator-initiated). Handshake stores no credential.
     CliBridgeLoginRequested { provider: String },
+    /// MT-015: the modal header's "Pop out" control was clicked. The shell detaches the settings surface
+    /// into its own OS window (Argus `popout-settings`) and STOPS rendering the modal, so the surface has
+    /// exactly one host at a time.
+    PopOut,
+    /// MT-015: the detached window's "Re-dock" control was clicked. The shell returns the surface to the
+    /// root-viewport modal without closing settings.
+    Redock,
     /// The user dismissed the dialog (Escape, the Close button, or a backdrop click). The shell clears
     /// the open flag.
     Close,
@@ -557,35 +602,8 @@ impl DialogState {
 /// centred-modal fallback; the centred modal matches the palette/switcher overlay convention already in
 /// this crate, so the three overlays are visually + structurally consistent.
 pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
-    let state_id = egui::Id::new("settings.state");
-    let mut state: DialogState = ctx
-        .data_mut(|d| d.get_temp::<DialogState>(state_id))
-        .unwrap_or_default();
-
-    // Reset transient state on (re-)open: a new open generation clears the query + reseeds drafts from
-    // the live settings so a re-open never shows the previous session's text/drafts.
-    if state.open_count != view.open_count {
-        // MT-015 F3: wipe any BYOK key buffer + reset each key TextEdit's egui state on (re-)open, so a
-        // key typed but not saved in a PRIOR open never lingers into this one.
-        clear_cloud_key_state(ctx, view.cloud);
-        state = DialogState {
-            open_count: view.open_count,
-            query: String::new(),
-            drafts: APP_KEYBINDING_ACTIONS
-                .iter()
-                .map(|action| {
-                    (
-                        action.id.to_owned(),
-                        view.settings
-                            .chord_for(action.id)
-                            .unwrap_or(action.default_chord)
-                            .to_owned(),
-                    )
-                })
-                .collect(),
-            focus_requested: false,
-        };
-    }
+    let state_id = settings_state_id();
+    let mut state = load_or_reset_state(ctx, state_id, view.open_count, view.settings, view.cloud);
 
     // ── Escape (AC12) — popup-aware (FIX-C). ────────────────────────────────────────────────────────
     // Escape has two jobs in this dialog: close an OPEN ComboBox popup (Theme / View Mode), or — when
@@ -672,54 +690,33 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
                         crate::mcp::argus::acknowledge_action_effect(ui.ctx(), CLOSE_AUTHOR_ID);
                         outcome = SettingsOutcome::Close;
                     }
+                    // MT-015: detach the whole surface into its own OS window. Outcome-gated (like every
+                    // other button here), so the ack stays truthful when a same-frame Close already won.
+                    let popout = ui.button("Pop out");
+                    set_author_id(ui, popout.id, SETTINGS_POPOUT_AUTHOR_ID);
+                    if popout.clicked() && outcome == SettingsOutcome::None {
+                        crate::mcp::argus::acknowledge_action_effect(
+                            ui.ctx(),
+                            SETTINGS_POPOUT_AUTHOR_ID,
+                        );
+                        outcome = SettingsOutcome::PopOut;
+                    }
                 });
             });
             ui.add_space(6.0);
 
-            // Search input, pinned to the fixed search id so its AccessKit NodeId is stable.
-            ui.label(egui::RichText::new("Search settings").small().weak());
-            let edit = egui::TextEdit::singleline(&mut state.query)
-                .id(search_egui_id)
-                .hint_text("Theme, quick switcher, terminal...")
-                .desired_width(f32::INFINITY);
-            let _edit_response = ui.add(edit);
-            if !state.focus_requested {
-                _edit_response.request_focus();
-                state.focus_requested = true;
-            }
-            emit_search_node(ui.ctx(), search_egui_id);
-
-            // Persistence error row (HBR: important state visible; surfaces a save/load failure).
-            if let Some(err) = view.persist_error {
-                ui.add_space(4.0);
-                ui.colored_label(
-                    ui.visuals().error_fg_color,
-                    format!("Settings sync error: {err}"),
-                );
-            }
-
-            ui.add_space(6.0);
-
-            let query = state.query.trim().to_lowercase();
-
-            // The scrollable body region (Role::Group container at the fixed list id).
-            ui.push_id(list_egui_id, |ui| {
-                egui::ScrollArea::vertical()
-                    .max_height(440.0)
-                    .auto_shrink([false, false])
-                    .show(ui, |ui| {
-                        outcome = render_sections(
-                            ui,
-                            &query,
-                            &mut state,
-                            view.settings,
-                            &mut *view.cloud,
-                            view.diagnostics,
-                            outcome.clone(),
-                        );
-                    });
-            });
-            emit_list_node(ui.ctx(), list_egui_id);
+            outcome = render_search_and_sections(
+                ui,
+                &mut state,
+                view.settings,
+                view.persist_error,
+                &mut *view.cloud,
+                view.diagnostics,
+                search_egui_id,
+                list_egui_id,
+                440.0,
+                outcome.clone(),
+            );
         });
 
     // The dialog root container node (Role::Dialog, modal) attached to the fixed dialog id so an
@@ -728,12 +725,211 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
 
     // MT-015 F3: the Close BUTTON (handled inside the window) also dismisses the dialog. Wipe the BYOK
     // key buffers + reset each key TextEdit's egui state here so this path clears exactly like Escape /
-    // backdrop before the shell tears the dialog down.
-    if outcome == SettingsOutcome::Close {
+    // backdrop before the shell tears the dialog down. Pop-out is treated identically: a
+    // typed-but-unsaved key never travels across a window transition into the detached host.
+    if matches!(outcome, SettingsOutcome::Close | SettingsOutcome::PopOut) {
         clear_cloud_key_state(ctx, view.cloud);
     }
 
     persist(ctx, state_id, &state);
+    outcome
+}
+
+/// Render the settings surface as the body of its OWN detached OS window (MT-015) and return this
+/// frame's [`SettingsOutcome`].
+///
+/// This is the SECOND host of the same surface — it does NOT fork the section rendering. Both hosts call
+/// the same [`render_search_and_sections`] -> [`render_sections`] path over the same shell-owned state
+/// (`SettingsView`) and the same transient [`DialogState`] in egui memory (keyed by the SAME
+/// `settings.state` id and open generation), so a search query / keybinding draft survives a pop-out or
+/// re-dock and every section behaves identically in both windows.
+///
+/// Differences from the modal, all host chrome only:
+/// - it opens the SINGLE [`egui::CentralPanel`] of the detached viewport instead of a backdrop + centred
+///   `Window`, so the surface fills the OS window (the caller's window-root `Role::Window` node is
+///   emitted from a zero-interaction `Area`, never a second CentralPanel — same rule as
+///   [`crate::popout_window::PopOutManager::show_all`]);
+/// - the header carries a "Re-dock" control ([`SETTINGS_REDOCK_AUTHOR_ID`]) next to the shared Close;
+/// - it emits NO `settings.dialog` node: the modal's `Role::Dialog` root is modal-only, and the detached
+///   host's root is `popout-window-settings` (`Role::Window`, emitted by the shell). That difference is
+///   what makes "which host is live" observable out-of-process instead of ambiguous;
+/// - Escape does not close it (the OS close button and the Close control own that), so a stray Escape in
+///   a background window cannot tear down the operator's detached settings.
+///
+/// The caller ([`crate::app::HandshakeApp`]) renders this INSIDE `show_viewport_immediate` and owns the
+/// detached flag, the Argus window registration, and the OS-close seam.
+pub fn show_detached(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
+    let state_id = settings_state_id();
+    let mut state = load_or_reset_state(ctx, state_id, view.open_count, view.settings, view.cloud);
+
+    let search_egui_id = unsafe { egui::Id::from_high_entropy_bits(SETTINGS_SEARCH_NODE_ID) };
+    let list_egui_id = unsafe { egui::Id::from_high_entropy_bits(SETTINGS_LIST_NODE_ID) };
+
+    let mut outcome = SettingsOutcome::None;
+
+    egui::CentralPanel::default().show(ctx, |ui| {
+        // Header: the same eyebrow + title as the modal, with Close + Re-dock on the right.
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.label(egui::RichText::new("GLOBAL").small().weak());
+                ui.label(egui::RichText::new("Settings").heading());
+            });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let close = ui.button("Close");
+                set_author_id(ui, close.id, CLOSE_AUTHOR_ID);
+                if close.clicked() {
+                    crate::mcp::argus::acknowledge_action_effect(ui.ctx(), CLOSE_AUTHOR_ID);
+                    outcome = SettingsOutcome::Close;
+                }
+                let redock = ui.button("Re-dock");
+                set_author_id(ui, redock.id, SETTINGS_REDOCK_AUTHOR_ID);
+                if redock.clicked() && outcome == SettingsOutcome::None {
+                    crate::mcp::argus::acknowledge_action_effect(
+                        ui.ctx(),
+                        SETTINGS_REDOCK_AUTHOR_ID,
+                    );
+                    outcome = SettingsOutcome::Redock;
+                }
+            });
+        });
+        ui.add_space(6.0);
+
+        // The detached window is resizable by the operator, so the scroll body takes whatever height is
+        // left instead of the modal's fixed 440pt. A floor keeps the body usable on a tiny window.
+        let body_height = (ui.available_height() - 8.0).max(120.0);
+        outcome = render_search_and_sections(
+            ui,
+            &mut state,
+            view.settings,
+            view.persist_error,
+            &mut *view.cloud,
+            view.diagnostics,
+            search_egui_id,
+            list_egui_id,
+            body_height,
+            outcome.clone(),
+        );
+    });
+
+    // Both window-leaving paths clear exactly like the modal's close (MT-015 F3).
+    if matches!(outcome, SettingsOutcome::Close | SettingsOutcome::Redock) {
+        clear_cloud_key_state(ctx, view.cloud);
+    }
+
+    persist(ctx, state_id, &state);
+    outcome
+}
+
+/// The egui-memory id of the transient [`DialogState`]. Shared by BOTH hosts (modal + detached window) so
+/// the search query and keybinding drafts survive a pop-out / re-dock instead of resetting.
+fn settings_state_id() -> egui::Id {
+    egui::Id::new("settings.state")
+}
+
+/// Load the transient dialog state, resetting it when the shell reports a new open generation.
+///
+/// A new `open_count` clears the query + reseeds every keybinding draft from the live settings, so a
+/// re-open never shows the previous session's text/drafts, and (MT-015 F3) wipes any BYOK key buffer +
+/// resets each key `TextEdit`'s egui state so a key typed but not saved in a PRIOR open never lingers.
+/// Popping out / re-docking does NOT bump `open_count`, so the surface keeps its live state across the
+/// host change.
+fn load_or_reset_state(
+    ctx: &egui::Context,
+    state_id: egui::Id,
+    open_count: u64,
+    settings: &WorkspaceSettingsState,
+    cloud: &mut CloudModelsSettingsState,
+) -> DialogState {
+    let state: DialogState = ctx
+        .data_mut(|d| d.get_temp::<DialogState>(state_id))
+        .unwrap_or_default();
+    if state.open_count == open_count {
+        return state;
+    }
+    clear_cloud_key_state(ctx, cloud);
+    DialogState {
+        open_count,
+        query: String::new(),
+        drafts: APP_KEYBINDING_ACTIONS
+            .iter()
+            .map(|action| {
+                (
+                    action.id.to_owned(),
+                    settings
+                        .chord_for(action.id)
+                        .unwrap_or(action.default_chord)
+                        .to_owned(),
+                )
+            })
+            .collect(),
+        focus_requested: false,
+    }
+}
+
+/// The shared settings BODY both hosts render: the search box (pinned to the fixed search id so its
+/// AccessKit NodeId is stable), the persistence-error row, and the scrollable section list
+/// ([`render_sections`]) inside the fixed `Role::Group` list container.
+///
+/// `max_body_height` is the only host-dependent input (the modal's fixed 440pt vs the detached window's
+/// remaining height). Everything an operator or Argus can address — every section, control, author_id —
+/// comes from this one path, so the modal and the detached window can never drift apart.
+#[allow(clippy::too_many_arguments)]
+fn render_search_and_sections(
+    ui: &mut egui::Ui,
+    state: &mut DialogState,
+    settings: &WorkspaceSettingsState,
+    persist_error: Option<&str>,
+    cloud: &mut CloudModelsSettingsState,
+    diagnostics: DiagnosticsSettingsView,
+    search_egui_id: egui::Id,
+    list_egui_id: egui::Id,
+    max_body_height: f32,
+    mut outcome: SettingsOutcome,
+) -> SettingsOutcome {
+    // Search input, pinned to the fixed search id so its AccessKit NodeId is stable.
+    ui.label(egui::RichText::new("Search settings").small().weak());
+    let edit = egui::TextEdit::singleline(&mut state.query)
+        .id(search_egui_id)
+        .hint_text("Theme, quick switcher, terminal...")
+        .desired_width(f32::INFINITY);
+    let edit_response = ui.add(edit);
+    if !state.focus_requested {
+        edit_response.request_focus();
+        state.focus_requested = true;
+    }
+    emit_search_node(ui.ctx(), search_egui_id);
+
+    // Persistence error row (HBR: important state visible; surfaces a save/load failure).
+    if let Some(err) = persist_error {
+        ui.add_space(4.0);
+        ui.colored_label(
+            ui.visuals().error_fg_color,
+            format!("Settings sync error: {err}"),
+        );
+    }
+
+    ui.add_space(6.0);
+
+    let query = state.query.trim().to_lowercase();
+
+    // The scrollable body region (Role::Group container at the fixed list id).
+    ui.push_id(list_egui_id, |ui| {
+        egui::ScrollArea::vertical()
+            .max_height(max_body_height)
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                outcome = render_sections(
+                    ui,
+                    &query,
+                    state,
+                    settings,
+                    cloud,
+                    diagnostics,
+                    outcome.clone(),
+                );
+            });
+    });
+    emit_list_node(ui.ctx(), list_egui_id);
     outcome
 }
 
@@ -1649,6 +1845,35 @@ mod tests {
         );
         assert_eq!(RESET_LAYOUT_AUTHOR_ID, "settings.reset-layout");
         assert_eq!(CLOSE_AUTHOR_ID, "settings.close");
+        assert_eq!(SETTINGS_POPOUT_AUTHOR_ID, "settings.popout");
+        assert_eq!(SETTINGS_REDOCK_AUTHOR_ID, "settings.redock");
+    }
+
+    /// MT-015 detached window: the pop-out key feeds the SHARED pane pop-out id scheme, so the detached
+    /// Settings window is addressed exactly like a pane pop-out — Argus window `popout-settings`, root
+    /// node `popout-window-settings`, OS title "Handshake – Settings" (en dash).
+    #[test]
+    fn detached_settings_window_reuses_the_shared_popout_id_scheme() {
+        assert_eq!(SETTINGS_POPOUT_KEY, "settings");
+        assert_eq!(
+            crate::popout_window::argus_window_id(SETTINGS_POPOUT_KEY),
+            "popout-settings"
+        );
+        assert_eq!(
+            crate::popout_window::popout_window_author_id(SETTINGS_POPOUT_KEY),
+            "popout-window-settings"
+        );
+        assert_eq!(
+            crate::popout_window::popout_title_for(SETTINGS_WINDOW_LABEL),
+            "Handshake \u{2013} Settings"
+        );
+        // The detached window id can never collide with one of the four fixed grid panes.
+        for (pane, _) in crate::popout_window::MERGE_BACK_SLOTS {
+            assert_ne!(
+                crate::popout_window::argus_window_id(pane),
+                crate::popout_window::argus_window_id(SETTINGS_POPOUT_KEY)
+            );
+        }
     }
 
     /// MT-015: the Cloud Models per-provider author_ids are stable, kebab/dotted, and distinct per

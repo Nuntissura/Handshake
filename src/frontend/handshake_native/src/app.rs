@@ -295,6 +295,13 @@ pub struct HandshakeApp {
     /// to open (MT-018). The dialog resets its transient query/draft state whenever it sees a new value,
     /// so a re-open never shows the previous session's text. Set via [`open_settings`](Self::open_settings).
     settings_open_count: u64,
+    /// MT-015 detached Settings window: `true` while the settings surface renders into its OWN OS window
+    /// (egui viewport [`settings_detached_viewport_id`], Argus window `popout-settings`) instead of the
+    /// root-viewport modal. The two hosts are mutually exclusive — [`ui`](HandshakeApp::ui) drives
+    /// exactly one of them per frame — so the operator never sees a double settings UI. Reset to `false`
+    /// by [`close_settings`](HandshakeApp::close_settings) and
+    /// [`redock_settings`](HandshakeApp::redock_settings), so a later re-open comes back as the modal.
+    settings_detached: bool,
     /// The live, persisted workspace settings (MT-018): theme, keybindings, view mode, swarm board flag.
     /// Loaded from `GET /workspaces/{id}/settings` on open / workspace change and normalized through
     /// [`crate::workspace_settings::normalize_workspace_settings_state`] (red-team R6/MC6). The settings
@@ -704,6 +711,30 @@ fn popout_outer_rect_px(ctx: &egui::Context) -> Option<(i32, i32, i32, i32)> {
     ))
 }
 
+/// Default size of the detached Settings window (MT-015), in logical points. Wider/taller than the 480pt
+/// modal because the detached host gives the section list the whole window instead of a 440pt scroll box.
+const SETTINGS_DETACHED_SIZE: egui::Vec2 = egui::vec2(560.0, 700.0);
+
+/// The STABLE egui viewport id of the detached Settings window (MT-015). Derived by hashing the fixed
+/// pop-out key exactly like a pane pop-out's viewport (`ViewportId::from_hash_of(pane_id)`), so
+/// detaching -> re-docking -> detaching again reuses the SAME OS window identity and any recorded
+/// handle/target stays valid.
+fn settings_detached_viewport_id() -> egui::ViewportId {
+    egui::ViewportId::from_hash_of(crate::settings_dialog::SETTINGS_POPOUT_KEY)
+}
+
+/// The STABLE Argus window id of the detached Settings window: `popout-settings` — the id
+/// `argus.list_windows` enumerates, `argus.list_widgets`/`argus.click` scope to, and `screenshot`
+/// resolves to a recorded OS window handle.
+fn settings_detached_window_id() -> String {
+    argus_window_id(crate::settings_dialog::SETTINGS_POPOUT_KEY)
+}
+
+/// The detached Settings window's OS title, in the shared pop-out convention: `"Handshake – Settings"`.
+fn settings_detached_title() -> String {
+    popout_title_for(crate::settings_dialog::SETTINGS_WINDOW_LABEL)
+}
+
 /// real live tree. A single `Window` root with `widget_count` 1, so `list_widgets` over the wire before
 /// the first frame returns a well-formed (if empty) snapshot rather than a lock on uninitialized state.
 fn empty_snapshot() -> crate::accessibility::UiTreeSnapshot {
@@ -847,6 +878,7 @@ impl HandshakeApp {
             quick_switcher_recents_error: None,
             settings_open: false,
             settings_open_count: 0,
+            settings_detached: false,
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
             settings_transport,
             settings_loaded_project_id: None,
@@ -1050,6 +1082,11 @@ impl HandshakeApp {
         if viewport_id == egui::ViewportId::ROOT {
             return Some(Self::main_argus_window());
         }
+        // MT-015: the detached Settings window is a first-class Argus target, so out-of-process steering
+        // (raw_input_hook -> drain_for_viewport) reaches its controls exactly like a pane pop-out's.
+        if self.settings_detached && viewport_id == settings_detached_viewport_id() {
+            return Some(Self::settings_argus_window(viewport_id));
+        }
         for pane_id in self.popout_manager.popped_out_ids() {
             let state = self.popout_manager.get(&pane_id)?;
             if state.viewport_id == viewport_id {
@@ -1068,6 +1105,37 @@ impl HandshakeApp {
             }
         }
         None
+    }
+
+    /// The Argus descriptor of the detached Settings window (MT-015). `viewport_id` is passed in so the
+    /// raw-input path stringifies the SAME viewport egui handed it.
+    fn settings_argus_window(viewport_id: egui::ViewportId) -> crate::mcp::ArgusWindowDescriptor {
+        crate::mcp::ArgusWindowDescriptor {
+            window_id: settings_detached_window_id(),
+            viewport_id: format!("{viewport_id:?}"),
+            title: settings_detached_title(),
+        }
+    }
+
+    /// Register the detached Settings window with the Argus registry (MT-015).
+    ///
+    /// Called the moment the surface detaches AND every detached frame (registration is idempotent), for
+    /// the same reason [`register_argus_popouts`](Self::register_argus_popouts) runs before the pop-out
+    /// viewports render: `argus.list_windows` must enumerate the window even BEFORE its first published
+    /// snapshot, and the Argus output plugin resolves a viewport's descriptor by its registered
+    /// `viewport_id` when it publishes that viewport's tree.
+    fn register_argus_settings_window(&self) {
+        self.mcp_windows
+            .register(Self::settings_argus_window(settings_detached_viewport_id()));
+    }
+
+    /// Drop the detached Settings window from the Argus registry and forget its recorded OS window
+    /// handle (MT-015), so a capture after re-dock/close can never grab a torn-down window. Mirrors the
+    /// merged-back pop-out cleanup in [`ui`](Self::ui).
+    fn release_argus_settings_window(&self) {
+        let window_id = settings_detached_window_id();
+        self.mcp_windows.unregister(&window_id);
+        crate::mcp::screenshot::clear_window_handle(&window_id);
     }
 
     fn register_argus_popouts(&self) {
@@ -1160,6 +1228,7 @@ impl HandshakeApp {
             quick_switcher_recents_error: None,
             settings_open: false,
             settings_open_count: 0,
+            settings_detached: false,
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
             // Headless/test shell: no runtime to bridge a live transport onto. A test injects a stub via
             // `set_settings_transport`; without one, the dialog shows the seeded defaults + never does I/O.
@@ -2708,8 +2777,53 @@ impl HandshakeApp {
     /// Close the settings dialog (MT-018). On close, FLUSH any pending debounced save IMMEDIATELY
     /// (red-team MC2) so a fast change-then-close never loses the change. Safe to call when already
     /// closed.
+    /// Whether the settings surface currently renders as its OWN detached OS window (MT-015) instead of
+    /// the root-viewport modal. While `true` the modal is NOT rendered.
+    pub fn settings_detached(&self) -> bool {
+        self.settings_detached
+    }
+
+    /// Detach the settings surface into its own OS window (MT-015) — the `settings.popout` control, the
+    /// [`crate::settings_dialog::SettingsOutcome::PopOut`] outcome, and tests all route through here.
+    ///
+    /// Requires settings to be open (there is nothing to detach otherwise) and is idempotent while
+    /// already detached, so a second `OpenSettings`/pop-out can never create a duplicate window. The
+    /// Argus window is registered immediately so `argus.list_windows` sees `popout-settings` from this
+    /// frame on, before the detached viewport publishes its first tree. Returns whether state changed.
+    pub fn detach_settings(&mut self) -> bool {
+        if !self.settings_open || self.settings_detached {
+            return false;
+        }
+        self.settings_detached = true;
+        self.register_argus_settings_window();
+        // MT-015 F3 (defense in depth): a typed-but-unsaved BYOK key never travels across a window
+        // transition. The dialog also resets the key TextEdits' egui state on this outcome.
+        self.cloud_models.clear_key_drafts();
+        true
+    }
+
+    /// Return a detached settings window to the root-viewport modal WITHOUT closing settings (MT-015) —
+    /// the `settings.redock` control and tests route through here. Idempotent when already docked.
+    /// Returns whether state changed.
+    pub fn redock_settings(&mut self) -> bool {
+        if !self.settings_detached {
+            return false;
+        }
+        self.settings_detached = false;
+        self.release_argus_settings_window();
+        self.cloud_models.clear_key_drafts();
+        true
+    }
+
     pub fn close_settings(&mut self) {
         self.settings_open = false;
+        // MT-015: closing from ANY path (Close control, OS close button on the detached window, a
+        // navigation outcome, or a programmatic close) also tears the detached host down, so the next
+        // open comes back as the modal and no stale Argus window/handle survives.
+        if self.settings_detached {
+            self.settings_detached = false;
+            self.release_argus_settings_window();
+        }
         // MT-015 F3 (defense in depth): wipe any BYOK key edit buffer on close regardless of the path
         // that produced the close. The dialog's `show()` also resets the egui TextEdit state on the
         // interactive close paths; this guarantees the shell buffer is cleared even for a programmatic
@@ -2968,6 +3082,10 @@ impl HandshakeApp {
                 self.close_settings();
                 true
             }
+            // MT-015: host switches. Both are pure window-hosting changes — settings stays open, no
+            // setting is mutated, nothing is persisted.
+            O::PopOut => self.detach_settings(),
+            O::Redock => self.redock_settings(),
             O::ThemeChanged(theme) => {
                 self.workspace_settings.theme = theme;
                 // Back the in-memory MT-003 theme flag; apply at the START of next frame (red-team
@@ -3197,11 +3315,162 @@ impl HandshakeApp {
         }
     }
 
-    /// Drive one frame of the open settings dialog (MT-018): drain async load/save deliveries, dispatch
-    /// the one-shot load + the due debounced save on the tokio runtime (OFF the egui frame thread —
-    /// HBR-QUIET), render the overlay, and apply the outcome. No-op-safe when there is no
-    /// transport/runtime (headless) — the dialog then shows the seeded defaults and never does I/O.
+    /// Drive one frame of the open settings surface in its ROOT-viewport modal host (MT-018): pump the
+    /// async settings/cloud I/O, render the modal overlay, and apply the outcome.
+    ///
+    /// MT-015: this is one of TWO hosts. [`ui`](Self::ui) calls this only while the surface is docked;
+    /// while it is detached, [`drive_settings_detached_window`](Self::drive_settings_detached_window)
+    /// runs instead, so the modal and the detached window never render in the same frame.
     fn drive_settings_dialog(&mut self, ctx: &egui::Context) {
+        self.pump_settings_io(ctx);
+        let diagnostics_view = self.diagnostics_settings_view();
+        let view = crate::settings_dialog::SettingsView {
+            open_count: self.settings_open_count,
+            settings: &self.workspace_settings,
+            persist_error: self.settings_persist_error.as_deref(),
+            cloud: &mut self.cloud_models,
+            diagnostics: diagnostics_view,
+        };
+        let outcome = crate::settings_dialog::show(ctx, view);
+        if self.apply_settings_outcome(outcome) {
+            ctx.request_repaint();
+        }
+    }
+
+    /// Drive one frame of the open settings surface in its DETACHED OS-window host (MT-015).
+    ///
+    /// Mirrors the pane pop-out machinery ([`crate::popout_window::PopOutManager::show_all`]) exactly:
+    /// - one [`egui::Context::show_viewport_immediate`] call per frame against a STABLE
+    ///   [`settings_detached_viewport_id`], so there is no per-frame window storm and the OS window
+    ///   identity survives detach/re-dock cycles;
+    /// - `with_active(false)` so creating the window never raises it to the foreground or steals input
+    ///   (HBR-QUIET-001);
+    /// - the window-root `Role::Window` AccessKit node (`popout-window-settings`) is emitted from a
+    ///   ZERO-INTERACTION `egui::Area`, never a second `CentralPanel` — the body's own `CentralPanel`
+    ///   (opened by [`crate::settings_dialog::show_detached`]) must own the whole central rect, or the
+    ///   detached window renders blank on the real wgpu/winit backend;
+    /// - the viewport's OS window handle is recorded under the stable Argus `window_id` from inside its
+    ///   own render pass (the only place its `outer_rect` is known), so `screenshot` grabs THIS window by
+    ///   recorded handle instead of guessing between same-process windows;
+    /// - the OS close button (`ViewportInfo::close_requested`) routes back into the shell.
+    ///
+    /// The immediate (not deferred) viewport is required for the same reason panes use it: the body
+    /// borrows live shell state (`workspace_settings`, the zeroizing BYOK buffers, diagnostics), which a
+    /// `Send + Sync + 'static` deferred callback could not reach — it would only draw an empty panel.
+    /// Headlessly (`embed_viewports() == true`, egui_kittest) the SAME closure runs embedded in the
+    /// current frame, so the detached surface and its nodes are fully drivable in-process.
+    fn drive_settings_detached_window(&mut self, ctx: &egui::Context) {
+        self.pump_settings_io(ctx);
+        let diagnostics_view = self.diagnostics_settings_view();
+        // Register before rendering so `argus.list_windows` can enumerate this window even before its
+        // first published snapshot, and so the Argus output plugin can resolve this viewport's
+        // descriptor when it publishes the tree (same ordering as `register_argus_popouts`).
+        self.register_argus_settings_window();
+
+        let viewport_id = settings_detached_viewport_id();
+        let window_id = settings_detached_window_id();
+        let title = settings_detached_title();
+        let builder = egui::ViewportBuilder::default()
+            .with_title(title.clone())
+            .with_inner_size(SETTINGS_DETACHED_SIZE)
+            .with_close_button(true)
+            // HBR-QUIET-001: never foreground/focus-steal on creation.
+            .with_active(false);
+
+        let mut close_requested = false;
+        let mut outcome = crate::settings_dialog::SettingsOutcome::None;
+        {
+            // Disjoint field borrows: the body reads the settings + writes the cloud key buffers while
+            // the shell's own `&mut self` methods stay untouched until the viewport closure returns.
+            let open_count = self.settings_open_count;
+            let settings = &self.workspace_settings;
+            let persist_error = self.settings_persist_error.as_deref();
+            let cloud = &mut self.cloud_models;
+            let title_for_window = &title;
+            let window_id_for_capture = &window_id;
+            ctx.show_viewport_immediate(viewport_id, builder, |ctx, _class| {
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    close_requested = true;
+                }
+                // Window-root node: an `Area` (NOT a CentralPanel) so the body below owns the sole
+                // central rect. This is what makes the detached window addressable out-of-process as
+                // `popout-window-settings`.
+                let root_id = egui::Id::new(crate::popout_window::popout_window_author_id(
+                    crate::settings_dialog::SETTINGS_POPOUT_KEY,
+                ));
+                egui::Area::new(root_id)
+                    .fixed_pos(egui::Pos2::ZERO)
+                    .interactable(false)
+                    .movable(false)
+                    .show(ctx, |ui| {
+                        ui.interact(ui.max_rect(), root_id, egui::Sense::hover());
+                        ctx.accesskit_node_builder(root_id, |node| {
+                            node.set_role(egui::accesskit::Role::Window);
+                            node.set_author_id(crate::popout_window::popout_window_author_id(
+                                crate::settings_dialog::SETTINGS_POPOUT_KEY,
+                            ));
+                            node.set_label(title_for_window.clone());
+                        });
+                    });
+                // The SAME settings surface (same sections, same author_ids, same shell state) — only
+                // the host chrome differs. Opens the single CentralPanel of this viewport.
+                let view = crate::settings_dialog::SettingsView {
+                    open_count,
+                    settings,
+                    persist_error,
+                    cloud: &mut *cloud,
+                    diagnostics: diagnostics_view,
+                };
+                outcome = crate::settings_dialog::show_detached(ctx, view);
+                // Record THIS window's OS handle under its stable Argus window_id so a later screenshot
+                // captures the detached Settings window directly instead of falling back to title
+                // matching. Cheap after the first successful record.
+                let _ = crate::mcp::screenshot::record_viewport_window_handle(
+                    window_id_for_capture,
+                    title_for_window,
+                    popout_outer_rect_px(ctx),
+                );
+            });
+        }
+
+        if self.apply_settings_outcome(outcome) {
+            ctx.request_repaint();
+        }
+        if close_requested {
+            // The OS close button closes settings outright (the surface returns to modal availability on
+            // the next open). `close_settings` also unregisters the Argus window + forgets the handle.
+            self.close_settings();
+            ctx.request_repaint();
+        }
+    }
+
+    /// WP-1 (c): the live internal-diagnostics status handed to whichever settings host renders this
+    /// frame. Every field is derived from real state (`InternalDiagnostics` presence, the
+    /// Palmistry-provisioned Argus signing secret, and the recovered-crash count) — nothing is fabricated.
+    fn diagnostics_settings_view(&self) -> crate::settings_dialog::DiagnosticsSettingsView {
+        crate::settings_dialog::DiagnosticsSettingsView {
+            subsystem_live: self.internal_diagnostics.is_some(),
+            palmistry_signing_provisioned: self
+                .internal_diagnostics
+                .as_ref()
+                .map(|d| d.argus_signing_secret().is_some())
+                .unwrap_or(false),
+            recovered_survivor_count: self
+                .internal_diagnostics
+                .as_ref()
+                .map(|d| d.recovered_survivors().len())
+                .unwrap_or(0),
+        }
+    }
+
+    /// Pump the settings + cloud-access async I/O for one open-settings frame (MT-018 / MT-015): drain
+    /// delivered load/save/enumeration results and dispatch the one-shot load, the due debounced save,
+    /// and the non-secret cloud enumeration on the tokio runtime (OFF the egui frame thread —
+    /// HBR-QUIET). Host-independent: BOTH the modal and the detached window run it, so persistence and
+    /// enumeration behave identically no matter which window the operator is using. No-op-safe when
+    /// there is no transport/runtime (headless) — the surface then shows the seeded defaults and never
+    /// does I/O.
+    fn pump_settings_io(&mut self, ctx: &egui::Context) {
         // 1. Drain a delivered settings LOAD (try_lock; never hold across ui.* — red-team MC1).
         let delivered_load = self
             .settings_load_cell
@@ -3318,35 +3587,6 @@ impl HandshakeApp {
                 });
                 ctx.request_repaint();
             }
-        }
-
-        // 5. Render the dialog + apply the outcome.
-        // WP-1 (c): compute the live diagnostics status BEFORE the &mut cloud borrow. Every field is
-        // real state; the Palmistry signal is the presence of the Argus signing secret, which only
-        // exists after a durable Palmistry watcher launch + secret rotation.
-        let diagnostics_view = crate::settings_dialog::DiagnosticsSettingsView {
-            subsystem_live: self.internal_diagnostics.is_some(),
-            palmistry_signing_provisioned: self
-                .internal_diagnostics
-                .as_ref()
-                .map(|d| d.argus_signing_secret().is_some())
-                .unwrap_or(false),
-            recovered_survivor_count: self
-                .internal_diagnostics
-                .as_ref()
-                .map(|d| d.recovered_survivors().len())
-                .unwrap_or(0),
-        };
-        let view = crate::settings_dialog::SettingsView {
-            open_count: self.settings_open_count,
-            settings: &self.workspace_settings,
-            persist_error: self.settings_persist_error.as_deref(),
-            cloud: &mut self.cloud_models,
-            diagnostics: diagnostics_view,
-        };
-        let outcome = crate::settings_dialog::show(ctx, view);
-        if self.apply_settings_outcome(outcome) {
-            ctx.request_repaint();
         }
     }
 
@@ -5413,8 +5653,17 @@ impl HandshakeApp {
         // task off the egui frame thread (HBR-QUIET), debounced 500ms (red-team R2); a dialog close
         // flushes a pending save immediately (red-team MC2). Closed by default, so the default-seed live
         // tree is unchanged (MT-025 default snapshot stays at its baseline node count).
+        //
+        // MT-015: the surface has TWO mutually exclusive hosts. While it is detached, the modal is NOT
+        // rendered in the root viewport — the detached OS window (Argus `popout-settings`) owns it — so
+        // there is never a double settings UI and `OpenSettings` while detached is a no-op that keeps
+        // the existing window.
         if self.settings_open {
-            self.drive_settings_dialog(ctx);
+            if self.settings_detached {
+                self.drive_settings_detached_window(ctx);
+            } else {
+                self.drive_settings_dialog(ctx);
+            }
         }
 
         // ── Layout persistence lifecycle (MT-009 BLOCKER) ───────────────────────────────────────────

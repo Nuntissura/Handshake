@@ -700,6 +700,42 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  There is no route to read a stored key back out over HTTP.",
             ),
             section(
+                "navigation",
+                "Reaching the surface: modal or detached window (Argus targeting)",
+                "Settings is opened from `HELP` then `Open Settings…` (`menu.help.settings`), from the \
+                 command palette action `settings.open`, or by setting `settings_open = true`. The \
+                 surface then renders in ONE of two mutually exclusive hosts — never both at once, so a \
+                 driver never has to disambiguate a double UI:\n\n\
+                 1. DOCKED (default): a modal in the MAIN window. Argus `window_id` is `main`; the \
+                 surface root is the AccessKit node `settings.dialog` (`Role::Dialog`, modal). All \
+                 controls listed above (`settings.cloud.*`, `settings.theme`, `settings.search`, \
+                 `settings.list`, `settings.section.*`, `settings.close`) live in this window.\n\
+                 2. DETACHED: its own OS window, entered by clicking `settings.popout` in the modal \
+                 header. Argus `window_id` is `popout-settings`; the OS title is `Handshake – Settings` \
+                 (en dash); the window root is the AccessKit node `popout-window-settings` \
+                 (`Role::Window`). The detached window is enumerated by `argus.list_windows` from the \
+                 moment it is created (before its first published snapshot, `revision` 0), so a driver \
+                 polls one canonical surface instead of guessing viewport timing. `argus.list_widgets`, \
+                 `argus.click`, `argus.set_value`, and `screenshot` all take that `window_id`; the \
+                 shell records the detached window's OS window handle under it, so a capture grabs THAT \
+                 exact window instead of matching by title.\n\n\
+                 The SAME sections and the SAME control author_ids render in both hosts (one render \
+                 path), so an inspect/set/click script written against the modal works unchanged \
+                 against the detached window once the `window_id` is switched. The one deliberate \
+                 difference is the root node, and it is the signal for WHICH host is live: while \
+                 detached, `settings.dialog` is ABSENT and `popout-window-settings` is present; while \
+                 docked, the reverse. The detached header adds `settings.redock` (return to the modal, \
+                 settings stays open); its `settings.close` control and the window's OS close button \
+                 close settings outright, after which a re-open comes back as the modal.\n\n\
+                 Quiet-mode posture (HBR-QUIET-001): the detached window is created with \
+                 `with_active(false)`, so popping Settings out never raises the window to the \
+                 foreground or steals keyboard focus from the operator or from another agent's window. \
+                 Recovery: if `popout-settings` is not listed, the surface is docked (or closed) — \
+                 target `main` and, if needed, click `settings.popout` to detach it again; a stale \
+                 `popout-settings` handle can never be captured, because re-dock/close unregister the \
+                 window and forget its recorded OS handle in the same step.",
+            ),
+            section(
                 "safety",
                 "Consent boundary + failure modes",
                 "- Saving a BYOK key creates NO ConsentReceipt and NO ConsentGate approval. Configuring \
@@ -755,7 +791,26 @@ fn page_cloud_model_access() -> NewUserManualPage {
                  claim live provider expiry detection. They also prove no Gemini row, static BYOK fallback when the backend \
                  is unreachable, UI key-buffer wiping, an addressable foreground-launch confirmation, \
                  and fixed provider-owned CLI login command vectors without terminal launch in the \
-                 headless test shell.",
+                 headless test shell.\n\n\
+                 Exact detached-Settings-window proof targets (native, same-shell AccessKit): \
+                 `test_settings_dialog::settings_popout_control_detaches_into_its_own_argus_window_and_hides_the_modal`; \
+                 `test_settings_dialog::re_docking_the_detached_settings_window_restores_the_modal`; \
+                 `test_settings_dialog::closing_the_detached_settings_window_restores_modal_availability`; \
+                 `test_settings_dialog::open_settings_while_detached_keeps_exactly_one_settings_host` \
+                 (exact command: `cargo test --target-dir ..\\Handshake_Artifacts\\handshake-cargo-target \
+                 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_settings_dialog \
+                 settings_popout_control_detaches_into_its_own_argus_window_and_hides_the_modal -- --exact`). \
+                 They prove `settings.popout` is addressable, that detaching publishes the \
+                 `popout-window-settings` (`Role::Window`, title `Handshake – Settings`) root and \
+                 registers the `popout-settings` Argus window while the modal's `settings.dialog` root \
+                 stops rendering, that every settings section (including `settings.cloud.*`) stays \
+                 addressable in the detached window, and that re-dock / close / a repeated \
+                 `OpenSettings` always leave exactly one settings host with no stale Argus \
+                 registration. Honest headless scope: kittest embeds immediate viewports \
+                 (`embed_viewports() == true`), so these prove the content, the window-root node, the \
+                 mutual exclusion, and the registry lifecycle in-process; a real second top-level OS \
+                 window and a native title-bar close still require the live wgpu/winit backend and are \
+                 not simulated.",
             ),
         ],
         anchors: vec![
@@ -4265,7 +4320,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
         http_route: None,
         http_method: String::new(),
         description:
-            "Native Argus/AccessKit proof for Settings > Cloud Models: stable provider author IDs, visible logged-in/logged-out/expired states for Claude Code and Codex, no Gemini controls, static BYOK key-entry fallback when the backend is unreachable, UI key-buffer clearing on save/close, an addressable foreground-terminal confirmation, and fixed provider-owned official CLI login commands without terminal launch during headless tests."
+            "Native Argus/AccessKit proof for Settings > Cloud Models: stable provider author IDs, visible logged-in/logged-out/expired states for Claude Code and Codex, no Gemini controls, static BYOK key-entry fallback when the backend is unreachable, UI key-buffer clearing on save/close, an addressable foreground-terminal confirmation, and fixed provider-owned official CLI login commands without terminal launch during headless tests. The same controls are reachable in BOTH settings hosts: the main-window modal (Argus window `main`, root node `settings.dialog`) and the detached Settings window (Argus window `popout-settings`, root node `popout-window-settings`, title `Handshake – Settings`) entered via `settings.popout` and left via `settings.redock`."
                 .into(),
         expected_input:
             "egui_kittest harness with AccessKit enabled; seeded CloudAccessSnapshot for positive rows and empty snapshot/no client for backend-unreachable fallback."
@@ -4278,6 +4333,13 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "settings.cloud.byok.openai.key".into(),
             "settings.cloud.cli.claude_code.login".into(),
             "settings.cloud.cli.codex.login".into(),
+            // Detached Settings window (MT-015): the same surface hosted in its own OS window. These are
+            // the targeting handles a driver needs; the exact proofs live in test_settings_dialog (see
+            // the cloud-model-access page's navigation + behavior-matrix sections).
+            "settings.popout".into(),
+            "settings.redock".into(),
+            "popout-settings".into(),
+            "popout-window-settings".into(),
             "cloud_models_controls_are_addressable_and_gemini_is_never_offered".into(),
             "cli_bridge_auth_status_renders_all_three_states_for_claude_and_codex".into(),
             "typing_and_saving_a_byok_key_clears_the_ui_buffer".into(),

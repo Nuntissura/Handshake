@@ -1,0 +1,1010 @@
+//! LIVE production-socket Argus proofs for the remaining WP-1 operator surfaces.
+//!
+//! Companion to `test_argus_production_socket_live.rs` (diagnostics pane + pane pop-out + main-window
+//! Settings). This target covers the surfaces V4 failed for driving an in-process `egui_kittest`
+//! Harness instead of the production transport:
+//!
+//! - **MT-014 ModelRuntime panel** — navigate through the real MODELS menu, inspect every Master-Spec
+//!   row control/telemetry target, drive the refresh action with an applied/durable before-after
+//!   receipt, assert honest empty/unavailable/dormant negative states, screenshot the main window, and
+//!   then detach the pane into a real second OS window and inspect + capture + steer it there.
+//! - **MT-012 Operator Chat** — inspect the picker/prompt/launch controls, set the prompt through
+//!   `argus.set_value` with a receipt and a re-observed value, prove the launch control fails closed
+//!   when no lane is launchable, and capture + inspect + steer the detached pop-out.
+//!   This proof deliberately never launches a real model session: the full launch/capture/recovery
+//!   lifecycle is proven by the backend suites (`operator_chat_capture_tests`), and starting a real
+//!   CLI session from a GUI proof would spawn an unowned OS process.
+//! - **MT-015 Settings cloud access (MAIN window)** — reach Settings through the MODELS menu, assert
+//!   the BYOK secret boundary structurally (no value, no `SetValue` action, refused writes) and prove
+//!   the canary never appears in `list_widgets` / `argus.inspect` / `argus.screenshot` responses, plus
+//!   login-state rows and unavailable-provider states.
+//!
+//! Every proof here drives the REAL `SwarmMcpServer` socket of a spawned production binary. There is
+//! no in-process harness and no transport mock. Each test is `#[ignore]`d behind the same environment
+//! gate as the existing live proof, because it opens real native windows and needs managed PostgreSQL
+//! plus a Palmistry-ready `handshake_core` on `127.0.0.1:37501`.
+//!
+//! Run serially (`-- --ignored --test-threads=1`): each test spawns its own production window.
+
+#![cfg(target_os = "windows")]
+
+use handshake_native::model_runtime_panel::{
+    empty_author_id, error_author_id, refresh_author_id, row_action_author_id,
+    row_active_selection_author_id, row_adapter_author_id, row_artifact_path_author_id,
+    row_audit_author_id, row_author_id, row_dormant_reason_author_id,
+    row_engine_internals_author_id, row_engine_internals_expand_author_id, row_kv_cache_author_id,
+    row_last_call_age_author_id, row_last_call_author_id, row_ledger_link_author_id,
+    row_live_model_author_id, row_locator_author_id, row_lora_author_id, row_revision_author_id,
+    row_role_author_id, row_sha_author_id, row_state_author_id, row_steering_author_id,
+    row_switch_author_id, row_tokens_per_second_author_id, row_vram_author_id, status_author_id,
+    surface_author_id, AUTHOR_ID_PREFIX,
+};
+use handshake_native::operator_chat_pane::{
+    ERROR_AUTHOR_ID, FOLDER_PICKER_AUTHOR_ID, LAUNCH_AUTHOR_ID, LAUNCH_STATUS_AUTHOR_ID,
+    MODEL_PICKER_AUTHOR_ID, PROMPT_INPUT_AUTHOR_ID, REFRESH_MODELS_AUTHOR_ID,
+    ROUTING_AUTHORITY_AUTHOR_ID, ROUTING_CANCEL_AUTHOR_ID, ROUTING_LIFECYCLE_AUTHOR_ID,
+    ROUTING_RECOVER_AUTHOR_ID, ROUTING_REQUEST_AUTHOR_ID, SURFACE_AUTHOR_ID, TRANSCRIPT_AUTHOR_ID,
+};
+use handshake_native::pane_registry::PaneType;
+use handshake_native::popout_window::popout_window_author_id;
+use handshake_native::settings_dialog::{
+    cloud_byok_key_author_id, cloud_byok_remove_author_id, cloud_byok_save_author_id,
+    cloud_byok_status_author_id, cloud_cli_login_author_id, cloud_cli_status_author_id,
+    CLOSE_AUTHOR_ID, SETTINGS_DIALOG_AUTHOR_ID,
+};
+
+#[path = "argus_socket_support/live_socket.rs"]
+mod live_socket;
+
+use live_socket::{
+    assert_bytes_exclude, assert_not_applied, collect_author_ids, contains_author_id,
+    decode_verified_capture, node_by_author_id, node_is_disabled, node_supports, node_text,
+    pane_id_hosting, require_node, wait_for_author_id, wait_for_author_id_between, LiveApp,
+    SURFACE_TIMEOUT,
+};
+
+/// Every status string the production ModelRuntime panel can render. A live proof must recognise the
+/// state it observed instead of accepting any text, so a blank/placeholder status fails.
+const HONEST_REGISTRY_STATUS: &[&str] = &[
+    "No registry projection loaded.",
+    "Loading durable model registry",
+    "Refreshing durable model registry",
+    "Refreshing stale registry snapshot",
+    "STALE registry snapshot",
+];
+
+/// The exact login states the Settings CLI-bridge rows may report (`CloudCliAuthStatus::label`).
+const HONEST_CLI_LOGIN_STATES: &[&str] = &[
+    "Logged in",
+    "Logged out",
+    "Session expired",
+    "Status unavailable",
+];
+
+/// The exact BYOK configuration states the Settings rows may report.
+const HONEST_BYOK_STATES: &[&str] = &[
+    "Configured — key stored in the OS keychain",
+    "Status unknown — backend not reachable",
+    "Not configured",
+];
+
+fn assert_honest_registry_status(label: &str) {
+    let counted = label.contains("live |") && label.contains("dormant |");
+    assert!(
+        counted || HONEST_REGISTRY_STATUS.iter().any(|s| label.contains(s)),
+        "ModelRuntime status is not one of the production states: `{label}`"
+    );
+}
+
+fn registry_status_is_in_flight(status: &str) -> bool {
+    status.contains("Loading durable model registry") || status.starts_with("Refreshing")
+}
+
+/// Poll the live ModelRuntime panel until it has settled out of an in-flight fetch, so a proof
+/// asserts against a real terminal state (rows, an empty registry, or a stated error) and never
+/// against a transient loading frame.
+fn wait_for_settled_registry(
+    app: &mut LiveApp,
+    window_id: &str,
+    pane_id: &str,
+) -> serde_json::Value {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(45);
+    let mut last = serde_json::Value::Null;
+    while std::time::Instant::now() < deadline {
+        last = app.client.poll_inspect(window_id);
+        let status = node_text(require_node(
+            &last["snapshot"]["root"],
+            &status_author_id(pane_id),
+        ));
+        if !registry_status_is_in_flight(&status) {
+            // Re-read through the recorded path so the asserted observation is in the transcript,
+            // keeping the polled one if the panel started another fetch in between.
+            let recorded = app.client.inspect(window_id);
+            let recorded_status = node_text(require_node(
+                &recorded["snapshot"]["root"],
+                &status_author_id(pane_id),
+            ));
+            return if registry_status_is_in_flight(&recorded_status) {
+                last
+            } else {
+                recorded
+            };
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+    panic!(
+        "the live ModelRuntime registry never settled in window `{window_id}`; last status: `{}`",
+        node_text(require_node(
+            &last["snapshot"]["root"],
+            &status_author_id(pane_id)
+        ))
+    );
+}
+
+fn is_lower_hex_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+/// Every registry row target the WP-1 MT-014 contract requires the panel to expose, asserted against
+/// a LIVE snapshot taken over the production socket. Returns the artifact hashes it verified.
+///
+/// Also enforces the honest-negative contract: a row is either LIVE with a live model id or DORMANT
+/// with a stated reason (never both, never neither), an unavailable telemetry field must disclose a
+/// reason, and a disabled action must say why it is disabled.
+fn assert_registry_rows_are_honest(
+    root: &serde_json::Value,
+    pane_id: &str,
+    context: &str,
+) -> Vec<String> {
+    for author_id in [
+        surface_author_id(pane_id),
+        status_author_id(pane_id),
+        refresh_author_id(pane_id),
+    ] {
+        assert!(
+            contains_author_id(root, &author_id),
+            "{context}: ModelRuntime landmark {author_id} is missing from the live snapshot"
+        );
+    }
+    assert_honest_registry_status(&node_text(require_node(root, &status_author_id(pane_id))));
+
+    let row_prefix = format!("{AUTHOR_ID_PREFIX}.{pane_id}.row.");
+    let mut artifacts = collect_author_ids(root)
+        .into_iter()
+        .filter_map(|author_id| {
+            author_id
+                .strip_prefix(&row_prefix)
+                .filter(|rest| is_lower_hex_sha256(rest))
+                .map(str::to_owned)
+        })
+        .collect::<Vec<_>>();
+    artifacts.sort();
+    artifacts.dedup();
+
+    if artifacts.is_empty() {
+        // Honest empty/unavailable state: the panel must SAY it has nothing (or why), never render
+        // an empty body that reads like a healthy registry.
+        let status = node_text(require_node(root, &status_author_id(pane_id)));
+        assert!(
+            contains_author_id(root, &empty_author_id(pane_id))
+                || contains_author_id(root, &error_author_id(pane_id))
+                || status.contains("No registry projection loaded."),
+            "{context}: a ModelRuntime registry with no rows must state its empty, unloaded or error \
+             reason; observed status `{status}`"
+        );
+        if let Some(error) = node_by_author_id(root, &error_author_id(pane_id)) {
+            assert!(
+                !node_text(error).trim().is_empty(),
+                "{context}: the ModelRuntime error state must state a reason"
+            );
+        }
+        return artifacts;
+    }
+
+    for artifact in &artifacts {
+        for author_id in [
+            row_author_id(pane_id, artifact),
+            row_state_author_id(pane_id, artifact),
+            row_adapter_author_id(pane_id, artifact),
+            row_role_author_id(pane_id, artifact),
+            row_revision_author_id(pane_id, artifact),
+            row_sha_author_id(pane_id, artifact),
+            row_locator_author_id(pane_id, artifact),
+            row_artifact_path_author_id(pane_id, artifact),
+            row_kv_cache_author_id(pane_id, artifact),
+            row_lora_author_id(pane_id, artifact),
+            row_steering_author_id(pane_id, artifact),
+            row_tokens_per_second_author_id(pane_id, artifact),
+            row_vram_author_id(pane_id, artifact),
+            row_last_call_author_id(pane_id, artifact),
+            row_last_call_age_author_id(pane_id, artifact),
+            row_engine_internals_author_id(pane_id, artifact),
+            row_ledger_link_author_id(pane_id, artifact),
+            row_audit_author_id(pane_id, artifact),
+            row_action_author_id(pane_id, artifact, "quiesce"),
+            row_action_author_id(pane_id, artifact, "unload"),
+            row_action_author_id(pane_id, artifact, "adapter-swap"),
+            row_action_author_id(pane_id, artifact, "inspect-internals"),
+        ] {
+            assert!(
+                contains_author_id(root, &author_id),
+                "{context}: required ModelRuntime target {author_id} is missing"
+            );
+        }
+
+        // A row is LIVE with a concrete runtime id, or DORMANT with a stated reason — never both.
+        let live = contains_author_id(root, &row_live_model_author_id(pane_id, artifact));
+        let dormant = contains_author_id(root, &row_dormant_reason_author_id(pane_id, artifact));
+        assert!(
+            live ^ dormant,
+            "{context}: row {artifact} must be exactly one of live ({live}) or dormant ({dormant})"
+        );
+        if !live {
+            assert!(
+                !contains_author_id(root, &row_switch_author_id(pane_id, artifact)),
+                "{context}: a dormant row must not offer a default-model switch"
+            );
+        }
+        if contains_author_id(root, &row_active_selection_author_id(pane_id, artifact)) {
+            assert!(
+                !contains_author_id(root, &row_switch_author_id(pane_id, artifact)),
+                "{context}: the active default row must not also offer a switch to itself"
+            );
+        }
+
+        // Every telemetry field renders text, and an unavailable one discloses WHY.
+        for author_id in [
+            row_artifact_path_author_id(pane_id, artifact),
+            row_kv_cache_author_id(pane_id, artifact),
+            row_lora_author_id(pane_id, artifact),
+            row_steering_author_id(pane_id, artifact),
+            row_tokens_per_second_author_id(pane_id, artifact),
+            row_vram_author_id(pane_id, artifact),
+            row_last_call_author_id(pane_id, artifact),
+            row_last_call_age_author_id(pane_id, artifact),
+            row_engine_internals_author_id(pane_id, artifact),
+            row_ledger_link_author_id(pane_id, artifact),
+        ] {
+            let label = node_text(require_node(root, &author_id));
+            assert!(
+                !label.trim().is_empty(),
+                "{context}: {author_id} rendered no operator-readable text"
+            );
+            if label.contains("unavailable") {
+                let reason = label
+                    .split_once("unavailable (")
+                    .map(|(_, rest)| rest.trim_end_matches(')').trim())
+                    .unwrap_or_default();
+                assert!(
+                    !reason.is_empty(),
+                    "{context}: {author_id} claims unavailable without a reason: `{label}`"
+                );
+            }
+        }
+
+        // A disabled runtime action must disclose why it is disabled (never a silent dead control).
+        for action in ["quiesce", "unload", "adapter-swap", "inspect-internals"] {
+            let author_id = row_action_author_id(pane_id, artifact, action);
+            let node = require_node(root, &author_id);
+            if node_is_disabled(node) {
+                let label = node_text(node);
+                assert!(
+                    label.contains("unavailable ("),
+                    "{context}: disabled action {author_id} hides its reason: `{label}`"
+                );
+            }
+        }
+
+        // Engine internals: an available payload must offer its read-only drilldown.
+        let internals = node_text(require_node(
+            root,
+            &row_engine_internals_author_id(pane_id, artifact),
+        ));
+        if internals.contains("available") && !internals.contains("unavailable") {
+            assert!(
+                contains_author_id(
+                    root,
+                    &row_engine_internals_expand_author_id(pane_id, artifact)
+                ),
+                "{context}: available engine internals must expose their expand target"
+            );
+        }
+    }
+    artifacts
+}
+
+#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires managed \
+            PostgreSQL, Palmistry-ready handshake_core on 127.0.0.1:37501, \
+            HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, and a shared HANDSHAKE_DIAGNOSTICS_DIR"]
+#[test]
+fn production_socket_model_runtime_rows_refresh_receipt_negative_states_and_detached_window() {
+    let mut app = LiveApp::start("model_runtime");
+
+    // ── Operator navigation: the WP leaves live under the top-level MODELS menu ─────────────────
+    app.open_models_menu_leaf("menu.models.model-runtime");
+    let discovered_surface = wait_for_author_id_between(
+        &mut app.client,
+        "main",
+        &format!("{AUTHOR_ID_PREFIX}."),
+        ".surface",
+        SURFACE_TIMEOUT,
+    );
+    let pane_id = discovered_surface
+        .strip_prefix(&format!("{AUTHOR_ID_PREFIX}."))
+        .and_then(|rest| rest.strip_suffix(".surface"))
+        .expect("ModelRuntime surface author_id is `<prefix>.<pane_id>.surface`")
+        .to_owned();
+    assert_eq!(discovered_surface, surface_author_id(&pane_id));
+
+    let opened = wait_for_settled_registry(&mut app, "main", &pane_id);
+    let root = opened["snapshot"]["root"].clone();
+    assert_eq!(
+        pane_id_hosting(&root, &PaneType::ModelRuntime.label()),
+        pane_id,
+        "the pane-scoped ModelRuntime author_ids must belong to the pane hosting the surface"
+    );
+    let docked_artifacts = assert_registry_rows_are_honest(&root, &pane_id, "docked main window");
+
+    // ── Safe mutating action with before/after receipts ──────────────────────────────────────────
+    // Refresh re-reads the durable registry; it never mutates model state, so it is safe with or
+    // without a loaded model. The receipt must be applied, attributed, revision-advancing and
+    // durable — the exact contract an in-process Harness could never prove.
+    let status_before = node_text(require_node(&root, &status_author_id(&pane_id)));
+    let refresh_receipt = app.client.mutation_on_live_surface(
+        "argus.click",
+        "main",
+        &refresh_author_id(&pane_id),
+        None,
+    );
+    let refreshed = wait_for_settled_registry(&mut app, "main", &pane_id);
+    let refreshed_root = refreshed["snapshot"]["root"].clone();
+    let status_after = node_text(require_node(&refreshed_root, &status_author_id(&pane_id)));
+    assert_honest_registry_status(&status_after);
+    assert_registry_rows_are_honest(&refreshed_root, &pane_id, "after live refresh");
+
+    // ── Visual evidence of the docked panel ─────────────────────────────────────────────────────
+    let main_shot = app.client.screenshot("main");
+    let main_png = decode_verified_capture(
+        &main_shot,
+        "main",
+        app.child_pid,
+        "ModelRuntime docked main-window capture",
+    );
+
+    // ── Detached window: the same pane in a real second OS window ───────────────────────────────
+    let popout_window_id = app.pop_out_pane(&pane_id);
+    wait_for_author_id(
+        &mut app.client,
+        &popout_window_id,
+        &surface_author_id(&pane_id),
+        SURFACE_TIMEOUT,
+    );
+    let detached = wait_for_settled_registry(&mut app, &popout_window_id, &pane_id);
+    let detached_root = detached["snapshot"]["root"].clone();
+    assert!(
+        contains_author_id(&detached_root, &popout_window_author_id(&pane_id)),
+        "the detached window must carry its stable window-root target"
+    );
+    let detached_artifacts =
+        assert_registry_rows_are_honest(&detached_root, &pane_id, "detached pop-out window");
+
+    // While detached, the main window shows the placeholder + merge-back, NOT a second copy of the
+    // panel, so a stable author_id can never be ambiguous across windows.
+    let main_while_detached = app.client.inspect("main");
+    let main_while_detached_root = main_while_detached["snapshot"]["root"].clone();
+    assert!(
+        !contains_author_id(&main_while_detached_root, &surface_author_id(&pane_id)),
+        "a detached pane must not still render inside the main window"
+    );
+    assert!(
+        contains_author_id(
+            &main_while_detached_root,
+            &handshake_native::popout_window::merge_back_author_id(&pane_id)
+        ),
+        "the main window must expose the merge-back control for the detached pane"
+    );
+
+    let detached_shot = app.client.screenshot(&popout_window_id);
+    let detached_png = decode_verified_capture(
+        &detached_shot,
+        &popout_window_id,
+        app.child_pid,
+        "ModelRuntime detached-window capture",
+    );
+
+    // The detached window must be STEERABLE, not merely visible/capturable.
+    let detached_refresh = app.client.mutation_on_live_surface(
+        "argus.click",
+        &popout_window_id,
+        &refresh_author_id(&pane_id),
+        None,
+    );
+    let detached_after_refresh = wait_for_settled_registry(&mut app, &popout_window_id, &pane_id);
+    assert_registry_rows_are_honest(
+        &detached_after_refresh["snapshot"]["root"],
+        &pane_id,
+        "detached window after its own refresh",
+    );
+
+    app.merge_back_pane(&pane_id);
+    wait_for_author_id(
+        &mut app.client,
+        "main",
+        &surface_author_id(&pane_id),
+        SURFACE_TIMEOUT,
+    );
+    let remerged = wait_for_settled_registry(&mut app, "main", &pane_id);
+    assert_registry_rows_are_honest(
+        &remerged["snapshot"]["root"],
+        &pane_id,
+        "after merge-back into the main window",
+    );
+
+    // ── Proof artifacts ─────────────────────────────────────────────────────────────────────────
+    app.write_proof_artifact("argus_production_socket_model_runtime_main.png", &main_png);
+    app.write_proof_artifact(
+        "argus_production_socket_model_runtime_popout.png",
+        &detached_png,
+    );
+    let transcript = app.client.assert_transcript_is_secret_free(&[]);
+    app.write_proof_artifact(
+        "argus_production_socket_model_runtime_transcript.json",
+        &transcript,
+    );
+    let provenance = serde_json::json!({
+        "schema_id": "handshake.argus.production_socket_model_runtime_provenance@1",
+        "mt_id": "MT-014",
+        "child_pid": app.child_pid,
+        "authenticated_agent_id": app.authenticated_agent_id,
+        "navigation": ["menu-models", "menu.models.model-runtime"],
+        "pane_id": pane_id,
+        "docked_row_artifacts": docked_artifacts,
+        "detached_row_artifacts": detached_artifacts,
+        "status_before_refresh": status_before,
+        "status_after_refresh": status_after,
+        "docked_refresh_receipt": {
+            "status": refresh_receipt["result"]["status"],
+            "before_revision": refresh_receipt["result"]["before_revision"],
+            "after_revision": refresh_receipt["result"]["after_revision"],
+            "evidence_ref": refresh_receipt["result"]["evidence_ref"],
+            "agent_id": refresh_receipt["result"]["agent_id"],
+            "agent_label": refresh_receipt["result"]["agent_label"],
+        },
+        "detached_refresh_receipt": {
+            "window_id": popout_window_id,
+            "status": detached_refresh["result"]["status"],
+            "before_revision": detached_refresh["result"]["before_revision"],
+            "after_revision": detached_refresh["result"]["after_revision"],
+            "evidence_ref": detached_refresh["result"]["evidence_ref"],
+        },
+        "captures": [
+            {
+                "artifact": "argus_production_socket_model_runtime_main.png",
+                "window_id": main_shot["result"]["window_id"],
+                "pid": main_shot["result"]["pid"],
+                "width": main_shot["result"]["width"],
+                "height": main_shot["result"]["height"],
+                "captured_at_utc": main_shot["result"]["captured_at_utc"],
+                "sha256": main_shot["result"]["sha256"],
+            },
+            {
+                "artifact": "argus_production_socket_model_runtime_popout.png",
+                "window_id": detached_shot["result"]["window_id"],
+                "pid": detached_shot["result"]["pid"],
+                "width": detached_shot["result"]["width"],
+                "height": detached_shot["result"]["height"],
+                "captured_at_utc": detached_shot["result"]["captured_at_utc"],
+                "sha256": detached_shot["result"]["sha256"],
+            }
+        ],
+    });
+    app.write_proof_artifact(
+        "argus_production_socket_model_runtime_provenance.json",
+        &serde_json::to_vec_pretty(&provenance).expect("serialize ModelRuntime provenance"),
+    );
+
+    app.shutdown();
+}
+
+#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires managed \
+            PostgreSQL, Palmistry-ready handshake_core on 127.0.0.1:37501, \
+            HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, and a shared HANDSHAKE_DIAGNOSTICS_DIR"]
+#[test]
+fn production_socket_operator_chat_controls_prompt_receipt_fail_closed_launch_and_detached_window()
+{
+    let mut app = LiveApp::start("operator_chat");
+
+    app.open_models_menu_leaf("menu.models.operator-chat");
+    let opened = wait_for_author_id(&mut app.client, "main", SURFACE_AUTHOR_ID, SURFACE_TIMEOUT);
+    let root = opened["snapshot"]["root"].clone();
+    let pane_id = pane_id_hosting(&root, &PaneType::OperatorChatLaunch.label());
+
+    // ── Every operator control is Argus-visible on the production surface ───────────────────────
+    for author_id in [
+        SURFACE_AUTHOR_ID,
+        MODEL_PICKER_AUTHOR_ID,
+        REFRESH_MODELS_AUTHOR_ID,
+        FOLDER_PICKER_AUTHOR_ID,
+        PROMPT_INPUT_AUTHOR_ID,
+        LAUNCH_AUTHOR_ID,
+        TRANSCRIPT_AUTHOR_ID,
+        ROUTING_REQUEST_AUTHOR_ID,
+        ROUTING_LIFECYCLE_AUTHOR_ID,
+        ROUTING_RECOVER_AUTHOR_ID,
+        ROUTING_CANCEL_AUTHOR_ID,
+        ROUTING_AUTHORITY_AUTHOR_ID,
+    ] {
+        assert!(
+            contains_author_id(&root, author_id),
+            "Operator Chat control {author_id} is not visible over the production socket"
+        );
+    }
+
+    // ── Prompt entry: real set_value with an applied receipt and a re-observed value ────────────
+    let prompt_before = require_node(&root, PROMPT_INPUT_AUTHOR_ID);
+    let prompt_value_before = prompt_before
+        .get("value")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .to_owned();
+    let docked_prompt = "production-socket-operator-chat-docked-prompt";
+    assert_ne!(
+        prompt_value_before, docked_prompt,
+        "the prompt already held the proof marker before the proof wrote it"
+    );
+    let prompt_receipt = app.client.mutation_on_live_surface(
+        "argus.set_value",
+        "main",
+        PROMPT_INPUT_AUTHOR_ID,
+        Some(("value", serde_json::Value::String(docked_prompt.to_owned()))),
+    );
+    let after_prompt = app.client.inspect("main");
+    let after_prompt_root = after_prompt["snapshot"]["root"].clone();
+    assert_eq!(
+        require_node(&after_prompt_root, PROMPT_INPUT_AUTHOR_ID)
+            .get("value")
+            .and_then(serde_json::Value::as_str),
+        Some(docked_prompt),
+        "the operator prompt did not carry the value the production socket set"
+    );
+
+    // ── Launch fails closed while no lane is launchable ─────────────────────────────────────────
+    // The pane requires a governed owner session, a currently-available model, a working directory
+    // and a prompt. Only the prompt is set here, so the production control must refuse — and it must
+    // refuse VISIBLY (a disabled control), not by silently doing nothing.
+    let launch_node = require_node(&after_prompt_root, LAUNCH_AUTHOR_ID);
+    assert!(
+        node_is_disabled(launch_node),
+        "the Operator Chat launch control must be disabled while no lane is launchable: {launch_node}"
+    );
+    assert!(
+        !contains_author_id(&after_prompt_root, LAUNCH_STATUS_AUTHOR_ID),
+        "no launch status may exist before any launch"
+    );
+    let (_, refused_launch) =
+        app.client
+            .attempt_mutation("argus.click", "main", LAUNCH_AUTHOR_ID, None);
+    assert_not_applied(
+        &refused_launch,
+        "argus.click(operator-chat launch, no lane)",
+    );
+    let after_refusal = app.client.inspect("main");
+    let after_refusal_root = after_refusal["snapshot"]["root"].clone();
+    assert!(
+        !contains_author_id(&after_refusal_root, LAUNCH_STATUS_AUTHOR_ID),
+        "a refused launch must not publish a launch status"
+    );
+    assert!(
+        !collect_author_ids(&after_refusal_root)
+            .iter()
+            .any(
+                |author_id| author_id.starts_with("operator-chat.transcript.row.")
+                    || author_id.starts_with("operator-chat.transcript.message.")
+            ),
+        "a refused launch must not capture transcript rows"
+    );
+    // If the pane surfaced an error at all, it must be the honest operator-facing reason.
+    if let Some(error) = node_by_author_id(&after_refusal_root, ERROR_AUTHOR_ID) {
+        let label = node_text(error);
+        assert!(
+            !label.trim().is_empty(),
+            "the Operator Chat error state must state a reason"
+        );
+    }
+
+    let docked_shot = app.client.screenshot("main");
+    let docked_png = decode_verified_capture(
+        &docked_shot,
+        "main",
+        app.child_pid,
+        "Operator Chat docked main-window capture",
+    );
+
+    // ── Detached window: capture, inspect, and steer the popped-out pane ────────────────────────
+    let popout_window_id = app.pop_out_pane(&pane_id);
+    let detached = wait_for_author_id(
+        &mut app.client,
+        &popout_window_id,
+        SURFACE_AUTHOR_ID,
+        SURFACE_TIMEOUT,
+    );
+    let detached_root = detached["snapshot"]["root"].clone();
+    assert!(
+        contains_author_id(&detached_root, &popout_window_author_id(&pane_id)),
+        "the detached Operator Chat window must carry its stable window-root target"
+    );
+    for author_id in [
+        MODEL_PICKER_AUTHOR_ID,
+        FOLDER_PICKER_AUTHOR_ID,
+        PROMPT_INPUT_AUTHOR_ID,
+        LAUNCH_AUTHOR_ID,
+        TRANSCRIPT_AUTHOR_ID,
+    ] {
+        assert!(
+            contains_author_id(&detached_root, author_id),
+            "detached Operator Chat lost control {author_id}"
+        );
+    }
+    assert_eq!(
+        require_node(&detached_root, PROMPT_INPUT_AUTHOR_ID)
+            .get("value")
+            .and_then(serde_json::Value::as_str),
+        Some(docked_prompt),
+        "the detached window must render the SAME live pane state, not a fresh empty copy"
+    );
+    assert!(
+        node_is_disabled(require_node(&detached_root, LAUNCH_AUTHOR_ID)),
+        "the detached launch control must fail closed exactly like the docked one"
+    );
+
+    let detached_shot = app.client.screenshot(&popout_window_id);
+    let detached_png = decode_verified_capture(
+        &detached_shot,
+        &popout_window_id,
+        app.child_pid,
+        "Operator Chat detached-window capture",
+    );
+
+    let detached_prompt = "production-socket-operator-chat-detached-prompt";
+    let detached_receipt = app.client.mutation_on_live_surface(
+        "argus.set_value",
+        &popout_window_id,
+        PROMPT_INPUT_AUTHOR_ID,
+        Some((
+            "value",
+            serde_json::Value::String(detached_prompt.to_owned()),
+        )),
+    );
+    let detached_after = app.client.inspect(&popout_window_id);
+    assert_eq!(
+        require_node(&detached_after["snapshot"]["root"], PROMPT_INPUT_AUTHOR_ID)
+            .get("value")
+            .and_then(serde_json::Value::as_str),
+        Some(detached_prompt),
+        "the detached Operator Chat window is not steerable over the production socket"
+    );
+
+    app.merge_back_pane(&pane_id);
+    let remerged = wait_for_author_id(&mut app.client, "main", SURFACE_AUTHOR_ID, SURFACE_TIMEOUT);
+    assert_eq!(
+        require_node(&remerged["snapshot"]["root"], PROMPT_INPUT_AUTHOR_ID)
+            .get("value")
+            .and_then(serde_json::Value::as_str),
+        Some(detached_prompt),
+        "merging back must preserve the live pane state the detached window edited"
+    );
+
+    app.write_proof_artifact(
+        "argus_production_socket_operator_chat_main.png",
+        &docked_png,
+    );
+    app.write_proof_artifact(
+        "argus_production_socket_operator_chat_popout.png",
+        &detached_png,
+    );
+    let transcript = app.client.assert_transcript_is_secret_free(&[]);
+    app.write_proof_artifact(
+        "argus_production_socket_operator_chat_transcript.json",
+        &transcript,
+    );
+    let provenance = serde_json::json!({
+        "schema_id": "handshake.argus.production_socket_operator_chat_provenance@1",
+        "mt_id": "MT-012",
+        "child_pid": app.child_pid,
+        "authenticated_agent_id": app.authenticated_agent_id,
+        "navigation": ["menu-models", "menu.models.operator-chat"],
+        "pane_id": pane_id,
+        "docked_prompt_receipt": {
+            "status": prompt_receipt["result"]["status"],
+            "before_revision": prompt_receipt["result"]["before_revision"],
+            "after_revision": prompt_receipt["result"]["after_revision"],
+            "evidence_ref": prompt_receipt["result"]["evidence_ref"],
+            "agent_id": prompt_receipt["result"]["agent_id"],
+            "agent_label": prompt_receipt["result"]["agent_label"],
+        },
+        "detached_prompt_receipt": {
+            "window_id": popout_window_id,
+            "status": detached_receipt["result"]["status"],
+            "before_revision": detached_receipt["result"]["before_revision"],
+            "after_revision": detached_receipt["result"]["after_revision"],
+            "evidence_ref": detached_receipt["result"]["evidence_ref"],
+        },
+        "fail_closed_launch": {
+            "control": LAUNCH_AUTHOR_ID,
+            "disabled_in_live_snapshot": true,
+            "click_status": refused_launch["result"]["status"],
+            "click_error": refused_launch["result"]["error"],
+            "launch_lifecycle_scope_note": "This GUI proof never launches a real model session; the \
+                                            launch/capture/recovery lifecycle is proven by the \
+                                            backend operator_chat_capture_tests suite.",
+        },
+        "captures": [
+            {
+                "artifact": "argus_production_socket_operator_chat_main.png",
+                "window_id": docked_shot["result"]["window_id"],
+                "pid": docked_shot["result"]["pid"],
+                "width": docked_shot["result"]["width"],
+                "height": docked_shot["result"]["height"],
+                "captured_at_utc": docked_shot["result"]["captured_at_utc"],
+                "sha256": docked_shot["result"]["sha256"],
+            },
+            {
+                "artifact": "argus_production_socket_operator_chat_popout.png",
+                "window_id": detached_shot["result"]["window_id"],
+                "pid": detached_shot["result"]["pid"],
+                "width": detached_shot["result"]["width"],
+                "height": detached_shot["result"]["height"],
+                "captured_at_utc": detached_shot["result"]["captured_at_utc"],
+                "sha256": detached_shot["result"]["sha256"],
+            }
+        ],
+    });
+    app.write_proof_artifact(
+        "argus_production_socket_operator_chat_provenance.json",
+        &serde_json::to_vec_pretty(&provenance).expect("serialize Operator Chat provenance"),
+    );
+
+    app.shutdown();
+}
+
+#[ignore = "LIVE production socket E2E: opens native main/pop-out windows and requires managed \
+            PostgreSQL, Palmistry-ready handshake_core on 127.0.0.1:37501, \
+            HANDSHAKE_ARGUS_LIVE_BACKEND_READY=1, and a shared HANDSHAKE_DIAGNOSTICS_DIR"]
+#[test]
+fn production_socket_settings_cloud_access_login_states_and_no_secret_disclosure() {
+    let mut app = LiveApp::start("settings_cloud");
+    let canary = "production-socket-settings-secret-canary";
+
+    // Reach Settings through the MODELS menu (the WP navigation path), not only HELP.
+    app.open_models_menu_leaf("menu.models.settings");
+    wait_for_author_id(
+        &mut app.client,
+        "main",
+        SETTINGS_DIALOG_AUTHOR_ID,
+        SURFACE_TIMEOUT,
+    );
+    // The CLI-bridge rows are rendered from the backend's non-secret provider enumeration, which the
+    // shell fetches asynchronously. Wait for that authority to arrive so the login-state assertions
+    // below read the real enumeration instead of the pre-fetch frame; if it never arrives, the proof
+    // fails loudly rather than silently skipping the login-state coverage.
+    let opened = wait_for_author_id(
+        &mut app.client,
+        "main",
+        &cloud_cli_status_author_id("claude_code"),
+        SURFACE_TIMEOUT,
+    );
+    let root = opened["snapshot"]["root"].clone();
+
+    // ── BYOK rows: present, addressable, and structurally non-disclosing ────────────────────────
+    for provider in ["openai", "anthropic"] {
+        for author_id in [
+            cloud_byok_key_author_id(provider),
+            cloud_byok_status_author_id(provider),
+            cloud_byok_save_author_id(provider),
+            cloud_byok_remove_author_id(provider),
+        ] {
+            assert!(
+                contains_author_id(&root, &author_id),
+                "Settings cloud surface omitted {author_id}"
+            );
+        }
+
+        // The key input is addressable for visibility/click proof, but the generic Argus surface may
+        // neither PROJECT its value nor OFFER a write path: key material crosses only the dedicated
+        // OS-keychain route.
+        let key_node = require_node(&root, &cloud_byok_key_author_id(provider));
+        assert!(
+            key_node.get("value").is_none() || key_node["value"].is_null(),
+            "the {provider} BYOK key input projected a value into the Argus snapshot: {key_node}"
+        );
+        assert!(
+            !node_supports(key_node, "SetValue"),
+            "the {provider} BYOK key input advertised a generic SetValue write path"
+        );
+
+        // Honest configuration state, and an unconfigured provider cannot offer key removal.
+        let status_label = node_text(require_node(&root, &cloud_byok_status_author_id(provider)));
+        assert!(
+            HONEST_BYOK_STATES
+                .iter()
+                .any(|state| status_label.contains(state)),
+            "{provider} BYOK status is not one of the production states: `{status_label}`"
+        );
+        let configured = status_label.contains("Configured — key stored in the OS keychain");
+        let remove_node = require_node(&root, &cloud_byok_remove_author_id(provider));
+        assert_eq!(
+            node_is_disabled(remove_node),
+            !configured,
+            "{provider} remove/rotate enablement disagrees with its reported state `{status_label}`"
+        );
+    }
+
+    // Gemini is never offered as a provider.
+    assert!(
+        !collect_author_ids(&root)
+            .iter()
+            .any(|author_id| author_id.contains("gemini")),
+        "the cloud-access surface must never offer a Gemini provider"
+    );
+
+    // ── CLI-bridge login-state rows ─────────────────────────────────────────────────────────────
+    for provider in ["claude_code", "codex"] {
+        for author_id in [
+            cloud_cli_status_author_id(provider),
+            cloud_cli_login_author_id(provider),
+        ] {
+            assert!(
+                contains_author_id(&root, &author_id),
+                "Settings cloud surface omitted {author_id}"
+            );
+        }
+        let login_state = node_text(require_node(&root, &cloud_cli_status_author_id(provider)));
+        assert!(
+            HONEST_CLI_LOGIN_STATES
+                .iter()
+                .any(|state| login_state == *state),
+            "{provider} login state is not one of the production states: `{login_state}`"
+        );
+    }
+
+    // ── The generic write path is refused for secret-bearing inputs, without echoing the value ──
+    let (settings_revision, denial) = app.client.attempt_mutation(
+        "argus.set_value",
+        "main",
+        &cloud_byok_key_author_id("openai"),
+        Some(("value", serde_json::Value::String(canary.to_owned()))),
+    );
+    assert!(
+        denial.get("error").is_some(),
+        "a secret-bearing input accepted a generic Argus set_value: {denial}"
+    );
+    assert!(
+        !denial.to_string().contains(canary),
+        "the refusal echoed the secret value"
+    );
+    let after_denial = app.client.inspect("main");
+    let after_denial_root = after_denial["snapshot"]["root"].clone();
+    // The refused write had NO effect on the secret-bearing control. The invariant is asserted on the
+    // control itself rather than on the window revision, because a live shell legitimately republishes
+    // its snapshot for unrelated reasons (backend health polling), and a proof must not read that as a
+    // secret-write side effect.
+    let key_after_denial = require_node(&after_denial_root, &cloud_byok_key_author_id("openai"));
+    assert!(
+        key_after_denial.get("value").is_none() || key_after_denial["value"].is_null(),
+        "the refused secret write left a projected value on the key input: {key_after_denial}"
+    );
+    assert!(
+        !node_supports(key_after_denial, "SetValue"),
+        "the refused secret write opened a generic write path on the key input"
+    );
+    assert!(
+        !serde_json::to_string(&after_denial_root)
+            .expect("serialize Settings tree")
+            .contains(canary),
+        "the Settings snapshot disclosed the canary"
+    );
+
+    // ── No disclosure through ANY read surface: the compat alias, the canonical inspect, the
+    //    window listing, and the real screenshot response (headers AND pixels). ─────────────────
+    let alias_read = app.client.inspect_via("list_widgets", "main");
+    assert!(
+        !alias_read.to_string().contains(canary),
+        "the list_widgets compatibility alias disclosed the canary"
+    );
+    for author_id in [
+        SETTINGS_DIALOG_AUTHOR_ID.to_owned(),
+        cloud_byok_key_author_id("openai"),
+        cloud_byok_status_author_id("openai"),
+        cloud_cli_status_author_id("claude_code"),
+    ] {
+        assert!(
+            contains_author_id(&alias_read["result"]["snapshot"]["root"], &author_id),
+            "the list_widgets alias lost the Settings landmark {author_id}"
+        );
+    }
+    let window_list = app.client.call("argus.list_windows", serde_json::json!({}));
+    assert!(
+        !window_list.to_string().contains(canary),
+        "argus.list_windows disclosed the canary"
+    );
+
+    let settings_shot = app.client.screenshot("main");
+    assert!(
+        !settings_shot.to_string().contains(canary),
+        "the screenshot response disclosed the canary"
+    );
+    let settings_png = decode_verified_capture(
+        &settings_shot,
+        "main",
+        app.child_pid,
+        "Settings cloud-access main-window capture",
+    );
+    assert_bytes_exclude(&settings_png, canary, "Settings-open PNG bytes");
+
+    // The landmarks were on screen for the capture, before AND after it (not an earlier frame).
+    let after_capture = app.client.inspect("main");
+    let after_capture_root = after_capture["snapshot"]["root"].clone();
+    for provider in ["openai", "anthropic"] {
+        assert!(
+            contains_author_id(&after_capture_root, &cloud_byok_status_author_id(provider)),
+            "a Settings landmark vanished across the visual capture"
+        );
+    }
+    assert!(
+        !serde_json::to_string(&after_capture_root)
+            .expect("serialize post-capture Settings tree")
+            .contains(canary),
+        "the post-capture Settings snapshot disclosed the canary"
+    );
+
+    app.client
+        .mutation_on_live_surface("argus.click", "main", CLOSE_AUTHOR_ID, None);
+
+    app.write_proof_artifact(
+        "argus_production_socket_settings_cloud_main.png",
+        &settings_png,
+    );
+    let transcript = app.client.assert_transcript_is_secret_free(&[canary]);
+    app.write_proof_artifact(
+        "argus_production_socket_settings_cloud_transcript.json",
+        &transcript,
+    );
+    let provenance = serde_json::json!({
+        "schema_id": "handshake.argus.production_socket_settings_cloud_provenance@1",
+        "mt_id": "MT-015",
+        "child_pid": app.child_pid,
+        "authenticated_agent_id": app.authenticated_agent_id,
+        "navigation": ["menu-models", "menu.models.settings"],
+        "settings_revision_before_refused_write": settings_revision,
+        "no_secret_disclosure": {
+            "byok_key_value_projected": false,
+            "byok_key_set_value_action_offered": false,
+            "generic_set_value_refused": true,
+            "canary_absent_from_inspect": true,
+            "canary_absent_from_list_widgets_alias": true,
+            "canary_absent_from_list_windows": true,
+            "canary_absent_from_screenshot_response_and_pixels": true,
+            "canary_absent_from_transcript": true,
+        },
+        "capture": {
+            "artifact": "argus_production_socket_settings_cloud_main.png",
+            "window_id": settings_shot["result"]["window_id"],
+            "pid": settings_shot["result"]["pid"],
+            "width": settings_shot["result"]["width"],
+            "height": settings_shot["result"]["height"],
+            "captured_at_utc": settings_shot["result"]["captured_at_utc"],
+            "sha256": settings_shot["result"]["sha256"],
+        },
+        "follow_up": "A DETACHED Settings window proof is intentionally out of scope here; that \
+                      surface is being implemented in parallel and needs its own live proof.",
+    });
+    app.write_proof_artifact(
+        "argus_production_socket_settings_cloud_provenance.json",
+        &serde_json::to_vec_pretty(&provenance).expect("serialize Settings provenance"),
+    );
+
+    app.shutdown();
+}

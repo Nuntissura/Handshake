@@ -838,6 +838,312 @@ fn model_runtime_settings_action_opens_canonical_problems_pane() {
     );
 }
 
+// ── MT-015 detached Settings window (pop-out / re-dock / close) ──────────────────────────────────────
+//
+// The MT-015 v4 fail report requires the Settings surface to be targetable as a DETACHED window, not
+// only as a root-viewport modal. These drive the REAL shell through the same AccessKit path Argus uses
+// out-of-process and prove:
+//   * the modal header exposes `settings.popout`;
+//   * clicking it detaches the surface into its own viewport whose ROOT node is
+//     `popout-window-settings` (Role::Window, label "Handshake – Settings"), registered with the Argus
+//     window registry as `popout-settings`, while the modal's `settings.dialog` root STOPS rendering
+//     (no double UI) and every settings section still renders + stays addressable;
+//   * `settings.redock` restores the modal; the detached Close control closes settings outright and a
+//     later re-open comes back as the modal (modal availability restored).
+//
+// Headless scope (honest): on a plain kittest `egui::Context`, `embed_viewports()` is `true`, so
+// `show_viewport_immediate` runs the SAME callback embedded in the current frame instead of raising a
+// second OS window (eframe sets `embed_viewports == false` only on the live wgpu/winit backend). The
+// content, the window-root node, the mutual exclusion, and the Argus registration are therefore fully
+// proven here; the genuine "OS raised a second top-level window and the user clicked its native X" step
+// needs a real winit event loop and is NOT faked — the close path is driven through the in-shell seam
+// (`close_settings`, which is exactly what the viewport's `close_requested()` branch calls).
+
+/// Every live node that carries a stable author_id, as owned `(author_id, role, label)` triples — the
+/// same projection an out-of-process Argus client reads.
+fn settings_author_nodes(harness: &Harness<'_, HandshakeApp>) -> Vec<(String, String, Option<String>)> {
+    let mut found = Vec::new();
+    let root = harness.root();
+    for node in root.children_recursive() {
+        let ak = node.accesskit_node();
+        if let Some(author_id) = ak.author_id() {
+            found.push((author_id.to_owned(), format!("{:?}", ak.role()), ak.label()));
+        }
+    }
+    found
+}
+
+fn settings_author_ids(harness: &Harness<'_, HandshakeApp>) -> Vec<String> {
+    settings_author_nodes(harness)
+        .into_iter()
+        .map(|(author_id, _, _)| author_id)
+        .collect()
+}
+
+/// Click a live node by its stable author_id through AccessKit — the out-of-process steering path.
+fn click_settings_author_id(harness: &mut Harness<'_, HandshakeApp>, author_id: &str) {
+    harness
+        .query_all_by(|n: &egui_kittest::kittest::AccessKitNode<'_>| n.author_id() == Some(author_id))
+        .next()
+        .unwrap_or_else(|| panic!("author_id '{author_id}' must be addressable in the live tree"))
+        .click_accesskit();
+}
+
+fn open_settings_harness() -> Harness<'static, HandshakeApp> {
+    let mut app = ok_app();
+    app.set_settings_transport(StubSettingsTransport::with_loaded(None));
+    let mut harness = Harness::builder()
+        .with_size(egui::Vec2::new(1440.0, 940.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run();
+    harness
+}
+
+/// Detach an open settings surface through the LIVE `settings.popout` control and settle the frames.
+fn detach_open_settings(harness: &mut Harness<'_, HandshakeApp>) {
+    click_settings_author_id(harness, "settings.popout");
+    harness.run();
+    harness.run();
+}
+
+#[test]
+fn settings_popout_control_detaches_into_its_own_argus_window_and_hides_the_modal() {
+    let mut harness = open_settings_harness();
+
+    // Docked (modal) host: the dialog root AND the pop-out control are addressable.
+    let ids = settings_author_ids(&harness);
+    assert!(
+        ids.iter().any(|id| id == "settings.dialog"),
+        "the modal host renders its Role::Dialog root: {ids:?}"
+    );
+    assert!(
+        ids.iter().any(|id| id == "settings.popout"),
+        "the modal header exposes the pop-out control by its stable author_id: {ids:?}"
+    );
+    assert!(
+        !harness.state().settings_detached(),
+        "settings starts docked"
+    );
+
+    detach_open_settings(&mut harness);
+
+    assert!(
+        harness.state().settings_detached(),
+        "clicking settings.popout detaches the surface into its own window"
+    );
+    assert!(
+        harness.state().settings_open(),
+        "pop-out does not close settings; it only changes the host window"
+    );
+
+    // The detached window's ROOT node is live, with the shared pop-out identity + OS title.
+    let nodes = settings_author_nodes(&harness);
+    let window = nodes
+        .iter()
+        .find(|(author_id, _, _)| author_id == "popout-window-settings")
+        .unwrap_or_else(|| {
+            panic!(
+                "popout-window-settings missing from the LIVE tree: {:?}",
+                nodes.iter().map(|(a, _, _)| a).collect::<Vec<_>>()
+            )
+        });
+    assert_eq!(
+        window.1, "Window",
+        "the detached settings root is Role::Window"
+    );
+    assert_eq!(
+        window.2.as_deref(),
+        Some("Handshake \u{2013} Settings"),
+        "the detached window carries the shared 'Handshake – <label>' title"
+    );
+
+    let ids: Vec<String> = nodes.iter().map(|(a, _, _)| a.clone()).collect();
+    // NO double UI: the modal's Role::Dialog root is gone while the surface is detached.
+    assert!(
+        !ids.iter().any(|id| id == "settings.dialog"),
+        "the root-viewport modal must NOT render while the surface is detached: {ids:?}"
+    );
+    // ALL sections still render and stay addressable in the detached host (same render path).
+    for expected in [
+        "settings.search",
+        "settings.list",
+        "settings.section.appearance",
+        "settings.section.keybindings",
+        "settings.section.swarm",
+        "settings.section.terminal",
+        "settings.section.layout",
+        "settings.section.cloud-models",
+        "settings.section.model-runtime",
+        "settings.section.diagnostics",
+        "settings.section.about",
+        "settings.theme",
+        "settings.view-mode",
+        "settings.reset-layout",
+        "settings.cloud.byok.openai.key",
+        "settings.cloud.byok.anthropic.key",
+        "settings.redock",
+        "settings.close",
+    ] {
+        assert!(
+            ids.iter().any(|id| id == expected),
+            "'{expected}' must stay addressable in the DETACHED settings window: {ids:?}"
+        );
+    }
+
+    // Argus enumerates the detached window by its stable id, so an out-of-process driver can target it
+    // (list_widgets / click / screenshot) without guessing viewport timing.
+    let windows = harness.state().mcp_window_registry().list();
+    let detached = windows
+        .iter()
+        .find(|w| w.window_id == "popout-settings")
+        .unwrap_or_else(|| {
+            panic!(
+                "argus.list_windows must enumerate the detached settings window: {:?}",
+                windows.iter().map(|w| &w.window_id).collect::<Vec<_>>()
+            )
+        });
+    assert_eq!(detached.title, "Handshake \u{2013} Settings");
+    assert!(
+        windows.iter().any(|w| w.window_id == "main"),
+        "the main window stays registered alongside the detached settings window"
+    );
+}
+
+#[test]
+fn re_docking_the_detached_settings_window_restores_the_modal() {
+    let mut harness = open_settings_harness();
+    detach_open_settings(&mut harness);
+    assert!(harness.state().settings_detached());
+
+    click_settings_author_id(&mut harness, "settings.redock");
+    harness.run();
+    harness.run();
+
+    assert!(
+        !harness.state().settings_detached(),
+        "settings.redock returns the surface to the modal host"
+    );
+    assert!(
+        harness.state().settings_open(),
+        "re-docking keeps settings open"
+    );
+    let ids = settings_author_ids(&harness);
+    assert!(
+        ids.iter().any(|id| id == "settings.dialog"),
+        "the modal renders again after re-dock: {ids:?}"
+    );
+    assert!(
+        !ids.iter().any(|id| id == "popout-window-settings"),
+        "the detached window is gone after re-dock: {ids:?}"
+    );
+    assert!(
+        !harness
+            .state()
+            .mcp_window_registry()
+            .list()
+            .iter()
+            .any(|w| w.window_id == "popout-settings"),
+        "the detached Argus window is unregistered on re-dock"
+    );
+}
+
+#[test]
+fn closing_the_detached_settings_window_restores_modal_availability() {
+    let mut harness = open_settings_harness();
+    detach_open_settings(&mut harness);
+
+    // The detached header's Close control (the same author_id as the modal's, scoped to this window).
+    click_settings_author_id(&mut harness, "settings.close");
+    harness.run();
+    harness.run();
+
+    assert!(
+        !harness.state().settings_open(),
+        "closing the detached window closes settings"
+    );
+    assert!(
+        !harness.state().settings_detached(),
+        "the detached host is torn down on close"
+    );
+    let ids = settings_author_ids(&harness);
+    assert!(
+        !ids.iter().any(|id| id == "popout-window-settings"),
+        "no detached window node survives the close: {ids:?}"
+    );
+    assert!(
+        !ids.iter().any(|id| id == "settings.dialog"),
+        "no modal is rendered either — settings is closed: {ids:?}"
+    );
+    assert!(
+        !harness
+            .state()
+            .mcp_window_registry()
+            .list()
+            .iter()
+            .any(|w| w.window_id == "popout-settings"),
+        "the detached Argus window is unregistered on close"
+    );
+
+    // Modal availability is restored: the next open comes back as the root-viewport modal.
+    harness.state_mut().open_settings();
+    harness.run();
+    assert!(harness.state().settings_open());
+    assert!(
+        !harness.state().settings_detached(),
+        "a re-open after closing a detached window is docked again"
+    );
+    let ids = settings_author_ids(&harness);
+    assert!(
+        ids.iter().any(|id| id == "settings.dialog"),
+        "the modal host is available again: {ids:?}"
+    );
+    assert!(
+        ids.iter().any(|id| id == "settings.popout"),
+        "and it can be popped out again: {ids:?}"
+    );
+}
+
+#[test]
+fn open_settings_while_detached_keeps_exactly_one_settings_host() {
+    let mut harness = open_settings_harness();
+    let generation = harness.state().settings_open_count();
+    detach_open_settings(&mut harness);
+
+    // A second OpenSettings (HELP menu / palette `settings.open`) while detached must not duplicate the
+    // surface, re-dock it, or reset the operator's in-progress state.
+    harness.state_mut().open_settings();
+    harness.run();
+
+    assert!(harness.state().settings_detached(), "still detached");
+    assert_eq!(
+        harness.state().settings_open_count(),
+        generation,
+        "an OpenSettings while already open does not bump the open generation"
+    );
+    let ids = settings_author_ids(&harness);
+    assert_eq!(
+        ids.iter().filter(|id| *id == "popout-window-settings").count(),
+        1,
+        "exactly ONE detached settings window is rendered: {ids:?}"
+    );
+    assert!(
+        !ids.iter().any(|id| id == "settings.dialog"),
+        "no modal appears alongside the detached window: {ids:?}"
+    );
+    assert_eq!(
+        harness
+            .state()
+            .mcp_window_registry()
+            .list()
+            .iter()
+            .filter(|w| w.window_id == "popout-settings")
+            .count(),
+        1,
+        "the Argus registry holds exactly one detached settings window"
+    );
+}
+
 // ── Live-PG integration: change theme, persist, reload, assert it round-trips through PostgreSQL ─────
 //
 // Gated behind the `integration_tests` feature + #[ignore] (mirrors test_layout_persistence.rs): it

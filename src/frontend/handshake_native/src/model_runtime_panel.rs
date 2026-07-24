@@ -304,9 +304,11 @@ impl ModelRuntimePaneFactory {
         }
     }
 
-    fn start_process_ownership_fetch(&self, uri: String) {
+    /// Returns whether an observable effect was applied, so the caller can emit the
+    /// Argus applied-action acknowledgement only when the panel really acted.
+    fn start_process_ownership_fetch(&self, uri: String) -> bool {
         let Some(transport) = self.transport.as_ref() else {
-            return;
+            return false;
         };
         if let Ok(mut state) = self.state.lock() {
             state.pending_process_ownership = true;
@@ -314,6 +316,7 @@ impl ModelRuntimePaneFactory {
             state.error = None;
         }
         transport.fetch_process_ownership(uri, self.process_ownership_delivery.clone());
+        true
     }
 
     fn drain_process_ownership_delivery(&self) {
@@ -340,46 +343,52 @@ impl ModelRuntimePaneFactory {
         }
     }
 
-    fn start_fetch(&self) {
+    /// Returns whether an observable effect was applied (a request really started, or
+    /// the missing-transport error became visible). A request rejected because another
+    /// request is already in flight returns `false` and must NOT be acknowledged as an
+    /// applied Argus action.
+    fn start_fetch(&self) -> bool {
         let Some(transport) = self.transport.as_ref() else {
             if let Ok(mut state) = self.state.lock() {
                 state.initial_fetch_started = true;
                 state.error = Some("ModelRuntime registry backend is not connected.".to_owned());
             }
-            return;
+            return true;
         };
         if let Ok(mut state) = self.state.lock() {
             if state.pending_fetch
                 || state.pending_selection_model_id.is_some()
                 || state.pending_control_model_id.is_some()
             {
-                return;
+                return false;
             }
             state.pending_fetch = true;
             state.initial_fetch_started = true;
             state.error = None;
         }
         transport.fetch_registry(self.delivery.clone());
+        true
     }
 
-    fn start_selection(&self, target_model_id: String) {
+    fn start_selection(&self, target_model_id: String) -> bool {
         let Some(transport) = self.transport.as_ref() else {
             if let Ok(mut state) = self.state.lock() {
                 state.error = Some("ModelRuntime selection backend is not connected.".to_owned());
             }
-            return;
+            return true;
         };
         if let Ok(mut state) = self.state.lock() {
             if state.pending_fetch
                 || state.pending_selection_model_id.is_some()
                 || state.pending_control_model_id.is_some()
             {
-                return;
+                return false;
             }
             state.pending_selection_model_id = Some(target_model_id.clone());
             state.error = None;
         }
         transport.select_model(target_model_id, self.delivery.clone());
+        true
     }
 
     fn start_control(
@@ -388,19 +397,19 @@ impl ModelRuntimePaneFactory {
         action: ModelRuntimeControlAction,
         expected_catalog_revision: Option<u64>,
         expected_selection_revision: Option<u64>,
-    ) {
+    ) -> bool {
         let Some(transport) = self.transport.as_ref() else {
             if let Ok(mut state) = self.state.lock() {
                 state.error = Some("ModelRuntime control backend is not connected.".to_owned());
             }
-            return;
+            return true;
         };
         if let Ok(mut state) = self.state.lock() {
             if state.pending_fetch
                 || state.pending_selection_model_id.is_some()
                 || state.pending_control_model_id.is_some()
             {
-                return;
+                return false;
             }
             state.pending_control_model_id = Some(model_id.clone());
             state.pending_control_action = Some(action.clone());
@@ -414,6 +423,7 @@ impl ModelRuntimePaneFactory {
             expected_selection_revision,
             self.control_delivery.clone(),
         );
+        true
     }
 
     fn drain_control_delivery(&self) {
@@ -724,8 +734,16 @@ impl PaneFactory for ModelRuntimePaneFactory {
                                 .expanded_engine_internals
                                 .contains(&row.artifact_sha256),
                         );
+                        // Every dispatched action carries the exact author_id that Argus
+                        // targeted, so the applied-effect acknowledgement below names the
+                        // control the out-of-process caller actually steered.
                         if row_actions.switch_requested {
-                            switch_requested = row.live_model_id.clone();
+                            switch_requested = row.live_model_id.clone().map(|model_id| {
+                                (
+                                    model_id,
+                                    row_switch_author_id(pane_id, &row.artifact_sha256),
+                                )
+                            });
                         }
                         if row_actions.quiesce_requested {
                             if let Some(model_id) = row.live_model_id.clone() {
@@ -734,6 +752,11 @@ impl PaneFactory for ModelRuntimePaneFactory {
                                     ModelRuntimeControlAction::Quiesce,
                                     None,
                                     None,
+                                    row_action_author_id(
+                                        pane_id,
+                                        &row.artifact_sha256,
+                                        "quiesce",
+                                    ),
                                 ));
                             }
                         }
@@ -744,6 +767,7 @@ impl PaneFactory for ModelRuntimePaneFactory {
                                     ModelRuntimeControlAction::Unload,
                                     Some(projection.catalog_revision),
                                     None,
+                                    row_action_author_id(pane_id, &row.artifact_sha256, "unload"),
                                 ));
                             }
                         }
@@ -759,6 +783,11 @@ impl PaneFactory for ModelRuntimePaneFactory {
                                     },
                                     Some(projection.catalog_revision),
                                     Some(row.selection_revision),
+                                    row_action_author_id(
+                                        pane_id,
+                                        &row.artifact_sha256,
+                                        "adapter-swap",
+                                    ),
                                 ));
                             }
                         }
@@ -766,7 +795,10 @@ impl PaneFactory for ModelRuntimePaneFactory {
                             inspect_internals_requested = Some(row.artifact_sha256.clone());
                         }
                         if let Some(uri) = row_actions.process_ownership_requested {
-                            process_ownership_requested = Some(uri);
+                            process_ownership_requested = Some((
+                                uri,
+                                row_ledger_link_author_id(pane_id, &row.artifact_sha256),
+                            ));
                         }
                         ui.add_space(6.0);
                     }
@@ -812,22 +844,44 @@ impl PaneFactory for ModelRuntimePaneFactory {
                 ui.ctx().request_repaint();
             }
         });
+        let mut inspect_internals_ack = None;
         if let Some(artifact_sha256) = inspect_internals_requested {
+            inspect_internals_ack = Some(row_action_author_id(
+                pane_id,
+                &artifact_sha256,
+                "inspect-internals",
+            ));
             state.expanded_engine_internals.insert(artifact_sha256);
             ui.ctx().request_repaint();
         }
         drop(state);
-        if refresh_requested {
-            self.start_fetch();
+        // HBR-VIS / ARGUS-014: an out-of-process Argus click only resolves to an
+        // `Applied` receipt when the production handler acknowledges the effect it
+        // just applied. Acknowledge exactly the actions this frame really dispatched,
+        // so a request rejected because another one is already in flight stays an
+        // honest non-applied receipt instead of a false success.
+        if let Some(author_id) = inspect_internals_ack {
+            crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author_id);
         }
-        if let Some(target_model_id) = switch_requested {
-            self.start_selection(target_model_id);
+        if refresh_requested && self.start_fetch() {
+            crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &refresh_author_id(pane_id));
         }
-        if let Some((model_id, action, catalog_revision, selection_revision)) = control_requested {
-            self.start_control(model_id, action, catalog_revision, selection_revision);
+        if let Some((target_model_id, author_id)) = switch_requested {
+            if self.start_selection(target_model_id) {
+                crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author_id);
+            }
         }
-        if let Some(uri) = process_ownership_requested {
-            self.start_process_ownership_fetch(uri);
+        if let Some((model_id, action, catalog_revision, selection_revision, author_id)) =
+            control_requested
+        {
+            if self.start_control(model_id, action, catalog_revision, selection_revision) {
+                crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author_id);
+            }
+        }
+        if let Some((uri, author_id)) = process_ownership_requested {
+            if self.start_process_ownership_fetch(uri) {
+                crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author_id);
+            }
         }
     }
 
