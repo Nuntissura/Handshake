@@ -14,7 +14,7 @@
   "title": "E3-MT021-LocalGlobalGraph",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-15T05:57:56.822Z",
+  "updated_at_utc": "2026-07-24T10:30:00.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-021.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [],
     "blocks": [
@@ -33,7 +33,7 @@
       "MT-023",
       "MT-024"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -84,9 +84,9 @@
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
     "claimed_by": "KERNEL_BUILDER-20260704-195953",
-    "ready_for_validation_at_utc": "2026-07-04T21:41:56.175Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260704-195953",
-    "ready_for_validation_summary": "MT-021 reopened graph-feed repair is proof-refreshed: app host source feeds mounted Graph View via initial fetch and graph data cell drain to set_graph; ModeChanged refetches global/local graph data; AddEdge/RemoveEdge route through typed client paths; manual/HBR agent-tool rows now document live graph ids, backend routes, recovery, and typed live-PG blocker. Local runnable graph/widget/manual/app-host/backend-client/request-shape proofs, cargo check, scoped rustfmt, and scoped diff checks passed. Official validator verdict remains PENDING; live PostgreSQL AC1/AC2 and live halves of PROOF2/PROOF3 remain NEEDS_MANAGED_RESOURCE_PROOF because managed backend env was absent.",
+    "ready_for_validation_at_utc": "2026-07-24T10:30:00.000Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
+    "ready_for_validation_summary": "MT-021 V3: canonical Argus over real-PG graph — inspect/relayout/re-observe, empty state, and local/global switch proving DISTINCT real-PG queries (isolated node absent in local, returns in global). Validator PENDING; completed_by null.",
     "external_resource_proof_status": "NEEDS_MANAGED_RESOURCE_PROOF",
     "missing_resource": {
       "status": "NEEDS_MANAGED_RESOURCE_PROOF",
@@ -105,7 +105,9 @@
       "generated_at_utc": "2026-07-04T21:48:29.828Z",
       "actor_session": "KERNEL_BUILDER-20260704-195953",
       "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl"
-    }
+    },
+    "remediation_v3_in_progress": false,
+    "completed_by": null
   },
   "scope": {
     "summary": "Goal: Implement a local + global Loom graph view panel in the native Rust/egui frontend. The panel renders a force-directed node-link diagram of LoomBlocks (nodes) and LoomEdges (links) fetched from the real PostgreSQL/EventLedger backend via the existing loom graph-search and views APIs. The expected diff shape is: one new file src/frontend/handshake_native/src/graph/graph_view.rs containing the LoomGraphView widget, plus wiring in src/frontend/handshake_native/src/graph/mod.rs to expose it.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/graph/graph_view.rs — the graph panel widget\n- EDIT src/frontend/handshake_native/src/graph/mod.rs — pub mod graph_view; + re-export LoomGraphView\n\nReuse existing WP-011 modules (do NOT reinvent): reuse the existing loom graph surface in src/frontend/handshake_native/src/loom_graph.rs for LoomBlock/LoomEdge graph types and the loom graph-search/views wiring; reuse src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs for the shared selection/command/clipboard bus and cross-pane open events; reuse src/frontend/handshake_native/src/backend_client.rs for the typed HTTP client to the PostgreSQL/EventLedger backend; reuse src/frontend/handshake_native/src/accessibility/* for AccessKit node registration; reuse src/frontend/handshake_native/src/theme/* (palette.rs) for content-type node colours.\n\nExact APIs / React reference:\n- Ports from: no dedicated React graph component exists; the loom graph-search API is used inline across components. The React side relies on queryLoomView (viewType='all', limit=500) to enumerate all blocks, then createLoomEdge/getLoomBlock. Backend route: GET /workspaces/{id}/loom/graph-search?q=&limit=500 (loom_graph_search, lib/api.ts:1341). Also uses GET /workspaces/{id}/loom/views/all for flat block enumeration.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/graph-search?q=&limit=500 — returns LoomGraphSearchResult array; use with empty q to enumerate the full graph neighbourhood of the focused block\n  - GET /workspaces/{workspace_id}/loom/views/all — LoomViewResponse {view_type:'all', blocks:LoomBlock[]} for global mode (all nodes)\n  - POST /workspaces/{workspace_id}/loom/edges — createLoomEdge for future edge creation (out-of-scope here but wire the callback slot)\n\nStep-by-step implementation notes:\n1. Define GraphNode { block_id: String, title: String, content_type: String, x: f32, y: f32 } and GraphEdge { source: String, target: String, edge_type: String } in graph_view.rs.\n2. Define LoomGraphView { workspace_id, mode: GraphMode (Local {block_id} | Global), nodes: Vec<GraphNode>, edges: Vec<GraphEdge>, pan: Vec2, zoom: f32, selected: Option<String>, loading: bool, error: Option<String>, on_open: Callback<String> } as the widget state struct.\n3. On first show (or when workspace_id/mode changes), fire an async Tauri command or HTTP fetch to GET /workspaces/{id}/loom/views/all (global) or GET /workspaces/{id}/loom/graph-search?q={title}&backlink_depth=2&limit=200 (local). Deserialize into GraphNode/GraphEdge lists. Store in widget state.\n4. Run a simple spring/force layout iteration each frame until stable: repulse every node pair (Coulomb k=1000/d^2), attract connected pairs (spring k=0.05 * (d-150)). Cap iterations at 300 total; store stable positions in node state.\n5. In egui show(): allocate the full panel Rect. Draw a dotted grid background via Painter::line_segment calls. Apply pan+zoom transform (translate then scale around centre). For each edge, draw painter.line_segment from source centre to target centre with stroke(1.5, Color32::from_gray(170)). For each node draw painter.circle_filled(pos, radius, color_by_content_type). If selected, draw a 2px blue ring. Add painter.text for the title label beneath each node. Handle pointer input: drag on empty area -> pan, scroll wheel -> zoom (clamp 0.1..4.0), click on node -> emit on_open callback with block_id.\n6. Show a toolbar strip at top: 'Local' / 'Global' mode toggle buttons (AccessKit author_id='graph.mode.local'/'graph.mode.global'), zoom-in/zoom-out buttons (author_id='graph.zoom.in'/'graph.zoom.out'), 'Re-layout' button (author_id='graph.relayout'), node count label.\n7. Show a loading spinner or error label over the canvas when loading=true or error.is_some().\n8. Every interactive element must register AccessKit node with a stable author_id (see model-accessibility requirement below).\n\nAccessKit requirements: register every toolbar button (mode-local, mode-global, zoom-in, zoom-out, relayout) and each graph node circle (author_id='graph.node.{block_id}', role=Button, label=title, actions=[DefaultAction=open]).\n\nDependencies / unblock conditions: no earlier E3 MTs required; the typed HTTP/backend bridge already exists as src/frontend/handshake_native/src/backend_client.rs (delivered by WP-011) — reuse it instead of inlining a reqwest call. Must NOT depend on any E3 MTs (MT-022+).\n\nRisk if missed: all other E3 MTs lose their navigation backbone. The graph is the primary wayfinding surface for the Loom knowledge layer.",
@@ -537,5 +539,40 @@
       ],
       "residual_uncertainty": "No MT-021 V2 blocker remained after final cross-review. Independent validator PASS remains outside implementer authority."
     }
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-021 FAIL V2. Local/global graph UI states have no current canonical Argus action and post-action observation covering populated real-PostgreSQL graph data. AccessKit or fixture rendering alone does not satisfy the mandatory visual/steering gate.",
+    "remediation_plan": [
+      "Seed a real PostgreSQL workspace with the required graph topology and verify distinct local/global queries and error/empty states.",
+      "Run canonical Argus against the mounted graph controls with stable author_ids, safe switching/navigation, fresh re-inspection, and screenshot/tree evidence; align the canonical UserManual diagnostics."
+    ],
+    "no_context_instruction": "Read MT-021.json and current authorities, then prove the real graph and mounted Argus flows from the assigned WP worktree. Return READY_FOR_VALIDATION_V3 only after both are reproducible."
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediated_at_utc": "2026-07-24T10:30:00.000Z",
+    "addresses_v2_fail": true,
+    "proof_commands_passed": [
+      "test_graph_view_argus 3/3 (real MCP over real PG wp012_v3_loom): inspect+relayout+re-observe, empty state, local/global distinct-query switch"
+    ],
+    "external_artifacts": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-021/canonical-argus/",
+    "kb_ready_checklist": "PASS",
+    "adversarial_review": "PENDING_PARALLEL_MULTILENS"
   }
 }
