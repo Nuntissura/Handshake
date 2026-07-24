@@ -14,7 +14,7 @@
   "title": "E3-MT023-TagsTagHubs",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-15T17:06:14.2432431Z",
+  "updated_at_utc": "2026-07-24T09:20:00.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-023.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-021"
@@ -34,7 +34,7 @@
       "MT-024",
       "MT-027"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -84,9 +84,9 @@
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260704-225907",
-    "ready_for_validation_at_utc": "2026-07-05T01:16:19.899Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260704-225907",
+    "claimed_by": "KERNEL_BUILDER-20260723-082350",
+    "ready_for_validation_at_utc": "2026-07-24T09:20:00.000Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
     "ready_for_validation_reason": "MT-023 tags/tag-hub repaired state is locally proven with refreshed hardening: host mount/event consumers and verified MT-182 tag-hub routes are wired; same-key async deliveries are sequence-guarded; missing list counts use exact tag-hub detail rather than capped member pages; widget, host-route, manual/menu, theme, cargo check, fmt, diff, subagent, and screenshot proofs passed. Official validator has not run.",
     "external_resource_proof_status": "NEEDS_MANAGED_RESOURCE_PROOF",
     "missing_resource": {
@@ -103,14 +103,17 @@
       ],
       "required_resource": "Seeded live Handshake-managed PostgreSQL workspace with >=3 tag_hub blocks, one tag_hub with >=1 member, and a taggable block for POST /loom/edges edge_type=tag followed by member refresh."
     },
-    "ready_for_validation_summary": "MT-023 READY_FOR_VALIDATION evidence refreshed at 2026-07-05T01:16:19.899Z by KERNEL_BUILDER-20260704-225907: tags/tag-hub host mount and event consumers remain wired through TagsPaneMount and drive_tags_pane; tag list, hub detail, candidate search, and tag-edge receipts are sequence-attributed so stale same-workspace/same-hub async deliveries cannot overwrite newer state; missing list counts backfill from exact GET /loom/tags/{tag_block_id} detail instead of capped /blocks?limit=100; manual wording distinguishes local editor chip tags from persisted Loom tag hubs. Proofs passed: app-host tags_ 6/6, test_tags_panel 11/11, tag_entries 2/2, graph::tags_panel 8/8, MT-023 manual 2/2, wave5 manual 1/1, wave6 manual 1/1, menu route 2/2, host view route 1/1, test_theme 19/19, cargo check --lib, cargo fmt --check, scoped git diff --check, screenshots inspected, Euler PASS_FOR_RFV_REFRESH. Official validator has not run; validator_verdict remains PENDING. Live PostgreSQL tags list/hub detail/tag-edge AC1/AC4/AC6 remain NEEDS_MANAGED_RESOURCE_PROOF due absent managed env.",
+    "ready_for_validation_summary": "MT-023 V3: atomic EventLedger-receipt boundary proven on real PostgreSQL (append + rollback-on-ledger-failure + restart readback), canonical Argus inspect/steer/re-observe on the mounted panel incl. empty state, and code-truthful three-tier (FR/internal_diagnostics/Palmistry) UserManual posture. Official validator verdict PENDING; completed_by null.",
     "kb_ready_checklist_receipt": {
       "path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl",
       "receipt_kind": "KB_READY_CHECKLIST_RECEIPT",
       "verdict": "PASS",
       "emitted_by": "KERNEL_BUILDER-20260704-225907",
       "emitted_at_utc": "2026-07-05T01:17:45.310Z"
-    }
+    },
+    "claimed_at_utc": "2026-07-23T15:40:05.803Z",
+    "remediation_v3_in_progress": false,
+    "completed_by": null
   },
   "scope": {
     "summary": "Goal: Implement a Tags panel and Tag Hubs panel in the native egui frontend. The Tags panel lists all tag blocks (content_type='tag_hub') across the workspace fetched from the real PostgreSQL backend, shows the number of blocks linked to each tag, and lets the user click a tag to open it as a filter (fires on_filter_tag callback). The Tag Hubs panel renders tag_hub-typed LoomBlocks as first-class content pages (like Obsidian's 'tag page'): showing the hub's title, description (from content_json), and the list of blocks tagged with it. Expected diff shape: one new file src/frontend/handshake_native/src/loom/tags_panel.rs containing LoomTagsPanel and LoomTagHubPanel widgets, edits to src/frontend/handshake_native/src/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/loom/tags_panel.rs — LoomTagsPanel (tag list) + LoomTagHubPanel (tag hub page)\n- EDIT src/frontend/handshake_native/src/loom/mod.rs — pub mod tags_panel; + re-exports\n\nExact APIs / React reference:\n- React reference: WorkspaceSidebar.tsx (app/src/components/WorkspaceSidebar.tsx) calls queryLoomView with contentType filter (LoomViewQuery.contentType, api.ts line 1061). bookmarkKind() in WorkspaceSidebar.tsx line 44 identifies tag_hub blocks. The React component does not have a standalone Tags panel; this is a new surface.\n- LoomBlock.content_type == 'tag_hub' (api.ts line 933) is the tag hub block type.\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/views/all?content_type=tag_hub — list all tag hub blocks\n  - GET /workspaces/{workspace_id}/loom/views/all?tag_ids={tag_hub_block_id} — list blocks tagged with a specific tag hub\n  - GET /workspaces/{workspace_id}/loom/blocks/{block_id} — load tag hub block detail\n  - GET /workspaces/{workspace_id}/loom/views/sorted?tag_ids={tag_hub_block_id} — grouped members of a tag hub\n  - POST /workspaces/{workspace_id}/loom/edges (createLoomEdge edge_type='tag') — tag a block with a hub (future use; wire callback slot)\n\nStep-by-step implementation notes:\n1. Define TagEntry { block_id: String, title: String, member_count: u32 } in tags_panel.rs.\n2. Define LoomTagsPanel { workspace_id: String, tags: Vec<TagEntry>, on_open_tag: Callback<String>, on_filter_tag: Callback<String>, loading: bool, error: Option<String>, search_filter: String }.\n3. On init, call GET /workspaces/{id}/loom/views/all?content_type=tag_hub to enumerate all tag hubs. For each hub, member_count = members.len() (or show 0 if not yet loaded). Display a flat list sorted by title.\n4. Render a search box at top of panel (egui::TextEdit::singleline, author_id='tags.search', placeholder='Filter tags...'). Filter displayed tags client-side by title prefix match.\n5. Each tag row: colored tag chip (egui::Button with background color derived from title hash), member count badge, click fires on_open_tag(block_id) to navigate to the hub page.\n6. LoomTagHubPanel (separate widget, shown when a tag hub block_id is provided as the active page):\n   a. Load tag hub block via GET /workspaces/{id}/loom/blocks/{block_id}.\n   b. Load members via GET /workspaces/{id}/loom/views/all?tag_ids={block_id}, limit=100.\n   c. Render hub title as H1, description from content_json if present.\n   d. Render members as a scrollable list of block rows (title + content_type). Click on member -> on_open(member_block_id).\n   e. 'Add tag to block' button (author_id='tag-hub.add-tag.{block_id}'): opens a quick-switcher-style popup to search for a block and tag it (fires POST /workspaces/{id}/loom/edges with edge_type='tag', source=selected_block_id, target=hub_block_id).\n7. AccessKit:\n   - LoomTagsPanel: search box author_id='tags.search', each tag row 'tags.row.{block_id}' role=ListItem with DefaultAction=open, member count as accessible description.\n   - LoomTagHubPanel: hub title label 'tag-hub.title.{block_id}', member list items 'tag-hub.member.{block_id}', add-tag button 'tag-hub.add-tag.{block_id}'.\n\nReuse pointers (existing WP-011 modules under src/frontend/handshake_native/src/): reuse the existing Loom graph/knowledge surface in loom_graph.rs for the tag_hub block model and graph navigation; reuse command_registry.rs + event_bus.rs for the shared selection/command bus and for emitting on_open/on_filter navigation events; reuse accessibility/ (mod.rs, live.rs, registry.rs, snapshot.rs) for AccessKit author_id registration of tag rows and hub panel nodes; reuse mcp/ for exposing tag navigation as parallel-model actions where applicable. The new tags_panel surface is added inside a new loom/ subdir under src/frontend/handshake_native/src/.\n\nDependencies / unblock conditions: MT-021 must be complete for shared HTTP client infrastructure. MT-023 does not depend on MT-022. Cross-WP: this MT builds on the WP-011 native shell modules listed above (loom_graph.rs, command_registry.rs, event_bus.rs, accessibility/*, mcp/*).\n\nRisk if missed: Tag-based navigation and filtering are unavailable. MT-027 (BlockCollectionViews kanban lanes) depends on tag identity resolved here.",
@@ -554,5 +557,43 @@
       "basis": "Independent adversarial review traced mounted SetValue, popup search, POST-to-refresh ordering, stable identities, persisted rename/removal, stale-delivery fencing, error paths, screenshots, and independently confirmed the receipt workspace now returns 404."
     },
     "validator_instruction": "Independently rerun the current-head MT-023 proof against managed PostgreSQL. Preserve validation_v1 and lifecycle.validator_verdict as FAIL_V1 until the independent v2 verdict is issued."
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-023 FAIL V2. Tag mutations commit database changes before a best-effort Flight Recorder call whose error is discarded, permitting a successful tag write without durable observability. The mounted tag-hub interaction also lacks canonical Argus re-observation proof.",
+    "remediation_plan": [
+      "Move tag mutation and required EventLedger/Flight Recorder receipt into an atomic or recoverable persistence boundary; test injected recorder failure and restart readback.",
+      "Run canonical Argus for tag selection, add/remove, empty/error, and post-action states, and make the canonical UserManual diagnostic posture code-truthful."
+    ],
+    "no_context_instruction": "Read MT-023.json and current authorities. Repair the tag receipt boundary and prove it on real PostgreSQL plus canonical Argus, then return READY_FOR_VALIDATION_V3."
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediated_at_utc": "2026-07-24T09:20:00.000Z",
+    "addresses_v2_fail": true,
+    "proof_commands_passed": [
+      "loom_atomic_receipt_pg_tests: mt023_tag_edge_create_appends_atomic_receipt_and_survives_restart, mt023_tag_edge_create_rolls_back_when_ledger_append_fails (2/2, real PG 5432)",
+      "test_tags_panel 13/13",
+      "test_tags_panel_argus 2/2 (canonical inspect/steer/re-observe + empty state)"
+    ],
+    "pg_dsn": "postgres://postgres@127.0.0.1:5432/wp012_v3_loom (real system PostgreSQL 16)",
+    "kb_ready_checklist": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl)",
+    "adversarial_review": "PENDING_PARALLEL_MULTILENS (queued for sub-agent resume; runtime proof + implementer review complete)",
+    "note": "anti-scaffold satisfied: rollback-on-ledger-failure + restart-readback tests pass, which a mock/scaffold cannot."
   }
 }

@@ -14,7 +14,7 @@
   "title": "E3-MT022-FolderTreeColorLabels",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-15T05:57:12.461Z",
+  "updated_at_utc": "2026-07-24T09:20:00.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-022.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-021"
@@ -33,7 +33,7 @@
     "blocks": [
       "MT-024"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -83,10 +83,10 @@
       }
     ],
     "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
-    "claimed_by": "KERNEL_BUILDER-20260704-195953",
-    "ready_for_validation_at_utc": "2026-07-04T22:49:35.989Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260704-195953",
-    "ready_for_validation_summary": "MT-022 reopened folder-tree repair is proof-refreshed: LoomFolderTree is mounted through the app host/pane factory path; host code handles FolderTreeEvent lazy-fetch/open/recolor; row right-click opens Change color, deterministic Red #ff0000 pick emits ChangeColor, and the typed LoomFolderClient PATCH body is color-only. Official validator verdict remains PENDING; live managed PostgreSQL persistence remains NEEDS_MANAGED_RESOURCE_PROOF because seeded backend env was absent.",
+    "claimed_by": "KERNEL_BUILDER-20260723-082350",
+    "ready_for_validation_at_utc": "2026-07-24T09:20:00.000Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
+    "ready_for_validation_summary": "MT-022 V3: atomic EventLedger-receipt boundary proven on real PostgreSQL (append + rollback-on-ledger-failure + restart readback), canonical Argus inspect/steer/re-observe on the mounted panel incl. empty state, and code-truthful three-tier (FR/internal_diagnostics/Palmistry) UserManual posture. Official validator verdict PENDING; completed_by null.",
     "external_resource_proof_status": "NEEDS_MANAGED_RESOURCE_PROOF",
     "missing_resource": {
       "status": "NEEDS_MANAGED_RESOURCE_PROOF",
@@ -107,7 +107,10 @@
       "generated_at_utc": "2026-07-04T22:46:42.761Z",
       "actor_session": "KERNEL_BUILDER-20260704-195953",
       "receipt_path": "../gov_runtime/roles_shared/WP_COMMUNICATIONS/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/KB_READY_CHECKLIST_RECEIPTS.jsonl"
-    }
+    },
+    "claimed_at_utc": "2026-07-23T15:40:05.803Z",
+    "remediation_v3_in_progress": false,
+    "completed_by": null
   },
   "scope": {
     "summary": "Goal: Implement a folder tree panel with color labels for loom folders (blocks with content_type='folder' or grouped by folder_ref field) in the native egui frontend. The panel renders a collapsible tree of folder nodes; each folder node has a color swatch (stored in LoomBlock metadata) and a label. Expanding a folder loads its child blocks from the backend. Clicking a folder or leaf navigates (fires on_open). The expected diff shape: one new file src/frontend/handshake_native/src/graph/folder_tree.rs, edits to src/frontend/handshake_native/src/graph/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/graph/folder_tree.rs — LoomFolderTree widget\n- EDIT src/frontend/handshake_native/src/graph/mod.rs — pub mod folder_tree; + re-export LoomFolderTree\n\nExact APIs / React reference:\n- React reference: WorkspaceSidebar.tsx (app/src/components/WorkspaceSidebar.tsx) renders flat document/canvas lists but not a recursive folder tree. The folder_ref field is defined on LoomBlock (api.ts line 3042: folder_ref: string | null). Folder-grouped views use queryLoomView with the 'sorted' view type which returns LoomViewGroup[] (api.ts line 1080).\n- Backend bindings:\n  - GET /workspaces/{workspace_id}/loom/views/sorted — returns {view_type:'sorted', groups: LoomViewGroup[]} where each group.edge_type identifies grouping; use to get folder-grouped block lists\n  - GET /workspaces/{workspace_id}/loom/views/all?content_type=folder — enumerate folder blocks\n  - PATCH /workspaces/{workspace_id}/loom/blocks/{block_id} — updateLoomBlock; used to write color label metadata into LoomBlock (stored in a metadata JSON field or via add_tags)\n  - GET /workspaces/{workspace_id}/loom/blocks/{block_id} — getLoomBlock; load individual folder block for color/metadata\n\nReuse pointers (real WP-011 modules under src/frontend/handshake_native/src/):\n- Loom knowledge surface: reuse src/frontend/handshake_native/src/loom_graph.rs for the loom block/view model and existing loom rendering surface; the folder tree is an additional panel on this surface.\n- HTTP/backend access: reuse src/frontend/handshake_native/src/backend_client.rs for all GET/PATCH calls (do not introduce a new HTTP client or invoke wrapper).\n- Shared command/event plumbing: reuse src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs for open/navigate dispatch and selection events.\n- Context menu: reuse src/frontend/handshake_native/src/context_menu.rs + src/frontend/handshake_native/src/context_menu_surfaces.rs for the right-click 'Change color' menu.\n- AccessKit identity: reuse src/frontend/handshake_native/src/accessibility/ (mod.rs, registry.rs, snapshot.rs, live.rs) for stable author_id registration of tree nodes and swatch buttons.\n\nStep-by-step implementation notes:\n1. Define FolderNode { block_id: String, title: String, color: Option<Color32>, children: Vec<FolderNode>, expanded: bool, loading: bool } in graph/folder_tree.rs.\n2. Define LoomFolderTree { workspace_id: String, root_nodes: Vec<FolderNode>, on_open: Callback<String>, on_color_change: Callback<(String, Color32)>, error: Option<String>, loading: bool }.\n3. On init, call GET /workspaces/{id}/loom/views/all filtered to content_type=folder (or use 'sorted' groups) via backend_client.rs to populate root_nodes. Each block's metadata JSON (LoomBlock.content_json or a dedicated metadata field) stores the color as a hex string; parse into Color32.\n4. Render the tree using egui::CollapsingHeader or manual indented rows. For each folder node:\n   a. Draw a small 12x12 filled rectangle (color swatch) using painter.rect_filled before the label.\n   b. Render a collapsible row: click on folder name -> toggle expanded; if expanding and children not loaded, fire GET /workspaces/{id}/loom/views/sorted with tag_ids=[block_id] (via backend_client.rs) to load children.\n   c. Indent children by 16px per depth level.\n5. Right-click context menu on a folder row (via context_menu.rs / context_menu_surfaces.rs): 'Change color' -> open a color picker popup (egui::color_picker::color_edit_button_srgba). On color pick, call PATCH /workspaces/{id}/loom/blocks/{block_id} (via backend_client.rs) to persist color in block metadata (encode as hex string in the block's content_json or a dedicated 'color_label' metadata key). Fire on_color_change callback through event_bus.rs.\n6. Leaf block rows (non-folder children): show block title + content_type icon character. Click -> fire on_open(block_id) through command_registry.rs.\n7. AccessKit (via accessibility/): each folder row gets author_id='folder-tree.node.{block_id}', role=TreeItem, actions=[Expand, Collapse, DefaultAction=open]. Color swatch button gets author_id='folder-tree.color.{block_id}', role=Button.\n8. Error banner at top of panel if load fails. Retry button author_id='folder-tree.retry'.\n\nDependencies / unblock conditions: MT-021 must be complete only for shared graph/mod.rs infrastructure. The folder tree does not directly depend on graph view logic; however the graph/mod.rs shared infrastructure established in MT-021, together with the WP-011 backend_client.rs HTTP client, is a prerequisite.\n\nRisk if missed: Users lose the Obsidian-parity folder navigation. Without this, the knowledge surface has no hierarchical navigation, reducing it to flat list + graph only.",
@@ -512,5 +515,44 @@
       ],
       "residual_uncertainty": "No MT-022 V2 blocker remained after final cross-review. Independent validator PASS remains outside implementer authority."
     }
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-022 FAIL V2. Folder create/update/delete/member mutations in the live Loom API persist without a corresponding transactional EventLedger append, so durable mutation evidence can be absent. The folder tree also lacks current canonical Argus steering and re-observation proof.",
+    "remediation_plan": [
+      "Make folder and membership mutations atomic with their EventLedger receipts, including rollback/error and restart readback tests on real PostgreSQL.",
+      "Drive folder expansion, color change, and failure/empty states through canonical Argus; update the canonical UserManual with the actual three-tier wiring."
+    ],
+    "no_context_instruction": "Read MT-022.json, the Loom folder routes, packet, and current spec. Repair atomic receipt persistence and run real PostgreSQL plus Argus proofs before READY_FOR_VALIDATION_V3."
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediated_at_utc": "2026-07-24T09:20:00.000Z",
+    "addresses_v2_fail": true,
+    "proof_commands_passed": [
+      "loom_atomic_receipt_pg_tests: mt022_folder_create_appends_atomic_receipt_and_survives_restart, mt022_folder_create_rolls_back_when_ledger_append_fails, mt022_folder_update_delete_member_are_atomic_with_receipts (3/3, real PG 5432)",
+      "graph::folder_tree lib 13/13",
+      "test_folder_tree 15/15",
+      "test_folder_tree_argus 2/2 (canonical inspect/steer/re-observe + empty state)"
+    ],
+    "pg_dsn": "postgres://postgres@127.0.0.1:5432/wp012_v3_loom (real system PostgreSQL 16)",
+    "kb_ready_checklist": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl)",
+    "adversarial_review": "PENDING_PARALLEL_MULTILENS (queued for sub-agent resume; runtime proof + implementer review complete)",
+    "note": "anti-scaffold satisfied: rollback-on-ledger-failure + restart-readback tests pass, which a mock/scaffold cannot."
   }
 }
