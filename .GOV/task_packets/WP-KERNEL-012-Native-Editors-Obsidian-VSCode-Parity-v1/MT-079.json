@@ -14,7 +14,7 @@
   "title": "E11-MT-079-AppHostMount-EditorPaneFactories",
   "group": "E11 Shell host-mount (app.rs convergence)",
   "created_at_utc": "2026-06-25T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-24T16:10:00.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-079.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "rfv_evidence_2026_07_18": {
       "by": "KERNEL_BUILDER-20260718-mt079",
       "mode": "VERIFY_AND_PROVE",
@@ -51,10 +51,15 @@
       "MT-070",
       "MT-071"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "ready_for_validation_at_utc": "2026-07-24T16:10:00.000Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediation_v3_in_progress": false,
+    "completed_by": null,
+    "ready_for_validation_summary": "MT-079 V3: canonical Argus editor-pane lifecycle (creation/navigation/focus/popout; close via existing runtime tests, product re-seeds base pane) + menu-bar reachability of 13 WP-012 VIEW surfaces + operator Runtime Chat menu item wired. Validator PENDING; completed_by null."
   },
   "scope": {
     "summary": "OPERATOR-AUTHORIZED SCOPE EXPANSION (2026-06-25, AskUserQuestion answer = Add app.rs mount MT now): this NEW MT closes the structural gap that NO existing WP-012 MT owned - the actual HOST-MOUNT of the built+widget-proven editor panes into the running Handshake app (app.rs). Today app.rs (~4902 lines) registers PlaceholderPaneFactory for the editor PaneTypes (the editor-pane TYPED SEAM, Rich-text/Code editor pane not mounted yet, at ~app.rs:286), so the panes are proven only at the kittest widget level and never render in the live app; this MT replaces those placeholders with the REAL editor pane factories, threads the per-pane session context, and wires the ~14 accumulated E11 carry-forwards so the native editors become LIVE in the running app (enabling real-app GUI inspection per the goal). HOST-INTEGRATION GLUE ONLY: no new editor features, no backend endpoints, no SQLite. It binds the EXISTING set_* hooks + pane widgets the prior MTs built+tested, and mounts/threads them in app.rs. Every backend gap stays a typed blocker (FEMS/Stage/Calendar/Locus HTTP routes verified ABSENT; live-PG round-trips = NEEDS_MANAGED_RESOURCE_PROOF). PostgreSQL/EventLedger only; no SQLite; src/backend is reuse-via-API-only. CORE MOUNT (must-have, prove first): (1) register a REAL CodeEditorPaneFactory (PaneType::CodeEditor) + RichEditorPaneFactory (rich/document PaneType) in app.rs factories HashMap, replacing PlaceholderPaneFactory for those types; construct from the existing CodeEditorPanel (code_editor/panel.rs) + RichEditorWidget (rich_editor/renderer/rich_editor_widget.rs); create thin impl PaneFactory wrappers if absent. (2) thread session context via PaneRenderContext on mount: code pane set_runtime(tokio Handle)+set_workspace_id (MT-008/010); rich pane RichEditorState::set_embed_context(workspace_id,runtime) (MT-014) + set_wikilink_context (MT-057); use the SAME shared-cell pattern app.rs already uses for LoomSearchV2PaneFactory/FindInFilesPaneFactory. (3) wire the shell command Sender into the code pane so Save/Undo/Redo/OpenCommandPalette reach the WP-011 command bus + MT-035 unified undo (MT-010). (4) wire MT-030 ShellNavigator open_document->rich pane + open_code_symbol->code pane (MT-030). (5) DRAIN RichEditorState.pending_events each frame + ROUTE WikilinkActivated/BacklinkActivated/TagActivated/locus open-ref to the nav bus (MT-015). FULLER MOUNT (as far as the run allows; gate/defer honestly, NEVER fake): (6) CANVAS pane (graph/canvas_board.rs): mount factory; consume MT-061 ResizePlacement/AssignSection/EditTextCard -> real PATCH/POST + getCanvasBoard refresh; set CanvasCardKind from the card response; push_canvas_placement_undo + emit_canvas_node_placed (MT-035/036/061). (7) GRAPH pane (graph/graph_view.rs): depth-parameterized graph-search client (backend_client local_request taking backlink_depth) + consume GraphEvent::DepthChanged to re-query (MT-060). (8) code pane live undo + FR: route code Ctrl+Z/Ctrl+Y -> bus.undo/redo + push_code_edit_undo; emit_code_edit debounced 2s; app.rs bus.set_undo_runtime(handle)+register_undo_commands()+render_undo_count_indicator (MT-035/036). (9) DOCK the widget-proven side panes: loom.outgoing_links (build resolver_index from /knowledge/documents + /loom/blocks, wire on_open) (MT-062); relevant-memory (subscribe refresh_for_context to MT-031 bus, wire source-links) (MT-063); Propose-to-Memory live invocation (MT-064); StagePane + Route-to-Stage/embed-stage-capture (MT-066); DailyJournalPanel + MT-030 date-selected -> open-or-create (MT-067). (10) MT-043 swarm-authoring: add AccessKit Action::SetValue/ReplaceSelectedText on code_editor_text + a wikilink-by-id insertion action; the MT-043 swarm-edit proof STEP2/STEP3 become live-drivable (gated on managed PG). PRIORITIZE core 1-5 (prove code+rich panes render LIVE in the running HandshakeApp tree via a kittest driving the real app + a wgpu screenshot of the mounted editor), THEN 6-10 as far as the run allows. Anything not completed = HONEST typed carry (NOT faked, NOT todo!()); live-PG halves stay NEEDS_MANAGED_RESOURCE_PROOF. A partial-but-honest mount that makes the core editors live + leaves the rest as typed carries is the expected, acceptable outcome.",
@@ -345,5 +350,42 @@
       ],
       "no_context_instruction": "Read MT-079.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-079 FAIL V2. Pane factories are mounted in the app host, but there is no current canonical Argus evidence covering creation, navigation, focus, popout/close, and fresh post-action state for every editor pane. The available screenshot path is not material GPU capture proof.",
+    "remediation_plan": [
+      "Run the app-host factory and routing tests from current source, including create/close/reopen/popout, stable identity, missing backend, and process-reclamation cases.",
+      "Drive every mounted editor pane through canonical Argus with stable author_ids, safe actions, fresh re-inspection, and captured screenshot/tree evidence; align canonical UserManual."
+    ],
+    "no_context_instruction": "Read MT-079.json, packet, and current spec. Complete the app-host runtime and all-pane canonical Argus proof before READY_FOR_VALIDATION_V3."
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediated_at_utc": "2026-07-24T16:10:00.000Z",
+    "addresses_v2_fail": true,
+    "proof_commands_passed": [
+      "test_app_host_mount mt079_mounted_editor_panes_canonical_argus_lifecycle + mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus (2 PASS, real MCP)",
+      "test_top_menu_bar 17/17",
+      "swarm_accessible_actions_listed PASS"
+    ],
+    "disposition": "close not Argus-observable (product re-seeds base editor pane); covered by existing create/close/reopen runtime tests - disclosed",
+    "kb_ready_checklist": "PASS",
+    "adversarial_review": "PENDING_PARALLEL_MULTILENS"
   }
 }

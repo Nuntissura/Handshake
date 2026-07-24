@@ -14,7 +14,7 @@
   "title": "U2-MT-098-ChatboxPaneBesideWorksurface",
   "group": "U1 Usable-Product Expansion (notes+chat worksurface, §product-vision 2026-06-27)",
   "created_at_utc": "2026-06-27T00:00:00Z",
-  "updated_at_utc": "2026-07-14T02:13:51.1836406Z",
+  "updated_at_utc": "2026-07-24T16:10:00.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-098.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-097"
@@ -33,7 +33,7 @@
     "blocks": [
       "MT-104"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -45,7 +45,12 @@
       "negative_paths": "Empty draft/send-disabled, duplicate/stale delivery, route-capability distinction, no-assistant fabrication, stale-generation completion, and headless DEFERRED screenshot marker all passed.",
       "independent_review": "PASS — READY_FOR_VALIDATION_V2 (mt098_108_review, 2026-07-18). Residual uncertainty: no full-clippy/full-suite receipt was used for this MT-specific remediation; targeted acceptance surfaces are green.",
       "artifact_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/handshake-test/wp-kernel-012-mt-098"
-    }
+    },
+    "ready_for_validation_at_utc": "2026-07-24T16:10:00.000Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediation_v3_in_progress": false,
+    "completed_by": null,
+    "ready_for_validation_summary": "MT-098 V3: canonical Argus over mounted runtime chat pane - navigation/focus/send/unavailable(EndpointMissing)/retry/cancellation/recovery, no fabricated Assistant turn. Validator PENDING; completed_by null."
   },
   "scope": {
     "summary": "OPERATOR PRODUCT-VISION STEER (2026-06-27): the worksurface is notes editors (MT-097) WITH A CHATBOX BESIDE IT — the Cursor / VS-Code / Antigravity editor+chat layout. This MT adds the CHAT panel as a first-class pane docked beside the editors so the fresh default worksurface shows EDITOR(S) + CHAT side by side.\n\nVERIFIED STATE (live-app inspection 2026-06-27): there is NO existing native chat pane (no runtime_chat / ChatPane surface in src/frontend/handshake_native). A chat surface EXISTS only in the legacy React app via Tauri IPC (app/src/components/swarm/OperatorChat.tsx + app/src-tauri kernel_swarm_chat_generate / session_chat_append / session_chat_read), NOT as a backend HTTP route. There is NO /chat or /conversation HTTP endpoint on handshake_core (verified absent in src/backend/handshake_core/src/api/mod.rs). So the SEND/RECEIVE ROUND-TRIP backend route over the native HTTP client is GENUINELY ABSENT.\n\nWhat to build (a REAL chat pane scaffold wired to the real route IF one exists, else a HONEST typed blocker — NOT a mock that fakes responses):\n- CREATE src/frontend/handshake_native/src/runtime_chat/ (mod.rs + panel.rs): a `ChatPanel` egui widget — a scrollback transcript (a Vec<ChatTurn{role, text}>) + a multiline input box + a Send button. Theme tokens only (no Color32 outside theme/palette.rs — CONTROL-4). AccessKit: register the pane container as Role::Region with author_id = \"runtime-chat-panel\", the input as `runtime-chat-input` (TextInput), and the send button as `runtime-chat-send` (Button) so a no-context model + swarm agents can drive it (HBR-VIS/SWARM).\n- CREATE `ChatPaneFactory` (impl crate::pane_registry::PaneFactory) following the editor_pane_factories.rs MT-079 host-mount pattern (a thin factory whose &self render drives a shared Arc<Mutex<ChatPanel>> the shell also holds). Add a `PaneType::RuntimeChat` variant to pane_registry.rs PaneType (arms in BOTH `label()` => \"Chat\" and `default_label()` => \"Chat\"; the compiler enforces exhaustiveness — do not miss one). Register the real ChatPaneFactory in app.rs over the PaneType::RuntimeChat placeholder (alongside install_editor_mounts).\n- WIRE THE SEND PATH to the REAL backend route: inspect backend_client.rs for an existing reusable client; the BACKEND HTTP CHAT ROUTE IS VERIFIED ABSENT, so the Send action records a TYPED BLOCKER (a typed `ChatSendError::EndpointMissing` returned from a `RuntimeChatClient` whose `production()` ctor documents the absent route), and the panel renders an HONEST empty-state / disabled-send banner ('Chat backend route absent — wired when handshake_core exposes POST /chat or the IPC bridge is reachable'). DO NOT fabricate an assistant reply. If, on inspection, a reachable HTTP send/receive route is found (e.g. a /jobs-backed or new chat route), wire the Send -> real POST and round-trip a message instead; prefer the real wire when a route exists.\n- EDIT app.rs `default_panes()` (post-MT-097): ADD `(\"pane-c\", PaneType::RuntimeChat)` so the fresh default worksurface is CodeSymbol + LoomWikiPage + RuntimeChat (editor(s) + chat side by side). default_tab_bar_states() auto-tracks. Verify the SplitLayoutWidget renders the three panes side by side (the chat docked beside the editors).\n- CREATE src/frontend/handshake_native/tests/test_runtime_chat_pane.rs.\n\nReuse notes: the PaneFactory trait + the shared-cell `&self render` threading + the factory-map registration are the EXISTING MT-079 editor-mount pattern (editor_pane_factories.rs is the worked reference). The accessibility registry + theme layer are reused (accessibility/registry.rs, theme/palette.rs). backend_client.rs is the reuse-via-API surface for any real route. src/backend untouched.\n\nRisk if missed: a chat pane that fakes assistant replies (a mock) would violate the no-mock Spec-Realism Gate; an absent route must be an HONEST typed blocker + disabled-send empty-state, not a fabricated round-trip.",
@@ -342,5 +347,40 @@
       ],
       "no_context_instruction": "Read MT-098.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-098 FAIL V2. The Runtime Chat pane's typed missing-endpoint state is present, but the mounted pane has no current canonical Argus inspect/steer/re-observe proof for send, unavailable, retry, cancellation, navigation, and recovery states. The all-panels requirement is therefore unmet.",
+    "remediation_plan": [
+      "Run the mounted chat pane against the exact current route posture and exercise successful or explicitly typed unavailable, retry, cancellation, stale response, and backend-recovery behavior.",
+      "Use canonical Argus to inspect the pane, act on stable author_ids, capture receipts, and freshly re-inspect every material state; keep canonical UserManual route and recovery text code-truthful."
+    ],
+    "no_context_instruction": "Read MT-098.json and current authorities. Prove the actual mounted chat route posture and complete canonical Argus state coverage before READY_FOR_VALIDATION_V3."
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediated_at_utc": "2026-07-24T16:10:00.000Z",
+    "addresses_v2_fail": true,
+    "proof_commands_passed": [
+      "test_runtime_chat_pane mt098_mounted_chat_pane_canonical_argus_state_coverage (1 PASS, real MCP, controlled 404 probe)"
+    ],
+    "disposition": "operator menu-bar Runtime Chat item wired (CMD_VIEW_CHAT + menu.view.open-runtime-chat)",
+    "kb_ready_checklist": "PASS",
+    "adversarial_review": "PENDING_PARALLEL_MULTILENS"
   }
 }
