@@ -14,7 +14,7 @@
   "title": "E7-MT-042-KnowledgeGraphAccessKit",
   "group": "E7 Model-vision parity",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-18T10:33:14.0007281Z",
+  "updated_at_utc": "2026-07-24T10:05:00.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-042.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-021",
@@ -39,7 +39,7 @@
       "MT-043",
       "MT-044"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
@@ -84,7 +84,7 @@
     "claimed_by": "KERNEL_BUILDER-20260707-224033",
     "claimed_at_utc": "2026-07-08T04:38:40.574Z",
     "completed_by": null,
-    "ready_for_validation_at_utc": "2026-07-08T04:38:40.574Z",
+    "ready_for_validation_at_utc": "2026-07-24T10:05:00.000Z",
     "ready_for_validation_v2_at_utc": "2026-07-18T10:33:14.0007281Z",
     "kb_ready_checklist_receipt": "PASS (KB_READY_CHECKLIST_RECEIPTS.jsonl, 2026-07-08)",
     "rfv_evidence_2026_07_08": {
@@ -108,7 +108,10 @@
       "build_proof": "cargo build --quiet --locked -j1 --manifest-path src/frontend/handshake_native/Cargo.toml => exit 0; only pre-existing warnings outside the MT-042 edits remained.",
       "review_proof": "Two independent post-fix adversarial source reviews returned PASS after finding and forcing remediation of misleading edge/lane Click capabilities, lossy lane/card/row identities, incomplete reverse routing, offscreen edge omission, an unbounded psql child, and a Focus false-pass.",
       "v1_preservation": "lifecycle.validator_verdict and validation_v1 remain FAIL_V1 as historical validator authority; this builder transition requests independent validation V2 and does not self-issue PASS."
-    }
+    },
+    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediation_v3_in_progress": false,
+    "ready_for_validation_summary": "MT-042 V3: canonical Argus (real localhost SwarmMcpServer argus.inspect/argus.click) over a real-PostgreSQL knowledge graph (4 nodes + 2 relationships): inspect -> safe node navigation -> fresh re-inspect, plus empty and error states. AccessKit before/after tree evidence captured; screenshot typed-DEFERRED on headless. Validator verdict PENDING; completed_by null."
   },
   "scope": {
     "summary": "GOAL: Expose every interactive action on the native knowledge graph, canvas board, and block-collection views (table/Kanban/calendar) through the WP-011 AccessKit surface with stable author_ids. An out-of-process swarm agent must be able to: navigate the graph to a node by block_id, open a node, add/remove an edge, pan/zoom the canvas, place a block on canvas by id, move a Kanban card between lanes, sort a table column, navigate calendar views — all purely via the AccessKit action channel with no screen-scraping.\n\nEXPECTED DIFF SHAPE:\n  CREATE  src/frontend/handshake_native/src/accessibility/knowledge_action_registry.rs\n    — defines KnowledgeActionId enum covering graph, canvas, and collection actions\n    — defines KnowledgeActionNode struct (same shape as EditorActionNode from MT-041)\n    — defines KnowledgeActionRegistry (same Arc<Mutex<>> pattern)\n    — graph node AccessKit nodes are keyed by block_id so a swarm agent can target a specific note by its Loom block id\n  EDIT    src/frontend/handshake_native/src/graph/graph_pane.rs\n    — register graph-level actions: graph.pan-left, graph.pan-right, graph.zoom-in, graph.zoom-out, graph.zoom-reset, graph.open-node (with block_id parameter), graph.add-edge (source_id, target_id), graph.remove-edge (edge_id), graph.select-node, graph.deselect-all\n    — register per-node AccessKit nodes keyed 'graph.node.<block_id>': role=TreeItem, actions=['activate' (open), 'expand', 'collapse']; nodes are populated from the in-memory graph projection and updated on graph refresh\n  EDIT    src/frontend/handshake_native/src/graph/canvas_pane.rs\n    — register canvas-level actions: canvas.pan-left, canvas.pan-right, canvas.zoom-in, canvas.zoom-out, canvas.zoom-reset, canvas.add-card (title parameter), canvas.place-block (block_id, x, y), canvas.remove-placement (placement_id), canvas.add-edge (source_id, target_id, edge_mode), canvas.remove-edge (edge_id), canvas.select-card (placement_id), canvas.deselect-all\n    — register per-placement AccessKit nodes keyed 'canvas.card.<placement_id>': role=Group, actions=['activate' (open block), 'move' (x, y), 'delete']\n  EDIT    src/frontend/handshake_native/src/graph/collection_pane.rs\n    — register collection-level actions: collection.sort (field, direction), collection.filter (field, value), collection.kanban-move (block_id, from_lane, to_lane), collection.calendar-next, collection.calendar-prev, collection.calendar-today, collection.open-block (block_id)\n    — register per-row AccessKit nodes keyed 'collection.row.<block_id>': role=Row, actions=['activate']\n  EDIT    src/frontend/handshake_native/src/accessibility/mod.rs\n    — add pub mod knowledge_action_registry\n  CREATE  src/frontend/handshake_native/tests/test_e7_knowledge_accesskit.rs\n    — kittest: open graph pane with synthetic blocks, assert per-node AccessKit entries; dispatch graph.open-node, assert navigation; dispatch canvas.place-block, assert new card node; dispatch collection.kanban-move, assert lane change reflected in AccessKit tree\n\nFILES TO CREATE/EDIT (all under allowed paths):\n  src/frontend/handshake_native/src/accessibility/knowledge_action_registry.rs  (NEW)\n  src/frontend/handshake_native/src/graph/graph_pane.rs                          (EDIT)\n  src/frontend/handshake_native/src/graph/canvas_pane.rs                         (EDIT)\n  src/frontend/handshake_native/src/graph/collection_pane.rs                     (EDIT)\n  src/frontend/handshake_native/src/accessibility/mod.rs                         (EDIT)\n  src/frontend/handshake_native/tests/test_e7_knowledge_accesskit.rs            (NEW)\n\nREUSE (existing WP-011 modules — do NOT recreate):\n  src/frontend/handshake_native/src/accessibility/*.rs (mod.rs, live.rs, registry.rs, snapshot.rs) — the existing AccessKit adapter + node registry surface; KnowledgeActionRegistry pushes diffs into this same adapter.\n  src/frontend/handshake_native/src/loom_graph.rs — existing graph rendering surface; knowledge graph_pane.rs builds on its in-memory graph projection.\n  src/frontend/handshake_native/src/canvas_board.rs — existing canvas board surface; knowledge canvas_pane.rs builds on its placement/viewport state.\n  src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs — the shared command/selection/event bus used to dispatch parameterized actions and broadcast selection/refresh events.\n  src/frontend/handshake_native/src/mcp/*.rs (tools.rs, action.rs, attribution.rs, session.rs, ...) — the MCP action/tool channel that surfaces AccessKit actions to out-of-process swarm agents.\n\nDEPENDENCIES / UNBLOCK CONDITIONS:\n  - WP-KERNEL-011 spike: egui + AccessKit adapter exists and is operational (same dependency as MT-041); the adapter lives in src/frontend/handshake_native/src/accessibility/.\n  - MT-021 (local graph view) and MT-022 (global graph view) complete: src/frontend/handshake_native/src/graph/graph_pane.rs exists with a rendered node set and pan/zoom actions.\n  - MT-023 (folder tree + tags) complete: tags and tag-hub interaction points exist.\n  - MT-025 (wiki-page projection) and MT-026 (canvas board) complete: src/frontend/handshake_native/src/graph/canvas_pane.rs exists with placement management.\n  - MT-027 (block-collection views) complete: src/frontend/handshake_native/src/graph/collection_pane.rs exists with table/Kanban/calendar views.\n\nRISK IF MISSED: MT-043 SwarmEditProof requires a swarm agent to 'navigate graph', 'add backlink', and 'drive canvas' purely via AccessKit. If MT-042 is absent those actions have no AccessKit surface and the proof test cannot be written. MT-044 parity gate cannot include knowledge-surface model-accessibility criteria.",
@@ -418,5 +421,40 @@
       ],
       "no_context_instruction": "Read MT-042.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-042 FAIL V2. A populated AccessKit tree is not equivalent to the required canonical Argus transport proof. The Knowledge Graph has no current argus.inspect, safe navigation action, and fresh post-action observation over real graph nodes and relationships.",
+    "remediation_plan": [
+      "Seed and load a real PostgreSQL graph with the required nodes/edges and verify complete stable AccessKit identities and relationships.",
+      "Use canonical Argus to inspect, navigate, and re-inspect the mounted graph, including constrained/empty/error states and screenshot/tree evidence."
+    ],
+    "no_context_instruction": "Read MT-042.json and current authorities. Prove the populated real graph through canonical Argus, not only kittest/AccessKit, before READY_FOR_VALIDATION_V3."
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediated_at_utc": "2026-07-24T10:05:00.000Z",
+    "addresses_v2_fail": true,
+    "proof_commands_passed": [
+      "test_e7_knowledge_accesskit_argus 3/3 (navigate_reobserve + empty + error) via real MCP over real PG wp012_v3_loom, 3.38s"
+    ],
+    "external_artifacts": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-042/canonical-argus/mt042-knowledge-graph-argus.json",
+    "kb_ready_checklist": "PASS",
+    "adversarial_review": "PENDING_PARALLEL_MULTILENS"
   }
 }
