@@ -587,6 +587,292 @@ fn mt026_mounted_canvas_canonical_argus_semantic_and_visual_edges() {
     assert_no_local_artifact_dir();
 }
 
+/// Read one placement object from an independent backend canvas-board GET.
+fn backend_placement(board_json: &serde_json::Value, placement_id: &str) -> serde_json::Value {
+    board_json["placements"]
+        .as_array()
+        .expect("backend canvas board GET returns placements array")
+        .iter()
+        .find(|p| p["placement_id"].as_str() == Some(placement_id))
+        .unwrap_or_else(|| panic!("backend board is missing placement {placement_id}: {board_json}"))
+        .clone()
+}
+
+#[test]
+fn mt026_mounted_canvas_canonical_argus_move_placement() {
+    // V2 (movement): reposition a placement through canonical Argus (`canvas.move-placement`
+    // click-with-payload) and prove the new x/y PERSIST to real PostgreSQL via an independent backend GET.
+    let live = interconnect_support::require_reachable_backend();
+    let unique = format!("mt026-argus-move-{}", unique_suffix());
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+
+    let source = {
+        let block = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({ "content_type": "note", "title": "MT-026 Argus move source" }),
+        );
+        block["block_id"].as_str().expect("block_id").to_owned()
+    };
+    let canvas = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+        &serde_json::json!({ "title": format!("MT-026 Argus move canvas {unique}") }),
+    );
+    let canvas_id = canvas["block_id"].as_str().expect("canvas block_id").to_owned();
+    let placement_id = {
+        let placement = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}/placements"),
+            &serde_json::json!({ "placed_block_id": source, "x": 40.0, "y": 40.0, "w": 200.0, "h": 120.0 }),
+        );
+        placement["placement_id"].as_str().expect("placement_id").to_owned()
+    };
+    // Baseline persisted coordinates.
+    let baseline = backend_placement(
+        &live.get_json(&format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}")),
+        &placement_id,
+    );
+    assert!(
+        (baseline["x"].as_f64().unwrap_or(0.0) - 40.0).abs() < 1.0,
+        "baseline persisted x is the seeded 40: {baseline}"
+    );
+
+    let (app, _rt, board) = canvas_shell(&live.base, &workspace_id, &canvas_id);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    drive_until(
+        &mut harness,
+        &board,
+        |b| b.placements.len() == 1 && !b.loading && b.error.is_none(),
+        "mounted canvas self-fetches the real-PG placement",
+    );
+
+    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-026/canonical-argus");
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-026 Argus artifact dir");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-026-canvas-move");
+
+    let author = placement_author_id(&placement_id);
+    let before = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&before, "canvas.move-placement"),
+        "the canonical canvas.move-placement swarm control is addressable"
+    );
+    assert!(
+        json_has_author_id(&before, &author),
+        "the placement card is addressable before the move"
+    );
+
+    // Canonical Argus reposition to distinct coordinates.
+    let (new_x, new_y) = (520.0_f64, 340.0_f64);
+    let mv = argus.click_with_payload_and_reinspect(
+        &mut harness,
+        "canvas.move-placement",
+        serde_json::json!({ "placement_id": placement_id, "x": new_x, "y": new_y }),
+    );
+    assert!(
+        matches!(mv.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical move receipt is terminal: {}",
+        mv.receipt_status
+    );
+
+    // Drive the host until the real PATCH persists the new coordinates, observed via independent GET.
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let persisted = loop {
+        harness.run_steps(2);
+        let board_json =
+            live.get_json(&format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"));
+        let pl = backend_placement(&board_json, &placement_id);
+        let x = pl["x"].as_f64().unwrap_or(0.0);
+        let y = pl["y"].as_f64().unwrap_or(0.0);
+        if (x - new_x).abs() < 1.0 && (y - new_y).abs() < 1.0 {
+            break pl;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "canonical move did not persist to real PG within 30s (x={x}, y={y})"
+        );
+        std::thread::sleep(Duration::from_millis(25));
+    };
+
+    let after = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&after, &author),
+        "the moved placement card remains addressable after the reposition"
+    );
+
+    let tree_path = artifact_dir.join("mt026-canvas-move-argus.json");
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "workspace_id": workspace_id,
+            "canvas_block_id": canvas_id,
+            "placement_id": placement_id,
+            "baseline_xy": [baseline["x"], baseline["y"]],
+            "persisted_xy": [persisted["x"], persisted["y"]],
+            "move_receipt": mv.receipt_status,
+            "after": after,
+        }))
+        .expect("serialize MT-026 move evidence"),
+    )
+    .expect("write MT-026 move evidence externally");
+    assert!(tree_path.is_file());
+
+    println!(
+        "MT-026 canonical Argus move (LIVE PG workspace={workspace_id} board={canvas_id}): \
+         click(canvas.move-placement {{{new_x},{new_y}}}) -> persisted x={} y={} (baseline x=40,y=40). tree={}",
+        persisted["x"], persisted["y"], tree_path.display()
+    );
+
+    argus.finish();
+    cleanup.assert_cleaned();
+    assert_no_local_artifact_dir();
+}
+
+#[test]
+fn mt026_mounted_canvas_canonical_argus_group_placements() {
+    // V2 (grouping): group two placements through canonical Argus (`canvas.group` click-with-payload) and
+    // prove the shared group id PERSISTS to real PostgreSQL via an independent backend GET.
+    let live = interconnect_support::require_reachable_backend();
+    let unique = format!("mt026-argus-group-{}", unique_suffix());
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"]
+        .as_str()
+        .expect("workspace create returns id")
+        .to_owned();
+    let mut cleanup = LiveWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+
+    let create_block = |title: &str| {
+        let block = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/blocks"),
+            &serde_json::json!({ "content_type": "note", "title": title }),
+        );
+        block["block_id"].as_str().expect("block_id").to_owned()
+    };
+    let source_one = create_block("MT-026 Argus group source one");
+    let source_two = create_block("MT-026 Argus group source two");
+    let canvas = live.post_json(
+        &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
+        &serde_json::json!({ "title": format!("MT-026 Argus group canvas {unique}") }),
+    );
+    let canvas_id = canvas["block_id"].as_str().expect("canvas block_id").to_owned();
+    let place = |placed_block_id: &str, x: f64, y: f64| {
+        let placement = live.post_json(
+            &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}/placements"),
+            &serde_json::json!({ "placed_block_id": placed_block_id, "x": x, "y": y, "w": 200.0, "h": 120.0 }),
+        );
+        placement["placement_id"].as_str().expect("placement_id").to_owned()
+    };
+    let placement_one = place(&source_one, 40.0, 40.0);
+    let placement_two = place(&source_two, 360.0, 260.0);
+
+    let (app, _rt, board) = canvas_shell(&live.base, &workspace_id, &canvas_id);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    drive_until(
+        &mut harness,
+        &board,
+        |b| b.placements.len() == 2 && !b.loading && b.error.is_none(),
+        "mounted canvas self-fetches the two real-PG placements",
+    );
+
+    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-026/canonical-argus");
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-026 Argus artifact dir");
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-026-canvas-group");
+
+    let before = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&before, "canvas.group-placements"),
+        "the canonical canvas.group swarm control is addressable"
+    );
+    for pid in [&placement_one, &placement_two] {
+        assert!(
+            json_has_author_id(&before, &placement_author_id(pid)),
+            "placement {pid} is addressable before grouping"
+        );
+    }
+
+    // Canonical Argus group of two placements (no OS modifier keys).
+    let grp = argus.click_with_payload_and_reinspect(
+        &mut harness,
+        "canvas.group-placements",
+        serde_json::json!({ "placement_ids": [placement_one, placement_two] }),
+    );
+    assert!(
+        matches!(grp.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical group receipt is terminal: {}",
+        grp.receipt_status
+    );
+
+    // Drive the host until both placements carry the SAME non-null group id in real PG.
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let (g1, g2) = loop {
+        harness.run_steps(2);
+        let board_json =
+            live.get_json(&format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}"));
+        let one = backend_placement(&board_json, &placement_one);
+        let two = backend_placement(&board_json, &placement_two);
+        let g1 = one["group_id"].as_str().map(str::to_owned);
+        let g2 = two["group_id"].as_str().map(str::to_owned);
+        if g1.is_some() && g1 == g2 {
+            break (g1.unwrap(), g2.unwrap());
+        }
+        assert!(
+            Instant::now() < deadline,
+            "canonical group did not persist a shared group id within 30s (g1={g1:?}, g2={g2:?})"
+        );
+        std::thread::sleep(Duration::from_millis(25));
+    };
+    assert_eq!(g1, g2, "both placements persist the SAME group id in real PG");
+
+    let after = argus.inspect(&mut harness);
+    for pid in [&placement_one, &placement_two] {
+        assert!(
+            json_has_author_id(&after, &placement_author_id(pid)),
+            "placement {pid} remains addressable after grouping"
+        );
+    }
+
+    let tree_path = artifact_dir.join("mt026-canvas-group-argus.json");
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "workspace_id": workspace_id,
+            "canvas_block_id": canvas_id,
+            "placement_one": placement_one,
+            "placement_two": placement_two,
+            "persisted_group_id": g1,
+            "group_receipt": grp.receipt_status,
+            "after": after,
+        }))
+        .expect("serialize MT-026 group evidence"),
+    )
+    .expect("write MT-026 group evidence externally");
+    assert!(tree_path.is_file());
+
+    println!(
+        "MT-026 canonical Argus group (LIVE PG workspace={workspace_id} board={canvas_id}): \
+         click(canvas.group-placements [p1,p2]) -> both placements persist shared group_id={g1}. tree={}",
+        tree_path.display()
+    );
+
+    argus.finish();
+    cleanup.assert_cleaned();
+    assert_no_local_artifact_dir();
+}
+
 #[test]
 fn mt026_mounted_canvas_empty_state_canonical_argus() {
     // AC10 against a REAL managed-PG canvas board with zero placements: renders + inspects through

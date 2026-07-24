@@ -839,6 +839,20 @@ pub const CANVAS_CONTROL_CATALOG: &[ControlEntry] = &[
         label: "Select canvas card by placement id",
         parameterized: true,
     },
+    ControlEntry {
+        author_id: "canvas.move-placement",
+        label: "Move canvas placement to coordinates",
+        parameterized: true,
+    },
+    ControlEntry {
+        // Distinct from the toolbar's selection-gated `canvas.group` button (which is DISABLED until >=2
+        // cards are shift-selected). This id-based, always-enabled swarm control groups explicit
+        // placement ids so a canonical Argus agent can group WITHOUT the OS pointer multi-select the
+        // toolbar node requires.
+        author_id: "canvas.group-placements",
+        label: "Group canvas placements by id",
+        parameterized: true,
+    },
 ];
 
 /// The COLLECTION global controls that dispatch to implemented live behavior.
@@ -898,6 +912,24 @@ pub struct PlaceBlockPayload {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct PlacementIdPayload {
     pub placement_id: String,
+}
+
+/// `canvas.move-placement` payload: `{"placement_id":"..","x":120,"y":80}` (canvas-space coordinates).
+/// The dispatch drives the SAME `CanvasEvent::MovePlacement` the drag-stop gesture fires, so a swarm can
+/// reposition a placement (and persist the new x/y via the real PATCH) without an OS pointer drag.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct MovePlacementPayload {
+    pub placement_id: String,
+    pub x: f32,
+    pub y: f32,
+}
+
+/// `canvas.group` payload: `{"placement_ids":["..",".."]}`. Groups >=2 existing placements under one
+/// board-minted group id, driving the SAME `CanvasEvent::Group` the toolbar's shift-multiselect gate
+/// produces — so a swarm can group without OS modifier keys.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct GroupPayload {
+    pub placement_ids: Vec<String>,
 }
 
 /// `collection.kanban-move` payload: `{"block_id":"..","from_lane":"..","to_lane":".."}`.

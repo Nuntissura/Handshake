@@ -59,8 +59,9 @@ use egui::accesskit;
 use egui::{Color32, Pos2, Rect, Sense, Stroke, Vec2};
 
 use crate::accessibility::knowledge_action_registry::{
-    self, AddEdgePayload, AxRole as KAxRole, EdgeIdPayload, KnowledgeActionRegistry,
-    KnowledgeNodeState, PlaceBlockPayload, PlacementIdPayload, CANVAS_CONTROL_CATALOG,
+    self, AddEdgePayload, AxRole as KAxRole, EdgeIdPayload, GroupPayload, KnowledgeActionRegistry,
+    KnowledgeNodeState, MovePlacementPayload, PlaceBlockPayload, PlacementIdPayload,
+    CANVAS_CONTROL_CATALOG,
 };
 use crate::theme::HsPalette;
 
@@ -1943,6 +1944,79 @@ impl LoomCanvasBoard {
                 }
                 None
             }
+            "canvas.move-placement" => {
+                // Reposition a placement to explicit canvas coordinates through the SAME
+                // `CanvasEvent::MovePlacement` the drag-stop gesture fires (canvas_board.rs drag drop),
+                // so a canonical Argus click-with-payload persists the new x/y via the real placement
+                // PATCH. Missing placement / malformed payload -> None (no panic, no fake dispatch).
+                let p =
+                    knowledge_action_registry::parse_payload::<MovePlacementPayload>(payload)?;
+                let idx = self
+                    .placements
+                    .iter()
+                    .position(|c| c.placement_id == p.placement_id)?;
+                // Reflect the new position locally (optimistic), then recompute section membership from the
+                // new centre EXACTLY like the drag-stop drop hit-test (excluding self), so a dispatched move
+                // behaves like a human drag and coordinates + section travel together.
+                self.placements[idx].x = p.x;
+                self.placements[idx].y = p.y;
+                let center = {
+                    let c = &self.placements[idx];
+                    Pos2::new(c.x + c.w * 0.5, c.y + c.h * 0.5)
+                };
+                let others: Vec<_> = self
+                    .placements
+                    .iter()
+                    .filter(|c| c.placement_id != p.placement_id)
+                    .cloned()
+                    .collect();
+                let target = crate::graph::canvas_sections::SectionLayer::derive(
+                    &others,
+                    &self.section_labels,
+                )
+                .which_section(center)
+                .map(ToOwned::to_owned);
+                self.placements[idx].group_id = target.clone();
+                self.status = match &target {
+                    Some(g) => format!("Moved {} to section {g}", p.placement_id),
+                    None => format!("Moved {} (reference)", p.placement_id),
+                };
+                Some(CanvasEvent::MovePlacement {
+                    placement_id: p.placement_id,
+                    x: p.x,
+                    y: p.y,
+                    group_id: target,
+                })
+            }
+            "canvas.group-placements" => {
+                // Group >=2 existing placements under one board-minted group id through the SAME
+                // `CanvasEvent::Group` the toolbar's shift-multiselect gate produces, so a swarm can group
+                // without OS modifier keys. The >=2 precondition mirrors the toolbar's
+                // `add_enabled(selected.len() >= 2)` gate — a degenerate <2 group is rejected (returns None).
+                let p = knowledge_action_registry::parse_payload::<GroupPayload>(payload)?;
+                let ids: Vec<String> = p
+                    .placement_ids
+                    .into_iter()
+                    .filter(|id| self.placements.iter().any(|c| &c.placement_id == id))
+                    .collect();
+                if ids.len() < 2 {
+                    self.status =
+                        format!("Group needs >=2 existing placements (got {})", ids.len());
+                    return None;
+                }
+                self.group_seq += 1;
+                let group_id = format!("grp-{}", self.group_seq);
+                for c in self.placements.iter_mut() {
+                    if ids.contains(&c.placement_id) {
+                        c.group_id = Some(group_id.clone());
+                    }
+                }
+                self.status = format!("Grouped {} placements as {group_id}", ids.len());
+                Some(CanvasEvent::Group {
+                    placement_ids: ids,
+                    group_id,
+                })
+            }
             // AC-042-03: a `delete` custom-action dispatch on a card -> RemovePlacement for that card.
             other
                 if other.starts_with(knowledge_action_registry::CANVAS_CARD_AUTHOR_ID_PREFIX)
@@ -2698,13 +2772,18 @@ mod tests {
         );
     }
 
-    /// Reference-not-copy: a placement with no resolved live block shows "(stale reference)", never a
-    /// content copy (AC1 / AC4).
+    /// Reference-not-copy: a placement never shows a content copy (AC1 / AC4). A freshly-created card is
+    /// in the explicit `Loading` resolution phase ("(loading reference)"); once a resolution attempt finds
+    /// the referenced block missing it becomes a genuine "(stale reference)"; a resolved live title wins.
     #[test]
     fn unresolved_placement_shows_stale_reference() {
-        let stale = CanvasPlacementCard::new("p-x", "missing-block", 0.0, 0.0, 10.0, 10.0);
-        assert_eq!(stale.display_title(), "(stale reference)");
-        let mut resolved = stale.clone();
+        let mut card = CanvasPlacementCard::new("p-x", "missing-block", 0.0, 0.0, 10.0, 10.0);
+        // Not-yet-resolved reference is Loading, not mistaken for stale.
+        assert_eq!(card.display_title(), "(loading reference)");
+        // A completed resolution that found no block is a genuine stale reference (never a content copy).
+        card.mark_live_unresolved(None);
+        assert_eq!(card.display_title(), "(stale reference)");
+        let mut resolved = card.clone();
         resolved.live_title = Some("Real Title".to_owned());
         assert_eq!(resolved.display_title(), "Real Title");
     }
