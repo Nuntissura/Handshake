@@ -15135,20 +15135,52 @@ fn validate_message_routing(input: &NewModelLaneMessage) -> ModelLaneResult<()> 
 }
 
 fn validate_message_authority(input: &NewModelLaneMessage) -> ModelLaneResult<()> {
-    let targets_crdt = input.crdt_update_ref.is_some()
-        || input.crdt_base_snapshot_ref.is_some()
-        || input.crdt_state_vector.is_some()
-        || input.crdt_proposal_ref.is_some()
-        || input.crdt_stale_base_ref.is_some();
-    if targets_crdt {
-        require_optional_token("proposal_ref", input.proposal_ref.as_deref())?;
-        require_optional_token("crdt_update_ref", input.crdt_update_ref.as_deref())?;
-        require_optional_token(
-            "crdt_base_snapshot_ref",
-            input.crdt_base_snapshot_ref.as_deref(),
-        )?;
-        require_optional_token("crdt_state_vector", input.crdt_state_vector.as_deref())?;
-        require_optional_token("crdt_proposal_ref", input.crdt_proposal_ref.as_deref())?;
+    // Cheap pre-transaction CRDT posture validation. The AUTHORITATIVE
+    // completeness + resolution gate is `validate_message_crdt_authority_tx`
+    // (durable, fail-closed): it requires base_snapshot + state_vector when an
+    // update ref is present, denies any partial CRDT metadata that lacks an
+    // update ref, denies update_ref + stale_base together, and — for Proposal
+    // kind — requires a persisted crdt_proposal_ref. This sync layer must NOT
+    // shadow those specific denials with a generic "field is required" error.
+    //
+    // Per MT-002 acceptance the CRDT fields are carried "as applicable", NOT all
+    // five unconditionally. The prior code required proposal_ref + all four
+    // crdt_* fields whenever ANY was set, which (a) made a Proposal's kind-aware
+    // proposal-ref rule dead code and (b) made every CRDT-bearing message
+    // unsatisfiable, since no proposal row can currently be minted whose
+    // applied_update_sha256 equals a Yjs-update hash (see the deferred spec-level
+    // fix for the diff-hash-vs-update-hash conflation). proposal_ref is required
+    // by AUTHORITY STATE (PromotionCandidate/Promoted) below, never by CRDT.
+    //
+    // Fail-closed is preserved: every field that IS present must be a valid
+    // non-empty token, and when a concrete update ref is present its base
+    // snapshot + state vector are required here too (matching the durable gate).
+    if let Some(proposal_ref) = input.proposal_ref.as_deref() {
+        require_token("proposal_ref", proposal_ref)?;
+    }
+    if let Some(update_ref) = input.crdt_update_ref.as_deref() {
+        require_token("crdt_update_ref", update_ref)?;
+        let base_snapshot = input.crdt_base_snapshot_ref.as_deref().ok_or_else(|| {
+            ModelLaneError::InvalidInput("crdt_base_snapshot_ref is required".into())
+        })?;
+        require_token("crdt_base_snapshot_ref", base_snapshot)?;
+        let state_vector = input.crdt_state_vector.as_deref().ok_or_else(|| {
+            ModelLaneError::InvalidInput("crdt_state_vector is required".into())
+        })?;
+        require_token("crdt_state_vector", state_vector)?;
+    } else {
+        if let Some(base_snapshot) = input.crdt_base_snapshot_ref.as_deref() {
+            require_token("crdt_base_snapshot_ref", base_snapshot)?;
+        }
+        if let Some(state_vector) = input.crdt_state_vector.as_deref() {
+            require_token("crdt_state_vector", state_vector)?;
+        }
+    }
+    if let Some(proposal_ref) = input.crdt_proposal_ref.as_deref() {
+        require_token("crdt_proposal_ref", proposal_ref)?;
+    }
+    if let Some(stale_base) = input.crdt_stale_base_ref.as_deref() {
+        require_token("crdt_stale_base_ref", stale_base)?;
     }
     if matches!(
         input.kind,

@@ -132,9 +132,23 @@ async fn model_lane_schema_persists_and_replays_eventledger_rows() {
     assert_eq!(replay.lanes.len(), 6);
     assert_eq!(replay.messages.len(), 1);
     assert_eq!(replay.messages[0].payload_sha256, sample_sha256());
+    // Optional-reference round-trip through record_json is still proven, via a
+    // reference that does not claim CRDT authority. An advisory ModelLane
+    // message must replay with every CRDT authority field null; a non-null one
+    // would have to dereference to real persisted Yjs bytes (proven against
+    // real updates in mixed_model_lane_integration_pg_tests mt004_*/mt009_crdt_*
+    // and model_lane_context_bundle_pg_tests), never to a synthetic string.
     assert_eq!(
-        replay.messages[0].crdt_state_vector.as_deref(),
-        Some("sv:1")
+        replay.messages[0].proposal_ref.as_deref(),
+        Some("proposal://mt002/msg-001")
+    );
+    assert!(
+        replay.messages[0].crdt_update_ref.is_none()
+            && replay.messages[0].crdt_base_snapshot_ref.is_none()
+            && replay.messages[0].crdt_state_vector.is_none()
+            && replay.messages[0].crdt_proposal_ref.is_none()
+            && replay.messages[0].crdt_stale_base_ref.is_none(),
+        "an advisory ModelLane message must replay with null CRDT authority"
     );
     assert!(
         replay
@@ -711,7 +725,7 @@ async fn model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflic
         "expected payload hash validation error, got {err}"
     );
 
-    let mut missing_crdt = sample_message(
+    let mut missing_crdt = crdt_posture_message(
         "msg-missing-crdt",
         "lane-local",
         ModelLaneTarget::Lane("lane-cloud".into()),
@@ -726,7 +740,7 @@ async fn model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflic
         "expected CRDT validation error, got {err}"
     );
 
-    let mut non_proposal_with_partial_crdt = sample_message(
+    let mut non_proposal_with_partial_crdt = crdt_posture_message(
         "msg-partial-crdt-status",
         "lane-local",
         ModelLaneTarget::Lane("lane-cloud".into()),
@@ -742,7 +756,19 @@ async fn model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflic
         "expected kind-independent CRDT validation error, got {err}"
     );
 
-    let mut proposal_ref_only = sample_message(
+    // Partial-CRDT admission is refused by TWO independent fail-closed layers:
+    // the synchronous completeness check in `validate_message_authority`
+    // ("crdt_update_ref is required") and, for records that reach the durable
+    // path, `validate_message_crdt_authority_tx` ("partial CRDT metadata cannot
+    // be admitted without crdt_update_ref"). The synchronous layer legitimately
+    // wins for `record_message` because it rejects before a transaction is even
+    // opened. The durable layer is retained as defence in depth -- it still
+    // guards stored-record revalidation, where a tampered row can present a
+    // partial posture that never passed the synchronous check. The assertion is
+    // therefore pinned to the invariant both layers share (the denial names the
+    // missing `crdt_update_ref`) so it stays true regardless of which layer
+    // fires first, instead of encoding one layer's wording.
+    let mut proposal_ref_only = crdt_posture_message(
         "msg-crdt-proposal-ref-only",
         "lane-local",
         ModelLaneTarget::Lane("lane-cloud".into()),
@@ -756,11 +782,14 @@ async fn model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflic
         .await
         .expect_err("proposal-only CRDT metadata must not bypass authority resolution");
     assert!(
-        err.to_string().contains("without crdt_update_ref"),
-        "expected proposal-only CRDT validation error, got {err}"
+        err.to_string().contains("crdt_update_ref"),
+        "expected proposal-only CRDT validation error naming crdt_update_ref, got {err}"
     );
 
-    let mut stale_ref_only = sample_message(
+    // Same two-layer contract as the proposal-only probe above: a lone
+    // stale-base reference still declares CRDT authority and must be denied
+    // with the missing `crdt_update_ref` named.
+    let mut stale_ref_only = crdt_posture_message(
         "msg-crdt-stale-ref-only",
         "lane-local",
         ModelLaneTarget::Lane("lane-cloud".into()),
@@ -775,8 +804,8 @@ async fn model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflic
         .await
         .expect_err("stale-only CRDT metadata must not bypass authority resolution");
     assert!(
-        err.to_string().contains("without crdt_update_ref"),
-        "expected stale-only CRDT validation error, got {err}"
+        err.to_string().contains("crdt_update_ref"),
+        "expected stale-only CRDT validation error naming crdt_update_ref, got {err}"
     );
 
     let mut advisory_proposal = sample_message(
@@ -1044,10 +1073,19 @@ fn sample_message(
         replay_order_key: "00000002/message".into(),
         replay_after_event_ledger_seq: Some(1),
         proposal_ref: Some("proposal://mt002/msg-001".into()),
-        crdt_update_ref: Some("crdt-update://mt002/msg-001".into()),
-        crdt_base_snapshot_ref: Some("crdt-snapshot://mt002/base".into()),
-        crdt_state_vector: Some("sv:1".into()),
-        crdt_proposal_ref: Some("crdt-proposal://mt002/msg-001".into()),
+        // No CRDT posture by default. This MT-002 fixture proves ModelLane
+        // schema persistence and EventLedger-ordered replay; it is not a CRDT
+        // authority fixture. Ordinary advisory/routing messages carry null
+        // crdt_* fields in production (routing_execution.rs ~1681-1756), and
+        // since the MT-004/005 V5 remediation every non-null crdt_update_ref is
+        // dereferenced against real kernel_crdt_updates bytes, so the previous
+        // synthetic `crdt-update://mt002/msg-001` decoration is now correctly
+        // denied at admission. Tests that need a CRDT posture build one
+        // explicitly via `crdt_posture_message` below.
+        crdt_update_ref: None,
+        crdt_base_snapshot_ref: None,
+        crdt_state_vector: None,
+        crdt_proposal_ref: None,
         crdt_stale_base_ref: None,
         failstate_code: None,
         reason_ref: None,
@@ -1059,6 +1097,28 @@ fn sample_message(
             "palmistry": "DEFERRED: external watcher worktree"
         }),
     }
+}
+
+/// A message declaring a COMPLETE but synthetic CRDT posture.
+///
+/// Used only by validation negatives that must be rejected before any durable
+/// authority resolution runs: `validate_message_authority` treats any single
+/// `crdt_*` field as a CRDT authority declaration and then requires
+/// `proposal_ref`, `crdt_update_ref`, `crdt_base_snapshot_ref`,
+/// `crdt_state_vector` and `crdt_proposal_ref` to all be present. Because these
+/// probes never reach persistence, synthetic refs are correct here; anything
+/// that must be ADMITTED needs real persisted Yjs bytes instead.
+fn crdt_posture_message(
+    message_id: &str,
+    from_lane_id: &str,
+    to_lane: ModelLaneTarget,
+) -> NewModelLaneMessage {
+    let mut message = sample_message(message_id, from_lane_id, to_lane);
+    message.crdt_update_ref = Some("crdt-update://mt002/msg-001".into());
+    message.crdt_base_snapshot_ref = Some("crdt-snapshot://mt002/base".into());
+    message.crdt_state_vector = Some("sv:1".into());
+    message.crdt_proposal_ref = Some("crdt-proposal://mt002/msg-001".into());
+    message
 }
 
 fn sample_locus() -> ModelLaneLocusBinding {
