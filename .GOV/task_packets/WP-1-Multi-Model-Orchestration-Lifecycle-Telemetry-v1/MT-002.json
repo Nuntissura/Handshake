@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-001"
     ],
@@ -27,15 +27,15 @@
       "MT-008"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260628-220906",
     "claimed_at_utc": "2026-06-28T22:32:08.601Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260701-190732",
-    "ready_for_validation_at_utc": "2026-07-01T23:08:42Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260723-205940",
+    "ready_for_validation_at_utc": "2026-07-24T14:33:31Z",
     "completed_by": null,
-    "blocker": "MT-017 materially changed the shared ModelLane schema/diagnostics surface after MT-002 PASS_V1. The fresh real-PostgreSQL schema regression command did not return within the bounded run, so the current dirty candidate has no validator-owned schema/replay proof and cannot be promoted to PASS_V4.",
+    "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V4: MT-017 materially changed the shared ModelLane schema/diagnostics surface after MT-002 PASS_V1. The fresh real-PostgreSQL schema regression command did not return within the bounded run, so the current dirty candidate has no validator-owned schema/replay proof and cannot be promoted to PASS_V4.",
+    "proof_status": "READY_FOR_VALIDATION_V5: all four declared proof targets pass on real Handshake-managed PostgreSQL (port 5544) at source 4066e9c1 (HEAD a63af726 is additive-only, no change to these paths). model_lane_schema_pg_tests 4/4 green (persists_and_replays_eventledger_rows, dexterity_launch_records_real_swarm_spawn_session_runtime_path, rejects_missing_locus_binding_and_idempotency_conflict, serializes_competing_terminal_updates), 34.65s; user_manual_api_tests::model_lane_schema_user_manual_entry_is_current green. The V4 blocker (schema regression did not return) is resolved: the fail-closed CRDT admission Layer-1 fix (validate_message_authority, commit 4066e9c1) makes the shared-schema path admissible and the suite returns green.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT002_SCHEMA_GREEN",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
@@ -251,7 +251,22 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V4",
+  "validator_verdict": null,
+  "validation_v5": {
+    "verdict": "READY_FOR_VALIDATION_V5",
+    "ready_by": "KERNEL_BUILDER-20260723-205940",
+    "ready_at_utc": "2026-07-24T14:33:31Z",
+    "proof_source_sha": "4066e9c1bd4210c0e296bfe28dc4dfbda76def44",
+    "head_sha_at_ready": "a63af7260a2b56ae3ad2fb82fd31d7d1fb5cc58e",
+    "head_note": "HEAD adds only test/native code that does not touch the MT-002 proof paths.",
+    "managed_postgres": "Handshake-managed cluster adopted at Handshake_Artifacts/handshake-product/managed_pgdata, port 5544 (env HANDSHAKE_MANAGED_PG_DATA_DIR + HANDSHAKE_MANAGED_PG_PORT).",
+    "proof_results": [
+      "cargo test --features test-utils --test model_lane_schema_pg_tests -- --test-threads=1 => 4 passed; 0 failed (34.65s): model_lane_schema_persists_and_replays_eventledger_rows, dexterity_launch_records_real_swarm_spawn_session_runtime_path, model_lane_schema_rejects_missing_locus_binding_and_idempotency_conflict, model_lane_schema_serializes_competing_terminal_updates",
+      "cargo test --features test-utils --test user_manual_api_tests model_lane_schema_user_manual_entry_is_current -- => passed"
+    ],
+    "remediation_summary": "Root cause of FAIL_V4 (shared ModelLane schema changed by MT-017; fresh schema regression did not return) resolved by the CRDT admission Layer-1 fix in validate_message_authority (4066e9c1): CRDT posture completeness is gated on crdt_update_ref.is_some() instead of requiring an unsatisfiable proposal_ref on every crdt_* field, so admissible messages persist and the schema/replay suite returns green while every fail-closed gate is preserved. Advisory sample_message no longer carries synthetic CRDT refs (matches production routing which keeps crdt_* null).",
+    "boundary": "Implementer transition CLAIMED->READY_FOR_VALIDATION only; completed_by remains null for independent Integration Validator review."
+  },
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",

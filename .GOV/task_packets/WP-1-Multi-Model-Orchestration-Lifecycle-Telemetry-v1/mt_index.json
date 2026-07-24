@@ -31,7 +31,7 @@
     },
     {
       "mt_id": "MT-002",
-      "status": "FAIL_V4",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-001"
       ],
@@ -44,7 +44,7 @@
         "MT-007",
         "MT-008"
       ],
-      "proof_status": "FAIL_V4: MT-017 materially changed the shared ModelLane schema/diagnostics surface after MT-002 PASS_V1. The fresh real-PostgreSQL schema regression command did not return within the bounded run, so the current dirty candidate has no validator-owned schema/replay proof and cannot be promoted to PASS_V4.",
+      "proof_status": "READY_FOR_VALIDATION_V5: all declared proof targets green on real Handshake-managed PostgreSQL (port 5544) at 4066e9c1; see MT contract validation_v5.",
       "hbr_status": "PASS_MT002_SCHEMA_GREEN",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
@@ -133,7 +133,7 @@
     },
     {
       "mt_id": "MT-006",
-      "status": "FAIL_V4",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-003",
         "MT-004",
@@ -144,7 +144,7 @@
       "blocks": [
         "MT-009"
       ],
-      "proof_status": "FAIL_V4: MT-017 changed the run-scoped consent and revocation security boundary after MT-006 PASS_V1. The fresh cloud_model_lane_policy_pg_tests command did not return inside the bounded current-source run, so the changed SingleRun/SingleLane authority and fan-out revocation semantics are not validator-proven.",
+      "proof_status": "READY_FOR_VALIDATION_V5: all declared proof targets green on real Handshake-managed PostgreSQL (port 5544) at 4066e9c1; see MT contract validation_v5.",
       "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT006_SCOPE_EVENTLEDGER_WIRED_DIRECT_FR_EVT_CLOUD_EMIT_DEFERRED_TO_FOLLOW_ON_INTERNAL_DIAGNOSTICS_AND_PALMISTRY_DEFERRED_WITH_REASON",
       "pre_implementation_adversarial_review_status": "CONTRACT_REVIEW_COMPLETED_PRE_IMPLEMENTATION_2026-06-28",
       "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",

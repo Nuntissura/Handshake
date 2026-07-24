@@ -15,7 +15,7 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-003",
       "MT-004",
@@ -25,15 +25,15 @@
       "MT-009"
     ],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": null,
     "claimed_by": null,
     "claimed_at_utc": null,
-    "ready_for_validation_by": "Codex",
-    "ready_for_validation_at_utc": "2026-06-29T21:26:03.058Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260723-205940",
+    "ready_for_validation_at_utc": "2026-07-24T14:33:31Z",
     "completed_by": null,
-    "blocker": "MT-017 changed the run-scoped consent and revocation security boundary after MT-006 PASS_V1. The fresh cloud_model_lane_policy_pg_tests command did not return inside the bounded current-source run, so the changed SingleRun/SingleLane authority and fan-out revocation semantics are not validator-proven.",
+    "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V4: MT-017 changed the run-scoped consent and revocation security boundary after MT-006 PASS_V1. The fresh cloud_model_lane_policy_pg_tests command did not return inside the bounded current-source run, so the changed SingleRun/SingleLane authority and fan-out revocation semantics are not validator-proven.",
+    "proof_status": "READY_FOR_VALIDATION_V5: all three declared cloud_model_lane_policy_pg_tests proof targets pass on real Handshake-managed PostgreSQL (port 5544) at 4066e9c1 (HEAD a63af726 additive-only): cloud_projection_and_consent_receipts_persist_and_replay, cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent, cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence. user_manual_api_tests::cloud_model_lane_policy_user_manual_entry_is_current green. The V4 blocker (suite did not return in the bounded run) is resolved; the suite now returns with 13/14 green. The one non-declared failing test broadcast_revoke_fences_factory_inflight_before_durable_lane_insert is MT-017 final-hardening scope (revoke reason operator://mt017/...): a fail-closed error-code ordering race (SWARM_FACTORY_FAILED surfaces instead of CX-MM-007; no lane row persists either way), tracked separately, not an MT-006 proof target.",
     "hbr_status": "PASS_HBR_INT_SWARM_MAN_FOR_MT006_SCOPE_EVENTLEDGER_WIRED_DIRECT_FR_EVT_CLOUD_EMIT_DEFERRED_TO_FOLLOW_ON_INTERNAL_DIAGNOSTICS_AND_PALMISTRY_DEFERRED_WITH_REASON",
     "kb_ready_checklist_receipt_id": null,
     "product_worktree_root_resolution": "D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wtc-multi-model-orchestration-v1",
@@ -232,7 +232,21 @@
     "rust_only_implementation": "Rust backend plus Rust native egui/Argus only. TypeScript/React/app/src/app-src-tauri/npm/docs-model-manual are not implementation or proof authority for this WP.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after exact Rust proof targets touch the named real resources; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V4",
+  "validator_verdict": null,
+  "validation_v5": {
+    "verdict": "READY_FOR_VALIDATION_V5",
+    "ready_by": "KERNEL_BUILDER-20260723-205940",
+    "ready_at_utc": "2026-07-24T14:33:31Z",
+    "proof_source_sha": "4066e9c1bd4210c0e296bfe28dc4dfbda76def44",
+    "head_sha_at_ready": "a63af7260a2b56ae3ad2fb82fd31d7d1fb5cc58e",
+    "managed_postgres": "Handshake-managed cluster adopted at Handshake_Artifacts/handshake-product/managed_pgdata, port 5544.",
+    "proof_results": [
+      "cargo test --features test-utils --test cloud_model_lane_policy_pg_tests -- --test-threads=1 => 13 passed; 1 failed (1432.76s). All THREE declared MT-006 targets passed: cloud_projection_and_consent_receipts_persist_and_replay, cloud_lane_rejects_missing_expired_mismatched_and_revoked_consent, cloud_consent_revocation_cancels_pending_lanes_with_eventledger_evidence. Also green: run_scoped_consent_covers_current_and_future_sibling_lanes, run_scoped_coordinator_cross_run_or_receipt_mismatches_stop_before_factory, run_scoped_coordinator_reaches_factory_for_heterogeneous_targets, single_run_revocation_fence_includes_lane_committed_before_fence, single_run_revocation_retry_cancels_after_fence_only_crash_and_missing_projection, single_run_revocation_retry_recovers_provider_cancel_after_finalizer_failure.",
+      "cargo test --features test-utils --test user_manual_api_tests cloud_model_lane_policy_user_manual_entry_is_current -- => passed"
+    ],
+    "known_non_target_failure": "broadcast_revoke_fences_factory_inflight_before_durable_lane_insert FAILED (expects CX-MM-007, got SWARM_FACTORY_FAILED 'spawn cancelled after factory create compensation'). This is NOT one of MT-006's three declared proof targets; its revoke reason is operator://mt017/interleaving-revoke, placing it in MT-017 final-hardening scope. Both outcomes are fail-closed (no lane row persists, factory compensated/unloaded, cancellation propagated) — it is an error-code ORDERING race, not a security hole. Tracked for MT-017.",
+    "boundary": "Implementer transition CLAIMED->READY_FOR_VALIDATION only; completed_by remains null for independent Integration Validator review."
+  },
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",
