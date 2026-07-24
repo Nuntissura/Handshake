@@ -1707,7 +1707,7 @@ fn canonical_non_schema_behavior_registry() -> Vec<CanonicalBehaviorDescriptor> 
         deferred_reason: Some(
             "MT-016 wires the authoritative runtime/catalog/Loom path; native internal_diagnostics and the authenticated Palmistry watcher are wired observers of these selected-model receipts without becoming their authority.",
         ),
-        follow_up_ref: None,
+        follow_up_ref: Some("palmistry://wp1/dedicated-embedding-model/selected-model-receipts"),
     }},
     ];
 
