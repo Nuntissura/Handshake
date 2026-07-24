@@ -14,7 +14,7 @@
   "title": "E3-MT026-CanvasBoardLoomBlocks",
   "group": "E3 Knowledge surface / Obsidian graph (Loom)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-15T18:04:47.6268708Z",
+  "updated_at_utc": "2026-07-24T10:55:00.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-026.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,18 +25,18 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-021"
     ],
     "blocks": [],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
     "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
     "claimed_by": "KERNEL_BUILDER-20260705-013720",
-    "ready_for_validation_at_utc": "2026-07-05T02:38:42.939Z",
+    "ready_for_validation_at_utc": "2026-07-24T10:55:00.000Z",
     "reopened_at_utc": "2026-07-03T21:26:02Z",
     "reopened_by": "KERNEL_BUILDER",
     "operator_decision_summary": "Operator 2026-07-02 ordered per-MT drift spot-checks with adversarial sub-agent review; no MT has been validated by an official validator. Wave-B audit: canvas IS mounted (PaneType::AtelierEditor, default Atelier tab) but host consumes ONLY ResizePlacement/AssignSection; PlaceBlock/AddCard/Group/RemovePlacement/SemanticEdge/VisualEdgeAdded/ViewportChanged fall to catch-all None (in-code comment claiming MT-026 paths own them is FALSE) - drop-to-place, +Text card, remove, edge drawing, viewport persistence are inert. No initial getCanvasBoard fetch at mount; post-mutation fetch_board writes into an immediately-dropped cell (pane doc comment claiming refresh feeds back is FALSE). Mounted canvas renders permanently empty. Fix: wire remaining 7 event kinds to existing CanvasBoardClient + initial fetch + board-cell drain into the widget; correct false doc comments.",
@@ -82,7 +82,11 @@
         "previous_active": false
       }
     ],
-    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift"
+    "reopen_reason": "operator_2026_07_03_no_official_validation_reopen_non_ready_status_drift",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediation_v3_in_progress": false,
+    "completed_by": null,
+    "ready_for_validation_summary": "MT-026 V3: full canonical-Argus coverage over real PG — placement, MOVEMENT (persisted x=520,y=340), GROUPING (shared group_id), semantic+visual edges, deletion+source-retention, empty state. Wired canvas.move-placement/canvas.group-placements dispatch actions (CX-503D1 gap remediation). Validator PENDING; completed_by null."
   },
   "scope": {
     "summary": "Goal: Port the React LoomCanvasBoard (MT-261 parity) to the native egui frontend (crate handshake-native, lib path handshake_native::). The canvas board is a spatial canvas where LoomBlocks are placed as reference cards (not copies) with real pan/zoom, drag-to-place, edge drawing (semantic and visual), grouping, and viewport persistence. The board itself is a typed LoomBlock (content_type=canvas); placements and edges are authoritative PostgreSQL/EventLedger state. Expected diff shape: one new file src/frontend/handshake_native/src/loom/canvas_board.rs containing LoomCanvasBoard widget, edits to src/frontend/handshake_native/src/loom/mod.rs.\n\nExact files to create or edit:\n- CREATE src/frontend/handshake_native/src/loom/canvas_board.rs — LoomCanvasBoard widget\n- EDIT src/frontend/handshake_native/src/loom/mod.rs — pub mod canvas_board; + re-export\n\nReuse (do not reinvent): the spatial-canvas painting/pan/zoom primitives in the existing WP-011 module src/frontend/handshake_native/src/canvas_board.rs (generic board surface), the Loom graph view in src/frontend/handshake_native/src/loom_graph.rs (block/edge model + graph rendering), the shared HTTP client in src/frontend/handshake_native/src/backend_client.rs (all backend calls route through it), command/selection/clipboard wiring via src/frontend/handshake_native/src/command_registry.rs + src/frontend/handshake_native/src/event_bus.rs, AccessKit exposure via src/frontend/handshake_native/src/accessibility/* (mod.rs, live.rs, registry.rs, snapshot.rs), and MCP tool/action exposure via src/frontend/handshake_native/src/mcp/* where the canvas surface must be model-drivable.\n\nExact APIs / React reference:\n- PRIMARY REACT REFERENCE: app/src/components/LoomCanvasBoard.tsx — the complete React implementation. Key behaviors to port exactly:\n  (a) placeBlockOnCanvas(workspaceId, canvasBlockId, {placedBlockId, x, y, w, h}) on drop (api.ts ~1617+)\n  (b) createCanvasCard(workspaceId, canvasBlockId, {title, body, x, y, w, h}) for free-text cards\n  (c) updateCanvasBoardViewport(workspaceId, canvasBlockId, {pan_x, pan_y, zoom}) on viewport change\n  (d) updateCanvasPlacement(workspaceId, placementId, {groupId}) for grouping\n  (e) removeCanvasPlacement(workspaceId, placementId) for removal (source block kept)\n  (f) createLoomEdge(workspaceId, {sourceBlockId, targetBlockId, edgeType:'mention'}) for semantic edges\n  (g) addCanvasVisualEdge(workspaceId, canvasBlockId, {fromPlacementId, toPlacementId}) for visual edges\n  (h) getCanvasBoard(workspaceId, canvasBlockId) -> LoomCanvasBoardView {board, placements, visual_edges}\n  (i) getLoomBlock(workspaceId, blockId) to resolve live block previews (reference, not copy)\n- Backend bindings: all functions from app/src/lib/api.ts in the section starting at line 1617 (LOOM_CANVAS_BOARD_SCHEMA_ID block), called through src/frontend/handshake_native/src/backend_client.rs.\n\nStep-by-step implementation notes:\n1. Define CanvasPlacementCard { placement_id: String, placed_block_id: String, x: f32, y: f32, w: f32, h: f32, z_index: i32, group_id: Option<String>, live_title: Option<String>, live_content_type: Option<String>, selected: bool }.\n2. Define VisualEdge { visual_edge_id: String, from_placement_id: String, to_placement_id: String }.\n3. Define LoomCanvasBoard widget state: { workspace_id, canvas_block_id, placements: Vec<CanvasPlacementCard>, visual_edges: Vec<VisualEdge>, pan: Vec2, zoom: f32, selected: HashSet<String>, edge_mode: EdgeMode (Semantic | Visual), edge_from: Option<String>, status: String, loading: bool, error: Option<String> }.\n4. On init: call getCanvasBoard -> populate placements + visual_edges + pan + zoom. Then for each placement, call getLoomBlock to resolve live_title + live_content_type. Store results in placements (ref semantics: a missing block shows '(stale reference)', never a copy).\n5. Render loop in show():\n   a. Top toolbar strip (using egui::TopBottomPanel or manual strip at top of allocated rect):\n      - Pan-left / Pan-right buttons (author_id='canvas.pan-left'/'canvas.pan-right'): adjust pan.x by ±40; call updateCanvasBoardViewport on release.\n      - Zoom-out / Zoom-in buttons (author_id='canvas.zoom-out'/'canvas.zoom-in'): adjust zoom by ±0.25 clamped [0.25, 4.0]; call updateCanvasBoardViewport.\n      - Zoom value label (author_id='canvas.zoom-value').\n      - '+ Text card' button (author_id='canvas.add-card'): calls createCanvasCard with default position (40, 40) and title=timestamp.\n      - 'Group (N)' button (author_id='canvas.group'): enabled only if selected.len() >= 2; calls updateCanvasPlacement for each selected with a new group_id.\n      - Edge mode dropdown/toggle (author_id='canvas.edge-mode'): Semantic | Visual.\n      - 'Draw edge from selected' button (author_id='canvas.start-edge'): enabled if selected.len()==1; on click sets edge_from = selected[0].\n   b. Status bar: single line of status text (author_id='canvas.status').\n   c. Canvas surface (fills remaining rect):\n      - Background: draw a dotted grid pattern using Painter::circle_filled at 24px spacing with radius 1px, color gray(203).\n      - Apply pan+zoom transform: translate by pan, then scale by zoom (use Painter with transform via egui::emath::RectTransform or manual coordinate math).\n      - Draw visual edges: for each VisualEdge, find from/to placements, draw dashed line between card centers (stroke 2px, Color32::from_gray(148), dash pattern 6/4).\n      - Draw placement cards: for each CanvasPlacementCard, draw a rounded rect at (x,y,w,h) * zoom + pan. Border: if selected 2px blue, else 1px gray(203). White fill. Show live_title (bold 13px) and live_content_type (muted 11px). Show a remove button ('x') at top-right of card.\n      - Click on empty area: deselect all + start pan drag.\n      - Drag on empty area: pan (mouse delta added to pan; persist on release via updateCanvasBoardViewport).\n      - Scroll wheel: zoom (multiply zoom by 1.15^delta; clamp; zoom toward pointer; persist).\n      - Click on card: toggle selection (shift=additive); if edge_from is set and this card != edge_from, call drawEdge(edge_from, this placement_id); clear edge_from.\n      - Drag FROM external source (egui DragAndDrop or OS drop): accept MIME 'application/x-handshake-loom-block' JSON {blockId, title}; compute drop position in canvas space = (screen_pos - pan) / zoom; call placeBlockOnCanvas; refresh.\n6. Edge drawing: if edge_mode=Semantic, call createLoomEdge(source_block_id, target_block_id, 'mention'); if edge_mode=Visual, call addCanvasVisualEdge(from_placement_id, to_placement_id). Always refresh after.\n7. AccessKit: each placement card gets author_id='canvas.placement.{placement_id}' role=Group, label=live_title, actions=[DefaultAction=select, Remove]. Remove button 'canvas.placement.{placement_id}.remove'. Toolbar buttons as listed above. Status bar 'canvas.status' role=Status. Register all nodes through src/frontend/handshake_native/src/accessibility/*.\n\nDependencies / unblock conditions: MT-021 must be complete for shared HTTP client (src/frontend/handshake_native/src/backend_client.rs). No dependency on MT-022 through MT-025.\n\nRisk if missed: Canvas board (Obsidian Canvas parity, MT-261) is absent from native frontend. This is a key differentiator surface.",
@@ -475,5 +479,43 @@
       "basis": "Independent adversarial re-review verified vendored egui per-frame drag semantics, exact gesture assertions, truthful producer/persistence proof splitting, fail-closed parsing, malformed-success recovery, screenshot readability, source retention, backend health, and cleanup 404."
     },
     "validator_instruction": "Independently rerun both current-head MT-026 proof binaries against managed PostgreSQL. Preserve validation_v1 and lifecycle.validator_verdict as FAIL_V1 until the independent v2 verdict is issued."
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-026 FAIL V2. Canvas behavior is covered by unit/AccessKit paths, but no current canonical Argus run proves mounted placement, movement, grouping, semantic/visual edges, deletion, and post-action state against real persisted data.",
+    "remediation_plan": [
+      "Run the complete canvas mutation/reload/removal suite against real PostgreSQL and verify required EventLedger receipts and source retention.",
+      "Drive each mounted canvas operation through canonical Argus using stable author_ids, fresh re-inspection, and screenshot/tree evidence; synchronize the canonical UserManual diagnostics."
+    ],
+    "no_context_instruction": "Read MT-026.json, packet, and resolved spec. Re-prove persisted canvas behavior and every in-scope mounted control through canonical Argus, then return READY_FOR_VALIDATION_V3."
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediated_at_utc": "2026-07-24T10:55:00.000Z",
+    "addresses_v2_fail": true,
+    "proof_commands_passed": [
+      "test_canvas_board_argus 5/5 over real PG wp012_v3_loom (placement/zoom/deletion/source-retention, movement persisted x=520 y=340, grouping shared group_id, semantic+visual edges, empty)",
+      "canvas_board lib 26/26",
+      "knowledge_action 8/8"
+    ],
+    "product_changes": "wired canvas.move-placement + canvas.group-placements dispatch actions (knowledge_action_registry + apply_knowledge_action) + fixed stale unresolved_placement test",
+    "external_artifacts": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-026/canonical-argus/",
+    "kb_ready_checklist": "PASS",
+    "adversarial_review": "PENDING_PARALLEL_MULTILENS"
   }
 }
