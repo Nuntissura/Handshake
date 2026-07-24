@@ -588,9 +588,9 @@ fn mt014_argus_operator_menu_fetches_real_pg_projection_through_production_trans
         .build_state(|context, app: &mut HandshakeApp| app.ui(context), app);
 
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
-    assert_author_id(&harness, "menu.run.model-runtime");
+    assert_author_id(&harness, "menu.models.model-runtime");
     harness.get_by_label("Open Model Runtime").click();
     for _ in 0..100 {
         harness.step();
@@ -650,7 +650,7 @@ fn mt014_stable_switch_author_id_posts_then_reobserves_backend_projection() {
         .build_state(|context, app: &mut HandshakeApp| app.ui(context), app);
 
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Model Runtime").click();
     let switch_id =
@@ -1468,7 +1468,7 @@ fn mt014_model_runtime_real_pg_frame_png() {
         .with_size(egui::Vec2::new(1440.0, 940.0))
         .build_state(|context, app: &mut HandshakeApp| app.ui(context), app);
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Model Runtime").click();
     for _ in 0..100 {

@@ -74,12 +74,12 @@ fn live_shell_has_six_top_level_menus_with_stable_ids() {
         .filter(|(a, _, _)| a.starts_with("menu-"))
         .count();
     assert_eq!(
-        count, 6,
-        "exactly six top-level menu buttons in the live tree: {nodes:?}"
+        count, 7,
+        "exactly seven top-level menu buttons in the live tree: {nodes:?}"
     );
-    // The six menu titles are reachable by label (the mouse-click open path). The Alt+<letter> keyboard
-    // mnemonic open path is proven separately in `alt_letter_mnemonic_opens_each_menu` below (AC2).
-    for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "HELP"] {
+    // The seven menu titles are reachable by label (the mouse-click open path). The Alt+<letter>
+    // keyboard mnemonic open path is proven separately in `alt_letter_mnemonic_opens_each_menu` (AC2).
+    for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "MODELS", "HELP"] {
         let _ = harness.get_by_label(label);
     }
 }
@@ -101,7 +101,8 @@ fn alt_letter_mnemonic_opens_each_menu() {
         (MenuId::Edit, Key::E, "menu.edit.undo"),
         (MenuId::View, Key::V, "menu.view.reset-layout"),
         (MenuId::Go, Key::G, "menu.go.command-palette"),
-        (MenuId::Run, Key::R, "menu.run.swarm-board"),
+        (MenuId::Run, Key::R, "menu.run.inference-lab"),
+        (MenuId::Models, Key::M, "menu.models.swarm-board"),
         (MenuId::Help, Key::H, "menu.help.about"),
     ];
 
@@ -408,14 +409,14 @@ fn open_menu_leaves_are_all_named() {
 fn run_menu_opens_swarm_lane_diagnostics() {
     let mut harness = shell_harness();
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     let nodes = live_author_nodes(&harness);
     assert!(
         nodes
             .iter()
-            .any(|(a, role, _)| a == "menu.run.swarm-lane-diagnostics" && role == "MenuItem"),
-        "Run menu exposes diagnostics leaf with stable author_id: {nodes:?}"
+            .any(|(a, role, _)| a == "menu.models.swarm-lane-diagnostics" && role == "MenuItem"),
+        "Models menu exposes diagnostics leaf with stable author_id: {nodes:?}"
     );
 
     harness.get_by_label("Open Lane Diagnostics").click();
@@ -460,14 +461,14 @@ fn run_menu_opens_canonical_problems_pane() {
 fn run_menu_opens_operator_chat_launch() {
     let mut harness = shell_harness();
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     let nodes = live_author_nodes(&harness);
     assert!(
         nodes
             .iter()
-            .any(|(a, role, _)| a == "menu.run.operator-chat" && role == "MenuItem"),
-        "Run menu exposes operator chat leaf with stable author_id: {nodes:?}"
+            .any(|(a, role, _)| a == "menu.models.operator-chat" && role == "MenuItem"),
+        "Models menu exposes operator chat leaf with stable author_id: {nodes:?}"
     );
 
     harness.get_by_label("Open Operator Chat").click();
@@ -486,14 +487,14 @@ fn run_menu_opens_operator_chat_launch() {
 fn run_menu_opens_real_model_runtime_pane() {
     let mut harness = shell_harness();
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     let nodes = live_author_nodes(&harness);
     assert!(
-        nodes
-            .iter()
-            .any(|(author_id, role, _)| author_id == "menu.run.model-runtime" && role == "MenuItem"),
-        "Run menu exposes Model Runtime with a stable author_id: {nodes:?}"
+        nodes.iter().any(
+            |(author_id, role, _)| author_id == "menu.models.model-runtime" && role == "MenuItem"
+        ),
+        "Models menu exposes Model Runtime with a stable author_id: {nodes:?}"
     );
     harness.get_by_label("Open Model Runtime").click();
     harness.run();

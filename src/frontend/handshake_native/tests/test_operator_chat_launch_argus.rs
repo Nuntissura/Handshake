@@ -76,7 +76,7 @@ fn operator_chat_launch_argus_opens_picks_types_and_launches() {
     harness.run();
 
     // Open the pane through the RUN menu leaf.
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Operator Chat").click();
     harness.run();

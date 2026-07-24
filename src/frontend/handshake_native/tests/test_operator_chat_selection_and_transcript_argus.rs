@@ -213,7 +213,7 @@ fn operator_chat_rejects_model_selection_when_audit_persistence_fails() {
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Operator Chat").click();
     harness.run();
@@ -316,7 +316,7 @@ fn operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript(
     harness.run();
 
     // Open the pane through the RUN menu leaf.
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Operator Chat").click();
     harness.run();

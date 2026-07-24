@@ -267,7 +267,7 @@ fn swarm_lane_diagnostics_argus_lists_filters_and_drills_down() {
     let mut harness = shell_harness();
     harness.run();
 
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Lane Diagnostics").click();
     harness.run();
@@ -405,7 +405,7 @@ fn two_swarm_lane_panes_have_unique_pane_scoped_author_ids() {
             harness.get_by_label("Go to Next Pane").click();
             harness.run();
         }
-        harness.get_by_label("RUN").click();
+        harness.get_by_label("MODELS").click();
         harness.run();
         harness.get_by_label("Open Lane Diagnostics").click();
         harness.run();
@@ -442,7 +442,7 @@ fn known_and_stale_model_identity_labels_are_visible() {
 
     let mut harness = shell_harness_with_projection(projection);
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Lane Diagnostics").click();
     harness.run();
@@ -487,7 +487,7 @@ fn argus_keeps_last_success_visible_when_refresh_fails() {
     app.set_swarm_lane_diagnostics_transport_for_test(transport);
     let mut harness = Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), app);
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Lane Diagnostics").click();
     harness.run();
@@ -644,7 +644,7 @@ fn native_consumes_backend_generated_schema_v3_projection_artifact() {
 
     let mut harness = shell_harness_with_projection(projection);
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Lane Diagnostics").click();
     harness.run();
@@ -941,7 +941,7 @@ fn mixed_model_lane_run_is_inspectable_through_argus() {
 
     let mut harness = shell_harness_with_projection(projection.clone());
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Lane Diagnostics").click();
     harness.run();
@@ -1007,7 +1007,7 @@ fn mixed_model_lane_run_is_inspectable_through_argus() {
 
     let mut harness = shell_harness_with_projection(projection.clone());
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Lane Diagnostics").click();
     harness.run();
@@ -1035,7 +1035,7 @@ fn mixed_model_lane_run_is_inspectable_through_argus() {
 
     let mut harness = shell_harness_with_projection(projection);
     harness.run();
-    harness.get_by_label("RUN").click();
+    harness.get_by_label("MODELS").click();
     harness.run();
     harness.get_by_label("Open Lane Diagnostics").click();
     harness.run();

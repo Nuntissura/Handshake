@@ -1238,8 +1238,8 @@ fn page_model_runtime_registry_and_loom_degrade() -> NewUserManualPage {
             section(
                 "workflows",
                 "Inspect the durable model runtime registry",
-                "In the Rust-native app choose `RUN` then `Open Model Runtime` \
-                 (`menu.run.model-runtime`), choose `STUDIO` then `Model Runtime`, or choose \
+                "In the Rust-native app choose `MODELS` then `Open Model Runtime` \
+                 (`menu.models.model-runtime`), choose `STUDIO` then `Model Runtime`, or choose \
                  `Settings` then `Model Runtime` then `Open Model Runtime` \
                  (`settings.model-runtime.open`). The pane reads the production \
                  `GET /model-runtime/registry` projection off the frame thread. Refresh re-reads \
@@ -1645,7 +1645,7 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                 "purpose",
                 "What this surface is",
                 "The operator chat/launch pane (native egui, PaneType::OperatorChatLaunch, opened \
-                 from the RUN menu leaf `menu.run.operator-chat`) lets the operator pick a model \
+                 from the MODELS menu leaf `menu.models.operator-chat`) lets the operator pick a model \
                  lane (LOCAL / BYOK cloud / official CLI / SUBAGENT), pick a folder/worktree as the session's \
                  working directory, type a prompt, and launch an interactive lane session. \
                  The surface is also available as a persisted Settings > Swarm default via \
@@ -1683,7 +1683,7 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  lineage returns `invalid_owner_session` before launch. \
                  4. The Settings Swarm section has a persisted Operator Chat default-open checkbox; \
                  when enabled, startup navigation opens the Operator Chat pane through the same \
-                 runtime tab path as the RUN menu. \
+                 runtime tab path as the MODELS menu. \
                  5. The operator selects a folder/worktree; that path is plumbed \
                  `SpawnRequest.working_dir -> CliBridgeConfig.working_dir` so the CLI subprocess \
                  truly runs in that directory. \
@@ -1830,9 +1830,9 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  proves structured selection audit, fetched transcript rows, message-id author_ids, \
                  and launch status outside transcript; `operator_chat_launch_argus_opens_picks_types_and_launches` \
                  proves the pane opens, stable controls are addressable, and the launch button fails \
-                 closed on the offline backend; `run_menu_opens_operator_chat_launch` proves RUN > \
+                 closed on the offline backend; `run_menu_opens_operator_chat_launch` proves MODELS > \
                  Open Operator Chat opens the native tab; `swarm_accessible_actions_listed` \
-                 proves `menu.run.operator-chat` is swarm-accessible; `operator_chat_swarm_setting_persists` \
+                 proves `menu.models.operator-chat` is swarm-accessible; `operator_chat_swarm_setting_persists` \
                  and `persisted_swarm_defaults_open_runtime_tabs` prove the Settings Swarm default \
                  is addressable, persisted, and opens the runtime pane.",
             ),
@@ -2816,7 +2816,7 @@ fn page_model_lane_diagnostics() -> NewUserManualPage {
                         "swarm-lane-diagnostics.filter.lane",
                         "swarm-lane-diagnostics.filter.message",
                         "swarm-lane-diagnostics.action.refresh",
-                        "menu.run.swarm-lane-diagnostics",
+                        "menu.models.swarm-lane-diagnostics",
                         "settings.swarm-lane-diagnostics-default-open"
                     ],
                     "required_tiers": ["flight_recorder", "internal_diagnostics", "palmistry"],
@@ -2834,7 +2834,7 @@ fn page_model_lane_diagnostics() -> NewUserManualPage {
             section(
                 "workflows",
                 "Operator and model workflow",
-                "Open the pane from `RUN > Open Lane Diagnostics` or from the command \
+                "Open the pane from `MODELS > Open Lane Diagnostics` or from the command \
                  palette action `swarmdiagnostics.open`. The settings checkbox \
                  `settings.swarm-lane-diagnostics-default-open` persists whether Lane \
                  Diagnostics is included with Swarm defaults. In the pane, use the run, \
@@ -5009,7 +5009,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "Real PostgreSQL test URL or Handshake-managed PostgreSQL; test-utils feature enabled; ModelLaneRun/ModelLane/ModelLaneMessage rows; EventLedger rows; diagnostic tier and MT runtime status rows; native Rust app AccessKit/Argus harness."
                 .into(),
         expected_output:
-            "A native_swarm_lane_diagnostics projection from ModelLaneStore::diagnostics_projection; GET /swarm/model-lanes/diagnostics/latest and GET /swarm/model-lanes/diagnostics/{run_id}; stable AccessKit author IDs for menu.run.swarm-lane-diagnostics, swarm-lane-diagnostics.surface, run/lane/message filters, payload and promotion drilldowns, and settings.swarm-lane-diagnostics-default-open; lanes and messages linked to EventLedger event IDs, EventLedger-backed FlightRecorder correlation IDs and aliases, trace/span/link IDs, CRDT refs, Locus/Loom/FEMS refs, context bundle refs, memory pack refs, artifact refs, HBR-INT-009 tiers, and MT runtime status refs; projection validation rejects missing author IDs, schema_id mismatch, count mismatch, missing payload/EventLedger/FlightRecorder evidence, missing internal_diagnostics/Palmistry tiers, missing HBR tier state, and deferred tiers without follow_up_ref."
+            "A native_swarm_lane_diagnostics projection from ModelLaneStore::diagnostics_projection; GET /swarm/model-lanes/diagnostics/latest and GET /swarm/model-lanes/diagnostics/{run_id}; stable AccessKit author IDs for menu.models.swarm-lane-diagnostics, swarm-lane-diagnostics.surface, run/lane/message filters, payload and promotion drilldowns, and settings.swarm-lane-diagnostics-default-open; lanes and messages linked to EventLedger event IDs, EventLedger-backed FlightRecorder correlation IDs and aliases, trace/span/link IDs, CRDT refs, Locus/Loom/FEMS refs, context bundle refs, memory pack refs, artifact refs, HBR-INT-009 tiers, and MT runtime status refs; projection validation rejects missing author IDs, schema_id mismatch, count mismatch, missing payload/EventLedger/FlightRecorder evidence, missing internal_diagnostics/Palmistry tiers, missing HBR tier state, and deferred tiers without follow_up_ref."
                 .into(),
         schema_fields: vec![
             "ModelLaneDiagnosticsProjection".into(),
@@ -5024,7 +5024,7 @@ fn seed_tool_entries() -> Vec<UserManualToolEntry> {
             "swarm-lane-diagnostics.filter.lane".into(),
             "swarm-lane-diagnostics.filter.message".into(),
             "swarmdiagnostics.open".into(),
-            "menu.run.swarm-lane-diagnostics".into(),
+            "menu.models.swarm-lane-diagnostics".into(),
             "settings.swarm-lane-diagnostics-default-open".into(),
             "GET /swarm/model-lanes/diagnostics/latest".into(),
             "GET /swarm/model-lanes/diagnostics/{run_id}".into(),

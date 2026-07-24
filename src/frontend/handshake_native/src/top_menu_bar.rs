@@ -2,7 +2,8 @@
 //!
 //! ## What this provides (no-context model navigation — HBR-MAN)
 //!
-//! A classic horizontal application menu bar — `FILE`, `EDIT`, `VIEW`, `GO`, `RUN`, `HELP` — rendered
+//! A classic horizontal application menu bar — `FILE`, `EDIT`, `VIEW`, `GO`, `RUN`, `MODELS`, `HELP` —
+//! rendered
 //! as the VERY FIRST top panel in the shell, above the title bar / module switcher (MT-012), the
 //! project-tab strip (MT-011), and the tiled work surface. It is DISTINCT from:
 //! - the module switcher ([`crate::module_switcher`], MT-012), which switches a pane's MODULE, and
@@ -51,13 +52,18 @@
 //!   Go to Next Pane               ENABLED -> FocusNextPane
 //!   Go to Previous Pane           ENABLED -> FocusPrevPane
 //! RUN
-//!   Open Swarm Board        ENABLED -> OpenSwarmBoard (opens the Swarm surface on the active pane)
 //!   Open Inference Lab      ENABLED -> NavigateToTab("inference-lab")
 //!   Open Flight Recorder    ENABLED -> NavigateToTab("flight-recorder")
 //!   Open Problems           ENABLED -> NavigateToTab("problems")
-//!   Open Model Runtime      ENABLED -> NavigateToTab("model-runtime")
 //!   Open User Manual        ENABLED -> NavigateToTab("user-manual")
 //!   Open Terminal           DISABLED (no native terminal panel yet — future MT)
+//! MODELS  (WP-1 multi-model orchestration operator surfaces)
+//!   Open Operator Chat      ENABLED -> NavigateToTab("operator-chat")
+//!   Open Model Runtime      ENABLED -> NavigateToTab("model-runtime")
+//!   Open Swarm Board        ENABLED -> OpenSwarmBoard (opens the Swarm surface on the active pane)
+//!   Open Lane Diagnostics   ENABLED -> NavigateToTab("swarm-lane-diagnostics")
+//!   ──────
+//!   Open Settings…          ENABLED -> OpenSettings (Cloud Models / Model Runtime / Diagnostics sections)
 //! HELP
 //!   Open User Manual        ENABLED -> NavigateToTab("user-manual")
 //!   Open Settings…          ENABLED -> OpenSettings (sets settings_open; UI = MT-018)
@@ -67,8 +73,8 @@
 //!
 //! ## Stable AccessKit ids (out-of-process steering — HBR-VIS)
 //!
-//! The menu count is FIXED at six, so — like the module switcher — each TOP-LEVEL menu button gets a
-//! fixed `NodeId` in a dedicated fresh band ([`MENU_BAR_NODE_ID_BASE`] = 92..=97), strictly below the
+//! The menu count is FIXED at seven, so — like the module switcher — each TOP-LEVEL menu button gets a
+//! fixed `NodeId` in a dedicated fresh band ([`MENU_BAR_NODE_ID_BASE`] = 92..=98), strictly below the
 //! pane id base (100) and disjoint from every other declared identity (theme toggle 10, chrome 20/21,
 //! dividers 30/31, scrollbar rails 40..43, project-tab strip 50, module buttons 51..56, tab-bar
 //! containers 60..63, merge-back 64..67, pane locks 70..73, pane titles 74..77, left rail 80..88,
@@ -93,8 +99,8 @@
 
 use egui::accesskit;
 
-/// Fixed AccessKit/egui `NodeId` of the FIRST top-level menu button (`FILE`). The six menu buttons
-/// occupy the FRESH band 92..=97: above the MT-014 FIX-A bookmarks container (91), strictly below the
+/// Fixed AccessKit/egui `NodeId` of the FIRST top-level menu button (`FILE`). The seven menu buttons
+/// occupy the FRESH band 92..=98: above the MT-014 FIX-A bookmarks container (91), strictly below the
 /// pane id base (100). Each button's id is `MENU_BAR_NODE_ID_BASE + index_in_MENU_DEFINITIONS`. A
 /// fixed-value `egui::Id` (`from_high_entropy_bits`) yields a fixed `NodeId` across frames + process
 /// restarts — the same convention the theme toggle, chrome, dividers, and module switcher use.
@@ -108,6 +114,10 @@ pub enum MenuId {
     View,
     Go,
     Run,
+    /// WP-1 multi-model orchestration operator surfaces (Operator Chat, Model
+    /// Runtime, Swarm Board, Lane Diagnostics, and the model-related Settings
+    /// sections).
+    Models,
     Help,
 }
 
@@ -120,6 +130,7 @@ impl MenuId {
             MenuId::View => "VIEW",
             MenuId::Go => "GO",
             MenuId::Run => "RUN",
+            MenuId::Models => "MODELS",
             MenuId::Help => "HELP",
         }
     }
@@ -132,13 +143,14 @@ impl MenuId {
             MenuId::View => "menu-view",
             MenuId::Go => "menu-go",
             MenuId::Run => "menu-run",
+            MenuId::Models => "menu-models",
             MenuId::Help => "menu-help",
         }
     }
 
     /// The `Alt+<letter>` access-key (mnemonic) that OPENS this menu — the underlined first letter of
     /// the title, matching the classic Windows menu-bar convention and the React mnemonics
-    /// (`F`ile / `E`dit / `V`iew / `G`o / `R`un / `H`elp). Pressing `Alt+<this>` programmatically opens
+    /// (`F`ile / `E`dit / `V`iew / `G`o / `R`un / `M`odels / `H`elp). Pressing `Alt+<this>` programmatically opens
     /// the menu's popup (see [`handle_menu_mnemonics`]); thereafter the open menu is keyboard-navigable
     /// (arrows + Enter) via egui's native menu popup focus handling.
     pub const fn mnemonic_key(self) -> egui::Key {
@@ -148,6 +160,7 @@ impl MenuId {
             MenuId::View => egui::Key::V,
             MenuId::Go => egui::Key::G,
             MenuId::Run => egui::Key::R,
+            MenuId::Models => egui::Key::M,
             MenuId::Help => egui::Key::H,
         }
     }
@@ -196,14 +209,15 @@ pub fn handle_menu_mnemonics(ctx: &egui::Context) -> Option<MenuId> {
     opened
 }
 
-/// The six top-level menus in display order. The fixed-count array drives both rendering and the
+/// The seven top-level menus in display order. The fixed-count array drives both rendering and the
 /// fixed-band id assignment (`MENU_BAR_NODE_ID_BASE + index`).
-pub const MENU_DEFINITIONS: [MenuId; 6] = [
+pub const MENU_DEFINITIONS: [MenuId; 7] = [
     MenuId::File,
     MenuId::Edit,
     MenuId::View,
     MenuId::Go,
     MenuId::Run,
+    MenuId::Models,
     MenuId::Help,
 ];
 
@@ -260,14 +274,15 @@ pub enum MenuBarAction {
 pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     "menu.go.command-palette",
     "menu.go.quick-switcher",
-    "menu.run.swarm-board",
-    "menu.run.swarm-lane-diagnostics",
     "menu.run.inference-lab",
     "menu.run.flight-recorder",
     "menu.run.problems",
-    "menu.run.model-runtime",
-    "menu.run.operator-chat",
     "menu.run.user-manual",
+    "menu.models.swarm-board",
+    "menu.models.swarm-lane-diagnostics",
+    "menu.models.model-runtime",
+    "menu.models.operator-chat",
+    "menu.models.settings",
     "menu.help.user-manual",
     "menu.help.settings",
 ];
@@ -619,24 +634,6 @@ impl MenuBar {
             MenuId::Run => {
                 self.item(
                     ui,
-                    "menu.run.swarm-board",
-                    "Open Swarm Board",
-                    None,
-                    true,
-                    MenuBarAction::OpenSwarmBoard,
-                    action,
-                );
-                self.item(
-                    ui,
-                    "menu.run.swarm-lane-diagnostics",
-                    "Open Lane Diagnostics",
-                    None,
-                    true,
-                    MenuBarAction::NavigateToTab("swarm-lane-diagnostics".to_owned()),
-                    action,
-                );
-                self.item(
-                    ui,
                     "menu.run.inference-lab",
                     "Open Inference Lab",
                     None,
@@ -664,24 +661,6 @@ impl MenuBar {
                 );
                 self.item(
                     ui,
-                    "menu.run.model-runtime",
-                    "Open Model Runtime",
-                    None,
-                    true,
-                    MenuBarAction::NavigateToTab("model-runtime".to_owned()),
-                    action,
-                );
-                self.item(
-                    ui,
-                    "menu.run.operator-chat",
-                    "Open Operator Chat",
-                    None,
-                    true,
-                    MenuBarAction::NavigateToTab("operator-chat".to_owned()),
-                    action,
-                );
-                self.item(
-                    ui,
                     "menu.run.user-manual",
                     "Open User Manual",
                     None,
@@ -695,6 +674,54 @@ impl MenuBar {
                     "Open Terminal",
                     None,
                     "No native terminal panel yet (future MT)",
+                );
+            }
+            MenuId::Models => {
+                self.item(
+                    ui,
+                    "menu.models.operator-chat",
+                    "Open Operator Chat",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("operator-chat".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.models.model-runtime",
+                    "Open Model Runtime",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("model-runtime".to_owned()),
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.models.swarm-board",
+                    "Open Swarm Board",
+                    None,
+                    true,
+                    MenuBarAction::OpenSwarmBoard,
+                    action,
+                );
+                self.item(
+                    ui,
+                    "menu.models.swarm-lane-diagnostics",
+                    "Open Lane Diagnostics",
+                    None,
+                    true,
+                    MenuBarAction::NavigateToTab("swarm-lane-diagnostics".to_owned()),
+                    action,
+                );
+                ui.separator();
+                self.item(
+                    ui,
+                    "menu.models.settings",
+                    "Open Settings…",
+                    None,
+                    true,
+                    MenuBarAction::OpenSettings,
+                    action,
                 );
             }
             MenuId::Help => {
@@ -887,14 +914,14 @@ mod tests {
         );
     }
 
-    /// The six fixed menu ids sit in the 92..=97 band, are sequential, and stay strictly below the pane
-    /// id base — the disjoint-fresh-band invariant the registry collision test relies on.
+    /// The seven fixed menu ids sit in the 92..=98 band, are sequential, and stay strictly below the
+    /// pane id base — the disjoint-fresh-band invariant the registry collision test relies on.
     #[test]
     fn menu_ids_sit_in_a_disjoint_fresh_band() {
         assert_eq!(MENU_BAR_NODE_ID_BASE, 92);
         for (index, _menu) in MENU_DEFINITIONS.iter().enumerate() {
             let id = MENU_BAR_NODE_ID_BASE + index as u64;
-            assert!((92..=97).contains(&id), "menu id {id} in band 92..=97");
+            assert!((92..=98).contains(&id), "menu id {id} in band 92..=98");
             assert!(
                 id < crate::accessibility::PANE_NODE_ID_BASE,
                 "menu id {id} below pane base {}",
@@ -915,6 +942,7 @@ mod tests {
                 "menu-view",
                 "menu-go",
                 "menu-run",
+                "menu-models",
                 "menu-help"
             ]
         );
@@ -935,6 +963,7 @@ mod tests {
             (MenuId::View, egui::Key::V),
             (MenuId::Go, egui::Key::G),
             (MenuId::Run, egui::Key::R),
+            (MenuId::Models, egui::Key::M),
             (MenuId::Help, egui::Key::H),
         ];
         for (menu, key) in pairs {
@@ -968,13 +997,16 @@ mod tests {
     #[test]
     fn swarm_accessible_actions_listed() {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.go.command-palette"));
-        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.swarm-board"));
-        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.operator-chat"));
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.swarm-board"));
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.operator-chat"));
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.model-runtime"));
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.swarm-lane-diagnostics"));
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.models.settings"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.problems"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.user-manual"));
         assert_eq!(
             SWARM_ACCESSIBLE_ACTIONS.len(),
-            12,
+            13,
             "all overlay/navigation actions listed"
         );
         // Destructive/document actions are NOT swarm-exposed.
@@ -982,20 +1014,20 @@ mod tests {
         assert!(!SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.view.reset-layout"));
     }
 
-    /// `MenuBar::show` paints the six top-level menu buttons as live `Role::MenuItem` nodes with stable
-    /// `menu-*` author_ids on an idle (no-click) frame. (The click->action path is proven end-to-end in
-    /// tests/test_top_menu_bar.rs against the real shell.)
+    /// `MenuBar::show` paints the seven top-level menu buttons as live `Role::MenuItem` nodes with
+    /// stable `menu-*` author_ids on an idle (no-click) frame. (The click->action path is proven
+    /// end-to-end in tests/test_top_menu_bar.rs against the real shell.)
     #[test]
     fn show_paints_six_menu_buttons() {
         use egui_kittest::kittest::{NodeT, Queryable};
         let state = full_state();
         let mut harness = egui_kittest::Harness::builder().build_ui(move |ui| {
-            // The returned action is None on an idle frame; the widget still paints all six menus.
+            // The returned action is None on an idle frame; the widget still paints all seven menus.
             let _ = MenuBar::new(state).show(ui);
         });
         harness.run();
 
-        for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "HELP"] {
+        for label in ["FILE", "EDIT", "VIEW", "GO", "RUN", "MODELS", "HELP"] {
             let _ = harness.get_by_label(label);
         }
         let menu_nodes = harness
@@ -1008,6 +1040,6 @@ mod tests {
                     .unwrap_or(false)
             })
             .count();
-        assert_eq!(menu_nodes, 6, "six top-level menu buttons in the live tree");
+        assert_eq!(menu_nodes, 7, "seven top-level menu buttons in the live tree");
     }
 }
