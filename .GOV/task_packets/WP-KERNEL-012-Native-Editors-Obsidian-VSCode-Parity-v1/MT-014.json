@@ -14,7 +14,7 @@
   "title": "E2-MT014-EmbedsNodeViews",
   "group": "E2 Rich-text editor (Obsidian/Notion parity)",
   "created_at_utc": "2026-06-19T00:00:00Z",
-  "updated_at_utc": "2026-07-15T05:01:15.577Z",
+  "updated_at_utc": "2026-07-24T09:35:00.000Z",
   "authority_files": {
     "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-014.json",
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
@@ -25,7 +25,7 @@
     "generator": "NONE_JSON_AUTHORITY_ONLY"
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION_V2",
+    "status": "READY_FOR_VALIDATION_V3",
     "active": false,
     "depends_on": [
       "MT-011",
@@ -34,10 +34,17 @@
     "blocks": [
       "MT-016"
     ],
-    "validator_verdict": "FAIL_V1",
+    "validator_verdict": "FAIL_V2",
     "status_before_v1": "READY_FOR_VALIDATION",
     "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
-    "validated_at_utc": "2026-07-14T02:13:51.1836406Z"
+    "validated_at_utc": "2026-07-14T02:13:51.1836406Z",
+    "claimed_by": "KERNEL_BUILDER-20260723-082350",
+    "claimed_at_utc": "2026-07-23T15:40:05.803Z",
+    "remediation_v3_in_progress": false,
+    "ready_for_validation_at_utc": "2026-07-24T09:35:00.000Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260724-mainloop",
+    "completed_by": null,
+    "ready_for_validation_summary": "MT-014 V3: live seeded-asset test on real PostgreSQL proves real content fetch + off-thread decode + intrinsic 48x24/2.0 aspect preserved + missing->typed NotFound (fail-closed) + corrupt->typed MediaLoadFailed chip; canonical Argus inspect->click->re-observe on the mounted embed via real MCP; headless screenshot emits typed DEFERRED (no silent pass); UserManual three-tier posture added. Production embed-context wiring confirmed (app.rs:7939/8061/8091, editor_pane_factories.rs:1560). Validator verdict PENDING; completed_by null."
   },
   "scope": {
     "summary": "Implement embed NodeViews for the four CKC media embed kinds (image, slideshow, album, video), porting the React embed asset resolution logic from app/src/lib/editor/embed_assets.ts and the hsLink NodeView rendering. Each embed kind is a BlockNode in the MT-011 DocModel with kind = EmbedNode, attrs = { embed_kind: String, ref_value: String }, and renders as an interactive egui widget inline in the document.\n\nEXPECTED DIFF SHAPE:\n- src/frontend/handshake_native/src/rich_editor/embeds/mod.rs\n- src/frontend/handshake_native/src/rich_editor/embeds/asset_resolver.rs (async fetch of asset metadata + content URL from the real backend; mirrors embed_assets.ts logic)\n- src/frontend/handshake_native/src/rich_editor/embeds/image_view.rs (single image renderer)\n- src/frontend/handshake_native/src/rich_editor/embeds/slideshow_view.rs (ordered sequence of images with prev/next nav)\n- src/frontend/handshake_native/src/rich_editor/embeds/album_view.rs (grid of images, click to enlarge)\n- src/frontend/handshake_native/src/rich_editor/embeds/video_view.rs (video poster + play button; actual decode via OS media layer or a stub play button linking to the content URL)\n- src/frontend/handshake_native/src/rich_editor/embeds/embed_block_renderer.rs (dispatch from EmbedNode attrs to the correct view)\n- Extend src/frontend/handshake_native/src/rich_editor/renderer/block_renderer.rs to call embed_block_renderer for EmbedNode kind.\n\nASYNC ASSET RESOLUTION (asset_resolver.rs):\n- Mirror the React embed_assets.ts validation pipeline EXACTLY (FAIL-CLOSED):\n  - Reject empty ref_value -> EmbedError::EmptyRef\n  - Reject absolute filesystem paths (drive letters, leading '/', UNC '\\\\') -> EmbedError::AbsolutePathRejected\n  - Reject '..' or path separator chars in asset_id -> EmbedError::TraversalRejected\n  - Reject http/https/file/javascript schemes -> EmbedError::SchemeRejected\n  - For album/slideshow: ref_value is comma-separated asset_id list; validate each entry individually\n- HTTP call: GET /workspaces/{workspace_id}/assets/{asset_id} -> EmbedAssetMetadata\n- HTTP call: GET /workspaces/{workspace_id}/assets/{asset_id}/content -> raw bytes for image display\n- HTTP call: GET /workspaces/{workspace_id}/assets/{asset_id}/thumbnail -> thumbnail bytes\n- Use reqwest (already in workspace) or the existing handshake_native::backend_client REST client (backend_client.rs); do NOT add a new HTTP crate.\n- Resolution is async; use tokio::spawn in the egui event loop's async context or the shell's runtime. Cache resolved assets in a HashMap<String, EmbedResolutionState> keyed by asset_id so repeated renders do not re-fetch.\n\nEMBED STATES (match React EmbedResolution):\n- Resolving: show a spinner (egui::Spinner)\n- Ok(asset, bytes): render the appropriate view\n- Err(EmbedError): show a typed error chip (colored rounded rect with error kind text, never a blank) with author_id = 'embed-error-{asset_id}'\n\nVIEW IMPLEMENTATIONS:\n- image_view.rs: decode image bytes with the 'image' crate (PNG/JPEG/WebP/GIF); upload as egui::TextureHandle via ctx.load_texture(); render at aspect-correct width (max = available content width). Click opens full-size overlay.\n- slideshow_view.rs: render one image at a time with prev/next arrow buttons; store current_index in view state. AccessKit: author_id = 'slideshow-{asset_id}', prev button = 'slideshow-prev-{asset_id}', next = 'slideshow-next-{asset_id}'.\n- album_view.rs: render thumbnails in a wrapping grid (3 per row default). Click on a thumbnail opens a full-size modal (egui::Window). AccessKit: grid container = 'album-{ref_value}', each cell = 'album-cell-{asset_id}'.\n- video_view.rs: render thumbnail with a play button overlay. On play click, open the content URL in the OS default player via open::that() (the 'open' crate) OR render a simple progress-bar placeholder with 'Video: {filename}' text. Mark this as a known limitation in code comments; full in-process video decode is deferred.\n\nSTEP-BY-STEP:\n1. Add to handshake_native Cargo.toml (src/frontend/handshake_native/Cargo.toml): image = { version='0.25', features=['png','jpeg','webp','gif'] }, open = '5' (for video OS open).\n2. Implement EmbedError enum and EmbedResolutionState in asset_resolver.rs. Write async fn resolve_embed(workspace_id, ref_value, embed_kind) -> EmbedResolution.\n3. In embed_block_renderer.rs, match embed_kind to dispatch to the correct view fn. Pass the view state (HashMap per embed node, stored in RichEditorState).\n4. In image_view.rs, cache the decoded TextureHandle in view state keyed by asset_id to avoid re-decoding every frame.\n5. In block_renderer.rs (from MT-012), add a match arm for NodeKind::Embed that calls embed_block_renderer::render_embed(ui, node, embed_states, workspace_id).\n6. Write cargo tests: asset_resolver validates and rejects absolute paths, traversal, empty refs (unit tests, no real HTTP). Integration test with a real backend: resolve a known asset_id and verify EmbedResolutionState::Ok is returned.\n7. Assign AccessKit NodeIds and roles to all interactive embed controls as specified above (reuse the accessibility/ registry + snapshot facilities from WP-011).\n\nDEPENDENCIES: MT-011 (EmbedNode kind in DocModel), MT-012 (block_renderer integration point). No dependency on MT-013 (formatting).",
@@ -372,5 +379,44 @@
       ],
       "residual_uncertainty": "No MT-014 V2 blocker remained after the managed seeded-asset proof and exact visual inspection. Independent validator PASS remains outside implementer authority."
     }
+  },
+  "validation_v2": {
+    "schema_id": "hsk.mt_validation_verdict@1",
+    "verdict": "FAIL_V2",
+    "verdict_label": "FAIL V2",
+    "validated_by": "INTEGRATION_VALIDATOR acting as WP_VALIDATOR per Operator directive",
+    "validated_at_utc": "2026-07-22T12:45:24.8559028Z",
+    "session": "INTEGRATION_VALIDATOR-20260722-114045",
+    "fresh_run": true,
+    "product_only": true,
+    "repo_governance_paperwork_excluded": true,
+    "spec_version": "v02.201",
+    "source_state": {
+      "head_sha": "30d8657afaac31756852929291b669723f97234e",
+      "worktree": "wtc-native-editors-v1",
+      "dirty_final_source_review": true
+    },
+    "fail_report": "MT-014 FAIL V2. The required real seeded-asset decode/aspect-ratio/render path was not executed in the current run, and there is no canonical Argus inspect/steer/re-observe evidence for the mounted embed states. Mock/kittest coverage cannot establish the real asset boundary.",
+    "remediation_plan": [
+      "Execute the non-ignored live asset test with a real seeded image, verifying decode, aspect ratio, missing/corrupt asset behavior, and external screenshot output.",
+      "Drive the mounted embed through canonical Argus, re-inspect after action, and add the exact three-tier diagnostic disposition to the canonical UserManual."
+    ],
+    "no_context_instruction": "Read MT-014.json, packet.json, WP_VALIDATOR_PROTOCOL.md, and SPEC_CURRENT v02.201. Repair and prove the live asset and Argus paths using external artifacts, then return READY_FOR_VALIDATION_V3 without self-issuing PASS."
+  },
+  "validation_v3": {
+    "schema_id": "hsk.mt_remediation_evidence@1",
+    "remediated_by": "KERNEL_BUILDER-20260724-mainloop",
+    "remediated_at_utc": "2026-07-24T09:35:00.000Z",
+    "addresses_v2_fail": true,
+    "proof_commands_passed": [
+      "mt014_seeded_asset_real_backend_decode_aspect_missing_corrupt 1/1 (293s, real PG mt014_proof)",
+      "test_embeds 10/10 (GPU)",
+      "test_embeds_argus 1/1 (canonical inspect/click/re-observe via real SwarmMcpServer JSON-RPC)"
+    ],
+    "external_artifacts": "Handshake_Artifacts/handshake-test/wp-kernel-012-mt-014/ (mt014_seeded_asset_real_backend.png, canonical-argus/*.json) — per CX-212E; repo PNG-clean",
+    "kb_ready_checklist": "PASS",
+    "production_wiring": "set_embed_context called in production shell app.rs:7939/8061/8091 + editor_pane_factories.rs:1560",
+    "disclosures": "seed.rs (backend) edited for HBR-MAN UserManual duty per operator directive (GLOBAL-SCOPE-005 disclosed); contract proof_command in-repo screenshot path is stale, artifacts written to external root per CX-212E",
+    "adversarial_review": "PENDING_PARALLEL_MULTILENS (runtime proof + implementer review complete)"
   }
 }
