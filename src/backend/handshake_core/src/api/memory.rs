@@ -4081,24 +4081,41 @@ mod tests {
         tokio::time::sleep(std::time::Duration::from_millis(2)).await;
 
         let durable_recorder = state.flight_recorder.clone();
-        let failed_state = AppState {
-            flight_recorder: Arc::new(FailNextRecordFlightRecorder {
-                inner: durable_recorder.clone(),
-                fail_next: AtomicBool::new(true),
-            }),
-            ..state.clone()
-        };
         let mut commit_headers = HeaderMap::new();
         commit_headers.insert(HSK_HEADER_ACTOR_ID, "commit-operator".parse()?);
         commit_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
-        let failed = commit_memory_proposal(
-            State(failed_state),
-            Path((workspace_id.clone(), proposal_a.proposal_id.clone())),
-            commit_headers.clone(),
+
+        // Faithful crash simulation. A real crash durably commits the proposal transaction
+        // (proposal -> committed plus the FR-EVT-MEM-003 commit and FR-EVT-MEM-004 pack-built
+        // outbox rows, both inserted un-published) and then the process dies BEFORE the
+        // in-request Flight Recorder projection runs. It does NOT execute the handler's
+        // self-healing multi-pass reconcile, so the outbox rows are left genuinely un-published
+        // and non-quarantined. Driving the storage-layer commit directly reproduces that durable
+        // crash window; routing through commit_memory_proposal instead lets the same-request
+        // reconcile self-heal the outbox, leaving nothing for the restart projector to recover.
+        let crash_actor = canonical_actor_identity(&commit_headers, None, None)
+            .map_err(|(code, body)| format!("crash actor identity failed: {code} {body:?}"))?;
+        let crash_receipt = NewKernelEvent::builder(
+            format!("native-editor-fems-commit-{workspace_id}"),
+            "native-editor-session".to_owned(),
+            KernelEventType::ArtifactStored,
+            crash_actor.kernel_actor.clone(),
+        )
+        .aggregate("fems_memory_commit", proposal_a.proposal_id.clone())
+        .idempotency_key(format!("fems-memory-commit:{}", proposal_a.proposal_id))
+        .correlation_id(format!("fems-memory-proposal:{}", proposal_a.proposal_id))
+        .source_component("fems_memory_proposal_commit")
+        .payload(json!({"proposal_id": proposal_a.proposal_id}))
+        .build()
+        .map_err(|error| format!("crash receipt build failed: {error}"))?;
+        fems_memory::commit_memory_proposal_with_receipt(
+            &state.postgres_pool,
+            &workspace_id,
+            &proposal_a.proposal_id,
+            crash_receipt,
         )
         .await
-        .expect_err("injected post-transaction recorder failure must fail the response");
-        assert_eq!(failed.0, StatusCode::INTERNAL_SERVER_ERROR);
+        .map_err(|error| format!("crash-window storage commit failed: {error}"))?;
 
         let committed_status: String = sqlx::query_scalar(
             "SELECT status FROM fems_memory_proposals WHERE workspace_id = $1 AND proposal_id = $2",
@@ -4109,13 +4126,16 @@ mod tests {
         .await?;
         assert_eq!(committed_status, "committed");
         let pending_outbox: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM fems_memory_commit_fr_outbox WHERE workspace_id = $1 AND proposal_id = $2 AND published_at IS NULL",
+            "SELECT COUNT(*) FROM fems_memory_commit_fr_outbox WHERE workspace_id = $1 AND proposal_id = $2 AND published_at IS NULL AND quarantined_at IS NULL",
         )
         .bind(&workspace_id)
         .bind(&proposal_a.proposal_id)
         .fetch_one(&state.postgres_pool)
         .await?;
-        assert_eq!(pending_outbox, 1, "crash window is durably recoverable");
+        assert_eq!(
+            pending_outbox, 2,
+            "crash leaves the commit (FR-EVT-MEM-003) and pack-built (FR-EVT-MEM-004) events durably un-published and non-quarantined"
+        );
         let expected_event_id = deterministic_uuid_from_seed(&format!(
             "fems-memory-proposal-commit-event:{}",
             proposal_a.proposal_id
@@ -4149,7 +4169,7 @@ mod tests {
                 })
                 .await?;
             let published: bool = sqlx::query_scalar(
-                "SELECT published_at IS NOT NULL FROM fems_memory_commit_fr_outbox WHERE proposal_id = $1",
+                "SELECT published_at IS NOT NULL FROM fems_memory_commit_fr_outbox WHERE proposal_id = $1 AND event_code = 'FR-EVT-MEM-003'",
             )
             .bind(&proposal_a.proposal_id)
             .fetch_one(&state.postgres_pool)
