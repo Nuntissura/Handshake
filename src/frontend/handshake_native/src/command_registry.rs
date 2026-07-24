@@ -553,6 +553,20 @@ const APP_COMMANDS: &[AppCommand] = &[
         stable_id: "hs-view-palette-find-in-files",
         disabled: false,
     },
+    // ── WP-KERNEL-012 MT-098 (operator menu-bar gap closeout): the Runtime Chat pane (MT-098) had a
+    // mounted `ChatPaneFactory` (default pane-c) but NO palette/menu open command, so the operator could
+    // not REACH the chat surface from the menu bar. This route opens the mounted Runtime Chat pane on the
+    // active work surface through the SAME `open_content_on_active_pane` primitive every other `view.*`
+    // route uses (the live `ChatPaneFactory` renders the shared panel — never a placeholder no-op).
+    AppCommand {
+        id: CMD_VIEW_CHAT,
+        kind: CommandKind::App,
+        label: "View: Runtime Chat",
+        description: "Open the Runtime Chat pane (editor+chat work surface) on the active work surface.",
+        keywords: &["view", "chat", "runtime", "assistant", "message", "pane"],
+        stable_id: "hs-view-palette-runtime-chat",
+        disabled: false,
+    },
 ];
 
 // ── WP-KERNEL-012 E11 remediation wave: stable `view.*` open-command ids ─────────────────────────────
@@ -575,6 +589,8 @@ pub const CMD_VIEW_WIKI_PROJECTION: &str = "view.wiki-projection";
 pub const CMD_VIEW_CANVAS: &str = "view.canvas";
 pub const CMD_VIEW_LOOM_SEARCH: &str = "view.loom-search";
 pub const CMD_VIEW_FIND_IN_FILES: &str = "view.find-in-files";
+// ── WP-KERNEL-012 MT-098 (operator menu-bar gap closeout): open-command id for the Runtime Chat pane. ──
+pub const CMD_VIEW_CHAT: &str = "view.runtime-chat";
 
 // ── WP-KERNEL-012 MT-069 (E11 menu wire-up): the editor FILE/EDIT/GO menu + palette command ids ──────
 //

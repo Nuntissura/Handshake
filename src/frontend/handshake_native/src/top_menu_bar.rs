@@ -416,6 +416,8 @@ pub const SWARM_ACCESSIBLE_ACTIONS: &[&str] = &[
     // WP-KERNEL-012 wave-6: non-destructive VIEW open routes for mounted native-editor surfaces.
     "menu.view.open-code-editor",
     "menu.view.open-rich-note",
+    // WP-KERNEL-012 MT-098: the Runtime Chat pane open route (operator menu-bar gap closeout).
+    "menu.view.open-runtime-chat",
     "menu.view.open-wiki-projection",
     "menu.view.open-knowledge-graph",
     "menu.view.open-folders",
@@ -1065,6 +1067,19 @@ impl MenuBar {
                     None,
                     true,
                     MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_RICH_NOTE),
+                    action,
+                );
+                // WP-KERNEL-012 MT-098 (operator menu-bar gap closeout): the Runtime Chat pane (MT-098) is a
+                // WP-012 work surface that was mounted by default but had NO menu-bar path to open it. This
+                // ENABLED leaf opens the mounted chat pane via the SAME `view.*` dispatch every other entry
+                // uses, so the editor+chat work surface is reachable + Argus-steerable from the menu bar.
+                self.item(
+                    ui,
+                    "menu.view.open-runtime-chat",
+                    "Open Runtime Chat",
+                    None,
+                    true,
+                    MenuBarAction::OpenViewSurface(crate::command_registry::CMD_VIEW_CHAT),
                     action,
                 );
                 self.item(
@@ -2404,13 +2419,15 @@ mod tests {
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.go.command-palette"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.run.swarm-board"));
         assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&MENU_RUN_MODEL_SESSION_LAUNCH_AUTHOR_ID));
-        // 8 base overlay/navigation actions + 14 VIEW open-surface leaves + 4 GO editor-navigation
-        // leaves + 6 operator-control leaves.
+        // 8 base overlay/navigation actions + 15 VIEW open-surface leaves (incl. MT-098 open-runtime-chat)
+        // + 4 GO editor-navigation leaves + 6 operator-control leaves.
         assert_eq!(
             SWARM_ACCESSIBLE_ACTIONS.len(),
-            32,
+            33,
             "all overlay/navigation actions listed"
         );
+        // MT-098 operator menu-bar gap closeout: the Runtime Chat open route is swarm-discoverable.
+        assert!(SWARM_ACCESSIBLE_ACTIONS.contains(&"menu.view.open-runtime-chat"));
         // Wave-6 VIEW menu surface opens are swarm-discoverable and non-destructive.
         for id in [
             "menu.view.open-code-editor",

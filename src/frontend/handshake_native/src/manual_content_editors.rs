@@ -1607,10 +1607,10 @@ in Files (menu.edit.find-all, Ctrl+Shift+F), Replace in Files, plus Command Pale
   native-editor surfaces directly \
   from the Open Editor Surfaces section: menu.view.open-code-editor, menu.view.open-rich-note, menu.view.open-wiki-projection, \
   menu.view.open-knowledge-graph, menu.view.open-folders, menu.view.open-tags, menu.view.open-block-collections, menu.view.open-canvas, menu.view.open-loom-search, \
-  menu.view.open-find-in-files, menu.view.open-quick-switcher, menu.view.open-daily-journal, and \
-  menu.view.open-diff-editor. The pane-opening entries dispatch the same open command ids the Command Palette uses \
+  menu.view.open-find-in-files, menu.view.open-quick-switcher, menu.view.open-daily-journal, \
+  menu.view.open-diff-editor, and menu.view.open-runtime-chat (the MT-098 editor+chat work surface). The pane-opening entries dispatch the same open command ids the Command Palette uses \
   (view.code-editor, view.rich-note, view.wiki-projection, view.graph, view.folders, view.tags, view.block-collections, view.canvas, view.loom-search, view.find-in-files, \
-  view.journal, view.diff-merge). Quick Switcher uses menu.view.open-quick-switcher to open the same overlay \
+  view.journal, view.diff-merge, view.runtime-chat). Quick Switcher uses menu.view.open-quick-switcher to open the same overlay \
   reached by the palette command workbench.action.quickOpen; the palette rows are \
   command-palette.option.hs-view-palette-code-editor, command-palette.option.hs-view-palette-rich-note, command-palette.option.hs-view-palette-wiki-projection, \
   command-palette.option.hs-view-palette-graph, command-palette.option.hs-view-palette-folders, \

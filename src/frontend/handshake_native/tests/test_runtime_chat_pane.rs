@@ -16,6 +16,9 @@ use screenshot_harness::ScreenshotHarness as Harness;
 #[path = "native_gui_support/argus_surface_proof.rs"]
 mod argus_surface_proof;
 use argus_surface_proof::{prove_argus_surface, ArgusMutation};
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
 use handshake_native::accessibility::{UiNodeBounds, UiTreeNode, UiTreeSnapshot};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
@@ -907,4 +910,333 @@ fn live_default_tree_contains_runtime_chat_beside_editors_and_screenshot() {
         .save(&png_path)
         .expect("save MT-098 Runtime Chat screenshot");
     println!("MT-098 screenshot: {}", png_path.display());
+}
+
+// ── WP-KERNEL-012 MT-098 remediation (FAIL_V2): CANONICAL Argus inspect / safe-steer / re-observe over ──
+// the MOUNTED Runtime Chat pane, covering EVERY material state the validation_v2 report demanded:
+// send, unavailable (typed EndpointMissing), retry, cancellation, navigation/focus, and recovery.
+//
+// validation_v2 failed MT-098 because "the mounted pane has no current canonical Argus inspect/steer/
+// re-observe proof for send, unavailable, retry, cancellation, navigation, and recovery states." The
+// existing coverage drives the chat via the IN-PROCESS `dispatch_request`/`ActionChannel` producer; it
+// never drives the mounted `HandshakeApp` through the REAL localhost `SwarmMcpServer` transport
+// (`argus.inspect`/`argus.click` with typed receipts + fresh re-inspection) the way an out-of-process
+// swarm agent does. This test closes that exact gap against the EXACT current route posture: a controlled
+// localhost probe server returns 404 (+ 404 to the composed-router capability signal), so the mounted
+// pane resolves to the typed `EndpointMissing` blocker with NO fabricated assistant reply — the real
+// route posture, not a mock.
+//
+// The material chat STEER (Send) is driven by a canonical `argus.click` on `runtime-chat-send` (a typed
+// receipt over the real transport); the draft is seeded on the SAME mounted panel behind the factory (a
+// setup step, not the material state). Cancellation uses the panel's real cancel path (a transport rebind
+// aborts the in-flight send) and is re-observed through canonical Argus. Every material state is freshly
+// re-inspected through `argus.inspect`.
+//
+// Artifact hygiene (CX-212E): evidence is written ONLY under the EXTERNAL
+// `Handshake_Artifacts/handshake-test/wp-kernel-012-mt-098/canonical-argus/` root.
+
+/// The `label` (falling back to `value`) of the first node carrying `author_id` anywhere in a canonical
+/// Argus inspect tree.
+fn argus_label_for(tree: &serde_json::Value, author_id: &str) -> Option<String> {
+    match tree {
+        serde_json::Value::Object(map) => {
+            if map.get("author_id").and_then(|v| v.as_str()) == Some(author_id) {
+                if let Some(label) = map.get("label").and_then(|v| v.as_str()) {
+                    return Some(label.to_owned());
+                }
+                if let Some(value) = map.get("value").and_then(|v| v.as_str()) {
+                    return Some(value.to_owned());
+                }
+            }
+            map.values().find_map(|v| argus_label_for(v, author_id))
+        }
+        serde_json::Value::Array(items) => items.iter().find_map(|v| argus_label_for(v, author_id)),
+        _ => None,
+    }
+}
+
+/// True if ANY node in the canonical Argus tree carries the exact `label` text (used to prove no
+/// fabricated `Assistant:` transcript turn ever appears — the no-mock Spec-Realism gate).
+fn argus_any_label_equals(tree: &serde_json::Value, label: &str) -> bool {
+    match tree {
+        serde_json::Value::Object(map) => {
+            map.get("label").and_then(|v| v.as_str()) == Some(label)
+                || map.values().any(|v| argus_any_label_equals(v, label))
+        }
+        serde_json::Value::Array(items) => {
+            items.iter().any(|v| argus_any_label_equals(v, label))
+        }
+        _ => false,
+    }
+}
+
+/// Drive live frames (which render the mounted chat pane -> `drain_deliveries`) until the visible
+/// `runtime-chat-status` label contains `needle`, or panic with a bounded deadline.
+fn drive_chat_until_status(harness: &mut Harness<'_, HandshakeApp>, needle: &str) {
+    for _ in 0..300 {
+        harness.run();
+        let label = live_author_nodes(harness)
+            .get(RUNTIME_CHAT_STATUS_AUTHOR_ID)
+            .and_then(|(_role, label, _disabled)| label.clone());
+        if label.is_some_and(|label| label.contains(needle)) {
+            return;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    panic!("mounted Runtime Chat status did not reach '{needle}' within the bounded deadline");
+}
+
+/// Seed a draft on the SAME mounted panel the factory renders, then run one frame so the live Send button
+/// reflects the enabled state before the canonical `argus.click` steer.
+fn seed_chat_draft(
+    harness: &mut Harness<'_, HandshakeApp>,
+    chat: &Arc<Mutex<RuntimeChatPanel>>,
+    draft: &str,
+) {
+    chat.lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .set_draft_for_test(draft);
+    harness.run();
+}
+
+#[test]
+fn mt098_mounted_chat_pane_canonical_argus_state_coverage() {
+    // The mounted default shell (code + rich + chat) runs the chat POST on the app-owned runtime. Point
+    // the chat client at a controlled localhost probe server whose route is ABSENT (404 + 404 capability
+    // signal) — the exact current route posture — so every send resolves to the typed EndpointMissing
+    // blocker. Twelve 404 responses cover the POST+capability pair for every absent-route send in the run.
+    let absent = spawn_chat_probe_server_with_responses(
+        std::iter::repeat_with(|| ChatProbeResponse::bare("404 Not Found"))
+            .take(12)
+            .collect(),
+    );
+    let mut app = ok_app();
+    app.set_runtime_chat_base_url_for_test(absent.base_url());
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+    let chat = harness.state().mounted_runtime_chat_panel_for_test();
+
+    let artifact_dir = external_artifact_dir("wp-kernel-012-mt-098/canonical-argus");
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-098 canonical-Argus artifact dir");
+
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-098-chat");
+
+    // (1) NAVIGATION / reachability: the mounted chat pane's stable author_ids are addressable through the
+    // real localhost transport (the operator/swarm can reach + drive the chat surface out-of-process).
+    let mounted = argus.inspect(&mut harness);
+    for author in [
+        RUNTIME_CHAT_PANEL_AUTHOR_ID,
+        RUNTIME_CHAT_INPUT_AUTHOR_ID,
+        RUNTIME_CHAT_SEND_AUTHOR_ID,
+        RUNTIME_CHAT_STATUS_AUTHOR_ID,
+    ] {
+        assert!(
+            json_has_author_id(&mounted, author),
+            "canonical argus.inspect must see the mounted Runtime Chat node '{author}'"
+        );
+    }
+
+    // (2) FOCUS: canonical Argus click the input to reach/focus the chat surface (safe steer + receipt).
+    let focus = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_INPUT_AUTHOR_ID);
+    assert!(
+        matches!(focus.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical chat-input focus receipt is terminal and non-rejected: {}",
+        focus.receipt_status
+    );
+    assert!(
+        focus
+            .agent_id
+            .contains(":client:wp-kernel-012-mt-098-chat-agent"),
+        "the canonical receipt retains the external caller attribution: {}",
+        focus.agent_id
+    );
+
+    // (3) SEND: seed a draft on the mounted panel, then canonical Argus CLICK send (the material steer).
+    // The user's typed message appears as a real transcript turn in the fresh re-inspection.
+    seed_chat_draft(&mut harness, &chat, "argus send one");
+    let send_one = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
+    assert!(
+        matches!(send_one.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical send receipt is terminal and non-rejected: {}",
+        send_one.receipt_status
+    );
+    assert!(
+        json_has_author_id(&send_one.after, &runtime_chat_turn_body_author_id(1)),
+        "the canonical send re-inspection shows the submitted user turn as a real transcript node"
+    );
+    assert_eq!(
+        argus_label_for(&send_one.after, &runtime_chat_turn_body_author_id(1)).as_deref(),
+        Some("argus send one"),
+        "the submitted user message is the exact transcript body over the canonical transport"
+    );
+
+    // (4) UNAVAILABLE: drive frames until the REAL transport resolves the absent route to the typed
+    // EndpointMissing blocker, then FRESH canonical inspect proves the status node shows it, NO fabricated
+    // assistant turn was appended, and the pane is not stuck spinning.
+    drive_chat_until_status(&mut harness, "EndpointMissing");
+    let unavailable = argus.inspect(&mut harness);
+    let unavailable_status = argus_label_for(&unavailable, RUNTIME_CHAT_STATUS_AUTHOR_ID)
+        .expect("canonical inspect exposes the mounted chat status label");
+    assert!(
+        unavailable_status.contains("EndpointMissing") && unavailable_status.contains("/chat"),
+        "canonical unavailable state: status shows the typed EndpointMissing blocker + probed path: {unavailable_status}"
+    );
+    assert!(
+        !unavailable_status.contains("Probing"),
+        "the completed send must not leave a perpetual spinner: {unavailable_status}"
+    );
+    assert!(
+        !argus_any_label_equals(&unavailable, "Assistant:"),
+        "EndpointMissing must not fabricate an assistant transcript turn (no-mock Spec-Realism gate)"
+    );
+
+    // (5) RETRY: seed a fresh draft and canonical Argus CLICK send again — a SECOND real user turn appends
+    // and the retry resolves to EndpointMissing again (still no fabricated assistant reply).
+    seed_chat_draft(&mut harness, &chat, "argus send two retry");
+    let send_two = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
+    assert!(
+        matches!(send_two.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical retry send receipt is terminal: {}",
+        send_two.receipt_status
+    );
+    assert!(
+        json_has_author_id(&send_two.after, &runtime_chat_turn_body_author_id(2)),
+        "the retry re-inspection shows the second submitted user turn"
+    );
+    drive_chat_until_status(&mut harness, "EndpointMissing");
+    let retried = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&retried, &runtime_chat_turn_body_author_id(1))
+            && json_has_author_id(&retried, &runtime_chat_turn_body_author_id(2)),
+        "both retry user turns remain in the canonical transcript"
+    );
+    assert!(
+        !argus_any_label_equals(&retried, "Assistant:"),
+        "retry must not fabricate an assistant transcript turn"
+    );
+
+    // (6) CANCELLATION: point the chat client at a DELAYED probe server, seed a draft, canonical Argus
+    // CLICK send -> the send is in-flight (status "Probing"). Then cancel via the panel's real cancel path
+    // (a transport rebind aborts the active send). FRESH canonical inspect proves the pane recovered off
+    // the in-flight/Probing state (no perpetual spinner, send usable again).
+    let delayed = spawn_chat_probe_server_with_body_and_delay(
+        "404 Not Found",
+        None,
+        "",
+        Duration::from_secs(5),
+    );
+    harness
+        .state_mut()
+        .set_runtime_chat_base_url_for_test(delayed.base_url());
+    seed_chat_draft(&mut harness, &chat, "argus cancel me");
+    let cancel_send = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
+    assert!(
+        matches!(cancel_send.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical in-flight send receipt is terminal: {}",
+        cancel_send.receipt_status
+    );
+    let probing = argus.inspect(&mut harness);
+    let probing_status = argus_label_for(&probing, RUNTIME_CHAT_STATUS_AUTHOR_ID)
+        .expect("canonical inspect exposes the in-flight chat status");
+    assert!(
+        probing_status.contains("Probing"),
+        "the in-flight send is observably Probing over the canonical transport: {probing_status}"
+    );
+    // Real cancellation: rebinding the transport aborts the active send (cancel_active_send).
+    harness
+        .state_mut()
+        .set_runtime_chat_base_url_for_test(absent.base_url());
+    harness.run_steps(2);
+    let cancelled = argus.inspect(&mut harness);
+    let cancelled_status = argus_label_for(&cancelled, RUNTIME_CHAT_STATUS_AUTHOR_ID)
+        .expect("canonical inspect exposes the cancelled chat status");
+    assert!(
+        !cancelled_status.contains("Probing"),
+        "cancellation returns the pane off the in-flight state (no perpetual spinner): {cancelled_status}"
+    );
+    assert!(
+        !chat
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .send_in_flight_for_test(),
+        "cancellation cleared the active in-flight send"
+    );
+
+    // (7) RECOVERY: after cancellation the pane is usable again — seed a draft, canonical Argus CLICK send,
+    // and a NEW real user turn appends + resolves to the typed state (backend-recovery to a usable send).
+    seed_chat_draft(&mut harness, &chat, "argus recovery send");
+    let recovery = argus.click_and_reinspect(&mut harness, RUNTIME_CHAT_SEND_AUTHOR_ID);
+    assert!(
+        matches!(recovery.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical recovery send receipt is terminal: {}",
+        recovery.receipt_status
+    );
+    // Transcript order: System(0), send-one(1), retry(2), cancel-me(3), recovery(4).
+    assert!(
+        json_has_author_id(&recovery.after, &runtime_chat_turn_body_author_id(4)),
+        "the recovery send appends a fresh user turn (the pane recovered to a usable send state)"
+    );
+    assert_eq!(
+        argus_label_for(&recovery.after, &runtime_chat_turn_body_author_id(4)).as_deref(),
+        Some("argus recovery send"),
+        "the recovered send's user message is the exact transcript body over the canonical transport"
+    );
+    drive_chat_until_status(&mut harness, "EndpointMissing");
+    let recovered = argus.inspect(&mut harness);
+    let recovered_status = argus_label_for(&recovered, RUNTIME_CHAT_STATUS_AUTHOR_ID)
+        .expect("canonical inspect exposes the recovered chat status");
+    assert!(
+        recovered_status.contains("EndpointMissing"),
+        "the recovery send resolves through the typed route posture: {recovered_status}"
+    );
+
+    // (8) Evidence: the before/after canonical trees for every material state + a screenshot marker
+    // (headless DEFERRED is an acceptable typed outcome per the screenshot harness contract).
+    let tree_path = artifact_dir.join("mt098-mounted-chat-argus-states.json");
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "navigation_mounted": mounted,
+            "focus_receipt": { "id": focus.receipt_id, "status": focus.receipt_status, "agent": focus.agent_id },
+            "send_after": send_one.after,
+            "unavailable_status": unavailable_status,
+            "retry_after": send_two.after,
+            "probing_status": probing_status,
+            "cancelled_status": cancelled_status,
+            "recovery_after": recovery.after,
+            "recovered_status": recovered_status,
+        }))
+        .expect("serialize canonical MT-098 chat state evidence"),
+    )
+    .expect("write canonical MT-098 chat state evidence externally");
+    assert!(tree_path.is_file());
+
+    let screenshot_marker = match harness.render() {
+        Ok(image) => {
+            let path = artifact_dir.join("mt098-mounted-chat-argus.png");
+            image.save(&path).expect("save mounted chat screenshot");
+            format!("CAPTURED {}", path.display())
+        }
+        Err(deferred) => format!("DEFERRED (headless): {deferred}"),
+    };
+    println!(
+        "MT-098 canonical Argus mounted chat: inspect(panel+input+send+status) -> focus(input) -> \
+         send(argus send one) -> unavailable(EndpointMissing) -> retry(argus send two) -> \
+         cancellation(Probing->recovered) -> recovery(argus recovery send). screenshot={} tree={}",
+        screenshot_marker,
+        tree_path.display()
+    );
+
+    argus.finish();
+    for local in ["test_output", "tests/screenshots"] {
+        assert!(
+            !Path::new(local).exists(),
+            "CX-212E: no repo-local '{local}' artifact dir may exist"
+        );
+    }
+    // Bounded teardown of the controlled probe servers.
+    drop(delayed);
+    absent.join();
 }

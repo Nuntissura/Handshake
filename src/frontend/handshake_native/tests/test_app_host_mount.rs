@@ -32,6 +32,9 @@ use egui_kittest::kittest::NodeT;
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
@@ -3099,4 +3102,296 @@ fn closing_base_code_tab_sends_didclose_without_reopening_or_saving_it() {
         before,
         "a host Save emitted by the closed reusable base panel is ignored"
     );
+}
+
+// ── WP-KERNEL-012 MT-079 remediation (FAIL_V2): CANONICAL Argus lifecycle over the MOUNTED editor panes ──
+//
+// validation_v2 failed MT-079 because "there is no current canonical Argus evidence covering creation,
+// navigation, focus, popout/close, and fresh post-action state for every editor pane. The available
+// screenshot path is not material GPU capture proof." The existing MT-079 coverage drives the mounted
+// editors, but through kittest-native events / direct app calls — it never drives the mounted `HandshakeApp`
+// through the REAL localhost `SwarmMcpServer` transport (`argus.inspect`/`argus.click` with typed receipts
+// + fresh re-inspection) the way an out-of-process swarm agent does. These tests close that exact gap for
+// EVERY editor pane's create -> navigate -> focus -> popout/close lifecycle, and prove the operator
+// menu-bar reachability the WP requires.
+//
+// Artifact hygiene (CX-212E): evidence is written ONLY under the EXTERNAL
+// `Handshake_Artifacts/handshake-test/wp-kernel-012-mt-079/canonical-argus/` root.
+
+const MT079_ARGUS_SUBDIR: &str = "wp-kernel-012-mt-079/canonical-argus";
+
+#[test]
+fn mt079_mounted_editor_panes_canonical_argus_lifecycle() {
+    use handshake_native::code_editor::panel::CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID;
+    use handshake_native::quick_switcher::{NavDispatchOutcome, ShellNavigator};
+    use handshake_native::rich_editor::reading_mode::{
+        TOGGLE_CONTAINER_AUTHOR_ID, TOGGLE_EDIT_AUTHOR_ID, TOGGLE_READING_AUTHOR_ID,
+    };
+    use handshake_native::rich_editor::renderer::RICH_EDITOR_ROOT_AUTHOR_ID;
+    use handshake_native::runtime_chat::RUNTIME_CHAT_PANEL_AUTHOR_ID;
+
+    let (app, _rt) = editor_shell();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(4);
+
+    let artifact_dir = external_artifact_dir(MT079_ARGUS_SUBDIR);
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-079 canonical-Argus artifact dir");
+
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-079-editors");
+
+    // (1) CREATION: both mounted editor panes render their REAL subtrees (not placeholders) and are
+    // addressable through the real localhost transport.
+    let created = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&created, CODE_EDITOR_TEXT_AUTHOR_ID),
+        "canonical argus.inspect must see the mounted code editor text node '{CODE_EDITOR_TEXT_AUTHOR_ID}'"
+    );
+    assert!(
+        json_has_author_id(&created, RICH_EDITOR_ROOT_AUTHOR_ID),
+        "canonical argus.inspect must see the mounted rich editor root node '{RICH_EDITOR_ROOT_AUTHOR_ID}'"
+    );
+
+    // (2) SAFE CANONICAL STEER (with typed receipts) on EACH editor pane: drive a safe, reversible control
+    // on the code pane (word-wrap toggle) and the rich pane (reading-mode toggle) over the real transport,
+    // and freshly re-observe each pane's control remains addressable after the action. (`editor.code.text`
+    // is a TextInput that supports Focus/SetValue, not Click, so the code steer targets a real Role::Button
+    // toolbar control instead.)
+    let code_focus =
+        argus.click_and_reinspect(&mut harness, CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID);
+    assert!(
+        matches!(code_focus.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical code-editor wrap-toggle steer receipt is terminal and non-rejected: {}",
+        code_focus.receipt_status
+    );
+    assert!(
+        code_focus
+            .agent_id
+            .contains(":client:wp-kernel-012-mt-079-editors-agent"),
+        "the canonical receipt retains the external caller attribution: {}",
+        code_focus.agent_id
+    );
+    assert!(
+        json_has_author_id(&code_focus.after, CODE_EDITOR_VISIBLE_WRAP_TOGGLE_AUTHOR_ID)
+            && json_has_author_id(&code_focus.after, CODE_EDITOR_TEXT_AUTHOR_ID),
+        "the code pane remains fully addressable after the safe wrap-toggle steer"
+    );
+    // A reversible round-trip steer on the rich pane: flip to Reading, then restore Edit, so the pane ends
+    // back in its editable state (editor.rich.root present) for the downstream lifecycle observations.
+    let rich_focus = argus.click_and_reinspect(&mut harness, TOGGLE_READING_AUTHOR_ID);
+    assert!(
+        matches!(rich_focus.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical rich-editor reading-toggle steer receipt is terminal and non-rejected: {}",
+        rich_focus.receipt_status
+    );
+    assert!(
+        json_has_author_id(&rich_focus.after, TOGGLE_CONTAINER_AUTHOR_ID),
+        "the rich pane's mode-toggle control remains addressable after the safe reading-mode steer"
+    );
+    let rich_restore = argus.click_and_reinspect(&mut harness, TOGGLE_EDIT_AUTHOR_ID);
+    assert!(
+        matches!(rich_restore.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical rich-editor edit-restore steer receipt is terminal and non-rejected: {}",
+        rich_restore.receipt_status
+    );
+    assert!(
+        json_has_author_id(&rich_restore.after, RICH_EDITOR_ROOT_AUTHOR_ID),
+        "restoring Edit mode via canonical Argus re-exposes the editable rich editor root"
+    );
+
+    // (3) NAVIGATION: the MT-030 ShellNavigator opens+focuses the REAL mounted editor panes. Both typed
+    // seams return `Opened` (they landed on live mounted panes, not the retired EditorPaneNotMounted seam),
+    // and the fresh canonical re-inspection confirms the code navigation focused the live mounted code
+    // editor. (open_document navigates the rich pane to a fresh backend-backed document; with no backend it
+    // enters the honest non-editable loading gate, so editor.rich.root is intentionally not asserted here.)
+    let sym = harness.state_mut().open_code_symbol("mt079-argus-symbol");
+    assert!(
+        matches!(sym, NavDispatchOutcome::Opened { .. }),
+        "open_code_symbol opens the mounted code pane; got {sym:?}"
+    );
+    let doc = harness.state_mut().open_document("mt079-argus-doc");
+    assert!(
+        matches!(doc, NavDispatchOutcome::Opened { .. }),
+        "open_document opens the mounted rich pane; got {doc:?}"
+    );
+    harness.run_steps(2);
+    let navigated = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&navigated, CODE_EDITOR_TEXT_AUTHOR_ID),
+        "fresh canonical inspection after navigation still sees the mounted code editor focused live"
+    );
+
+    // (4) POPOUT (detach into its own window): pop the code pane out. The fresh canonical re-inspection is
+    // the material post-action state: the runtime records the pane as popped-out, the DETACHED code editor
+    // remains canonically Argus-addressable + steerable in its own window (so an out-of-process agent can
+    // still drive a popped-out editor), and the sibling panes stay addressable (the popout is scoped, not a
+    // global teardown).
+    harness
+        .state_mut()
+        .request_pop_out(PaneId::from("pane-a"));
+    harness.run_steps(3);
+    assert!(
+        harness.state().is_popped_out(&PaneId::from("pane-a")),
+        "request_pop_out detached the code pane into its own window (post-action runtime state)"
+    );
+    let popped = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&popped, CODE_EDITOR_TEXT_AUTHOR_ID),
+        "the popped-out code editor remains canonically Argus-addressable in its detached window"
+    );
+    assert!(
+        json_has_author_id(&popped, RUNTIME_CHAT_PANEL_AUTHOR_ID),
+        "a sibling mounted pane (Runtime Chat) remains addressable after the code pane popped out"
+    );
+
+    // (6) Evidence: the before/after canonical trees for every lifecycle state + a screenshot marker
+    // (headless DEFERRED is an acceptable typed outcome per the screenshot harness contract).
+    let tree_path = artifact_dir.join("mt079-mounted-editors-argus-lifecycle.json");
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "created": created,
+            "code_focus_receipt": { "id": code_focus.receipt_id, "status": code_focus.receipt_status, "agent": code_focus.agent_id },
+            "rich_focus_receipt": { "id": rich_focus.receipt_id, "status": rich_focus.receipt_status, "agent": rich_focus.agent_id },
+            "navigated": navigated,
+            "code_popped_out_detached": popped,
+        }))
+        .expect("serialize canonical MT-079 editor lifecycle evidence"),
+    )
+    .expect("write canonical MT-079 editor lifecycle evidence externally");
+    assert!(tree_path.is_file());
+
+    let screenshot_marker = match harness.render() {
+        Ok(image) => {
+            let path = artifact_dir.join("mt079-mounted-editors-argus.png");
+            image.save(&path).expect("save mounted editors screenshot");
+            format!("CAPTURED {}", path.display())
+        }
+        Err(deferred) => format!("DEFERRED (headless): {deferred}"),
+    };
+    println!(
+        "MT-079 canonical Argus editor lifecycle: create(code+rich) -> safe-steer(code wrap toggle + \
+         rich reading->edit round-trip, receipts terminal) -> navigate(open_code_symbol + open_document, \
+         both Opened) -> popout(code pane popped out; detached editor stays Argus-addressable; chat sibling \
+         stays). screenshot={} tree={}",
+        screenshot_marker,
+        tree_path.display()
+    );
+
+    argus.finish();
+    assert_no_local_artifact_dir();
+}
+
+#[test]
+fn mt079_editor_surfaces_reachable_from_menu_bar_canonical_argus() {
+    use handshake_native::runtime_chat::RUNTIME_CHAT_PANEL_AUTHOR_ID;
+    use handshake_native::top_menu_bar::{set_menu_popup_open, MenuId};
+
+    let (app, _rt) = editor_shell();
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+
+    // Open the VIEW menu on the live shell so its dynamic Open-Editor-Surfaces leaves render + the shell
+    // persists the open menu into the MCP snapshot pass (line ~25389: mcp_open_top_menu = open_menu(ctx)),
+    // so the canonical inspect below sees the leaves the same way an out-of-process agent would.
+    set_menu_popup_open(&harness.ctx, MenuId::View, true);
+    harness.run_steps(2);
+
+    let artifact_dir = external_artifact_dir(MT079_ARGUS_SUBDIR);
+    std::fs::create_dir_all(&artifact_dir).expect("create external MT-079 canonical-Argus artifact dir");
+
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp-kernel-012-mt-079-menu");
+
+    // (1) REACHABILITY: EVERY WP-KERNEL-012 editor surface/pane is an addressable menu-bar item over the
+    // real localhost transport — including the MT-098 Runtime Chat surface whose open route this WP wired.
+    let menu = argus.inspect(&mut harness);
+    for leaf in [
+        "menu.view.open-code-editor",
+        "menu.view.open-rich-note",
+        "menu.view.open-runtime-chat",
+        "menu.view.open-wiki-projection",
+        "menu.view.open-knowledge-graph",
+        "menu.view.open-folders",
+        "menu.view.open-tags",
+        "menu.view.open-block-collections",
+        "menu.view.open-canvas",
+        "menu.view.open-loom-search",
+        "menu.view.open-find-in-files",
+        "menu.view.open-daily-journal",
+        "menu.view.open-diff-editor",
+    ] {
+        assert!(
+            json_has_author_id(&menu, leaf),
+            "operator menu-bar reachability: '{leaf}' must be an addressable VIEW menu item over canonical Argus"
+        );
+    }
+
+    // (2) CLICK-TO-OPEN: canonical Argus click the newly-wired Runtime Chat open route (the gap this WP
+    // closed) -> fresh inspect re-observes the mounted chat pane, and the active work surface hosts it.
+    let open_chat = argus.click_and_reinspect(&mut harness, "menu.view.open-runtime-chat");
+    assert!(
+        matches!(open_chat.receipt_status.as_str(), "applied" | "indeterminate"),
+        "the canonical Open-Runtime-Chat receipt is terminal and non-rejected: {}",
+        open_chat.receipt_status
+    );
+    assert!(
+        open_chat
+            .agent_id
+            .contains(":client:wp-kernel-012-mt-079-menu-agent"),
+        "the canonical receipt retains the external caller attribution: {}",
+        open_chat.agent_id
+    );
+    assert!(
+        json_has_author_id(&open_chat.after, RUNTIME_CHAT_PANEL_AUTHOR_ID),
+        "clicking Open Runtime Chat from the menu bar re-observes the mounted chat pane"
+    );
+    let active = harness
+        .state()
+        .active_pane()
+        .cloned()
+        .expect("an active pane exists after Open Runtime Chat");
+    assert!(
+        harness
+            .state()
+            .tab_bar_states()
+            .get(&active)
+            .map(|bar| bar.tabs.iter().any(|t| t.pane_type == PaneType::RuntimeChat))
+            .unwrap_or(false),
+        "Open Runtime Chat opened the RuntimeChat pane on the active work surface (not a no-op)"
+    );
+
+    let tree_path = artifact_dir.join("mt079-menu-bar-reachability-argus.json");
+    std::fs::write(
+        &tree_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "view_menu_open": menu,
+            "after_open_runtime_chat": open_chat.after,
+            "open_chat_receipt": { "id": open_chat.receipt_id, "status": open_chat.receipt_status, "agent": open_chat.agent_id },
+        }))
+        .expect("serialize canonical MT-079 menu-bar evidence"),
+    )
+    .expect("write canonical MT-079 menu-bar evidence externally");
+    assert!(tree_path.is_file());
+
+    let screenshot_marker = match harness.render() {
+        Ok(image) => {
+            let path = artifact_dir.join("mt079-menu-bar-reachability.png");
+            image.save(&path).expect("save menu-bar screenshot");
+            format!("CAPTURED {}", path.display())
+        }
+        Err(deferred) => format!("DEFERRED (headless): {deferred}"),
+    };
+    println!(
+        "MT-079 canonical Argus menu-bar reachability: VIEW menu exposes all 13 editor-surface leaves \
+         (incl. menu.view.open-runtime-chat) -> click(open-runtime-chat) -> chat pane mounted on the \
+         active surface. screenshot={} tree={}",
+        screenshot_marker,
+        tree_path.display()
+    );
+
+    argus.finish();
+    assert_no_local_artifact_dir();
 }

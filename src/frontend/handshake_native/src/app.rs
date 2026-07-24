@@ -6261,6 +6261,12 @@ impl HandshakeApp {
             crate::command_registry::CMD_VIEW_FIND_IN_FILES => {
                 self.open_content_on_active_pane(PaneType::FindInFiles, None)
             }
+            // WP-KERNEL-012 MT-098 (operator menu-bar gap closeout): open the mounted Runtime Chat pane on
+            // the active work surface. The `ChatPaneFactory` registered over `PaneType::RuntimeChat` renders
+            // the shared runtime-chat panel, so this is a REAL open (not a placeholder no-op).
+            crate::command_registry::CMD_VIEW_CHAT => {
+                self.open_content_on_active_pane(PaneType::RuntimeChat, None)
+            }
             // WP-KERNEL-012 MT-069 (E11 menu wire-up): the editor FILE/EDIT menu + palette commands MT-079
             // host-mounted. Route through the ONE shared dispatcher the menu bar also calls, so the palette
             // path and the menu path are the SAME single substrate (RISK-001: no forked dispatch). The
@@ -8352,6 +8358,15 @@ impl HandshakeApp {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .rebind_client(client);
+    }
+
+    /// The SAME shared Runtime Chat panel the mounted `ChatPaneFactory` renders (MT-098). Exposed so a
+    /// canonical-Argus proof can seed a draft, drive frame deliveries, and assert the typed send/unavailable/
+    /// retry/cancellation/recovery state behind the exact mounted pane it inspects — not a standalone panel.
+    pub fn mounted_runtime_chat_panel_for_test(
+        &self,
+    ) -> Arc<Mutex<crate::runtime_chat::RuntimeChatPanel>> {
+        Arc::clone(&self.runtime_chat_panel)
     }
 
     /// Inject a tokio runtime handle (MT-017 tests): the headless `with_health` shell does not expose its
