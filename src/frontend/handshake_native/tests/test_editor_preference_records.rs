@@ -102,8 +102,10 @@ fn editor_preferences_persist_reset_and_history_on_live_postgres() {
         .expect("receipt carries an EventLedger event id");
     assert!(!set_event_id.is_empty());
 
-    // SET-EVT-003: the EventLedger row is durable and correlatable by preference_id.
-    let event = backend.poll_event_by_payload("preference_id", FONT_SIZE);
+    // SET-EVT-003: the durable EventLedger row is correlatable through the canonical kernel
+    // event-ledger aggregate the receipt's `event_ledger_event_id` (KE-...) points at.
+    let event = backend.poll_preference_event(FONT_SIZE, 1);
+    assert_eq!(event["event_id"], set_event_id);
     assert_eq!(event["payload"]["type"], "preference_record_changed");
     assert_eq!(event["payload"]["revision"], 1);
     assert_eq!(event["payload"]["new_value_ref"], json!(20.0));

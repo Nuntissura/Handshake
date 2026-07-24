@@ -216,23 +216,34 @@ fn search_filter_narrows_to_keybindings_section() {
 // ── Test 6 (contract): same chord on both actions -> conflict banner; not persisted ─────────────────
 #[test]
 fn duplicate_keybinding_chord_shows_conflict_banner_and_is_not_saved() {
-    let transport = StubSettingsTransport::with_loaded(None);
+    // Seed a deliberately-conflicting state: both actions on Mod-Alt-p (the wired edit path refuses to
+    // commit a conflict, so the seed bypasses it). `open_settings()` now reloads persisted settings on
+    // open (PT6 durable-state reload), so the conflict must live in the DURABLE settings the transport
+    // serves — a direct in-memory seed alone is overwritten by the reload's merge. Seed the conflict into
+    // the stub's loaded blob so the reload restores it; also seed it in memory for the pre-load frames.
+    let mut seeded = handshake_native::workspace_settings::default_workspace_settings_state();
+    seeded.set_chord("app.quick_switcher.open", "Mod-Alt-p".to_owned());
+    seeded.set_chord("app.command_palette.open", "Mod-Alt-p".to_owned());
+    let transport = StubSettingsTransport::with_loaded(Some(seeded.to_settings_state()));
     let handle = leak_runtime_handle();
     let mut app = ok_app();
     app.set_runtime_handle(handle);
     app.set_settings_transport(transport.clone());
-    // Seed a deliberately-conflicting state: both actions on Mod-Alt-p (the wired edit path refuses to
-    // commit a conflict, so the seed bypasses it). On open, the drafts reflect this and the banner shows.
     app.set_keybinding_for_test("app.quick_switcher.open", "Mod-Alt-p");
     app.set_keybinding_for_test("app.command_palette.open", "Mod-Alt-p");
 
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
-    harness.run_steps(3);
-    harness.run_steps(3);
 
-    // AC6: the conflict banner appears naming both actions + the shared chord.
+    // AC6: the conflict banner appears naming both actions + the shared chord. Wait for the reload to
+    // land the durable conflicting chords before asserting (the GET completes on a runtime worker).
+    assert!(
+        run_until(&mut harness, 60, |app| {
+            app.workspace_settings().chord_for("app.command_palette.open") == Some("Mod-Alt-p")
+        }),
+        "durable reload restored the seeded conflicting command-palette chord"
+    );
     assert!(
         harness
             .query_by_label("Quick Switcher and Command Palette both use Mod-Alt-p.")
@@ -290,8 +301,17 @@ fn reset_panes_and_drawers_button_arms_layout_reset() {
         "no reset armed initially"
     );
 
+    // The dialog body is a bounded ScrollArea (max_height 440); the Layout section sits below the fold,
+    // so its button is in the a11y tree but a raw click lands on a clipped position. Filter to just the
+    // Layout section via search (the same pattern the Model Session test uses) so the button renders at
+    // the top of the scroll body and the click actually reaches it.
+    harness.get_by_label("Search settings").type_text("panes");
+    harness.run_steps(3);
+    harness.run_steps(3);
+
     // Click the Reset panes & drawers button (findable by its visible label).
     harness.get_by_label("Reset panes & drawers").click();
+    harness.run_steps(3);
     harness.run_steps(3);
 
     assert!(

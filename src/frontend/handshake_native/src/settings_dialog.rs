@@ -120,6 +120,9 @@ pub const SETTINGS_PERSIST_ERROR_AUTHOR_ID: &str = "settings.persist.error";
 pub enum SettingsPersistenceOperation {
     Load,
     Save,
+    /// MT-072 (FAIL_V2): a failed editor-preference write on the canonical PreferenceRecord route. Retry
+    /// re-dispatches the exact retained write so a transient backend failure does not drop the edit.
+    Preference,
 }
 
 /// What the dialog wants the shell to do after a frame.
@@ -450,6 +453,7 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
                     let retry_label = match view.persist_retry_operation {
                         Some(SettingsPersistenceOperation::Load) => "Retry settings load",
                         Some(SettingsPersistenceOperation::Save) => "Retry settings save",
+                        Some(SettingsPersistenceOperation::Preference) => "Retry saving preference",
                         None => unreachable!(),
                     };
                     let retry = ui.button(retry_label);

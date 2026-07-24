@@ -2716,6 +2716,15 @@ pub struct HandshakeApp {
     preference_io_cell: Arc<Mutex<Option<crate::preference_client::PreferenceDelivery>>>,
     /// A preference write is in flight on a worker; prevents overlapping spawns.
     preference_io_in_flight: Arc<std::sync::atomic::AtomicBool>,
+    /// The preference Set/Reset write currently in flight, retained so a failed delivery can be moved
+    /// into [`Self::preference_retry_write`] for an explicit Retry (the delivery cell carries only the
+    /// preference_id, not the full write to re-dispatch).
+    preference_in_flight_write: Option<crate::preference_client::PreferenceWrite>,
+    /// MT-072 (FAIL_V2): the last FAILED editor-preference Set/Reset write, retained so the visible
+    /// "Retry saving preference" control re-dispatches the EXACT payload against the canonical
+    /// PreferenceRecord route — parity with the /settings retry path, so a transient backend failure does
+    /// not silently drop the operator's editor edit (recoverable, no data loss).
+    preference_retry_write: Option<crate::preference_client::PreferenceWrite>,
     /// MT-102 Visual Debugger: transient status for the last Settings -> Diagnostics worksurface dump.
     /// This is not persisted and owns no diagnostic authority; it only makes the button result visible.
     worksurface_inspector_last_dump: Option<String>,
@@ -4512,6 +4521,8 @@ impl HandshakeApp {
             preference_write_queue: VecDeque::new(),
             preference_io_cell: Arc::new(Mutex::new(None)),
             preference_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            preference_in_flight_write: None,
+            preference_retry_write: None,
             worksurface_inspector_last_dump: None,
             pending_theme_change: None,
             about_open: false,
@@ -5145,6 +5156,8 @@ impl HandshakeApp {
             preference_write_queue: VecDeque::new(),
             preference_io_cell: Arc::new(Mutex::new(None)),
             preference_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            preference_in_flight_write: None,
+            preference_retry_write: None,
             worksurface_inspector_last_dump: None,
             pending_theme_change: None,
             about_open: false,
@@ -12408,6 +12421,12 @@ impl HandshakeApp {
             .expect("queue is non-empty");
         // Claim the in-flight guard + pop only once we know we can actually spawn.
         self.preference_write_queue.pop_front();
+        // Retain the exact write so a failed delivery can be re-dispatched by Retry (the delivery cell
+        // carries only the preference_id). A Hydrate is not retained for retry (reopen re-hydrates).
+        self.preference_in_flight_write = match write.kind {
+            crate::preference_client::PreferenceWriteKind::Hydrate => None,
+            _ => Some(write.clone()),
+        };
         self.preference_io_in_flight
             .store(true, std::sync::atomic::Ordering::SeqCst);
         let cell = self.preference_io_cell.clone();
@@ -12446,12 +12465,21 @@ impl HandshakeApp {
                     }
                 }
                 Out::Hydrate(Err(err)) => {
+                    self.preference_in_flight_write = None;
                     self.settings_persist_error =
                         Some(format!("Could not load editor preferences: {err}"));
                 }
                 Out::Set { result: Ok(_), .. } | Out::Reset { result: Ok(_), .. } => {
-                    // A successful write clears any prior transient preference error.
+                    // A successful write clears any prior transient preference error + retained retry.
+                    self.preference_in_flight_write = None;
+                    self.preference_retry_write = None;
                     self.settings_persist_error = None;
+                    if matches!(
+                        self.settings_retry_operation,
+                        Some(crate::settings_dialog::SettingsPersistenceOperation::Preference)
+                    ) {
+                        self.settings_retry_operation = None;
+                    }
                 }
                 Out::Set {
                     preference_id,
@@ -12461,19 +12489,31 @@ impl HandshakeApp {
                     preference_id,
                     result: Err(err),
                 } => {
-                    let message = match err {
+                    let (message, retryable) = match err {
                         PreferenceTransportError::Validation(v) => {
-                            format!("Rejected {}: {}", preference_id, v.message)
+                            // A typed rejection is not retryable as-is (the value is invalid); drop the
+                            // retained write so Retry does not re-send a guaranteed-400.
+                            (format!("Rejected {}: {}", preference_id, v.message), false)
                         }
                         PreferenceTransportError::UnknownPreference(_) => {
-                            format!("Unknown preference {preference_id}")
+                            (format!("Unknown preference {preference_id}"), false)
                         }
                         PreferenceTransportError::Unavailable(msg) => {
-                            format!("Could not save {preference_id}: {msg}")
+                            // A transient backend failure IS retryable — retain the exact write so the
+                            // visible Retry re-dispatches it (no silent data loss of the editor edit).
+                            (format!("Could not save {preference_id}: {msg}"), true)
                         }
                     };
                     self.settings_persist_error = Some(message);
-                    self.settings_retry_operation = None;
+                    if retryable {
+                        self.preference_retry_write = self.preference_in_flight_write.take();
+                        self.settings_retry_operation =
+                            Some(crate::settings_dialog::SettingsPersistenceOperation::Preference);
+                    } else {
+                        self.preference_in_flight_write = None;
+                        self.preference_retry_write = None;
+                        self.settings_retry_operation = None;
+                    }
                 }
             }
         }
@@ -12842,6 +12882,17 @@ impl HandshakeApp {
                             // commit. With no local snapshot left to send, retire that stale failure;
                             // never flush another workspace under A's Retry command.
                             self.settings_failures.remove(&workspace);
+                        }
+                    }
+                    Some(crate::settings_dialog::SettingsPersistenceOperation::Preference) => {
+                        // MT-072 (FAIL_V2): re-dispatch the EXACT retained editor-preference write against
+                        // the canonical PreferenceRecord route so a transient backend failure does not
+                        // drop the operator's editor edit. The optimistic in-memory value is untouched.
+                        if let Some(write) = self.preference_retry_write.take() {
+                            self.preference_write_queue.push_front(write);
+                            self.flush_preference_write_now();
+                        } else {
+                            return false;
                         }
                     }
                     None => return false,
@@ -13262,6 +13313,9 @@ impl HandshakeApp {
                                 }
                                 crate::settings_dialog::SettingsPersistenceOperation::Save => {
                                     "Retry settings save"
+                                }
+                                crate::settings_dialog::SettingsPersistenceOperation::Preference => {
+                                    "Retry saving preference"
                                 }
                             };
                             let response = ui.button(label);

@@ -861,6 +861,49 @@ impl LiveBackend {
         }
     }
 
+    /// Correlate the durable `PreferenceRecord` EventLedger row through the canonical kernel
+    /// event-ledger aggregate endpoint that the change receipt's `event_ledger_event_id` (a `KE-` id)
+    /// actually points at. The Flight Recorder `/events` HTTP projection is a curated business-event
+    /// stream (capability/system/diagnostic surfaces) that does not carry preference records and cannot
+    /// parse `KE-` ids, so the kernel aggregate is the authoritative recoverability surface for a
+    /// preference change receipt. `aggregate_id` is the single path segment
+    /// `workspace:{workspace_id}:{preference_id}` — colons are valid path characters (RFC 3986 pchar).
+    pub fn poll_preference_event(&self, preference_id: &str, revision: i64) -> serde_json::Value {
+        let aggregate_id = format!("workspace:{}:{preference_id}", self.workspace_id);
+        let path = format!("/kernel/events/aggregates/preference_record/{aggregate_id}");
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            let events = self.get_json(&path);
+            if let Some(event) = events.as_array().and_then(|rows| {
+                rows.iter().find(|event| {
+                    let payload = event.get("payload");
+                    payload
+                        .and_then(|p| p.get("preference_id"))
+                        .and_then(serde_json::Value::as_str)
+                        == Some(preference_id)
+                        && payload
+                            .and_then(|p| p.get("revision"))
+                            .and_then(serde_json::Value::as_i64)
+                            == Some(revision)
+                })
+            }) {
+                assert!(
+                    event
+                        .get("event_id")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|id| id.starts_with("KE-")),
+                    "correlated preference event must expose a durable kernel EventLedger id: {event}"
+                );
+                return event.clone();
+            }
+            assert!(
+                Instant::now() < deadline,
+                "no durable kernel EventLedger row for preference {preference_id} revision {revision} within 10s"
+            );
+            thread::sleep(Duration::from_millis(100));
+        }
+    }
+
     pub fn poll_event_by_id(&self, event_id: &str) -> serde_json::Value {
         let deadline = Instant::now() + Duration::from_secs(10);
         loop {

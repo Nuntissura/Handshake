@@ -19,7 +19,6 @@
 mod pg_proof_support;
 
 use std::sync::{Arc, Condvar, Mutex};
-use std::{io::Read, io::Write};
 
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
@@ -27,21 +26,15 @@ use handshake_native::accessibility::{UiNodeBounds, UiTreeNode, UiTreeSnapshot};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::code_editor::HighlightScope;
-use handshake_native::settings_dialog::{SettingsOutcome, SETTINGS_SEARCH_AUTHOR_ID};
+use handshake_native::settings_dialog::SettingsOutcome;
 use handshake_native::settings_editor_section::{
-    editor_keybind_row_author_id, EDITOR_BRACKET_MATCHING_AUTHOR_ID, EDITOR_FONT_SIZE_AUTHOR_ID,
-    EDITOR_INDENT_GUIDES_AUTHOR_ID, EDITOR_INSERT_SPACES_AUTHOR_ID, EDITOR_LINE_HEIGHT_AUTHOR_ID,
-    EDITOR_LINE_NUMBERS_AUTHOR_ID, EDITOR_MINIMAP_AUTHOR_ID, EDITOR_READING_MODE_DEFAULT_AUTHOR_ID,
-    EDITOR_RENDER_WHITESPACE_AUTHOR_ID, EDITOR_STICKY_SCROLL_AUTHOR_ID, EDITOR_TAB_SIZE_AUTHOR_ID,
-    EDITOR_WORD_WRAP_AUTHOR_ID, EDITOR_WRAP_COLUMN_AUTHOR_ID,
+    EDITOR_FONT_SIZE_AUTHOR_ID, EDITOR_TAB_SIZE_AUTHOR_ID,
     FLIGHT_RECORDER_SETTINGS_POSTURE_AUTHOR_ID, FLIGHT_RECORDER_SETTINGS_POSTURE_NOTE,
-    SYNTAX_PALETTE_MODE_AUTHOR_ID, SYNTAX_SWATCH_AUTHOR_IDS,
 };
 use handshake_native::theme::{HsTheme, MUTED_PALETTE, STANDARD_PALETTE};
 use handshake_native::workspace_settings::{
-    default_workspace_settings_state, normalize_workspace_settings_state, EditorPrefs,
-    RenderWhitespaceMode, SettingsClient, SettingsTransport, SettingsTransportError, SyntaxPalette,
-    SyntaxPaletteMode, WordWrapMode, SYNTAX_SCOPE_KEYS,
+    default_workspace_settings_state, EditorPrefs, RenderWhitespaceMode, SettingsTransport,
+    SettingsTransportError, SyntaxPalette, SyntaxPaletteMode, WordWrapMode,
 };
 use serde_json::Value;
 
@@ -362,119 +355,6 @@ impl SettingsTransport for AlwaysFailSettingsTransport {
     }
 }
 
-struct FailFirstLiveSettingsTransport {
-    client: SettingsClient,
-    failing_client: SettingsClient,
-    fail_next_save: std::sync::atomic::AtomicBool,
-    load_calls: std::sync::atomic::AtomicUsize,
-    save_calls: std::sync::atomic::AtomicUsize,
-    successful_saves: std::sync::atomic::AtomicUsize,
-    last_successful_payload: Mutex<Option<Value>>,
-}
-
-impl FailFirstLiveSettingsTransport {
-    fn new(client: SettingsClient, failing_client: SettingsClient) -> Arc<Self> {
-        Arc::new(Self {
-            client,
-            failing_client,
-            fail_next_save: std::sync::atomic::AtomicBool::new(true),
-            load_calls: std::sync::atomic::AtomicUsize::new(0),
-            save_calls: std::sync::atomic::AtomicUsize::new(0),
-            successful_saves: std::sync::atomic::AtomicUsize::new(0),
-            last_successful_payload: Mutex::new(None),
-        })
-    }
-}
-
-impl SettingsTransport for FailFirstLiveSettingsTransport {
-    fn load(&self, workspace_id: &str) -> Result<Option<Value>, SettingsTransportError> {
-        self.load_calls
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        self.client.load(workspace_id)
-    }
-
-    fn save(
-        &self,
-        workspace_id: &str,
-        settings_state: Value,
-    ) -> Result<(), SettingsTransportError> {
-        self.save_calls
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        if self
-            .fail_next_save
-            .swap(false, std::sync::atomic::Ordering::SeqCst)
-        {
-            return self.failing_client.save(workspace_id, settings_state);
-        }
-        let request_payload = settings_state.clone();
-        self.client.save(workspace_id, settings_state)?;
-        *self.last_successful_payload.lock().unwrap() = Some(request_payload);
-        self.successful_saves
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        Ok(())
-    }
-}
-
-fn spawn_one_http_503() -> (String, std::thread::JoinHandle<()>) {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind one-shot HTTP 503");
-    let address = listener.local_addr().expect("one-shot HTTP address");
-    listener
-        .set_nonblocking(true)
-        .expect("bound one-shot accept timeout");
-    let worker = std::thread::spawn(move || {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-        let mut stream = loop {
-            match listener.accept() {
-                Ok((stream, _)) => break stream,
-                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                    assert!(
-                        std::time::Instant::now() < deadline,
-                        "timed out waiting for failing settings PUT"
-                    );
-                    std::thread::sleep(std::time::Duration::from_millis(10));
-                }
-                Err(error) => panic!("accept settings PUT: {error}"),
-            }
-        };
-        stream
-            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
-            .expect("bound one-shot read timeout");
-        let mut request_prefix = [0u8; 4096];
-        let read_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-        let read = loop {
-            match stream.read(&mut request_prefix) {
-                Ok(0) => panic!("failing settings PUT closed before sending a request"),
-                Ok(read) => break read,
-                Err(error)
-                    if matches!(
-                        error.kind(),
-                        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
-                    ) =>
-                {
-                    assert!(
-                        std::time::Instant::now() < read_deadline,
-                        "timed out reading failing settings PUT"
-                    );
-                    std::thread::sleep(std::time::Duration::from_millis(10));
-                }
-                Err(error) => panic!("read settings PUT: {error}"),
-            }
-        };
-        assert!(
-            std::str::from_utf8(&request_prefix[..read])
-                .unwrap_or_default()
-                .starts_with("PUT "),
-            "failure proof must receive a real HTTP PUT"
-        );
-        stream
-            .write_all(
-                b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 20\r\nConnection: close\r\n\r\nsettings unavailable",
-            )
-            .expect("write HTTP 503");
-    });
-    (format!("http://{address}"), worker)
-}
-
 fn test_runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
@@ -629,344 +509,91 @@ fn drive_argus_control(
     }
 }
 
+// MT-072 (FAIL_V2) — retry-after-failure on the canonical PreferenceRecord authority. This SUPERSEDES the
+// retired `editor_settings_persist_managed_postgres_all_fields_retry_and_reopen_round_trip`, which drove
+// the editor widgets but asserted persistence through the opaque `/settings` PUT/GET blob — dead routing
+// after editor settings migrated to per-id preference PUTs (the `/settings` save is never called by an
+// editor edit, so that test could not pass against a live backend). The behaviors it uniquely proved are
+// now covered against the correct authority:
+//   * live set/reset/history/receipt/EventLedger round-trip → test_editor_preference_records.rs (live PG)
+//   * Argus widget → canonical PUT + AccessKit ids → argus_set_value_on_mounted_font_size_reaches_...
+//   * close/reopen hydrate from canonical state → opening_settings_hydrates_editor_prefs_from_the_projection
+//   * transient failure surfaces visibly + edit retained → backend_unavailable_preference_write_degrades_...
+//   * structured 400 surfaces → structured_validation_rejection_surfaces_on_status_row
+//   * chrome/editor font separation → workspace_settings::tests::editor_font_size_is_separate_from_chrome_appearance
+// This test adds the missing piece: an explicit, addressable Retry that RE-DISPATCHES the exact retained
+// editor edit after a transient backend failure, so the operator's change is recoverable (no data loss).
 #[test]
-fn editor_settings_persist_managed_postgres_all_fields_retry_and_reopen_round_trip() {
-    use handshake_native::code_editor::keymap::{CodeEditorAction, KeyChord};
-    use handshake_native::rich_editor::formatting::commands::FormattingCommand;
-    use handshake_native::settings_dialog::SETTINGS_PERSIST_RETRY_AUTHOR_ID;
-
-    let mut backend = pg_proof_support::require_live_backend();
-    let runtime = test_runtime();
-    let production_client = SettingsClient::new(backend.base.clone(), runtime.handle().clone());
-    let (failure_base, failure_server) = spawn_one_http_503();
-    let failing_client = SettingsClient::new(failure_base, runtime.handle().clone());
-    // A WP-011-era row still carried the complete backend-validated shell keybinding map; it simply
-    // predated the three MT-072 editor keys. Build that real legacy shape from the canonical defaults
-    // and remove only the fields that did not exist yet.
-    let mut legacy_settings = default_workspace_settings_state().to_settings_state();
-    let legacy = legacy_settings
-        .as_object_mut()
-        .expect("canonical workspace settings serialize as an object");
-    legacy.remove("editor_prefs");
-    legacy.remove("syntax_palette");
-    legacy.remove("editor_keybindings");
-    production_client
-        .save(&backend.workspace_id, legacy_settings.clone())
-        .expect("PUT legacy/default settings into managed workspace");
-    assert_eq!(
-        production_client
-            .load(&backend.workspace_id)
-            .expect("GET managed legacy/default settings"),
-        Some(legacy_settings),
-        "managed proof starts from an actual legacy document without editor keys"
-    );
-
-    let flaky = FailFirstLiveSettingsTransport::new(production_client.clone(), failing_client);
-    let mut app = ok_app();
-    app.set_runtime_handle(runtime.handle().clone());
-    app.bind_active_project_for_integration_test(backend.workspace_id.clone());
-    app.set_settings_transport(flaky.clone());
+fn failed_editor_preference_write_retries_and_redispatches_the_exact_edit() {
+    let stub = StubPreferenceTransport::failing(PreferenceTransportError::Unavailable(
+        "connection refused".to_owned(),
+    ));
+    let (app, stub) = pref_wired_app(stub);
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
-    harness.state_mut().open_settings();
+    // The dialog stays CLOSED (as in backend_unavailable_preference_write_degrades_visibly_without_freeze):
+    // the shell drives + drains the preference write queue while closed, and a failed write surfaces the
+    // addressable Retry via the closed-dialog persistence overlay. Not opening the dialog also keeps this
+    // test off the separate /settings load path (whose fresh-workspace None response is unrelated here).
+
+    // Edit the editor font size; the first PUT hits the unavailable backend.
+    let mut prefs = harness.state().workspace_settings().editor_prefs;
+    prefs.editor_font_size = 20.0;
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(prefs));
+
+    // The transient failure surfaces a visible, addressable Retry. Its label ("Retry saving preference")
+    // is emitted ONLY for the typed Preference retry lane, so its presence proves the lane is armed.
     assert!(
-        run_until(&mut harness, 120, |_| {
-            flaky.load_calls.load(std::sync::atomic::Ordering::SeqCst) >= 1
-        }),
-        "real GET /settings completed on first open"
+        run_until(&mut harness, 120, |app| app.settings_persist_error().is_some()),
+        "a transient preference-write failure surfaces a visible persist error"
     );
-    let defaults = default_workspace_settings_state();
-    assert_eq!(
-        harness.state().workspace_settings().editor_prefs,
-        defaults.editor_prefs,
-        "legacy managed row supplies every missing Editor preference default"
-    );
-    assert_eq!(
-        harness.state().workspace_settings().syntax_palette,
-        defaults.syntax_palette,
-        "legacy managed row supplies the missing syntax palette default"
-    );
+    harness.run_steps(3);
     assert!(
-        harness
-            .state()
-            .workspace_settings()
-            .editor_keybindings
-            .is_empty(),
-        "legacy managed row supplies no invented editor keybinding overrides"
+        harness.query_by_label("Retry saving preference").is_some(),
+        "the failed preference write arms the typed 'Retry saving preference' control"
     );
-    let chrome_theme_before = harness.state().workspace_settings().theme;
-
-    let prefs = EditorPrefs {
-        editor_font_size: 19.5,
-        tab_size: 3,
-        insert_spaces: false,
-        word_wrap: WordWrapMode::BoundedColumn(96),
-        render_whitespace: RenderWhitespaceMode::Boundary,
-        minimap_enabled: false,
-        sticky_scroll: false,
-        line_numbers: false,
-        line_height: 1.4,
-        bracket_matching: false,
-        indent_guides: false,
-        reading_mode_default: true,
-    };
-    let mut syntax = SyntaxPalette {
-        mode: SyntaxPaletteMode::Custom,
-        custom: Default::default(),
-    };
-    for (index, scope) in SYNTAX_SCOPE_KEYS.iter().enumerate() {
-        syntax.set_custom(
-            scope,
-            [10 + index as u8, 40 + index as u8, 90 + index as u8, 255],
-        );
-    }
-    // Drive every declared mutable Editor field through its actual mounted widget. Combo boxes and
-    // text/swatch inputs consume addressed SetValue data; DragValues consume NumericValue; checkboxes
-    // consume Click. No SettingsOutcome is injected by this managed proof.
-    for (target, value) in [
-        (EDITOR_FONT_SIZE_AUTHOR_ID, "19.5"),
-        (EDITOR_TAB_SIZE_AUTHOR_ID, "3"),
-    ] {
-        drive_argus_control(
-            &mut harness,
-            handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
-            target,
-            Some(value),
-        );
-    }
-    for target in [
-        EDITOR_INSERT_SPACES_AUTHOR_ID,
-        EDITOR_MINIMAP_AUTHOR_ID,
-        EDITOR_STICKY_SCROLL_AUTHOR_ID,
-        EDITOR_LINE_NUMBERS_AUTHOR_ID,
-        EDITOR_BRACKET_MATCHING_AUTHOR_ID,
-        EDITOR_INDENT_GUIDES_AUTHOR_ID,
-        EDITOR_READING_MODE_DEFAULT_AUTHOR_ID,
-    ] {
-        drive_argus_control(
-            &mut harness,
-            handshake_native::mcp::ARGUS_CLICK_METHOD,
-            target,
-            None,
-        );
-    }
-    drive_argus_control(
-        &mut harness,
-        handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
-        EDITOR_WORD_WRAP_AUTHOR_ID,
-        Some("bounded"),
-    );
-    drive_argus_control(
-        &mut harness,
-        handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
-        EDITOR_WRAP_COLUMN_AUTHOR_ID,
-        Some("96"),
-    );
-    drive_argus_control(
-        &mut harness,
-        handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
-        EDITOR_RENDER_WHITESPACE_AUTHOR_ID,
-        Some("boundary"),
-    );
-    drive_argus_control(
-        &mut harness,
-        handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
-        EDITOR_LINE_HEIGHT_AUTHOR_ID,
-        Some("1.4"),
-    );
-    drive_argus_control(
-        &mut harness,
-        handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
-        SYNTAX_PALETTE_MODE_AUTHOR_ID,
-        Some("custom"),
-    );
-    for (index, target) in SYNTAX_SWATCH_AUTHOR_IDS.iter().enumerate() {
-        let rgba = format!(
-            "#{:02x}{:02x}{:02x}ff",
-            10 + index as u8,
-            40 + index as u8,
-            90 + index as u8
-        );
-        drive_argus_control(
-            &mut harness,
-            handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
-            target,
-            Some(&rgba),
-        );
-    }
-
-    drive_argus_control(
-        &mut harness,
-        handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
-        SETTINGS_SEARCH_AUTHOR_ID,
-        Some("keybinding"),
-    );
-    drive_argus_control(
-        &mut harness,
-        handshake_native::mcp::ARGUS_CLICK_METHOD,
-        "settings.section.keybindings-editor",
-        None,
-    );
-    let keybind_target = editor_keybind_row_author_id("code.open_find");
-    drive_argus_control(
-        &mut harness,
-        handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
-        &keybind_target,
-        Some("Ctrl+Alt+F"),
-    );
-    let rich_keybind_target = editor_keybind_row_author_id("rich.toggle_bold");
-    drive_argus_control(
-        &mut harness,
-        handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
-        &rich_keybind_target,
-        Some("Ctrl+Alt+B"),
-    );
-    assert_eq!(harness.state().workspace_settings().editor_prefs, prefs);
-    assert_eq!(harness.state().workspace_settings().syntax_palette, syntax);
-    assert_eq!(
-        harness.state().workspace_settings().theme,
-        chrome_theme_before,
-        "editor widget changes do not mutate the separate chrome theme"
-    );
-    let expected = harness.state().workspace_settings().clone();
-
-    let code_chord = KeyChord::new(egui::Key::F, true, true, false, false);
-    assert_eq!(
-        harness
-            .state()
-            .mounted_code_panel()
-            .keymap()
-            .resolve(code_chord),
-        Some(CodeEditorAction::OpenFind),
-        "code override is live before persistence"
-    );
-    let rich_modifiers = egui::Modifiers {
-        ctrl: true,
-        command: true,
-        alt: true,
-        ..Default::default()
-    };
-    assert_eq!(
-        harness
-            .state()
-            .mounted_rich_state()
-            .lock()
-            .unwrap()
-            .rich_keymap()
-            .resolve(&rich_modifiers, egui::Key::B),
-        Some(FormattingCommand::ToggleBold),
-        "rich override is live before persistence"
-    );
-
-    assert!(
-        run_until(&mut harness, 160, |app| {
-            flaky.save_calls.load(std::sync::atomic::Ordering::SeqCst) >= 1
-                && app.settings_persist_error().is_some()
-        }),
-        "first PUT failure becomes visible without losing live edits"
-    );
-    failure_server
-        .join()
-        .expect("one-shot real HTTP failure server reaped");
-    assert_eq!(harness.state().workspace_settings(), &expected);
     assert!(
         harness
             .root()
             .children_recursive()
-            .any(|node| node.accesskit_node().author_id() == Some(SETTINGS_PERSIST_RETRY_AUTHOR_ID)),
-        "typed settings retry control is live after failed PUT"
+            .any(|node| node.accesskit_node().author_id()
+                == Some(handshake_native::settings_dialog::SETTINGS_PERSIST_RETRY_AUTHOR_ID)),
+        "the Retry control is addressable by its stable author_id"
     );
-    drive_argus_control(
-        &mut harness,
-        handshake_native::mcp::ARGUS_CLICK_METHOD,
-        SETTINGS_PERSIST_RETRY_AUTHOR_ID,
-        None,
+    // The optimistic edit is retained (no data loss) and nothing reached the record store yet.
+    assert_eq!(
+        harness.state().workspace_settings().editor_prefs.editor_font_size,
+        20.0
     );
     assert!(
-        run_until(&mut harness, 160, |_| {
-            flaky
-                .successful_saves
-                .load(std::sync::atomic::Ordering::SeqCst)
-                >= 1
-        }),
-        "Retry re-dispatched the retained settings PUT"
+        stub.sets().is_empty(),
+        "the failed write never committed to the backend record store"
     );
 
-    let persisted = production_client
-        .load(&backend.workspace_id)
-        .expect("GET settings after retry")
-        .expect("retry created managed settings row");
-    assert_eq!(
-        normalize_workspace_settings_state(&persisted, &default_workspace_settings_state()),
-        expected,
-        "every editor field, palette swatch, and code/rich override survived real PUT->GET"
-    );
-    let successful_put = flaky
-        .last_successful_payload
-        .lock()
-        .unwrap()
-        .clone()
-        .expect("successful retry captured the exact PUT request payload");
-    assert_eq!(
-        persisted, successful_put,
-        "the managed GET response must exactly match the successful retry PUT request"
-    );
-    println!("MT-072 managed workspace_id={}", backend.workspace_id);
-    println!(
-        "MT-072 successful PUT /workspaces/{}/settings payload={}",
-        backend.workspace_id, successful_put
-    );
-    println!(
-        "MT-072 GET /workspaces/{}/settings payload={}",
-        backend.workspace_id, persisted
-    );
-
-    let mut reopened = ok_app();
-    reopened.set_runtime_handle(runtime.handle().clone());
-    reopened.bind_active_project_for_integration_test(backend.workspace_id.clone());
-    reopened.set_settings_transport(Arc::new(production_client));
-    let mut reopened_harness =
-        Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), reopened);
-    reopened_harness.state_mut().open_settings();
+    // Backend recovers; Retry re-dispatches the EXACT retained edit to the canonical font-size route.
+    stub.set_fail_write(None);
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::RetryPersistence);
     assert!(
-        run_until(&mut reopened_harness, 160, |app| {
-            app.workspace_settings() == &expected
+        run_until(&mut harness, 120, |app| {
+            app.settings_persist_error().is_none()
+                && stub
+                    .sets()
+                    .iter()
+                    .any(|(id, v)| id == PREF_EDITOR_FONT_SIZE && v == &serde_json::json!(20.0))
         }),
-        "fresh app GET/reopen restored every editor setting"
+        "Retry re-dispatched the exact retained font-size edit and cleared the error; sets={:?}",
+        stub.sets()
     );
-    assert_eq!(
-        reopened_harness
-            .state()
-            .mounted_code_panel()
-            .keymap()
-            .resolve(code_chord),
-        Some(CodeEditorAction::OpenFind),
-        "reopen reapplied code keymap"
+    // The Retry control clears once the write commits (the lane is disarmed).
+    harness.run_steps(3);
+    assert!(
+        harness.query_by_label("Retry saving preference").is_none(),
+        "the Retry control clears after a successful re-dispatch"
     );
-    assert_eq!(
-        reopened_harness
-            .state()
-            .mounted_rich_state()
-            .lock()
-            .unwrap()
-            .rich_keymap()
-            .resolve(&rich_modifiers, egui::Key::B),
-        Some(FormattingCommand::ToggleBold),
-        "reopen reapplied rich keymap"
-    );
-    let current_head = std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .expect("read current git head for managed evidence");
-    assert!(current_head.status.success(), "git rev-parse HEAD failed");
-    println!(
-        "MT-072 current-head={} fresh-reopen=verified",
-        String::from_utf8(current_head.stdout).unwrap().trim()
-    );
-    drop(reopened_harness);
-    drop(harness);
-    drop(flaky);
-    backend.assert_cleanup();
 }
 
 #[test]
@@ -2184,6 +1811,11 @@ impl StubPreferenceTransport {
     }
     fn list_calls(&self) -> usize {
         self.inner.lock().unwrap().list_calls
+    }
+    /// Script the write-failure state at runtime so a test can fail the FIRST write (transient backend
+    /// outage) then clear it to prove Retry re-dispatches the exact retained write and succeeds.
+    fn set_fail_write(&self, err: Option<PreferenceTransportError>) {
+        self.inner.lock().unwrap().fail_write_with = err;
     }
 }
 

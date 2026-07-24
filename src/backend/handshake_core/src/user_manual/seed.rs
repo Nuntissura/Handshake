@@ -702,13 +702,22 @@ fn page_editor_preferences() -> NewUserManualPage {
                  .../history`), so a reset never loses provenance and can be re-applied by reading the old \
                  `new_value` from the history and PUTting it back.\n\
                  - Audit who changed what: `GET .../preferences/{preference_id}/history` returns every \
-                 receipt (before/after revision, old/new value, actor, `event_ledger_event_id`). Correlate \
-                 the `event_ledger_event_id` on `/events` for the durable EventLedger receipt.\n\
+                 receipt (before/after revision, old/new value, actor, `event_ledger_event_id`). The durable \
+                 receipt lives in the kernel event ledger, NOT the Flight-Recorder `/events` business-event \
+                 projection (that projection does not carry preference records and rejects `KE-` ids); \
+                 correlate the `event_ledger_event_id` (a `KE-...` id) via `GET \
+                 /kernel/events/aggregates/preference_record/{scope}:{scope_ref}:{preference_id}` for the \
+                 durable EventLedger receipt.\n\
                  - A rejected write (HTTP 400 `preference_validation_failed`) never persisted anything — \
                  re-read the record to confirm it is unchanged, then PUT an in-range value.\n\
+                 - Recover a transient save failure: an `Unavailable` backend during a preference write \
+                 surfaces a visible error and retains the edit; the settings dialog exposes a \
+                 \"Retry saving preference\" affordance that re-dispatches the exact retained edit (a \
+                 validation 400 is non-retryable and is not re-sent).\n\
                  - Diagnostic posture (HBR-INT-009): Tier 1 Flight Recorder = WIRED (the \
-                 `PREFERENCE_RECORD_CHANGED` EventLedger receipt is the durable, Flight-Recorder-backed \
-                 change evidence, appended in the same PostgreSQL transaction as the record write). Tier 2 \
+                 `PREFERENCE_RECORD_CHANGED` receipt is durable EventLedger evidence in the kernel event \
+                 ledger, appended in the same PostgreSQL transaction as the record write, and recoverable \
+                 via the kernel aggregate endpoint above rather than the FR `/events` projection). Tier 2 \
                  internal_diagnostics and Tier 3 Palmistry = DEFERRED (not yet shipped in this worktree; \
                  preference reads/writes surface through the standard backend request diagnostics until \
                  they land).",
