@@ -16,21 +16,21 @@
     "status": "SKIPPED_MINIMAL_GOVERNANCE"
   },
   "lifecycle": {
-    "status": "FAIL_V4",
+    "status": "READY_FOR_VALIDATION_V5",
     "depends_on": [
       "MT-014"
     ],
     "blocks": [],
     "active": false,
-    "validator_verdict": "FAIL_V4",
+    "validator_verdict": null,
     "claimed_by": "KERNEL_BUILDER-20260704-003205",
     "claimed_at_utc": "2026-07-04T00:32:05Z",
-    "ready_for_validation_by": "KERNEL_BUILDER-20260704-003205",
-    "ready_for_validation_at_utc": "2026-07-04T02:44:02Z",
+    "ready_for_validation_by": "KERNEL_BUILDER-20260723-205940",
+    "ready_for_validation_at_utc": "2026-07-24T14:33:31Z",
     "completed_by": null,
-    "blocker": "MT-017/MT-014 materially changed shared model registration, role, boot, and routing surfaces after MT-016 PASS_V1. No fresh real embedding-model/current-source proof completed, so the dedicated embedding registration, restart recovery, dimension handling, and completion/embedding isolation cannot receive PASS_V4.",
+    "blocker": null,
     "missing_resource": null,
-    "proof_status": "FAIL_V4: MT-017/MT-014 materially changed shared model registration, role, boot, and routing surfaces after MT-016 PASS_V1. No fresh real embedding-model/current-source proof completed, so the dedicated embedding registration, restart recovery, dimension handling, and completion/embedding isolation cannot receive PASS_V4.",
+    "proof_status": "READY_FOR_VALIDATION_V5: all 6 declared proof commands green on real Handshake-managed PostgreSQL (port 5544) at a5f92507. mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency, mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat, mt016_default_boot_registers_distinct_embedding_model_when_configured, mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model, mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call all PASS; dedicated_embedding_model_behaviors_have_manual_coverage PASS after completing the embedding behavior's Palmistry correlation ref + page HBR-INT-009 tier posture (fix a5f92507). Proofs use the standard real-PG-registry + deterministic-model-response pattern per the MT's own allowance. The V4 blocker (fresh embedding proof did not complete against the MT-014-changed shared surface) is resolved: proofs now run green against current HEAD which includes MT-014's registration changes. NOTE: the additional real-embedding-model e2e (tests/mt016_real_embedding_e2e.rs) requires a real embedding model artifact and was NOT run this pass; the Integration Validator should decide whether real-model proof beyond the deterministic pattern is additionally required. Dependency MT-014 is itself still under V5 remediation.",
     "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL: shared ModelRegistry/ModelCatalog capability validation, embedded local-runtime dedicated embedding registration, LoomSearchV2 no-chat-fallback route with stable embedding-space persistence, PostgreSQL same-space vector filtering, and UserManual startup/recovery/evidence coverage.",
     "pre_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_GALILEO_SINGER_EINSTEIN_FINDINGS_APPLIED_TO_CONTRACT",
     "post_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_DALTON_HELMHOLTZ_DEWEY_FINDINGS_APPLIED",
@@ -150,7 +150,24 @@
     "rust_only_implementation": "Rust backend + native egui/Argus only.",
     "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after real engine-free proofs; COMPLETED is validator-only."
   },
-  "validator_verdict": "FAIL_V4",
+  "validator_verdict": null,
+  "validation_v5": {
+    "verdict": "READY_FOR_VALIDATION_V5",
+    "ready_by": "KERNEL_BUILDER-20260723-205940",
+    "ready_at_utc": "2026-07-24T14:33:31Z",
+    "proof_source_sha": "a5f925077c3d4a9c9940a78e60f889b346e0ae5d",
+    "managed_postgres": "Handshake-managed cluster adopted at Handshake_Artifacts/handshake-product/managed_pgdata, port 5544.",
+    "proof_results": [
+      "model_registry_tests::mt016_model_capabilities_declare_embedding_dimension_and_validate_consistency => PASS",
+      "model_catalog_tests::mt016_catalog_selects_ready_embedding_capable_model_distinct_from_chat => PASS",
+      "llm_default_boot_resolution_tests::mt016_default_boot_registers_distinct_embedding_model_when_configured => PASS",
+      "loom_search_v2_tests::mt016_loom_search_routes_reindex_and_search_to_registry_embedding_model => PASS",
+      "loom_search_v2_tests::mt016_loom_search_no_embedding_model_degrades_without_chat_embedding_call => PASS",
+      "user_manual_behavior_coverage_tests::dedicated_embedding_model_behaviors_have_manual_coverage => PASS (after fix a5f92507)"
+    ],
+    "not_run_this_pass": "tests/mt016_real_embedding_e2e.rs (real embedding model artifact required; deterministic-model proofs cover the declared acceptance).",
+    "boundary": "Implementer transition CLAIMED->READY_FOR_VALIDATION only; completed_by remains null for independent Integration Validator review."
+  },
   "validation_v1": {
     "verdict": "PASS_V1",
     "validated_by": "INTEGRATION_VALIDATOR (acting as per-MT WP Validator per Operator directive 2026-07-10)",

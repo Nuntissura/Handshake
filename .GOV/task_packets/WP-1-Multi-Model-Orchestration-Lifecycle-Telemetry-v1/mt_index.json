@@ -387,14 +387,14 @@
     },
     {
       "mt_id": "MT-016",
-      "status": "FAIL_V4",
+      "status": "READY_FOR_VALIDATION_V5",
       "depends_on": [
         "MT-014"
       ],
       "summary": "Dedicated embedding model distinct from the chat model: second embedding-capable local registration + supports_embedding/embedding_dimension product-extension capability; LoomSearchV2 embeds via the registry-resolved embedding model, filters semantic rows by embedding_model, and never falls back to chat profile().model_id. DEFERRED from MT-014 AC-4b (pre-impl review F9).",
       "unlocks": "Unlocks a separate correctly-dimensioned embedding model for LoomSearchV2 semantic search, decoupled from the chat model.",
       "blocks": [],
-      "proof_status": "FAIL_V4: MT-017/MT-014 materially changed shared model registration, role, boot, and routing surfaces after MT-016 PASS_V1. No fresh real embedding-model/current-source proof completed, so the dedicated embedding registration, restart recovery, dimension handling, and completion/embedding isolation cannot receive PASS_V4.",
+      "proof_status": "READY_FOR_VALIDATION_V5: all 6 declared proof commands green on real managed PostgreSQL (port 5544) at a5f92507; see MT contract validation_v5. Real-embedding-model e2e not run (needs artifact).",
       "hbr_status": "PASS_HBR_INT001_INT009_MAN004_FOR_MT016_DEDICATED_EMBEDDING_MODEL",
       "pre_implementation_adversarial_review_status": "DONE_2026-07-04_SUBAGENTS_GALILEO_SINGER_EINSTEIN_FINDINGS_APPLIED_TO_CONTRACT",
       "post_implementation_adversarial_review_status": "FAIL_V4_2026-07-22_INDEPENDENT_CURRENT_SOURCE_REVIEW",
