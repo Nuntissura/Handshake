@@ -1,0 +1,142 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-018",
+  "created_at_utc": "2026-07-24T00:00:00Z",
+  "updated_at_utc": "2026-07-24T00:00:00Z",
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-018.json",
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": "",
+    "status": "SKIPPED_MINIMAL_GOVERNANCE"
+  },
+  "lifecycle": {
+    "status": "READY_FOR_DEV",
+    "depends_on": [
+      "MT-004",
+      "MT-005",
+      "MT-009"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "claimed_at_utc": null,
+    "ready_for_validation_by": null,
+    "ready_for_validation_at_utc": null,
+    "completed_by": null,
+    "blocker": null,
+    "missing_resource": null,
+    "proof_status": "NOT_STARTED",
+    "hbr_status": "PENDING",
+    "kb_ready_checklist_receipt_id": null,
+    "product_worktree_root_resolution": "../wtc-multi-model-orchestration-v1",
+    "pre_implementation_adversarial_review_status": "PENDING",
+    "post_implementation_adversarial_review_status": "PENDING",
+    "adversarial_findings_status": "PENDING",
+    "validated_by": null,
+    "validated_at_utc": null
+  },
+  "origin": {
+    "discovered_by": "KERNEL_BUILDER V5 remediation, 2026-07-24",
+    "discovery_context": "While remediating the MT-004/005/009 CRDT fail-closed admission path, a closed constraint loop was found and independently confirmed by direct source inspection that makes a Proposal-kind CRDT-bearing ModelLaneMessage UN-ADMITTABLE at HEAD: no crdt_proposal_ref row can ever satisfy the resolver's applied_update_sha256 == kernel_crdt_updates.update_sha256 cross-check, because the two hashes are computed over different byte encodings of the same edit.",
+    "operator_directive": "Operator instruction 2026-07-23/24: 'if you see unexpected future gaps or work address it inside the same MT or defer it if this does not correlate with the current MT to a future MT in the same WP so we do not forget to address it.' This gap crosses into the knowledge-CRDT pillar (migration + spec touch) so it is deferred here rather than fixed inside MT-004/005/009.",
+    "layer_1_already_shipped": "MT-004/005/009 V5 shipped the Layer-1 sync-layer fix in validate_message_authority (model_lane.rs): CRDT posture completeness is no longer required unconditionally on every crdt_* field, so a real Status-kind CRDT message backed by a real Yjs update + real snapshot + active lease is now admissible, and the kind-aware durable proposal-ref rule at validate_message_crdt_authority_tx is no longer dead code. Layer-2 (this MT) is the remaining spec-level fix for the Proposal-kind path only."
+  },
+  "scope": {
+    "summary": "Resolve the diff-hash vs Yjs-update-hash conflation that makes an approved-proposal-backed (Proposal-kind) CRDT ModelLaneMessage un-admittable, so proposal-anchored CRDT authority can be proven end-to-end.",
+    "root_cause": "apply_approved_ai_edit (src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs ~665-691) computes applied_content_sha256 = sha256(serde_json::to_vec(applied_diff)) — a hash of the JSON diff object. bind_applied_ai_edit_update (src/backend/handshake_core/src/storage/knowledge_crdt.rs ~1562-1586) and migration 0192's CHECK force applied_update_sha256 = diff_sha256, i.e. that same JSON hash. But resolve_model_lane_crdt_authority_tx (src/backend/handshake_core/src/swarm_orchestration/model_lane.rs ~13011,13073-13085) requires the referenced kernel_crdt_updates row to satisfy BOTH sha256(update_bytes) == update_sha256 AND Update::decode_v1(update_bytes) succeeds — i.e. update_sha256 is the hash of the Yjs v1 BINARY update. Then the proposal cross-check (~13784-13793) requires proposal.applied_update_sha256 == resolved.update_sha256. Equating a JSON-object hash with a Yjs-binary hash is unsatisfiable short of a SHA-256 collision, so no honest proposal row can ever back an admitted CRDT message.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs",
+      "src/backend/handshake_core/src/storage/knowledge_crdt.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+      "src/backend/handshake_core/migrations/",
+      "src/backend/handshake_core/tests/"
+    ],
+    "owned_files": [
+      "src/backend/handshake_core/src/kernel/crdt/ai_edit_proposal.rs",
+      "src/backend/handshake_core/src/storage/knowledge_crdt.rs"
+    ],
+    "forbidden_paths": [
+      "front-end UI changes",
+      "app/src, app/src-tauri, React/TypeScript",
+      "weakening any resolver fail-closed gate to make the loop close",
+      "SQLite in any form"
+    ],
+    "acceptance_criteria": [
+      "The proposal->applied->CRDT-update authority trail is internally consistent: the value the resolver cross-checks binds the proposal to the REAL kernel_crdt_updates row by identity (applied_update_id) and verifies that row's own integrity (its update_sha256 over the Yjs binary), rather than requiring a JSON-diff hash to equal a Yjs-update hash.",
+      "A Proposal-kind ModelLaneMessage that references an approved+applied proposal whose applied update is a real persisted Yjs update is ADMITTED by validate_message_crdt_authority_tx and replays with all applicable crdt_* fields intact.",
+      "Every existing fail-closed denial is preserved: fabricated update ref, hash mismatch on the Yjs bytes, stale/unrelated state vector, wrong actor/session/trace/workspace/document identity, un-approved review_state, missing applied binding, and duplicate/idempotency conflicts all still fail closed with their specific denial reasons.",
+      "The change is expressed as a governed migration (copy-forward, never in-place edit of 0192) plus the minimal Rust change; migration 0192's intent is preserved or superseded with an explicit note, not silently broken.",
+      "If SPEC_CURRENT names durable CRDT applied-binding authority semantics, the spec is enriched via the copy-first indexed-bundle workflow in the same change (CX-105B/C); if it is silent, record an ASSUMPTION/PROVISIONAL DECISION local to this MT and flag it for operator spec review.",
+      "MT-002 CRDT-targeting positive proof, the MT-009 converge proof target (mixed_model_lane_integration_pg_tests::mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge), and the MT-005 lease-denial probe (model_lane_context_bundle_pg_tests::model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable) all pass on real Handshake-managed PostgreSQL using ONE canonical reusable admissible-CRDT-message helper.",
+      "Post-implementation adversarial review confirms the proposal path cannot be spoofed by an internally inconsistent proposal row (the exact anti-pattern this MT removes must remain impossible)."
+    ],
+    "proof_commands": [
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test mixed_model_lane_integration_pg_tests mt009_real_postgres_yjs_updates_compaction_receipts_and_lane_state_converge -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test model_lane_context_bundle_pg_tests model_lane_context_bundle_crdt_state_vector_and_loom_refs_are_replayable -- --exact",
+      "cargo test --manifest-path src/backend/handshake_core/Cargo.toml --features test-utils --test knowledge_crdt_ai_edit_proposal_tests -- --test-threads=1"
+    ],
+    "risk_if_missed": "MT-002/005/009 CRDT admission retains ZERO positive end-to-end proof: the Proposal-kind CRDT authority path can never be exercised, so a whole class of the ModelLane CRDT contract is asserted only by negative tests. A future implementer may 'fix' the failing tests by fabricating an inconsistent proposal row, silently defeating the fail-closed design this WP exists to establish.",
+    "reference_only_paths": []
+  },
+  "implementation_notes": [
+    "Preferred direction (verify against spec + code before choosing): bind and cross-check on applied_update_id (identity) and verify the referenced kernel_crdt_updates row's OWN integrity (sha256(update_bytes)==update_sha256 + Update::decode_v1) independently, instead of requiring proposal.applied_update_sha256 to equal the Yjs update hash. The proposal's own content integrity (diff_sha256 over the JSON diff) stays a separate, still-enforced invariant.",
+    "Do NOT relax any resolver gate to make the loop close; the fix is to stop conflating two distinct hashes, not to drop a check.",
+    "Migration discipline: never edit 0192 in place; add a forward migration and document whether 0192's applied_update_sha256=diff_sha256 CHECK is superseded, retained, or replaced, with reasoning.",
+    "Build ONE reusable admissible-CRDT-message test helper (real persisted Yjs update + real base snapshot + active lease with matching actor/session/trace identity; update session_id == lane session_id; lease correlation_id == update trace_id) and use it for every positive CRDT admission proof so future tests stop hand-rolling partial/synthetic postures.",
+    "If this MT changes any product behavior, storage/event contract, or diagnostic surface, update the in-product UserManual in the same change per HBR-MAN-004.",
+    "Rust-only backend change plus governed migration; PostgreSQL/EventLedger authority only; no SQLite."
+  ],
+  "required_build_rules": [
+    "HBR-INT-001",
+    "HBR-INT-005",
+    "HBR-INT-009",
+    "HBR-MAN-004"
+  ],
+  "hbr_obligations": [
+    "INT",
+    "MAN"
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "post_implementation_adversarial_review_required": true,
+    "post_implementation_review_lenses": [
+      "crdt_authority_integrity_and_spoofing_resistance",
+      "migration_safety_and_0192_supersession",
+      "postgres_eventledger_replay_correctness",
+      "spec_realism_negative_guards_and_no_loop_reintroduction"
+    ]
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "A lazy fix drops the resolver cross-check entirely, admitting any proposal ref.",
+      "A migration edits 0192 in place and breaks historical applied-binding rows.",
+      "The reusable helper hard-codes an identity shortcut that a real caller could not reproduce, re-creating a scaffold-only proof."
+    ],
+    "minimum_controls": [
+      "Keep every existing denial test green; add a negative test proving an internally inconsistent proposal row (JSON-hash != real update hash but pointed at a real update id) is still refused.",
+      "Forward-only migration with explicit 0192 disposition note.",
+      "Helper builds authority exclusively through real product APIs (apply_approved_ai_edit path or its governed equivalent), never by raw INSERT of an inconsistent row."
+    ]
+  },
+  "handshake_compatibility": {
+    "native_rust_backend_first": true,
+    "durable_authority": [
+      "PostgreSQL",
+      "EventLedger",
+      "kernel_crdt_updates",
+      "knowledge_crdt_ai_edit_proposals"
+    ],
+    "rust_only_implementation": "Rust backend + governed migration only.",
+    "spec_realism_gate": "Implementer may move only to READY_FOR_VALIDATION after the three real-PG proof targets pass against the Handshake-managed cluster; COMPLETED is validator-only."
+  },
+  "validator_verdict": null
+}

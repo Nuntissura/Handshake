@@ -2,9 +2,9 @@
   "schema": "hsk.microtask_index@1",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "generated_at_utc": "2026-07-22T13:02:07.6975131Z",
-  "total": 17,
-  "range": "MT-001..MT-017",
-  "note": "V4 Integration Validator per-MT review completed 2026-07-22. MT-001 remained PASS_V1 because ready work did not change its product surface. MT-002..MT-017 were changed or depended on changed surfaces and are FAIL_V4 with no-context remediation in each authoritative MT contract. Historical verdicts remain preserved.",
+  "total": 18,
+  "range": "MT-001..MT-018",
+  "note": "V4 Integration Validator per-MT review completed 2026-07-22. MT-001 remained PASS_V1 because ready work did not change its product surface. MT-002..MT-017 were changed or depended on changed surfaces and are FAIL_V4 with no-context remediation in each authoritative MT contract. Historical verdicts remain preserved. MT-018 added 2026-07-24 during V5 remediation: a deferred Layer-2 spec-level fix for the diff-hash-vs-Yjs-update-hash conflation that makes a Proposal-kind CRDT ModelLaneMessage un-admittable at HEAD (the Layer-1 sync-layer unblock shipped inside MT-004/005/009).",
   "microtasks": [
     {
       "mt_id": "MT-001",
@@ -439,6 +439,24 @@
         "validated_by": "INTEGRATION_VALIDATOR-20260722-120440",
         "validated_at_utc": "2026-07-22T13:02:07.6975131Z"
       }
+    },
+    {
+      "mt_id": "MT-018",
+      "status": "READY_FOR_DEV",
+      "depends_on": [
+        "MT-004",
+        "MT-005",
+        "MT-009"
+      ],
+      "summary": "Deferred Layer-2 spec-level fix: resolve the diff-hash (sha256 of JSON diff) vs Yjs-update-hash (sha256 of decoded Yjs binary) conflation in the approved-proposal applied-binding path that makes a Proposal-kind CRDT ModelLaneMessage un-admittable, so proposal-anchored CRDT authority can be proven end-to-end.",
+      "unlocks": "Gives MT-002/005/009 CRDT admission real positive end-to-end proof for the Proposal-kind path; without it that path can never be exercised and is asserted only by negative tests.",
+      "blocks": [],
+      "proof_status": "NOT_STARTED",
+      "hbr_status": "PENDING",
+      "pre_implementation_adversarial_review_status": "PENDING",
+      "post_implementation_adversarial_review_status": "PENDING",
+      "adversarial_findings_status": "PENDING",
+      "origin": "Discovered + confirmed by KERNEL_BUILDER during V5 remediation 2026-07-24; deferred here (not folded into MT-004/005/009) because the fix touches the knowledge-CRDT pillar and needs a migration + possible spec enrichment. Layer-1 sync-layer unblock already shipped in MT-004/005/009."
     }
   ]
 }
