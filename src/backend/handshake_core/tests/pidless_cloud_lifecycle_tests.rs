@@ -1,3 +1,5 @@
+#![cfg(feature = "test-utils")]
+
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc, Mutex,

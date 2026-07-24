@@ -1,3 +1,5 @@
+#![cfg(feature = "test-utils")]
+
 use std::time::Duration;
 
 use handshake_core::model_runtime::cloud::official_cli_bridge::hostile_never_eof_reader_cleanup_probe;

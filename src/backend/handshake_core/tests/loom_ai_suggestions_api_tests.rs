@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! WP-KERNEL-009 MT-260 UnifiedWorkSurface-260-AILoomJobs (GAP-LM-011) —
 //! REAL PostgreSQL authority proof.
 //!

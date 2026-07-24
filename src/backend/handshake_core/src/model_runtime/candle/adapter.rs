@@ -541,6 +541,7 @@ impl ModelRuntime for CandleRuntime {
                         req,
                         handle.cancel.clone(),
                         activity_guard,
+                        handle.perf.clone(),
                     )
                 }
                 _ => single_error_stream(Self::not_implemented("candle_generate")),

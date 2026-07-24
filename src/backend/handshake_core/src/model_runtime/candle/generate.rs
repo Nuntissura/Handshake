@@ -135,7 +135,7 @@ fn run_generation(
             &req,
             &runtime_cancel,
         );
-        return Ok(());
+        return Ok(0);
     }
     if req.max_tokens == 0 {
         let _ = send_with_backpressure(
@@ -144,7 +144,7 @@ fn run_generation(
             &req,
             &runtime_cancel,
         );
-        return Ok(());
+        return Ok(0);
     }
 
     let mut input_ids = codec.encode_prompt(req.prompt.as_str())?;
@@ -171,7 +171,7 @@ fn run_generation(
                 &req,
                 &runtime_cancel,
             );
-            return Ok(());
+            return Ok(generated);
         }
 
         let logits = {
@@ -200,7 +200,7 @@ fn run_generation(
                 &req,
                 &runtime_cancel,
             );
-            return Ok(());
+            return Ok(generated);
         }
 
         let piece = codec.decode_token(token_id)?;
@@ -216,7 +216,7 @@ fn run_generation(
                 &req,
                 &runtime_cancel,
             );
-            return Ok(());
+            return Ok(generated);
         }
 
         if generated == req.max_tokens {
@@ -228,7 +228,7 @@ fn run_generation(
                 &req,
                 &runtime_cancel,
             );
-            return Ok(());
+            return Ok(generated);
         }
 
         if !outcome.text.is_empty() {
@@ -238,7 +238,7 @@ fn run_generation(
                 &req,
                 &runtime_cancel,
             ) {
-                return Ok(());
+                return Ok(generated);
             }
         }
         input_ids = vec![token_id];
@@ -436,8 +436,8 @@ mod activity_tests {
     use crate::model_runtime::{
         CancellationToken, CaptureSpec, FinishReason, GenPrompt, GenerateRequest, GeneratedToken,
         HookPoint, KvPrefixHandle, LayerIndex, LoraId, ModelId, ModelRuntimeError,
-        RuntimeActivityKind, RuntimeActivityTracker, SamplingParams, SteeringProvenance,
-        SteeringVector, SteeringVectorId, SteeringVectorValues,
+        RuntimeActivityKind, RuntimeActivityTracker, RuntimePerfRecorder, SamplingParams,
+        SteeringProvenance, SteeringVector, SteeringVectorId, SteeringVectorValues,
         MODEL_RUNTIME_TOKEN_STREAM_CAPACITY,
     };
 
@@ -814,6 +814,7 @@ mod activity_tests {
             scripted_request(model_id, cancel.clone(), 8, vec![vector_id]),
             cancel,
             activity_guard,
+            Arc::new(Mutex::new(RuntimePerfRecorder::new())),
         );
 
         let mut tokens = Vec::new();
@@ -856,6 +857,7 @@ mod activity_tests {
             scripted_request(model_id, cancel.clone(), 8, Vec::new()),
             cancel,
             activity_guard,
+            Arc::new(Mutex::new(RuntimePerfRecorder::new())),
         );
 
         let token = stream.next().await.unwrap().unwrap();
@@ -876,6 +878,7 @@ mod activity_tests {
             kv_request,
             cancel,
             activity_guard,
+            Arc::new(Mutex::new(RuntimePerfRecorder::new())),
         );
         let err = stream.next().await.unwrap().unwrap_err();
         assert!(err.to_string().contains("kv prefix"), "{err}");
@@ -919,6 +922,7 @@ mod activity_tests {
             },
             CancellationToken::new(),
             activity_guard,
+            Arc::new(Mutex::new(RuntimePerfRecorder::new())),
         );
 
         let first = stream.next().await.unwrap().unwrap();
@@ -965,6 +969,7 @@ mod activity_tests {
             },
             CancellationToken::new(),
             activity_guard,
+            Arc::new(Mutex::new(RuntimePerfRecorder::new())),
         );
         worker_started
             .recv_timeout(Duration::from_secs(1))

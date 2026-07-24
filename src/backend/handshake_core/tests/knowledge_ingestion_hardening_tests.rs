@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! WP-KERNEL-009 SourceIngestionAndEvidence HARDENING proofs against REAL
 //! Handshake-managed PostgreSQL (MT-081/082/085/086/087/091/094 #1-#10).
 //!

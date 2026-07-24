@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 //! WP-KERNEL-009 MT-264 UnifiedWorkSurface-264-LoomSearchV2 -- real PostgreSQL
 //! proof. Postgres-native, graph-blended ES-class search over the Loom corpus
 //! (DEC-008: NOT Elasticsearch / no external search daemon).

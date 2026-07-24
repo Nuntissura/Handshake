@@ -1,3 +1,4 @@
+#![cfg(feature = "test-utils")]
 #![cfg_attr(not(feature = "candle-runtime-engine"), allow(dead_code))]
 
 #[cfg(feature = "candle-runtime-engine")]
