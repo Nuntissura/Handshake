@@ -95,6 +95,10 @@ pub mod project_tree;
 pub mod quick_links;
 pub mod quick_switcher;
 pub mod quiet_mode;
+// WP-KERNEL-012 MT-072 (FAIL_V2 remediation): the frontend client for the canonical PreferenceRecord
+// authority (Master Spec §10.17). Editor preferences now read from / write through this typed surface
+// (view-defaults.editor.* ids on /workspaces/:id/preferences) instead of the opaque /settings document.
+pub mod preference_client;
 pub mod rails;
 pub mod rich_editor;
 pub mod runtime_chat;

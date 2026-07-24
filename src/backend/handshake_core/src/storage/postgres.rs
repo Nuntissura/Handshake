@@ -6870,10 +6870,13 @@ impl super::Database for PostgresDatabase {
         // FK (loom_edges.event_ledger_event_id -> kernel_event_ledger.event_id)
         // is satisfiable. The best-effort Flight Recorder mirror at the API layer
         // is no longer the only observability for a committed tag write.
+        let ledger_actor_id = actor_id
+            .clone()
+            .unwrap_or_else(|| "loom-edge".to_string());
         let ledger_actor = match actor_kind {
-            "AI" => KernelActor::ModelAdapter(actor_id.clone()),
-            "HUMAN" => KernelActor::Operator(actor_id.clone()),
-            _ => KernelActor::System(actor_id.clone()),
+            "AI" => KernelActor::ModelAdapter(ledger_actor_id),
+            "HUMAN" => KernelActor::Operator(ledger_actor_id),
+            _ => KernelActor::System(ledger_actor_id),
         };
         let ledger_event = build_loom_edge_mutation_event(
             &edge.workspace_id,
@@ -7013,10 +7016,14 @@ impl super::Database for PostgresDatabase {
 
         // Atomic boundary (MT-023 FAIL_V2): durable EventLedger delete receipt in
         // the SAME transaction as the edge delete.
+        let ledger_actor_id = metadata
+            .actor_id
+            .clone()
+            .unwrap_or_else(|| "loom-edge".to_string());
         let ledger_actor = match metadata.actor_kind.as_str() {
-            "AI" => KernelActor::ModelAdapter(metadata.actor_id.clone()),
-            "HUMAN" => KernelActor::Operator(metadata.actor_id.clone()),
-            _ => KernelActor::System(metadata.actor_id.clone()),
+            "AI" => KernelActor::ModelAdapter(ledger_actor_id),
+            "HUMAN" => KernelActor::Operator(ledger_actor_id),
+            _ => KernelActor::System(ledger_actor_id),
         };
         let ledger_event = build_loom_edge_mutation_event(
             workspace_id,

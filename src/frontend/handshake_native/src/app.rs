@@ -2702,6 +2702,20 @@ pub struct HandshakeApp {
     /// Typed identity of the failed settings operation. The dialog's Retry action repeats exactly this
     /// GET or PUT; a failed PUT retains and re-sends the current in-memory editor settings.
     settings_retry_operation: Option<crate::settings_dialog::SettingsPersistenceOperation>,
+    /// WP-KERNEL-012 MT-072 (FAIL_V2 remediation): the canonical PreferenceRecord transport (Master
+    /// Spec §10.17). Editor preferences read from / write through this typed `view-defaults.editor.*`
+    /// surface (`/workspaces/:id/preferences`) instead of the opaque `/settings` document. `None` in the
+    /// headless/test shell (no runtime); a test injects a stub via [`set_preference_transport`].
+    ///
+    /// [`set_preference_transport`]: HandshakeApp::set_preference_transport
+    preference_transport: Option<Arc<dyn crate::preference_client::PreferenceTransport>>,
+    /// Queued editor-preference writes (set/reset/hydrate) flushed OFF the egui thread one at a time.
+    preference_write_queue: VecDeque<crate::preference_client::PreferenceWrite>,
+    /// The async cell a spawned preference write task writes into; drained (try_lock) each frame so the
+    /// network PUT/reset/list runs OFF the egui UI thread (HBR-QUIET).
+    preference_io_cell: Arc<Mutex<Option<crate::preference_client::PreferenceDelivery>>>,
+    /// A preference write is in flight on a worker; prevents overlapping spawns.
+    preference_io_in_flight: Arc<std::sync::atomic::AtomicBool>,
     /// MT-102 Visual Debugger: transient status for the last Settings -> Diagnostics worksurface dump.
     /// This is not persisted and owns no diagnostic authority; it only makes the button result visible.
     worksurface_inspector_last_dump: Option<String>,
@@ -4312,6 +4326,11 @@ impl HandshakeApp {
             Some(Arc::new(
                 crate::workspace_settings::SettingsClient::production(rt_handle.clone()),
             ));
+        // MT-072 (FAIL_V2): the REAL canonical PreferenceRecord transport (§10.17), same bridge pattern.
+        let preference_transport: Option<Arc<dyn crate::preference_client::PreferenceTransport>> =
+            Some(Arc::new(crate::preference_client::PreferenceClient::production(
+                rt_handle.clone(),
+            )));
         // MT-014 FIX-B: the in-process shell event bus, constructed once at app construction (the
         // "subscribe at app/LeftRail construction" control). Drained each frame in `ui()`.
         let (event_bus_tx, event_bus_rx) = new_shell_event_bus();
@@ -4489,6 +4508,10 @@ impl HandshakeApp {
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_persist_error: None,
             settings_retry_operation: None,
+            preference_transport,
+            preference_write_queue: VecDeque::new(),
+            preference_io_cell: Arc::new(Mutex::new(None)),
+            preference_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             worksurface_inspector_last_dump: None,
             pending_theme_change: None,
             about_open: false,
@@ -5116,6 +5139,12 @@ impl HandshakeApp {
             settings_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_persist_error: None,
             settings_retry_operation: None,
+            // Headless/test shell: no runtime to bridge a live preference transport onto. A test injects
+            // a stub via `set_preference_transport`; without one, editor-preference writes are a no-op.
+            preference_transport: None,
+            preference_write_queue: VecDeque::new(),
+            preference_io_cell: Arc::new(Mutex::new(None)),
+            preference_io_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             worksurface_inspector_last_dump: None,
             pending_theme_change: None,
             about_open: false,
@@ -12253,6 +12282,10 @@ impl HandshakeApp {
             // Reload the persisted settings on open so the dialog reflects the durable state (and so a
             // PG round-trip restart shows the saved theme — PT6). Cleared after the load dispatches.
             self.settings_load_pending = true;
+            // MT-072 (FAIL_V2): editor preferences are authoritative on the PreferenceRecord surface, so
+            // hydrate them from canonical PostgreSQL state on open too (SET-REC-003 — unset resolves to
+            // the registry default, never null).
+            self.enqueue_preference_hydrate();
         }
     }
 
@@ -12281,9 +12314,177 @@ impl HandshakeApp {
         self.settings_transport = Some(transport);
     }
 
+    /// Inject a canonical PreferenceRecord transport (MT-072 FAIL_V2) for tests/headless: a stub
+    /// [`crate::preference_client::PreferenceTransport`] captures the PUT/reset/list the editor settings
+    /// dialog drives, so the UI-wiring round-trip is provable without a live server.
+    pub fn set_preference_transport(
+        &mut self,
+        transport: Arc<dyn crate::preference_client::PreferenceTransport>,
+    ) {
+        self.preference_transport = Some(transport);
+    }
+
     /// The last transient settings persistence error, if any (MT-018), for tests + the status row.
     pub fn settings_persist_error(&self) -> Option<&str> {
         self.settings_persist_error.as_deref()
+    }
+
+    /// WP-KERNEL-012 MT-072 (FAIL_V2): enqueue an editor-preference write to the canonical
+    /// PreferenceRecord surface, bound to the active workspace. Flushed OFF the egui thread next frame
+    /// (HBR-QUIET). No-op when there is no active workspace (nothing to scope the write to).
+    fn enqueue_preference_write(&mut self, kind: crate::preference_client::PreferenceWriteKind) {
+        let workspace_id = self.active_project_id.clone();
+        if workspace_id.is_empty() {
+            return;
+        }
+        self.preference_write_queue
+            .push_back(crate::preference_client::PreferenceWrite { workspace_id, kind });
+    }
+
+    /// Enqueue the per-id `Set` writes that changed between `prev` and `next` scalar editor prefs. Only
+    /// the edited field(s) are written (a bounded-wrap change writes both the mode + the column id).
+    fn enqueue_editor_pref_writes(
+        &mut self,
+        prev: &crate::workspace_settings::EditorPrefs,
+        next: &crate::workspace_settings::EditorPrefs,
+    ) {
+        for (preference_id, value) in
+            crate::preference_client::changed_editor_pref_writes(prev, next)
+        {
+            self.enqueue_preference_write(crate::preference_client::PreferenceWriteKind::Set {
+                preference_id: preference_id.to_owned(),
+                value,
+            });
+        }
+    }
+
+    /// Enqueue the per-id `Set` writes that changed between `prev` and `next` syntax palettes.
+    fn enqueue_syntax_palette_writes(
+        &mut self,
+        prev: &crate::workspace_settings::SyntaxPalette,
+        next: &crate::workspace_settings::SyntaxPalette,
+    ) {
+        for (preference_id, value) in
+            crate::preference_client::changed_syntax_palette_writes(prev, next)
+        {
+            self.enqueue_preference_write(crate::preference_client::PreferenceWriteKind::Set {
+                preference_id: preference_id.to_owned(),
+                value,
+            });
+        }
+    }
+
+    /// Enqueue a hydrate of the editor preferences from canonical PostgreSQL state (SET-REC-003). Called
+    /// when the settings surface binds a workspace so the dialog + live editors show authoritative values.
+    fn enqueue_preference_hydrate(&mut self) {
+        self.enqueue_preference_write(crate::preference_client::PreferenceWriteKind::Hydrate);
+    }
+
+    /// Flush ONE queued preference write OFF the egui UI thread (HBR-QUIET). The result is drained next
+    /// frame from `preference_io_cell`. No-op when no transport/runtime, or a write is already in flight.
+    fn flush_preference_write_now(&mut self) {
+        if self
+            .preference_io_in_flight
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return;
+        }
+        if self.preference_write_queue.is_empty() {
+            return;
+        }
+        let (Some(transport), Some(handle)) =
+            (self.preference_transport.clone(), self.runtime_handle.clone())
+        else {
+            // Headless / no-runtime shell (no injected transport): preference writes cannot be
+            // delivered. Drop them rather than accumulating a queue that would spin `request_repaint`
+            // forever (an idle-wait `run()` would then never settle).
+            self.preference_write_queue.clear();
+            return;
+        };
+        let write = self
+            .preference_write_queue
+            .front()
+            .cloned()
+            .expect("queue is non-empty");
+        // Claim the in-flight guard + pop only once we know we can actually spawn.
+        self.preference_write_queue.pop_front();
+        self.preference_io_in_flight
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        let cell = self.preference_io_cell.clone();
+        let in_flight = self.preference_io_in_flight.clone();
+        handle.spawn_blocking(move || {
+            let delivery = crate::preference_client::run_preference_write(transport.as_ref(), &write);
+            let mut slot = cell.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            *slot = Some(delivery);
+            in_flight.store(false, std::sync::atomic::Ordering::SeqCst);
+        });
+    }
+
+    /// Drain a completed preference write (try_lock, HBR-QUIET): apply a hydrate to the live settings +
+    /// editors, or surface a set/reset validation / unavailable error on the dialog status row. Then keep
+    /// flushing the queue.
+    fn drain_preference_delivery(&mut self) {
+        use crate::preference_client::{PreferenceDeliveryOutcome as Out, PreferenceTransportError};
+        let delivery = {
+            let Ok(mut cell) = self.preference_io_cell.try_lock() else {
+                return;
+            };
+            cell.take()
+        };
+        if let Some(delivery) = delivery {
+            match delivery.outcome {
+                Out::Hydrate(Ok(rows)) => {
+                    // Only apply to the workspace still bound (the binding may have changed mid-flight).
+                    if delivery.workspace_id == self.active_project_id {
+                        crate::preference_client::apply_projection(&rows, &mut self.workspace_settings);
+                        // Push the hydrated values into the live mounted editors this frame.
+                        self.sync_editor_prefs_to_panel();
+                        for panel in self.editor_mounts.code_documents.panels() {
+                            panel.set_syntax_palette(self.workspace_settings.syntax_palette.clone());
+                        }
+                        self.sync_editor_keymap_to_panel();
+                    }
+                }
+                Out::Hydrate(Err(err)) => {
+                    self.settings_persist_error =
+                        Some(format!("Could not load editor preferences: {err}"));
+                }
+                Out::Set { result: Ok(_), .. } | Out::Reset { result: Ok(_), .. } => {
+                    // A successful write clears any prior transient preference error.
+                    self.settings_persist_error = None;
+                }
+                Out::Set {
+                    preference_id,
+                    result: Err(err),
+                }
+                | Out::Reset {
+                    preference_id,
+                    result: Err(err),
+                } => {
+                    let message = match err {
+                        PreferenceTransportError::Validation(v) => {
+                            format!("Rejected {}: {}", preference_id, v.message)
+                        }
+                        PreferenceTransportError::UnknownPreference(_) => {
+                            format!("Unknown preference {preference_id}")
+                        }
+                        PreferenceTransportError::Unavailable(msg) => {
+                            format!("Could not save {preference_id}: {msg}")
+                        }
+                    };
+                    self.settings_persist_error = Some(message);
+                    self.settings_retry_operation = None;
+                }
+            }
+        }
+        // Keep the queue moving.
+        self.flush_preference_write_now();
+    }
+
+    /// The number of queued + in-flight preference writes (tests: assert the write path is exercised).
+    #[doc(hidden)]
+    pub fn preference_write_queue_len(&self) -> usize {
+        self.preference_write_queue.len()
     }
 
     /// Test helper (MT-018): seed the workspace + in-memory theme directly so a kittest starts from a
@@ -12651,26 +12852,30 @@ impl HandshakeApp {
                 self.settings_retry_operation = None;
                 true
             }
-            // MT-072 editor settings: mutate the corresponding field on workspace_settings and schedule
-            // the SAME debounced PUT every other wired outcome uses (no new save code — AC-009). The new
-            // fields ride the same serialized settings struct.
+            // MT-072 (FAIL_V2): editor settings are now authoritative on the canonical PreferenceRecord
+            // surface (§10.17) — they no longer ride the opaque /settings document. Each control edit
+            // optimistically updates the in-memory + live editor state, then enqueues a typed PUT to the
+            // stable `view-defaults.editor.*` preference id(s) that changed. A validation / unavailable
+            // failure surfaces on the dialog status row when the write's delivery is drained.
             O::EditorPrefsChanged(prefs) => {
+                let prev = self.workspace_settings.editor_prefs;
                 self.workspace_settings.editor_prefs = prefs;
                 // WIRE-INTO-LIVE (MT-072 note 87): push the new prefs into the running MT-079 code panel
-                // so the edit takes effect this frame, not only on the persisted blob.
+                // so the edit takes effect this frame, not only on the persisted record.
                 self.sync_editor_prefs_to_panel();
-                self.schedule_settings_save();
+                self.enqueue_editor_pref_writes(&prev, &prefs);
                 true
             }
             O::SyntaxPaletteChanged(palette) => {
-                self.workspace_settings.syntax_palette = palette;
+                let prev = self.workspace_settings.syntax_palette.clone();
+                self.workspace_settings.syntax_palette = palette.clone();
                 // WIRE-INTO-LIVE (wave-6 S6 item 3): a Custom swatch edit, and a Custom -> Standard/Muted
                 // switch, must repaint/clear the mounted code panel immediately, not only after an
                 // unrelated prefs sync or settings reload.
                 for panel in self.editor_mounts.code_documents.panels() {
                     panel.set_syntax_palette(self.workspace_settings.syntax_palette.clone());
                 }
-                self.schedule_settings_save();
+                self.enqueue_syntax_palette_writes(&prev, &palette);
                 true
             }
             O::EditorKeybindingChanged { action_id, chord } => {
@@ -12685,24 +12890,89 @@ impl HandshakeApp {
                     self.settings_retry_operation = None;
                     return true;
                 }
-                // Stored in the SEPARATE editor_keybindings list (NOT the WP-011 keybindings map — the
-                // backend deny-unknown-validates that map; RISK-001).
+                // The override map is persisted as the single canonical
+                // `view-defaults.editor.keybinding-overrides` json-object preference (action_id -> chord).
                 self.workspace_settings.set_editor_chord(&action_id, chord);
                 self.settings_persist_error = None;
                 // WIRE-INTO-LIVE (AC-005 live side): rebind both mounted editor keymaps so code and
                 // rich-editor chord overrides take effect immediately, not only in the Settings table.
                 self.sync_editor_keymap_to_panel();
-                self.schedule_settings_save();
+                self.enqueue_preference_write(
+                    crate::preference_client::PreferenceWriteKind::Set {
+                        preference_id: crate::preference_client::PREF_EDITOR_KEYBINDING_OVERRIDES
+                            .to_owned(),
+                        value: crate::preference_client::keybinding_overrides_value(
+                            &self.workspace_settings,
+                        ),
+                    },
+                );
                 true
             }
             O::EditorKeybindingReset { action_id } => {
                 if self.workspace_settings.clear_editor_chord(&action_id) {
                     // Re-sync so the cleared action reverts to its default on the live editor too.
                     self.sync_editor_keymap_to_panel();
-                    self.schedule_settings_save();
+                    self.enqueue_preference_write(
+                        crate::preference_client::PreferenceWriteKind::Set {
+                            preference_id: crate::preference_client::PREF_EDITOR_KEYBINDING_OVERRIDES
+                                .to_owned(),
+                            value: crate::preference_client::keybinding_overrides_value(
+                                &self.workspace_settings,
+                            ),
+                        },
+                    );
                     return true;
                 }
                 false
+            }
+            O::EditorPrefsReset => {
+                // SET-UI-002: reset every editor scalar preference to its registry default via the
+                // canonical `.../reset` route (a revision-bumping mutation with a receipt, not a delete).
+                // Optimistically restore local defaults + the live editors; the hydrate that follows the
+                // resets reconciles against canonical state.
+                self.workspace_settings.editor_prefs =
+                    crate::workspace_settings::EditorPrefs::default();
+                self.sync_editor_prefs_to_panel();
+                for preference_id in [
+                    crate::preference_client::PREF_EDITOR_FONT_SIZE,
+                    crate::preference_client::PREF_EDITOR_TAB_SIZE,
+                    crate::preference_client::PREF_EDITOR_INSERT_SPACES,
+                    crate::preference_client::PREF_EDITOR_WORD_WRAP,
+                    crate::preference_client::PREF_EDITOR_WORD_WRAP_COLUMN,
+                    crate::preference_client::PREF_EDITOR_RENDER_WHITESPACE,
+                    crate::preference_client::PREF_EDITOR_MINIMAP_ENABLED,
+                    crate::preference_client::PREF_EDITOR_STICKY_SCROLL,
+                    crate::preference_client::PREF_EDITOR_LINE_NUMBERS,
+                    crate::preference_client::PREF_EDITOR_LINE_HEIGHT,
+                    crate::preference_client::PREF_EDITOR_BRACKET_MATCHING,
+                    crate::preference_client::PREF_EDITOR_INDENT_GUIDES,
+                    crate::preference_client::PREF_EDITOR_READING_MODE_DEFAULT,
+                ] {
+                    self.enqueue_preference_write(
+                        crate::preference_client::PreferenceWriteKind::Reset {
+                            preference_id: preference_id.to_owned(),
+                        },
+                    );
+                }
+                true
+            }
+            O::SyntaxPaletteReset => {
+                self.workspace_settings.syntax_palette =
+                    crate::workspace_settings::SyntaxPalette::default();
+                for panel in self.editor_mounts.code_documents.panels() {
+                    panel.set_syntax_palette(self.workspace_settings.syntax_palette.clone());
+                }
+                for preference_id in [
+                    crate::preference_client::PREF_EDITOR_SYNTAX_PALETTE_MODE,
+                    crate::preference_client::PREF_EDITOR_SYNTAX_CUSTOM_COLORS,
+                ] {
+                    self.enqueue_preference_write(
+                        crate::preference_client::PreferenceWriteKind::Reset {
+                            preference_id: preference_id.to_owned(),
+                        },
+                    );
+                }
+                true
             }
             O::WorksurfaceInspectorDumpRequested => {
                 let root = crate::visual_debugger::default_artifact_root();
@@ -12952,6 +13222,16 @@ impl HandshakeApp {
                 // Keep repainting so the debounce window elapses even with no further input.
                 ctx.request_repaint_after(SETTINGS_SAVE_DEBOUNCE);
             }
+        }
+
+        // 4b. MT-072 (FAIL_V2): drive the canonical PreferenceRecord write queue OFF the egui thread —
+        //     drain a completed set/reset/hydrate (apply hydrate / surface errors) and flush the next
+        //     queued write. Editor preferences are per-id targeted PUTs, not a debounced whole-doc blob.
+        self.drain_preference_delivery();
+        // Only keep repainting to drive the queue when there is a transport that can actually make
+        // progress; otherwise the queue is dropped by the flush and no repaint storm is provoked.
+        if !self.preference_write_queue.is_empty() && self.preference_transport.is_some() {
+            ctx.request_repaint();
         }
 
         // 5. Render the dialog + apply the outcome only while requested. Steps 1-4 deliberately run

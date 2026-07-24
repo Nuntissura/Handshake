@@ -101,6 +101,12 @@ pub const SYNTAX_SWATCH_AUTHOR_ID_PREFIX: &str = "settings-syntax-swatch-";
 pub const EDITOR_KEYBIND_ROW_AUTHOR_ID_PREFIX: &str = "settings-keybind-row-";
 /// Author_id prefix for a per-action editor keybinding Reset button.
 pub const EDITOR_KEYBIND_RESET_AUTHOR_ID_PREFIX: &str = "settings-keybind-reset-";
+/// MT-072 (FAIL_V2 / SET-UI-002): AccessKit author_id for the Editor-prefs section reset-to-default
+/// button (POSTs `.../reset` for every editor scalar preference).
+pub const EDITOR_PREFS_RESET_AUTHOR_ID: &str = "settings-editor-prefs-reset";
+/// MT-072 (FAIL_V2 / SET-UI-002): AccessKit author_id for the Syntax-palette section reset-to-default
+/// button (POSTs `.../reset` for the palette mode + custom colors).
+pub const SYNTAX_PALETTE_RESET_AUTHOR_ID: &str = "settings-syntax-palette-reset";
 pub const EDITOR_WORD_WRAP_OFF_AUTHOR_ID: &str = "settings-editor-word-wrap-option-off";
 pub const EDITOR_WORD_WRAP_ON_AUTHOR_ID: &str = "settings-editor-word-wrap-option-on";
 pub const EDITOR_WORD_WRAP_BOUNDED_AUTHOR_ID: &str = "settings-editor-word-wrap-option-bounded";
@@ -393,6 +399,13 @@ pub enum EditorSectionOutcome {
     EditorKeybindingChanged { action_id: String, chord: String },
     /// An editor keybinding override was reset to its built-in default (the override is removed).
     EditorKeybindingReset { action_id: String },
+    /// MT-072 (FAIL_V2 / SET-UI-002): the Editor-prefs section "Reset to defaults" button was clicked;
+    /// the shell POSTs `.../reset` for every editor scalar preference (revision-bumping mutation, not a
+    /// provenance-losing delete).
+    EditorPrefsReset,
+    /// MT-072 (FAIL_V2 / SET-UI-002): the Syntax-palette section "Reset to defaults" button was clicked;
+    /// the shell POSTs `.../reset` for the palette mode + custom colors.
+    SyntaxPaletteReset,
 }
 
 /// The transient per-open state for the editor keybinding rows: the in-progress draft chord text per
@@ -787,6 +800,19 @@ impl EditorSettingsSection {
             FLIGHT_RECORDER_SETTINGS_POSTURE_NOTE,
         );
 
+        // SET-UI-002: per-section reset-to-default. A click takes priority over a same-frame value edit
+        // (a reset restores every editor scalar preference to its registry default via `.../reset`).
+        let reset = ui.button("Reset editor prefs to defaults");
+        set_author_id_and_label(
+            ui,
+            reset.id,
+            EDITOR_PREFS_RESET_AUTHOR_ID,
+            "Reset editor preferences to defaults",
+        );
+        if reset.clicked() {
+            return EditorSectionOutcome::EditorPrefsReset;
+        }
+
         if changed {
             EditorSectionOutcome::EditorPrefsChanged(prefs)
         } else {
@@ -894,6 +920,18 @@ impl EditorSettingsSection {
                     }
                 }
             });
+        }
+
+        // SET-UI-002: per-section reset-to-default for the syntax palette (mode + custom colors).
+        let reset = ui.button("Reset syntax palette to defaults");
+        set_author_id_and_label(
+            ui,
+            reset.id,
+            SYNTAX_PALETTE_RESET_AUTHOR_ID,
+            "Reset syntax palette to defaults",
+        );
+        if reset.clicked() {
+            return EditorSectionOutcome::SyntaxPaletteReset;
         }
 
         if changed {

@@ -906,10 +906,14 @@ fn page_notes_loom_surface() -> NewUserManualPage {
                  mutations emit `loom_folder_mutated`; tag-edge mutations emit \
                  `loom_edge_created`/`loom_edge_deleted`; these best-effort DuckDB mirrors are \
                  secondary to the durable atomic EventLedger receipt above). Tier 2 \
-                 internal_diagnostics = WIRED (the native diag_ring event ring, frame-timing \
-                 sampler, and panic hook observe the folder-tree and tags/tag-hub panels). \
-                 Tier 3 Palmistry = WIRED (the external out-of-process watcher survives GUI \
-                 freezes/crashes while these panels are open).",
+                 internal_diagnostics = WIRED for the hosting surface, DEFERRED for panel-specific \
+                 counters: the native diag_ring event ring, frame-timing sampler, panic hook, and \
+                 operation watchdog observe the editor surface that hosts the folder-tree and \
+                 tags/tag-hub panels, but a dedicated folder/tag mutation-latency or fetch-failure \
+                 counter is not yet emitted to diag_ring (that finer-grained panel telemetry is \
+                 DEFERRED with follow-up, not silently skipped). Tier 3 Palmistry = WIRED (the \
+                 external out-of-process watcher survives GUI freezes/crashes while these panels \
+                 are open).",
             ),
         ],
         vec![
@@ -973,6 +977,39 @@ fn page_rich_documents_surface() -> NewUserManualPage {
                  `save_receipt_event_id`, read the document aggregate through \
                  `GET /kernel/events/aggregates/knowledge_rich_document/:id`, and match the exact \
                  `event_id`; an empty list means that aggregate has no ledger events.",
+            ),
+            section(
+                "diagnostics",
+                "Native media-embed NodeViews — states and diagnostic posture (HBR-INT-009)",
+                "The native editor renders the four CKC media embeds (image, slideshow, album, \
+                 video) as interactive egui NodeViews dispatched from the `hsLink` atom by \
+                 `refKind`. Every state is observable and typed, never blank and never a panic: \
+                 `Resolving` shows a spinner (`author_id=embed-loading-{asset_id}`); a decoded \
+                 image renders at its intrinsic aspect ratio (`author_id=embed-image-{asset_id}`, \
+                 clickable to a full-size modal `embed-image-modal-{asset_id}`); slideshow/album \
+                 expose prev/next/cell controls; and ANY failure — empty ref, absolute path, `..` \
+                 traversal, disallowed scheme, missing asset, or an undecodable body — degrades to \
+                 a VISIBLE typed error chip (`author_id=embed-error-{asset_id}`). Reference \
+                 validation is fail-closed and runs BEFORE any HTTP call. Image bytes are decoded \
+                 off the UI thread (tokio `spawn_blocking`) and only the RGBA bytes cross back to \
+                 the egui thread for texture upload, so a large or corrupt asset can never freeze \
+                 the frame loop.\n\
+                 - Tier 1 Flight Recorder = WIRED at the backend embed-authority boundary: the \
+                 rich-document save receipt (`KNOWLEDGE_RICH_DOCUMENT_SAVED`) records the exact \
+                 `reference_targets` (embed ids), and the broken-embed queue \
+                 (`GET .../embeds/broken`) plus the repair route persist embed-repair authority. \
+                 The native render issues only read GETs (asset metadata/content/thumbnail); a \
+                 client render is not a durable state change and emits no separate business event.\n\
+                 - Tier 2 internal_diagnostics = WIRED for the hosting surface, DEFERRED for \
+                 embed-specific counters: the native diag_ring event ring, frame-timing sampler, \
+                 panic hook, and operation watchdog observe the editor surface that hosts the \
+                 embed widgets (off-thread decode keeps the UI-thread frame budget). A dedicated \
+                 embed decode-latency / decode-failure counter is not yet emitted to diag_ring — \
+                 that finer-grained embed telemetry is DEFERRED with follow-up (no silent skip).\n\
+                 - Tier 3 Palmistry = WIRED: the external out-of-process watcher survives GUI \
+                 freezes/crashes while embed-bearing documents are open. Because decode is \
+                 off-thread and every failure degrades to a typed error chip, a corrupt or missing \
+                 asset cannot crash or hang the shell.",
             ),
         ],
         vec![

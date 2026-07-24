@@ -1195,11 +1195,16 @@ fn repeated_failed_put_survives_close_reopen_and_keeps_retry_addressable() {
         "initial settings frame rendered"
     );
 
-    let mut changed = harness.state().workspace_settings().editor_prefs.clone();
-    changed.editor_font_size = 27.0;
+    // MT-072 FAIL_V2: editor prefs migrated OFF the opaque /settings PUT, so this generic opaque-doc
+    // retry-mechanism proof is now driven by a NON-editor setting (theme) that still rides /settings.
+    let next_theme = if harness.state().workspace_settings().theme == handshake_native::workspace_settings::WorkspaceTheme::Dark {
+        handshake_native::workspace_settings::WorkspaceTheme::Light
+    } else {
+        handshake_native::workspace_settings::WorkspaceTheme::Dark
+    };
     harness
         .state_mut()
-        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(changed));
+        .apply_settings_outcome_for_test(SettingsOutcome::ThemeChanged(next_theme));
     harness.state_mut().close_settings();
     assert!(
         run_until(&mut harness, 120, |app| {
@@ -1239,9 +1244,9 @@ fn repeated_failed_put_survives_close_reopen_and_keeps_retry_addressable() {
     harness.state_mut().open_settings();
     assert!(
         run_until(&mut harness, 120, |app| {
-            app.workspace_settings().editor_prefs.editor_font_size == 27.0
+            app.workspace_settings().theme == next_theme
         }),
-        "reopen and its remote/default GET preserve the exact unsaved local editor value"
+        "reopen and its remote/default GET preserve the exact unsaved local (theme) value"
     );
 }
 
@@ -1306,20 +1311,17 @@ fn deferred_settings_save_continues_after_close_during_put() {
     );
 }
 
-// ── AC-001 / AC-002 / AC-009: editor prefs persist via the existing PUT; distinct from chrome ────────
+// ── AC-001 / AC-002 / AC-009 (MT-072 FAIL_V2 authority): editor prefs persist via the canonical
+//    PreferenceRecord PUT (view-defaults.editor.*), NOT the opaque /settings document; distinct from
+//    chrome. Retargeted from the superseded opaque-doc assertion validator V2 rejected. ─────────────
 #[test]
 fn editor_prefs_change_persists_via_existing_put_and_reloads() {
-    let transport = StubSettingsTransport::with_loaded(None);
-    let handle = shared_runtime_handle();
-
-    let mut app = ok_app();
-    app.set_runtime_handle(handle);
-    app.set_settings_transport(transport.clone());
-
+    let (app, stub) = pref_wired_app(StubPreferenceTransport::new());
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
-    harness.run();
+    // Pump a few frames so the Editor section renders + the open-hydrate flushes.
+    run_until(&mut harness, 80, |_| stub.list_calls() >= 1);
 
     // The Editor section renders (its header is in the live tree).
     assert!(
@@ -1337,21 +1339,21 @@ fn editor_prefs_change_persists_via_existing_put_and_reloads() {
 
     // Apply a full editor-prefs change through the SAME outcome path the live controls produce (a kittest
     // cannot reliably drag an egui DragValue / click a ComboBox popup item; the dialog's WIRING is what
-    // the AC requires — the section returns EditorPrefsChanged, the shell stores it + schedules the PUT).
+    // the AC requires — the section returns EditorPrefsChanged, the shell stores it + PUTs each changed
+    // preference id).
     let new_prefs = EditorPrefs {
         editor_font_size: 22.0,
         tab_size: 8,
         insert_spaces: false,
         word_wrap: WordWrapMode::BoundedColumn(100),
         render_whitespace: RenderWhitespaceMode::All,
-        // MT-035: the minimap / sticky-scroll / line-number toggles default to `true`; this case keeps them
-        // at their defaults (their live-wiring is proven in the dedicated MT-035 toggle test).
         ..EditorPrefs::default()
     };
     harness
         .state_mut()
         .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(new_prefs));
-    harness.run();
+    // At least the 5 core scalar changes + the bounded-wrap column = 6 targeted PUTs.
+    run_until(&mut harness, 120, |_| stub.sets().len() >= 6);
 
     // The live settings now hold the new prefs.
     assert_eq!(
@@ -1366,67 +1368,75 @@ fn editor_prefs_change_persists_via_existing_put_and_reloads() {
         "AC-002: editor font size is a separate field from the chrome appearance"
     );
 
-    // AC-001 / AC-009: the change persists via the existing debounced PUT (the ONLY save surface).
-    let saved = run_until(&mut harness, 80, |_| transport.save_calls() >= 1);
-    assert!(
-        saved,
-        "AC-001/AC-009: editor prefs persisted via PUT /workspaces/{{id}}/settings"
-    );
-
-    let blob = transport.saved().expect("a settings_state blob was PUT");
-    let obj = blob.as_object().expect("settings_state is an object");
-
-    // AC-001: the PUT blob carries all five editor pref values under editor_prefs.
-    let ep = obj
-        .get("editor_prefs")
-        .and_then(Value::as_object)
-        .expect("editor_prefs key");
+    // AC-001 / AC-009: the change persists via the canonical PreferenceRecord PUTs (the ONLY editor save
+    // surface — no opaque /settings write, no SQLite, no new endpoint).
+    let sets: std::collections::HashMap<String, Value> = stub.sets().into_iter().collect();
     assert_eq!(
-        ep.get("editor_font_size").and_then(Value::as_f64),
-        Some(22.0)
+        sets.get(PREF_EDITOR_FONT_SIZE).and_then(Value::as_f64),
+        Some(22.0),
+        "AC-001: font size PUT carries the typed value on its stable id"
     );
-    assert_eq!(ep.get("tab_size").and_then(Value::as_u64), Some(8));
     assert_eq!(
-        ep.get("insert_spaces").and_then(Value::as_bool),
+        sets.get(PREF_EDITOR_TAB_SIZE).and_then(Value::as_u64),
+        Some(8)
+    );
+    assert_eq!(
+        sets.get("view-defaults.editor.insert-spaces")
+            .and_then(Value::as_bool),
         Some(false)
     );
     assert_eq!(
-        ep.get("render_whitespace").and_then(Value::as_str),
+        sets.get("view-defaults.editor.render-whitespace")
+            .and_then(Value::as_str),
         Some("all")
     );
     assert_eq!(
-        ep.get("word_wrap")
-            .and_then(|w| w.get("boundedColumn"))
+        sets.get("view-defaults.editor.word-wrap")
+            .and_then(Value::as_str),
+        Some("bounded")
+    );
+    assert_eq!(
+        sets.get("view-defaults.editor.word-wrap-column")
             .and_then(Value::as_u64),
         Some(100),
-        "AC-001: bounded word-wrap column round-trips through the PUT blob"
+        "AC-001: the bounded word-wrap column is its own canonical preference"
+    );
+    // AC-002: font-size is a distinct preference id, never a chrome key.
+    assert!(
+        PREF_EDITOR_FONT_SIZE.starts_with("view-defaults.editor."),
+        "AC-002: editor font size is its own editor-namespaced preference id"
     );
 
-    // AC-002: editor_font_size is under editor_prefs, NOT a top-level chrome key; theme is its own key.
-    assert!(
-        !obj.contains_key("editor_font_size"),
-        "AC-002: editor font size is NOT a chrome top-level key"
-    );
-    assert!(
-        obj.contains_key("theme"),
-        "AC-002: chrome appearance (theme) is its own top-level key"
-    );
-
-    // AC-001 (reload side): a NEW app GET-loading this exact blob reloads identical editor prefs.
-    let reload_transport = StubSettingsTransport::with_loaded(Some(blob));
-    let handle2 = shared_runtime_handle();
-    let mut app2 = ok_app();
-    app2.set_runtime_handle(handle2);
-    app2.set_settings_transport(reload_transport.clone());
+    // AC-001 (reload side): a NEW app hydrating the projection on open reloads identical editor prefs.
+    let reload_rows = vec![
+        PreferenceProjectionRow {
+            preference_id: PREF_EDITOR_FONT_SIZE.to_owned(),
+            value: serde_json::json!(22.0),
+            default_value: serde_json::json!(13.0),
+            source: "operator".to_owned(),
+            revision: 1,
+        },
+        PreferenceProjectionRow {
+            preference_id: PREF_EDITOR_TAB_SIZE.to_owned(),
+            value: serde_json::json!(8),
+            default_value: serde_json::json!(4),
+            source: "operator".to_owned(),
+            revision: 1,
+        },
+    ];
+    let (mut app2, reload_stub) =
+        pref_wired_app(StubPreferenceTransport::with_projection(reload_rows));
+    app2.open_settings();
     let mut harness2 =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app2);
-    harness2.state_mut().open_settings();
-    let loaded = run_until(&mut harness2, 80, |app| {
-        reload_transport.load_calls() >= 1 && app.workspace_settings().editor_prefs == new_prefs
+    let loaded = run_until(&mut harness2, 120, |app| {
+        reload_stub.list_calls() >= 1
+            && app.workspace_settings().editor_prefs.editor_font_size == 22.0
+            && app.workspace_settings().editor_prefs.tab_size == 8
     });
     assert!(
         loaded,
-        "AC-001: reopening (GET) reloads the SAME editor prefs that were PUT (got {:?})",
+        "AC-001: reopening (GET projection) reloads the SAME editor prefs (got {:?})",
         harness2.state().workspace_settings().editor_prefs
     );
 }
@@ -1910,19 +1920,17 @@ fn legacy_settings_doc_loads_cleanly_without_editor_keys() {
     );
 }
 
-// ── AC-005 (persistence side) / RISK-001: editor keybinding override persists in the SEPARATE list ───
+// ── AC-005 (persistence side, MT-072 FAIL_V2 authority): the editor keybinding override persists as the
+//    canonical `view-defaults.editor.keybinding-overrides` json-object preference (action_id -> chord),
+//    a dedicated editor namespace that never touches the WP-011 app keybindings map. Retargeted from the
+//    superseded opaque-doc `editor_keybindings` list assertion. ─────────────────────────────────────
 #[test]
 fn editor_keybinding_override_persists_outside_the_app_keybindings_map() {
-    let transport = StubSettingsTransport::with_loaded(None);
-    let handle = shared_runtime_handle();
-    let mut app = ok_app();
-    app.set_runtime_handle(handle);
-    app.set_settings_transport(transport.clone());
-
+    let (app, stub) = pref_wired_app(StubPreferenceTransport::new());
     let mut harness =
         Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     harness.state_mut().open_settings();
-    harness.run();
+    run_until(&mut harness, 80, |_| stub.list_calls() >= 1);
 
     harness
         .state_mut()
@@ -1930,41 +1938,28 @@ fn editor_keybinding_override_persists_outside_the_app_keybindings_map() {
             action_id: "code.open_find".to_owned(),
             chord: "Mod+Alt+F".to_owned(),
         });
-    harness.run();
+    run_until(&mut harness, 80, |_| {
+        stub.sets()
+            .iter()
+            .any(|(id, _)| id == PREF_EDITOR_KEYBINDING_OVERRIDES)
+    });
 
-    let saved = run_until(&mut harness, 80, |_| transport.save_calls() >= 1);
-    assert!(saved, "the editor keybinding override persisted via PUT");
-
-    let blob = transport.saved().expect("a settings_state blob was PUT");
-    let obj = blob.as_object().unwrap();
-
-    // RISK-001: the override is in the SEPARATE editor_keybindings list...
-    let editor_kb = obj
-        .get("editor_keybindings")
-        .and_then(Value::as_array)
-        .expect("editor_keybindings");
-    assert!(
-        editor_kb.iter().any(|e| {
-            e.get("action").and_then(Value::as_str) == Some("code.open_find")
-                && e.get("chord").and_then(Value::as_str) == Some("Mod+Alt+F")
-        }),
-        "the editor binding is in the separate editor_keybindings list"
-    );
-    // ...and the WP-011 keybindings map STILL contains ONLY the two backend-allowed app action ids
-    // (writing editor bindings there would hard-fail every PUT against the backend validator).
-    let kb = obj.get("keybindings").and_then(Value::as_object).unwrap();
+    // The override persists as the dedicated editor keybinding-overrides preference (its own namespaced
+    // id), carrying action_id -> chord. It never rides the WP-011 app keybindings map (a separate
+    // surface the backend deny-unknown-validates).
+    let sets: std::collections::HashMap<String, Value> = stub.sets().into_iter().collect();
+    let overrides = sets
+        .get(PREF_EDITOR_KEYBINDING_OVERRIDES)
+        .expect("the editor keybinding-overrides preference was PUT");
     assert_eq!(
-        kb.len(),
-        2,
-        "RISK-001: the backend-validated keybindings map keeps EXACTLY the two app actions, got {:?}",
-        kb.keys().collect::<Vec<_>>()
+        overrides.get("code.open_find").and_then(Value::as_str),
+        Some("Mod+Alt+F"),
+        "the override map carries the edited action id -> chord"
     );
     assert!(
-        kb.contains_key("app.quick_switcher.open") && kb.contains_key("app.command_palette.open")
-    );
-    assert!(
-        !kb.contains_key("code.open_find"),
-        "RISK-001: the editor binding did NOT leak into the backend-validated keybindings map"
+        overrides.get("app.quick_switcher.open").is_none()
+            && overrides.get("app.command_palette.open").is_none(),
+        "RISK-001: editor overrides are a distinct editor-namespaced preference, not the app keybindings map"
     );
 }
 
@@ -2113,5 +2108,346 @@ fn user_wrap_toggle_persists_and_is_not_clobbered_by_sync() {
     assert!(
         !harness.state().mounted_code_panel().is_wrap_enabled(),
         "MT-072 Fix 3: an explicit Settings word_wrap=Off still flows prefs->panel (two-way sync intact)"
+    );
+}
+
+// ===========================================================================
+// MT-072 FAIL_V2 remediation: editor settings are now authoritative on the
+// canonical PreferenceRecord surface (Master Spec §10.17), NOT the opaque
+// /settings document. These proofs drive the REAL HandshakeApp headlessly and
+// capture at the frontend preference-client boundary (a stub PreferenceTransport)
+// that:
+//  * a control edit issues a targeted PUT to the stable view-defaults.editor.* id;
+//  * reset-to-default issues POST .../reset (SET-UI-002);
+//  * a backend-unavailable / structured-400 write degrades VISIBLY (no freeze);
+//  * hydrate-on-open reads resolved values from the projection (SET-REC-003);
+//  * a canonical Argus set_value on a real mounted control reaches the PUT boundary.
+//
+// The LIVE managed-PostgreSQL round-trip for this surface is the separate proof
+// test_editor_preference_records.rs (require_live_backend). Here the stub is the
+// sole I/O surface so the UI wiring is provable with no live server.
+// ===========================================================================
+
+use handshake_native::preference_client::{
+    PreferenceProjectionRow, PreferenceRecord, PreferenceTransport, PreferenceTransportError,
+    PreferenceValidationError, PREF_EDITOR_FONT_SIZE,
+    PREF_EDITOR_KEYBINDING_OVERRIDES, PREF_EDITOR_SYNTAX_PALETTE_MODE, PREF_EDITOR_TAB_SIZE,
+};
+
+/// A scriptable in-memory preference transport: records every set/reset/list, and can be scripted to
+/// return a structured validation rejection or an unavailable error so the degradation paths are
+/// provable with no live server.
+#[derive(Default)]
+struct StubPreferenceTransport {
+    inner: Mutex<StubPrefInner>,
+}
+
+#[derive(Default)]
+struct StubPrefInner {
+    /// Every (preference_id, value) PUT captured, in order.
+    sets: Vec<(String, Value)>,
+    /// Every preference_id reset, in order.
+    resets: Vec<String>,
+    /// Number of list (hydrate) calls.
+    list_calls: usize,
+    /// Scripted projection rows returned by `list`.
+    projection: Vec<PreferenceProjectionRow>,
+    /// When set, `set`/`reset` fail with this error (degradation scripting).
+    fail_write_with: Option<PreferenceTransportError>,
+}
+
+impl StubPreferenceTransport {
+    fn new() -> Arc<Self> {
+        Arc::new(Self::default())
+    }
+    fn with_projection(rows: Vec<PreferenceProjectionRow>) -> Arc<Self> {
+        Arc::new(Self {
+            inner: Mutex::new(StubPrefInner {
+                projection: rows,
+                ..Default::default()
+            }),
+        })
+    }
+    fn failing(err: PreferenceTransportError) -> Arc<Self> {
+        Arc::new(Self {
+            inner: Mutex::new(StubPrefInner {
+                fail_write_with: Some(err),
+                ..Default::default()
+            }),
+        })
+    }
+    fn sets(&self) -> Vec<(String, Value)> {
+        self.inner.lock().unwrap().sets.clone()
+    }
+    fn resets(&self) -> Vec<String> {
+        self.inner.lock().unwrap().resets.clone()
+    }
+    fn list_calls(&self) -> usize {
+        self.inner.lock().unwrap().list_calls
+    }
+}
+
+impl PreferenceTransport for StubPreferenceTransport {
+    fn list(
+        &self,
+        _workspace_id: &str,
+    ) -> Result<Vec<PreferenceProjectionRow>, PreferenceTransportError> {
+        let mut s = self.inner.lock().unwrap();
+        s.list_calls += 1;
+        Ok(s.projection.clone())
+    }
+    fn set(
+        &self,
+        _workspace_id: &str,
+        preference_id: &str,
+        value: Value,
+    ) -> Result<PreferenceRecord, PreferenceTransportError> {
+        let mut s = self.inner.lock().unwrap();
+        if let Some(err) = s.fail_write_with.clone() {
+            return Err(err);
+        }
+        s.sets.push((preference_id.to_owned(), value.clone()));
+        Ok(PreferenceRecord {
+            preference_id: preference_id.to_owned(),
+            value,
+            default_value: Value::Null,
+            source: "operator".to_owned(),
+            revision: 1,
+        })
+    }
+    fn reset(
+        &self,
+        _workspace_id: &str,
+        preference_id: &str,
+    ) -> Result<PreferenceRecord, PreferenceTransportError> {
+        let mut s = self.inner.lock().unwrap();
+        if let Some(err) = s.fail_write_with.clone() {
+            return Err(err);
+        }
+        s.resets.push(preference_id.to_owned());
+        Ok(PreferenceRecord {
+            preference_id: preference_id.to_owned(),
+            value: Value::Null,
+            default_value: Value::Null,
+            source: "operator".to_owned(),
+            revision: 1,
+        })
+    }
+    fn history(
+        &self,
+        _workspace_id: &str,
+        _preference_id: &str,
+    ) -> Result<Vec<handshake_native::preference_client::PreferenceChangeReceipt>, PreferenceTransportError>
+    {
+        Ok(Vec::new())
+    }
+}
+
+/// Build a harness bound to a workspace + runtime + the stub preference transport, ready to apply
+/// editor outcomes and pump the off-thread preference write queue.
+fn pref_wired_app(
+    stub: Arc<StubPreferenceTransport>,
+) -> (HandshakeApp, Arc<StubPreferenceTransport>) {
+    let mut app = ok_app();
+    app.set_runtime_handle(shared_runtime_handle());
+    app.bind_active_project_for_integration_test("workspace-pref");
+    app.set_preference_transport(stub.clone());
+    // A settings transport is still needed for non-editor settings; a no-op stub suffices here.
+    app.set_settings_transport(StubSettingsTransport::with_loaded(None));
+    (app, stub)
+}
+
+#[test]
+fn editor_pref_edit_puts_to_canonical_preference_route() {
+    let (app, stub) = pref_wired_app(StubPreferenceTransport::new());
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    // Edit only tab-size via the same outcome path the mounted DragValue produces.
+    let mut prefs = harness.state().workspace_settings().editor_prefs;
+    prefs.tab_size = 8;
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(prefs));
+    // Pump frames so the off-thread PUT flushes + delivers.
+    run_until(&mut harness, 120, |_| !stub.sets().is_empty());
+    let sets = stub.sets();
+    assert_eq!(
+        sets.len(),
+        1,
+        "exactly one targeted PUT for the single edited field, got {sets:?}"
+    );
+    assert_eq!(sets[0].0, PREF_EDITOR_TAB_SIZE, "PUT targets the stable tab-size id");
+    assert_eq!(sets[0].1, serde_json::json!(8), "PUT carries the typed value");
+}
+
+#[test]
+fn editor_keybinding_edit_puts_overrides_map_to_preference_route() {
+    let (app, stub) = pref_wired_app(StubPreferenceTransport::new());
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorKeybindingChanged {
+            action_id: "code.open_find".to_owned(),
+            chord: "Mod+Alt+F".to_owned(),
+        });
+    run_until(&mut harness, 120, |_| !stub.sets().is_empty());
+    let sets = stub.sets();
+    assert_eq!(sets.len(), 1);
+    assert_eq!(
+        sets[0].0, PREF_EDITOR_KEYBINDING_OVERRIDES,
+        "editor keybinding overrides persist as the canonical json-object preference"
+    );
+    assert!(
+        sets[0].1.get("code.open_find").is_some(),
+        "the override map carries the edited action id, got {:?}",
+        sets[0].1
+    );
+}
+
+#[test]
+fn editor_prefs_reset_posts_reset_route_for_every_scalar() {
+    let (app, stub) = pref_wired_app(StubPreferenceTransport::new());
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsReset);
+    run_until(&mut harness, 200, |_| stub.resets().len() >= 13);
+    let resets = stub.resets();
+    assert!(
+        resets.contains(&PREF_EDITOR_FONT_SIZE.to_owned()),
+        "reset-to-default POSTs .../reset for the font-size id (SET-UI-002); got {resets:?}"
+    );
+    assert!(
+        resets.contains(&PREF_EDITOR_TAB_SIZE.to_owned()),
+        "reset-to-default covers every editor scalar preference"
+    );
+}
+
+#[test]
+fn syntax_palette_reset_posts_reset_route() {
+    let (app, stub) = pref_wired_app(StubPreferenceTransport::new());
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::SyntaxPaletteReset);
+    run_until(&mut harness, 120, |_| {
+        stub.resets().contains(&PREF_EDITOR_SYNTAX_PALETTE_MODE.to_owned())
+    });
+    assert!(stub
+        .resets()
+        .contains(&PREF_EDITOR_SYNTAX_PALETTE_MODE.to_owned()));
+}
+
+#[test]
+fn backend_unavailable_preference_write_degrades_visibly_without_freeze() {
+    let stub = StubPreferenceTransport::failing(PreferenceTransportError::Unavailable(
+        "connection refused".to_owned(),
+    ));
+    let (app, _stub) = pref_wired_app(stub);
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut prefs = harness.state().workspace_settings().editor_prefs;
+    prefs.tab_size = 6;
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(prefs));
+    let degraded = run_until(&mut harness, 120, |app| {
+        app.settings_persist_error().is_some()
+    });
+    assert!(
+        degraded,
+        "an unreachable preference backend surfaces a visible persist error (no freeze)"
+    );
+    // The optimistic local edit is retained so the UI does not lose the operator's change.
+    assert_eq!(harness.state().workspace_settings().editor_prefs.tab_size, 6);
+}
+
+#[test]
+fn structured_validation_rejection_surfaces_on_status_row() {
+    let stub = StubPreferenceTransport::failing(PreferenceTransportError::Validation(
+        PreferenceValidationError {
+            preference_id: PREF_EDITOR_FONT_SIZE.to_owned(),
+            code: "out_of_range".to_owned(),
+            message: "number 100 is outside the allowed range [6, 48]".to_owned(),
+        },
+    ));
+    let (app, _stub) = pref_wired_app(stub);
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut prefs = harness.state().workspace_settings().editor_prefs;
+    prefs.editor_font_size = 40.0;
+    harness
+        .state_mut()
+        .apply_settings_outcome_for_test(SettingsOutcome::EditorPrefsChanged(prefs));
+    run_until(&mut harness, 120, |app| app.settings_persist_error().is_some());
+    let err = harness.state().settings_persist_error().unwrap_or("").to_owned();
+    assert!(
+        err.contains("out of the allowed range") || err.contains("outside the allowed range"),
+        "the structured 400 validation message is surfaced verbatim: {err}"
+    );
+    assert!(err.contains(PREF_EDITOR_FONT_SIZE), "names the rejected preference id");
+}
+
+#[test]
+fn opening_settings_hydrates_editor_prefs_from_the_projection() {
+    let rows = vec![
+        PreferenceProjectionRow {
+            preference_id: PREF_EDITOR_FONT_SIZE.to_owned(),
+            value: serde_json::json!(24.0),
+            default_value: serde_json::json!(13.0),
+            source: "operator".to_owned(),
+            revision: 3,
+        },
+        PreferenceProjectionRow {
+            preference_id: PREF_EDITOR_TAB_SIZE.to_owned(),
+            value: serde_json::json!(2),
+            default_value: serde_json::json!(4),
+            source: "operator".to_owned(),
+            revision: 1,
+        },
+    ];
+    let (mut app, stub) = pref_wired_app(StubPreferenceTransport::with_projection(rows));
+    app.open_settings();
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let hydrated = run_until(&mut harness, 200, |app| {
+        app.workspace_settings().editor_prefs.editor_font_size == 24.0
+    });
+    assert!(
+        hydrated && stub.list_calls() >= 1,
+        "the dialog reads resolved editor values from the PreferenceRecord projection on open"
+    );
+    assert_eq!(harness.state().workspace_settings().editor_prefs.tab_size, 2);
+}
+
+#[test]
+fn argus_set_value_on_mounted_font_size_reaches_preference_put_and_tree_has_ids() {
+    // Canonical Argus (list_widgets/set_value/re-observe) on a REAL mounted control, proving the
+    // migrated write path end-to-end at the client boundary. AccessKit-tree evidence acceptable on a
+    // headless host (there is no display to screenshot in CI).
+    let stub = StubPreferenceTransport::new();
+    let (mut app, stub) = pref_wired_app(stub);
+    app.open_settings();
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+    // AccessKit-tree evidence: the migrated controls are addressable by their stable author_ids.
+    let tree = snapshot_harness(&mut harness);
+    for required in [EDITOR_FONT_SIZE_AUTHOR_ID, EDITOR_TAB_SIZE_AUTHOR_ID] {
+        assert!(
+            tree.find_by_author_id(required).is_some(),
+            "AccessKit tree exposes the migrated control '{required}' for Argus steering"
+        );
+    }
+    // Steer the real mounted font-size DragValue; the edit flows through EditorPrefsChanged -> the
+    // canonical PUT boundary.
+    drive_argus_control(
+        &mut harness,
+        handshake_native::mcp::ARGUS_SET_VALUE_METHOD,
+        EDITOR_FONT_SIZE_AUTHOR_ID,
+        Some("18"),
+    );
+    let put = run_until(&mut harness, 200, |_| {
+        stub.sets().iter().any(|(id, _)| id == PREF_EDITOR_FONT_SIZE)
+    });
+    assert!(
+        put,
+        "an Argus-steered font-size edit issues a PUT to the canonical font-size preference id; captured PUTs = {:?}",
+        stub.sets()
     );
 }

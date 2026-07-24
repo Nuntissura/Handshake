@@ -31,8 +31,11 @@ use screenshot_harness::ScreenshotHarness as Harness;
 mod canonical_argus_driver;
 use canonical_argus_driver::{json_has_author_id, CanonicalArgusDriver};
 
-use handshake_native::app::{HandshakeApp, HealthDisplayState};
+use handshake_native::app::{HandshakeApp, HealthDisplayState, DEFAULT_PROJECT_ID};
 use handshake_native::backend_client::HealthInfo;
+use handshake_native::pane_registry::{
+    DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
+};
 use handshake_native::rich_editor::document_model::node::{BlockNode, Child, HsLinkNode, NodeKind};
 use handshake_native::rich_editor::embeds::asset_resolver::{
     EmbedAssetMetadata, EmbedError, EmbedResolutionState, ResolvedAsset,
@@ -53,14 +56,38 @@ fn assert_no_local_artifact_dir() {
     }
 }
 
-/// A headless real shell (no backend). The embed states are pre-seeded directly into the mounted
-/// rich editor's embed runtime, so no network is needed for this Argus tree proof.
-fn live_shell() -> HandshakeApp {
-    HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+/// A live, RUNTIME-INJECTED shell whose top-right pane is RE-TYPED to the Notes/rich editor
+/// (`PaneType::LoomWikiPage`) so the real `RichEditorPaneMount` factory renders the seeded document
+/// under `HandshakeApp::ui` — the SAME host-mount sequence the MT-079 proofs use (test_app_host_mount).
+/// A fresh `with_health` app has NO active rich pane, so its `active_rich_state()` is never laid out;
+/// without this re-type the mounted embed nodes never enter the AccessKit tree. The runtime is returned
+/// alongside the app so it OUTLIVES the harness (a dropped runtime would unbind the mounted editor).
+fn live_shell() -> (HandshakeApp, tokio::runtime::Runtime) {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .expect("build multi-thread runtime for the mounted embed shell");
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_owned(),
         db_status: "ok".to_owned(),
         migration_version: Some(1),
-    }))
+    }));
+    app.set_runtime_handle(runtime.handle().clone());
+    {
+        let registry = app.pane_registry();
+        let mut guard = registry.lock().expect("pane registry");
+        guard.insert(PaneRecord::new(
+            PaneId::from("pane-b"),
+            PaneType::LoomWikiPage,
+            DEFAULT_PROJECT_ID,
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        ));
+    }
+    (app, runtime)
 }
 
 /// A standalone media embed paragraph (the `hsLink` atom by ref_kind) — the shape the renderer
@@ -112,13 +139,22 @@ fn sample_color_image() -> egui::ColorImage {
 
 #[test]
 fn mt014_mounted_embed_states_canonical_argus_inspect_steer_reobserve() {
-    let app = live_shell();
+    // `_runtime` must outlive the harness: the mounted rich editor unbinds if its runtime is dropped.
+    let (app, _runtime) = live_shell();
 
-    // Seed the four mounted embed states into the mounted rich editor's embed runtime. `decoded_images`
-    // is pre-populated for the loaded image so the first mounted frame uploads a real texture on the egui
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(1280.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    // MOUNT FIRST: the rich pane factory creates and owns its editor state on the first live frames.
+    // Seeding before this writes into a pre-mount state the pane subsequently replaces — the mounted
+    // pane then renders its own default document and no embed node ever enters the AccessKit tree.
+    harness.run_steps(3);
+
+    // Seed the four embed states into the MOUNTED rich editor's embed runtime. `decoded_images` is
+    // pre-populated for the loaded image so the next mounted frame uploads a real texture on the egui
     // thread (the production upload path), making `embed-image-loaded1` a clickable image.
     {
-        let rich = app.mounted_rich_state();
+        let rich = harness.state().mounted_rich_state();
         let mut state = rich.lock().unwrap();
         state.doc = BlockNode::doc(vec![
             embed_block("images", "loaded1"),
@@ -150,9 +186,6 @@ fn mt014_mounted_embed_states_canonical_argus_inspect_steer_reobserve() {
             .insert("images:loading1", EmbedResolutionState::Resolving);
     }
 
-    let mut harness = Harness::builder()
-        .with_size(egui::vec2(1280.0, 900.0))
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     // Frames: upload the seeded texture on the egui thread + settle the AccessKit tree.
     harness.run_steps(4);
 

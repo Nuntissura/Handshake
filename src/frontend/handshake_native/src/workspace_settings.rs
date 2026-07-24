@@ -691,6 +691,14 @@ impl WorkspaceSettingsState {
         self.editor_keybindings.len() != before
     }
 
+    /// MT-072 (PreferenceRecord migration): drop every editor-keybinding override. Used when
+    /// [`crate::preference_client::apply_projection`] hydrates the override map from the canonical
+    /// `view-defaults.editor.keybinding-overrides` preference so the local list mirrors PostgreSQL
+    /// authority exactly (no stale local override survives a projection load).
+    pub fn clear_all_editor_chords(&mut self) {
+        self.editor_keybindings.clear();
+    }
+
     /// Serialize to the backend `settings_state` JSON shape (React `WorkspaceSettingsState` JSON).
     /// `keybindings` is emitted as a JSON object keyed by action id (React parity), `settings` is the
     /// nested object the React schema uses for view_mode + swarm_board_default_open.

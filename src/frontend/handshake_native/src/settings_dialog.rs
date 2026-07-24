@@ -164,6 +164,11 @@ pub enum SettingsOutcome {
     EditorKeybindingChanged { action_id: String, chord: String },
     /// MT-072: an editor keybinding override was reset to its built-in default (override removed). WIRED.
     EditorKeybindingReset { action_id: String },
+    /// MT-072 (FAIL_V2 / SET-UI-002): reset every editor scalar preference to its registry default via
+    /// the canonical `.../reset` route. WIRED.
+    EditorPrefsReset,
+    /// MT-072 (FAIL_V2 / SET-UI-002): reset the syntax palette (mode + custom colors) to defaults. WIRED.
+    SyntaxPaletteReset,
     /// MT-102: Settings -> Diagnostics requested a Visual Debugger worksurface JSON dump.
     WorksurfaceInspectorDumpRequested,
     /// Retry the exact failed GET or PUT while retaining the current in-memory settings.
@@ -1070,6 +1075,8 @@ fn map_editor_outcome(o: crate::settings_editor_section::EditorSectionOutcome) -
         E::EditorKeybindingReset { action_id } => {
             SettingsOutcome::EditorKeybindingReset { action_id }
         }
+        E::EditorPrefsReset => SettingsOutcome::EditorPrefsReset,
+        E::SyntaxPaletteReset => SettingsOutcome::SyntaxPaletteReset,
     }
 }
 
