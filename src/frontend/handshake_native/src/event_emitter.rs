@@ -79,11 +79,6 @@ pub enum NativeEditorAction {
     LocusRefResolved,
     /// Persisted documents referencing a Locus URI were returned (MT-068).
     LocusReverseLookup,
-    /// A review-gated FEMS memory-write PROPOSAL was submitted from the editor (MT-064, E9). This is the
-    /// `FR-EVT-MEM-001` (`memory_write_proposed`) marker carried in the payload `action` — NOT a new
-    /// ledger `event_type` (the `event_type` stays the CLOSED backend vocabulary per the MT-036 schema).
-    /// The editor only ever proposes (review-gated); the commit is downstream and never editor-direct.
-    MemoryWriteProposed,
 }
 
 impl NativeEditorAction {
@@ -102,7 +97,6 @@ impl NativeEditorAction {
             NativeEditorAction::ActivitySpanCorrelated => "activity_span_correlated",
             NativeEditorAction::LocusRefResolved => "locus_ref_resolved",
             NativeEditorAction::LocusReverseLookup => "locus_reverse_lookup",
-            NativeEditorAction::MemoryWriteProposed => "memory_write_proposed",
         }
     }
 }
@@ -1953,7 +1947,6 @@ mod tests {
             CrossRefInserted,
             UndoFired,
             RouteToStage,
-            MemoryWriteProposed,
             StageEmbedBack,
             CalendarEventBound,
             ActivitySpanCorrelated,
@@ -1968,7 +1961,7 @@ mod tests {
                 a.as_str()
             );
         }
-        assert_eq!(seen.len(), 13);
+        assert_eq!(seen.len(), 12);
     }
 
     #[test]

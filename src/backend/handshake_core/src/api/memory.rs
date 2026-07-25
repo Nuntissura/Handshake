@@ -38,8 +38,9 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::ace::{
-    FemsEntityRef, MemoryCommitReport, MemoryPack, MemoryPackBudgets, MemoryPackDeterminismMode,
-    MemoryPolicy,
+    FemsEntityRef, FemsSourceRef, FemsSourceRefKind, MemoryCommitReport, MemoryMutationOp,
+    MemoryPack, MemoryPackBudgets, MemoryPackDeterminismMode, MemoryPolicy, MemoryWriteOp,
+    MemoryWritePolicy, MemoryWriteProposal, PartialMemoryItem,
 };
 use crate::flight_recorder::{
     EventFilter, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType, RecorderError,
@@ -404,6 +405,41 @@ async fn reconcile_workspace_memory_commit_events(
         }
     }
     first_error.map_or(Ok(()), Err)
+}
+
+async fn require_published_proposal_event(
+    state: &AppState,
+    workspace_id: &str,
+    proposal_id: &str,
+) -> Result<(), ApiError> {
+    let proposal = fems_memory::get_memory_proposal(&state.postgres_pool, proposal_id)
+        .await
+        .map_err(storage_error)?
+        .ok_or_else(|| storage_error(StorageError::NotFound("memory proposal")))?;
+    if proposal.workspace_id != workspace_id {
+        return Err(storage_error(StorageError::NotFound("memory proposal")));
+    }
+    reconcile_workspace_memory_commit_events(state, workspace_id).await?;
+    match fems_memory::memory_lifecycle_publication_state(
+        &state.postgres_pool,
+        proposal_id,
+        "FR-EVT-MEM-001",
+    )
+    .await
+    .map_err(storage_error)?
+    {
+        fems_memory::MemoryLifecyclePublicationState::Published => Ok(()),
+        publication_state => Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "proposal_event_not_published",
+                "detail": format!(
+                    "review and commit are blocked until FR-EVT-MEM-001 is durably published ({publication_state:?})"
+                ),
+                "proposal_id": proposal_id,
+            })),
+        )),
+    }
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -935,7 +971,6 @@ fn stable_proposal_request_id(
         normalized_optional(request.source.document_content_hash.as_deref()),
         normalized_optional(request.source.pane_id.as_deref()),
         normalized_optional(request.source.workspace_id.as_deref()),
-        normalized_optional(request.actor_id.as_deref()),
         source_document_hash.as_str(),
     ] {
         let bytes = component.as_bytes();
@@ -959,12 +994,10 @@ fn canonical_content_hash(content: &str) -> Result<String, ApiError> {
 }
 
 fn stable_proposal_id(workspace_id: &str, request_id: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(b"fems-memory-proposal-v1\0");
-    hasher.update(workspace_id.as_bytes());
-    hasher.update(b"\0");
-    hasher.update(request_id.as_bytes());
-    format!("PROP-{}", hex::encode(hasher.finalize()))
+    deterministic_uuid_from_seed(&format!(
+        "fems-memory-proposal-v2:{workspace_id}:{request_id}"
+    ))
+    .to_string()
 }
 
 /// Store a review-gated proposal. Fail-closed on missing provenance (`document_id` +
@@ -1163,9 +1196,26 @@ async fn create_memory_proposal(
                     }
                 }
                 None => {
-                    return Err(bad_request(
-                        "proposal provenance document_id does not exist",
-                    ));
+                    // BlockRef/NodeRef selections deliberately carry a canonical Loom address rather
+                    // than materialized block text. Accept that address only when the referenced block
+                    // exists in this exact workspace; arbitrary loom:// strings remain rejected.
+                    let loom_block = state
+                        .storage
+                        .get_loom_block(&workspace_id, document_id)
+                        .await
+                        .map_err(storage_error)?;
+                    let canonical_ref = format!("loom://{document_id}");
+                    if loom_block.workspace_id != workspace_id
+                        || request.source_document_content.is_some()
+                        || request.source.document_content_hash.is_some()
+                        || request.source.selection_start != 0
+                        || request.source.selection_end != canonical_ref.len() as u64
+                        || request.content != canonical_ref
+                    {
+                        return Err(bad_request(
+                            "Loom reference proposal must carry the exact canonical whole-block address",
+                        ));
+                    }
                 }
             }
         }
@@ -1177,7 +1227,79 @@ async fn create_memory_proposal(
     // pending review and never trusts a client flag to bypass the gate.
     let review_gated = true;
 
+    // PostgreSQL timestamptz persists microseconds. Normalize before hashing/storing so the
+    // content-addressed proposal artifact and durable proposal row retain one byte-identical instant.
+    let created_at = chrono::DateTime::from_timestamp_micros(chrono::Utc::now().timestamp_micros())
+        .ok_or_else(|| {
+            storage_error(StorageError::Serialization("invalid proposal time".into()))
+        })?;
+    let kernel_task_run_id = header_str(&headers, HSK_HEADER_KERNEL_TASK_RUN_ID)
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| format!("native-editor-fems-propose-{workspace_id}"));
+    let session_run_id = header_str(&headers, HSK_HEADER_SESSION_RUN_ID)
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| "native-editor-session".to_string());
+    let workspace_uuid =
+        Uuid::parse_str(&workspace_id).map_err(|_| bad_request("workspace id is not a UUID"))?;
+    let scope_refs = vec![FemsEntityRef {
+        artefact_type: "workspace".to_owned(),
+        artefact_id: workspace_uuid,
+        selector: "self".to_owned(),
+    }];
+    let source_refs = vec![FemsSourceRef {
+        kind: FemsSourceRefKind::DocBlock,
+        id: document_id.to_owned(),
+        hash: Some(content_hash.to_owned()),
+        selector: Some(format!("bytes:{selection_start}-{selection_end}")),
+        created_at: Some(created_at.to_rfc3339()),
+        classification: Some("low".to_owned()),
+    }];
+    let canonical_proposal = MemoryWriteProposal {
+        schema_version: "hsk.memory_write_proposal@0.1".to_owned(),
+        proposal_id: proposal_id.clone(),
+        created_at: created_at.to_rfc3339(),
+        created_by_job_id: kernel_task_run_id.clone(),
+        scope_refs: scope_refs.clone(),
+        source_refs: source_refs.clone(),
+        policy: MemoryWritePolicy {
+            allow_procedural: request.class == ProposalClass::Procedural,
+            require_human_review: true,
+            max_ops: 1,
+        },
+        ops: vec![MemoryWriteOp {
+            op: MemoryMutationOp::Add,
+            temp_id: Some("m1".to_owned()),
+            memory_id: None,
+            item: PartialMemoryItem {
+                memory_class: Some(request.class.wire().to_owned()),
+                item_type: Some(
+                    match request.class {
+                        ProposalClass::Procedural => "tool_protocol",
+                        ProposalClass::Episodic => "intent",
+                        ProposalClass::Semantic => "fact",
+                    }
+                    .to_owned(),
+                ),
+                scope_refs: Some(scope_refs),
+                content: Some(request.content.clone()),
+                confidence: Some(1.0),
+                trust_level: Some("user_asserted".to_owned()),
+                provenance: Some(crate::ace::MemoryItemProvenance {
+                    source_refs,
+                    created_by_job_id: kernel_task_run_id.clone(),
+                }),
+                classification: Some("low".to_owned()),
+                ..PartialMemoryItem::default()
+            },
+            rationale: "Editor selection proposed from source_refs[0]".to_owned(),
+            confidence: 1.0,
+            requires_review: true,
+        }],
+    };
+    let canonical_artifact = serde_json::to_value(&canonical_proposal)
+        .map_err(|error| storage_error(StorageError::Serialization(error.to_string())))?;
     let proposal_payload = json!({
+        "_canonical_artifact": canonical_artifact,
         "proposal_id": proposal_id,
         "request_id": request_id,
         "workspace_id": workspace_id,
@@ -1200,20 +1322,13 @@ async fn create_memory_proposal(
         memory_class: request.class.wire().to_string(),
         status: PROPOSAL_STATUS_PENDING_REVIEW.to_string(),
         review_gated,
-        created_at: chrono::Utc::now(),
+        created_at,
         proposal: proposal_payload.clone(),
     };
 
     // Durable EventLedger receipt (PostgreSQL/EventLedger authority path). A review-gated
     // proposal is an ARTIFACT_PROPOSED event — it is explicitly NOT a commit.
     let correlation_id = format!("fems-memory-proposal:{proposal_id}");
-    let kernel_task_run_id = header_str(&headers, HSK_HEADER_KERNEL_TASK_RUN_ID)
-        .map(ToOwned::to_owned)
-        .unwrap_or_else(|| format!("native-editor-fems-propose-{workspace_id}"));
-    let session_run_id = header_str(&headers, HSK_HEADER_SESSION_RUN_ID)
-        .map(ToOwned::to_owned)
-        .unwrap_or_else(|| "native-editor-session".to_string());
-
     let receipt = NewKernelEvent::builder(
         kernel_task_run_id,
         session_run_id,
@@ -1249,7 +1364,38 @@ async fn create_memory_proposal(
         fems_memory::insert_memory_proposal_with_receipt(&state.postgres_pool, &stored, receipt)
             .await
             .map_err(storage_error)?;
+    // An identical user retry is the explicit recovery signal for a quarantined projection. The
+    // immutable proposal/outbox identity remains unchanged; only its bounded delivery attempts reset.
+    fems_memory::requeue_quarantined_memory_lifecycle_event(
+        &state.postgres_pool,
+        &stored.proposal_id,
+        "FR-EVT-MEM-001",
+    )
+    .await
+    .map_err(storage_error)?;
     reconcile_workspace_memory_commit_events(&state, &workspace_id).await?;
+    match fems_memory::memory_lifecycle_publication_state(
+        &state.postgres_pool,
+        &stored.proposal_id,
+        "FR-EVT-MEM-001",
+    )
+    .await
+    .map_err(storage_error)?
+    {
+        fems_memory::MemoryLifecyclePublicationState::Published => {}
+        publication_state => {
+            return Err((
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({
+                    "error": "flight_recorder_event_not_published",
+                    "detail": format!(
+                        "FR-EVT-MEM-001 is not durably published ({publication_state:?})"
+                    ),
+                    "proposal_id": stored.proposal_id,
+                })),
+            ));
+        }
+    }
 
     Ok(Json(ProposalAck {
         proposal_id: stored.proposal_id.clone(),
@@ -1294,6 +1440,7 @@ async fn review_memory_proposal(
         }
         None => None,
     };
+    require_published_proposal_event(&state, &workspace_id, &proposal_id).await?;
     let correlation_id = format!("fems-memory-proposal-review:{proposal_id}");
     let kernel_task_run_id = header_str(&headers, HSK_HEADER_KERNEL_TASK_RUN_ID)
         .map(ToOwned::to_owned)
@@ -1363,6 +1510,7 @@ async fn commit_memory_proposal(
     headers: HeaderMap,
 ) -> Result<Json<ProposalCommitAck>, ApiError> {
     let actor = canonical_actor_identity(&headers, None, None)?;
+    require_published_proposal_event(&state, &workspace_id, &proposal_id).await?;
     let kernel_task_run_id = header_str(&headers, HSK_HEADER_KERNEL_TASK_RUN_ID)
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| format!("native-editor-fems-commit-{workspace_id}"));
@@ -1531,7 +1679,9 @@ mod tests {
     };
     use crate::storage::knowledge::NewKnowledgeRichDocument;
     use crate::storage::tests::optional_postgres_backend_with_pool_from_env;
-    use crate::storage::{NewWorkspace, WriteContext};
+    use crate::storage::{
+        LoomBlockContentType, LoomBlockDerived, NewLoomBlock, NewWorkspace, WriteContext,
+    };
     use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
     use std::sync::{
         atomic::{AtomicBool, Ordering},
@@ -1566,6 +1716,10 @@ mod tests {
         fail_next: AtomicBool,
     }
 
+    struct FailAllRecordFlightRecorder {
+        inner: Arc<dyn FlightRecorder>,
+    }
+
     #[async_trait::async_trait]
     impl FlightRecorder for FailNextRecordFlightRecorder {
         async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
@@ -1575,6 +1729,45 @@ mod tests {
                 ));
             }
             self.inner.record_event(event).await
+        }
+
+        async fn delete_workspace_events(&self, workspace_id: &str) -> Result<u64, RecorderError> {
+            self.inner.delete_workspace_events(workspace_id).await
+        }
+
+        fn duckdb_connection(&self) -> Option<Arc<std::sync::Mutex<::duckdb::Connection>>> {
+            self.inner.duckdb_connection()
+        }
+
+        async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+            self.inner.enforce_retention().await
+        }
+
+        async fn list_events(
+            &self,
+            filter: EventFilter,
+        ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+            self.inner.list_events(filter).await
+        }
+
+        async fn list_session_scoped_events(
+            &self,
+            session_id: &str,
+            from: Option<chrono::DateTime<chrono::Utc>>,
+            to: Option<chrono::DateTime<chrono::Utc>>,
+        ) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+            self.inner
+                .list_session_scoped_events(session_id, from, to)
+                .await
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl FlightRecorder for FailAllRecordFlightRecorder {
+        async fn record_event(&self, _event: FlightRecorderEvent) -> Result<(), RecorderError> {
+            Err(RecorderError::SinkError(
+                "injected persistent flight-recorder failure".to_owned(),
+            ))
         }
 
         async fn delete_workspace_events(&self, workspace_id: &str) -> Result<u64, RecorderError> {
@@ -2413,7 +2606,10 @@ mod tests {
         .map_err(|(code, body)| format!("proposal failed: {code} {body:?}"))?;
 
         assert_eq!(ack.status, PROPOSAL_STATUS_PENDING_REVIEW);
-        assert!(ack.proposal_id.starts_with("PROP-"));
+        assert!(
+            Uuid::parse_str(&ack.proposal_id).is_ok_and(|proposal_id| !proposal_id.is_nil()),
+            "proposal id is a non-nil UUID"
+        );
 
         // The proposal is durably stored as pending_review with its provenance.
         let stored = fems_memory::get_memory_proposal(&state.postgres_pool, &ack.proposal_id)
@@ -2488,19 +2684,29 @@ mod tests {
         .await
         .map_err(|(code, body)| format!("proposal artifact failed: {code} {body:?}"))?;
         assert_eq!(artifact["proposal_id"], ack.proposal_id);
-        assert_eq!(artifact["status"], PROPOSAL_STATUS_PENDING_REVIEW);
-        assert!(artifact.get("_receipt_identity").is_none());
+        assert_eq!(artifact["schema_version"], "hsk.memory_write_proposal@0.1");
+        assert_eq!(
+            artifact["created_at"],
+            stored.created_at.to_rfc3339(),
+            "canonical artifact and durable proposal row share one creation instant"
+        );
+        assert_eq!(artifact["policy"]["require_human_review"], true);
+        assert_eq!(artifact["ops"].as_array().map(Vec::len), Some(1));
+        assert_eq!(artifact["ops"][0]["requires_review"], true);
+        assert!(artifact.get("content").is_none());
+        let canonical_artifact: MemoryWriteProposal =
+            serde_json::from_value(artifact.clone()).expect("canonical proposal artifact decodes");
         assert_eq!(
             event.payload["proposal_hash"],
-            crate::kernel::context_bundle::sha256_hex(
-                &crate::kernel::context_bundle::canonical_json_bytes(&artifact)
-            )
+            canonical_artifact
+                .compute_hash()
+                .expect("canonical proposal artifact hashes")
         );
         assert_eq!(
-            event.payload["artifact_ref"]["path"],
+            event.payload["artifact_ref"],
             format!(
-                "/workspaces/{workspace_id}/memory/proposals/{}/artifact",
-                ack.proposal_id
+                "artifact://sha256/{}",
+                event.payload["proposal_hash"].as_str().unwrap()
             )
         );
         let published: bool = sqlx::query_scalar(
@@ -3682,6 +3888,84 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn loom_block_reference_proposal_accepts_only_an_existing_exact_canonical_address(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let workspace_id = create_test_workspace(&state, "loom-reference").await?;
+        let block = state
+            .storage
+            .create_loom_block(
+                &WriteContext::human(Some("fems-loom-reference-test".to_owned())),
+                NewLoomBlock {
+                    block_id: None,
+                    workspace_id: workspace_id.clone(),
+                    content_type: LoomBlockContentType::Note,
+                    document_id: None,
+                    asset_id: None,
+                    title: Some("Canonical Loom reference".to_owned()),
+                    original_filename: None,
+                    content_hash: None,
+                    pinned: false,
+                    journal_date: None,
+                    imported_at: None,
+                    derived: LoomBlockDerived::default(),
+                },
+            )
+            .await?;
+        let canonical_ref = format!("loom://{}", block.block_id);
+        let canonical = ProposalRequest {
+            request_id: Some(format!("loom-reference-{}", Uuid::now_v7())),
+            class: ProposalClass::Semantic,
+            content: canonical_ref.clone(),
+            source: ProposalSource {
+                document_id: block.block_id.clone(),
+                selection_start: 0,
+                selection_end: canonical_ref.len() as u64,
+                content_hash: canonical_content_hash(&canonical_ref)
+                    .expect("canonical Loom reference hash"),
+                document_content_hash: None,
+                pane_id: Some("pane-loom".to_owned()),
+                workspace_id: Some(workspace_id.clone()),
+            },
+            source_document_content: None,
+            review_gated: Some(true),
+            actor_id: Some("loom-reference-test".to_owned()),
+        };
+
+        let Json(ack) = create_memory_proposal(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            HeaderMap::new(),
+            Json(canonical.clone()),
+        )
+        .await
+        .map_err(|(status, body)| format!("canonical Loom reference failed: {status} {body:?}"))?;
+        assert_eq!(ack.status, PROPOSAL_STATUS_PENDING_REVIEW);
+
+        let mut fabricated = canonical;
+        fabricated.request_id = Some(format!("loom-fabricated-{}", Uuid::now_v7()));
+        fabricated.source.document_id = Uuid::now_v7().to_string();
+        fabricated.content = format!("loom://{}", fabricated.source.document_id);
+        fabricated.source.selection_end = fabricated.content.len() as u64;
+        fabricated.source.content_hash =
+            canonical_content_hash(&fabricated.content).expect("fabricated Loom reference hash");
+        let rejected = create_memory_proposal(
+            State(state),
+            Path(workspace_id),
+            HeaderMap::new(),
+            Json(fabricated),
+        )
+        .await
+        .expect_err("a fabricated Loom address must fail closed");
+        assert!(
+            matches!(rejected.0, StatusCode::BAD_REQUEST | StatusCode::NOT_FOUND),
+            "fabricated Loom address returned unexpected status {}",
+            rejected.0
+        );
+        Ok(())
+    }
+
     /// Typed rejection: an unknown top-level field or unknown class is rejected at decode
     /// (deny_unknown_fields + closed class vocabulary).
     #[test]
@@ -4260,7 +4544,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn proposal_outbox_recovers_post_commit_recorder_failure_without_duplicate_event(
+    async fn proposal_outbox_retries_post_commit_recorder_failure_without_duplicate_event(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let state = setup_state().await?;
         let workspace_id = create_test_workspace(&state, "proposal-recovery").await?;
@@ -4307,16 +4591,23 @@ mod tests {
         .bind(&proposal_id)
         .fetch_one(&state.postgres_pool)
         .await?;
-        assert_eq!(pending, 1);
+        assert_eq!(
+            pending, 0,
+            "the bounded reconciler retries the transient first failure in the same call"
+        );
         let expected_event_id =
             deterministic_uuid_from_seed(&format!("fems-memory-proposal-event:{proposal_id}"));
-        assert!(durable_recorder
-            .list_events(EventFilter {
-                event_id: Some(expected_event_id),
-                ..EventFilter::default()
-            })
-            .await?
-            .is_empty());
+        assert_eq!(
+            durable_recorder
+                .list_events(EventFilter {
+                    event_id: Some(expected_event_id),
+                    ..EventFilter::default()
+                })
+                .await?
+                .len(),
+            1,
+            "the in-call retry publishes exactly one canonical event"
+        );
 
         reconcile_all_memory_commit_events(&state)
             .await
@@ -4343,6 +4634,185 @@ mod tests {
                 .len(),
             1,
             "repeated recovery never duplicates the canonical event"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn quarantined_proposal_outbox_never_returns_a_false_success_ack(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = setup_state().await?;
+        let workspace_id = create_test_workspace(&state, "proposal-quarantine").await?;
+        let content = "proposal whose recorder projection is quarantined";
+        let source =
+            create_test_rich_source(&state, &workspace_id, "proposal-quarantine-source", content)
+                .await?;
+        let request = ProposalRequest {
+            request_id: None,
+            class: ProposalClass::Semantic,
+            content: content.to_owned(),
+            source,
+            source_document_content: None,
+            review_gated: Some(true),
+            actor_id: Some("spoofed-body-actor".to_owned()),
+        };
+        let request_id = stable_proposal_request_id(&workspace_id, &request)
+            .map_err(|(status, body)| format!("derive request id failed: {status} {body:?}"))?;
+        let proposal_id = stable_proposal_id(&workspace_id, &request_id);
+        let mut first_process_headers = HeaderMap::new();
+        first_process_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-a".parse()?);
+        first_process_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+        let Json(initial_ack) = create_memory_proposal(
+            State(state.clone()),
+            Path(workspace_id.clone()),
+            first_process_headers,
+            Json(request.clone()),
+        )
+        .await
+        .map_err(|(status, body)| format!("canonical proposal setup failed: {status} {body:?}"))?;
+        assert_eq!(initial_ack.proposal_id, proposal_id);
+
+        let updated = sqlx::query(
+            "UPDATE fems_memory_lifecycle_fr_outbox SET published_at = NULL, attempt_count = 3, last_error = 'injected persistent projection failure', last_error_at = now(), quarantined_at = now() WHERE proposal_id = $1 AND event_code = 'FR-EVT-MEM-001'",
+        )
+        .bind(&proposal_id)
+        .execute(&state.postgres_pool)
+        .await?;
+        assert_eq!(
+            updated.rows_affected(),
+            1,
+            "the exact proposed-event row is quarantined"
+        );
+        state
+            .flight_recorder
+            .delete_workspace_events(&workspace_id)
+            .await?;
+
+        let mut operator_headers = HeaderMap::new();
+        operator_headers.insert(HSK_HEADER_ACTOR_ID, "quarantine-reviewer".parse()?);
+        operator_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+        let review = review_memory_proposal(
+            State(state.clone()),
+            Path((workspace_id.clone(), proposal_id.clone())),
+            operator_headers.clone(),
+            Json(ProposalReviewRequest {
+                decision: ProposalReviewDecision::Approved,
+                reviewer_kind: ProposalReviewerKind::User,
+                reason: Some("must remain blocked without proposal event".to_owned()),
+            }),
+        )
+        .await
+        .expect_err("review must fail closed while FR-EVT-MEM-001 is quarantined");
+        assert_eq!(review.0, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(review.1["error"], "proposal_event_not_published");
+
+        let commit = commit_memory_proposal(
+            State(state.clone()),
+            Path((workspace_id.clone(), proposal_id.clone())),
+            operator_headers,
+        )
+        .await
+        .expect_err("commit must fail closed while FR-EVT-MEM-001 is quarantined");
+        assert_eq!(commit.0, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(commit.1["error"], "proposal_event_not_published");
+        let still_pending = fems_memory::get_memory_proposal(&state.postgres_pool, &proposal_id)
+            .await?
+            .expect("quarantined proposal remains authoritative");
+        assert_eq!(still_pending.status, PROPOSAL_STATUS_PENDING_REVIEW);
+        assert_eq!(
+            fems_memory::count_memory_items(&state.postgres_pool, &workspace_id).await?,
+            0,
+            "neither review nor commit mutates memory behind an unpublished proposal event"
+        );
+
+        let persistently_failed_state = AppState {
+            flight_recorder: Arc::new(FailAllRecordFlightRecorder {
+                inner: state.flight_recorder.clone(),
+            }),
+            ..state.clone()
+        };
+        let mut restarted_process_headers = HeaderMap::new();
+        restarted_process_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-b".parse()?);
+        restarted_process_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+        let retry = create_memory_proposal(
+            State(persistently_failed_state),
+            Path(workspace_id.clone()),
+            restarted_process_headers,
+            Json(request.clone()),
+        )
+        .await
+        .expect_err("persistent recorder failure must never return a success acknowledgement");
+        assert!(
+            matches!(
+                retry.0,
+                StatusCode::INTERNAL_SERVER_ERROR | StatusCode::SERVICE_UNAVAILABLE
+            ),
+            "persistent projection failure returns an honest server error: {}",
+            retry.0
+        );
+        assert!(
+            state
+                .flight_recorder
+                .list_events(EventFilter {
+                    event_id: Some(deterministic_uuid_from_seed(&format!(
+                        "fems-memory-proposal-event:{proposal_id}"
+                    ))),
+                    ..EventFilter::default()
+                })
+                .await?
+                .is_empty(),
+            "no canonical recorder row exists behind the failed acknowledgement"
+        );
+
+        let publication_state = fems_memory::memory_lifecycle_publication_state(
+            &state.postgres_pool,
+            &proposal_id,
+            "FR-EVT-MEM-001",
+        )
+        .await?;
+        assert_eq!(
+            publication_state,
+            fems_memory::MemoryLifecyclePublicationState::Quarantined,
+            "the bounded persistent retry returns to an explicit quarantine state"
+        );
+
+        let mut healthy_restart_headers = HeaderMap::new();
+        healthy_restart_headers.insert(HSK_HEADER_ACTOR_ID, "native-process-c".parse()?);
+        healthy_restart_headers.insert(HSK_HEADER_ACTOR_KIND, "operator".parse()?);
+        let Json(recovered) = create_memory_proposal(
+            State(state.clone()),
+            Path(workspace_id),
+            healthy_restart_headers,
+            Json(request),
+        )
+        .await
+        .map_err(|(status, body)| {
+            format!("healthy identical resubmission failed to recover: {status} {body:?}")
+        })?;
+        assert_eq!(recovered.proposal_id, proposal_id);
+        assert_eq!(
+            fems_memory::memory_lifecycle_publication_state(
+                &state.postgres_pool,
+                &proposal_id,
+                "FR-EVT-MEM-001",
+            )
+            .await?,
+            fems_memory::MemoryLifecyclePublicationState::Published,
+            "identical resubmission explicitly requeues and publishes the exact quarantined event"
+        );
+        assert_eq!(
+            state
+                .flight_recorder
+                .list_events(EventFilter {
+                    event_id: Some(deterministic_uuid_from_seed(&format!(
+                        "fems-memory-proposal-event:{proposal_id}"
+                    ))),
+                    ..EventFilter::default()
+                })
+                .await?
+                .len(),
+            1,
+            "recovery publishes exactly one canonical FR-EVT-MEM-001"
         );
         Ok(())
     }

@@ -214,7 +214,6 @@ pub enum NativeEditorFrEventKind {
     CrossRefInserted,
     UndoFired,
     RouteToStage,
-    MemoryWriteProposed,
     // Interop kinds named by the frontend other-pillar interop manifest.
     StageEmbedBack,
     CalendarEventBound,
@@ -234,7 +233,6 @@ impl NativeEditorFrEventKind {
             NativeEditorFrEventKind::CrossRefInserted => "cross_ref_inserted",
             NativeEditorFrEventKind::UndoFired => "undo_fired",
             NativeEditorFrEventKind::RouteToStage => "route_to_stage",
-            NativeEditorFrEventKind::MemoryWriteProposed => "memory_write_proposed",
             NativeEditorFrEventKind::StageEmbedBack => "stage_embed_back",
             NativeEditorFrEventKind::CalendarEventBound => "calendar_event_bound",
             NativeEditorFrEventKind::ActivitySpanCorrelated => "activity_span_correlated",
@@ -382,40 +380,6 @@ fn valid_native_editor_payload(kind: NativeEditorFrEventKind, payload: &Value) -
             only_keys(map, &["content_kind", "causal_action_id"])
                 && non_empty_string(map, "content_kind")
                 && optional_non_empty_string(map, "causal_action_id")
-        }
-        NativeEditorFrEventKind::MemoryWriteProposed => {
-            only_keys(
-                map,
-                &[
-                    "action",
-                    "proposal_id",
-                    "status",
-                    "class",
-                    "document_id",
-                    "selection_start",
-                    "selection_end",
-                    "content_hash",
-                    "review_gated",
-                    "pane_id",
-                ],
-            ) && map.get("action").and_then(Value::as_str) == Some("memory_write_proposed")
-                && non_empty_string(map, "proposal_id")
-                && map.get("status").and_then(Value::as_str) == Some("pending_review")
-                && non_empty_string(map, "class")
-                && matches!(
-                    map.get("class").and_then(Value::as_str),
-                    Some("episodic" | "semantic" | "procedural")
-                )
-                && non_empty_string(map, "document_id")
-                && map.get("selection_start").and_then(Value::as_u64).is_some()
-                && map
-                    .get("selection_end")
-                    .and_then(Value::as_u64)
-                    .zip(map.get("selection_start").and_then(Value::as_u64))
-                    .is_some_and(|(end, start)| end >= start)
-                && sha256_string(map, "content_hash")
-                && map.get("review_gated").and_then(Value::as_bool) == Some(true)
-                && non_empty_string(map, "pane_id")
         }
         NativeEditorFrEventKind::StageEmbedBack => {
             only_keys(
@@ -2247,6 +2211,20 @@ mod tests {
         });
         assert!(serde_json::from_value::<NativeEditorFrEventV0_1>(bad_kind).is_err());
 
+        let legacy_memory_proposed = json!({
+            "schema_version": NATIVE_EDITOR_SCHEMA_VERSION,
+            "event_id": Uuid::now_v7().to_string(),
+            "ts_utc": "2026-07-02T04:08:05Z",
+            "kind": "memory_write_proposed",
+            "actor_id": "a",
+            "pane_id": "pane-rich",
+            "workspace_id": "WS-NE-1"
+        });
+        assert!(
+            serde_json::from_value::<NativeEditorFrEventV0_1>(legacy_memory_proposed).is_err(),
+            "FR-EVT-MEM-001 is backend-owned and must not re-enter through the native-editor envelope"
+        );
+
         let bad_field = json!({
             "schema_version": NATIVE_EDITOR_SCHEMA_VERSION,
             "event_id": Uuid::now_v7().to_string(),
@@ -2344,10 +2322,6 @@ mod tests {
             (
                 NativeEditorFrEventKind::RouteToStage,
                 json!({"content_kind":"selection"}),
-            ),
-            (
-                NativeEditorFrEventKind::MemoryWriteProposed,
-                json!({"action":"memory_write_proposed","proposal_id":"proposal-1","status":"pending_review","class":"episodic","document_id":"doc-1","selection_start":0,"selection_end":4,"content_hash":"b".repeat(64),"review_gated":true,"pane_id":"pane-rich"}),
             ),
             (
                 NativeEditorFrEventKind::StageEmbedBack,

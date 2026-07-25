@@ -30,7 +30,7 @@ use crate::ace::{
     ArtifactHandle, FemsEntityRef, FemsSourceRef, FemsSourceRefKind, MemoryCommitAppliedOp,
     MemoryCommitOpStatus, MemoryCommitReport, MemoryMutationOp, MemoryPack, MemoryPackBudgets,
     MemoryPackDeterminismMode, MemoryPackItem, MemoryPackRebuildHint, MemoryPackRebuildHintReason,
-    MemoryPolicy,
+    MemoryPolicy, MemoryWriteProposal,
 };
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
@@ -277,6 +277,9 @@ fn public_proposal_value(proposal: &Value) -> Value {
 /// Immutable proposal artifact used by FR-EVT-MEM-001. Review state is a later lifecycle record and
 /// cannot change the proposal hash on retry or restart recovery.
 pub fn proposal_artifact_value(proposal: &Value) -> Value {
+    if let Some(artifact) = proposal.get("_canonical_artifact") {
+        return artifact.clone();
+    }
     let mut proposal = proposal.clone();
     if let Value::Object(object) = &mut proposal {
         object.remove("_receipt_identity");
@@ -313,9 +316,9 @@ async fn insert_memory_proposal_with_receipt_inner(
         r#"
         INSERT INTO fems_memory_proposals (
             proposal_id, request_id, workspace_id, document_id, selection_start, selection_end,
-            content_hash, memory_class, status, review_gated, proposal
+            content_hash, memory_class, status, review_gated, created_at, proposal
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
         ON CONFLICT (workspace_id, request_id) DO NOTHING
         "#,
     )
@@ -329,6 +332,7 @@ async fn insert_memory_proposal_with_receipt_inner(
     .bind(&proposal.memory_class)
     .bind(&proposal.status)
     .bind(proposal.review_gated)
+    .bind(&proposal.created_at)
     .bind(proposal_json)
     .execute(&mut *tx)
     .await
@@ -794,6 +798,7 @@ fn same_logical_proposal(stored: &StoredMemoryProposal, incoming: &StoredMemoryP
         let mut value = value.clone();
         if let Value::Object(object) = &mut value {
             object.remove("proposal_id");
+            object.remove("_canonical_artifact");
             object.remove("_receipt_identity");
             // The router derives actor_id from the live native binding. It belongs to the
             // immutable receipt identity, not the caller's authoritative proposal payload, so
@@ -984,24 +989,37 @@ fn flight_recorder_actor(receipt: &KernelEvent) -> FlightRecorderActor {
     }
 }
 
-fn memory_proposal_artifact_id(proposal_id: &str) -> uuid::Uuid {
-    stable_uuid(&format!("fems:proposals:{proposal_id}"))
-}
-
-fn memory_proposal_artifact_path(workspace_id: &str, proposal_id: &str) -> String {
-    format!("/workspaces/{workspace_id}/memory/proposals/{proposal_id}/artifact")
-}
-
 fn build_memory_proposal_flight_recorder_event(
     proposal: &StoredMemoryProposal,
     receipt: &KernelEvent,
 ) -> StorageResult<FlightRecorderEvent> {
     let artifact = proposal_artifact_value(&proposal.proposal);
-    let proposal_hash = crate::kernel::context_bundle::sha256_hex(
-        &crate::kernel::context_bundle::canonical_json_bytes(&artifact),
-    );
-    let workspace_uuid = uuid::Uuid::parse_str(&proposal.workspace_id)
-        .map_err(|_| StorageError::Conflict("memory proposal workspace id is not a UUID"))?;
+    let canonical: MemoryWriteProposal = serde_json::from_value(artifact).map_err(|error| {
+        StorageError::Serialization(format!(
+            "memory proposal artifact is not hsk.memory_write_proposal@0.1: {error}"
+        ))
+    })?;
+    if canonical.schema_version != "hsk.memory_write_proposal@0.1"
+        || canonical.proposal_id != proposal.proposal_id
+        || uuid::Uuid::parse_str(&canonical.proposal_id).is_err()
+        || canonical.ops.is_empty()
+        || canonical.ops.len() > canonical.policy.max_ops as usize
+        || !canonical.policy.require_human_review
+        || canonical
+            .ops
+            .iter()
+            .any(|op| !op.requires_review || !(0.0..=1.0).contains(&op.confidence))
+    {
+        return Err(StorageError::Conflict(
+            "memory proposal artifact violates the canonical proposal contract",
+        ));
+    }
+    let proposal_hash = canonical
+        .compute_hash()
+        .map_err(|error| StorageError::Serialization(error.to_string()))?;
+    let op_count = canonical.ops.len() as u64;
+    let requires_review_count = canonical.ops.iter().filter(|op| op.requires_review).count() as u64;
+    let artifact_ref = format!("artifact://sha256/{proposal_hash}");
     let mut event = FlightRecorderEvent::new(
         FlightRecorderEventType::MemoryWriteProposed,
         flight_recorder_actor(receipt),
@@ -1011,17 +1029,10 @@ fn build_memory_proposal_flight_recorder_event(
             "event_code": "FR-EVT-MEM-001",
             "proposal_id": proposal.proposal_id,
             "proposal_hash": proposal_hash,
-            "artifact_ref": {
-                "artifact_id": memory_proposal_artifact_id(&proposal.proposal_id),
-                "path": memory_proposal_artifact_path(&proposal.workspace_id, &proposal.proposal_id),
-            },
-            "scope_refs": [{
-                "artefact_type": "workspace",
-                "artefact_id": workspace_uuid,
-                "selector": "self",
-            }],
-            "op_count": 1,
-            "requires_review_count": 1,
+            "artifact_ref": artifact_ref,
+            "scope_refs": canonical.scope_refs,
+            "op_count": op_count,
+            "requires_review_count": requires_review_count,
         }),
     )
     .with_actor_id(receipt.actor.actor_id().to_owned())
@@ -1387,6 +1398,73 @@ fn same_memory_commit_event(left: &FlightRecorderEvent, right: &FlightRecorderEv
 
 const OUTBOX_QUARANTINE_AFTER_ATTEMPTS: i64 = 3;
 const OUTBOX_ERROR_MAX_CHARS: usize = 1_000;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemoryLifecyclePublicationState {
+    Published,
+    Pending,
+    Quarantined,
+    Missing,
+}
+
+pub async fn memory_lifecycle_publication_state(
+    pool: &PgPool,
+    proposal_id: &str,
+    event_code: &str,
+) -> StorageResult<MemoryLifecyclePublicationState> {
+    ensure_fems_memory_schema(pool).await?;
+    let row = sqlx::query(
+        r#"
+        SELECT published_at IS NOT NULL AS published,
+               quarantined_at IS NOT NULL AS quarantined
+        FROM fems_memory_lifecycle_fr_outbox
+        WHERE proposal_id = $1 AND event_code = $2
+        "#,
+    )
+    .bind(proposal_id)
+    .bind(event_code)
+    .fetch_optional(pool)
+    .await?;
+    Ok(match row {
+        None => MemoryLifecyclePublicationState::Missing,
+        Some(row) if row.try_get::<bool, _>("published")? => {
+            MemoryLifecyclePublicationState::Published
+        }
+        Some(row) if row.try_get::<bool, _>("quarantined")? => {
+            MemoryLifecyclePublicationState::Quarantined
+        }
+        Some(_) => MemoryLifecyclePublicationState::Pending,
+    })
+}
+
+/// Explicitly retry a quarantined lifecycle projection for an identical authoritative proposal.
+/// The proposal row and immutable event payload remain unchanged; only the delivery-attempt state is
+/// reset so the bounded reconciler can try the exact event again.
+pub async fn requeue_quarantined_memory_lifecycle_event(
+    pool: &PgPool,
+    proposal_id: &str,
+    event_code: &str,
+) -> StorageResult<bool> {
+    ensure_fems_memory_schema(pool).await?;
+    let result = sqlx::query(
+        r#"
+        UPDATE fems_memory_lifecycle_fr_outbox
+        SET attempt_count = 0,
+            last_error = NULL,
+            last_error_at = NULL,
+            quarantined_at = NULL
+        WHERE proposal_id = $1
+          AND event_code = $2
+          AND published_at IS NULL
+          AND quarantined_at IS NOT NULL
+        "#,
+    )
+    .bind(proposal_id)
+    .bind(event_code)
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected() == 1)
+}
 
 fn bounded_outbox_error(error: &str) -> String {
     error.chars().take(OUTBOX_ERROR_MAX_CHARS).collect()

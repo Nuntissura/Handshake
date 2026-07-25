@@ -60,7 +60,7 @@ use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
 use crate::accessibility::emit_interactive_node;
-use crate::event_emitter::{NativeEditorEvent, NativeEditorEventEmitter};
+use crate::event_emitter::NativeEditorEventEmitter;
 use crate::interop::SharedSelection;
 use crate::rich_editor::save::canonical_hash::canonical_content_sha256;
 use crate::theme::HsPalette;
@@ -238,60 +238,6 @@ impl MemoryWriteProposal {
     pub fn is_review_gated(&self) -> bool {
         true
     }
-
-    /// Legacy native-editor correlation payload retained for decoding older proof data. New proposal
-    /// submissions do not emit this envelope: handshake_core projects the normative FR-EVT-MEM-001
-    /// from the PostgreSQL transaction outbox and returns its durable event UUID in [`ProposalAck`].
-    pub fn fr_payload(&self, proposal_id: &str) -> JsonValue {
-        json!({
-            "action": "memory_write_proposed",
-            "proposal_id": proposal_id,
-            "status": "pending_review",
-            "class": self.class.wire(),
-            "document_id": self.source.document_id,
-            "selection_start": self.source.selection_start,
-            "selection_end": self.source.selection_end,
-            "content_hash": self.source.content_hash,
-            "review_gated": true,
-            "pane_id": self.source.pane_id,
-        })
-    }
-
-    /// Rebuild a legacy native-editor correlation event for historical proof-data compatibility.
-    /// Production submission uses the backend-owned normative event and never calls this method.
-    pub fn fr_event(&self, proposal_id: &str) -> NativeEditorEvent {
-        use crate::event_emitter::NativeEditorAction;
-        let mut event = NativeEditorEvent::new(
-            NativeEditorAction::MemoryWriteProposed,
-            self.source.pane_id.clone(),
-            self.actor_id.clone(),
-            self.source.workspace_id.clone(),
-            self.fr_payload(proposal_id),
-        );
-        if let Some(event_id) = stable_proposal_event_id(proposal_id) {
-            event.event_id = event_id;
-        }
-        event
-    }
-}
-
-/// Map the backend's stable `PROP-<sha256>` identity to a standards-shaped UUIDv8. A retry of the same
-/// review-gated proposal must address the same Flight Recorder/EventLedger event instead of producing a
-/// second observability row. UUIDv8 is the RFC custom namespace; the 122 payload bits remain derived from
-/// the proposal digest while the version and variant bits are normalized.
-fn stable_proposal_event_id(proposal_id: &str) -> Option<String> {
-    let digest = proposal_id.strip_prefix("PROP-")?;
-    if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return None;
-    }
-    let mut bytes = [0_u8; 16];
-    for (index, byte) in bytes.iter_mut().enumerate() {
-        let offset = index * 2;
-        *byte = u8::from_str_radix(&digest[offset..offset + 2], 16).ok()?;
-    }
-    bytes[6] = (bytes[6] & 0x0f) | 0x80;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    Some(uuid::Uuid::from_bytes(bytes).to_string())
 }
 
 /// The typed outcome of a proposal build/submit. [`Self::MissingEndpoint`] is the FIRST-CLASS TYPED
@@ -391,12 +337,7 @@ pub struct ProposalAck {
 }
 
 fn is_canonical_proposal_id(value: &str) -> bool {
-    value.strip_prefix("PROP-").is_some_and(|digest| {
-        digest.len() == 64
-            && digest
-                .bytes()
-                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-    })
+    uuid::Uuid::parse_str(value).is_ok_and(|id| !id.is_nil())
 }
 
 fn validate_proposal_ack(ack: &ProposalAck) -> Result<(), MemoryProposalError> {
@@ -1220,6 +1161,12 @@ fn canonical_json_bytes_nfc(value: &JsonValue) -> Vec<u8> {
     out.into_bytes()
 }
 
+/// Recompute the normative SHA-256 over a canonical `hsk.memory_write_proposal@0.1` JSON artifact.
+/// Used by boundary proofs after dereferencing FR-EVT-MEM-001's content-addressed artifact handle.
+pub fn canonical_memory_write_proposal_hash(value: &JsonValue) -> String {
+    sha256_hex(&canonical_json_bytes_nfc(value))
+}
+
 /// Submit a review-gated proposal to the EXISTING FEMS write path
 /// (`POST /workspaces/{workspace_id}/memory/proposals`). Runs OFF the egui frame thread (the host
 /// dispatches it on the shared runtime; this fn is `async` and never blocks the frame).
@@ -1873,60 +1820,6 @@ mod tests {
         );
     }
 
-    /// AC-008: the FR payload carries action='memory_write_proposed' + proposal_id + class + document_id
-    /// + pending-review status + selection range + content_hash + review_gated + pane_id.
-    #[test]
-    fn fr_payload_carries_full_marker_and_provenance() {
-        let sel = text_range("pane-rich", 3, 9, "memory");
-        let p = build_proposal_for_document(&sel, MemoryClass::Procedural, "WS-1", "a", "DOC-1")
-            .unwrap();
-        let payload = p.fr_payload("PROP-42");
-        assert_eq!(payload["action"], "memory_write_proposed");
-        assert_eq!(payload["proposal_id"], "PROP-42");
-        assert_eq!(payload["status"], "pending_review");
-        assert_eq!(payload["class"], "procedural");
-        assert_eq!(payload["document_id"], "DOC-1");
-        assert_eq!(payload["selection_start"], 3);
-        assert_eq!(payload["selection_end"], 9);
-        assert_eq!(payload["content_hash"], p.source.content_hash);
-        assert_eq!(payload["review_gated"], true);
-        assert_eq!(payload["pane_id"], "pane-rich");
-    }
-
-    /// AC-008: the FR event reuses the MT-036 emitter schema with action MemoryWriteProposed and the
-    /// native-editor schema version (no new emitter, no new schema).
-    #[test]
-    fn fr_event_uses_mt036_schema_and_action() {
-        use crate::event_emitter::{NativeEditorAction, NATIVE_EDITOR_SCHEMA_VERSION};
-        let sel = text_range("pane-rich", 0, 6, "memory");
-        let p =
-            build_proposal_for_document(&sel, MemoryClass::Episodic, "WS-9", "a", "DOC-9").unwrap();
-        let proposal_id = format!("PROP-{}", "1a".repeat(32));
-        let ev = p.fr_event(&proposal_id);
-        let replay = p.fr_event(&proposal_id);
-        assert_eq!(ev.action, NativeEditorAction::MemoryWriteProposed);
-        assert_eq!(ev.action.as_str(), "memory_write_proposed");
-        assert_eq!(ev.schema_version, NATIVE_EDITOR_SCHEMA_VERSION);
-        assert_eq!(ev.workspace_id, "WS-9");
-        assert_eq!(ev.pane_id, "pane-rich");
-        assert_eq!(
-            ev.actor_id, p.actor_id,
-            "the persisted proposal and FR event must share one canonical actor identity"
-        );
-        assert_eq!(
-            replay.event_id, ev.event_id,
-            "a proposal replay must address the same correlated Flight Recorder event"
-        );
-        assert_ne!(
-            uuid::Uuid::parse_str(&ev.event_id).unwrap(),
-            uuid::Uuid::nil()
-        );
-        // The native payload nests under the MT-036 schema (no invented top-level event_type).
-        let np = ev.to_native_payload();
-        assert_eq!(np["action"], "memory_write_proposed");
-        assert_eq!(np["payload"]["proposal_id"], proposal_id);
-    }
-
     /// The command descriptor is the WP-011 palette catalog row for 'fems.propose_to_memory', enabled
     /// and palette-driven (no keybind, RISK-010). Asserted against the RUNTIME catalog
     /// ([`crate::command_registry::all_commands`]) — the actual list the palette + dispatcher read — not
@@ -2067,7 +1960,7 @@ mod tests {
     }
 
     fn valid_commit_ack() -> ProposalCommitAck {
-        let proposal_id = format!("PROP-{}", "a".repeat(64));
+        let proposal_id = "550e8400-e29b-41d4-a716-446655440001".to_owned();
         let commit_id = "550e8400-e29b-41d4-a716-446655440010".to_owned();
         let memory_id = "550e8400-e29b-41d4-a716-446655440011".to_owned();
         let committed_at = "2026-07-17T00:00:00+00:00".to_owned();
@@ -2136,7 +2029,8 @@ mod tests {
         assert!(validate_commit_ack(&wrong_commit, &canonical.proposal_id).is_err());
 
         let mut wrong_proposal = canonical.clone();
-        wrong_proposal.commit_report.source_proposal_id = format!("PROP-{}", "d".repeat(64));
+        wrong_proposal.commit_report.source_proposal_id =
+            "550e8400-e29b-41d4-a716-446655440099".to_owned();
         rehash_commit_report(&mut wrong_proposal);
         assert!(validate_commit_ack(&wrong_proposal, &canonical.proposal_id).is_err());
 
@@ -2154,7 +2048,7 @@ mod tests {
     #[test]
     fn proposal_ack_requires_canonical_identity_and_lifecycle_status() {
         let canonical = ProposalAck {
-            proposal_id: format!("PROP-{}", "a".repeat(64)),
+            proposal_id: "550e8400-e29b-41d4-a716-446655440001".to_owned(),
             status: "pending_review".to_owned(),
             created_at: "2026-07-17T00:00:00Z".to_owned(),
             flight_recorder_event_id: "550e8400-e29b-41d4-a716-446655440000".to_owned(),
@@ -2162,25 +2056,25 @@ mod tests {
         assert_eq!(validate_proposal_ack(&canonical), Ok(()));
         for ack in [
             ProposalAck {
-                proposal_id: "PROP-short".to_owned(),
+                proposal_id: "not-a-uuid".to_owned(),
                 status: "pending_review".to_owned(),
                 created_at: canonical.created_at.clone(),
                 flight_recorder_event_id: canonical.flight_recorder_event_id.clone(),
             },
             ProposalAck {
-                proposal_id: format!("PROP-{}", "A".repeat(64)),
+                proposal_id: uuid::Uuid::nil().to_string(),
                 status: "pending_review".to_owned(),
                 created_at: canonical.created_at.clone(),
                 flight_recorder_event_id: canonical.flight_recorder_event_id.clone(),
             },
             ProposalAck {
-                proposal_id: format!("PROP-{}", "b".repeat(64)),
+                proposal_id: "550e8400-e29b-41d4-a716-446655440002".to_owned(),
                 status: "not-a-lifecycle-state".to_owned(),
                 created_at: canonical.created_at.clone(),
                 flight_recorder_event_id: canonical.flight_recorder_event_id.clone(),
             },
             ProposalAck {
-                proposal_id: format!("PROP-{}", "b".repeat(64)),
+                proposal_id: "550e8400-e29b-41d4-a716-446655440003".to_owned(),
                 status: "pending_review".to_owned(),
                 created_at: "not-a-timestamp".to_owned(),
                 flight_recorder_event_id: canonical.flight_recorder_event_id.clone(),

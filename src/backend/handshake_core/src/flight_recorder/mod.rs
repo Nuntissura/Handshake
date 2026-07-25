@@ -4098,6 +4098,30 @@ fn require_artifact_handle_object(
     validate_artifact_handle_value(require_key(map, key)?, key)
 }
 
+fn require_content_addressed_artifact_handle(
+    map: &Map<String, Value>,
+    key: &str,
+) -> Result<(), RecorderError> {
+    let value = require_key(map, key)?.as_str().ok_or_else(|| {
+        RecorderError::InvalidEvent(format!(
+            "payload field {key} must be an artifact://sha256 handle"
+        ))
+    })?;
+    let digest = value.strip_prefix("artifact://sha256/").ok_or_else(|| {
+        RecorderError::InvalidEvent(format!("payload field {key} must use artifact://sha256/"))
+    })?;
+    if digest.len() != 64
+        || !digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(RecorderError::InvalidEvent(format!(
+            "payload field {key} must carry a lowercase SHA-256 digest"
+        )));
+    }
+    Ok(())
+}
+
 fn require_entity_ref_array(map: &Map<String, Value>, key: &str) -> Result<(), RecorderError> {
     let refs = match require_key(map, key)? {
         Value::Array(refs) => refs,
@@ -4161,12 +4185,34 @@ fn validate_memory_write_proposed_payload(payload: &Value) -> Result<(), Recorde
 
     require_fixed_string(map, "type", "memory_write_proposed")?;
     require_fixed_string(map, "event_code", "FR-EVT-MEM-001")?;
-    require_safe_token_string(map, "proposal_id", 256)?;
+    require_uuid_string_non_nil(map, "proposal_id")?;
     require_sha256_hex(map, "proposal_hash")?;
-    require_artifact_handle_object(map, "artifact_ref")?;
+    require_content_addressed_artifact_handle(map, "artifact_ref")?;
+    let proposal_hash = require_key(map, "proposal_hash")?
+        .as_str()
+        .ok_or_else(|| RecorderError::InvalidEvent("proposal_hash must be a string".to_owned()))?;
+    let expected_artifact_ref = format!("artifact://sha256/{proposal_hash}");
+    if require_key(map, "artifact_ref")?.as_str() != Some(expected_artifact_ref.as_str()) {
+        return Err(RecorderError::InvalidEvent(
+            "artifact_ref digest must equal proposal_hash".to_owned(),
+        ));
+    }
     require_entity_ref_array(map, "scope_refs")?;
     require_non_negative_integer(map, "op_count")?;
     require_non_negative_integer(map, "requires_review_count")?;
+    let op_count = require_key(map, "op_count")?
+        .as_u64()
+        .ok_or_else(|| RecorderError::InvalidEvent("op_count must be an integer".to_owned()))?;
+    let requires_review_count = require_key(map, "requires_review_count")?
+        .as_u64()
+        .ok_or_else(|| {
+            RecorderError::InvalidEvent("requires_review_count must be an integer".to_owned())
+        })?;
+    if requires_review_count > op_count {
+        return Err(RecorderError::InvalidEvent(
+            "requires_review_count cannot exceed op_count".to_owned(),
+        ));
+    }
     Ok(())
 }
 
@@ -6903,10 +6949,7 @@ mod tests {
             "event_code": "FR-EVT-MEM-001",
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "proposal_hash": DUMMY_SHA256,
-            "artifact_ref": {
-                "artifact_id": "550e8400-e29b-41d4-a716-44665544000a",
-                "path": ".handshake/fems/proposals/550e8400-e29b-41d4-a716-446655440000.json"
-            },
+            "artifact_ref": format!("artifact://sha256/{DUMMY_SHA256}"),
             "scope_refs": [{
                 "artefact_type": "workspace",
                 "artefact_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -6984,10 +7027,7 @@ mod tests {
             "event_code": "FR-EVT-MEM-001",
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "proposal_hash": DUMMY_SHA256,
-            "artifact_ref": {
-                "artifact_id": "550e8400-e29b-41d4-a716-44665544000e",
-                "path": ".handshake/fems/proposals/550e8400-e29b-41d4-a716-446655440000.json"
-            },
+            "artifact_ref": format!("artifact://sha256/{DUMMY_SHA256}"),
             "scope_refs": [],
             "op_count": 1,
             "requires_review_count": 0
@@ -7020,6 +7060,30 @@ mod tests {
             "requires_review_count": 1
         });
         assert!(validate_memory_write_proposed_payload(&legacy_event_id).is_err());
+
+        let mismatched_artifact_digest = json!({
+            "type": "memory_write_proposed",
+            "event_code": "FR-EVT-MEM-001",
+            "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+            "proposal_hash": DUMMY_SHA256,
+            "artifact_ref": format!("artifact://sha256/{}", "b".repeat(64)),
+            "scope_refs": [],
+            "op_count": 1,
+            "requires_review_count": 1
+        });
+        assert!(validate_memory_write_proposed_payload(&mismatched_artifact_digest).is_err());
+
+        let impossible_counts = json!({
+            "type": "memory_write_proposed",
+            "event_code": "FR-EVT-MEM-001",
+            "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+            "proposal_hash": DUMMY_SHA256,
+            "artifact_ref": format!("artifact://sha256/{DUMMY_SHA256}"),
+            "scope_refs": [],
+            "op_count": 1,
+            "requires_review_count": 2
+        });
+        assert!(validate_memory_write_proposed_payload(&impossible_counts).is_err());
 
         let invalid_review = json!({
             "type": "memory_write_reviewed",

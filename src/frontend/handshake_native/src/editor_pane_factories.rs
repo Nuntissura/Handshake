@@ -3026,6 +3026,17 @@ pub fn flight_recorder_rows_from_json(
                                     .is_some_and(|path| !path.trim().is_empty())
                         })
                 };
+                let valid_content_artifact = |key: &str| {
+                    map.get(key)
+                        .and_then(serde_json::Value::as_str)
+                        .and_then(|value| value.strip_prefix("artifact://sha256/"))
+                        .is_some_and(|digest| {
+                            digest.len() == 64
+                                && digest.bytes().all(|byte| {
+                                    byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)
+                                })
+                        })
+                };
                 let valid_scope_refs = || {
                     map.get("scope_refs")
                         .and_then(serde_json::Value::as_array)
@@ -3052,9 +3063,19 @@ pub fn flight_recorder_rows_from_json(
                 };
                 let valid = match expected_code {
                     "FR-EVT-MEM-001" => {
-                        non_empty("proposal_id")
+                        map.get("proposal_id")
+                            .and_then(serde_json::Value::as_str)
+                            .and_then(|id| uuid::Uuid::parse_str(id).ok())
+                            .is_some_and(|id| !id.is_nil())
                             && sha256("proposal_hash")
-                            && valid_artifact("artifact_ref")
+                            && valid_content_artifact("artifact_ref")
+                            && map
+                                .get("proposal_hash")
+                                .and_then(serde_json::Value::as_str)
+                                .zip(map.get("artifact_ref").and_then(serde_json::Value::as_str))
+                                .is_some_and(|(hash, artifact_ref)| {
+                                    artifact_ref == format!("artifact://sha256/{hash}")
+                                })
                             && valid_scope_refs()
                             && map
                                 .get("op_count")
@@ -3064,6 +3085,14 @@ pub fn flight_recorder_rows_from_json(
                                 .get("requires_review_count")
                                 .and_then(serde_json::Value::as_u64)
                                 .is_some()
+                            && map
+                                .get("op_count")
+                                .and_then(serde_json::Value::as_u64)
+                                .zip(
+                                    map.get("requires_review_count")
+                                        .and_then(serde_json::Value::as_u64),
+                                )
+                                .is_some_and(|(op_count, review_count)| review_count <= op_count)
                     }
                     "FR-EVT-MEM-002" => {
                         non_empty("proposal_id")

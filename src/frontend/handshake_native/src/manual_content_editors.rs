@@ -928,17 +928,15 @@ Missing, fabricated, or cross-save receipts fail closed. code_edit={file_path:st
 item_id:string,target_document_id:string}; canvas_node_placed={canvas_id:string,node_id:string,node_kind:string}; \
 cross_ref_inserted={ref_kind:string,symbol_entity_id:string,target_document_id:string}; \
 undo_fired={scope:local|cross_pane}; route_to_stage={content_kind:string,causal_action_id?:non-empty string}; \
-memory_write_proposed={action:memory_write_proposed,proposal_id:string,status:pending_review,class:episodic|semantic|procedural, \
-document_id:string,selection_start:u64,selection_end:u64>=selection_start,content_hash:sha256, \
-review_gated:true,pane_id:string}; stage_embed_back={artifact_id:string,target_pane_id:string,sha256:sha256, \
+stage_embed_back={artifact_id:string,target_pane_id:string,sha256:sha256, \
 manifest_ref:string,causal_action_id?:non-empty string}; calendar_event_bound={date:YYYY-MM-DD,document_id:string,calendar_event_id:string}; \
 activity_span_correlated={calendar_event_id:string,activity_span_id:string,edited_document_ids:non-empty string[]}; \
 locus_ref_resolved={locus_uri:string,target_kind:work_packet|microtask,target_id:string}; \
 locus_reverse_lookup={locus_uri:string,document_ids:non-empty string[]}. Accepted storage rows use \
 event_type=system with payload.event_family=native_editor, payload.schema and payload.schema_version \
 hsk.native_editor@0.1, matching action/kind, editor_surface, pane_id, workspace_id, actor_id, ts_utc, ops, and \
-native_payload. The 13 accepted actions are document_saved, code_edit, \
-embed_created, canvas_node_placed, cross_ref_inserted, undo_fired, route_to_stage, memory_write_proposed, \
+native_payload. The 12 accepted actions are document_saved, code_edit, \
+embed_created, canvas_node_placed, cross_ref_inserted, undo_fired, route_to_stage, \
 stage_embed_back, calendar_event_bound, activity_span_correlated, locus_ref_resolved, and \
 locus_reverse_lookup. Unknown actions, unknown payload fields, missing required fields, wrong types, malformed \
 UUIDs/timestamps, and cross-identity rows fail closed. The reader skips unrelated traffic and quarantines \
@@ -1723,13 +1721,22 @@ reviewer, not a committed memory item. Read editor.fems.memorypack-status and fe
 list_widgets: their structured values expose state, refresh generation/count, operation_id, proposal_id, \
 event_id, and outcome without scraping visible labels. `state=completed;outcome=event_persisted` means the \
 proposal and canonical backend-projected FR-EVT-MEM-001 are both durable; the backend does not acknowledge \
-this operation before that projection is durable. A transport or backend rejection is reported as a failed \
+this operation before that projection is durable. FR-EVT-MEM-001 is backend-owned rather than a native-editor \
+action and carries event_code, a non-nil UUID proposal_id, the canonical proposal_hash, \
+artifact_ref=artifact://sha256/{proposal_hash}, scope_refs, op_count, and requires_review_count. The resolved \
+artifact uses schema_version=hsk.memory_write_proposal@0.1; the event contains no raw memory content. A \
+transport or backend rejection is reported as a failed \
 submit, not as a successful proposal with a frontend-only partial event outcome. Cancel reports \
 `state=cancelled;outcome=cancelled_before_submit` with its stable operation_id and leaves both the \
-canonical proposal-row count and committed-memory count unchanged. Once a durable \
+canonical proposal-row count and committed-memory count unchanged. An exact workspace/class/content/source \
+replay is one logical proposal identity: retries converge across native-process restarts, while a terminal \
+identical proposal remains the same reviewed intent rather than silently creating another row. Change the \
+selection, content, class, or source when the operator intends a distinct proposal. Once a durable \
     proposal is pending review, activate fems-review-approve or fems-review-reject. Pending review controls \
 cannot be dismissed; after restart or workspace rebinding the shell reloads the bounded canonical pending \
-proposal list and restores the next review target. The native control calls the closed review route \
+proposal list and restores the next review target. If that queue refresh fails, activate \
+fems-review-refresh-retry; new proposal creation remains blocked until the exact workspace queue recovers. \
+The native control calls the closed review route \
 off-frame with an operator identity; fems-review-status and fems-propose-status expose proposal_id, \
 decision, actor_id, correlation_id, event_ledger_event_id, flight_recorder_event_id, and reviewed_at. \
     Missing/conflicted targets and mismatched acknowledgement identities retire the stale control and refresh \
@@ -1772,8 +1779,11 @@ A no-context model can drive panel-open -> refresh -> propose -> confirm entirel
 AccessKit author_ids and inspect the result with list_widgets + screenshot. Durable memory authority and \
 FR-EVT-MEM-001 proposal provenance live in handshake_core PostgreSQL/EventLedger. The workspace-scoped Flight \
 Recorder pane exposes that proposal plus exact FR-EVT-MEM-002 review, FR-EVT-MEM-003 commit, FR-EVT-MEM-004 \
-pack-build, and FR-EVT-MEM-005 status-transition rows. internal_diagnostics and Palmistry integration remain deferred to their dedicated \
-diagnostics work rather than being implied by the FEMS pane."
+pack-build, and FR-EVT-MEM-005 status-transition rows. Diagnostic dispositions for this surface are explicit: \
+Flight Recorder/EventLedger=WIRED for the durable proposal/review/commit/pack lifecycle; \
+internal_diagnostics=WIRED because proposal submission registers with the shipped backend-operation watchdog; \
+Palmistry=WIRED at the shared diagnostic-ring/app boundary for freeze/crash survival, without inventing a \
+FEMS-specific child process."
         .to_owned()
 }
 

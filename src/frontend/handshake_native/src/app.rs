@@ -15739,6 +15739,7 @@ impl HandshakeApp {
                             operation.operation_id
                         ));
                         self.memory_proposal_submit_pending = true;
+                        let operation_handle = crate::diagnostics::register_backend_operation();
                         runtime.spawn(async move {
                             let result = crate::fems::memory_proposal::submit_proposal_and_emit(
                                 proposal.as_ref(),
@@ -15746,6 +15747,7 @@ impl HandshakeApp {
                                 &emitter,
                             )
                             .await;
+                            operation_handle.complete();
                             if let Ok(mut deliveries) = cell.lock() {
                                 deliveries.push_back((operation, result));
                             }
@@ -27720,7 +27722,7 @@ mod mt035_popout_undo_tests {
                 Ok(
                     crate::fems::memory_proposal::ProposalSubmitOutcome::EventPersisted {
                         ack: crate::fems::memory_proposal::ProposalAck {
-                            proposal_id: format!("PROP-{}", "a".repeat(64)),
+                            proposal_id: "550e8400-e29b-41d4-a716-44665544000a".to_owned(),
                             status: status.to_owned(),
                             created_at: "2026-07-17T00:00:00Z".to_owned(),
                             flight_recorder_event_id: "550e8400-e29b-41d4-a716-446655440000"
@@ -27785,9 +27787,7 @@ mod mt035_popout_undo_tests {
             Ok(
                 crate::fems::memory_proposal::ProposalSubmitOutcome::EventPersisted {
                     ack: crate::fems::memory_proposal::ProposalAck {
-                        proposal_id:
-                            "PROP-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                                .to_owned(),
+                        proposal_id: "550e8400-e29b-41d4-a716-44665544000a".to_owned(),
                         status: "pending_review".to_owned(),
                         created_at: "2026-07-17T00:00:00Z".to_owned(),
                         flight_recorder_event_id: "550e8400-e29b-41d4-a716-446655440001".to_owned(),
@@ -27839,9 +27839,7 @@ mod mt035_popout_undo_tests {
             Ok(
                 crate::fems::memory_proposal::ProposalSubmitOutcome::EventPersisted {
                     ack: crate::fems::memory_proposal::ProposalAck {
-                        proposal_id:
-                            "PROP-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                                .to_owned(),
+                        proposal_id: "550e8400-e29b-41d4-a716-44665544000b".to_owned(),
                         status: "pending_review".to_owned(),
                         created_at: "2026-07-17T00:00:00Z".to_owned(),
                         flight_recorder_event_id: "550e8400-e29b-41d4-a716-446655440002".to_owned(),

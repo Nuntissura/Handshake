@@ -584,9 +584,9 @@ fn flight_recorder_parser_projects_exact_fems_lifecycle_and_quarantines_schema_d
             serde_json::json!({
                 "type": "memory_write_proposed",
                 "event_code": "FR-EVT-MEM-001",
-                "proposal_id": "proposal-1",
+                "proposal_id": "550e8400-e29b-41d4-a716-446655440010",
                 "proposal_hash": "a".repeat(64),
-                "artifact_ref": artifact("550e8400-e29b-41d4-a716-44665544000a"),
+                "artifact_ref": format!("artifact://sha256/{}", "a".repeat(64)),
                 "scope_refs": entity_refs.clone(),
                 "op_count": 2,
                 "requires_review_count": 1
@@ -601,6 +601,33 @@ fn flight_recorder_parser_projects_exact_fems_lifecycle_and_quarantines_schema_d
                 "decision": "approved",
                 "reviewer_kind": "user",
                 "commit_report_ref": artifact("550e8400-e29b-41d4-a716-44665544000f")
+            }),
+        ),
+        envelope(
+            "memory_write_proposed",
+            serde_json::json!({
+                "type": "memory_write_proposed",
+                "event_code": "FR-EVT-MEM-001",
+                "proposal_id": "PROP-legacy",
+                "proposal_hash": "a".repeat(64),
+                "artifact_ref": artifact("550e8400-e29b-41d4-a716-44665544000a"),
+                "scope_refs": entity_refs.clone(),
+                "op_count": 1,
+                "requires_review_count": 1
+            }),
+        ),
+        envelope(
+            "memory_write_proposed",
+            serde_json::json!({
+                "type": "memory_write_proposed",
+                "event_code": "FR-EVT-MEM-001",
+                "proposal_id": "550e8400-e29b-41d4-a716-446655440011",
+                "proposal_hash": "a".repeat(64),
+                "artifact_ref": format!("artifact://sha256/{}", "a".repeat(64)),
+                "scope_refs": entity_refs.clone(),
+                "op_count": 1,
+                "requires_review_count": 1,
+                "raw_memory_text": "forbidden"
             }),
         ),
         envelope(
@@ -674,7 +701,7 @@ fn flight_recorder_parser_projects_exact_fems_lifecycle_and_quarantines_schema_d
             "FR-EVT-MEM-005"
         ]
     );
-    assert_eq!(result.quarantined.len(), 2);
+    assert_eq!(result.quarantined.len(), 4);
     assert!(result
         .quarantined
         .iter()

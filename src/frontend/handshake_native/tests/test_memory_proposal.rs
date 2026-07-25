@@ -332,7 +332,7 @@ fn propose_creates_proposal_via_endpoint() {
     let runtime = rt();
     let (base_url, server) = spawn_mock(
         "HTTP/1.1 200 OK",
-        json!({"proposal_id": "PROP-7777777777777777777777777777777777777777777777777777777777777777", "status": "pending_review", "created_at": "2026-07-17T00:00:00Z", "flight_recorder_event_id": "550e8400-e29b-41d4-a716-446655440001"}),
+        json!({"proposal_id": "550e8400-e29b-41d4-a716-446655440007", "status": "pending_review", "created_at": "2026-07-17T00:00:00Z", "flight_recorder_event_id": "550e8400-e29b-41d4-a716-446655440001"}),
     );
     let client = HandshakeCoreClient::with_base_url(base_url);
 
@@ -376,10 +376,7 @@ fn propose_creates_proposal_via_endpoint() {
     assert_eq!(body["content"], "memory");
     assert_eq!(body["source"]["content_hash"], proposal.source.content_hash);
     assert_eq!(body["source"]["document_id"], "DOC-42");
-    assert_eq!(
-        ack.proposal_id,
-        "PROP-7777777777777777777777777777777777777777777777777777777777777777"
-    );
+    assert_eq!(ack.proposal_id, "550e8400-e29b-41d4-a716-446655440007");
     assert_eq!(ack.status, "pending_review");
 
     // The backend acknowledgement binds the transactionally projected canonical event. The
@@ -427,7 +424,7 @@ fn backend_owned_proposal_event_is_not_rejected_by_frontend_emitter_scope() {
     let runtime = rt();
     let (base_url, server) = spawn_mock(
         "HTTP/1.1 200 OK",
-        json!({"proposal_id": "PROP-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "status": "pending_review", "created_at": "2026-07-17T00:00:00Z", "flight_recorder_event_id": "550e8400-e29b-41d4-a716-446655440002"}),
+        json!({"proposal_id": "550e8400-e29b-41d4-a716-44665544000a", "status": "pending_review", "created_at": "2026-07-17T00:00:00Z", "flight_recorder_event_id": "550e8400-e29b-41d4-a716-446655440002"}),
     );
     let client = HandshakeCoreClient::with_base_url(base_url);
     let captured = Arc::new(std::sync::Mutex::new(Vec::<NativeEditorEvent>::new()));
@@ -449,13 +446,12 @@ fn backend_owned_proposal_event_is_not_rejected_by_frontend_emitter_scope() {
     let (_request, _body) = server.join().expect("proposal POST captured");
     match outcome {
         ProposalSubmitOutcome::EventPersisted { ack, event_id } => {
-            assert_eq!(
-                ack.proposal_id,
-                "PROP-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            );
+            assert_eq!(ack.proposal_id, "550e8400-e29b-41d4-a716-44665544000a");
             assert_eq!(event_id, "550e8400-e29b-41d4-a716-446655440002");
         }
-        other => panic!("backend-owned event must be durable independently of the emitter, got {other:?}"),
+        other => panic!(
+            "backend-owned event must be durable independently of the emitter, got {other:?}"
+        ),
     }
     assert!(
         captured.lock().unwrap().is_empty(),
