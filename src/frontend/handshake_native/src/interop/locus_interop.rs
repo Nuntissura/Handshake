@@ -595,20 +595,25 @@ impl LocusInteropService {
         .await
         .map_err(LocusInteropError::from)?;
         // Search is a bounded candidate generator, not proof of a structured reference: operator-visible
-        // text can contain the same URI without carrying an hsLink. Resolve every exact Loom block through
-        // its canonical transclusion read, verify the returned document identity matches the search pair,
-        // then inspect that persisted content for the structured ref. This prevents a structured link in one
-        // block from validating a plain-text candidate in another block that shares a document id.
+        // text can contain the same URI without carrying an hsLink. Resolve every candidate through the
+        // canonical transclusion read, accept only the native rich-document projection whose block id equals
+        // its source rich-document id, verify the search pair matches that identity, then inspect the persisted
+        // body for the structured ref. The transclusion API returns the full source document (not a block-local
+        // slice), so noncanonical legacy/alias blocks must fail closed: otherwise a plain-text alias could be
+        // validated by an hsLink elsewhere in the shared document.
         let mut seen = std::collections::HashSet::new();
         let mut out = Vec::new();
         for note in notes {
             let block_id = note.block_id.as_str();
             let (bound_document_id, content) = self
                 .reverse_lookup
-                .load_block_content(&self.workspace_id, block_id)
+                .load_block_transclusion(&self.workspace_id, block_id)
                 .await
                 .map_err(LocusInteropError::from)?;
-            if bound_document_id != note.document_id || !content_has_exact_locus_ref(&content, r) {
+            if block_id != bound_document_id
+                || bound_document_id != note.document_id
+                || !content_has_exact_locus_ref(&content, r)
+            {
                 continue;
             }
             let key = (note.document_id.clone(), note.block_id.clone());

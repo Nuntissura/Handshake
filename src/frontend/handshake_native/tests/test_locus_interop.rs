@@ -651,7 +651,7 @@ impl FindNotesSearch for CountingReverseLookup {
         })
     }
 
-    fn load_block_content<'a>(
+    fn load_block_transclusion<'a>(
         &'a self,
         _workspace_id: &'a str,
         block_id: &'a str,
@@ -1215,6 +1215,42 @@ fn resolve_locus_ref_against_real_pg_live() {
         !save_receipt_event_id.is_empty(),
         "AC-006 LIVE: the rich-document save returns an authentic receipt"
     );
+    // Adversarial real-boundary fixture: a legacy Loom alias is permitted to point at the same
+    // source document. Its title deliberately matches both normalized Locus queries, while the
+    // production transclusion route returns the complete shared RichDocument. Reverse lookup must
+    // retain only the canonical native projection (`block_id == rich_document_id`), never this alias.
+    let legacy_document_id = format!("DOC-MT068-{suffix}");
+    let alias_block_id = format!("BLK-MT068-ALIAS-{suffix}");
+    run_locus_sql(&format!(
+        "BEGIN; \
+         INSERT INTO documents (id, workspace_id, title) VALUES ({legacy}, {workspace}, 'MT-068 legacy alias source'); \
+         UPDATE knowledge_rich_documents SET document_id = {legacy} WHERE rich_document_id = {rich}; \
+         COMMIT;",
+        legacy = sql_literal(&legacy_document_id),
+        workspace = sql_literal(&ws),
+        rich = sql_literal(&document_id),
+    ));
+    let alias_block = be.post_json(
+        &format!("/workspaces/{ws}/loom/blocks"),
+        &serde_json::json!({
+            "block_id": alias_block_id,
+            "content_type": "note",
+            "document_id": legacy_document_id,
+            "title": format!(
+                "plain-text alias {} {}",
+                wp_uri.to_ascii_lowercase(),
+                mt_uri.to_ascii_lowercase()
+            ),
+        }),
+    );
+    assert_eq!(
+        alias_block["block_id"].as_str(),
+        Some(alias_block_id.as_str()),
+        "real backend created the same-document alias candidate"
+    );
+    let alias_eventledger_event_id = alias_block["event_ledger_event_id"]
+        .as_str()
+        .map(str::to_owned);
     let (old_backend_base, new_backend_base) = be.restart_owned();
     let loaded = be.get_json(&format!("/knowledge/documents/{document_id}"));
     let loaded_content = loaded_content_json(&loaded);
@@ -1228,11 +1264,9 @@ fn resolve_locus_ref_against_real_pg_live() {
         "AC-006 LIVE: all exact Locus attrs survive backend restart and save/reload"
     );
 
-    let svc = LocusInteropService::with_base_url(
-        be.base.clone(),
-        ws.clone(),
-        Arc::new(FindNotesHttp::new(be.base.clone())),
-    );
+    let reverse_lookup = Arc::new(FindNotesHttp::new(be.base.clone()));
+    let svc =
+        LocusInteropService::with_base_url(be.base.clone(), ws.clone(), reverse_lookup.clone());
     let wp = parse_locus_ref(&wp_uri).unwrap();
     let mt = parse_locus_ref(&mt_uri).unwrap();
     let (wp_record, mt_record, wp_docs, mt_docs) = rt().block_on(async {
@@ -1248,6 +1282,39 @@ fn resolve_locus_ref_against_real_pg_live() {
     assert!(!wp_record.title.is_empty() && !mt_record.title.is_empty());
     let wp_docs = wp_docs.expect("AC-004 LIVE: WP reverse lookup");
     let mt_docs = mt_docs.expect("AC-004 LIVE: MT reverse lookup");
+    let (raw_wp_candidates, raw_mt_candidates) = rt().block_on(async {
+        (
+            handshake_native::interop::cross_ref::find_all_note_candidates_with(
+                reverse_lookup.as_ref(),
+                &wp.normalized,
+                &ws,
+            )
+            .await,
+            handshake_native::interop::cross_ref::find_all_note_candidates_with(
+                reverse_lookup.as_ref(),
+                &mt.normalized,
+                &ws,
+            )
+            .await,
+        )
+    });
+    for (label, candidates) in [
+        (
+            "WP",
+            raw_wp_candidates.expect("raw live WP candidate search"),
+        ),
+        (
+            "MT",
+            raw_mt_candidates.expect("raw live MT candidate search"),
+        ),
+    ] {
+        assert!(
+            candidates
+                .iter()
+                .any(|candidate| candidate.block_id == alias_block_id),
+            "AC-004 LIVE: the real search boundary must expose the adversarial same-document alias for {label}"
+        );
+    }
     let mut reverse_lookup_counts = serde_json::Map::new();
     for (label, docs) in [("WP", &wp_docs), ("MT", &mt_docs)] {
         let matching = docs
@@ -1257,6 +1324,11 @@ fn resolve_locus_ref_against_real_pg_live() {
         assert_eq!(
             matching, 1,
             "AC-004 LIVE: {label} reverse lookup returns the persisted document exactly once: {docs:?}"
+        );
+        assert!(
+            docs.iter()
+                .all(|document| document.block_id.as_deref() != Some(alias_block_id.as_str())),
+            "AC-004 LIVE: {label} exact lookup excludes the noncanonical same-document alias"
         );
         reverse_lookup_counts.insert(label.to_owned(), serde_json::json!(matching));
     }
@@ -1531,16 +1603,30 @@ fn resolve_locus_ref_against_real_pg_live() {
          END IF; END $mt068_eventledger_proof$;"
     ));
 
+    let alias_cleanup = be.delete(&format!("/workspaces/{ws}/loom/blocks/{alias_block_id}"));
+    assert!(matches!(alias_cleanup, 200 | 202 | 204 | 404));
+    run_locus_sql(&format!(
+        "UPDATE knowledge_rich_documents SET document_id = NULL WHERE rich_document_id = {rich}; \
+         DELETE FROM documents WHERE id = {legacy};",
+        rich = sql_literal(&document_id),
+        legacy = sql_literal(&legacy_document_id),
+    ));
     let document_cleanup = be.delete(&format!("/knowledge/documents/{document_id}"));
     assert!(matches!(document_cleanup, 200 | 202 | 204 | 404));
     records_cleanup.assert_cleanup();
     drop(records_cleanup);
+    let alias_event_sql = alias_eventledger_event_id
+        .as_deref()
+        .map(sql_literal)
+        .unwrap_or_else(|| "NULL".to_owned());
     run_locus_sql(&format!(
         "DELETE FROM kernel_event_ledger WHERE idempotency_key IN ({eventledger_key_sql}); \
+         DELETE FROM kernel_event_ledger WHERE event_id = {alias_event}; \
          DO $mt068_eventledger_cleanup$ BEGIN \
          IF EXISTS (SELECT 1 FROM kernel_event_ledger WHERE idempotency_key IN ({eventledger_key_sql})) \
          THEN RAISE EXCEPTION 'MT-068 native FR EventLedger mirror residue remains'; \
-         END IF; END $mt068_eventledger_cleanup$;"
+         END IF; END $mt068_eventledger_cleanup$;",
+        alias_event = alias_event_sql,
     ));
     be.assert_cleanup();
     locus_sql_output(&format!(
@@ -1605,6 +1691,16 @@ fn resolve_locus_ref_against_real_pg_live() {
                 }
             },
             "reverse_lookup_matching_document_counts": reverse_lookup_counts,
+            "reverse_lookup_alias_boundary": {
+                "legacy_document_id": legacy_document_id,
+                "alias_block_id": alias_block_id,
+                "real_search_candidate_seen_for_wp": true,
+                "real_search_candidate_seen_for_mt": true,
+                "production_transclusion_returns_full_shared_document": true,
+                "canonical_projection_rule": "block_id == source_rich_document_id",
+                "alias_excluded_from_wp_result": true,
+                "alias_excluded_from_mt_result": true,
+            },
             "flight_recorder": {
                 "diagnostic_tier": "Tier 1 WIRED",
                 "events": flight_recorder_matrix,
@@ -1889,18 +1985,8 @@ fn ac004_reverse_lookup_verifies_each_document_block_pair() {
             }]
         }]
     });
-    let plain_text = serde_json::json!({
-        "type": "doc",
-        "content": [{
-            "type": "paragraph",
-            "content": [{
-                "type": "text",
-                "text": "plain locus://mt/MT-034 mention"
-            }]
-        }]
-    });
     let mut exact_hit = hit(
-        "BLOCK-STRUCTURED",
+        "DOC-SHARED",
         Some("Structured ref"),
         "note",
         "locus://mt/MT-034",
@@ -1915,8 +2001,10 @@ fn ac004_reverse_lookup_verifies_each_document_block_pair() {
     plain_hit.block.document_id = Some("DOC-SHARED".to_owned());
     let backend: Arc<dyn FindNotesSearch> = Arc::new(
         CountingReverseLookup::new(vec![exact_hit, plain_hit])
-            .with_block_content("BLOCK-STRUCTURED", "DOC-SHARED", structured)
-            .with_block_content("BLOCK-PLAIN", "DOC-SHARED", plain_text),
+            // Production transclusion returns this same complete rich-document body for both
+            // block identities. Only the canonical same-id native projection may survive.
+            .with_block_content("DOC-SHARED", "DOC-SHARED", structured.clone())
+            .with_block_content("BLOCK-PLAIN", "DOC-SHARED", structured),
     );
     let svc = LocusInteropService::with_base_url("http://unused", "WS-1", backend);
     let mt = parse_locus_ref("locus://mt/MT-034").unwrap();
@@ -1926,7 +2014,7 @@ fn ac004_reverse_lookup_verifies_each_document_block_pair() {
 
     assert_eq!(docs.len(), 1);
     assert_eq!(docs[0].document_id, "DOC-SHARED");
-    assert_eq!(docs[0].block_id.as_deref(), Some("BLOCK-STRUCTURED"));
+    assert_eq!(docs[0].block_id.as_deref(), Some("DOC-SHARED"));
 }
 
 #[test]

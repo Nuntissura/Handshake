@@ -867,10 +867,11 @@ pub trait FindNotesSearch: Send + Sync {
         })
     }
 
-    /// Resolve one exact Loom search-hit block to the persisted rich document content it
-    /// transcludes. Locus reverse lookup uses this block-scoped readback so a structured
-    /// link in another block that happens to share a document cannot validate the candidate.
-    fn load_block_content<'a>(
+    /// Resolve one Loom search-hit block through the backend's canonical transclusion route.
+    /// The returned content is the complete source rich document, not a block-local slice;
+    /// callers must also enforce the canonical native projection identity (`block_id ==
+    /// source_document_id`) before treating it as exact block evidence.
+    fn load_block_transclusion<'a>(
         &'a self,
         workspace_id: &'a str,
         block_id: &'a str,
@@ -992,7 +993,7 @@ impl FindNotesSearch for FindNotesHttp {
         })
     }
 
-    fn load_block_content<'a>(
+    fn load_block_transclusion<'a>(
         &'a self,
         workspace_id: &'a str,
         block_id: &'a str,
