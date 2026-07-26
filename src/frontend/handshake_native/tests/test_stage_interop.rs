@@ -1404,7 +1404,8 @@ fn live_route_round_trip_real_pg() {
         );
     }
     let route_row = wait_for_native_fr(&*cleanup.backend, &workspace_id, "route_to_stage", |row| {
-        row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
+        row["event_id"].as_str() == Some(retained_route_event_id.as_str())
+            && row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
     });
     cleanup.track_native_fr(&route_row);
     let route_rows_before_restart = cleanup
