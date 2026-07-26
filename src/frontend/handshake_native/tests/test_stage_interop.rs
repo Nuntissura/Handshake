@@ -1283,9 +1283,29 @@ fn live_route_round_trip_real_pg() {
         .clone()
         .expect("MT-066 host context captured");
     let interaction_bus = InteractionBus::get_or_init(&ctx);
-    let bus_guard = interaction_bus
+    let blocker_causal_action_id = format!("mt066-route-blocker-{}", uuid::Uuid::new_v4().simple());
+    let blocking_route = InteractionBus::with_try_lock(&interaction_bus, |bus| {
+        bus.register_route_to_stage_command();
+        assert!(
+            bus.route_to_stage_correlated(
+                &ctx,
+                handshake_native::stage_pane::StageContent::Selection(
+                    "MT-066 occupied route witness".to_owned(),
+                    document_id.clone(),
+                ),
+                Some(&blocker_causal_action_id),
+            ),
+            "admit real canonical occupied route witness"
+        );
+        bus.pending_stage_route()
+            .expect("occupied canonical route remains pending")
+            .clone()
+    })
+    .expect("acquire canonical bus to install occupied route witness");
+    stage
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
+        .unwrap()
+        .retain_route_receipt(blocking_route.receipt.clone());
     let busy_observation = argus.click_and_reinspect(&mut harness, "menu.editors.route-to-stage");
     assert!(
         !busy_observation.receipt_status.is_empty(),
@@ -1336,7 +1356,19 @@ fn live_route_round_trip_real_pg() {
         .expect("MT-066 busy state requires a material harness render")
         .save(&busy_screenshot_path)
         .expect("save MT-066 busy harness render");
-    drop(bus_guard);
+    stage
+        .lock()
+        .unwrap()
+        .acknowledge_route_receipt(&blocking_route.receipt.event_id);
+    let removed_blocker = InteractionBus::with_try_lock(&interaction_bus, |bus| {
+        bus.ack_pending_stage_route(&blocking_route.receipt.event_id)
+    })
+    .flatten()
+    .expect("remove exact occupied route witness before operator retry");
+    assert_eq!(
+        removed_blocker.receipt.event_id, blocking_route.receipt.event_id,
+        "only the exact occupied route witness is removed"
+    );
 
     let route_observation = argus.click_and_reinspect(&mut harness, STAGE_ROUTE_RETRY_AUTHOR_ID);
     assert!(
