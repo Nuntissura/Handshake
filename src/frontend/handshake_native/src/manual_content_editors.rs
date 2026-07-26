@@ -1741,7 +1741,7 @@ off-frame with an operator identity; fems-review-status and fems-propose-status 
 decision, actor_id, correlation_id, event_ledger_event_id, flight_recorder_event_id, and reviewed_at. \
     Missing/conflicted targets and mismatched acknowledgement identities retire the stale control and refresh \
     the canonical queue; transport failures retain the target for explicit retry. Rejection ends at \
-    `state=reviewed;outcome=rejected` and performs no commit. Approval first records the review, then calls the \
+    `state=reviewed;outcome=rejected;terminal=true` and performs no commit. Approval first records the review, then calls the \
     separate explicit approved-proposal commit route. A successful approval ends at \
     `state=committed;outcome=approved`; fems-propose-status exposes memory_id, commit_id, memory_pack_id, \
     memory_pack_hash, commit_report_hash, the commit event_ledger_event_id, flight_recorder_event_id, and \

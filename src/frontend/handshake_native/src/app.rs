@@ -15237,7 +15237,7 @@ impl HandshakeApp {
                             ack.flight_recorder_event_id
                         ));
                         self.memory_proposal_status_value = Some(format!(
-                            "state=reviewed;outcome=rejected;operation_id={};proposal_id={};actor_id={};correlation_id={};event_ledger_event_id={};flight_recorder_event_id={};reviewed_at={}",
+                            "state=reviewed;outcome=rejected;terminal=true;operation_id={};proposal_id={};actor_id={};correlation_id={};event_ledger_event_id={};flight_recorder_event_id={};reviewed_at={}",
                             operation.operation_id,
                             ack.proposal_id,
                             ack.actor_id,

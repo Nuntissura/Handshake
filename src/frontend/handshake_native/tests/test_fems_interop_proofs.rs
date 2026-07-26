@@ -123,6 +123,7 @@ fn current_source_sha() -> String {
         "src/backend/handshake_core/src/flight_recorder/mod.rs",
         "src/backend/handshake_core/src/storage/fems_memory.rs",
         "src/backend/handshake_core/src/workflows.rs",
+        "src/frontend/handshake_native/src/app.rs",
         "src/frontend/handshake_native/src/fems/memory_proposal.rs",
         "src/frontend/handshake_native/src/manual_content_editors.rs",
         "src/frontend/handshake_native/tests/test_manual_content.rs",

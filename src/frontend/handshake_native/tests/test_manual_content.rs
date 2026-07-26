@@ -1615,6 +1615,7 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "fems-review-reject",
             "fems-review-status",
             "fems-review-refresh-retry",
+            "state=reviewed;outcome=rejected;terminal=true",
             "state=committed;outcome=approved",
             "memory_id",
             "commit_id",
