@@ -801,6 +801,7 @@ const MT066_RELEVANT_SOURCE_PATHS: &[&str] = &[
     "src/frontend/handshake_native/src/app.rs",
     "src/frontend/handshake_native/src/interop/stage_interop.rs",
     "src/frontend/handshake_native/src/manual_content_editors.rs",
+    "src/frontend/handshake_native/src/project_tree.rs",
     "src/frontend/handshake_native/src/stage_pane.rs",
     "src/frontend/handshake_native/tests/interconnect_support/mod.rs",
     "src/frontend/handshake_native/tests/native_gui_support/canonical_argus_driver.rs",
