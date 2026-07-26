@@ -1292,14 +1292,13 @@ fn live_route_round_trip_real_pg() {
         "canonical Argus returns the route action receipt"
     );
     let busy_inspect = argus.inspect(&mut harness);
+    let busy_stage_snapshot = stage.lock().unwrap().clone();
     assert!(
         json_has_author_id(&busy_inspect, STAGE_ROUTE_STATUS_AUTHOR_ID)
             && json_has_author_id(&busy_inspect, STAGE_ROUTE_RETRY_AUTHOR_ID),
-        "fresh canonical Argus inspection exposes both retained busy status and retry control"
+        "fresh canonical Argus inspection exposes both retained busy status and retry control; stage={busy_stage_snapshot:?}; inspect={busy_inspect}"
     );
-    let retained_route = stage
-        .lock()
-        .unwrap()
+    let retained_route = busy_stage_snapshot
         .route_retry
         .clone()
         .expect("contended route is retained");
