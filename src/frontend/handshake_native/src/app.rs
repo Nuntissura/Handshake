@@ -5818,6 +5818,14 @@ impl HandshakeApp {
         self.ensure_rich_document_workspace();
     }
 
+    /// Clear the ephemeral FEMS overlay and any in-flight FEMS deliveries from a mounted integration
+    /// harness. Cross-feature visual proofs use this after the normal project-rebind frame so an
+    /// unrelated pending-review transport failure cannot obscure the feature under inspection. This
+    /// deliberately does not change persisted memory state or the active project.
+    pub fn clear_fems_overlay_for_integration_test(&mut self) {
+        self.invalidate_memory_proposal_state_on_workspace_change();
+    }
+
     /// Read-only view of the top project-tab strip (MT-011): tests assert the project list, active id,
     /// and fetch state.
     pub fn project_tabs(&self) -> &ProjectTabBar {

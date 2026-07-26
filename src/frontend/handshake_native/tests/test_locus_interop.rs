@@ -1189,7 +1189,7 @@ fn resolve_locus_ref_against_real_pg_live() {
         bar.active_index = 0;
         app.set_active_pane_for_test(Some(pane_id.clone()));
         let mut harness = Harness::builder()
-            .with_size(egui::vec2(1000.0, 700.0))
+            .with_size(egui::vec2(1440.0, 900.0))
             .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
         let chip_id = locus_ref_chip_author_id(uri);
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
@@ -1209,6 +1209,14 @@ fn resolve_locus_ref_against_real_pg_live() {
                 "mounted Locus chip {chip_id}"
             );
         }
+        // Project binding also performs the production FEMS review refresh. This proof is scoped to
+        // Locus and the fixture intentionally has no FEMS session, so clear that unrelated ephemeral
+        // failure overlay only after its delivery frame. Otherwise it obscures the mounted chip and
+        // exact post-navigation target in the visual evidence while changing no persisted state.
+        harness
+            .state_mut()
+            .clear_fems_overlay_for_integration_test();
+        harness.run_steps(1);
         let matching_chip_count = harness
             .root()
             .children_recursive()
