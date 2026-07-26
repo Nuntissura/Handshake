@@ -11113,6 +11113,9 @@ impl HandshakeApp {
         }
         self.rich_doc_load_generation = self.rich_doc_load_generation.wrapping_add(1);
         self.rich_doc_loads.clear();
+        self.left_rail
+            .project_tree
+            .set_backend_base_url_for_test(base_url, &handle);
         self.runtime_handle = Some(handle);
     }
 

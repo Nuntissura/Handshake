@@ -552,6 +552,7 @@ struct LiveWorkspaceGuard<'a> {
     stage_artifact_ids: Vec<String>,
     stage_job_ids: Vec<String>,
     stage_event_ids: Vec<String>,
+    workspace_deleted: bool,
 }
 
 impl LiveWorkspaceGuard<'_> {
@@ -652,6 +653,7 @@ impl LiveWorkspaceGuard<'_> {
                  CREATE TEMP TABLE mt066_stage_cleanup_events ON COMMIT DROP AS \
                  SELECT event_id FROM kernel_event_ledger \
                  WHERE event_id = ANY({events}) \
+                    OR payload->>'workspace_id' = '{workspace}' \
                     OR idempotency_key LIKE 'stage-capture:{workspace}:%' \
                     OR idempotency_key LIKE 'stage-capture-decision:{workspace}:%' \
                     OR (source_component = 'stage_capture_api' \
@@ -687,6 +689,7 @@ impl LiveWorkspaceGuard<'_> {
                                                WHERE event_id IS NOT NULL) \
                                OR idempotency_key LIKE 'stage-capture:{workspace}:%' \
                                OR idempotency_key LIKE 'stage-capture-decision:{workspace}:%' \
+                               OR payload->>'workspace_id' = '{workspace}' \
                                OR (source_component = 'stage_capture_api' \
                                    AND payload->>'workspace_id' = '{workspace}')) \
                  THEN RAISE EXCEPTION 'MT-066 Stage EventLedger cleanup left residue'; END IF; \
@@ -702,6 +705,30 @@ impl LiveWorkspaceGuard<'_> {
         self.cleanup_native_fr_ledger();
         self.cleanup_stage_side_effects_and_assert_zero();
     }
+
+    fn delete_workspace_and_assert_absent(&mut self) {
+        if self.workspace_deleted {
+            return;
+        }
+        let status = self.backend.delete_workspace(&self.workspace_id);
+        assert!(
+            (200..300).contains(&status) || status == 404,
+            "MT-066 managed workspace cleanup returned {status}"
+        );
+        let rows = self
+            .backend
+            .get_json(&format!("/api/flight_recorder?wsid={}", self.workspace_id));
+        assert!(
+            rows.as_array().is_some_and(Vec::is_empty),
+            "workspace DELETE must remove persistent Stage FlightRecorder projections: {rows}"
+        );
+        self.workspace_deleted = true;
+    }
+
+    fn finish_and_assert_zero(&mut self) {
+        self.cleanup_all_and_assert_zero();
+        self.delete_workspace_and_assert_absent();
+    }
 }
 
 impl Drop for LiveWorkspaceGuard<'_> {
@@ -709,35 +736,17 @@ impl Drop for LiveWorkspaceGuard<'_> {
         let cleanup_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             self.cleanup_all_and_assert_zero();
         }));
-        let status = self.backend.delete_workspace(&self.workspace_id);
-        let status_ok = (200..300).contains(&status) || status == 404;
-        let recorder_cleanup_result = if status_ok {
+        let workspace_cleanup_result =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let rows = self
-                    .backend
-                    .get_json(&format!("/api/flight_recorder?wsid={}", self.workspace_id));
-                assert!(
-                    rows.as_array().is_some_and(Vec::is_empty),
-                    "workspace DELETE must remove persistent Stage FlightRecorder projections: {rows}"
-                );
-            }))
-        } else {
-            Ok(())
-        };
-        if !status_ok {
-            eprintln!(
-                "WARN(MT-066 cleanup): DELETE workspace {} returned {status}",
-                self.workspace_id
-            );
-        }
+                self.delete_workspace_and_assert_absent();
+            }));
         if !std::thread::panicking() {
             if let Err(payload) = cleanup_result {
                 std::panic::resume_unwind(payload);
             }
-            if let Err(payload) = recorder_cleanup_result {
+            if let Err(payload) = workspace_cleanup_result {
                 std::panic::resume_unwind(payload);
             }
-            assert!(status_ok, "MT-066 managed workspace cleanup failed");
         }
     }
 }
@@ -1168,6 +1177,7 @@ fn live_route_round_trip_real_pg() {
         stage_artifact_ids: Vec::new(),
         stage_job_ids: Vec::new(),
         stage_event_ids: Vec::new(),
+        workspace_deleted: false,
     };
 
     let exact_text = "MT-066 exact Stage bytes: café / LF\nsecond line";
@@ -1338,6 +1348,7 @@ fn live_route_round_trip_real_pg() {
         .causal_action_id
         .clone()
         .expect("retained route carries immutable causal action id");
+    let retained_route_event_id = retained_route.receipt.event_id.clone();
     let before_retry_rows = cleanup
         .backend
         .get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
@@ -1421,6 +1432,11 @@ fn live_route_round_trip_real_pg() {
         route_row["payload"]["native_payload"]["causal_action_id"].as_str(),
         Some(retained_causal_action_id.as_str()),
         "route FR carries the mounted command's exact Stage correlation"
+    );
+    assert_eq!(
+        route_row["event_id"].as_str(),
+        Some(retained_route_event_id.as_str()),
+        "route FR preserves the exact retained producer EventLedger identity"
     );
     assert_eq!(
         stage.lock().unwrap().causal_action_id.as_deref(),
@@ -1513,7 +1529,22 @@ fn live_route_round_trip_real_pg() {
         .state_mut()
         .apply_loaded_rich_document_to_view_for_test(pane_id.as_ref(), reloaded_after_restart)
         .expect("rebind the mounted rich target and SaveManager to the restarted backend");
-    harness.run_steps(2);
+    let project_tree_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        harness.run_steps(2);
+        if !harness.state().left_rail().project_tree.is_loading()
+            && harness.state().left_rail().project_tree.error().is_none()
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < project_tree_deadline,
+            "project tree did not recover on the restarted managed backend: loading={}; error={:?}",
+            harness.state().left_rail().project_tree.is_loading(),
+            harness.state().left_rail().project_tree.error()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
     let embed_observation =
         argus.click_and_reinspect(&mut harness, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID);
     assert!(
@@ -1578,14 +1609,9 @@ fn live_route_round_trip_real_pg() {
     assert!(mounted_json.contains(&artifact_id));
     assert!(mounted_json.contains(STAGE_CAPTURE_REF_KIND));
 
-    let embed_row = wait_for_native_fr(
-        &*cleanup.backend,
-        &workspace_id,
-        "stage_embed_back",
-        |row| {
-            row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
-        },
-    );
+    let embed_row = wait_for_native_fr(&*cleanup.backend, &workspace_id, "stage_embed_back", |row| {
+        row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
+    });
     cleanup.track_native_fr(&embed_row);
     assert_eq!(
         embed_row["payload"]["native_payload"]["artifact_id"].as_str(),
@@ -1629,9 +1655,19 @@ fn live_route_round_trip_real_pg() {
                     == Some(retained_causal_action_id.as_str())
         })
         .count();
-    assert!(
-        route_dispatches <= 1,
-        "backend restart must not duplicate the immutable Route-to-Stage receipt; post-restart rows={rows}"
+    let exact_route_rows = rows
+        .as_array()
+        .expect("Flight Recorder rows")
+        .iter()
+        .filter(|row| row["event_id"].as_str() == Some(retained_route_event_id.as_str()))
+        .count();
+    assert_eq!(
+        route_dispatches, 1,
+        "backend restart must retain exactly one immutable Route-to-Stage receipt; post-restart rows={rows}"
+    );
+    assert_eq!(
+        exact_route_rows, 1,
+        "post-restart FR must retain exactly one row with the retained producer event id; rows={rows}"
     );
     let quiescence_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
@@ -1662,6 +1698,13 @@ fn live_route_round_trip_real_pg() {
             && json_has_author_id(&recovered_inspect, STAGE_ROUTED_CONTENT_AUTHOR_ID),
         "fresh canonical Argus inspection observes the recovered terminal capture and routed content"
     );
+    assert!(
+        !json_has_author_id(
+            &recovered_inspect,
+            handshake_native::project_tree::PROJECT_TREE_RETRY_AUTHOR_ID
+        ) && !recovered_inspect.to_string().contains("Load failed"),
+        "recovered canonical Argus state must not retain the former backend's project-tree failure: {recovered_inspect}"
+    );
     let recovered_screenshot_path = artifact_dir.join("mt066-stage-recovered-harness-render.png");
     harness
         .render()
@@ -1681,7 +1724,7 @@ fn live_route_round_trip_real_pg() {
     let terminal_outcome = format!("{:?}", stage.lock().unwrap().last_embed_back);
     let evidence_path = artifact_dir.join("mt066-stage-canonical-argus.json");
     argus.finish();
-    cleanup.cleanup_all_and_assert_zero();
+    cleanup.finish_and_assert_zero();
     std::fs::write(
         &evidence_path,
         serde_json::to_vec_pretty(&serde_json::json!({
@@ -1720,6 +1763,7 @@ fn live_route_round_trip_real_pg() {
                     "receipt_status": route_observation.receipt_status,
                     "agent_id": route_observation.agent_id,
                     "fresh_inspect": route_recovered_inspect,
+                    "retained_route_event_id": retained_route_event_id,
                     "flight_recorder_row": route_row,
                 },
                 "capture_error": {
@@ -1810,6 +1854,7 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         stage_artifact_ids: Vec::new(),
         stage_job_ids: Vec::new(),
         stage_event_ids: Vec::new(),
+        workspace_deleted: false,
     };
     let canvas = cleanup.backend.post_json(
         &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
@@ -2035,9 +2080,14 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         row["payload"]["native_payload"]["content_kind"].as_str() == Some("canvas_node")
     });
     cleanup.track_native_fr(&route_row);
-    let embed_row = wait_for_native_fr(&*cleanup.backend, &workspace_id, "stage_embed_back", |row| {
-        row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
-    });
+    let embed_row = wait_for_native_fr(
+        &*cleanup.backend,
+        &workspace_id,
+        "stage_embed_back",
+        |row| {
+            row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
+        },
+    );
     cleanup.track_native_fr(&embed_row);
     assert_eq!(
         route_row["payload"]["native_payload"]["causal_action_id"],
@@ -2256,7 +2306,7 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         rebound_after_rebind.placements.is_empty(),
         "stale target rejection mutates neither the old nor replacement Canvas"
     );
-    cleanup.cleanup_all_and_assert_zero();
+    cleanup.finish_and_assert_zero();
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════

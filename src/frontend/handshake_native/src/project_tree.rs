@@ -216,6 +216,9 @@ struct LoadResult {
 /// the expand/collapse flags for the two groups, and a width cache for the paper-strip labels. It
 /// does NOT own pane state — clicking a leaf is reported as a [`ProjectTreeEvent`] the app applies.
 pub struct ProjectTree {
+    /// Backend root used for asynchronous project-content loads. Production keeps
+    /// [`BACKEND_BASE_URL`]; managed-runtime tests rebind it together with the shell's other clients.
+    backend_base_url: String,
     /// The workspace whose content is loaded / loading. `None` until the first workspace is set.
     workspace_id: Option<String>,
     documents: Vec<DocumentSummary>,
@@ -256,6 +259,7 @@ impl Default for ProjectTree {
 impl ProjectTree {
     pub fn new() -> Self {
         Self {
+            backend_base_url: BACKEND_BASE_URL.to_owned(),
             workspace_id: None,
             documents: Vec::new(),
             canvases: Vec::new(),
@@ -355,6 +359,23 @@ impl ProjectTree {
         self.spawn_load(runtime);
     }
 
+    /// Rebind project-tree loading to the managed backend and immediately reload the current
+    /// workspace. Replacing the receiver and incrementing `load_id` through [`Self::spawn_load`]
+    /// makes any completion from the former backend stale and unable to restore its error/content.
+    pub fn set_backend_base_url_for_test(
+        &mut self,
+        base_url: &str,
+        runtime: &tokio::runtime::Handle,
+    ) {
+        self.backend_base_url = base_url.trim_end_matches('/').to_owned();
+        self.error = None;
+        self.retry_requested = false;
+        self.rx = None;
+        if self.workspace_id.is_some() {
+            self.spawn_load(runtime);
+        }
+    }
+
     /// Spawn the async document + canvas fetch for the current workspace on `runtime`, stamping a
     /// fresh `load_id`. Results arrive on `self.rx`; [`poll`](Self::poll) applies them only if the
     /// `load_id` still matches (staleness rejection).
@@ -366,11 +387,12 @@ impl ProjectTree {
         let load_id = self.load_id;
         self.loading = true;
         self.error = None;
+        let backend_base_url = self.backend_base_url.clone();
 
         let (tx, rx): (Sender<LoadResult>, Receiver<LoadResult>) = std::sync::mpsc::channel();
         self.rx = Some(rx);
         runtime.spawn(async move {
-            let payload = load_project_content(BACKEND_BASE_URL, &workspace_id)
+            let payload = load_project_content(&backend_base_url, &workspace_id)
                 .await
                 .map_err(|e| e.to_string());
             // The receiver may have been dropped (the tree was reset again); a send error is benign.
