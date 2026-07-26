@@ -2094,7 +2094,7 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         "Palmistry child {palmistry_pid} must be alive before the mounted scenario"
     );
 
-    let mut backend = pg_proof_support::require_reachable_backend();
+    let mut backend = pg_proof_support::require_live_backend();
     let backend_binary_provenance = current_binary_provenance(
         backend.owned_binary_path(),
         &[
@@ -2105,11 +2105,17 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     );
     let original_backend_pid = backend.owned_process_id();
     let backend_base = backend.base.clone();
+    let backend_workspace_id = backend.workspace_id.clone();
+    assert!(
+        !backend_workspace_id.is_empty(),
+        "the integrated mounted proof requires a real PostgreSQL-backed workspace"
+    );
     let mut harness: Harness<HandshakeApp> = Harness::builder()
         .with_size(egui::vec2(1440.0, 900.0))
         .build_eframe(|cc| {
             let mut app = HandshakeApp::new(cc);
             app.bind_managed_backend_for_test(&backend_base);
+            app.set_active_project_id_for_test(backend_workspace_id.clone());
             app
         });
     assert_eq!(
