@@ -1296,7 +1296,7 @@ fn unit_op01_stage_payload_and_embed_projection() {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn other_pillar_op04_swarm_accesskit() {
+fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
     let _env_guard = PROCESS_ENV_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -2494,7 +2494,7 @@ fn other_pillar_reuses_interop_modules_no_glue() {
 /// OP-01 (LIVE): drive the mounted bus route, privileged capture, exact-byte retrieval, and embed-back
 /// against managed PostgreSQL, then persist and reload the provenance-bearing rich document.
 #[test]
-fn other_pillar_op01_stage_route_embed_back() {
+fn other_pillar_op01_stage_route_embed_back_other_pillar_interop() {
     let _env_guard = PROCESS_ENV_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -2785,7 +2785,7 @@ fn other_pillar_op01_stage_route_embed_back() {
 /// GET the events window responds with a JSON array. The routes EXIST (`api/calendar.rs`, MT-067). The
 /// CALENDAR_EVENT_BOUND/ACTIVITY_SPAN_CORRELATED FR events are a FRONTEND-emission follow-up.
 #[test]
-fn other_pillar_op02_calendar_bind_activity_span() {
+fn other_pillar_op02_calendar_bind_activity_span_other_pillar_interop() {
     let _env_guard = PROCESS_ENV_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -3069,7 +3069,7 @@ fn other_pillar_op02_calendar_bind_activity_span() {
 /// reverse index is the existing loom/search-v2 pipeline, proven non-ignored in op03). The
 /// LOCUS_REF_RESOLVED/LOCUS_REVERSE_LOOKUP FR events are a FRONTEND-emission follow-up.
 #[test]
-fn other_pillar_op03_locus_resolve_reverse() {
+fn other_pillar_op03_locus_resolve_reverse_other_pillar_interop() {
     let _env_guard = PROCESS_ENV_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -3275,10 +3275,22 @@ fn other_pillar_op03_locus_resolve_reverse() {
 fn other_pillar_surface_anchor() {
     // The four scenario ids the manifest + proofs key off, in a HashMap keyed on the contract id.
     let mut scenario_fns: HashMap<&str, &str> = HashMap::new();
-    scenario_fns.insert("OP-01", "other_pillar_op01_stage_route_embed_back");
-    scenario_fns.insert("OP-02", "other_pillar_op02_calendar_bind_activity_span");
-    scenario_fns.insert("OP-03", "other_pillar_op03_locus_resolve_reverse");
-    scenario_fns.insert("OP-04", "other_pillar_op04_swarm_accesskit");
+    scenario_fns.insert(
+        "OP-01",
+        "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
+    );
+    scenario_fns.insert(
+        "OP-02",
+        "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
+    );
+    scenario_fns.insert(
+        "OP-03",
+        "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
+    );
+    scenario_fns.insert(
+        "OP-04",
+        "other_pillar_op04_swarm_accesskit_other_pillar_interop",
+    );
     assert_eq!(
         scenario_fns.len(),
         4,

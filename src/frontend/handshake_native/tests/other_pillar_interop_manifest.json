@@ -8,7 +8,7 @@
     "backend_apis_called": ["POST /workspaces/{ws}/stage/artifacts", "GET /workspaces/{ws}/stage/artifacts/{id}", "POST /knowledge/documents", "PUT /knowledge/documents/{id}/save", "GET /knowledge/documents/{id}", "POST /api/flight_recorder/native_editor_event (automatic product emitter)", "GET /api/flight_recorder"],
     "accesskit_ids": ["menu-editors", "menu.editors.route-to-stage", "stage-pane", "stage-routed-content", "stage-capture-embed-back", "stage-embed-back-status", "editor.rich.save"],
     "expected_fr_events": ["route_to_stage", "stage_embed_back"],
-    "proof_fn": "other_pillar_op01_stage_route_embed_back",
+    "proof_fn": "other_pillar_op01_stage_route_embed_back_other_pillar_interop",
     "status": "READY_FOR_RUNTIME"
   },
   {
@@ -20,7 +20,7 @@
     "backend_apis_called": ["PUT /workspaces/{ws}/loom/journals/{date}", "GET /workspaces/{ws}/calendar/events", "POST /workspaces/{ws}/calendar/activity-spans", "GET /workspaces/{ws}/calendar/activity-spans", "POST /api/flight_recorder/native_editor_event (automatic product emitter)", "GET /api/flight_recorder"],
     "accesskit_ids": ["daily-journal-panel", "daily-journal-calendar-event-chip", "daily-journal-activity-strip", "calendar-event-pane", "calendar-event-tab-activity", "calendar-event-span-{span_id}", "daily-journal-activity-item-{document_id}"],
     "expected_fr_events": ["calendar_event_bound", "activity_span_correlated"],
-    "proof_fn": "other_pillar_op02_calendar_bind_activity_span",
+    "proof_fn": "other_pillar_op02_calendar_bind_activity_span_other_pillar_interop",
     "status": "READY_FOR_RUNTIME"
   },
   {
@@ -32,7 +32,7 @@
     "backend_apis_called": ["GET /workspaces/{ws}/locus/work-packets/{id}", "POST /knowledge/documents", "PUT /knowledge/documents/{id}/save", "POST /workspaces/{ws}/loom/search-v2", "POST /api/flight_recorder/native_editor_event (automatic product emitter)", "GET /api/flight_recorder"],
     "accesskit_ids": ["locus-ref-chip-wp-{id}", "locus-refby-{document_id}"],
     "expected_fr_events": ["locus_ref_resolved", "locus_reverse_lookup"],
-    "proof_fn": "other_pillar_op03_locus_resolve_reverse",
+    "proof_fn": "other_pillar_op03_locus_resolve_reverse_other_pillar_interop",
     "status": "READY_FOR_RUNTIME"
   },
   {
@@ -44,7 +44,7 @@
     "backend_apis_called": ["OP-01, OP-02, and OP-03 managed-runtime routes", "GET /api/flight_recorder"],
     "accesskit_ids": ["menu-editors", "menu.editors.route-to-stage", "stage-pane", "stage-capture-embed-back", "stage-embed-back-status", "daily-journal-calendar-event-chip", "calendar-event-pane", "calendar-event-tab-activity", "calendar-event-span-{span_id}", "daily-journal-activity-item-{document_id}", "locus-ref-chip-wp-{id}"],
     "expected_fr_events": ["route_to_stage", "stage_embed_back", "calendar_event_bound", "activity_span_correlated", "locus_ref_resolved", "locus_reverse_lookup"],
-    "proof_fn": "other_pillar_op04_swarm_accesskit",
+    "proof_fn": "other_pillar_op04_swarm_accesskit_other_pillar_interop",
     "status": "READY_FOR_RUNTIME"
   }
 ]
