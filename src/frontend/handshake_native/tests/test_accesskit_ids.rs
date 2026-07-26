@@ -728,6 +728,14 @@ fn settings_dialog_controls_carry_correct_accesskit_roles() {
         Some("diagnostics"),
         "settings.search SetValue must mutate the mounted query through its real AccessKit node"
     );
+    let canonical_snapshot = harness.state_mut().capture_mcp_snapshot_for_navigation();
+    assert_eq!(
+        canonical_snapshot
+            .find_by_author_id(handshake_native::settings_dialog::SETTINGS_SEARCH_AUTHOR_ID,)
+            .and_then(|node| node.value.as_deref()),
+        Some("diagnostics"),
+        "fresh canonical MCP capture must preserve the live Settings query for Argus receipts"
+    );
 
     println!("PASS: settings dialog controls carry correct AccessKit roles (AC13)");
 }

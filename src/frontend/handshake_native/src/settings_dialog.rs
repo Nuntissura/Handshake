@@ -181,6 +181,13 @@ pub enum SettingsOutcome {
     Close,
 }
 
+/// Result of one Settings frame. The shell retains `query` so its fresh, side-effect-free canonical
+/// MCP capture context reproduces the same filtered dialog the operator and model just changed.
+pub struct SettingsFrame {
+    pub outcome: SettingsOutcome,
+    pub query: String,
+}
+
 /// Read-only inputs the dialog renders from (the live settings + the open generation). The dialog never
 /// borrows `&mut HandshakeApp`; the shell applies the returned [`SettingsOutcome`].
 pub struct SettingsView<'a> {
@@ -306,7 +313,7 @@ impl DialogState {
 /// fights egui's auto-sizing + the existing top/bottom panels), and the contract explicitly allows the
 /// centred-modal fallback; the centred modal matches the palette/switcher overlay convention already in
 /// this crate, so the three overlays are visually + structurally consistent.
-pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
+pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
     let state_id = egui::Id::new("settings.state");
     let mut state: DialogState = ctx
         .data_mut(|d| d.get_temp::<DialogState>(state_id))
@@ -375,7 +382,10 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
         let popup_open = egui::Popup::is_any_open(ctx);
         if !popup_open {
             persist(ctx, state_id, &state);
-            return SettingsOutcome::Close;
+            return SettingsFrame {
+                outcome: SettingsOutcome::Close,
+                query: state.query,
+            };
         }
         // A popup/combo is open: let egui's own Escape handling close just the popup this frame; the
         // dialog stays open. Fall through to render so the combo gets its frame to close.
@@ -395,7 +405,10 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
         });
     if backdrop.inner.clicked() {
         persist(ctx, state_id, &state);
-        return SettingsOutcome::Close;
+        return SettingsFrame {
+            outcome: SettingsOutcome::Close,
+            query: state.query,
+        };
     }
 
     let search_egui_id = unsafe { egui::Id::from_high_entropy_bits(SETTINGS_SEARCH_NODE_ID) };
@@ -500,10 +513,25 @@ pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsOutcome {
     // out-of-process model finds the modal by `settings.dialog`. Emitted each open frame.
     emit_dialog_node(ctx, dialog_egui_id);
 
+    let query = state.query.clone();
     persist(ctx, state_id, &state);
     // MT-072: store the editor section (with its updated keybinding-row drafts) back to temp memory.
     ctx.data_mut(|d| d.insert_temp(editor_section_id, editor_section));
-    outcome
+    SettingsFrame { outcome, query }
+}
+
+/// Seed the fresh canonical MCP capture context with the query last rendered by the live Settings
+/// context. The capture pass is intentionally a different egui context, so context-local transient
+/// memory must be copied explicitly or canonical Argus sees an empty query after a successful SetValue.
+pub fn prime_query(ctx: &egui::Context, open_count: u64, query: impl Into<String>) {
+    let state_id = egui::Id::new("settings.state");
+    let mut state: DialogState = ctx
+        .data_mut(|d| d.get_temp::<DialogState>(state_id))
+        .unwrap_or_default();
+    state.open_count = open_count;
+    state.query = query.into();
+    state.focus_requested = false;
+    persist(ctx, state_id, &state);
 }
 
 /// Render every settings section in order, threading `outcome` so the first interaction this frame wins

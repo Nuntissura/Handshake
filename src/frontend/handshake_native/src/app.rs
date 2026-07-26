@@ -2656,6 +2656,10 @@ pub struct HandshakeApp {
     /// to open (MT-018). The dialog resets its transient query/draft state whenever it sees a new value,
     /// so a re-open never shows the previous session's text. Set via [`open_settings`](Self::open_settings).
     settings_open_count: u64,
+    /// Last query rendered by the live Settings context. Canonical MCP capture runs on a fresh egui
+    /// context, so retaining this value prevents `settings.search` from reverting to empty between a
+    /// successful Argus SetValue and its post-render inspection/receipt.
+    settings_snapshot_query: String,
     /// The live, persisted workspace settings (MT-018): theme, keybindings, view mode, swarm board flag.
     /// Loaded from `GET /workspaces/{id}/settings` on open / workspace change and normalized through
     /// [`crate::workspace_settings::normalize_workspace_settings_state`] (red-team R6/MC6). The settings
@@ -4507,6 +4511,7 @@ impl HandshakeApp {
             settings_open: false,
             settings_diagnostics_force_open: false,
             settings_open_count: 0,
+            settings_snapshot_query: String::new(),
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
             settings_transport,
             settings_loaded_project_id: None,
@@ -5139,6 +5144,7 @@ impl HandshakeApp {
             settings_open: false,
             settings_diagnostics_force_open: false,
             settings_open_count: 0,
+            settings_snapshot_query: String::new(),
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
             // Headless/test shell: no runtime to bridge a live transport onto. A test injects a stub via
             // `set_settings_transport`; without one, the dialog shows the seeded defaults + never does I/O.
@@ -12325,6 +12331,7 @@ impl HandshakeApp {
             self.settings_open = true;
             self.settings_diagnostics_force_open = self.backend_is_down();
             self.settings_open_count = self.settings_open_count.wrapping_add(1);
+            self.settings_snapshot_query.clear();
             // Reload the persisted settings on open so the dialog reflects the durable state (and so a
             // PG round-trip restart shows the saved theme — PT6). Cleared after the load dispatches.
             self.settings_load_pending = true;
@@ -12341,6 +12348,7 @@ impl HandshakeApp {
     pub fn close_settings(&mut self) {
         self.settings_open = false;
         self.settings_diagnostics_force_open = false;
+        self.settings_snapshot_query.clear();
         if self.settings_save_due_at.take().is_some() {
             self.flush_settings_save_now();
         }
@@ -13388,8 +13396,18 @@ impl HandshakeApp {
             palette: &palette,
             worksurface_inspector_last_dump: self.worksurface_inspector_last_dump.as_deref(),
         };
-        let outcome = crate::settings_dialog::show(ctx, view);
-        if self.apply_settings_outcome(outcome) {
+        if self.capturing_snapshot && !self.settings_snapshot_query.is_empty() {
+            crate::settings_dialog::prime_query(
+                ctx,
+                self.settings_open_count,
+                self.settings_snapshot_query.clone(),
+            );
+        }
+        let frame = crate::settings_dialog::show(ctx, view);
+        if !self.capturing_snapshot {
+            self.settings_snapshot_query = frame.query;
+        }
+        if self.apply_settings_outcome(frame.outcome) {
             ctx.request_repaint();
         }
     }
