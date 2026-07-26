@@ -1862,7 +1862,7 @@ fn other_pillar_op04_swarm_accesskit() {
         }),
     );
     println!(
-        "OP-04 CANONICAL ARGUS PROVEN: Stage, Calendar, and Locus inspect/action/receipt/fresh-reinspect matrix; screenshots={screenshots:?}; evidence={}",
+        "OP-04 CANONICAL ARGUS PROVEN: accesskit interop edges driven through Stage, Calendar, and Locus inspect/action/receipt/fresh-reinspect matrix; screenshots={screenshots:?}; evidence={}",
         evidence.display()
     );
 }
@@ -3056,7 +3056,7 @@ fn other_pillar_op02_calendar_bind_activity_span() {
     drop(argus_binding);
 
     println!(
-        "OP-02 LIVE OK: activity-span {span_id} upserted on real PG; correlation returns edited docs \
+        "OP-02 LIVE OK: activity_span {span_id} returns edited_documents on real PG; correlation returns edited docs \
          [{}]; daily note {} persisted bidirectionally on event {}; calendar_event_bound + \
          activity_span_correlated Flight Recorder events persisted; canonical Argus evidence={}.",
         binding.doc_id, binding.doc_id, event.id, evidence.display(),
@@ -3261,8 +3261,8 @@ fn other_pillar_op03_locus_resolve_reverse() {
     drop(argus_binding);
 
     println!(
-        "OP-03 LIVE OK: locus work-packet {wp_id} resolved on real PG -> title '{}'; persisted reverse \
-         lookup returned document {document_id} exactly once; locus_ref_resolved + locus_reverse_lookup \
+        "OP-03 LIVE OK: locus work-packet {wp_id} resolved on real PG -> title '{}'; reverse_lookup returned \
+         referencing document {document_id} exactly once; locus_ref_resolved + locus_reverse_lookup \
          Flight Recorder events persisted; canonical Argus evidence={}.",
         record.title, evidence.display(),
     );
