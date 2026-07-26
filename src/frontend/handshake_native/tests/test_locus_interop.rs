@@ -1189,6 +1189,17 @@ fn resolve_locus_ref_against_real_pg_live() {
         bar.tabs = vec![tab];
         bar.active_index = 0;
         app.set_active_pane_for_test(Some(pane_id.clone()));
+        // Keep the production three-pane shell but use its canonical persisted-layout seam to give the
+        // editor pair 80% of the viewport and collapse the project drawer. The resulting evidence keeps
+        // the complete Locus identity readable without replacing or bypassing the mounted pane.
+        let mut proof_layout = app.capture_layout_snapshot();
+        proof_layout.split_weights.vertical = 0.8;
+        proof_layout.drawers.project = false;
+        app.apply_layout_snapshot(
+            proof_layout,
+            egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1440.0, 900.0)),
+        )
+        .expect("apply valid MT-068 visual proof layout");
         let mut harness = Harness::builder()
             .with_size(egui::vec2(1440.0, 900.0))
             .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
