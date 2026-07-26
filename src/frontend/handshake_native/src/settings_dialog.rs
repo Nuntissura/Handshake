@@ -199,6 +199,10 @@ pub struct SettingsView<'a> {
     /// recorder; this carries the app-owned producer state the recorder global does not hold. The
     /// section is render-only (a pure projection — no setting to mutate), so this is the ONLY new input.
     pub diagnostics: &'a crate::diagnostics::DiagnosticsView,
+    /// Keep Diagnostics expanded for the shell-latched backend-loss Settings session. The live frame and
+    /// the side-effect-free model-navigation snapshot use distinct egui contexts, so down/recovered
+    /// observability cannot depend on either context's private CollapsingHeader memory.
+    pub diagnostics_force_open: bool,
     /// WP-KERNEL-012 MT-087: the active resolved palette (theme tokens) the Diagnostics panel paints
     /// with, so the panel reads a theme token for every colour and never a literal (CONTROL-4).
     pub palette: &'a crate::theme::HsPalette,
@@ -1038,7 +1042,7 @@ fn render_sections(
         crate::settings_diagnostics_section::DIAGNOSTICS_SEARCH_KEYWORDS,
     );
     if show_diagnostics {
-        let force_open = (!query.is_empty()).then_some(true);
+        let force_open = (!query.is_empty() || view.diagnostics_force_open).then_some(true);
         let diagnostics_header = egui::CollapsingHeader::new("Diagnostics")
             .default_open(false)
             .open(force_open)

@@ -40,7 +40,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 use sha2::{Digest, Sha256};
 
@@ -1066,6 +1066,7 @@ const MT088_INTEGRATED_PROOF_PATHS: &[&str] = &[
     "tests/native_gui_support/canonical_argus_driver.rs",
     "src/app.rs",
     "src/backend_client.rs",
+    "src/settings_dialog.rs",
     "src/diagnostics/recorder.rs",
     "src/diagnostics/palmistry_launch.rs",
     "diag_ring/src/ring.rs",
@@ -1195,8 +1196,8 @@ fn json_author_value<'a>(
             {
                 return object
                     .get("value")
-                    .or_else(|| object.get("name"))
-                    .and_then(serde_json::Value::as_str);
+                    .and_then(serde_json::Value::as_str)
+                    .or_else(|| object.get("label").and_then(serde_json::Value::as_str));
             }
             object
                 .values()
@@ -1206,6 +1207,25 @@ fn json_author_value<'a>(
             .iter()
             .find_map(|value| json_author_value(value, expected_author_id)),
         _ => None,
+    }
+}
+
+fn json_author_ids(value: &serde_json::Value, ids: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Object(object) => {
+            if let Some(author_id) = object.get("author_id").and_then(serde_json::Value::as_str) {
+                ids.push(author_id.to_owned());
+            }
+            for value in object.values() {
+                json_author_ids(value, ids);
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for value in values {
+                json_author_ids(value, ids);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -2193,16 +2213,23 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         down_status.contains("Disconnected") && down_status.contains("UI responsive"),
         "canonical Argus must observe the finite degraded status, got {down_status:?}"
     );
-    harness.state_mut().open_settings();
-    harness.step();
-    let settings_search = harness.get_by_label("Search settings");
-    settings_search.focus();
-    harness.step();
-    harness
-        .get_by_label("Search settings")
-        .type_text("diagnostics");
-    harness.run_steps(3);
-    let down_diagnostics_inspect = argus.inspect(&mut harness);
+    let operator_menu = argus.click_and_reinspect(
+        &mut harness,
+        handshake_native::top_menu_bar::MenuId::Operator.author_id(),
+    );
+    assert!(
+        json_has_author_id(&operator_menu.after, "menu.operator.settings"),
+        "canonical Argus must expose OPERATOR -> Open Settings before navigating"
+    );
+    let down_diagnostics_inspect = argus
+        .click_and_reinspect(&mut harness, "menu.operator.settings")
+        .after;
+    assert!(
+        harness.state().settings_open(),
+        "canonical Argus OPERATOR -> Open Settings must open the real Settings overlay"
+    );
+    let mut down_diagnostics_author_ids = Vec::new();
+    json_author_ids(&down_diagnostics_inspect, &mut down_diagnostics_author_ids);
     for author_id in [
         diagnostics::DIAGNOSTICS_PANEL_AUTHOR_ID,
         diagnostics::DIAGNOSTICS_EVENTS_AUTHOR_ID,
@@ -2210,7 +2237,12 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     ] {
         assert!(
             json_has_author_id(&down_diagnostics_inspect, author_id),
-            "canonical Argus must observe affected Settings -> Diagnostics node {author_id} while down"
+            "canonical Argus must observe affected Settings -> Diagnostics node {author_id} while down; \
+             available Settings/diagnostics ids={:?}",
+            down_diagnostics_author_ids
+                .iter()
+                .filter(|id| id.contains("settings") || id.contains("diagnostics"))
+                .collect::<Vec<_>>()
         );
     }
     let down_diagnostics_json =
@@ -2379,7 +2411,10 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     )
     .expect("decode same-run Palmistry survivor receipt");
     assert_eq!(survivor_json["session_id"], session.session_id);
-    assert_eq!(survivor_json["exit_reason"], "CleanShutdown");
+    assert_eq!(
+        survivor_json["exit_reason"],
+        serde_json::json!({ "reason": "CleanShutdown" })
+    );
     assert_eq!(survivor_json["abnormal_parent_exit"], false);
     assert_eq!(survivor_json["shutdown_received"], true);
     backend.assert_cleanup();

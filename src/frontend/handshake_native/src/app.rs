@@ -2648,6 +2648,10 @@ pub struct HandshakeApp {
     pending_backlink_open_retry: VecDeque<String>,
     /// Whether the settings overlay is requested open (MT-015 HELP menu sets this; UI is MT-018).
     settings_open: bool,
+    /// Latched for one Settings-open session after backend loss is observed. Keeps Diagnostics expanded
+    /// through recovery so both the down edge and `BackendRecovered` remain visible in the live and
+    /// side-effect-free model-navigation contexts; cleared when Settings closes.
+    settings_diagnostics_force_open: bool,
     /// Monotonic counter incremented each time [`settings_open`](Self::settings_open) flips from closed
     /// to open (MT-018). The dialog resets its transient query/draft state whenever it sees a new value,
     /// so a re-open never shows the previous session's text. Set via [`open_settings`](Self::open_settings).
@@ -4501,6 +4505,7 @@ impl HandshakeApp {
             nav_pending_label: None,
             pending_backlink_open_retry: VecDeque::new(),
             settings_open: false,
+            settings_diagnostics_force_open: false,
             settings_open_count: 0,
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
             settings_transport,
@@ -5132,6 +5137,7 @@ impl HandshakeApp {
             nav_pending_label: None,
             pending_backlink_open_retry: VecDeque::new(),
             settings_open: false,
+            settings_diagnostics_force_open: false,
             settings_open_count: 0,
             workspace_settings: crate::workspace_settings::default_workspace_settings_state(),
             // Headless/test shell: no runtime to bridge a live transport onto. A test injects a stub via
@@ -12317,6 +12323,7 @@ impl HandshakeApp {
     pub fn open_settings(&mut self) {
         if !self.settings_open {
             self.settings_open = true;
+            self.settings_diagnostics_force_open = self.backend_is_down();
             self.settings_open_count = self.settings_open_count.wrapping_add(1);
             // Reload the persisted settings on open so the dialog reflects the durable state (and so a
             // PG round-trip restart shows the saved theme — PT6). Cleared after the load dispatches.
@@ -12333,6 +12340,7 @@ impl HandshakeApp {
     /// closed.
     pub fn close_settings(&mut self) {
         self.settings_open = false;
+        self.settings_diagnostics_force_open = false;
         if self.settings_save_due_at.take().is_some() {
             self.flush_settings_save_now();
         }
@@ -13365,6 +13373,10 @@ impl HandshakeApp {
         // Diagnostics section renders from. Built into locals first (owned values) so the borrows do not
         // conflict with the `&self.workspace_settings` borrow the SettingsView also takes.
         let diagnostics_view = self.diagnostics_view();
+        if self.backend_is_down() {
+            self.settings_diagnostics_force_open = true;
+        }
+        let diagnostics_force_open = self.settings_diagnostics_force_open;
         let palette = self.current_theme.palette();
         let view = crate::settings_dialog::SettingsView {
             open_count: self.settings_open_count,
@@ -13372,6 +13384,7 @@ impl HandshakeApp {
             persist_error: self.settings_persist_error.as_deref(),
             persist_retry_operation: self.settings_retry_operation,
             diagnostics: &diagnostics_view,
+            diagnostics_force_open,
             palette: &palette,
             worksurface_inspector_last_dump: self.worksurface_inspector_last_dump.as_deref(),
         };
