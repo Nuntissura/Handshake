@@ -124,8 +124,10 @@ fn current_source_sha() -> String {
         "src/backend/handshake_core/src/storage/fems_memory.rs",
         "src/backend/handshake_core/src/workflows.rs",
         "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/editor_pane_factories.rs",
         "src/frontend/handshake_native/src/fems/memory_proposal.rs",
         "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_event_emitter.rs",
         "src/frontend/handshake_native/tests/test_manual_content.rs",
         "src/frontend/handshake_native/tests/test_fems_interop_proofs.rs",
     ];

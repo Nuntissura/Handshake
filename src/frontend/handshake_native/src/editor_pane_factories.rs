@@ -3010,22 +3010,6 @@ pub fn flight_recorder_rows_from_json(
                                     .all(|ch| ch.is_ascii_hexdigit() && !ch.is_ascii_uppercase())
                         })
                 };
-                let valid_artifact = |key: &str| {
-                    map.get(key)
-                        .and_then(serde_json::Value::as_object)
-                        .is_some_and(|artifact| {
-                            artifact.len() == 2
-                                && artifact
-                                    .get("artifact_id")
-                                    .and_then(serde_json::Value::as_str)
-                                    .and_then(|id| uuid::Uuid::parse_str(id).ok())
-                                    .is_some_and(|id| !id.is_nil())
-                                && artifact
-                                    .get("path")
-                                    .and_then(serde_json::Value::as_str)
-                                    .is_some_and(|path| !path.trim().is_empty())
-                        })
-                };
                 let valid_content_artifact = |key: &str| {
                     map.get(key)
                         .and_then(serde_json::Value::as_str)
@@ -3107,19 +3091,33 @@ pub fn flight_recorder_rows_from_json(
                                 .and_then(serde_json::Value::as_str)
                                 .is_some_and(|value| matches!(value, "user" | "policy"))
                             && (!map.contains_key("commit_report_ref")
-                                || valid_artifact("commit_report_ref"))
+                                || valid_content_artifact("commit_report_ref"))
                     }
                     "FR-EVT-MEM-003" => {
                         non_empty("commit_id")
                             && non_empty("proposal_id")
                             && sha256("commit_report_hash")
-                            && valid_artifact("artifact_ref")
+                            && valid_content_artifact("artifact_ref")
+                            && map
+                                .get("commit_report_hash")
+                                .and_then(serde_json::Value::as_str)
+                                .zip(map.get("artifact_ref").and_then(serde_json::Value::as_str))
+                                .is_some_and(|(hash, artifact_ref)| {
+                                    artifact_ref == format!("artifact://sha256/{hash}")
+                                })
                             && sha256("changed_memory_ids_hash")
                     }
                     "FR-EVT-MEM-004" => {
                         non_empty("pack_id")
                             && sha256("memory_pack_hash")
-                            && valid_artifact("artifact_ref")
+                            && valid_content_artifact("artifact_ref")
+                            && map
+                                .get("memory_pack_hash")
+                                .and_then(serde_json::Value::as_str)
+                                .zip(map.get("artifact_ref").and_then(serde_json::Value::as_str))
+                                .is_some_and(|(hash, artifact_ref)| {
+                                    artifact_ref == format!("artifact://sha256/{hash}")
+                                })
                             && map
                                 .get("memory_policy")
                                 .and_then(serde_json::Value::as_str)

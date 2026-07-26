@@ -600,6 +600,17 @@ fn flight_recorder_parser_projects_exact_fems_lifecycle_and_quarantines_schema_d
                 "proposal_id": "proposal-1",
                 "decision": "approved",
                 "reviewer_kind": "user",
+                "commit_report_ref": format!("artifact://sha256/{}", "f".repeat(64))
+            }),
+        ),
+        envelope(
+            "memory_write_reviewed",
+            serde_json::json!({
+                "type": "memory_write_reviewed",
+                "event_code": "FR-EVT-MEM-002",
+                "proposal_id": "proposal-legacy-artifact",
+                "decision": "approved",
+                "reviewer_kind": "user",
                 "commit_report_ref": artifact("550e8400-e29b-41d4-a716-44665544000f")
             }),
         ),
@@ -638,7 +649,31 @@ fn flight_recorder_parser_projects_exact_fems_lifecycle_and_quarantines_schema_d
                 "commit_id": "commit-1",
                 "proposal_id": "proposal-1",
                 "commit_report_hash": "b".repeat(64),
+                "artifact_ref": format!("artifact://sha256/{}", "b".repeat(64)),
+                "changed_memory_ids_hash": "c".repeat(64)
+            }),
+        ),
+        envelope(
+            "memory_write_committed",
+            serde_json::json!({
+                "type": "memory_write_committed",
+                "event_code": "FR-EVT-MEM-003",
+                "commit_id": "commit-legacy-artifact",
+                "proposal_id": "proposal-1",
+                "commit_report_hash": "b".repeat(64),
                 "artifact_ref": artifact("550e8400-e29b-41d4-a716-44665544000b"),
+                "changed_memory_ids_hash": "c".repeat(64)
+            }),
+        ),
+        envelope(
+            "memory_write_committed",
+            serde_json::json!({
+                "type": "memory_write_committed",
+                "event_code": "FR-EVT-MEM-003",
+                "commit_id": "commit-mismatched-artifact",
+                "proposal_id": "proposal-1",
+                "commit_report_hash": "b".repeat(64),
+                "artifact_ref": format!("artifact://sha256/{}", "e".repeat(64)),
                 "changed_memory_ids_hash": "c".repeat(64)
             }),
         ),
@@ -648,6 +683,36 @@ fn flight_recorder_parser_projects_exact_fems_lifecycle_and_quarantines_schema_d
                 "type": "memory_pack_built",
                 "event_code": "FR-EVT-MEM-004",
                 "pack_id": "pack-1",
+                "memory_pack_hash": "d".repeat(64),
+                "artifact_ref": format!("artifact://sha256/{}", "d".repeat(64)),
+                "memory_policy": "WORKSPACE_SCOPED",
+                "scope_refs": entity_refs.clone(),
+                "item_count": 1,
+                "token_estimate": 32,
+                "truncation_occurred": false
+            }),
+        ),
+        envelope(
+            "memory_pack_built",
+            serde_json::json!({
+                "type": "memory_pack_built",
+                "event_code": "FR-EVT-MEM-004",
+                "pack_id": "pack-mismatched-artifact",
+                "memory_pack_hash": "d".repeat(64),
+                "artifact_ref": format!("artifact://sha256/{}", "e".repeat(64)),
+                "memory_policy": "WORKSPACE_SCOPED",
+                "scope_refs": entity_refs.clone(),
+                "item_count": 1,
+                "token_estimate": 32,
+                "truncation_occurred": false
+            }),
+        ),
+        envelope(
+            "memory_pack_built",
+            serde_json::json!({
+                "type": "memory_pack_built",
+                "event_code": "FR-EVT-MEM-004",
+                "pack_id": "pack-legacy-artifact",
                 "memory_pack_hash": "d".repeat(64),
                 "artifact_ref": artifact("550e8400-e29b-41d4-a716-44665544000c"),
                 "memory_policy": "WORKSPACE_SCOPED",
@@ -701,11 +766,15 @@ fn flight_recorder_parser_projects_exact_fems_lifecycle_and_quarantines_schema_d
             "FR-EVT-MEM-005"
         ]
     );
-    assert_eq!(result.quarantined.len(), 4);
+    assert_eq!(result.quarantined.len(), 9);
     assert!(result
         .quarantined
         .iter()
         .any(|reason| reason.contains("non-canonical fields")));
+    assert!(result
+        .quarantined
+        .iter()
+        .any(|reason| reason.contains("payload values are invalid")));
     assert!(result
         .quarantined
         .iter()
