@@ -43,6 +43,7 @@ pub struct LiveBackend {
     client: reqwest::Client,
     rt: tokio::runtime::Runtime,
     owned_backend: Option<Child>,
+    owned_data_dir: Option<PathBuf>,
     _fixture_lock: FileLock,
 }
 
@@ -152,6 +153,7 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
 
     let mut base = configured_base.clone();
     let mut owned_backend = None;
+    let mut owned_data_dir = None;
     if force_owned || !healthy(&rt, &client, &configured_base) {
         if !force_owned {
             assert_eq!(
@@ -160,11 +162,12 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
             );
         }
         let binary = resolve_backend_binary();
-        let (child, report_path) = spawn_backend(&binary);
+        let (child, report_path, data_dir) = spawn_backend(&binary);
         let mut pending = PendingChild::new(child);
         base = wait_for_listen_report(pending.child_mut(), &report_path);
         wait_for_health(&rt, &client, &base, pending.child_mut());
         owned_backend = Some(pending.take());
+        owned_data_dir = Some(data_dir);
     }
 
     let mut backend = LiveBackend {
@@ -173,6 +176,7 @@ fn start_product_backend(create_workspace: bool) -> LiveBackend {
         client,
         rt,
         owned_backend,
+        owned_data_dir,
         _fixture_lock: lock,
     };
     backend.assert_healthy();
@@ -279,20 +283,33 @@ fn assert_backend_binary_is_current_source(binary: &Path) {
     }
 }
 
-fn spawn_backend(binary: &Path) -> (Child, PathBuf) {
-    spawn_backend_at(binary, "127.0.0.1:0")
+fn spawn_backend(binary: &Path) -> (Child, PathBuf, PathBuf) {
+    spawn_backend_at(binary, "127.0.0.1:0", None)
 }
 
-fn spawn_backend_at(binary: &Path, listen_addr: &str) -> (Child, PathBuf) {
+fn spawn_backend_at(
+    binary: &Path,
+    listen_addr: &str,
+    existing_data_dir: Option<&Path>,
+) -> (Child, PathBuf, PathBuf) {
     let run_id = uuid::Uuid::new_v4();
     let run_root = external_artifact_root()
         .join("backend-runtime")
         .join(run_id.to_string());
     std::fs::create_dir_all(&run_root).expect("create backend runtime artifact directory");
     restrict_runtime_directory(&run_root);
-    let data_dir = run_root.join("data");
-    std::fs::create_dir(&data_dir).expect("create owned backend data directory");
-    restrict_runtime_directory(&data_dir);
+    let data_dir = existing_data_dir
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| run_root.join("data"));
+    if existing_data_dir.is_none() {
+        std::fs::create_dir(&data_dir).expect("create owned backend data directory");
+        restrict_runtime_directory(&data_dir);
+    } else {
+        assert!(
+            data_dir.is_dir(),
+            "restarted owned backend must reuse its existing data directory"
+        );
+    }
     let report_path = run_root.join("listen-report.json");
     let database_url = std::env::var("HANDSHAKE_TEST_PG_DSN")
         .ok()
@@ -321,7 +338,7 @@ fn spawn_backend_at(binary: &Path, listen_addr: &str) -> (Child, PathBuf) {
     let child = no_window(&mut command)
         .spawn()
         .unwrap_or_else(|error| panic!("start {}: {error}", binary.display()));
-    (child, report_path)
+    (child, report_path, data_dir)
 }
 
 fn wait_for_listen_report(child: &mut Child, report_path: &Path) -> String {
@@ -460,12 +477,18 @@ impl LiveBackend {
         let listen_addr = old_base
             .strip_prefix("http://")
             .expect("owned backend base is an HTTP listener");
-        let (replacement, report_path) = spawn_backend_at(&binary, listen_addr);
+        let data_dir = self
+            .owned_data_dir
+            .clone()
+            .expect("restart_owned requires the fixture's persistent data directory");
+        let (replacement, report_path, replacement_data_dir) =
+            spawn_backend_at(&binary, listen_addr, Some(&data_dir));
         let mut pending = PendingChild::new(replacement);
         let new_base = wait_for_listen_report(pending.child_mut(), &report_path);
         wait_for_health(&self.rt, &self.client, &new_base, pending.child_mut());
         self.base = new_base.clone();
         self.owned_backend = Some(pending.take());
+        self.owned_data_dir = Some(replacement_data_dir);
         self.assert_healthy();
         assert_eq!(
             old_base, new_base,
