@@ -874,22 +874,30 @@ fn loaded_content_json(loaded: &serde_json::Value) -> serde_json::Value {
 }
 
 fn doc_with_wp_mt_and_missing_refs(wp_uri: &str, mt_uri: &str, missing_uri: &str) -> BlockNode {
-    let mut para = BlockNode::new(NodeKind::Paragraph);
-    para.children
+    let mut wp_para = BlockNode::new(NodeKind::Paragraph);
+    wp_para
+        .children
         .push(Child::Text(TextLeaf::new("work packet ")));
-    para.children
+    wp_para
+        .children
         .push(Child::HsLink(HsLinkNode::new(LOCUS_REF_KIND, wp_uri, "WP")));
-    para.children
+
+    let mut mt_para = BlockNode::new(NodeKind::Paragraph);
+    mt_para
+        .children
         .push(Child::Text(TextLeaf::new(" microtask ")));
-    para.children
+    mt_para
+        .children
         .push(Child::HsLink(HsLinkNode::new(LOCUS_REF_KIND, mt_uri, "MT")));
-    para.children
+
+    let mut missing_para = BlockNode::new(NodeKind::Paragraph);
+    missing_para
+        .children
         .push(Child::Text(TextLeaf::new(" missing record ")));
     let mut missing = HsLinkNode::new(LOCUS_REF_KIND, missing_uri, "UNRESOLVED");
     missing.resolved = false;
-    para.children.push(Child::HsLink(missing));
-    para.children.push(Child::Text(TextLeaf::new("")));
-    BlockNode::doc(vec![para])
+    missing_para.children.push(Child::HsLink(missing));
+    BlockNode::doc(vec![wp_para, mt_para, missing_para])
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
