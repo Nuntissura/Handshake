@@ -797,23 +797,28 @@ fn external_artifact_dir(subdir: &str) -> PathBuf {
     root.join("handshake-test").join(subdir)
 }
 
+const MT066_RELEVANT_SOURCE_PATHS: &[&str] = &[
+    "src/frontend/handshake_native/src/app.rs",
+    "src/frontend/handshake_native/src/interop/stage_interop.rs",
+    "src/frontend/handshake_native/src/manual_content_editors.rs",
+    "src/frontend/handshake_native/src/stage_pane.rs",
+    "src/frontend/handshake_native/tests/interconnect_support/mod.rs",
+    "src/frontend/handshake_native/tests/native_gui_support/canonical_argus_driver.rs",
+    "src/frontend/handshake_native/tests/native_gui_support/screenshot_harness.rs",
+    "src/frontend/handshake_native/tests/native_gui_support/screenshot_marker.rs",
+    "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/test_manual_content.rs",
+    "src/frontend/handshake_native/tests/test_stage_interop.rs",
+];
+
 fn current_source_sha() -> String {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(3)
         .expect("native crate must live at repo/src/frontend/handshake_native");
-    let relevant_paths = [
-        "src/frontend/handshake_native/src/app.rs",
-        "src/frontend/handshake_native/src/interop/stage_interop.rs",
-        "src/frontend/handshake_native/src/manual_content_editors.rs",
-        "src/frontend/handshake_native/src/stage_pane.rs",
-        "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
-        "src/frontend/handshake_native/tests/test_manual_content.rs",
-        "src/frontend/handshake_native/tests/test_stage_interop.rs",
-    ];
     let clean = std::process::Command::new("git")
         .args(["diff", "--quiet", "HEAD", "--"])
-        .args(relevant_paths)
+        .args(MT066_RELEVANT_SOURCE_PATHS)
         .current_dir(repo_root)
         .status()
         .expect("check MT-066 relevant source cleanliness");
@@ -855,6 +860,34 @@ fn current_proof_source_blob() -> String {
         .expect("proof blob UTF-8")
         .trim()
         .to_owned()
+}
+
+fn current_proof_source_blobs() -> serde_json::Map<String, serde_json::Value> {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("native crate must live at repo/src/frontend/handshake_native");
+    MT066_RELEVANT_SOURCE_PATHS
+        .iter()
+        .map(|path| {
+            let spec = format!("HEAD:{path}");
+            let output = std::process::Command::new("git")
+                .args(["rev-parse", &spec])
+                .current_dir(repo_root)
+                .output()
+                .unwrap_or_else(|error| panic!("resolve committed MT-066 source blob {path}: {error}"));
+            assert!(
+                output.status.success(),
+                "resolve committed MT-066 source blob {path}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let blob = String::from_utf8(output.stdout)
+                .expect("source blob UTF-8")
+                .trim()
+                .to_owned();
+            (path.to_string(), serde_json::Value::String(blob))
+        })
+        .collect()
 }
 
 /// Assert NO repo-local artifact directory exists under the crate (the SCREENSHOT/TEST-ARTIFACT RULE).
@@ -1154,6 +1187,7 @@ fn live_route_round_trip_real_pg() {
         .clone();
     let source_sha = current_source_sha();
     let proof_source_blob = current_proof_source_blob();
+    let proof_source_blobs = current_proof_source_blobs();
     let artifact_dir = external_artifact_dir(&format!(
         "wp-kernel-012-mt-066/canonical-argus/run-{}-{}",
         &source_sha[..12],
@@ -1736,6 +1770,7 @@ fn live_route_round_trip_real_pg() {
             "source": {
                 "source_sha": source_sha,
                 "proof_source_blob": proof_source_blob,
+                "proof_source_blobs": proof_source_blobs,
                 "relevant_source_clean": true,
                 "global_worktree_clean": false,
                 "known_unrelated_dirty_paths": ["AGENTS.md", "CLAUDE.md"],
