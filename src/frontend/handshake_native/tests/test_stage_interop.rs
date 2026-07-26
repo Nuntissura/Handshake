@@ -1405,7 +1405,8 @@ fn live_route_round_trip_real_pg() {
         .iter()
         .filter(|row| {
             row["payload"]["kind"].as_str() == Some("route_to_stage")
-                && row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
+                && row["payload"]["native_payload"]["causal_action_id"].as_str()
+                    == Some(retained_causal_action_id.as_str())
         })
         .count();
     assert_eq!(
@@ -1624,7 +1625,8 @@ fn live_route_round_trip_real_pg() {
         .iter()
         .filter(|row| {
             row["payload"]["kind"].as_str() == Some("route_to_stage")
-                && row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
+                && row["payload"]["native_payload"]["causal_action_id"].as_str()
+                    == Some(retained_causal_action_id.as_str())
         })
         .count();
     assert!(
