@@ -1483,6 +1483,20 @@ fn live_route_round_trip_real_pg() {
     harness
         .state_mut()
         .set_stage_embed_back_base_url_for_test(&new_backend_base);
+    let reloaded_after_restart = runtime
+        .block_on(
+            handshake_native::backend_client::RichDocClient::new(
+                &new_backend_base,
+                runtime.handle().clone(),
+            )
+            .load_document(&document_id),
+        )
+        .expect("reload the exact target document from the restarted backend");
+    harness
+        .state_mut()
+        .apply_loaded_rich_document_to_view_for_test(pane_id.as_ref(), reloaded_after_restart)
+        .expect("rebind the mounted rich target and SaveManager to the restarted backend");
+    harness.run_steps(2);
     let embed_observation =
         argus.click_and_reinspect(&mut harness, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID);
     assert!(
