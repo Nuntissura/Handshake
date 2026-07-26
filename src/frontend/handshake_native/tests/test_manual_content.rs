@@ -315,6 +315,47 @@ fn row_by_id() -> HashMap<&'static str, handshake_native::manual_pane::AgentTool
         .collect()
 }
 
+#[test]
+fn mt066_stage_manual_covers_canonical_argus_recovery_and_three_tier_posture() {
+    let rows = row_by_id();
+    for (author_id, method) in [
+        ("menu.editors.stage", "argus.click"),
+        ("menu.editors.route-to-stage", "argus.click"),
+        ("stage-route-status", "argus.inspect"),
+        ("stage-route-retry", "argus.click"),
+        ("stage-routed-content", "argus.inspect"),
+        ("stage-capture-embed-back", "argus.click"),
+        ("stage-embed-back-status", "argus.inspect"),
+    ] {
+        let row = rows
+            .get(author_id)
+            .unwrap_or_else(|| panic!("MT-066 manual row missing for {author_id}"));
+        assert_eq!(
+            row.mcp_tool, method,
+            "MT-066 {author_id} must use the canonical Argus method"
+        );
+    }
+    let section = editors_manual_section();
+    let interop = topic_body(&section, "Interop Edges");
+    for required in [
+        "HBR-INT-009 diagnostic posture",
+        "Flight Recorder/EventLedger = WIRED",
+        "route_to_stage",
+        "stage_embed_back",
+        "internal_diagnostics = DEFERRED-with-reason",
+        "no Stage-specific diagnostic emission",
+        "Palmistry = DEFERRED-with-reason",
+        "no Stage-scoped tracker or recovery proof",
+        "fresh argus.inspect",
+        "same immutable event_id",
+    ] {
+        assert!(
+            interop.contains(required),
+            "MT-066 Stage manual must preserve '{required}'"
+        );
+    }
+}
+
 fn body_marker(heading: &str) -> &'static str {
     match heading {
         "Notes Worksurface and Chat" => "pane-a is the Code editor",

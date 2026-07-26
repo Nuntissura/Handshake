@@ -53,8 +53,9 @@ use handshake_native::pane_registry::{
 };
 use handshake_native::rich_editor::document_model::{DocPosition, Selection};
 use handshake_native::stage_pane::{
-    EmbedTarget, StagePane, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID, STAGE_PANE_AUTHOR_ID,
-    STAGE_ROUTED_CONTENT_AUTHOR_ID,
+    EmbedTarget, StagePane, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID, STAGE_EMBED_BACK_STATUS_AUTHOR_ID,
+    STAGE_PANE_AUTHOR_ID, STAGE_ROUTED_CONTENT_AUTHOR_ID, STAGE_ROUTE_RETRY_AUTHOR_ID,
+    STAGE_ROUTE_STATUS_AUTHOR_ID,
 };
 use handshake_native::tab_bar::TabState;
 use handshake_native::theme::HsTheme;
@@ -76,6 +77,8 @@ mod stage_binding_proof {
     pub struct StageBindingGuard {
         previous: Option<handshake_native::mcp::McpBinding>,
         installed: Option<handshake_native::mcp::McpBinding>,
+        recovered_dead_owner: bool,
+        dead_owner_evidence: Option<serde_json::Value>,
         binding_path: PathBuf,
         env_var: &'static str,
         previous_env: Option<std::ffi::OsString>,
@@ -90,7 +93,7 @@ mod stage_binding_proof {
             Self::reserve_inner(scenario)
         }
 
-        fn reserve_inner(_scenario: &str) -> Self {
+        fn reserve_inner(scenario: &str) -> Self {
             #[cfg(target_os = "windows")]
             let env_var = "LOCALAPPDATA";
             #[cfg(not(target_os = "windows"))]
@@ -142,7 +145,12 @@ mod stage_binding_proof {
                 }
             }
 
+            let dead_owner_evidence =
+                (scenario == "mt066-rich-stage").then(|| seed_real_dead_owner(&binding_path));
             let current = read_binding(&binding_path);
+            let recovered_dead_owner = current
+                .as_ref()
+                .is_some_and(|binding| !binding_owner_is_live(binding));
             let previous = match current {
                 Some(binding) if !binding_owner_is_live(&binding) => {
                     // A crashed/killed publisher cannot reclaim this binding. Treat it as stale in the
@@ -162,6 +170,8 @@ mod stage_binding_proof {
             Self {
                 previous,
                 installed: None,
+                recovered_dead_owner,
+                dead_owner_evidence,
                 binding_path,
                 env_var,
                 previous_env,
@@ -213,6 +223,63 @@ mod stage_binding_proof {
         pub fn binding_path(&self) -> &Path {
             &self.binding_path
         }
+
+        pub fn recovered_dead_owner(&self) -> bool {
+            self.recovered_dead_owner
+        }
+
+        pub fn dead_owner_evidence(&self) -> Option<&serde_json::Value> {
+            self.dead_owner_evidence.as_ref()
+        }
+    }
+
+    /// Publish a binding carrying the OS-issued birth identity of a real child process, then terminate
+    /// and reap that exact child. The subsequent reserve path must detect this credential as dead-owner
+    /// state rather than accepting or restoring it.
+    fn seed_real_dead_owner(binding_path: &Path) -> serde_json::Value {
+        #[cfg(target_os = "windows")]
+        let mut command = {
+            use std::os::windows::process::CommandExt as _;
+            let mut command = std::process::Command::new("cmd.exe");
+            command
+                .creation_flags(0x0800_0000)
+                .args(["/C", "ping -n 30 127.0.0.1 >NUL"]);
+            command
+        };
+        #[cfg(not(target_os = "windows"))]
+        let mut command = {
+            let mut command = std::process::Command::new("sh");
+            command.args(["-c", "sleep 30"]);
+            command
+        };
+        command
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        let mut child = command.spawn().expect("spawn real dead-owner witness");
+        let pid = child.id();
+        let process_birth = handshake_native::mcp::binding::process_birth_identity(pid)
+            .expect("read real child birth identity");
+        let binding = handshake_native::mcp::McpBinding {
+            tcp_addr: "127.0.0.1:1".to_owned(),
+            pipe_name: None,
+            token: "mt066-dead-owner-token".to_owned(),
+            pid,
+            process_birth: process_birth.clone(),
+        };
+        publish_locked(binding_path, &binding);
+        child.kill().expect("terminate real dead-owner witness");
+        child.wait().expect("reap real dead-owner witness");
+        assert!(
+            handshake_native::mcp::binding::process_birth_identity(pid).is_err(),
+            "terminated binding owner must no longer be live"
+        );
+        serde_json::json!({
+            "pid": pid,
+            "process_birth": process_birth,
+            "binding_path": binding_path,
+            "owner_live_after_reap": false,
+        })
     }
 
     impl Drop for StageBindingGuard {
@@ -479,7 +546,7 @@ fn stage_binding_guard_restores_state_and_releases_lock_during_unwind() {
 }
 
 struct LiveWorkspaceGuard<'a> {
-    backend: &'a interconnect_support::LiveBackend,
+    backend: &'a mut interconnect_support::LiveBackend,
     workspace_id: String,
     native_fr_event_ids: Vec<String>,
     stage_artifact_ids: Vec<String>,
@@ -704,11 +771,81 @@ fn wait_for_native_fr(
 // Artifact hygiene (CX-212E / SCREENSHOT RULE): all artifacts go to the EXTERNAL root ONLY.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
-/// The crate-relative path to the external artifacts root (CX-212E), disk-agnostic. The crate sits at
-/// `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..` where `Handshake_Artifacts`
-/// is a sibling of the repo worktree.
 fn external_artifact_dir(subdir: &str) -> PathBuf {
-    Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
+    let root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .ancestors()
+                .nth(4)
+                .expect("native crate must live below a worktree root")
+                .join("Handshake_Artifacts")
+        });
+    assert!(
+        root.is_absolute(),
+        "HANDSHAKE_ARTIFACTS_ROOT must resolve to an absolute path"
+    );
+    root.join("handshake-test").join(subdir)
+}
+
+fn current_source_sha() -> String {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("native crate must live at repo/src/frontend/handshake_native");
+    let relevant_paths = [
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/interop/stage_interop.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/src/stage_pane.rs",
+        "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs",
+        "src/frontend/handshake_native/tests/test_stage_interop.rs",
+    ];
+    let clean = std::process::Command::new("git")
+        .args(["diff", "--quiet", "HEAD", "--"])
+        .args(relevant_paths)
+        .current_dir(repo_root)
+        .status()
+        .expect("check MT-066 relevant source cleanliness");
+    assert!(
+        clean.success(),
+        "MT-066 canonical proof refuses dirty relevant source; commit implementation and proof first"
+    );
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(repo_root)
+        .output()
+        .expect("resolve current source hash");
+    assert!(output.status.success());
+    String::from_utf8(output.stdout)
+        .expect("source hash UTF-8")
+        .trim()
+        .to_owned()
+}
+
+fn current_proof_source_blob() -> String {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("native crate must live at repo/src/frontend/handshake_native");
+    let output = std::process::Command::new("git")
+        .args([
+            "rev-parse",
+            "HEAD:src/frontend/handshake_native/tests/test_stage_interop.rs",
+        ])
+        .current_dir(repo_root)
+        .output()
+        .expect("resolve committed MT-066 proof blob");
+    assert!(
+        output.status.success(),
+        "resolve committed MT-066 proof blob: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout)
+        .expect("proof blob UTF-8")
+        .trim()
+        .to_owned()
 }
 
 /// Assert NO repo-local artifact directory exists under the crate (the SCREENSHOT/TEST-ARTIFACT RULE).
@@ -998,7 +1135,24 @@ fn live_route_round_trip_real_pg() {
     use sha2::{Digest, Sha256};
 
     let mut stage_binding = stage_binding_proof::StageBindingGuard::reserve("mt066-rich-stage");
-    let backend = interconnect_support::require_reachable_backend();
+    assert!(
+        stage_binding.recovered_dead_owner(),
+        "MT-066 proof must recover a binding owned by a real reaped process"
+    );
+    let dead_owner_evidence = stage_binding
+        .dead_owner_evidence()
+        .expect("real dead-owner evidence")
+        .clone();
+    let source_sha = current_source_sha();
+    let proof_source_blob = current_proof_source_blob();
+    let artifact_dir = external_artifact_dir(&format!(
+        "wp-kernel-012-mt-066/canonical-argus/run-{}-{}",
+        &source_sha[..12],
+        uuid::Uuid::new_v4().simple()
+    ));
+    std::fs::create_dir_all(&artifact_dir)
+        .expect("create external MT-066 canonical Argus artifact directory");
+    let mut backend = interconnect_support::require_reachable_backend();
     let workspace = backend.create_workspace(&format!(
         "mt066-live-stage-{}",
         uuid::Uuid::new_v4().simple()
@@ -1008,7 +1162,7 @@ fn live_route_round_trip_real_pg() {
         .expect("workspace create returns id")
         .to_owned();
     let mut cleanup = LiveWorkspaceGuard {
-        backend: &backend,
+        backend: &mut backend,
         workspace_id: workspace_id.clone(),
         native_fr_event_ids: Vec::new(),
         stage_artifact_ids: Vec::new(),
@@ -1021,7 +1175,7 @@ fn live_route_round_trip_real_pg() {
 
     // Fixture setup creates a real target document, but all feature actions below are driven through
     // the mounted production app. In particular, the test never constructs or POSTs an FR event.
-    let created_doc = backend.post_json(
+    let created_doc = cleanup.backend.post_json(
         "/knowledge/documents",
         &serde_json::json!({
             "workspace_id": workspace_id,
@@ -1046,8 +1200,8 @@ fn live_route_round_trip_real_pg() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
-    app.set_backend_base_url_for_test(&backend.base, runtime.handle().clone());
-    app.set_stage_embed_back_base_url_for_test(&backend.base);
+    app.set_backend_base_url_for_test(&cleanup.backend.base, runtime.handle().clone());
+    app.set_stage_embed_back_base_url_for_test(&cleanup.backend.base);
     app.bind_active_project_for_integration_test(workspace_id.clone());
     let pane_id = PaneId::from("pane-a");
     app.pane_registry().lock().unwrap().insert(PaneRecord::new(
@@ -1071,14 +1225,21 @@ fn live_route_round_trip_real_pg() {
     let rich_state = app.mounted_rich_state();
     let stage = app.mounted_stage();
     stage_binding.release_for_real_server();
-    let mut argus = CanonicalArgusDriver::bind_in_current_app_data(
-        &app,
-        "mt066-stage",
-        app.mcp_token(),
-    );
+    let mut argus =
+        CanonicalArgusDriver::bind_in_current_app_data(&app, "mt066-stage", app.mcp_token());
+    let host_ctx = std::sync::Arc::new(std::sync::Mutex::new(None::<egui::Context>));
+    let host_ctx_capture = std::sync::Arc::clone(&host_ctx);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1100.0, 760.0))
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+        .build_state(
+            move |ctx, app: &mut HandshakeApp| {
+                *host_ctx_capture
+                    .lock()
+                    .expect("capture MT-066 host context") = Some(ctx.clone());
+                app.ui(ctx);
+            },
+            app,
+        );
 
     // Frames load the real target note and bind the workspace-scoped NativeEditorEventEmitter to the
     // shared InteractionBus before the operator route begins.
@@ -1116,11 +1277,60 @@ fn live_route_round_trip_real_pg() {
         json_has_author_id(&open_editors.after, "menu.editors.route-to-stage"),
         "fresh Argus inspection observes the mounted Route selection to Stage leaf"
     );
-    let route_observation =
-        argus.click_and_reinspect(&mut harness, "menu.editors.route-to-stage");
+    let ctx = host_ctx
+        .lock()
+        .expect("MT-066 host context lock")
+        .clone()
+        .expect("MT-066 host context captured");
+    let interaction_bus = InteractionBus::get_or_init(&ctx);
+    let bus_guard = interaction_bus
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let busy_observation = argus.click_and_reinspect(&mut harness, "menu.editors.route-to-stage");
+    assert!(
+        !busy_observation.receipt_status.is_empty(),
+        "canonical Argus returns the route action receipt"
+    );
+    let busy_inspect = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&busy_inspect, STAGE_ROUTE_STATUS_AUTHOR_ID)
+            && json_has_author_id(&busy_inspect, STAGE_ROUTE_RETRY_AUTHOR_ID),
+        "fresh canonical Argus inspection exposes both retained busy status and retry control"
+    );
+    let retained_route = stage
+        .lock()
+        .unwrap()
+        .route_retry
+        .clone()
+        .expect("contended route is retained");
+    let retained_causal_action_id = retained_route
+        .causal_action_id
+        .clone()
+        .expect("retained route carries immutable causal action id");
+    let before_retry_rows = cleanup
+        .backend
+        .get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
+    assert!(
+        before_retry_rows
+            .as_array()
+            .is_some_and(|rows| rows.iter().all(|row| {
+                row["payload"]["native_payload"]["causal_action_id"].as_str()
+                    != Some(retained_causal_action_id.as_str())
+            })),
+        "bus contention must not fabricate a route Flight Recorder row"
+    );
+    let busy_screenshot_path = artifact_dir.join("mt066-stage-busy-harness-render.png");
+    harness
+        .render()
+        .expect("MT-066 busy state requires a material harness render")
+        .save(&busy_screenshot_path)
+        .expect("save MT-066 busy harness render");
+    drop(bus_guard);
+
+    let route_observation = argus.click_and_reinspect(&mut harness, STAGE_ROUTE_RETRY_AUTHOR_ID);
     assert!(
         !route_observation.receipt_status.is_empty(),
-        "canonical Argus returns the route action receipt"
+        "canonical Argus returns the retained-route retry receipt"
     );
 
     let route_surface_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -1139,7 +1349,7 @@ fn live_route_round_trip_real_pg() {
             "mounted Stage pane did not receive exact routed bytes within five seconds"
         );
     }
-    let route_row = wait_for_native_fr(&backend, &workspace_id, "route_to_stage", |row| {
+    let route_row = wait_for_native_fr(&*cleanup.backend, &workspace_id, "route_to_stage", |row| {
         row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
     });
     cleanup.track_native_fr(&route_row);
@@ -1149,8 +1359,18 @@ fn live_route_round_trip_real_pg() {
     );
     assert_eq!(
         route_row["payload"]["native_payload"]["causal_action_id"].as_str(),
-        stage.lock().unwrap().causal_action_id.as_deref(),
+        Some(retained_causal_action_id.as_str()),
         "route FR carries the mounted command's exact Stage correlation"
+    );
+    assert_eq!(
+        stage.lock().unwrap().causal_action_id.as_deref(),
+        Some(retained_causal_action_id.as_str()),
+        "retry preserves the retained route's exact causal action id"
+    );
+    let route_recovered_inspect = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&route_recovered_inspect, STAGE_ROUTED_CONTENT_AUTHOR_ID),
+        "fresh canonical Argus inspection observes routed content after retry"
     );
 
     // The canonical AccessKit button remains visible and collision-free on the mounted Stage surface.
@@ -1167,6 +1387,59 @@ fn live_route_round_trip_real_pg() {
         1,
         "mounted Stage embed-back control must be collision-free"
     );
+    let (absent_base, absent_request) = spawn_mock(
+        "HTTP/1.1 404 Not Found",
+        serde_json::json!({"error":"mt066_stage_endpoint_absent"}),
+    );
+    harness
+        .state_mut()
+        .set_stage_embed_back_base_url_for_test(&absent_base);
+    let error_observation =
+        argus.click_and_reinspect(&mut harness, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID);
+    let error_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        harness.run_steps(2);
+        if matches!(
+            stage.lock().unwrap().last_embed_back.as_ref(),
+            Some(handshake_native::stage_pane::EmbedBackOutcome::EndpointAbsent { .. })
+        ) {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < error_deadline,
+            "mounted Stage endpoint-absent outcome did not complete within five seconds: {:?}",
+            stage.lock().unwrap().last_embed_back
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert!(
+        absent_request
+            .join()
+            .expect("join endpoint-absent witness")
+            .starts_with("POST /workspaces/"),
+        "typed endpoint-absent outcome comes from the real create request"
+    );
+    let error_inspect = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&error_inspect, STAGE_EMBED_BACK_STATUS_AUTHOR_ID),
+        "fresh canonical Argus inspection observes the terminal typed error"
+    );
+    assert!(
+        !handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
+            &rich_state.lock().unwrap().doc,
+        )
+        .to_string()
+        .contains(STAGE_CAPTURE_REF_KIND),
+        "endpoint absence must not fabricate an HsLink"
+    );
+
+    let (old_backend_base, new_backend_base) = cleanup.backend.restart_owned();
+    harness
+        .state_mut()
+        .set_backend_base_url_for_test(&new_backend_base, runtime.handle().clone());
+    harness
+        .state_mut()
+        .set_stage_embed_back_base_url_for_test(&new_backend_base);
     let embed_observation =
         argus.click_and_reinspect(&mut harness, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID);
     assert!(
@@ -1200,8 +1473,8 @@ fn live_route_round_trip_real_pg() {
     };
     assert_eq!(outcome_sha, expected_sha);
     let stage_token = harness.state().mcp_token();
-    let client =
-        StageClient::with_base_url(backend.base.clone()).with_session_token(stage_token.as_hex());
+    let client = StageClient::with_base_url(cleanup.backend.base.clone())
+        .with_session_token(stage_token.as_hex());
     let artifact = rt()
         .block_on(client.fetch_stage_artifact(&workspace_id, &artifact_id))
         .expect("production Stage client retrieves and verifies exact persisted bytes");
@@ -1231,9 +1504,14 @@ fn live_route_round_trip_real_pg() {
     assert!(mounted_json.contains(&artifact_id));
     assert!(mounted_json.contains(STAGE_CAPTURE_REF_KIND));
 
-    let embed_row = wait_for_native_fr(&backend, &workspace_id, "stage_embed_back", |row| {
-        row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
-    });
+    let embed_row = wait_for_native_fr(
+        &*cleanup.backend,
+        &workspace_id,
+        "stage_embed_back",
+        |row| {
+            row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
+        },
+    );
     cleanup.track_native_fr(&embed_row);
     assert_eq!(
         embed_row["payload"]["native_payload"]["artifact_id"].as_str(),
@@ -1264,7 +1542,9 @@ fn live_route_round_trip_real_pg() {
         "the exact embed-back event is strictly later than its exact route event"
     );
     std::thread::sleep(std::time::Duration::from_millis(100));
-    let rows = backend.get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
+    let rows = cleanup
+        .backend
+        .get_json(&format!("/api/flight_recorder?wsid={workspace_id}"));
     let route_dispatches = rows
         .as_array()
         .expect("Flight Recorder rows")
@@ -1278,8 +1558,156 @@ fn live_route_round_trip_real_pg() {
         route_dispatches, 1,
         "the mounted rich selection dispatches the shared Route-to-Stage command exactly once"
     );
+    let quiescence_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        harness.run_steps(1);
+        let runtime_state = harness.state().stage_embed_runtime_state_for_test();
+        let stage_state = stage.lock().unwrap();
+        if !runtime_state.2
+            && !runtime_state.3
+            && !stage_state.has_route_retry()
+            && !stage_state.has_pending_route_receipt()
+            && matches!(
+                stage_state.last_embed_back.as_ref(),
+                Some(handshake_native::stage_pane::EmbedBackOutcome::Embedded { .. })
+            )
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < quiescence_deadline,
+            "MT-066 did not reach bounded quiescence: runtime={runtime_state:?}, stage={stage_state:?}"
+        );
+        drop(stage_state);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let recovered_inspect = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&recovered_inspect, STAGE_EMBED_BACK_STATUS_AUTHOR_ID)
+            && json_has_author_id(&recovered_inspect, STAGE_ROUTED_CONTENT_AUTHOR_ID),
+        "fresh canonical Argus inspection observes the recovered terminal capture and routed content"
+    );
+    let recovered_screenshot_path = artifact_dir.join("mt066-stage-recovered-harness-render.png");
+    harness
+        .render()
+        .expect("MT-066 recovered state requires a material harness render")
+        .save(&recovered_screenshot_path)
+        .expect("save MT-066 recovered harness render");
+    let busy_png = std::fs::read(&busy_screenshot_path).expect("read busy PNG");
+    let recovered_png = std::fs::read(&recovered_screenshot_path).expect("read recovered PNG");
+    let busy_png_sha256 = format!("{:x}", Sha256::digest(&busy_png));
+    let recovered_png_sha256 = format!("{:x}", Sha256::digest(&recovered_png));
+    let busy_dimensions = image::GenericImageView::dimensions(
+        &image::load_from_memory(&busy_png).expect("decode busy PNG"),
+    );
+    let recovered_dimensions = image::GenericImageView::dimensions(
+        &image::load_from_memory(&recovered_png).expect("decode recovered PNG"),
+    );
+    let terminal_outcome = format!("{:?}", stage.lock().unwrap().last_embed_back);
+    let evidence_path = artifact_dir.join("mt066-stage-canonical-argus.json");
     argus.finish();
     cleanup.cleanup_all_and_assert_zero();
+    std::fs::write(
+        &evidence_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "handshake.mt066-stage-canonical-argus-proof.v1",
+            "test": "live_route_round_trip_real_pg",
+            "status": "PASS",
+            "recorded_at": chrono::Utc::now().to_rfc3339(),
+            "source": {
+                "source_sha": source_sha,
+                "proof_source_blob": proof_source_blob,
+                "relevant_source_clean": true,
+                "global_worktree_clean": false,
+                "known_unrelated_dirty_paths": ["AGENTS.md", "CLAUDE.md"],
+            },
+            "dead_owner_recovery": dead_owner_evidence,
+            "backend_restart": {
+                "old_base": old_backend_base,
+                "new_base": new_backend_base,
+                "post_restart_artifact_readback": true,
+            },
+            "state_matrix": {
+                "route_busy": {
+                    "method": "argus.click",
+                    "target": "menu.editors.route-to-stage",
+                    "receipt_id": busy_observation.receipt_id,
+                    "receipt_status": busy_observation.receipt_status,
+                    "agent_id": busy_observation.agent_id,
+                    "fresh_inspect": busy_inspect,
+                    "causal_action_id": retained_causal_action_id,
+                    "backend_row_before_retry": false,
+                },
+                "route_recovered": {
+                    "method": "argus.click",
+                    "target": STAGE_ROUTE_RETRY_AUTHOR_ID,
+                    "receipt_id": route_observation.receipt_id,
+                    "receipt_status": route_observation.receipt_status,
+                    "agent_id": route_observation.agent_id,
+                    "fresh_inspect": route_recovered_inspect,
+                    "flight_recorder_row": route_row,
+                },
+                "capture_error": {
+                    "method": "argus.click",
+                    "target": STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
+                    "receipt_id": error_observation.receipt_id,
+                    "receipt_status": error_observation.receipt_status,
+                    "agent_id": error_observation.agent_id,
+                    "typed_outcome": "EndpointAbsent",
+                    "fresh_inspect": error_inspect,
+                    "artifact_fabricated": false,
+                },
+                "capture_recovered": {
+                    "method": "argus.click",
+                    "target": STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
+                    "receipt_id": embed_observation.receipt_id,
+                    "receipt_status": embed_observation.receipt_status,
+                    "agent_id": embed_observation.agent_id,
+                    "terminal_outcome": terminal_outcome,
+                    "fresh_inspect": recovered_inspect,
+                    "artifact_id": artifact.artifact_id,
+                    "artifact_sha256": artifact.sha256,
+                    "manifest_ref": artifact.manifest.manifest_ref,
+                    "job_id": artifact.job_id,
+                    "event_ledger_event_id": artifact.event_ledger_event_id,
+                    "flight_recorder_row": embed_row,
+                },
+            },
+            "screenshots": [
+                {
+                    "state": "route_busy",
+                    "path": busy_screenshot_path,
+                    "capture_method": "egui_kittest Harness::render",
+                    "sha256": busy_png_sha256,
+                    "width": busy_dimensions.0,
+                    "height": busy_dimensions.1,
+                },
+                {
+                    "state": "capture_recovered",
+                    "path": recovered_screenshot_path,
+                    "capture_method": "egui_kittest Harness::render",
+                    "sha256": recovered_png_sha256,
+                    "width": recovered_dimensions.0,
+                    "height": recovered_dimensions.1,
+                }
+            ],
+            "cleanup": {
+                "workspace_absent": true,
+                "stage_artifacts_zero": true,
+                "stage_jobs_zero": true,
+                "event_ledger_fixture_rows_zero": true,
+                "flight_recorder_fixture_rows_zero": true,
+                "runtime_quiescent": true,
+            }
+        }))
+        .expect("serialize MT-066 canonical Argus evidence"),
+    )
+    .expect("write MT-066 canonical Argus evidence");
+    assert!(evidence_path.is_file());
+    println!(
+        "MT-066 PROVEN: busy->retry->route->typed endpoint error->owned backend restart->capture/embed/readback->cleanup; source_sha={source_sha}; evidence={}",
+        evidence_path.display()
+    );
 }
 
 /// Managed-PG proof for the real Canvas origin/target. The route starts on the shared Canvas bus, the
@@ -1291,7 +1719,7 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut stage_binding = stage_binding_proof::StageBindingGuard::reserve("mt066-canvas-stage");
-    let backend = interconnect_support::require_reachable_backend();
+    let mut backend = interconnect_support::require_reachable_backend();
     let workspace = backend.create_workspace(&format!(
         "mt066-canvas-stage-{}",
         uuid::Uuid::new_v4().simple()
@@ -1301,14 +1729,14 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         .expect("workspace create returns id")
         .to_owned();
     let mut cleanup = LiveWorkspaceGuard {
-        backend: &backend,
+        backend: &mut backend,
         workspace_id: workspace_id.clone(),
         native_fr_event_ids: Vec::new(),
         stage_artifact_ids: Vec::new(),
         stage_job_ids: Vec::new(),
         stage_event_ids: Vec::new(),
     };
-    let canvas = backend.post_json(
+    let canvas = cleanup.backend.post_json(
         &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
         &serde_json::json!({"title": "MT-066 Stage Canvas target"}),
     );
@@ -1316,7 +1744,7 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         .as_str()
         .expect("Canvas create returns block_id")
         .to_owned();
-    let source_block = backend.post_json(
+    let source_block = cleanup.backend.post_json(
         &format!("/workspaces/{workspace_id}/loom/blocks"),
         &serde_json::json!({
             "content_type": "note",
@@ -1327,7 +1755,7 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         .as_str()
         .expect("Canvas source block create returns block_id")
         .to_owned();
-    let source_placement = backend.post_json(
+    let source_placement = cleanup.backend.post_json(
         &format!("/workspaces/{workspace_id}/loom/canvas-boards/{canvas_id}/placements"),
         &serde_json::json!({
             "placed_block_id": source_block_id,
@@ -1352,8 +1780,8 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
-    app.set_backend_base_url_for_test(&backend.base, runtime.handle().clone());
-    app.set_stage_embed_back_base_url_for_test(&backend.base);
+    app.set_backend_base_url_for_test(&cleanup.backend.base, runtime.handle().clone());
+    app.set_stage_embed_back_base_url_for_test(&cleanup.backend.base);
     assert!(app.switch_project(&workspace_id));
     {
         let board = app.mounted_canvas_board();
@@ -1491,7 +1919,7 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         }) => (artifact_id, sha256),
         other => panic!("expected Canvas Stage embed outcome, got {other:?}"),
     };
-    let stage_client = StageClient::with_base_url(backend.base.clone())
+    let stage_client = StageClient::with_base_url(cleanup.backend.base.clone())
         .with_session_token(harness.state().mcp_token().as_hex());
     let artifact = rt()
         .block_on(stage_client.fetch_stage_artifact(&workspace_id, &artifact_id))
@@ -1504,7 +1932,7 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
     assert_eq!(artifact.sha256, sha256);
 
     let canvas_client = handshake_native::backend_client::CanvasBoardClient::new(
-        backend.base.clone(),
+        cleanup.backend.base.clone(),
         runtime.handle().clone(),
     );
     let first_board = rt()
@@ -1528,11 +1956,11 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         .expect("fresh reload parses the exact structured provenance tuple");
     let first_placement_id = first_stage_placement.placement_id;
 
-    let route_row = wait_for_native_fr(&backend, &workspace_id, "route_to_stage", |row| {
+    let route_row = wait_for_native_fr(&*cleanup.backend, &workspace_id, "route_to_stage", |row| {
         row["payload"]["native_payload"]["content_kind"].as_str() == Some("canvas_node")
     });
     cleanup.track_native_fr(&route_row);
-    let embed_row = wait_for_native_fr(&backend, &workspace_id, "stage_embed_back", |row| {
+    let embed_row = wait_for_native_fr(&*cleanup.backend, &workspace_id, "stage_embed_back", |row| {
         row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
     });
     cleanup.track_native_fr(&embed_row);
@@ -1574,7 +2002,7 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         "Canvas route strictly precedes embed-back"
     );
 
-    let parallel_canvas = backend.post_json(
+    let parallel_canvas = cleanup.backend.post_json(
         &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
         &serde_json::json!({"title": "MT-066 concurrent Stage target"}),
     );
@@ -1583,12 +2011,12 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         .expect("parallel Canvas create returns block_id")
         .to_owned();
     let client_a = handshake_native::backend_client::CanvasBoardClient::with_http_client(
-        backend.base.clone(),
+        cleanup.backend.base.clone(),
         runtime.handle().clone(),
         handshake_native::backend_client::build_backend_client(),
     );
     let client_b = handshake_native::backend_client::CanvasBoardClient::with_http_client(
-        backend.base.clone(),
+        cleanup.backend.base.clone(),
         runtime.handle().clone(),
         handshake_native::backend_client::build_backend_client(),
     );
@@ -1637,7 +2065,7 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
     );
     let workspace_sql = workspace_id.replace('\'', "''");
     let canvas_sql = parallel_canvas_id.replace('\'', "''");
-    backend.run_fixture_sql(
+    cleanup.backend.run_fixture_sql(
         "mt066-cross-client-stage-provenance-uniqueness",
         &format!(
             "DO $stage_race$ DECLARE placements bigint; documents bigint; blocks bigint; bridges bigint; BEGIN \
@@ -1715,7 +2143,7 @@ fn mounted_canvas_embed_back_live_pg_is_structured_and_idempotent() {
         "retry retains the original placement identity"
     );
 
-    let rebound_canvas = backend.post_json(
+    let rebound_canvas = cleanup.backend.post_json(
         &format!("/workspaces/{workspace_id}/loom/canvas-boards"),
         &serde_json::json!({"title": "MT-066 rebound Canvas"}),
     );

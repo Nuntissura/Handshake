@@ -429,6 +429,44 @@ fn wait_for_health(
 }
 
 impl LiveBackend {
+    /// Restart the exact backend process owned by this fixture while preserving its PostgreSQL
+    /// authority. The replacement is spawned from the same current-source executable and private
+    /// binding root, then health-gated before the new ephemeral base URL is returned.
+    pub fn restart_owned(&mut self) -> (String, String) {
+        let mut child = self
+            .owned_backend
+            .take()
+            .expect("restart_owned requires a fixture-owned backend");
+        let old_base = self.base.clone();
+        child.kill().expect("stop exact fixture-owned backend");
+        let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
+        loop {
+            match child.try_wait().expect("poll exact fixture-owned backend") {
+                Some(_) => break,
+                None if Instant::now() < deadline => thread::sleep(Duration::from_millis(50)),
+                None => panic!(
+                    "fixture-owned backend pid {} did not exit within {}s",
+                    child.id(),
+                    SHUTDOWN_TIMEOUT.as_secs()
+                ),
+            }
+        }
+
+        let binary = resolve_backend_binary();
+        let (replacement, report_path) = spawn_backend(&binary);
+        let mut pending = PendingChild::new(replacement);
+        let new_base = wait_for_listen_report(pending.child_mut(), &report_path);
+        wait_for_health(&self.rt, &self.client, &new_base, pending.child_mut());
+        self.base = new_base.clone();
+        self.owned_backend = Some(pending.take());
+        self.assert_healthy();
+        assert_ne!(
+            old_base, new_base,
+            "owned restart must publish a fresh ephemeral listener"
+        );
+        (old_base, new_base)
+    }
+
     fn assert_healthy(&self) {
         assert!(
             healthy(&self.rt, &self.client, &self.base),

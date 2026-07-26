@@ -693,12 +693,18 @@ remains blocked until that queue is known.\n\
 - Stage (Pillar 17): selection/document/Canvas-node content is routed over the shared bus to stage-pane \
 (stage-routed-content); stage-route-status carries failures and stage-route-retry retries contention without \
 changing causal attribution. The agent activates the live create/retrieve/embed workflow with \
-stage-capture-embed-back (click_widget); stage-embed-back-status exposes the exact artifact id, verified \
+stage-capture-embed-back (argus.click); stage-embed-back-status exposes the exact artifact id, verified \
 SHA-256 provenance, target, or typed failure. When it reports LedgerPending, the HsLink is already saved: \
 activate the relabelled Retry exact EventLedger receipt action instead of starting a new capture or minting \
 a new receipt; that action replays the same immutable event_id and does not insert another hsLink. Capture writes are visible in Job History, EventLedger, and \
 Flight Recorder; retrieval verifies the dedicated content bytes before embedding. \
-A missing or unimplemented artifact route is a typed endpoint-absent result, never an embed success.\n\
+A missing or unimplemented artifact route is a typed endpoint-absent result, never an embed success. \
+HBR-INT-009 diagnostic posture: Flight Recorder/EventLedger = WIRED because route_to_stage and \
+stage_embed_back persist immutable causal receipts; internal_diagnostics = DEFERRED-with-reason because \
+the shipped generic backend-health surface has no Stage-specific diagnostic emission; Palmistry = \
+DEFERRED-with-reason because the app watcher is global and has no Stage-scoped tracker or recovery proof. \
+After each asynchronous retry or capture, use a fresh argus.inspect instead of treating the immediate \
+action receipt as terminal state.\n\
 - Calendar (Pillar 2): the daily-journal-panel binds the mounted JournalStore's single selected-date \
   open/create result to a CalendarEvent (daily-journal-date-header, daily-journal-calendar-event-chip) and \
   shows a read-only activity strip (daily-journal-activity-strip). Waiting for the daily note, daily-note \
@@ -2733,33 +2739,63 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
 
     // ── Stage interop edge (Pillar 17) ───────────────────────────────────────────────────────────────
     rows.push(AgentToolRow {
+        author_id: "menu.editors.stage",
+        surface: ManualSurface::Interop,
+        action_label: "Stage edge: open the Stage pane",
+        mcp_tool: "argus.click",
+        description:
+            "argus.click{target:'menu.editors.stage'} opens or focuses the one docked Stage pane.",
+    });
+    rows.push(AgentToolRow {
+        author_id: "menu.editors.route-to-stage",
+        surface: ManualSurface::Interop,
+        action_label: "Stage edge: route the active editor content",
+        mcp_tool: "argus.click",
+        description: "argus.click{target:'menu.editors.route-to-stage'} submits the active selection/document through the shared InteractionBus.",
+    });
+    rows.push(AgentToolRow {
         author_id: crate::stage_pane::STAGE_PANE_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Stage edge: the Stage pane container",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets surfaces the stage-pane; an agent reads what was routed to Stage.",
+            "argus.inspect surfaces the stage-pane; an agent reads what was routed to Stage.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::stage_pane::STAGE_ROUTE_STATUS_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Stage edge: read route state",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect reads stage-route-status for busy, unavailable, retained-retry, and terminal route state.",
+    });
+    rows.push(AgentToolRow {
+        author_id: crate::stage_pane::STAGE_ROUTE_RETRY_AUTHOR_ID,
+        surface: ManualSurface::Interop,
+        action_label: "Stage edge: retry the retained route",
+        mcp_tool: "argus.click",
+        description: "argus.click{target:'stage-route-retry'} retries the exact retained request without changing its causal action id.",
     });
     rows.push(AgentToolRow {
         author_id: crate::stage_pane::STAGE_ROUTED_CONTENT_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Stage edge: routed content region",
-        mcp_tool: "screenshot",
-        description: "screenshot captures the stage-routed-content region for vision.",
+        mcp_tool: "argus.inspect",
+        description:
+            "argus.inspect reads the exact routed-content summary at stage-routed-content.",
     });
     rows.push(AgentToolRow {
         author_id: crate::stage_pane::STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Stage edge: embed a capture back into notes",
-        mcp_tool: "click_widget",
-        description: "click_widget{target:'stage-capture-embed-back'} runs privileged capture, exact-byte retrieval and SHA-256 verification, then embeds into the live note target; read stage-embed-back-status for the exact artifact/provenance success or typed failure.",
+        mcp_tool: "argus.click",
+        description: "argus.click{target:'stage-capture-embed-back'} runs privileged capture, exact-byte retrieval and SHA-256 verification, then embeds into the live note target; perform a fresh argus.inspect of stage-embed-back-status for the exact artifact/provenance success or typed failure.",
     });
     rows.push(AgentToolRow {
         author_id: crate::stage_pane::STAGE_EMBED_BACK_STATUS_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Stage edge: read capture/embed result",
-        mcp_tool: "list_widgets",
-        description: "Read stage-embed-back-status for the stable artifact id, verified SHA-256, target pane, endpoint blocker, provenance refusal, stale target, or insertion failure.",
+        mcp_tool: "argus.inspect",
+        description: "Use a fresh argus.inspect to read stage-embed-back-status for the stable artifact id, verified SHA-256, target pane, endpoint blocker, provenance refusal, stale target, or insertion failure.",
     });
 
     // ── Calendar interop edge (Pillar 2) ─────────────────────────────────────────────────────────────
