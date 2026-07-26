@@ -3,19 +3,14 @@
 //! OP-01..OP-03 are default managed-runtime scenarios: each starts or attaches to the real product backend,
 //! creates its own workspace, drives the production interop client over PostgreSQL, verifies persisted
 //! state, and verifies the required native-editor Flight Recorder events. OP-04 drives all three stable
-//! operator-facing triggers through AccessKit action requests. The `unit_*` tests retain fast projection
-//! and boundary coverage but do not substitute for the managed scenarios.
+//! operator-facing triggers through AccessKit action requests. No repository doubles, stub servers, or
+//! substitute persistence paths are permitted in this suite.
 
 use std::collections::{HashMap, HashSet};
-use std::io::{Read as IoRead, Write as IoWrite};
-use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use chrono::{NaiveDate, TimeZone, Utc};
-use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::kittest::NodeT;
 use egui_kittest::Harness;
 use sha2::{Digest, Sha256};
 
@@ -23,31 +18,20 @@ use sha2::{Digest, Sha256};
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::interop::{
-    build_from_selection, embed_artifact_as_nodeview, ActivitySpan, CalendarEvent,
-    CalendarInteropService, CrossRefError, DocId, EditorSurfaceKind, FindNotesHttp,
-    FindNotesSearch, LocusInteropService, LocusRefKind, SharedSelection, StageArtifactRef,
-    StageClient, StageManifest, StageRouteSource, CMD_ROUTE_TO_STAGE,
+    build_from_selection, embed_artifact_as_nodeview, CalendarInteropService, EditorSurfaceKind,
+    FindNotesHttp, LocusInteropService, SharedSelection, StageArtifactRef, StageClient,
+    StageManifest, StageRouteSource,
 };
 use handshake_native::pane_registry::{
     DirtyState, LockState, PaneAuthority, PaneId, PaneRecord, PaneType,
 };
 use handshake_native::stage_pane::{
     EmbedTarget, StageContent, StagePane, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
-    STAGE_EMBED_BACK_STATUS_AUTHOR_ID, STAGE_PANE_AUTHOR_ID, STAGE_ROUTED_CONTENT_AUTHOR_ID,
+    STAGE_EMBED_BACK_STATUS_AUTHOR_ID,
 };
 // REUSE: the MT-067 Calendar daily-journal panel + service.
-use handshake_native::graph::daily_journal_panel::{
-    DailyJournalPanel, DailyJournalState, DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID,
-    DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID, DAILY_JOURNAL_PANEL_AUTHOR_ID,
-};
-use handshake_native::rich_editor::daily_notes::date_nav::DateNav;
-use handshake_native::rich_editor::daily_notes::journal_store::{
-    JournalBackend, JournalBlock, JournalDocLoad, JournalError, JournalFuture,
-};
+use handshake_native::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID;
 // REUSE: the MT-066 Locus cross-reference parser/chip/reverse-lookup.
-use handshake_native::backend_client::{
-    LoomSearchBlock, LoomSearchV2Body, LoomSearchV2Hit, LoomSearchV2Response,
-};
 use handshake_native::interop::{parse_locus_ref, LOCUS_REF_KIND};
 use handshake_native::rich_editor::daily_notes::journal_store::ReqwestJournalBackend;
 use handshake_native::rich_editor::document_model::doc_json::to_content_json_value;
@@ -55,17 +39,17 @@ use handshake_native::rich_editor::document_model::node::{
     BlockNode, Child, HsLinkNode, NodeKind, TextLeaf,
 };
 use handshake_native::rich_editor::document_model::{DocPosition, Selection};
-use handshake_native::rich_editor::renderer::rich_editor_widget::{
-    RichEditorState, RichEditorWidget,
-};
 use handshake_native::rich_editor::wikilinks::inline_view::locus_ref_chip_author_id;
 use handshake_native::tab_bar::TabState;
-use handshake_native::theme::{HsPalette, HsTheme};
 
 // Shared managed-PostgreSQL product fixture. It attaches to a healthy root-managed backend or starts an
 // already-built product executable, creates an isolated workspace, and never invokes Cargo.
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
 #[path = "pg_proof_support/mod.rs"]
 mod pg_proof_support;
+use canonical_argus_driver::{json_has_author_id, ArgusObservation, CanonicalArgusDriver};
+
 mod stage_binding_proof {
     //! Cross-executable serialization for tests that install the native MCP discovery binding.
     //!
@@ -192,6 +176,21 @@ mod stage_binding_proof {
             );
         }
 
+        /// Hand publication ownership to a real `SwarmMcpServer`. The isolated app-data root remains
+        /// installed for the backend child, but the canonical lock must be released so the production
+        /// Argus server can publish its actual localhost endpoint and matching token.
+        pub fn release_for_real_server(&mut self) {
+            assert!(
+                self.previous.is_none(),
+                "the isolated Stage proof root must not displace a live MCP binding"
+            );
+            assert!(
+                self.installed.is_none(),
+                "a synthetic Stage binding must not precede the real Argus server"
+            );
+            drop(self.canonical_lock.take());
+        }
+
         pub fn install(session_token: &str, scenario: &str) -> Self {
             let mut guard = Self::reserve(scenario);
             guard.publish(session_token);
@@ -256,7 +255,7 @@ mod stage_binding_proof {
     }
 
     fn binding_owner_is_live(binding: &handshake_native::mcp::McpBinding) -> bool {
-        handshake_native::mcp::process_birth_identity(binding.pid)
+        handshake_native::mcp::binding::process_birth_identity(binding.pid)
             .ok()
             .as_ref()
             == Some(&binding.process_birth)
@@ -422,6 +421,177 @@ fn external_artifact_dir(subdir: &str) -> PathBuf {
     Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
 }
 
+fn current_source_sha() -> String {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .expect("read current MT-074 source commit");
+    assert!(output.status.success(), "git rev-parse HEAD failed");
+    String::from_utf8(output.stdout)
+        .expect("source SHA is UTF-8")
+        .trim()
+        .to_owned()
+}
+
+const MT074_PROOF_PATHS: [&str; 5] = [
+    "tests/test_other_pillar_interop_proofs.rs",
+    "tests/native_gui_support/canonical_argus_driver.rs",
+    "tests/other_pillar_interop_manifest.json",
+    "src/manual_content_editors.rs",
+    "tests/test_manual_content.rs",
+];
+
+fn current_proof_source_blobs() -> serde_json::Value {
+    let blobs = MT074_PROOF_PATHS
+        .iter()
+        .map(|path| {
+            let output = std::process::Command::new("git")
+                .args(["hash-object", path])
+                .output()
+                .unwrap_or_else(|error| panic!("hash current MT-074 proof path {path}: {error}"));
+            assert!(output.status.success(), "git hash-object failed for {path}");
+            let blob = String::from_utf8(output.stdout)
+                .expect("proof source blob is UTF-8")
+                .trim()
+                .to_owned();
+            ((*path).to_owned(), serde_json::Value::String(blob))
+        })
+        .collect::<serde_json::Map<_, _>>();
+    serde_json::Value::Object(blobs)
+}
+
+fn proof_paths_clean_against_head() -> bool {
+    std::process::Command::new("git")
+        .arg("diff")
+        .arg("--quiet")
+        .arg("--")
+        .args(MT074_PROOF_PATHS)
+        .status()
+        .expect("check MT-074 proof path provenance")
+        .success()
+}
+
+fn json_author_value<'a>(
+    value: &'a serde_json::Value,
+    expected_author_id: &str,
+) -> Option<&'a str> {
+    match value {
+        serde_json::Value::Object(object) => {
+            if object.get("author_id").and_then(serde_json::Value::as_str)
+                == Some(expected_author_id)
+            {
+                return object.get("value").and_then(serde_json::Value::as_str);
+            }
+            object
+                .values()
+                .find_map(|value| json_author_value(value, expected_author_id))
+        }
+        serde_json::Value::Array(values) => values
+            .iter()
+            .find_map(|value| json_author_value(value, expected_author_id)),
+        _ => None,
+    }
+}
+
+fn json_contains_exact_string(value: &serde_json::Value, expected: &str) -> bool {
+    match value {
+        serde_json::Value::String(value) => value == expected,
+        serde_json::Value::Object(object) => object
+            .values()
+            .any(|value| json_contains_exact_string(value, expected)),
+        serde_json::Value::Array(values) => values
+            .iter()
+            .any(|value| json_contains_exact_string(value, expected)),
+        _ => false,
+    }
+}
+
+fn scenario_artifact_dir(scenario: &str) -> PathBuf {
+    let run_id = uuid::Uuid::new_v4().simple().to_string();
+    let dir = external_artifact_dir(&format!(
+        "wp-kernel-012-mt-074/canonical-argus/{scenario}/run-{run_id}"
+    ));
+    std::fs::create_dir_all(&dir).expect("create MT-074 canonical Argus artifact directory");
+    dir
+}
+
+fn save_surface_screenshot(
+    harness: &mut Harness<'_, HandshakeApp>,
+    artifact_dir: &Path,
+    surface: &str,
+) -> PathBuf {
+    let screenshot = artifact_dir.join(format!("{surface}.png"));
+    harness
+        .render()
+        .expect("MT-074 requires a material surface render")
+        .save(&screenshot)
+        .expect("save MT-074 canonical Argus surface screenshot");
+    assert!(
+        screenshot.is_file() && std::fs::metadata(&screenshot).unwrap().len() > 0,
+        "MT-074 screenshot must be a non-empty external artifact"
+    );
+    screenshot
+}
+
+fn observation_evidence(label: &str, observation: &ArgusObservation) -> serde_json::Value {
+    serde_json::json!({
+        "label": label,
+        "receipt_id": observation.receipt_id,
+        "receipt_status": observation.receipt_status,
+        "agent_id": observation.agent_id,
+        "before_inspect": observation.before,
+        "after_reinspect": observation.after,
+    })
+}
+
+fn write_scenario_evidence(
+    scenario: &str,
+    artifact_dir: &Path,
+    screenshots: &[PathBuf],
+    observations: &[(&str, &ArgusObservation)],
+    product_evidence: serde_json::Value,
+) -> PathBuf {
+    let evidence_path = artifact_dir.join(format!("{scenario}-canonical-argus.json"));
+    let action_receipts = observations
+        .iter()
+        .map(|(label, observation)| observation_evidence(label, observation))
+        .collect::<Vec<_>>();
+    std::fs::write(
+        &evidence_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "handshake.mt074-canonical-argus-proof.v1",
+            "scenario": scenario,
+            "source_sha": current_source_sha(),
+            "proof_source_blobs": current_proof_source_blobs(),
+            "proof_paths_clean_against_source_sha": proof_paths_clean_against_head(),
+            "canonical_transport": "SwarmMcpServer localhost JSON-RPC",
+            "action_sequence": "argus.inspect -> argus.click -> receipt -> fresh argus.inspect",
+            "flush_mechanism": "ActionChannel raw_input_hook drain plus bounded Harness::run_steps",
+            "screenshots": screenshots,
+            "action_receipts": action_receipts,
+            "product_evidence": product_evidence,
+            "visible_unrelated_diagnostics": [
+                {
+                    "surface": "alias-resolution",
+                    "status": "typed local-only diagnostic",
+                    "not_part_of_mt074": true
+                },
+                {
+                    "surface": "runtime-chat",
+                    "status": "EndpointMissing",
+                    "not_part_of_mt074": true
+                }
+            ],
+            "argus_teardown_verified": true,
+            "cleanup_verified": true,
+        }))
+        .expect("serialize MT-074 canonical Argus evidence"),
+    )
+    .expect("write MT-074 canonical Argus evidence");
+    assert!(evidence_path.is_file());
+    evidence_path
+}
+
 /// Assert NO repo-local artifact directory exists under the crate (the SCREENSHOT/TEST-ARTIFACT RULE).
 /// Artifacts go to the external `Handshake_Artifacts/handshake-test` root ONLY; a stray `test_output/` OR
 /// `tests/screenshots/` is a hygiene FAILURE. Called by the OP-04 screenshot proof.
@@ -490,10 +660,6 @@ fn resolve_live_pg_dsn() -> String {
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Harness + AccessKit query/dispatch helpers (the MT-041 canonical pattern, reused).
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-
-fn dark() -> HsPalette {
-    HsTheme::Dark.palette()
-}
 
 fn rt() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_multi_thread()
@@ -849,15 +1015,11 @@ fn assert_causal_order(first: &serde_json::Value, second: &serde_json::Value, la
     );
 }
 
-fn mount_managed_app(
+fn build_managed_app_state(
     backend: &pg_proof_support::LiveBackend,
     pane_type: PaneType,
     content_id: Option<String>,
-) -> (
-    tokio::runtime::Runtime,
-    Harness<'static, HandshakeApp>,
-    PaneId,
-) {
+) -> (tokio::runtime::Runtime, HandshakeApp, PaneId) {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -887,10 +1049,7 @@ fn mount_managed_app(
     bar.tabs = vec![tab];
     bar.active_index = 0;
     app.set_active_pane_for_test(Some(pane_id.clone()));
-    let harness = Harness::builder()
-        .with_size(egui::vec2(1100.0, 760.0))
-        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
-    (runtime, harness, pane_id)
+    (runtime, app, pane_id)
 }
 
 fn select_mounted_rich_text(harness: &mut Harness<'static, HandshakeApp>, exact_text: &str) {
@@ -905,41 +1064,6 @@ fn select_mounted_rich_text(harness: &mut Harness<'static, HandshakeApp>, exact_
         Some(exact_text.to_owned()),
         "mounted rich editor materializes the exact Stage selection"
     );
-}
-
-fn drive_stage_palette_route(harness: &mut Harness<'static, HandshakeApp>, exact_text: &str) {
-    select_mounted_rich_text(harness, exact_text);
-    let ctx = harness.ctx.clone();
-    assert!(
-        harness
-            .state_mut()
-            .dispatch_palette_action_for_test_with_ctx(&ctx, CMD_ROUTE_TO_STAGE),
-        "original shared Route-to-Stage operator command dispatches"
-    );
-}
-
-fn drive_stage_accesskit_route(harness: &mut Harness<'static, HandshakeApp>, exact_text: &str) {
-    select_mounted_rich_text(harness, exact_text);
-
-    // Drive the production EDITORS menu route exactly as an out-of-process client does: resolve each
-    // live node by stable author_id, then enqueue a raw AccessKit Click request at its AccessKit node id.
-    // This deliberately avoids kittest's pointer-backed Node::click / Node::click_secondary helpers.
-    let editors_menu = find_node(&harness.root(), "menu-editors")
-        .expect("stable EDITORS top-level AccessKit action");
-    assert_eq!(editors_menu.role, "MenuItem");
-    assert!(!editors_menu.disabled);
-    harness.event(click_event(editors_menu.node_id));
-    harness.run_steps(2);
-
-    let route_to_stage = find_node(&harness.root(), "menu.editors.route-to-stage")
-        .expect("stable EDITORS Route-to-Stage AccessKit action");
-    assert_eq!(route_to_stage.role, "MenuItem");
-    assert!(!route_to_stage.disabled);
-    harness.event(click_event(route_to_stage.node_id));
-}
-
-fn d(y: i32, m: u32, day: u32) -> NaiveDate {
-    NaiveDate::from_ymd_opt(y, m, day).unwrap()
 }
 
 /// A TextRange selection (the MT-031 shared-selection shape).
@@ -967,8 +1091,6 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 /// A node found in the live kittest tree, reduced to the fields the proofs assert (the MT-041 shape).
 struct FoundNode {
-    node_id: egui::accesskit::NodeId,
-    role: String,
     disabled: bool,
     value: Option<String>,
 }
@@ -980,8 +1102,6 @@ fn find_node(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<FoundNode
         let ak = node.accesskit_node();
         if ak.author_id() == Some(author_id) {
             return Some(FoundNode {
-                node_id: ak.id(),
-                role: format!("{:?}", ak.role()),
                 disabled: ak.is_disabled(),
                 value: ak.value(),
             });
@@ -990,232 +1110,35 @@ fn find_node(root: &egui_kittest::Node<'_>, author_id: &str) -> Option<FoundNode
     None
 }
 
-/// Build a Click AccessKit action request event targeting `node_id` — the out-of-process swarm-agent
-/// dispatch path (the SAME shape `handshake_native::mcp::action::build_action_request` produces and the
-/// MT-041 harness uses). NO synthetic key event, NO direct widget call — pure AccessKit action dispatch.
-fn click_event(node_id: egui::accesskit::NodeId) -> egui::Event {
-    egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest {
-        action: egui::accesskit::Action::Click,
-        target: node_id,
-        data: None,
-    })
-}
-
-/// True if `s` contains no decimal-digit run of length >= 5 (a heuristic for "no random numeric segment").
-/// A stable swarm-addressable id must be deterministic. The delivered interop ids (`stage-pane`,
-/// `daily-journal-calendar-event-chip`, `locus-ref-chip-wp-WP-KERNEL-012`, ...) are slugs with no random
-/// segment; an egui-hashed random id would carry a long numeric run. The threshold is 5 (not 4) so the
-/// legitimate work-unit ids that embed `012` / `034` in `WP-KERNEL-012` / `MT-034` are not flagged.
-fn has_no_random_segment(s: &str) -> bool {
-    let mut run = 0usize;
-    for c in s.chars() {
-        if c.is_ascii_digit() {
-            run += 1;
-            if run >= 5 {
-                return false;
-            }
-        } else {
-            run = 0;
+fn inspect_until(
+    argus: &mut CanonicalArgusDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    author_id: &str,
+    max_steps: usize,
+) -> serde_json::Value {
+    for _ in 0..max_steps {
+        let snapshot = argus.inspect(harness);
+        if json_has_author_id(&snapshot, author_id) {
+            return snapshot;
         }
+        harness.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(25));
     }
-    true
+    let snapshot = argus.inspect(harness);
+    assert!(
+        json_has_author_id(&snapshot, author_id),
+        "canonical argus.inspect could not address '{author_id}' within {max_steps} pumped frames"
+    );
+    snapshot
 }
 
-// ── A counted MT-019 backend stand-in (the MT-067 pattern: proves delegation + idempotency). ────────
-
-/// A counted MT-019 backend stand-in: `open_daily_journal` returns the SAME deterministic block for a
-/// given date (the real backend's get-or-create idempotency) and counts how many times it was called.
-/// NEVER creates a second block for the same date. This is the MT-067 counted backend pattern reused (NOT
-/// a file-backed local-store / in-process persistence substitute — it only proves the DELEGATION path; the
-/// live PG bind is the gated OP-02 live proof).
-struct CountingJournalBackend {
-    opens: AtomicUsize,
-    document_id: Option<String>,
-}
-
-impl CountingJournalBackend {
-    fn new(document_id: Option<&str>) -> Self {
-        Self {
-            opens: AtomicUsize::new(0),
-            document_id: document_id.map(|s| s.to_owned()),
-        }
-    }
-}
-
-impl JournalBackend for CountingJournalBackend {
-    fn open_daily_journal<'a>(
-        &'a self,
-        workspace_id: &'a str,
-        journal_date: &'a str,
-    ) -> JournalFuture<'a, JournalBlock> {
-        self.opens.fetch_add(1, Ordering::SeqCst);
-        let ws = workspace_id.to_owned();
-        let date = journal_date.to_owned();
-        let document_id = self.document_id.clone();
-        Box::pin(async move {
-            Ok(JournalBlock {
-                block_id: format!("journal-{date}"),
-                workspace_id: ws,
-                content_type: Some("journal".to_owned()),
-                document_id,
-                title: Some(format!("Daily Note {date}")),
-                journal_date: Some(date),
-            })
-        })
-    }
-
-    fn load_document<'a>(&'a self, _document_id: &'a str) -> JournalFuture<'a, JournalDocLoad> {
-        Box::pin(async move { Err(JournalError::DocLoadFailed("unused".into())) })
-    }
-
-    fn create_document<'a>(
-        &'a self,
-        _workspace_id: &'a str,
-        _title: &'a str,
-    ) -> JournalFuture<'a, JournalDocLoad> {
-        Box::pin(async move { Err(JournalError::CreateFailed("unused".into())) })
-    }
-}
-
-fn calendar_event(id: &str, title: &str) -> CalendarEvent {
-    CalendarEvent {
-        id: id.to_owned(),
-        title: title.to_owned(),
-        start_utc: Utc.with_ymd_and_hms(2026, 6, 21, 9, 0, 0).unwrap(),
-        end_utc: Utc.with_ymd_and_hms(2026, 6, 21, 10, 0, 0).unwrap(),
-        all_day: false,
-        daily_note_doc_id: None,
-    }
-}
-
-fn activity_span(id: &str, docs: &[&str]) -> ActivitySpan {
-    ActivitySpan {
-        span_id: id.to_owned(),
-        calendar_event_id: Some("E-1".to_owned()),
-        started_utc: Utc.with_ymd_and_hms(2026, 6, 21, 9, 5, 0).unwrap(),
-        ended_utc: Utc.with_ymd_and_hms(2026, 6, 21, 9, 45, 0).unwrap(),
-        edited_doc_ids: docs.iter().map(|s| DocId((*s).to_owned())).collect(),
-    }
-}
-
-// ── A counted MT-034-search stand-in (the MT-068 pattern: drives the REAL reverse-lookup pipeline). ──
-
-/// A counted MT-034-search stand-in (NO backend): returns the seeded hits per query so the reverse lookup
-/// drives the REAL `find_notes_with` pipeline without a live PG, and records the keyed query (the
-/// single-normalized-key proof). This is the MT-068 counted backend pattern reused — NOT a file-backed
-/// local-store persistence substitute (the live PG-backed reverse index is the gated OP-03 live proof).
-struct CountingReverseLookup {
-    hits: Vec<LoomSearchV2Hit>,
-    contents: HashMap<String, serde_json::Value>,
-    last_query: std::sync::Mutex<Option<String>>,
-    calls: AtomicUsize,
-}
-
-impl CountingReverseLookup {
-    fn new(hits: Vec<LoomSearchV2Hit>) -> Self {
-        Self {
-            hits,
-            contents: HashMap::new(),
-            last_query: std::sync::Mutex::new(None),
-            calls: AtomicUsize::new(0),
-        }
-    }
-
-    fn with_locus_content(mut self, document_id: &str, locus_uri: &str) -> Self {
-        self.contents.insert(
-            document_id.to_owned(),
-            serde_json::json!({
-                "type": "doc",
-                "content": [{
-                    "type": "paragraph",
-                    "content": [{
-                        "type": "hsLink",
-                        "attrs": {
-                            "refKind": "locus",
-                            "refValue": locus_uri,
-                            "label": "MT"
-                        }
-                    }]
-                }]
-            }),
-        );
-        self
-    }
-}
-
-impl FindNotesSearch for CountingReverseLookup {
-    fn search<'a>(
-        &'a self,
-        _workspace_id: &'a str,
-        body: &'a LoomSearchV2Body,
-    ) -> Pin<
-        Box<
-            dyn std::future::Future<Output = Result<LoomSearchV2Response, CrossRefError>>
-                + Send
-                + 'a,
-        >,
-    > {
-        self.calls.fetch_add(1, Ordering::SeqCst);
-        *self.last_query.lock().unwrap() = Some(body.query.clone());
-        let content_type = body.content_type.clone();
-        let offset = body.offset as usize;
-        let limit = body.limit as usize;
-        let hits = self
-            .hits
-            .iter()
-            .filter(|hit| {
-                content_type
-                    .as_deref()
-                    .is_none_or(|expected| hit.block.content_type == expected)
-            })
-            .cloned()
-            .collect::<Vec<_>>();
-        Box::pin(async move {
-            let total = i64::try_from(hits.len()).expect("search hit count fits i64");
-            Ok(LoomSearchV2Response {
-                hits: hits.into_iter().skip(offset).take(limit).collect(),
-                content_type_facets: Default::default(),
-                semantic_available: false,
-                total,
-            })
-        })
-    }
-
-    fn load_document_content<'a>(
-        &'a self,
-        document_id: &'a str,
-    ) -> Pin<
-        Box<dyn std::future::Future<Output = Result<serde_json::Value, CrossRefError>> + Send + 'a>,
-    > {
-        let content = self.contents.get(document_id).cloned();
-        Box::pin(async move {
-            content.ok_or_else(|| {
-                CrossRefError::NotFound(format!("counted reverse-lookup document {document_id}"))
-            })
-        })
-    }
-}
-
-fn loom_hit(
-    block_id: &str,
-    title: Option<&str>,
-    content_type: &str,
-    highlight: &str,
-) -> LoomSearchV2Hit {
-    LoomSearchV2Hit {
-        block: LoomSearchBlock {
-            block_id: block_id.to_owned(),
-            content_type: content_type.to_owned(),
-            document_id: None,
-            title: title.map(str::to_owned),
-        },
-        score: 1.0,
-        fts_rank: 0.0,
-        trgm_sim: 0.0,
-        vector_sim: 0.0,
-        edge_degree: 0,
-        highlight: highlight.to_owned(),
-    }
+fn argus_click(
+    argus: &mut CanonicalArgusDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    author_id: &str,
+) -> ArgusObservation {
+    let before = inspect_until(argus, harness, author_id, 80);
+    argus.click_from_snapshot_and_reinspect(harness, author_id, before)
 }
 
 /// An evidence-grade Stage artifact whose `sha256` is the digest of `routed_bytes` (so OP-01 can
@@ -1252,49 +1175,6 @@ fn doc_with_locus_ref(locus_uri: &str, label: &str, resolved: bool) -> BlockNode
     para.children.push(Child::HsLink(link));
     para.children.push(Child::Text(TextLeaf::new("")));
     BlockNode::doc(vec![para])
-}
-
-/// Spin up a one-shot in-process server that replies with `status_line` + `body` to the FIRST request and
-/// captures that request's line. The PROVEN MT-066/067/068 TcpListener pattern — no new dependency. (Used
-/// only to exercise the typed-blocker / 200-projection code paths of the real interop clients, NOT a
-/// persistence substitute.)
-fn spawn_oneshot_server(
-    status_line: &'static str,
-    body: serde_json::Value,
-) -> (String, std::thread::JoinHandle<String>) {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("bind in-process server");
-    let addr = listener.local_addr().unwrap();
-    let base_url = format!("http://{addr}");
-    let handle = std::thread::spawn(move || {
-        let (mut stream, _) = listener.accept().expect("accept");
-        let request_line = read_request_line(&mut stream);
-        let body_str = body.to_string();
-        let response = format!(
-            "{status_line}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body_str}",
-            body_str.len()
-        );
-        let _ = stream.write_all(response.as_bytes());
-        let _ = stream.flush();
-        request_line
-    });
-    (base_url, handle)
-}
-
-fn read_request_line(stream: &mut std::net::TcpStream) -> String {
-    let mut buf = Vec::new();
-    let mut tmp = [0u8; 4096];
-    loop {
-        let n = stream.read(&mut tmp).unwrap_or(0);
-        if n == 0 {
-            break;
-        }
-        buf.extend_from_slice(&tmp[..n]);
-        if String::from_utf8_lossy(&buf).contains("\r\n\r\n") {
-            break;
-        }
-    }
-    let text = String::from_utf8_lossy(&buf).to_string();
-    text.lines().next().unwrap_or("").to_string()
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1405,165 +1285,6 @@ fn unit_op01_stage_payload_and_embed_projection() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-// SCENARIO OP-02 — Calendar interop (Pillar 2): daily-note<->CalendarEvent binding + ActivitySpan.
-// Provable NOW: the idempotent daily-note binding DELEGATES to the MT-019 service (single doc/date) and
-// the ActivitySpan correlation returns the edited documents. The live PG bind + correlation is the gated
-// `*_live` proof below.
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-
-#[test]
-fn unit_op02_calendar_binding_and_span_projection() {
-    // (1) The daily-note<->CalendarEvent binding: open-or-create is idempotent and DELEGATES to the MT-019
-    // daily-note service (single doc/date, no second creation path) — the MT-067 counted backend proves
-    // the delegation (the live PG bind is the gated half).
-    let backend = Arc::new(CountingJournalBackend::new(Some("DOC-2026-06-21")));
-    let svc = CalendarInteropService::with_base_url("http://unused", "WS-MT074", backend.clone());
-    let date = d(2026, 6, 21);
-    let (a, b) = rt().block_on(async {
-        let a = svc
-            .open_or_create_daily_note(date)
-            .await
-            .expect("OP-02: first open");
-        let b = svc
-            .open_or_create_daily_note(date)
-            .await
-            .expect("OP-02: second open");
-        (a, b)
-    });
-    assert_eq!(
-        a.doc_id, b.doc_id,
-        "OP-02: same date -> same DocId (bidirectional binding persists)"
-    );
-    assert_eq!(a.doc_id, DocId("DOC-2026-06-21".to_owned()));
-    assert_eq!(
-        backend.opens.load(Ordering::SeqCst),
-        2,
-        "OP-02: open-or-create delegated to the MT-019 daily-note service both times (single doc/date)"
-    );
-
-    // (2) The ActivitySpan correlation returns the set of edited documents for the bound day. Seed the
-    // panel state with a resolved event + a span whose edited_doc_ids are the documents edited that day;
-    // assert the correlation surfaces exactly those documents (the read-only correlation result).
-    let mut state = DailyJournalState::new(DateNav::new(date, date));
-    state.set_event_with_spans(
-        calendar_event("E-1", "Sprint planning"),
-        vec![activity_span("S-1", &["DOC-A", "DOC-B"])],
-    );
-    let edited: Vec<String> = match &state.activity {
-        handshake_native::graph::daily_journal_panel::ActivityCorrelation::Spans(spans) => spans
-            .iter()
-            .flat_map(|s| s.edited_doc_ids.iter().map(|d| d.0.clone()))
-            .collect(),
-        other => panic!("OP-02: expected a resolved ActivityCorrelation::Spans, got {other:?}"),
-    };
-    assert_eq!(
-        edited,
-        vec!["DOC-A".to_owned(), "DOC-B".to_owned()],
-        "OP-02: the ActivitySpan correlation returns the set of edited documents for the bound day"
-    );
-
-    // The contract proof_target greps for `activity_span.*edited_documents` on this scenario's stdout.
-    println!(
-        "OP-02 OK (Calendar daily-note<->CalendarEvent + ActivitySpan): binding idempotent (single \
-         DocId {} across two opens, delegated to MT-019); the activity_span correlation returns \
-         edited_documents [{}]. The LIVE PG bind + the CALENDAR_EVENT_BOUND/ACTIVITY_SPAN_CORRELATED FR \
-         events are the GATED live half.",
-        a.doc_id,
-        edited.join(", ")
-    );
-}
-
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// SCENARIO OP-03 — Locus interop (Pillar 6): locus:// resolve + reverse lookup.
-// Provable NOW: a locus:// ref parses + resolves (a 200-status projection via an in-process one-shot
-// server) and the reverse lookup lists the referencing document(s) keyed on the single normalized key,
-// driven through the REAL MT-034 `find_notes_with` pipeline. The live PG resolve + reverse against the
-// real `/locus/` routes is the gated `*_live` proof below.
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-
-#[test]
-fn unit_op03_locus_projection_and_reverse_keying() {
-    // (1) The resolve leg: a locus:// reference parses to its WP/MT target, and a 200-status record body
-    // projects to a LocusRecord with a non-empty title (the resolved-record content). The kind + id come
-    // from the LocusRef (request authority).
-    let body = serde_json::json!({
-        "title": "Native Editors: Obsidian + VS Code parity",
-        "summary": "Rebuild the editors as native Rust tools",
-        "status": "Ready for Dev"
-    });
-    let (base_url, server) = spawn_oneshot_server("HTTP/1.1 200 OK", body);
-    let svc = LocusInteropService::with_base_url(
-        base_url,
-        "WS-MT074",
-        Arc::new(CountingReverseLookup::new(vec![])),
-    );
-    let wp = parse_locus_ref("locus://wp/WP-KERNEL-012").expect("OP-03: a valid wp ref parses");
-    let record = rt()
-        .block_on(async { svc.resolve_locus_ref(&wp).await })
-        .expect("OP-03: a 200 body resolves to a record");
-    let _ = server.join();
-    assert_eq!(record.kind, LocusRefKind::WorkPacket);
-    assert_eq!(
-        record.id, "WP-KERNEL-012",
-        "OP-03: resolve returns the target's stable id"
-    );
-    assert!(
-        !record.title.is_empty(),
-        "OP-03: a resolved record has a resolvable (non-empty) title"
-    );
-
-    // (2) The reverse-lookup leg: seed a doc whose content carries `locus://mt/MT-066`; the reverse lookup
-    // lists it, keyed on the NORMALIZED single key, driven through the REAL MT-034 find_notes_with pipeline
-    // (the persisted reverse index in the live build — here the counted search stand-in proves the keying
-    // + listing; the live PG-backed index is the gated half).
-    let referencing_doc = "DOC-OP03-NOTE";
-    let hits = vec![
-        loom_hit(
-            referencing_doc,
-            Some("Design notes"),
-            "note",
-            "tracks locus://mt/MT-066 here",
-        ),
-        loom_hit(
-            referencing_doc,
-            Some("Design notes"),
-            "journal",
-            "again locus://mt/MT-066",
-        ),
-    ];
-    let lookup = Arc::new(
-        CountingReverseLookup::new(hits).with_locus_content(referencing_doc, "locus://mt/MT-066"),
-    );
-    let lookup_dyn: Arc<dyn FindNotesSearch> = lookup.clone();
-    let svc2 = LocusInteropService::with_base_url("http://unused", "WS-MT074", lookup_dyn);
-    let mt = parse_locus_ref("locus://mt/MT-066").unwrap();
-    let docs = rt()
-        .block_on(async { svc2.find_documents_referencing(&mt).await })
-        .expect("OP-03: reverse lookup returns the referencing docs");
-    let ids: Vec<&str> = docs.iter().map(|d| d.document_id.as_str()).collect();
-    assert_eq!(
-        ids,
-        vec![referencing_doc],
-        "OP-03: the reverse lookup lists the referencing note (de-duplicated on (doc, block))"
-    );
-    // Keyed on the single normalized key (RISK — resolution + reverse must share one key).
-    assert_eq!(
-        lookup.last_query.lock().unwrap().clone().as_deref(),
-        Some("locus://mt/mt-066"),
-        "OP-03: the reverse lookup is keyed on the normalized locus:// ref (the single shared key)"
-    );
-
-    // The contract proof_target greps for `reverse_lookup.*referencing` on this scenario's stdout.
-    println!(
-        "OP-03 OK (Locus resolve + reverse_lookup): resolve(locus://wp/WP-KERNEL-012) -> id={} title \
-         non-empty; reverse_lookup(MT-066) lists referencing document [{}] keyed on locus://mt/mt-066. \
-         The LIVE PG resolve + reverse against the real /locus/ routes + the LOCUS_REF_RESOLVED/\
-         LOCUS_REVERSE_LOOKUP FR events are the GATED live half.",
-        record.id, referencing_doc
-    );
-}
-
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 // SCENARIO OP-04 — Swarm path: out-of-process agent reaches + activates each interop edge PURELY via
 // AccessKit author_ids (no coordinates, no label-scraping). This is the swarm-parity guarantee
 // (HBR-SWARM) and is PROVABLE NOW: build each interop pane's widget tree with egui_kittest, look up the
@@ -1573,15 +1294,6 @@ fn unit_op03_locus_projection_and_reverse_keying() {
 // `Harness::run()` advances the mounted product frame and re-collects the resulting AccessKit tree after
 // each dispatch; assertions are made only against that post-action tree and the persisted product state.
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-
-/// One interop edge a swarm agent reaches purely by author_id, with the pane that renders it.
-struct SwarmEdge {
-    edge: &'static str,
-    /// The stable AccessKit author_id the out-of-process agent targets to DRIVE the edge.
-    trigger_author_id: String,
-    /// The expected AccessKit role at the trigger (the agent confirms the surface before activating it).
-    expect_role: &'static str,
-}
 
 #[test]
 fn other_pillar_op04_swarm_accesskit() {
@@ -1593,6 +1305,9 @@ fn other_pillar_op04_swarm_accesskit() {
     let mut fixtures = Mt074FixtureCleanup::new(&be);
     let ws = be.workspace_id.clone();
     let suffix = uuid::Uuid::new_v4().simple().to_string();
+    let artifact_dir = scenario_artifact_dir("op04-aggregate");
+    let mut observations: Vec<(String, ArgusObservation)> = Vec::new();
+    let mut screenshots = Vec::new();
 
     // Stage: mounted route -> privileged runtime capture -> exact-byte retrieval -> mounted mutation.
     let stage_routed_text = "OP-04 routed bytes";
@@ -1608,9 +1323,17 @@ fn other_pillar_op04_swarm_accesskit() {
     );
     let stage_doc_id = created_doc_id(&stage_doc);
     fixtures.document(stage_doc_id.clone());
-    let (_stage_runtime, mut stage_app, _stage_pane_id) =
-        mount_managed_app(&be, PaneType::LoomWikiPage, Some(stage_doc_id.clone()));
-    stage_binding.publish(stage_app.state().mcp_token().as_hex());
+    let (_stage_runtime, stage_app_state, _stage_pane_id) =
+        build_managed_app_state(&be, PaneType::LoomWikiPage, Some(stage_doc_id.clone()));
+    stage_binding.release_for_real_server();
+    let mut stage_argus = CanonicalArgusDriver::bind_in_current_app_data(
+        &stage_app_state,
+        "mt074-op04-stage",
+        stage_app_state.mcp_token(),
+    );
+    let mut stage_app = Harness::builder()
+        .with_size(egui::vec2(1100.0, 760.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), stage_app_state);
     let stage_state = stage_app.state().mounted_stage();
     let rich_state = stage_app.state().mounted_rich_state();
     let stage_ready = std::time::Instant::now() + std::time::Duration::from_secs(10);
@@ -1621,7 +1344,19 @@ fn other_pillar_op04_swarm_accesskit() {
         }
         assert!(std::time::Instant::now() < stage_ready);
     }
-    drive_stage_accesskit_route(&mut stage_app, stage_routed_text);
+    select_mounted_rich_text(&mut stage_app, stage_routed_text);
+    observations.push((
+        "stage-open-editors-menu".to_owned(),
+        argus_click(&mut stage_argus, &mut stage_app, "menu-editors"),
+    ));
+    observations.push((
+        "stage-route-selection".to_owned(),
+        argus_click(
+            &mut stage_argus,
+            &mut stage_app,
+            "menu.editors.route-to-stage",
+        ),
+    ));
     let stage_surface_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         stage_app.run_steps(1);
@@ -1640,10 +1375,14 @@ fn other_pillar_op04_swarm_accesskit() {
             "OP-04 Stage capture action did not become enabled after the mounted rich route was drained"
         );
     }
-    let stage_trigger = find_node(&stage_app.root(), STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID).unwrap();
-    assert_eq!(stage_trigger.role, "Button");
-    assert!(!stage_trigger.disabled);
-    stage_app.event(click_event(stage_trigger.node_id));
+    observations.push((
+        "stage-embed-back".to_owned(),
+        argus_click(
+            &mut stage_argus,
+            &mut stage_app,
+            STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
+        ),
+    ));
     let stage_effect_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         stage_app.run_steps(2);
@@ -1680,6 +1419,18 @@ fn other_pillar_op04_swarm_accesskit() {
             .is_some_and(|value| value.contains(&artifact_id)),
         "OP-04 Stage result node exposes the exact embedded artifact"
     );
+    let stage_final_inspect = stage_argus.inspect(&mut stage_app);
+    assert!(
+        json_author_value(&stage_final_inspect, STAGE_EMBED_BACK_STATUS_AUTHOR_ID)
+            .is_some_and(|value| value.contains(&artifact_id)),
+        "OP-04 fresh canonical Stage inspect exposes the exact embedded artifact"
+    );
+    screenshots.push(save_surface_screenshot(
+        &mut stage_app,
+        &artifact_dir,
+        "op04-stage",
+    ));
+    stage_argus.finish();
 
     // Calendar: today's canonical rows -> mounted journal loader -> stable AccessKit event activation.
     let today = chrono::Local::now().date_naive();
@@ -1694,9 +1445,11 @@ fn other_pillar_op04_swarm_accesskit() {
            (id, workspace_id, display_name, provider_type, write_policy, default_tzid, config_json) \
          VALUES ({source}, {workspace}, 'MT-074 OP-04', 'local', 'read_only_import', 'UTC', '{{}}'); \
          INSERT INTO calendar_events \
-           (id, workspace_id, source_id, title, start_ts_utc, end_ts_utc, tzid, status, visibility, export_mode) \
+           (id, workspace_id, source_id, title, start_ts_utc, end_ts_utc, start_local, end_local, \
+            tzid, status, visibility, export_mode) \
          VALUES ({event}, {workspace}, {source}, 'MT-074 OP-04 event', TIMESTAMP {start}, \
-                 TIMESTAMP {end}, 'UTC', 'confirmed', 'private', 'full_export'); COMMIT;",
+                 TIMESTAMP {end}, TIMESTAMP {start}, TIMESTAMP {end}, 'UTC', 'confirmed', 'private', \
+                 'full_export'); COMMIT;",
         source = sql_literal(&source_id),
         workspace = sql_literal(&ws),
         event = sql_literal(&event_id),
@@ -1725,12 +1478,23 @@ fn other_pillar_op04_swarm_accesskit() {
         }),
     );
     fixtures.calendar_span(span_id.clone());
-    let (_calendar_runtime, mut calendar_app, _) = mount_managed_app(
+    let (_calendar_runtime, calendar_app_state, _) = build_managed_app_state(
         &be,
         PaneType::LoomDailyJournal,
         Some(binding.doc_id.as_str().to_owned()),
     );
-    let calendar_state = calendar_app.state().mounted_daily_journal();
+    let calendar_state = calendar_app_state.mounted_daily_journal();
+    let mut calendar_argus = CanonicalArgusDriver::bind_in_current_app_data(
+        &calendar_app_state,
+        "mt074-op04-calendar",
+        calendar_app_state.mcp_token(),
+    );
+    let mut calendar_app = Harness::builder()
+        .with_size(egui::vec2(1100.0, 760.0))
+        .build_state(
+            |ctx, app: &mut HandshakeApp| app.ui(ctx),
+            calendar_app_state,
+        );
     let calendar_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         calendar_app.run_steps(1);
@@ -1750,12 +1514,6 @@ fn other_pillar_op04_swarm_accesskit() {
         assert!(std::time::Instant::now() < calendar_deadline);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let calendar_trigger = find_node(
-        &calendar_app.root(),
-        DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
-    )
-    .expect("OP-04 Calendar AccessKit trigger");
-    assert_eq!(calendar_trigger.role, "Button");
     assert!(
         find_node(
             &calendar_app.root(),
@@ -1764,7 +1522,14 @@ fn other_pillar_op04_swarm_accesskit() {
         .is_none(),
         "OP-04 Calendar destination must not be mounted before the event activation"
     );
-    calendar_app.event(click_event(calendar_trigger.node_id));
+    observations.push((
+        "calendar-open-event".to_owned(),
+        argus_click(
+            &mut calendar_argus,
+            &mut calendar_app,
+            DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+        ),
+    ));
     let destination_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
         calendar_app.run_steps(1);
@@ -1807,13 +1572,14 @@ fn other_pillar_op04_swarm_accesskit() {
         "OP-04 Calendar Details must expose the exact activated event id"
     );
 
-    let activity_tab = find_node(
-        &calendar_app.root(),
-        handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
-    )
-    .expect("OP-04 Calendar Activity tab");
-    calendar_app.event(click_event(activity_tab.node_id));
-    calendar_app.run_steps(2);
+    observations.push((
+        "calendar-open-activity".to_owned(),
+        argus_click(
+            &mut calendar_argus,
+            &mut calendar_app,
+            handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+        ),
+    ));
     assert!(
         find_node(
             &calendar_app.root(),
@@ -1829,9 +1595,23 @@ fn other_pillar_op04_swarm_accesskit() {
         find_node(&calendar_app.root(), &calendar_result_id).is_some(),
         "OP-04 Calendar destination exposes the exact correlated document chip"
     );
+    let calendar_span_id =
+        handshake_native::graph::daily_journal_panel::calendar_event_span_author_id(&span_id);
+    let calendar_final_inspect = calendar_argus.inspect(&mut calendar_app);
+    assert!(
+        json_has_author_id(&calendar_final_inspect, &calendar_span_id)
+            && json_has_author_id(&calendar_final_inspect, &calendar_result_id),
+        "OP-04 fresh canonical Calendar inspect exposes the exact span and document result"
+    );
+    screenshots.push(save_surface_screenshot(
+        &mut calendar_app,
+        &artifact_dir,
+        "op04-calendar",
+    ));
+    calendar_argus.finish();
 
     // Locus: persisted reference -> mounted rich chip -> resolve and reverse lookup product effects.
-    let wp_id = format!("WP-OP04-{suffix}");
+    let wp_id = format!("WP4-{}", &suffix[..8]);
     run_pg_sql(&format!(
         "INSERT INTO work_packets \
            (wp_id, version, title, description, status, priority, phase, routing, task_packet_path, \
@@ -1861,20 +1641,29 @@ fn other_pillar_op04_swarm_accesskit() {
             "content_json": to_content_json_value(&locus_doc),
         }),
     );
-    let (_locus_runtime, mut locus_app, _) =
-        mount_managed_app(&be, PaneType::LoomWikiPage, Some(locus_doc_id.clone()));
+    let (_locus_runtime, locus_app_state, _) =
+        build_managed_app_state(&be, PaneType::LoomWikiPage, Some(locus_doc_id.clone()));
+    let mut locus_argus = CanonicalArgusDriver::bind_in_current_app_data(
+        &locus_app_state,
+        "mt074-op04-locus",
+        locus_app_state.mcp_token(),
+    );
+    let mut locus_app = Harness::builder()
+        .with_size(egui::vec2(1440.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), locus_app_state);
     let locus_chip_id = locus_ref_chip_author_id(&locus_uri);
     let locus_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-    let locus_trigger = loop {
+    loop {
         locus_app.run_steps(1);
-        if let Some(trigger) = find_node(&locus_app.root(), &locus_chip_id) {
-            break trigger;
+        if find_node(&locus_app.root(), &locus_chip_id).is_some() {
+            break;
         }
         assert!(std::time::Instant::now() < locus_deadline);
-    };
-    assert_eq!(locus_trigger.role, "Link");
-    locus_app.event(click_event(locus_trigger.node_id));
-    locus_app.run_steps(2);
+    }
+    observations.push((
+        "locus-open-work-packet".to_owned(),
+        argus_click(&mut locus_argus, &mut locus_app, &locus_chip_id),
+    ));
     let active_pane = locus_app
         .state()
         .active_pane()
@@ -1892,6 +1681,11 @@ fn other_pillar_op04_swarm_accesskit() {
         Some(expected_locus_content_id.as_str()),
         "OP-04 Locus AccessKit click routes to the exact WP target"
     );
+    screenshots.push(save_surface_screenshot(
+        &mut locus_app,
+        &artifact_dir,
+        "op04-locus",
+    ));
 
     let route_row = wait_for_native_fr(&be, "route_to_stage", |row| {
         row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
@@ -1899,9 +1693,16 @@ fn other_pillar_op04_swarm_accesskit() {
     let embed_row = wait_for_native_fr(&be, "stage_embed_back", |row| {
         row["payload"]["native_payload"]["artifact_id"].as_str() == Some(artifact_id.as_str())
     });
+    let route_causal = route_row["payload"]["native_payload"]["causal_action_id"]
+        .as_str()
+        .filter(|value| !value.is_empty())
+        .expect("OP-04 Stage route event carries a non-empty causal action id");
+    let embed_causal = embed_row["payload"]["native_payload"]["causal_action_id"]
+        .as_str()
+        .filter(|value| !value.is_empty())
+        .expect("OP-04 Stage embed event carries a non-empty causal action id");
     assert_eq!(
-        embed_row["payload"]["native_payload"]["causal_action_id"].as_str(),
-        route_row["payload"]["native_payload"]["causal_action_id"].as_str(),
+        embed_causal, route_causal,
         "OP-04 Stage embed-back inherits the exact route correlation"
     );
     let bound_row = wait_for_native_fr(&be, "calendar_event_bound", |row| {
@@ -1954,21 +1755,116 @@ fn other_pillar_op04_swarm_accesskit() {
 
     let mut event_ids = HashSet::new();
     for row in [
-        route_row,
-        embed_row,
-        bound_row,
-        span_row,
-        resolved_row,
-        reverse_row,
+        &route_row,
+        &embed_row,
+        &bound_row,
+        &span_row,
+        &resolved_row,
+        &reverse_row,
     ] {
         assert!(event_ids.insert(row["event_id"].as_str().unwrap().to_owned()));
     }
     assert_eq!(event_ids.len(), 6);
 
+    let locus_final_inspect = locus_argus.inspect(&mut locus_app);
+    assert!(
+        locus_final_inspect["action_receipts"]
+            .as_array()
+            .is_some_and(|receipts| !receipts.is_empty()),
+        "OP-04 fresh canonical Locus inspect carries the attributed action receipt"
+    );
+    assert!(
+        json_contains_exact_string(&locus_final_inspect, &expected_locus_content_id),
+        "OP-04 fresh canonical Locus inspect carries the exact persisted WP target"
+    );
+    locus_argus.finish();
+    drop(stage_binding);
     assert_no_local_artifact_dir();
     fixtures.assert_cleanup();
     drop(fixtures);
     be.assert_cleanup();
+    let observation_refs = observations
+        .iter()
+        .map(|(label, observation)| (label.as_str(), observation))
+        .collect::<Vec<_>>();
+    let evidence = write_scenario_evidence(
+        "op04-aggregate",
+        &artifact_dir,
+        &screenshots,
+        &observation_refs,
+        serde_json::json!({
+            "workspace_id": ws,
+            "stage": {
+                "document_id": stage_doc_id,
+                "artifact_id": artifact_id,
+                "route_event": route_row,
+                "embed_event": embed_row,
+                "final_inspect": stage_final_inspect,
+            },
+            "calendar": {
+                "daily_note_document_id": binding.doc_id.as_str(),
+                "calendar_event_id": event_id,
+                "activity_span_id": span_id,
+                "bound_event": bound_row,
+                "correlated_span": span_row,
+                "final_inspect": calendar_final_inspect,
+            },
+            "locus": {
+                "document_id": locus_doc_id,
+                "locus_uri": locus_uri,
+                "navigation_target": expected_locus_content_id,
+                "resolved_event": resolved_row,
+                "reverse_event": reverse_row,
+                "final_inspect": locus_final_inspect,
+            },
+            "receipt_effect_links": [
+                {
+                    "receipt_id": observations[0].1.receipt_id,
+                    "target": "menu-editors",
+                    "predicate": "the stable route-to-stage menu item becomes canonically inspectable",
+                    "observed_outcome": "menu.editors.route-to-stage appeared and was activated"
+                },
+                {
+                    "receipt_id": observations[1].1.receipt_id,
+                    "target": "menu.editors.route-to-stage",
+                    "predicate": "the mounted Stage pane receives the exact selected bytes",
+                    "observed_outcome": stage_routed_text
+                },
+                {
+                    "receipt_id": observations[2].1.receipt_id,
+                    "target": STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
+                    "predicate": "fresh canonical Stage inspect contains the exact artifact id",
+                    "observed_outcome": artifact_id
+                },
+                {
+                    "receipt_id": observations[3].1.receipt_id,
+                    "target": DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+                    "predicate": "the exact CalendarEvent tab becomes active",
+                    "observed_outcome": event_id
+                },
+                {
+                    "receipt_id": observations[4].1.receipt_id,
+                    "target": handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+                    "predicate": "fresh canonical Calendar inspect contains the exact span and edited-document result",
+                    "observed_outcome": {
+                        "span_author_id": calendar_span_id,
+                        "document_author_id": calendar_result_id
+                    }
+                },
+                {
+                    "receipt_id": observations[5].1.receipt_id,
+                    "target": locus_chip_id,
+                    "predicate": "the active tab navigates to the exact persisted Locus target",
+                    "observed_outcome": expected_locus_content_id
+                }
+            ],
+            "event_id_cardinality": event_ids.len(),
+        }),
+    );
+    println!(
+        "OP-04 CANONICAL ARGUS PROVEN: Stage, Calendar, and Locus inspect/action/receipt/fresh-reinspect matrix; screenshots={screenshots:?}; evidence={}",
+        evidence.display()
+    );
 }
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Manifest consistency proof for the four remediated scenarios.
@@ -2002,6 +1898,36 @@ fn other_pillar_runtime_readiness_manifest() {
     ];
     let mut seen_ids: HashSet<String> = HashSet::new();
     let mut fail_count = 0usize;
+    let expected_action_targets: HashMap<&str, &[&str]> = HashMap::from([
+        (
+            "OP-01",
+            &[
+                "menu-editors",
+                "menu.editors.route-to-stage",
+                "stage-capture-embed-back",
+                "editor.rich.save",
+            ][..],
+        ),
+        (
+            "OP-02",
+            &[
+                "daily-journal-calendar-event-chip",
+                "calendar-event-tab-activity",
+            ][..],
+        ),
+        ("OP-03", &["locus-ref-chip-wp-{id}"][..]),
+        (
+            "OP-04",
+            &[
+                "menu-editors",
+                "menu.editors.route-to-stage",
+                "stage-capture-embed-back",
+                "daily-journal-calendar-event-chip",
+                "calendar-event-tab-activity",
+                "locus-ref-chip-wp-{id}",
+            ][..],
+        ),
+    ]);
     for entry in entries {
         for field in &required_fields {
             assert!(
@@ -2027,6 +1953,18 @@ fn other_pillar_runtime_readiness_manifest() {
             proof_fn.starts_with("other_pillar_op"),
             "the proof_fn '{proof_fn}' must name the scenario's proof function"
         );
+        let accesskit_ids = entry["accesskit_ids"]
+            .as_array()
+            .expect("accesskit_ids is an array")
+            .iter()
+            .map(|value| value.as_str().expect("accesskit id is a string"))
+            .collect::<HashSet<_>>();
+        for expected_target in expected_action_targets[id.as_str()] {
+            assert!(
+                accesskit_ids.contains(expected_target),
+                "{id} manifest must name canonical Argus action target {expected_target}"
+            );
+        }
     }
     assert_eq!(
         fail_count, 0,
@@ -2485,35 +2423,33 @@ fn other_pillar_reuses_interop_modules_no_glue() {
         src.contains("LocusInteropService") && src.contains("locus_ref_chip_author_id"),
         "the suite must REUSE the MT-066/068 Locus service + chip helper"
     );
-    // Reuses the MT-041 harness AccessKit-dispatch pattern (the AccessKitActionRequest / Click path).
+    // Reuses the production canonical Argus boundary: localhost JSON-RPC, stable author_id lookup,
+    // ActionChannel drain, attributed receipt, fresh inspection, and lease/action-log teardown.
     assert!(
-        src.contains("egui::Event::AccessKitActionRequest")
-            && src.contains("egui::accesskit::Action::Click"),
-        "the swarm dispatch must reuse the MT-041 AccessKit action-request pattern"
+        src.contains("CanonicalArgusDriver")
+            && src.contains("click_from_snapshot_and_reinspect")
+            && src.contains("action_receipts"),
+        "the swarm proof must use the canonical Argus server/action/receipt boundary"
     );
-    let stage_accesskit_route = src
-        .split_once("fn drive_stage_accesskit_route")
-        .expect("Stage AccessKit route helper exists")
-        .1
-        .split_once("\nfn d(")
-        .expect("Stage AccessKit route helper has a bounded source region")
-        .0;
+    let raw_click_helper = ["fn click_", "event("].concat();
+    let raw_harness_dispatch = ["harness.event(click_", "event("].concat();
+    let raw_accesskit_request = ["egui::Event::", "AccessKitActionRequest"].concat();
     assert!(
-        stage_accesskit_route.contains("menu-editors")
-            && stage_accesskit_route.contains("menu.editors.route-to-stage")
-            && stage_accesskit_route.contains("harness.event(click_event("),
-        "OP-04 Stage route must resolve stable menu author_ids and inject raw AccessKit action requests"
+        !src.contains(&raw_click_helper)
+            && !src.contains(&raw_harness_dispatch)
+            && !src.contains(&raw_accesskit_request),
+        "MT-074 must not bypass canonical Argus with raw local AccessKit event injection"
     );
-    for forbidden_pointer_route in [
-        "click_secondary(",
-        ".click(",
-        "PointerButton",
-        "PointerMoved",
-        "get_by_label(",
-    ] {
+    let forbidden_pointer_routes = [
+        ["click_", "secondary("].concat(),
+        ["Pointer", "Button"].concat(),
+        ["Pointer", "Moved"].concat(),
+        ["get_by_", "label("].concat(),
+    ];
+    for forbidden_pointer_route in &forbidden_pointer_routes {
         assert!(
-            !stage_accesskit_route.contains(forbidden_pointer_route),
-            "OP-04 Stage route must not inject pointer coordinates or scrape labels (found {forbidden_pointer_route})"
+            !src.contains(forbidden_pointer_route),
+            "MT-074 must not inject pointer coordinates or scrape labels (found {forbidden_pointer_route})"
         );
     }
     // It does NOT re-create the interop widgets or the AccessKit id registry: no local DEFINITION of the
@@ -2532,6 +2468,18 @@ fn other_pillar_reuses_interop_modules_no_glue() {
         assert!(
             !src.contains(forbidden.as_str()),
             "CTRL-8: the suite must NOT re-create interop/shell/AccessKit glue (found a local '{forbidden}' definition)"
+        );
+    }
+    let forbidden_substitutes = [
+        ["Counting", "JournalBackend"].concat(),
+        ["Counting", "ReverseLookup"].concat(),
+        ["spawn_", "oneshot_server"].concat(),
+        ["Tcp", "Listener::bind"].concat(),
+    ];
+    for forbidden in &forbidden_substitutes {
+        assert!(
+            !src.contains(forbidden),
+            "MT-074 contract forbids repository doubles and stub servers (found {forbidden})"
         );
     }
     println!(
@@ -2577,7 +2525,6 @@ fn other_pillar_op01_stage_route_embed_back() {
         db_status: "ok".to_owned(),
         migration_version: Some(1),
     }));
-    stage_binding.publish(app.mcp_token().as_hex());
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.set_stage_embed_back_base_url_for_test(&be.base);
     app.bind_active_project_for_integration_test(ws.clone());
@@ -2599,9 +2546,14 @@ fn other_pillar_op01_stage_route_embed_back() {
     app.set_active_pane_for_test(Some(pane_id.clone()));
     let rich_state = app.mounted_rich_state();
     let stage = app.mounted_stage();
+    stage_binding.release_for_real_server();
+    let mut argus =
+        CanonicalArgusDriver::bind_in_current_app_data(&app, "mt074-op01-stage", app.mcp_token());
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1100.0, 760.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let artifact_dir = scenario_artifact_dir("op01-stage");
+    let mut observations = Vec::new();
     let mount_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         harness.run_steps(1);
@@ -2611,7 +2563,15 @@ fn other_pillar_op01_stage_route_embed_back() {
         assert!(std::time::Instant::now() < mount_deadline);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    drive_stage_palette_route(&mut harness, routed_text);
+    select_mounted_rich_text(&mut harness, routed_text);
+    observations.push((
+        "open-editors-menu",
+        argus_click(&mut argus, &mut harness, "menu-editors"),
+    ));
+    observations.push((
+        "route-selection-to-stage",
+        argus_click(&mut argus, &mut harness, "menu.editors.route-to-stage"),
+    ));
     let route_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         harness.run_steps(1);
@@ -2621,9 +2581,10 @@ fn other_pillar_op01_stage_route_embed_back() {
         }
         assert!(std::time::Instant::now() < route_deadline);
     }
-    let stage_button = find_node(&harness.root(), STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID)
-        .expect("OP-01 mounted Stage embed-back AccessKit trigger");
-    harness.event(click_event(stage_button.node_id));
+    observations.push((
+        "stage-embed-back",
+        argus_click(&mut argus, &mut harness, STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID),
+    ));
     let embed_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         harness.run_steps(2);
@@ -2644,6 +2605,14 @@ fn other_pillar_op01_stage_route_embed_back() {
         }) => (artifact_id, sha256),
         other => panic!("OP-01 expected Stage embed, got {other:?}"),
     };
+    let final_stage_inspect = argus.inspect(&mut harness);
+    assert!(
+        json_author_value(&final_stage_inspect, STAGE_EMBED_BACK_STATUS_AUTHOR_ID)
+            .is_some_and(|value| value.contains(&artifact_id)),
+        "OP-01 fresh canonical inspect exposes the exact terminal Stage artifact"
+    );
+    let stage_screenshot =
+        save_surface_screenshot(&mut harness, &artifact_dir, "op01-stage-terminal");
     fixtures.stage_artifact(artifact_id.clone());
     let stage_token = harness.state().mcp_token();
     let stage_client =
@@ -2671,9 +2640,10 @@ fn other_pillar_op01_stage_route_embed_back() {
             .expect("rich target tab remains mounted");
     }
     harness.run_steps(2);
-    let save = find_node(&harness.root(), "editor.rich.save")
-        .expect("OP-01 mounted rich-save AccessKit trigger");
-    harness.event(click_event(save.node_id));
+    observations.push((
+        "save-rich-document",
+        argus_click(&mut argus, &mut harness, "editor.rich.save"),
+    ));
     let save_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         harness.run_steps(1);
@@ -2699,6 +2669,11 @@ fn other_pillar_op01_stage_route_embed_back() {
             && reloaded.contains(artifact.manifest.manifest_ref.as_str(),),
         "OP-01: saved/reloaded embed retains artifact id, sha256, and manifest_ref provenance"
     );
+    let final_rich_inspect = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&final_rich_inspect, "editor.rich.save"),
+        "OP-01 final canonical rich inspect retains the mounted save surface"
+    );
 
     let route_row = wait_for_native_fr(&be, "route_to_stage", |row| {
         row["payload"]["native_payload"]["content_kind"].as_str() == Some("selection")
@@ -2713,6 +2688,18 @@ fn other_pillar_op01_stage_route_embed_back() {
     assert_eq!(
         embed_row["payload"]["native_payload"]["artifact_id"].as_str(),
         Some(artifact_id.as_str())
+    );
+    let route_causal = route_row["payload"]["native_payload"]["causal_action_id"]
+        .as_str()
+        .filter(|value| !value.is_empty())
+        .expect("OP-01 Stage route event carries a non-empty causal action id");
+    let embed_causal = embed_row["payload"]["native_payload"]["causal_action_id"]
+        .as_str()
+        .filter(|value| !value.is_empty())
+        .expect("OP-01 Stage embed event carries a non-empty causal action id");
+    assert_eq!(
+        embed_causal, route_causal,
+        "OP-01 Stage embed-back must inherit the exact route causal identity"
     );
     assert_causal_order(&route_row, &embed_row, "OP-01 Stage route/embed");
     let rows = be.get_json(&format!("/api/flight_recorder?wsid={ws}"));
@@ -2729,12 +2716,66 @@ fn other_pillar_op01_stage_route_embed_back() {
         stage_route_dispatches, 1,
         "OP-01 mounted rich selection dispatches the shared Route-to-Stage command exactly once"
     );
+    let rich_screenshot = save_surface_screenshot(&mut harness, &artifact_dir, "op01-rich-saved");
+    let screenshots = vec![stage_screenshot, rich_screenshot];
     fixtures.assert_cleanup();
+    argus.finish();
+    let evidence = write_scenario_evidence(
+        "op01-stage",
+        &artifact_dir,
+        &screenshots,
+        &observations
+            .iter()
+            .map(|(label, observation)| (*label, observation))
+            .collect::<Vec<_>>(),
+        serde_json::json!({
+            "workspace_id": ws,
+            "document_id": document_id,
+            "artifact_id": artifact_id,
+            "sha256": created_sha,
+            "manifest_ref": artifact.manifest.manifest_ref,
+            "route_event": route_row,
+            "embed_event": embed_row,
+            "stage_final_inspect": final_stage_inspect,
+            "rich_final_inspect": final_rich_inspect,
+            "receipt_effect_links": [
+                {
+                    "receipt_id": observations[0].1.receipt_id,
+                    "target": "menu-editors",
+                    "predicate": "the stable route-to-stage menu item becomes canonically inspectable",
+                    "observed_outcome": "menu.editors.route-to-stage appeared and was activated"
+                },
+                {
+                    "receipt_id": observations[1].1.receipt_id,
+                    "target": "menu.editors.route-to-stage",
+                    "predicate": "the mounted Stage pane receives the exact selected bytes",
+                    "observed_outcome": routed_text
+                },
+                {
+                    "receipt_id": observations[2].1.receipt_id,
+                    "target": STAGE_CAPTURE_EMBED_BACK_AUTHOR_ID,
+                    "predicate": "fresh canonical Stage inspect contains the exact artifact id",
+                    "observed_outcome": artifact_id
+                },
+                {
+                    "receipt_id": observations[3].1.receipt_id,
+                    "target": "editor.rich.save",
+                    "predicate": "PostgreSQL reload contains artifact id, sha256, and manifest_ref",
+                    "observed_outcome": {
+                        "artifact_id": artifact_id,
+                        "sha256": created_sha,
+                        "manifest_ref": artifact.manifest.manifest_ref
+                    }
+                }
+            ],
+        }),
+    );
 
     println!(
         "OP-01 LIVE OK: stage artifact {artifact_id} round-tripped on real PG; sha256 {created_sha} \
          matches on reload; manifest_ref persisted in a real rich document; route_to_stage + \
-         stage_embed_back Flight Recorder events persisted."
+         stage_embed_back Flight Recorder events persisted; canonical Argus evidence={}.",
+        evidence.display()
     );
 }
 
@@ -2748,6 +2789,7 @@ fn other_pillar_op02_calendar_bind_activity_span() {
     let _env_guard = PROCESS_ENV_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut argus_binding = stage_binding_proof::StageBindingGuard::reserve("mt074-op02-calendar");
     let be = pg_proof_support::require_live_backend();
     let mut fixtures = Mt074FixtureCleanup::new(&be);
     let ws = be.workspace_id.clone();
@@ -2767,8 +2809,10 @@ fn other_pillar_op02_calendar_bind_activity_span() {
            (id, workspace_id, display_name, provider_type, write_policy, default_tzid, config_json) \
          VALUES ({source}, {workspace}, 'MT-074 live fixture', 'local', 'read_only_import', 'UTC', '{{}}'); \
          INSERT INTO calendar_events \
-           (id, workspace_id, source_id, title, start_ts_utc, end_ts_utc, tzid, status, visibility, export_mode) \
+           (id, workspace_id, source_id, title, start_ts_utc, end_ts_utc, start_local, end_local, \
+            tzid, status, visibility, export_mode) \
          VALUES ({event}, {workspace}, {source}, 'MT-074 live calendar event', \
+                 TIMESTAMP {event_start}, TIMESTAMP {event_end}, \
                  TIMESTAMP {event_start}, TIMESTAMP {event_end}, \
                  'UTC', 'confirmed', 'private', 'full_export'); \
          COMMIT;",
@@ -2867,9 +2911,17 @@ fn other_pillar_op02_calendar_bind_activity_span() {
     bar.active_index = 0;
     app.set_active_pane_for_test(Some(pane_id));
     let mounted = app.mounted_daily_journal();
+    argus_binding.release_for_real_server();
+    let mut argus = CanonicalArgusDriver::bind_in_current_app_data(
+        &app,
+        "mt074-op02-calendar",
+        app.mcp_token(),
+    );
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1100.0, 760.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let artifact_dir = scenario_artifact_dir("op02-calendar");
+    let mut observations = Vec::new();
     let load_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         harness.run_steps(1);
@@ -2889,10 +2941,48 @@ fn other_pillar_op02_calendar_bind_activity_span() {
         assert!(std::time::Instant::now() < load_deadline);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
-    let chip = find_node(&harness.root(), DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID)
-        .expect("OP-02 mounted CalendarEvent AccessKit trigger");
-    harness.event(click_event(chip.node_id));
-    harness.run_steps(2);
+    observations.push((
+        "open-calendar-event",
+        argus_click(
+            &mut argus,
+            &mut harness,
+            DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+        ),
+    ));
+    let destination_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        harness.run_steps(1);
+        if find_node(
+            &harness.root(),
+            handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+        )
+        .is_some()
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < destination_deadline,
+            "OP-02 canonical Calendar event action did not mount its destination"
+        );
+    }
+    observations.push((
+        "open-calendar-activity",
+        argus_click(
+            &mut argus,
+            &mut harness,
+            handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+        ),
+    ));
+    assert!(
+        inspect_until(
+            &mut argus,
+            &mut harness,
+            &handshake_native::graph::daily_journal_panel::calendar_event_span_author_id(&span_id),
+            40,
+        )
+        .is_object(),
+        "OP-02 fresh canonical inspect exposes the exact persisted ActivitySpan"
+    );
 
     let bound_row = wait_for_native_fr(&be, "calendar_event_bound", |row| {
         row["payload"]["native_payload"]["calendar_event_id"].as_str() == Some(event_id.as_str())
@@ -2915,13 +3005,61 @@ fn other_pillar_op02_calendar_bind_activity_span() {
         Some(span_id.as_str())
     );
     assert_causal_order(&bound_row, &span_row, "OP-02 Calendar bind/correlate");
+    let final_inspect = argus.inspect(&mut harness);
+    let span_author_id =
+        handshake_native::graph::daily_journal_panel::calendar_event_span_author_id(&span_id);
+    let result_id =
+        handshake_native::graph::daily_journal_panel::activity_item_author_id(&binding.doc_id);
+    assert!(
+        json_has_author_id(&final_inspect, &span_author_id)
+            && json_has_author_id(&final_inspect, &result_id),
+        "OP-02 fresh canonical inspect exposes the exact span and edited-document result"
+    );
+    let screenshot = save_surface_screenshot(&mut harness, &artifact_dir, "op02-calendar");
     fixtures.assert_cleanup();
+    argus.finish();
+    let evidence = write_scenario_evidence(
+        "op02-calendar",
+        &artifact_dir,
+        std::slice::from_ref(&screenshot),
+        &observations
+            .iter()
+            .map(|(label, observation)| (*label, observation))
+            .collect::<Vec<_>>(),
+        serde_json::json!({
+            "workspace_id": ws,
+            "daily_note_document_id": binding.doc_id.as_str(),
+            "calendar_event_id": event_id,
+            "activity_span_id": span_id,
+            "calendar_event_bound": bound_row,
+            "activity_span_correlated": span_row,
+            "final_inspect": final_inspect,
+            "receipt_effect_links": [
+                {
+                    "receipt_id": observations[0].1.receipt_id,
+                    "target": DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
+                    "predicate": "the exact CalendarEvent tab becomes active",
+                    "observed_outcome": event_id
+                },
+                {
+                    "receipt_id": observations[1].1.receipt_id,
+                    "target": handshake_native::graph::daily_journal_panel::CALENDAR_EVENT_ACTIVITY_TAB_AUTHOR_ID,
+                    "predicate": "fresh canonical Calendar inspect contains the exact span and edited-document result",
+                    "observed_outcome": {
+                        "span_author_id": span_author_id,
+                        "document_author_id": result_id
+                    }
+                }
+            ],
+        }),
+    );
+    drop(argus_binding);
 
     println!(
         "OP-02 LIVE OK: activity-span {span_id} upserted on real PG; correlation returns edited docs \
          [{}]; daily note {} persisted bidirectionally on event {}; calendar_event_bound + \
-         activity_span_correlated Flight Recorder events persisted.",
-        binding.doc_id, binding.doc_id, event.id,
+         activity_span_correlated Flight Recorder events persisted; canonical Argus evidence={}.",
+        binding.doc_id, binding.doc_id, event.id, evidence.display(),
     );
 }
 
@@ -2935,11 +3073,12 @@ fn other_pillar_op03_locus_resolve_reverse() {
     let _env_guard = PROCESS_ENV_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut argus_binding = stage_binding_proof::StageBindingGuard::reserve("mt074-op03-locus");
     let be = pg_proof_support::require_live_backend();
     let mut fixtures = Mt074FixtureCleanup::new(&be);
     let ws = be.workspace_id.clone();
     let suffix = uuid::Uuid::new_v4().simple().to_string();
-    let wp_id = format!("WP-MT074-{suffix}");
+    let wp_id = format!("WP3-{}", &suffix[..8]);
     run_pg_sql(&format!(
         "INSERT INTO work_packets \
            (wp_id, version, title, description, status, priority, phase, routing, task_packet_path, \
@@ -3023,23 +3162,37 @@ fn other_pillar_op03_locus_resolve_reverse() {
     bar.active_index = 0;
     app.set_active_pane_for_test(Some(pane_id));
     let rich_state = app.mounted_rich_state();
+    argus_binding.release_for_real_server();
+    let mut argus =
+        CanonicalArgusDriver::bind_in_current_app_data(&app, "mt074-op03-locus", app.mcp_token());
     let mut harness = Harness::builder()
-        .with_size(egui::vec2(1100.0, 760.0))
+        .with_size(egui::vec2(1440.0, 900.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let artifact_dir = scenario_artifact_dir("op03-locus");
     let chip_id = locus_ref_chip_author_id(&locus_uri);
     let load_deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-    let chip = loop {
+    loop {
         harness.run_steps(1);
         if rich_state.lock().unwrap().save.is_some() {
-            if let Some(chip) = find_node(&harness.root(), &chip_id) {
-                break chip;
+            if find_node(&harness.root(), &chip_id).is_some() {
+                break;
             }
         }
         assert!(std::time::Instant::now() < load_deadline);
         std::thread::sleep(std::time::Duration::from_millis(20));
-    };
-    harness.event(click_event(chip.node_id));
-    harness.run_steps(2);
+    }
+    let observation = argus_click(&mut argus, &mut harness, &chip_id);
+    let expected_locus_content_id = format!("WP:{wp_id}");
+    assert_eq!(
+        harness
+            .state()
+            .active_pane()
+            .and_then(|pane| harness.state().tab_bar_states().get(pane))
+            .and_then(|bar| bar.tabs.get(bar.active_index))
+            .and_then(|tab| tab.content_id.as_deref()),
+        Some(expected_locus_content_id.as_str()),
+        "OP-03 canonical Locus click navigates to the exact persisted WP target"
+    );
 
     let resolved_row = wait_for_native_fr(&be, "locus_ref_resolved", |row| {
         row["payload"]["native_payload"]["locus_uri"].as_str() == Some(locus_uri.as_str())
@@ -3067,13 +3220,51 @@ fn other_pillar_op03_locus_resolve_reverse() {
             .iter()
             .any(|id| id.as_str() == Some(document_id.as_str()))));
     assert_causal_order(&resolved_row, &reverse_row, "OP-03 Locus resolve/reverse");
+    let final_inspect = argus.inspect(&mut harness);
+    assert!(
+        final_inspect["action_receipts"]
+            .as_array()
+            .is_some_and(|receipts| receipts
+                .iter()
+                .any(|receipt| { receipt["receipt_id"].as_u64() == Some(observation.receipt_id) })),
+        "OP-03 fresh canonical inspect retains the exact Locus action receipt"
+    );
+    assert!(
+        json_contains_exact_string(&final_inspect, &expected_locus_content_id),
+        "OP-03 fresh canonical inspect carries the exact persisted WP target"
+    );
+    let screenshot = save_surface_screenshot(&mut harness, &artifact_dir, "op03-locus");
     fixtures.assert_cleanup();
+    argus.finish();
+    let evidence = write_scenario_evidence(
+        "op03-locus",
+        &artifact_dir,
+        std::slice::from_ref(&screenshot),
+        &[("resolve-locus-reference", &observation)],
+        serde_json::json!({
+            "workspace_id": ws,
+            "locus_uri": locus_uri,
+            "document_id": document_id,
+            "resolved_title": record.title,
+            "navigation_target": expected_locus_content_id,
+            "locus_ref_resolved": resolved_row,
+            "locus_reverse_lookup": reverse_row,
+            "final_inspect": final_inspect,
+            "receipt_effect_links": [{
+                "receipt_id": observation.receipt_id,
+                "target": chip_id,
+                "predicate": "the active tab navigates to the exact persisted Locus target",
+                "observed_outcome": expected_locus_content_id
+            }],
+        }),
+    );
+    drop(argus_binding);
 
     println!(
         "OP-03 LIVE OK: locus work-packet {wp_id} resolved on real PG -> title '{}'; persisted reverse \
          lookup returned document {document_id} exactly once; locus_ref_resolved + locus_reverse_lookup \
-         Flight Recorder events persisted.",
-        record.title,
+         Flight Recorder events persisted; canonical Argus evidence={}.",
+        record.title, evidence.display(),
     );
 }
 

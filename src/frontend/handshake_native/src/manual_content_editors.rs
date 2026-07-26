@@ -717,7 +717,10 @@ action receipt as terminal state.\n\
   the same immutable event id/timestamp and duplicate queued copies of that exact receipt coalesce. Each \
   successful selected-date journal binding emits at most one accepted CalendarEvent/activity receipt set; \
   a multi-day event can therefore emit one distinct set for each date because its bound daily-note document \
-  differs.\n\
+  differs. HBR-INT-009 diagnostic posture for Calendar: Flight Recorder/EventLedger = WIRED through \
+  calendar_event_bound and activity_span_correlated; internal_diagnostics = DEFERRED-with-reason because \
+  the generic backend-health surface has no Calendar-specific diagnostic row; Palmistry = \
+  DEFERRED-with-reason because the global process watcher has no Calendar-scoped tracker or recovery proof.\n\
 - Locus (Pillar 6): a locus:// WP/MT reference renders as an inline locus-ref chip in the rich editor, and \
 the outgoing-links pane (outgoing.panel) lists resolved (outgoing.section.resolved) and unresolved \
 (outgoing.section.unresolved) references. Bound WP and MT reads resolve through the shared navigation seam; \
@@ -741,7 +744,27 @@ internal_diagnostics = DEFERRED-with-reason because the current generic backend-
 Locus-specific diagnostic row. Palmistry = DEFERRED-with-reason because the global process watcher has no \
 Locus-scoped tracker or recovery proof. These diagnostic deferrals do not weaken the operator-visible typed \
 NotFound/unavailable states or the canonical Argus receipt and re-observation gate. An agent drives all of \
-these with argus.click / argus.inspect."
+these with argus.click / argus.inspect.\n\
+\n\
+MT-074 aggregate proof matrix: from src/frontend/handshake_native run \
+`$env:CARGO_TARGET_DIR='..\\..\\..\\..\\Handshake_Artifacts\\handshake-cargo-target\\mt074-v3'; cargo test \
+-p handshake-native --test test_other_pillar_interop_proofs other_pillar_op -- --nocapture --test-threads=1`. \
+Every scenario uses the canonical Argus sequence argus.inspect -> argus.click -> attributed action receipt \
+-> fresh argus.inspect. OP01 drives menu-editors, menu.editors.route-to-stage, \
+stage-capture-embed-back, and editor.rich.save, then proves route_to_stage and stage_embed_back have the \
+exact same causal_action_id. OP02 drives daily-journal-calendar-event-chip and \
+calendar-event-tab-activity and proves calendar_event_bound plus activity_span_correlated. OP03 drives \
+locus-ref-chip-wp-{id} and proves locus_ref_resolved plus locus_reverse_lookup. OP04 repeats the three \
+surfaces against real localhost Argus servers and proves zero residual Argus leases after cleanup. Durable \
+proofs are written outside the worktree under \
+../../../../Handshake_Artifacts/handshake-test/wp-kernel-012-mt-074/canonical-argus/<scenario>/run-*/ as \
+<scenario>-canonical-argus.json plus non-empty PNG screenshots and before/action/after accessibility trees. The \
+current flush mechanism is the ActionChannel raw_input_hook drain plus bounded Harness::run_steps; there is \
+no separate flush_pending_updates API. Direct PostgreSQL rows in this proof are fixture-only setup and \
+cleanup boundaries; user interactions and readback use the production Stage, Calendar, Locus, knowledge, \
+EventLedger, and Argus routes. A typed failure remains visible and must be recovered through the owning \
+edge's documented retry/reload path; never infer success from a stale tree or immediate indeterminate \
+receipt. Run serially so process-wide Argus binding and environment leases remain attributable."
         .to_owned()
 }
 
@@ -2822,52 +2845,52 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_PANEL_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: the daily-journal panel",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets surfaces the daily-journal-panel (daily-note <-> CalendarEvent binding).",
+            "argus.inspect surfaces the daily-journal-panel (daily-note <-> CalendarEvent binding).",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::daily_notes::journal_panel::JOURNAL_ROOT_ID,
         surface: ManualSurface::Knowledge,
         action_label: "Daily Journal editor root",
-        mcp_tool: "list_widgets",
-        description: "list_widgets surfaces journal-panel-root after view.journal mounts the bound journal editor.",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect surfaces journal-panel-root after view.journal mounts the bound journal editor.",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::daily_notes::journal_panel::START_WRITING_ID,
         surface: ManualSurface::Knowledge,
         action_label: "Daily Journal start writing",
-        mcp_tool: "click_widget",
-        description: "click_widget{target:'journal-start-writing'} creates the session RichDocument for a blank daily journal block.",
+        mcp_tool: "argus.click",
+        description: "argus.click{target:'journal-start-writing'} creates the session RichDocument for a blank daily journal block.",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::daily_notes::journal_panel::LINK_GAP_ID,
         surface: ManualSurface::Knowledge,
         action_label: "Daily Journal missing durable link banner",
-        mcp_tool: "list_widgets",
-        description: "list_widgets surfaces journal-document-link-gap when a created session document cannot be durably linked to the Loom block.",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect surfaces journal-document-link-gap when a created session document cannot be durably linked to the Loom block.",
     });
     rows.push(AgentToolRow {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_DATE_HEADER_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: the daily-note date header",
-        mcp_tool: "click_widget",
-        description: "click_widget{target:'daily-journal-date-header'} opens the bound date.",
+        mcp_tool: "argus.click",
+        description: "argus.click{target:'daily-journal-date-header'} opens the bound date.",
     });
     rows.push(AgentToolRow {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_CALENDAR_EVENT_CHIP_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: a bound CalendarEvent chip",
-        mcp_tool: "click_widget",
+        mcp_tool: "argus.click",
         description:
-            "click_widget{target:'daily-journal-calendar-event-chip'} opens the bound event.",
+            "argus.click{target:'daily-journal-calendar-event-chip'} opens the bound event; use a fresh argus.inspect for the attributed receipt and exact CalendarEvent destination.",
     });
     rows.push(AgentToolRow {
         author_id: crate::graph::daily_journal_panel::DAILY_JOURNAL_ACTIVITY_STRIP_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Calendar edge: read-only ActivitySpan strip",
-        mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the live daily-journal-activity-strip read-only correlation; fetch failures expose the typed unavailable state instead of an empty success.",
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect surfaces the live daily-journal-activity-strip read-only correlation; fetch failures expose the typed unavailable state instead of an empty success.",
     });
 
     // ── Code<->note interop edge (MT-034) ────────────────────────────────────────────────────────────
@@ -2901,42 +2924,42 @@ pub fn agent_tool_rows() -> Vec<AgentToolRow> {
         author_id: crate::rich_editor::wikilinks::outgoing_links_panel::PANEL_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Locus edge: the outgoing-links pane",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets surfaces the outgoing.panel listing locus:// and wikilink references.",
+            "argus.inspect surfaces the outgoing.panel listing locus:// and wikilink references.",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::wikilinks::outgoing_links_panel::RESOLVED_SECTION_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Locus edge: resolved references section",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets reveals outgoing.section.resolved rows (each navigable by click_widget).",
+            "argus.inspect reveals outgoing.section.resolved rows (each navigable by argus.click).",
     });
     rows.push(AgentToolRow {
         author_id:
             crate::rich_editor::wikilinks::outgoing_links_panel::UNRESOLVED_SECTION_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Locus edge: unresolved (dangling) references section",
-        mcp_tool: "list_widgets",
+        mcp_tool: "argus.inspect",
         description:
-            "list_widgets reveals outgoing.section.unresolved rows; record-not-found remains unresolved while route-unavailable is a distinct typed failure.",
+            "argus.inspect reveals outgoing.section.unresolved rows; record-not-found remains unresolved while route-unavailable is a distinct typed failure.",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::wikilinks::backlinks_panel::PANEL_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Backlinks edge: the backlinks panel",
-        mcp_tool: "list_widgets",
-        description: "list_widgets surfaces the Role::List backlinks-panel; rows are clickable \
+        mcp_tool: "argus.inspect",
+        description: "argus.inspect surfaces the Role::List backlinks-panel; rows are clickable \
                       Role::ListItem nodes named backlink-{source_document_id}.",
     });
     rows.push(AgentToolRow {
         author_id: crate::rich_editor::wikilinks::backlinks_panel::REFRESH_AUTHOR_ID,
         surface: ManualSurface::Interop,
         action_label: "Backlinks edge: refresh backlinks",
-        mcp_tool: "click_widget",
+        mcp_tool: "argus.click",
         description:
-            "click_widget{target:'backlinks-refresh'} refreshes the current document backlinks list.",
+            "argus.click{target:'backlinks-refresh'} refreshes the current document backlinks list.",
     });
 
     // Conditionally rendered code-editor controls are sourced from the live owning constants. The

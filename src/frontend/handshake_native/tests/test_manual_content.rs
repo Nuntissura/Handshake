@@ -397,6 +397,69 @@ fn mt068_locus_manual_covers_persisted_argus_recovery_and_three_tier_posture() {
     );
 }
 
+#[test]
+fn mt074_other_pillar_manual_documents_canonical_argus_matrix_and_calendar_diagnostics() {
+    let rows = row_by_id();
+    for (author_id, method) in [
+        ("daily-journal-panel", "argus.inspect"),
+        ("journal-panel-root", "argus.inspect"),
+        ("journal-start-writing", "argus.click"),
+        ("journal-document-link-gap", "argus.inspect"),
+        ("daily-journal-date-header", "argus.click"),
+        ("daily-journal-calendar-event-chip", "argus.click"),
+        ("daily-journal-activity-strip", "argus.inspect"),
+        ("outgoing.panel", "argus.inspect"),
+        ("outgoing.section.resolved", "argus.inspect"),
+        ("outgoing.section.unresolved", "argus.inspect"),
+        ("backlinks-panel", "argus.inspect"),
+        ("backlinks-refresh", "argus.click"),
+    ] {
+        let row = rows
+            .get(author_id)
+            .unwrap_or_else(|| panic!("MT-074 manual row missing for {author_id}"));
+        assert_eq!(
+            row.mcp_tool, method,
+            "MT-074 {author_id} must use the canonical Argus method"
+        );
+    }
+
+    let section = editors_manual_section();
+    let interop = topic_body(&section, "Interop Edges");
+    for required in [
+        "MT-074 aggregate proof matrix",
+        "test_other_pillar_interop_proofs other_pillar_op",
+        "--test-threads=1",
+        "canonical Argus sequence",
+        "argus.inspect -> argus.click -> attributed action receipt -> fresh argus.inspect",
+        "menu-editors",
+        "menu.editors.route-to-stage",
+        "editor.rich.save",
+        "daily-journal-calendar-event-chip",
+        "calendar-event-tab-activity",
+        "locus-ref-chip-wp-{id}",
+        "exact same causal_action_id",
+        "route_to_stage",
+        "stage_embed_back",
+        "calendar_event_bound",
+        "activity_span_correlated",
+        "locus_ref_resolved",
+        "locus_reverse_lookup",
+        "zero residual Argus leases",
+        "wp-kernel-012-mt-074/canonical-argus/<scenario>/run-*",
+        "<scenario>-canonical-argus.json",
+        "ActionChannel raw_input_hook drain plus bounded Harness::run_steps",
+        "fixture-only setup and cleanup boundaries",
+        "HBR-INT-009 diagnostic posture for Calendar",
+        "no Calendar-specific diagnostic row",
+        "no Calendar-scoped tracker or recovery proof",
+    ] {
+        assert!(
+            interop.contains(required),
+            "MT-074 manual must preserve proof/recovery fact '{required}'"
+        );
+    }
+}
+
 fn body_marker(heading: &str) -> &'static str {
     match heading {
         "Notes Worksurface and Chat" => "pane-a is the Code editor",
