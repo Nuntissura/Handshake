@@ -59,17 +59,17 @@ use handshake_native::event_emitter::{
     NativeEditorEventEmitter, RuntimeChatLedgerTransport, DEFAULT_ACTOR_ID,
 };
 use handshake_native::fems::memory_client::{
-    MemoryClientError, MemoryContext, MEMORY_PACK_MAX_ITEMS,
+    compute_memory_pack_hash, MemoryClientError, MemoryContext, MEMORY_PACK_MAX_ITEMS,
 };
 use handshake_native::fems::memory_proposal::{
     build_proposal, build_proposal_for_document, build_proposal_for_document_snapshot,
     canonical_memory_write_proposal_hash, commit_approved_proposal,
     compute_memory_commit_report_hash, content_hash_of_selection, fems_class_author_id,
-    submit_proposal_and_emit, HandshakeCoreClient, MemoryClass, MemoryProposalError,
-    ProposalReviewAck, ProposalReviewDecision, ProposalSubmitOutcome, ProposeDialogOutcome,
-    FEMS_PROPOSE_CANCEL_AUTHOR_ID, FEMS_PROPOSE_COMMAND_ID, FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
-    FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_STATUS_AUTHOR_ID, FEMS_REVIEW_APPROVE_AUTHOR_ID,
-    FEMS_REVIEW_REJECT_AUTHOR_ID,
+    review_proposal, submit_proposal_and_emit, HandshakeCoreClient, MemoryClass,
+    MemoryProposalError, ProposalReviewAck, ProposalReviewDecision, ProposalSubmitOutcome,
+    ProposeDialogOutcome, FEMS_PROPOSE_CANCEL_AUTHOR_ID, FEMS_PROPOSE_COMMAND_ID,
+    FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_STATUS_AUTHOR_ID,
+    FEMS_REVIEW_APPROVE_AUTHOR_ID, FEMS_REVIEW_REJECT_AUTHOR_ID,
 };
 use handshake_native::fems::relevant_memory_panel::{
     mem_item_author_id, mem_source_author_id, RELEVANT_MEMORY_LIST_AUTHOR_ID,
@@ -118,6 +118,26 @@ fn current_source_sha() -> String {
         .ancestors()
         .nth(3)
         .expect("native crate must live at repo/src/frontend/handshake_native");
+    let relevant_paths = [
+        "src/backend/handshake_core/src/api/memory.rs",
+        "src/backend/handshake_core/src/flight_recorder/mod.rs",
+        "src/backend/handshake_core/src/storage/fems_memory.rs",
+        "src/backend/handshake_core/src/workflows.rs",
+        "src/frontend/handshake_native/src/fems/memory_proposal.rs",
+        "src/frontend/handshake_native/src/manual_content_editors.rs",
+        "src/frontend/handshake_native/tests/test_manual_content.rs",
+        "src/frontend/handshake_native/tests/test_fems_interop_proofs.rs",
+    ];
+    let clean = std::process::Command::new("git")
+        .args(["diff", "--quiet", "HEAD", "--"])
+        .args(relevant_paths)
+        .current_dir(repo_root)
+        .status()
+        .expect("check MT-065 relevant source cleanliness");
+    assert!(
+        clean.success(),
+        "MT-065 canonical proof refuses dirty relevant source; commit the implementation and proof before running"
+    );
     let output = std::process::Command::new("git")
         .args(["rev-parse", "HEAD"])
         .current_dir(repo_root)
@@ -135,6 +155,33 @@ fn current_source_sha() -> String {
     assert_eq!(sha.len(), 40, "current product source hash is full SHA-1");
     assert!(sha.bytes().all(|byte| byte.is_ascii_hexdigit()));
     sha
+}
+
+fn current_proof_source_blob() -> String {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("native crate must live at repo/src/frontend/handshake_native");
+    let output = std::process::Command::new("git")
+        .args([
+            "rev-parse",
+            "HEAD:src/frontend/handshake_native/tests/test_fems_interop_proofs.rs",
+        ])
+        .current_dir(repo_root)
+        .output()
+        .expect("resolve committed MT-065 proof-source blob");
+    assert!(
+        output.status.success(),
+        "git rev-parse proof source blob failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let blob = String::from_utf8(output.stdout)
+        .expect("proof source blob is UTF-8")
+        .trim()
+        .to_owned();
+    assert_eq!(blob.len(), 40, "proof source blob is a full Git object id");
+    assert!(blob.bytes().all(|byte| byte.is_ascii_hexdigit()));
+    blob
 }
 
 /// Assert NO repo-local artifact directory exists under the crate (the SCREENSHOT/TEST-ARTIFACT RULE).
@@ -846,6 +893,20 @@ impl LiveBackend {
                         && row["payload"]["op_count"] == 1
                         && row["payload"]["requires_review_count"] == 1
                 }) {
+                    assert_exact_object_keys(
+                        &row["payload"],
+                        &[
+                            "type",
+                            "event_code",
+                            "proposal_id",
+                            "proposal_hash",
+                            "artifact_ref",
+                            "scope_refs",
+                            "op_count",
+                            "requires_review_count",
+                        ],
+                        "FR-EVT-MEM-001 payload",
+                    );
                     return row.clone();
                 }
                 assert!(
@@ -894,6 +955,17 @@ impl LiveBackend {
                             .as_array()
                             .is_some_and(|ids| ids.iter().any(|id| id == workspace_id))
                 }) {
+                    assert_exact_object_keys(
+                        &row["payload"],
+                        &[
+                            "type",
+                            "event_code",
+                            "proposal_id",
+                            "decision",
+                            "reviewer_kind",
+                        ],
+                        "FR-EVT-MEM-002 payload without optional commit_report_ref",
+                    );
                     return row.clone();
                 }
                 assert!(
@@ -949,11 +1021,8 @@ impl LiveBackend {
                                 == commit.commit_report_hash
                             && row["payload"]["changed_memory_ids_hash"]
                                 == changed_memory_ids_hash
-                            && row["payload"]["artifact_ref"]["path"]
-                                == format!(
-                                    "/workspaces/{workspace_id}/memory/commits/{}/report",
-                                    commit.commit_id,
-                                )
+                            && row["payload"]["artifact_ref"]
+                                == format!("artifact://sha256/{}", commit.commit_report_hash)
                             && row["wsids"].as_array().is_some_and(|ids| {
                                 ids.len() == 1 && ids[0].as_str() == Some(workspace_id)
                             })
@@ -961,13 +1030,27 @@ impl LiveBackend {
                     .cloned()
                     .collect::<Vec<_>>();
                 if matching.len() == 1 {
-                    let artifact_path = matching[0]["payload"]["artifact_ref"]["path"]
-                        .as_str()
-                        .expect("FR commit artifact path");
+                    assert_exact_object_keys(
+                        &matching[0]["payload"],
+                        &[
+                            "type",
+                            "event_code",
+                            "commit_id",
+                            "proposal_id",
+                            "commit_report_hash",
+                            "artifact_ref",
+                            "changed_memory_ids_hash",
+                        ],
+                        "FR-EVT-MEM-003 payload",
+                    );
+                    let artifact_path = format!(
+                        "/workspaces/{workspace_id}/memory/commits/{}/report",
+                        commit.commit_id
+                    );
                     let report = self
                         .workspace_ident(
                             self.client
-                                .get(format!("{}{artifact_path}", self.base)),
+                                .get(format!("{}{}", self.base, artifact_path)),
                         )
                         .timeout(std::time::Duration::from_secs(5))
                         .send()
@@ -1033,11 +1116,8 @@ impl LiveBackend {
                             && payload["event_code"] == "FR-EVT-MEM-004"
                             && payload["pack_id"] == commit.memory_pack_id
                             && payload["memory_pack_hash"] == commit.memory_pack_hash
-                            && payload["artifact_ref"]["artifact_id"]
-                                .as_str()
-                                .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok())
-                            && payload["artifact_ref"]["path"]
-                                == format!(".handshake/fems/packs/{}.json", commit.memory_pack_id)
+                            && payload["artifact_ref"]
+                                == format!("artifact://sha256/{}", commit.memory_pack_hash)
                             && payload["memory_policy"] == "WORKSPACE_SCOPED"
                             && payload["scope_refs"][0]["artefact_type"] == "workspace"
                             && payload["scope_refs"][0]["artefact_id"] == workspace_id
@@ -1051,6 +1131,22 @@ impl LiveBackend {
                     .cloned()
                     .collect::<Vec<_>>();
                 if matching.len() == 1 {
+                    assert_exact_object_keys(
+                        &matching[0]["payload"],
+                        &[
+                            "type",
+                            "event_code",
+                            "pack_id",
+                            "memory_pack_hash",
+                            "artifact_ref",
+                            "memory_policy",
+                            "scope_refs",
+                            "item_count",
+                            "token_estimate",
+                            "truncation_occurred",
+                        ],
+                        "FR-EVT-MEM-004 payload",
+                    );
                     return matching[0].clone();
                 }
                 assert!(
@@ -1177,10 +1273,7 @@ fn assert_exact_proposal_and_canonical_fr_ledger(
     let artifact = live.get_json(&format!(
         "/workspaces/{workspace_id}/memory/proposals/{proposal_id}/artifact"
     ));
-    assert_eq!(
-        artifact["schema_version"],
-        "hsk.memory_write_proposal@0.1"
-    );
+    assert_eq!(artifact["schema_version"], "hsk.memory_write_proposal@0.1");
     assert_eq!(artifact["proposal_id"], proposal_id);
     assert_eq!(artifact["scope_refs"], fr_row["payload"]["scope_refs"]);
     assert_eq!(
@@ -1284,42 +1377,34 @@ fn assert_exact_proposal_readback(
     assert_eq!(stored["status"], "pending_review");
 }
 
-fn replay_review_raw(
+fn replay_review(
     live: &LiveBackend,
     workspace_id: &str,
     proposal_id: &str,
     decision: ProposalReviewDecision,
 ) -> ProposalReviewAck {
-    let stored = live.get_json(&format!(
-        "/workspaces/{workspace_id}/memory/proposals/{proposal_id}"
-    ));
-    let review = stored
-        .pointer("/proposal/review")
-        .or_else(|| stored.get("review"))
-        .expect("reviewed proposal readback carries immutable review evidence");
-    let response = live.post_json(
-        &format!("/workspaces/{workspace_id}/memory/proposals/{proposal_id}/review"),
-        &serde_json::json!({
-            "decision": decision.wire(),
-            "reviewer_kind": review["reviewer_kind"],
-            "reason": review["reason"],
-        }),
-    );
-    serde_json::from_value(response)
-        .expect("raw live review acknowledgement matches the production wire schema")
+    let client = HandshakeCoreClient::with_base_url(live.base.clone())
+        .with_session_token(live.session_token.clone());
+    live.rt
+        .block_on(review_proposal(
+            workspace_id,
+            proposal_id,
+            decision,
+            &client,
+        ))
+        .expect("production native review client accepts the authenticated backend acknowledgement")
 }
 
-fn replay_commit_raw(
+fn replay_commit(
     live: &LiveBackend,
     workspace_id: &str,
     proposal_id: &str,
 ) -> handshake_native::fems::memory_proposal::ProposalCommitAck {
-    let response = live.post_json(
-        &format!("/workspaces/{workspace_id}/memory/proposals/{proposal_id}/commit"),
-        &serde_json::json!({}),
-    );
-    serde_json::from_value(response)
-        .expect("raw live commit acknowledgement matches the production wire schema")
+    let client = HandshakeCoreClient::with_base_url(live.base.clone())
+        .with_session_token(live.session_token.clone());
+    live.rt
+        .block_on(commit_approved_proposal(workspace_id, proposal_id, &client))
+        .expect("production native commit client accepts the idempotent backend acknowledgement")
 }
 
 struct WorkspaceCleanup<'a> {
@@ -1776,6 +1861,17 @@ fn structured_field<'a>(value: &'a str, key: &str) -> Option<&'a str> {
     })
 }
 
+fn assert_exact_object_keys(value: &serde_json::Value, expected: &[&str], label: &str) {
+    let actual = value
+        .as_object()
+        .unwrap_or_else(|| panic!("{label} must be a JSON object"))
+        .keys()
+        .map(String::as_str)
+        .collect::<HashSet<_>>();
+    let expected = expected.iter().copied().collect::<HashSet<_>>();
+    assert_eq!(actual, expected, "{label} has an exact normative keyset");
+}
+
 fn assert_same_rfc3339_instant(left: &str, right: &str) {
     let left = chrono::DateTime::parse_from_rfc3339(left)
         .unwrap_or_else(|error| panic!("invalid left RFC3339 timestamp {left:?}: {error}"));
@@ -1824,9 +1920,7 @@ fn wait_for_status(
     }
 }
 
-fn drive_approval_through_commit(
-    harness: &mut Harness<'_, HandshakeApp>,
-) -> String {
+fn drive_approval_through_commit(harness: &mut Harness<'_, HandshakeApp>) -> String {
     for _ in 0..2 {
         let state_before = find_node(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID)
             .and_then(|node| node.value)
@@ -2385,7 +2479,7 @@ fn proof_fems_01_memorypack_render() {
     let pack_id = structured_field(&committed, "memory_pack_id")
         .expect("committed status carries memory_pack_id")
         .to_owned();
-    let typed_commit = replay_commit_raw(&live, &workspace_id, &proposal_id);
+    let typed_commit = replay_commit(&live, &workspace_id, &proposal_id);
     assert_eq!(typed_commit.memory_id, item_id);
     assert_eq!(typed_commit.memory_pack_id, pack_id);
     let commit_fr = live.poll_exact_commit_fr_event(&workspace_id, &typed_commit);
@@ -2431,6 +2525,14 @@ fn proof_fems_01_memorypack_render() {
         pack.items[0].is_navigable(),
         "FEMS-01 committed item carries live provenance"
     );
+    let raw_pack = live.get_json(&format!("/workspaces/{workspace_id}/memory/pack"));
+    let independently_recomputed_pack_hash =
+        compute_memory_pack_hash(&raw_pack).expect("recompute canonical MemoryPack hash");
+    assert_eq!(
+        independently_recomputed_pack_hash, typed_commit.memory_pack_hash,
+        "the live MemoryPack artifact independently binds the commit ack and FR-EVT-MEM-004 hash"
+    );
+    assert_eq!(raw_pack["pack_id"], typed_commit.memory_pack_id);
     click_author_id(&mut harness, "menu-editors");
     click_author_id(&mut harness, "menu.editors.relevant-memory");
     let status = wait_for_status(&mut harness, RELEVANT_MEMORY_STATUS_AUTHOR_ID, |value| {
@@ -2781,7 +2883,7 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         approved_ledger["correlation_id"],
         format!("fems-memory-proposal-review:{approved_id}")
     );
-    let approved_retry = replay_review_raw(
+    let approved_retry = replay_review(
         &live,
         &workspace_id,
         &approved_id,
@@ -2795,10 +2897,13 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
             .expect("approval ledger event id")
     );
     assert!(
-        approved_retry.commit.is_none(),
-        "review replay returns review evidence; the commit receipt has its own idempotent route"
+        approved_retry.commit.is_some(),
+        "production approval replay traverses the separate idempotent commit route"
     );
-    let approved_retry_commit = replay_commit_raw(&live, &workspace_id, &approved_id);
+    let approved_retry_commit = approved_retry
+        .commit
+        .clone()
+        .expect("approval replay returns its separately validated commit receipt");
     assert_eq!(approved_retry_commit.commit_id, approved_commit_id);
     assert_eq!(approved_retry_commit.memory_id, approved_memory_id);
     assert_eq!(approved_retry_commit.memory_pack_id, approved_pack_id);
@@ -2895,7 +3000,7 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
     );
     mcp_dispatch(&mut harness, FEMS_REVIEW_REJECT_AUTHOR_ID, UiAction::Click);
     let rejected_ack = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
-        structured_field(value, "state") == Some("review_failed")
+        structured_field(value, "state") == Some("reviewed")
             && structured_field(value, "outcome") == Some("rejected")
             && structured_field(value, "terminal") == Some("true")
     });
@@ -2917,7 +3022,7 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         rejected_ledger["correlation_id"],
         format!("fems-memory-proposal-review:{rejected_id}")
     );
-    let rejected_retry = replay_review_raw(
+    let rejected_retry = replay_review(
         &live,
         &workspace_id,
         &rejected_id,
@@ -2949,6 +3054,60 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
             .expect("rejection FR timestamp"),
         &rejected_retry.reviewed_at,
     );
+    let rejected_counts = run_psql(
+        &live.dsn,
+        &format!(
+            "SELECT json_build_object(\
+             'commit_reports', (SELECT COUNT(*) FROM fems_memory_commit_reports WHERE proposal_id = {proposal}),\
+             'commit_outbox', (SELECT COUNT(*) FROM fems_memory_commit_fr_outbox WHERE proposal_id = {proposal}),\
+             'commit_ledger', (SELECT COUNT(*) FROM kernel_event_ledger WHERE idempotency_key = {commit_key})\
+             )::text",
+            proposal = sql_literal(&rejected_id),
+            commit_key = sql_literal(&format!("fems-memory-commit:{rejected_id}")),
+        ),
+    );
+    let rejected_counts: serde_json::Value = serde_json::from_str(rejected_counts.trim())
+        .expect("rejection side-effect counts are JSON");
+    assert_eq!(
+        rejected_counts,
+        serde_json::json!({
+            "commit_reports": 0,
+            "commit_outbox": 0,
+            "commit_ledger": 0,
+        }),
+        "rejection creates no commit report, FR-003/004 outbox row, or commit EventLedger receipt"
+    );
+    let rejected_commit_status = live.rt.block_on(async {
+        live.workspace_ident(
+            live.client
+                .post(format!(
+                    "{}/workspaces/{workspace_id}/memory/proposals/{rejected_id}/commit",
+                    live.base
+                ))
+                .timeout(std::time::Duration::from_secs(5)),
+        )
+        .send()
+        .await
+        .expect("rejected-proposal commit probe reaches the real backend")
+        .status()
+    });
+    assert_eq!(
+        rejected_commit_status,
+        reqwest::StatusCode::CONFLICT,
+        "the explicit commit route fails closed for a rejected proposal"
+    );
+    for event_type in ["memory_write_committed", "memory_pack_built"] {
+        let rows = live.get_json(&format!(
+            "/api/flight_recorder?wsid={workspace_id}&event_type={event_type}"
+        ));
+        assert!(
+            rows.as_array().is_some_and(|rows| rows.iter().all(|row| {
+                row["payload"]["proposal_id"] != rejected_id
+                    && row["activity_span_id"] != format!("fems-memory-proposal:{rejected_id}")
+            })),
+            "rejected proposal must have no {event_type} Flight Recorder projection: {rows}"
+        );
+    }
 
     let after_count = live.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"))
         ["count"]
@@ -3599,6 +3758,7 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
     );
 
     let source_sha = current_source_sha();
+    let proof_source_blob = current_proof_source_blob();
     let artifact_dir = external_artifact_dir(&format!(
         "wp-kernel-012-mt-065/canonical-argus/run-{}",
         uuid::Uuid::new_v4().simple()
@@ -3630,6 +3790,7 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
         serde_json::to_vec_pretty(&serde_json::json!({
             "schema_id": "handshake.mt065-canonical-argus-proof.v1",
             "source_sha": source_sha,
+            "proof_source_blob": proof_source_blob,
             "workspace_id": workspace_id,
             "proposal_id": proposal_id,
             "before_inspect": before_inspect,

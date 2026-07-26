@@ -27,10 +27,10 @@ use sha2::{Digest, Sha256};
 use sqlx::{PgPool, Row};
 
 use crate::ace::{
-    ArtifactHandle, FemsEntityRef, FemsSourceRef, FemsSourceRefKind, MemoryCommitAppliedOp,
-    MemoryCommitOpStatus, MemoryCommitReport, MemoryMutationOp, MemoryPack, MemoryPackBudgets,
-    MemoryPackDeterminismMode, MemoryPackItem, MemoryPackRebuildHint, MemoryPackRebuildHintReason,
-    MemoryPolicy, MemoryWriteProposal,
+    FemsEntityRef, FemsSourceRef, FemsSourceRefKind, MemoryCommitAppliedOp, MemoryCommitOpStatus,
+    MemoryCommitReport, MemoryMutationOp, MemoryPack, MemoryPackBudgets, MemoryPackDeterminismMode,
+    MemoryPackItem, MemoryPackRebuildHint, MemoryPackRebuildHintReason, MemoryPolicy,
+    MemoryWriteProposal,
 };
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::kernel::{KernelActor, KernelEvent, KernelEventType, NewKernelEvent};
@@ -1101,26 +1101,25 @@ fn build_memory_review_flight_recorder_event(
     Ok(event)
 }
 
-fn memory_commit_report_artifact_id(commit_id: &str) -> uuid::Uuid {
-    stable_uuid(&format!("fems:commits:{commit_id}"))
-}
-
-fn memory_commit_report_artifact_path(workspace_id: &str, commit_id: &str) -> String {
-    format!("/workspaces/{workspace_id}/memory/commits/{commit_id}/report")
-}
-
-fn memory_pack_artifact_handle(pack_id: &str) -> ArtifactHandle {
-    ArtifactHandle::new(
-        stable_uuid(&format!("fems:packs:{pack_id}")),
-        format!(".handshake/fems/packs/{pack_id}.json"),
-    )
-}
-
 fn event_json_hash(event: &FlightRecorderEvent) -> StorageResult<String> {
     let value = serde_json::to_value(event)
         .map_err(|error| StorageError::Serialization(error.to_string()))?;
     Ok(crate::kernel::context_bundle::sha256_hex(
         &crate::kernel::context_bundle::canonical_json_bytes(&value),
+    ))
+}
+
+pub(crate) fn canonical_changed_memory_ids_hash<'a>(
+    memory_ids: impl IntoIterator<Item = &'a str>,
+) -> String {
+    let mut memory_ids = memory_ids
+        .into_iter()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    memory_ids.sort();
+    memory_ids.dedup();
+    hex::encode(Sha256::digest(
+        crate::kernel::context_bundle::canonical_json_bytes(&json!(memory_ids)),
     ))
 }
 
@@ -1136,9 +1135,7 @@ fn build_memory_commit_flight_recorder_event(
         .map(|value| value.with_timezone(&Utc))
         .map_err(|_| StorageError::Conflict("memory commit report has an invalid created_at"))?;
     let actor = flight_recorder_actor(receipt);
-    let changed_memory_ids_hash = hex::encode(Sha256::digest(
-        crate::kernel::context_bundle::canonical_json_bytes(&json!([memory_id])),
-    ));
+    let changed_memory_ids_hash = canonical_changed_memory_ids_hash([memory_id]);
     let mut event = FlightRecorderEvent::new(
         FlightRecorderEventType::MemoryWriteCommitted,
         actor,
@@ -1149,10 +1146,7 @@ fn build_memory_commit_flight_recorder_event(
             "commit_id": commit_report.commit_id,
             "proposal_id": proposal_id,
             "commit_report_hash": commit_report_hash,
-            "artifact_ref": {
-                "artifact_id": memory_commit_report_artifact_id(&commit_report.commit_id),
-                "path": memory_commit_report_artifact_path(workspace_id, &commit_report.commit_id),
-            },
+            "artifact_ref": format!("artifact://sha256/{commit_report_hash}"),
             "changed_memory_ids_hash": changed_memory_ids_hash,
         }),
     )
@@ -1186,7 +1180,7 @@ fn build_memory_pack_flight_recorder_event(
             "event_code": "FR-EVT-MEM-004",
             "pack_id": pack.pack_id,
             "memory_pack_hash": pack.memory_pack_hash,
-            "artifact_ref": memory_pack_artifact_handle(&pack.pack_id),
+            "artifact_ref": format!("artifact://sha256/{}", pack.memory_pack_hash),
             "memory_policy": pack.memory_policy.as_str(),
             "scope_refs": pack.scope_refs,
             "item_count": pack.items.len(),
@@ -2862,5 +2856,16 @@ mod receipt_authenticity_tests {
             "storage-only receipt identity leaked through proposal serialization"
         );
         assert_eq!(public["proposal"]["request_id"], "request-authenticity");
+    }
+
+    #[test]
+    fn changed_memory_ids_hash_sorts_and_deduplicates_multiple_ids() {
+        let canonical = canonical_changed_memory_ids_hash(["mem-b", "mem-a", "mem-b"]);
+        let reordered = canonical_changed_memory_ids_hash(["mem-a", "mem-b"]);
+        let independent = hex::encode(Sha256::digest(
+            crate::kernel::context_bundle::canonical_json_bytes(&json!(["mem-a", "mem-b"])),
+        ));
+        assert_eq!(canonical, reordered);
+        assert_eq!(canonical, independent);
     }
 }

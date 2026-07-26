@@ -22087,12 +22087,6 @@ fn parse_fems_hygiene_config(inputs: &Value) -> Result<HygieneConfig, WorkflowEr
     Ok(config)
 }
 
-fn fems_artifact_handle(kind: &str, stable_id: &str) -> ArtifactHandle {
-    let artifact_id = deterministic_uuid_from_seed(format!("fems:{kind}:{stable_id}").as_str());
-    let path = format!(".handshake/fems/{kind}/{stable_id}.json");
-    ArtifactHandle::new(artifact_id, path)
-}
-
 async fn run_fems_hygiene_job(
     state: &AppState,
     job: &AiJob,
@@ -22213,7 +22207,7 @@ async fn run_fems_memory_job(
     )?;
     if let Some(built) = built_memory_pack.as_ref() {
         let pack = &built.pack;
-        let pack_artifact_ref = fems_artifact_handle("packs", pack.pack_id.as_str());
+        let pack_artifact_ref = format!("artifact://sha256/{}", pack.memory_pack_hash);
         let pack_payload = json!({
             "type": "memory_pack_built",
             "event_code": "FR-EVT-MEM-004",
@@ -22399,7 +22393,7 @@ async fn run_fems_memory_job(
         .compute_hash()
         .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let requires_review_count = ops.iter().filter(|op| op.requires_review).count() as u32;
-    let proposal_artifact_ref = fems_artifact_handle("proposals", proposal_id.as_str());
+    let proposal_artifact_ref = format!("artifact://sha256/{proposal_hash}");
 
     record_event_required(
         state,
@@ -22595,10 +22589,10 @@ async fn run_fems_memory_job(
     let commit_report_hash = commit_report
         .compute_hash()
         .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
-    let changed_ids_value = json!(changed_memory_ids);
-    let changed_memory_ids_hash =
-        crate::llm::sha256_hex(crate::llm::canonical_json_bytes_nfc(&changed_ids_value).as_slice());
-    let commit_artifact_ref = fems_artifact_handle("commits", commit_id.as_str());
+    let changed_memory_ids_hash = crate::storage::fems_memory::canonical_changed_memory_ids_hash(
+        changed_memory_ids.iter().map(String::as_str),
+    );
+    let commit_artifact_ref = format!("artifact://sha256/{commit_report_hash}");
 
     record_event_required(
         state,
@@ -30643,6 +30637,159 @@ mod tests {
             );
         }
 
+        Ok(())
+    }
+
+    #[cfg(feature = "duckdb-flight-recorder")]
+    #[tokio::test]
+    async fn fems_forget_persists_exact_status_events_and_sorted_commit_hash(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::flight_recorder::duckdb::DuckDbFlightRecorder;
+
+        let Some(storage) = optional_postgres_backend_with_pool_from_env().await? else {
+            return Ok(());
+        };
+        let external = tempfile::tempdir()?;
+        let recorder_path = external.path().join("fems-forget-flight-recorder.duckdb");
+        let recorder = Arc::new(DuckDbFlightRecorder::new_on_path(&recorder_path, 7)?);
+        let state = AppState {
+            storage: storage.database,
+            postgres_pool: storage.postgres_pool,
+            flight_recorder: recorder.clone(),
+            diagnostics: recorder.clone(),
+            llm_client: Arc::new(InMemoryLlmClient::new("ok".into())),
+            capability_registry: Arc::new(CapabilityRegistry::new()),
+            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        };
+        let job = state
+            .storage
+            .create_ai_job(crate::storage::NewAiJob {
+                trace_id: Uuid::now_v7(),
+                job_kind: JobKind::WorkflowRun,
+                protocol_id: FEMS_PROTOCOL_MEMORY_FORGET_V0_1.to_owned(),
+                profile_id: "default".to_owned(),
+                capability_profile_id: "Operator".to_owned(),
+                access_mode: AccessMode::ApplyScoped,
+                safety_mode: SafetyMode::Normal,
+                entity_refs: Vec::new(),
+                planned_operations: Vec::new(),
+                status_reason: "queued".to_owned(),
+                metrics: JobMetrics::zero(),
+                job_inputs: Some(json!({
+                    "memory_policy": "WORKSPACE_SCOPED",
+                    "review_decision": "approved",
+                    "reviewer_kind": "user",
+                    "memory_items": [
+                        {
+                            "memory_id": "mem-z",
+                            "memory_class": "semantic",
+                            "trust_level": "trusted",
+                            "classification": "medium",
+                            "content": "obsolete memory z",
+                            "source_ref_id": "source-z",
+                            "source_hash": "b".repeat(64),
+                            "requires_review": true,
+                            "operation": "tombstone"
+                        },
+                        {
+                            "memory_id": "mem-a",
+                            "memory_class": "semantic",
+                            "trust_level": "trusted",
+                            "classification": "medium",
+                            "content": "obsolete memory a",
+                            "source_ref_id": "source-a",
+                            "source_hash": "a".repeat(64),
+                            "requires_review": true,
+                            "operation": "tombstone"
+                        }
+                    ]
+                })),
+            })
+            .await?;
+        let workflow_run_id = Uuid::now_v7();
+        let trace_id = Uuid::now_v7();
+        let outcome = run_fems_memory_job(&state, &job, workflow_run_id, trace_id).await?;
+        assert_eq!(outcome.state, JobState::Completed);
+        let reloaded = state.storage.get_ai_job(&job.job_id.to_string()).await?;
+        let outputs = reloaded
+            .job_outputs
+            .expect("real PostgreSQL job row durably retains FEMS commit output");
+        assert_eq!(outputs["review"]["status"], "approved");
+        assert_eq!(
+            outputs["commit_report"]["applied_ops"]
+                .as_array()
+                .map(Vec::len),
+            Some(2)
+        );
+
+        let events = recorder
+            .list_events(EventFilter {
+                job_id: Some(job.job_id.to_string()),
+                ..Default::default()
+            })
+            .await?;
+        let committed = events
+            .iter()
+            .find(|event| event.event_type == FlightRecorderEventType::MemoryWriteCommitted)
+            .expect("forget workflow emits FR-EVT-MEM-003");
+        let expected_changed_hash =
+            crate::storage::fems_memory::canonical_changed_memory_ids_hash(["mem-z", "mem-a"]);
+        assert_eq!(
+            committed.payload["changed_memory_ids_hash"],
+            expected_changed_hash
+        );
+        assert_eq!(
+            committed.payload["artifact_ref"],
+            format!(
+                "artifact://sha256/{}",
+                committed.payload["commit_report_hash"]
+                    .as_str()
+                    .expect("commit report hash")
+            )
+        );
+        let status_events = events
+            .iter()
+            .filter(|event| event.event_type == FlightRecorderEventType::MemoryItemStatusChanged)
+            .collect::<Vec<_>>();
+        assert_eq!(status_events.len(), 2);
+        let mut status_ids = status_events
+            .iter()
+            .map(|event| {
+                assert_eq!(event.payload.as_object().map(|map| map.len()), Some(7));
+                assert_eq!(event.payload["type"], "memory_item_status_changed");
+                assert_eq!(event.payload["event_code"], "FR-EVT-MEM-005");
+                assert_eq!(event.payload["previous_status"], "active");
+                assert_eq!(event.payload["new_status"], "tombstoned");
+                assert_eq!(event.payload["reason"], "tombstone");
+                assert_eq!(event.payload["actor"], "user");
+                event.payload["memory_id"]
+                    .as_str()
+                    .expect("FR-EVT-MEM-005 memory_id")
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        status_ids.sort();
+        assert_eq!(status_ids, vec!["mem-a", "mem-z"]);
+
+        drop(state);
+        drop(recorder);
+        let reopened = DuckDbFlightRecorder::new_on_path(&recorder_path, 7)?;
+        let durable = reopened
+            .list_events(EventFilter {
+                job_id: Some(job.job_id.to_string()),
+                ..Default::default()
+            })
+            .await?;
+        assert_eq!(
+            durable
+                .iter()
+                .filter(|event| {
+                    event.event_type == FlightRecorderEventType::MemoryItemStatusChanged
+                })
+                .count(),
+            2,
+            "FR-EVT-MEM-005 rows survive a real on-disk Flight Recorder reopen"
+        );
         Ok(())
     }
 

@@ -1751,9 +1751,11 @@ decision, actor_id, correlation_id, event_ledger_event_id, flight_recorder_event
     retry also returns the original explicit commit receipt. If commit transport fails after approval, retry the \
     same fems-review-approve action for that proposal; the backend does not create a second item, pack, or \
     receipt. A commit accepted by PostgreSQL but interrupted before FR-EVT-MEM-003 is projected is recovered \
-    automatically by the backend startup projector; the original commit timestamp, pack identity/hash, report \
-    artifact, and EventLedger receipt are reused. The report artifact is resolvable from the FR event's \
-    workspace-scoped artifact_ref and re-hashes to commit_report_hash. Text-range proposals fail \
+automatically by the backend startup projector; the original commit timestamp, pack identity/hash, report \
+artifact, and EventLedger receipt are reused. FR-EVT-MEM-003 carries the canonical content-addressed \
+artifact_ref=artifact://sha256/{commit_report_hash}; resolve the report through the separate authenticated \
+workspace commit-report route and re-hash it to commit_report_hash. FR-EVT-MEM-004 likewise carries \
+artifact_ref=artifact://sha256/{memory_pack_hash}, never a host or workspace-relative path. Text-range proposals fail \
     closed unless the active mounted tab supplies canonical same-workspace provenance: rich-text tabs cite their \
     persisted RichDocument id, while code tabs cite the KSRC-* KnowledgeSource bound by production code-symbol \
     navigation (the filesystem path remains a separate navigation key and is never used as provenance). Switching \

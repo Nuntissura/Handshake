@@ -1605,6 +1605,8 @@ fn wave5_needles(heading: &str) -> &'static [&'static str] {
             "fems-propose-status",
             "FR-EVT-MEM-001 is backend-owned",
             "artifact_ref=artifact://sha256/{proposal_hash}",
+            "artifact_ref=artifact://sha256/{commit_report_hash}",
+            "artifact_ref=artifact://sha256/{memory_pack_hash}",
             "schema_version=hsk.memory_write_proposal@0.1",
             "the event contains no raw memory content",
             "retries converge across native-process restarts",

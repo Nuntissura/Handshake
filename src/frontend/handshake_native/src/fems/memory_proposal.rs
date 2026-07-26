@@ -489,6 +489,26 @@ pub struct ActionableProposalSummary {
 
 const REVIEW_ACTOR_ID: &str = "native-editor-fems-reviewer";
 
+fn is_canonical_authenticated_native_actor(actor_id: &str) -> bool {
+    let mut parts = actor_id.split(':');
+    let Some(namespace) = parts.next() else {
+        return false;
+    };
+    let Some(pid) = parts.next() else {
+        return false;
+    };
+    let Some(birth_fingerprint) = parts.next() else {
+        return false;
+    };
+    parts.next().is_none()
+        && namespace == "handshake-native"
+        && pid.parse::<u32>().is_ok_and(|value| value > 0)
+        && birth_fingerprint.len() == 64
+        && birth_fingerprint
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
 fn validate_review_ack(
     ack: &ProposalReviewAck,
     proposal_id: &str,
@@ -519,9 +539,9 @@ fn validate_review_ack(
             "reviewer_kind expected user, received {}",
             ack.reviewer_kind
         ))
-    } else if ack.actor_id != REVIEW_ACTOR_ID {
+    } else if !is_canonical_authenticated_native_actor(&ack.actor_id) {
         Some(format!(
-            "actor_id expected {REVIEW_ACTOR_ID}, received {}",
+            "actor_id expected handshake-native:<pid>:<sha256-process-birth-fingerprint>, received {}",
             ack.actor_id
         ))
     } else if ack.correlation_id != expected_correlation {
@@ -1905,7 +1925,7 @@ mod tests {
             status: "approved".to_owned(),
             decision: ProposalReviewDecision::Approved,
             reviewer_kind: "user".to_owned(),
-            actor_id: REVIEW_ACTOR_ID.to_owned(),
+            actor_id: format!("handshake-native:4242:{}", "a".repeat(64)),
             correlation_id: "fems-memory-proposal-review:proposal-1".to_owned(),
             event_ledger_event_id: "KE-550e8400-e29b-41d4-a716-446655440000".to_owned(),
             flight_recorder_event_id: "550e8400-e29b-41d4-a716-446655440001".to_owned(),

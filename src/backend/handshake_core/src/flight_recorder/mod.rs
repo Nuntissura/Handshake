@@ -4091,13 +4091,6 @@ fn validate_artifact_handle_value(value: &Value, key: &str) -> Result<(), Record
     Ok(())
 }
 
-fn require_artifact_handle_object(
-    map: &Map<String, Value>,
-    key: &str,
-) -> Result<(), RecorderError> {
-    validate_artifact_handle_value(require_key(map, key)?, key)
-}
-
 fn require_content_addressed_artifact_handle(
     map: &Map<String, Value>,
     key: &str,
@@ -4250,7 +4243,7 @@ fn validate_memory_write_reviewed_payload(payload: &Value) -> Result<(), Recorde
         }
     }
     if map.contains_key("commit_report_ref") {
-        require_artifact_handle_object(map, "commit_report_ref")?;
+        require_content_addressed_artifact_handle(map, "commit_report_ref")?;
     }
     Ok(())
 }
@@ -4276,7 +4269,18 @@ fn validate_memory_write_committed_payload(payload: &Value) -> Result<(), Record
     require_safe_token_string(map, "commit_id", 256)?;
     require_safe_token_string(map, "proposal_id", 256)?;
     require_sha256_hex(map, "commit_report_hash")?;
-    require_artifact_handle_object(map, "artifact_ref")?;
+    require_content_addressed_artifact_handle(map, "artifact_ref")?;
+    let report_hash = require_key(map, "commit_report_hash")?
+        .as_str()
+        .ok_or_else(|| {
+            RecorderError::InvalidEvent("commit_report_hash must be a string".to_owned())
+        })?;
+    let expected_artifact_ref = format!("artifact://sha256/{report_hash}");
+    if require_key(map, "artifact_ref")?.as_str() != Some(expected_artifact_ref.as_str()) {
+        return Err(RecorderError::InvalidEvent(
+            "artifact_ref digest must equal commit_report_hash".to_owned(),
+        ));
+    }
     require_sha256_hex(map, "changed_memory_ids_hash")?;
     Ok(())
 }
@@ -4304,7 +4308,18 @@ fn validate_memory_pack_built_payload(payload: &Value) -> Result<(), RecorderErr
     require_fixed_string(map, "event_code", "FR-EVT-MEM-004")?;
     require_safe_token_string(map, "pack_id", 256)?;
     require_sha256_hex(map, "memory_pack_hash")?;
-    require_artifact_handle_object(map, "artifact_ref")?;
+    require_content_addressed_artifact_handle(map, "artifact_ref")?;
+    let pack_hash = require_key(map, "memory_pack_hash")?
+        .as_str()
+        .ok_or_else(|| {
+            RecorderError::InvalidEvent("memory_pack_hash must be a string".to_owned())
+        })?;
+    let expected_artifact_ref = format!("artifact://sha256/{pack_hash}");
+    if require_key(map, "artifact_ref")?.as_str() != Some(expected_artifact_ref.as_str()) {
+        return Err(RecorderError::InvalidEvent(
+            "artifact_ref digest must equal memory_pack_hash".to_owned(),
+        ));
+    }
     match require_key(map, "memory_policy")? {
         Value::String(value)
             if matches!(
@@ -6966,10 +6981,7 @@ mod tests {
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "decision": "approved",
             "reviewer_kind": "user",
-            "commit_report_ref": {
-                "artifact_id": "550e8400-e29b-41d4-a716-44665544000b",
-                "path": ".handshake/fems/commits/550e8400-e29b-41d4-a716-446655440000.json"
-            }
+            "commit_report_ref": format!("artifact://sha256/{DUMMY_SHA256}")
         });
         assert!(validate_memory_write_reviewed_payload(&reviewed).is_ok());
 
@@ -6979,10 +6991,7 @@ mod tests {
             "commit_id": "550e8400-e29b-41d4-a716-446655440002",
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
             "commit_report_hash": DUMMY_SHA256,
-            "artifact_ref": {
-                "artifact_id": "550e8400-e29b-41d4-a716-44665544000c",
-                "path": ".handshake/fems/commits/550e8400-e29b-41d4-a716-446655440002.json"
-            },
+            "artifact_ref": format!("artifact://sha256/{DUMMY_SHA256}"),
             "changed_memory_ids_hash": DUMMY_SHA256
         });
         assert!(validate_memory_write_committed_payload(&committed).is_ok());
@@ -6992,10 +7001,7 @@ mod tests {
             "event_code": "FR-EVT-MEM-004",
             "pack_id": "550e8400-e29b-41d4-a716-446655440003",
             "memory_pack_hash": DUMMY_SHA256,
-            "artifact_ref": {
-                "artifact_id": "550e8400-e29b-41d4-a716-44665544000d",
-                "path": ".handshake/fems/packs/550e8400-e29b-41d4-a716-446655440003.json"
-            },
+            "artifact_ref": format!("artifact://sha256/{DUMMY_SHA256}"),
             "memory_policy": "WORKSPACE_SCOPED",
             "scope_refs": [{
                 "artefact_type": "workspace",
@@ -7103,6 +7109,37 @@ mod tests {
             "unexpected": true
         });
         assert!(validate_memory_write_reviewed_payload(&review_with_unknown_field).is_err());
+
+        let legacy_commit_artifact = json!({
+            "type": "memory_write_committed",
+            "event_code": "FR-EVT-MEM-003",
+            "commit_id": "550e8400-e29b-41d4-a716-446655440002",
+            "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+            "commit_report_hash": DUMMY_SHA256,
+            "artifact_ref": {
+                "artifact_id": "550e8400-e29b-41d4-a716-44665544000c",
+                "path": ".handshake/fems/commits/550e8400-e29b-41d4-a716-446655440002.json"
+            },
+            "changed_memory_ids_hash": DUMMY_SHA256
+        });
+        assert!(validate_memory_write_committed_payload(&legacy_commit_artifact).is_err());
+
+        let legacy_pack_artifact = json!({
+            "type": "memory_pack_built",
+            "event_code": "FR-EVT-MEM-004",
+            "pack_id": "550e8400-e29b-41d4-a716-446655440003",
+            "memory_pack_hash": DUMMY_SHA256,
+            "artifact_ref": {
+                "artifact_id": "550e8400-e29b-41d4-a716-44665544000d",
+                "path": ".handshake/fems/packs/550e8400-e29b-41d4-a716-446655440003.json"
+            },
+            "memory_policy": "WORKSPACE_SCOPED",
+            "scope_refs": [],
+            "item_count": 1,
+            "token_estimate": 32,
+            "truncation_occurred": false
+        });
+        assert!(validate_memory_pack_built_payload(&legacy_pack_artifact).is_err());
 
         let invalid_status = json!({
             "type": "memory_item_status_changed",

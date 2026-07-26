@@ -4486,8 +4486,8 @@ mod tests {
                 .expect("report hash")
         );
         assert_eq!(
-            recovered_event.payload["artifact_ref"]["path"],
-            format!("/workspaces/{workspace_id}/memory/commits/{commit_id}/report")
+            recovered_event.payload["artifact_ref"],
+            format!("artifact://sha256/{artifact_hash}")
         );
         let committed_at = chrono::DateTime::parse_from_rfc3339(&report_artifact.created_at)?
             .with_timezone(&chrono::Utc);
