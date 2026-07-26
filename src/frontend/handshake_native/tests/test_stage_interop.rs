@@ -1291,6 +1291,18 @@ fn live_route_round_trip_real_pg() {
         !busy_observation.receipt_status.is_empty(),
         "canonical Argus returns the route action receipt"
     );
+    let busy_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        harness.run_steps(1);
+        if stage.lock().unwrap().has_route_retry() {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < busy_deadline,
+            "contended canonical route click did not reach retained busy state"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
     let busy_inspect = argus.inspect(&mut harness);
     let busy_stage_snapshot = stage.lock().unwrap().clone();
     assert!(
