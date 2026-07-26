@@ -1613,7 +1613,7 @@ fn live_route_round_trip_real_pg() {
         .count();
     assert_eq!(
         route_dispatches, 1,
-        "the mounted rich selection dispatches the shared Route-to-Stage command exactly once"
+        "the mounted rich selection dispatches the shared Route-to-Stage command exactly once; post-restart rows={rows}"
     );
     let quiescence_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
