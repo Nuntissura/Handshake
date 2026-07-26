@@ -2107,15 +2107,16 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     let backend_base = backend.base.clone();
     let mut harness: Harness<HandshakeApp> = Harness::builder()
         .with_size(egui::vec2(1440.0, 900.0))
-        .build_eframe(|cc| HandshakeApp::new(cc));
+        .build_eframe(|cc| {
+            let mut app = HandshakeApp::new(cc);
+            app.bind_managed_backend_for_test(&backend_base);
+            app
+        });
     assert_eq!(
         harness.state().diag_session(),
         Some(&session),
         "the mounted app must reuse the exact diagnostics ring Palmistry watches"
     );
-    harness
-        .state_mut()
-        .set_backend_unreachable_for_test(&backend_base);
     step_until(&mut harness, Duration::from_secs(20), |app| {
         !app.backend_is_down()
             && app.status_bar_health_text().contains("Backend: OK")
@@ -2137,6 +2138,13 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     assert!(
         live_status.contains("Backend: OK"),
         "canonical Argus must observe the real managed backend as connected: {live_status:?}"
+    );
+    let live_json =
+        serde_json::to_string(&live_inspect).expect("serialize connected-before Argus tree");
+    assert!(
+        !live_json.contains(handshake_native::backend_client::BACKEND_BASE_URL),
+        "a managed-backend proof cannot leave mounted consumers visibly bound to the production \
+         default endpoint; tree={live_json}"
     );
     let live_screenshot = save_integrated_surface(&mut harness, &artifact_dir, "connected-before");
     let live_screenshot_sha256 = file_sha256(&live_screenshot);
@@ -2271,6 +2279,22 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         down_diagnostics_json.contains("Shared-memory ring active"),
         "canonical Argus Settings diagnostics tree must expose Tier-3 ring visibility"
     );
+    step_until(&mut harness, Duration::from_secs(15), |app| {
+        app.settings_persist_error().is_some()
+    });
+    let down_settings_error = harness
+        .state()
+        .settings_persist_error()
+        .expect("the real Settings load must expose its bounded backend-down failure");
+    assert!(
+        down_settings_error.contains(&backend_base),
+        "the mounted Settings failure must come from the same suspended managed backend, got \
+         {down_settings_error:?}"
+    );
+    assert!(
+        !down_settings_error.contains(handshake_native::backend_client::BACKEND_BASE_URL),
+        "the mounted Settings failure cannot come from the unrelated production default endpoint"
+    );
     let down_screenshot = save_integrated_surface(&mut harness, &artifact_dir, "disconnected");
     let down_screenshot_sha256 = file_sha256(&down_screenshot);
     assert_ne!(
@@ -2336,6 +2360,21 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
         process_is_running(palmistry_pid),
         "out-of-process Palmistry must survive through backend restart and reconnect"
     );
+    let settings_retry = argus.click_and_reinspect(
+        &mut harness,
+        handshake_native::settings_dialog::SETTINGS_PERSIST_RETRY_AUTHOR_ID,
+    );
+    assert!(
+        matches!(
+            settings_retry.receipt_status.as_str(),
+            "applied" | "indeterminate"
+        ),
+        "canonical Argus must dispatch the visible Settings recovery action, got {}",
+        settings_retry.receipt_status
+    );
+    step_until(&mut harness, Duration::from_secs(15), |app| {
+        app.settings_persist_error().is_none()
+    });
 
     let recovered_inspect = argus.inspect(&mut harness);
     let recovered_status = json_author_value(&recovered_inspect, BACKEND_STATUS_AUTHOR_ID)
@@ -2364,6 +2403,12 @@ fn backend_down_responsive_real_pg_palmistry_argus() {
     assert!(
         recovered_diagnostics_json.contains("Shared-memory ring active"),
         "canonical Argus Settings diagnostics tree must retain Tier-3 ring visibility after recovery"
+    );
+    assert!(
+        !recovered_diagnostics_json
+            .contains(handshake_native::settings_dialog::SETTINGS_PERSIST_ERROR_AUTHOR_ID),
+        "the mounted Settings recovery action must clear its degraded-state error before the \
+         reconnected capture"
     );
     let recovered_screenshot = save_integrated_surface(&mut harness, &artifact_dir, "reconnected");
     let recovered_screenshot_sha256 = file_sha256(&recovered_screenshot);

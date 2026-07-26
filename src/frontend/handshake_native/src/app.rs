@@ -23515,6 +23515,44 @@ impl HandshakeApp {
         self.set_backend_endpoints_for_test(base_url, base_url);
     }
 
+    /// Bind every backend consumer exercised by a mounted managed-runtime proof to the same real
+    /// backend before the first frame. This is intentionally broader than
+    /// [`set_backend_endpoints_for_test`](Self::set_backend_endpoints_for_test): that seam isolates the
+    /// health/layout fault boundary, while this one prevents the rest of the mounted shell (workspace
+    /// tabs, project tree, editor clients, Settings, and PreferenceRecord hydration) from silently
+    /// continuing to use the production default endpoint during an ephemeral-backend proof.
+    #[doc(hidden)]
+    pub fn bind_managed_backend_for_test(&mut self, base_url: &str) {
+        let handle = self
+            .runtime_handle
+            .clone()
+            .unwrap_or_else(|| self.rt.handle().clone());
+
+        self.set_backend_base_url_for_test(base_url, handle.clone());
+        self.settings_transport = Some(Arc::new(crate::workspace_settings::SettingsClient::new(
+            base_url,
+            handle.clone(),
+        )));
+        self.preference_transport = Some(Arc::new(
+            crate::preference_client::PreferenceClient::new(base_url, "operator", handle.clone()),
+        ));
+        self.settings_failures.clear();
+        self.settings_persist_error = None;
+        self.settings_retry_operation = None;
+        self.settings_loaded_project_id = None;
+        self.settings_load_pending = false;
+
+        if let Some(old) = self.workspaces_handle.take() {
+            Self::abort_and_drain_runtime_task(&self.rt, old);
+        }
+        self.project_tabs.set_loading();
+        let workspaces_base_url = base_url.to_owned();
+        self.workspaces_handle =
+            Some(handle.spawn(async move { fetch_workspaces(&workspaces_base_url).await }));
+
+        self.set_backend_endpoints_for_test(base_url, base_url);
+    }
+
     /// MT-088 test seam for independently proving the canonical health oracle and layout degradation.
     /// Both arguments are backend base URLs; the health endpoint is derived as `{health_base_url}/health`.
     /// Rebinding retires the previous layout-load generation and immediately starts one load against the
