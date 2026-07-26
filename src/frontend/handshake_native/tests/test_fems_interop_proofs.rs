@@ -42,7 +42,7 @@
 //! The four named `proof_fems_0*` functions below are the live managed-resource proof surface.
 
 use std::collections::HashSet;
-use std::io::{BufRead as _, Read as _, Write as _};
+use std::io::Read as _;
 use std::path::{Path, PathBuf};
 
 use egui_kittest::kittest::NodeT;
@@ -63,12 +63,13 @@ use handshake_native::fems::memory_client::{
 };
 use handshake_native::fems::memory_proposal::{
     build_proposal, build_proposal_for_document, build_proposal_for_document_snapshot,
-    commit_approved_proposal, compute_memory_commit_report_hash, content_hash_of_selection,
-    fems_class_author_id, review_proposal, submit_proposal_and_emit, HandshakeCoreClient,
-    MemoryClass, MemoryProposalError, ProposalReviewDecision, ProposalSubmitOutcome,
-    ProposeDialogOutcome, FEMS_PROPOSE_CANCEL_AUTHOR_ID, FEMS_PROPOSE_COMMAND_ID,
-    FEMS_PROPOSE_CONFIRM_AUTHOR_ID, FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_STATUS_AUTHOR_ID,
-    FEMS_REVIEW_APPROVE_AUTHOR_ID, FEMS_REVIEW_REJECT_AUTHOR_ID,
+    canonical_memory_write_proposal_hash, commit_approved_proposal,
+    compute_memory_commit_report_hash, content_hash_of_selection, fems_class_author_id,
+    submit_proposal_and_emit, HandshakeCoreClient, MemoryClass, MemoryProposalError,
+    ProposalReviewAck, ProposalReviewDecision, ProposalSubmitOutcome, ProposeDialogOutcome,
+    FEMS_PROPOSE_CANCEL_AUTHOR_ID, FEMS_PROPOSE_COMMAND_ID, FEMS_PROPOSE_CONFIRM_AUTHOR_ID,
+    FEMS_PROPOSE_DIALOG_AUTHOR_ID, FEMS_PROPOSE_STATUS_AUTHOR_ID, FEMS_REVIEW_APPROVE_AUTHOR_ID,
+    FEMS_REVIEW_REJECT_AUTHOR_ID,
 };
 use handshake_native::fems::relevant_memory_panel::{
     mem_item_author_id, mem_source_author_id, RELEVANT_MEMORY_LIST_AUTHOR_ID,
@@ -77,9 +78,15 @@ use handshake_native::fems::relevant_memory_panel::{
 };
 use handshake_native::interop::{EditorSurfaceKind, InteractionBus, SharedSelection};
 use handshake_native::mcp::UiAction;
-use handshake_native::mcp::{ScreenshotError, SessionToken, SwarmMcpServer, ARGUS_CLICK_METHOD};
 use handshake_native::pane_registry::{PaneId, PaneType};
 use handshake_native::tab_bar::tab_author_id_for;
+
+#[path = "native_gui_support/canonical_argus_driver.rs"]
+mod canonical_argus_driver;
+use canonical_argus_driver::{json_has_author_id, ArgusObservation, CanonicalArgusDriver};
+
+#[path = "pg_proof_support/mod.rs"]
+mod pg_proof_support;
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // Artifact hygiene (CX-212E / SCREENSHOT-RULE): all artifacts go to the EXTERNAL root ONLY.
@@ -104,6 +111,30 @@ fn external_artifact_dir(subdir: &str) -> PathBuf {
         "HANDSHAKE_ARTIFACTS_ROOT must resolve to an absolute path"
     );
     root.join("handshake-test").join(subdir)
+}
+
+fn current_source_sha() -> String {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("native crate must live at repo/src/frontend/handshake_native");
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(repo_root)
+        .output()
+        .expect("resolve current product source hash");
+    assert!(
+        output.status.success(),
+        "git rev-parse HEAD failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let sha = String::from_utf8(output.stdout)
+        .expect("git source hash is UTF-8")
+        .trim()
+        .to_owned();
+    assert_eq!(sha.len(), 40, "current product source hash is full SHA-1");
+    assert!(sha.bytes().all(|byte| byte.is_ascii_hexdigit()));
+    sha
 }
 
 /// Assert NO repo-local artifact directory exists under the crate (the SCREENSHOT/TEST-ARTIFACT RULE).
@@ -140,10 +171,6 @@ const FEMS_REQUIRED_CAPABILITIES: [&str; 4] = [
 /// The standard integration-test env key for the live PostgreSQL DSN (the FEMS interop backing store).
 const LIVE_PG_DSN_ENV: &str = "HANDSHAKE_TEST_PG_DSN";
 
-/// Standard managed-backend URL surface used by current native live proofs.
-const HSK_TEST_BASE_ENV: &str = "HSK_TEST_BASE";
-const DEFAULT_BACKEND_BASE: &str = "http://127.0.0.1:37501";
-
 /// Serializes this binary's managed mutations without changing process-global environment variables.
 static LIVE_PROOF_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -151,6 +178,61 @@ fn live_proof_guard() -> std::sync::MutexGuard<'static, ()> {
     LIVE_PROOF_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Private platform app-data root shared by the mounted native app and its owned backend. The memory
+/// routes authenticate against the production MCP binding file, so every live proof publishes a genuine
+/// binding before the backend receives its first memory request.
+struct ScopedLocalAppData {
+    variable: &'static str,
+    previous: Option<std::ffi::OsString>,
+    previous_owned_backend_root: Option<std::ffi::OsString>,
+    root: PathBuf,
+}
+
+impl ScopedLocalAppData {
+    fn install() -> Self {
+        #[cfg(target_os = "windows")]
+        let variable = "LOCALAPPDATA";
+        #[cfg(not(target_os = "windows"))]
+        let variable = "XDG_DATA_HOME";
+        let root = external_artifact_dir("wp-kernel-012-mt-065/appdata")
+            .join(format!("run-{}", uuid::Uuid::new_v4().simple()));
+        std::fs::create_dir_all(&root).expect("create isolated MT-065 app-data root");
+        let root =
+            std::fs::canonicalize(&root).expect("canonicalize isolated MT-065 app-data root");
+        let previous = std::env::var_os(variable);
+        let previous_owned_backend_root = std::env::var_os("HANDSHAKE_TEST_STAGE_BINDING_ROOT");
+        std::env::set_var(variable, &root);
+        std::env::set_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT", &root);
+        Self {
+            variable,
+            previous,
+            previous_owned_backend_root,
+            root,
+        }
+    }
+}
+
+impl Drop for ScopedLocalAppData {
+    fn drop(&mut self) {
+        match self.previous.take() {
+            Some(value) => std::env::set_var(self.variable, value),
+            None => std::env::remove_var(self.variable),
+        }
+        match self.previous_owned_backend_root.take() {
+            Some(value) => std::env::set_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT", value),
+            None => std::env::remove_var("HANDSHAKE_TEST_STAGE_BINDING_ROOT"),
+        }
+        if let Err(error) = std::fs::remove_dir_all(&self.root) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                panic!(
+                    "remove isolated MT-065 app-data root {}: {error}",
+                    self.root.display()
+                );
+            }
+        }
+    }
 }
 
 /// Resolve the live PostgreSQL DSN from the standard integration-test config, asserting it is PostgreSQL.
@@ -187,14 +269,6 @@ fn resolve_live_pg_dsn() -> String {
         "CTRL-065-01: a SQLite DSN is never acceptable for the FEMS interop proof"
     );
     dsn
-}
-
-/// Resolve the standard managed backend base URL. DSN variables are never overloaded as HTTP URLs.
-fn live_backend_base() -> String {
-    std::env::var(HSK_TEST_BASE_ENV)
-        .ok()
-        .filter(|s| s.starts_with("http"))
-        .unwrap_or_else(|| DEFAULT_BACKEND_BASE.to_owned())
 }
 
 fn psql_program() -> PathBuf {
@@ -290,40 +364,13 @@ struct LiveBackend {
     session_token: String,
     client: reqwest::Client,
     rt: tokio::runtime::Runtime,
+    _managed_backend: pg_proof_support::LiveBackend,
 }
 
-fn live_native_session_token() -> String {
-    if let Some(token) = std::env::var_os("HANDSHAKE_TEST_SESSION_TOKEN") {
-        let token = token.to_string_lossy().into_owned();
-        assert_eq!(token.len(), 64, "HANDSHAKE_TEST_SESSION_TOKEN must be 64 hex chars");
-        assert!(token.bytes().all(|byte| byte.is_ascii_hexdigit()));
-        return token;
-    }
-    let path = std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE")
-        .map(PathBuf::from)
-        .or_else(|| {
-            std::env::var_os("LOCALAPPDATA").map(|root| {
-                PathBuf::from(root)
-                    .join("handshake")
-                    .join("swarm_mcp_binding.json")
-            })
-        })
-        .expect("memory live proof requires HANDSHAKE_TEST_SESSION_TOKEN or a native binding path");
-    let binding: serde_json::Value = serde_json::from_slice(
-        &std::fs::read(&path)
-            .unwrap_or_else(|error| panic!("read native session binding {}: {error}", path.display())),
-    )
-    .expect("native session binding is JSON");
-    let token = binding["token"]
-        .as_str()
-        .filter(|token| token.len() == 64 && token.bytes().all(|byte| byte.is_ascii_hexdigit()))
-        .expect("native session binding carries a 64-character hex token");
-    token.to_owned()
-}
-
-fn require_live_backend() -> LiveBackend {
+fn require_live_backend(session_token: &str) -> LiveBackend {
     let dsn = resolve_live_pg_dsn();
-    let base = live_backend_base();
+    let managed_backend = pg_proof_support::require_reachable_backend();
+    let base = managed_backend.base.clone();
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -374,9 +421,74 @@ fn require_live_backend() -> LiveBackend {
     LiveBackend {
         base,
         dsn,
-        session_token: live_native_session_token(),
+        session_token: session_token.to_owned(),
         client,
         rt,
+        _managed_backend: managed_backend,
+    }
+}
+
+/// One deterministic, authenticated live proof session. The app is created first so its genuine MCP
+/// token can publish the binding consumed by the owned current-source backend. Tests may take the app
+/// once; the canonical Argus server remains bound to the same snapshot/action slots.
+struct LiveProofSession {
+    live: LiveBackend,
+    app: std::cell::RefCell<Option<HandshakeApp>>,
+    argus: std::cell::RefCell<Option<CanonicalArgusDriver>>,
+    _app_data: ScopedLocalAppData,
+}
+
+impl LiveProofSession {
+    fn new() -> Self {
+        let app_data = ScopedLocalAppData::install();
+        let app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+            status: "ok".to_owned(),
+            db_status: "ok".to_owned(),
+            migration_version: Some(1),
+        }));
+        let session_token = app.mcp_token();
+        let argus = CanonicalArgusDriver::bind_in_current_app_data(
+            &app,
+            "wp-kernel-012-mt-065-live",
+            session_token.clone(),
+        );
+        let live = require_live_backend(session_token.as_hex());
+        Self {
+            live,
+            app: std::cell::RefCell::new(Some(app)),
+            argus: std::cell::RefCell::new(Some(argus)),
+            _app_data: app_data,
+        }
+    }
+
+    fn take_app(&self) -> HandshakeApp {
+        self.app
+            .borrow_mut()
+            .take()
+            .expect("live proof app may be mounted once")
+    }
+
+    fn take_argus(&self) -> CanonicalArgusDriver {
+        self.argus
+            .borrow_mut()
+            .take()
+            .expect("live proof canonical Argus driver may be taken once")
+    }
+}
+
+impl std::ops::Deref for LiveProofSession {
+    type Target = LiveBackend;
+
+    fn deref(&self) -> &Self::Target {
+        &self.live
+    }
+}
+
+impl Drop for LiveProofSession {
+    fn drop(&mut self) {
+        if let Some(argus) = self.argus.get_mut().take() {
+            argus.finish();
+        }
     }
 }
 
@@ -724,9 +836,10 @@ impl LiveBackend {
                         && row["payload"]["proposal_hash"]
                             .as_str()
                             .is_some_and(|hash| hash.len() == 64)
-                        && row["payload"]["artifact_ref"]["path"]
+                        && row["payload"]["artifact_ref"]
                             == format!(
-                                "/workspaces/{workspace_id}/memory/proposals/{proposal_id}/artifact"
+                                "artifact://sha256/{}",
+                                row["payload"]["proposal_hash"].as_str().unwrap_or_default()
                             )
                         && row["payload"]["scope_refs"][0]["artefact_type"] == "workspace"
                         && row["payload"]["scope_refs"][0]["artefact_id"] == workspace_id
@@ -852,8 +965,10 @@ impl LiveBackend {
                         .as_str()
                         .expect("FR commit artifact path");
                     let report = self
-                        .client
-                        .get(format!("{}{artifact_path}", self.base))
+                        .workspace_ident(
+                            self.client
+                                .get(format!("{}{artifact_path}", self.base)),
+                        )
                         .timeout(std::time::Duration::from_secs(5))
                         .send()
                         .await
@@ -878,6 +993,70 @@ impl LiveBackend {
                     commit.proposal_id,
                     commit.commit_id,
                     commit.commit_report_hash
+                );
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+        })
+    }
+
+    fn poll_exact_pack_fr_event(
+        &self,
+        workspace_id: &str,
+        commit: &handshake_native::fems::memory_proposal::ProposalCommitAck,
+    ) -> serde_json::Value {
+        let url = format!(
+            "{}/api/flight_recorder?event_type=memory_pack_built&wsid={workspace_id}",
+            self.base
+        );
+        self.rt.block_on(async {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+            loop {
+                let rows: serde_json::Value = self
+                    .client
+                    .get(&url)
+                    .timeout(std::time::Duration::from_secs(5))
+                    .send()
+                    .await
+                    .unwrap_or_else(|error| panic!("GET {url} failed: {error}"))
+                    .json()
+                    .await
+                    .expect("Flight Recorder pack response is JSON");
+                let matching = rows
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|row| {
+                        let payload = &row["payload"];
+                        row["event_type"] == "memory_pack_built"
+                            && row["wsids"] == serde_json::json!([workspace_id])
+                            && payload["type"] == "memory_pack_built"
+                            && payload["event_code"] == "FR-EVT-MEM-004"
+                            && payload["pack_id"] == commit.memory_pack_id
+                            && payload["memory_pack_hash"] == commit.memory_pack_hash
+                            && payload["artifact_ref"]["artifact_id"]
+                                .as_str()
+                                .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok())
+                            && payload["artifact_ref"]["path"]
+                                == format!(".handshake/fems/packs/{}.json", commit.memory_pack_id)
+                            && payload["memory_policy"] == "WORKSPACE_SCOPED"
+                            && payload["scope_refs"][0]["artefact_type"] == "workspace"
+                            && payload["scope_refs"][0]["artefact_id"] == workspace_id
+                            && payload["item_count"]
+                                .as_u64()
+                                .is_some_and(|count| count >= 1)
+                            && payload["token_estimate"].as_u64().is_some()
+                            && payload["truncation_occurred"] == false
+                            && payload.as_object().is_some_and(|object| object.len() == 10)
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                if matching.len() == 1 {
+                    return matching[0].clone();
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "no single exact FR-EVT-MEM-004 row for pack_id={}",
+                    commit.memory_pack_id
                 );
                 tokio::time::sleep(std::time::Duration::from_millis(50)).await;
             }
@@ -968,8 +1147,14 @@ fn assert_exact_proposal_and_canonical_fr_ledger(
     assert_eq!(fr_row["payload"]["proposal_id"], proposal_id);
     assert_eq!(fr_row["payload"]["op_count"], 1);
     assert_eq!(fr_row["payload"]["requires_review_count"], 1);
-    assert_eq!(fr_row["payload"]["scope_refs"][0]["artefact_type"], "workspace");
-    assert_eq!(fr_row["payload"]["scope_refs"][0]["artefact_id"], workspace_id);
+    assert_eq!(
+        fr_row["payload"]["scope_refs"][0]["artefact_type"],
+        "workspace"
+    );
+    assert_eq!(
+        fr_row["payload"]["scope_refs"][0]["artefact_id"],
+        workspace_id
+    );
     assert!(fr_row["payload"].get("content").is_none());
     assert!(fr_row["payload"].get("text").is_none());
     let proposal = ledger_row_by_key(live, &format!("fems-memory-proposal:{proposal_id}"));
@@ -981,14 +1166,47 @@ fn assert_exact_proposal_and_canonical_fr_ledger(
     assert_eq!(proposal["payload"]["workspace_id"], workspace_id);
     assert_eq!(proposal["payload"]["status"], "pending_review");
     assert_eq!(proposal["payload"]["review_gated"], true);
-    let artifact_path = fr_row["payload"]["artifact_ref"]["path"]
+    let proposal_hash = fr_row["payload"]["proposal_hash"]
         .as_str()
-        .expect("canonical proposal event carries an artifact path");
-    let artifact = live.get_json(artifact_path);
+        .expect("canonical proposal event carries proposal_hash");
+    assert_eq!(
+        fr_row["payload"]["artifact_ref"],
+        format!("artifact://sha256/{proposal_hash}"),
+        "FR-EVT-MEM-001 artifact_ref is the normative content-addressed URI"
+    );
+    let artifact = live.get_json(&format!(
+        "/workspaces/{workspace_id}/memory/proposals/{proposal_id}/artifact"
+    ));
+    assert_eq!(
+        artifact["schema_version"],
+        "hsk.memory_write_proposal@0.1"
+    );
     assert_eq!(artifact["proposal_id"], proposal_id);
-    assert_eq!(artifact["workspace_id"], workspace_id);
-    assert_eq!(artifact["status"], "pending_review");
-    assert_eq!(artifact["review_gated"], true);
+    assert_eq!(artifact["scope_refs"], fr_row["payload"]["scope_refs"]);
+    assert_eq!(
+        artifact["ops"].as_array().map(Vec::len),
+        Some(
+            fr_row["payload"]["op_count"]
+                .as_u64()
+                .expect("FR proposal op_count") as usize
+        )
+    );
+    assert_eq!(
+        artifact["ops"]
+            .as_array()
+            .expect("canonical proposal ops")
+            .iter()
+            .filter(|op| op["requires_review"] == true)
+            .count(),
+        fr_row["payload"]["requires_review_count"]
+            .as_u64()
+            .expect("FR proposal requires_review_count") as usize
+    );
+    assert_eq!(
+        canonical_memory_write_proposal_hash(&artifact),
+        proposal_hash,
+        "dereferenced proposal artifact recomputes to the FR proposal_hash"
+    );
     assert!(artifact.get("_receipt_identity").is_none());
     assert!(artifact.get("review").is_none());
 }
@@ -1051,9 +1269,57 @@ fn assert_exact_proposal_readback(
         stored["source"]["workspace_id"],
         proposal.source.workspace_id
     );
-    assert_eq!(stored["actor_id"], proposal.actor_id);
+    let authenticated_actor = stored["actor_id"]
+        .as_str()
+        .expect("proposal readback carries authenticated actor_id");
+    assert!(
+        authenticated_actor.starts_with("handshake-native:"),
+        "proposal actor must be derived from the live native MCP binding: {authenticated_actor}"
+    );
+    assert_ne!(
+        authenticated_actor, proposal.actor_id,
+        "caller-authored proposal actor metadata must not override the authenticated principal"
+    );
     assert_eq!(stored["review_gated"], true);
     assert_eq!(stored["status"], "pending_review");
+}
+
+fn replay_review_raw(
+    live: &LiveBackend,
+    workspace_id: &str,
+    proposal_id: &str,
+    decision: ProposalReviewDecision,
+) -> ProposalReviewAck {
+    let stored = live.get_json(&format!(
+        "/workspaces/{workspace_id}/memory/proposals/{proposal_id}"
+    ));
+    let review = stored
+        .pointer("/proposal/review")
+        .or_else(|| stored.get("review"))
+        .expect("reviewed proposal readback carries immutable review evidence");
+    let response = live.post_json(
+        &format!("/workspaces/{workspace_id}/memory/proposals/{proposal_id}/review"),
+        &serde_json::json!({
+            "decision": decision.wire(),
+            "reviewer_kind": review["reviewer_kind"],
+            "reason": review["reason"],
+        }),
+    );
+    serde_json::from_value(response)
+        .expect("raw live review acknowledgement matches the production wire schema")
+}
+
+fn replay_commit_raw(
+    live: &LiveBackend,
+    workspace_id: &str,
+    proposal_id: &str,
+) -> handshake_native::fems::memory_proposal::ProposalCommitAck {
+    let response = live.post_json(
+        &format!("/workspaces/{workspace_id}/memory/proposals/{proposal_id}/commit"),
+        &serde_json::json!({}),
+    );
+    serde_json::from_value(response)
+        .expect("raw live commit acknowledgement matches the production wire schema")
 }
 
 struct WorkspaceCleanup<'a> {
@@ -1297,182 +1563,6 @@ fn mcp_dispatch(harness: &mut Harness<'_, HandshakeApp>, author_id: &str, action
     }
 }
 
-/// Actual localhost JSON-RPC Argus client/server boundary used by FEMS-03. The server owns the app's
-/// production snapshot slot and ActionChannel; requests carry a stable client_session_id so attribution,
-/// leasing, rate limiting, and transport framing are all exercised before the production pre-frame hook.
-struct ArgusTcpDriver {
-    server: SwarmMcpServer,
-    _app_data: ScopedAppData,
-    token: String,
-    client_session_id: String,
-    next_id: u64,
-    targets: Vec<String>,
-}
-
-impl ArgusTcpDriver {
-    fn bind(live: &LiveBackend, app: &HandshakeApp) -> Self {
-        let binding_root = external_artifact_dir("mt065-argus-binding").join(unique_name("run"));
-        let app_data = ScopedAppData::install(binding_root);
-        let session_token = SessionToken::from_hex("mt065-fems03-argus-session");
-        let token = session_token.as_hex().to_owned();
-        let server = live
-            .rt
-            .block_on(SwarmMcpServer::bind(
-                session_token,
-                app.mcp_snapshot_slot(),
-                app.mcp_action_channel(),
-                std::sync::Arc::new(|| {
-                    Err(ScreenshotError(
-                        "FEMS-03 does not request a pixel capture".to_owned(),
-                    ))
-                }),
-            ))
-            .expect("bind the production Argus localhost server");
-        Self {
-            server,
-            _app_data: app_data,
-            token,
-            client_session_id: "mt065-fems03-agent".to_owned(),
-            next_id: 1,
-            targets: Vec::new(),
-        }
-    }
-
-    fn click(&mut self, harness: &mut Harness<'_, HandshakeApp>, author_id: &str) -> FoundNode {
-        let found = find_node(&harness.root(), author_id)
-            .unwrap_or_else(|| panic!("Argus target is absent: {author_id}"));
-        assert!(!found.disabled, "Argus target is disabled: {author_id}");
-        let snapshot = harness.state_mut().capture_mcp_snapshot_for_navigation();
-        let snapshot_targets: Vec<_> = snapshot
-            .iter_nodes()
-            .filter(|node| node.author_id.as_deref() == Some(author_id))
-            .map(|node| (node.node_id, node.disabled, node.role.clone()))
-            .collect();
-        assert!(
-            snapshot_targets
-                .iter()
-                .any(|(node_id, _, _)| *node_id == found.node_id.0),
-            "Argus snapshot/live NodeId divergence for {author_id}: live={:?}; snapshot={snapshot_targets:?}",
-            found.node_id
-        );
-        let request = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": self.next_id,
-            "method": ARGUS_CLICK_METHOD,
-            "params": { "target": author_id },
-            "session_token": &self.token,
-            "client_session_id": &self.client_session_id,
-        });
-        self.next_id += 1;
-        let mut stream = std::net::TcpStream::connect(self.server.tcp_addr())
-            .expect("connect to production Argus TCP listener");
-        stream
-            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
-            .expect("bound Argus read timeout");
-        writeln!(stream, "{request}").expect("write Argus JSON-RPC request");
-        stream.flush().expect("flush Argus JSON-RPC request");
-        let mut response_line = String::new();
-        std::io::BufReader::new(stream)
-            .read_line(&mut response_line)
-            .expect("read Argus JSON-RPC response");
-        let response: serde_json::Value =
-            serde_json::from_str(response_line.trim()).expect("decode Argus JSON-RPC response");
-        assert!(
-            response.get("error").is_none(),
-            "Argus response failed: {response}"
-        );
-        assert_eq!(response["result"]["queued"], true);
-        assert!(
-            response["result"]["agent_id"]
-                .as_str()
-                .is_some_and(|agent| agent.ends_with(":client:mt065-fems03-agent")),
-            "Argus response must retain client_session_id attribution: {response}"
-        );
-
-        let mut raw_input = egui::RawInput::default();
-        <HandshakeApp as eframe::App>::raw_input_hook(
-            harness.state_mut(),
-            &egui::Context::default(),
-            &mut raw_input,
-        );
-        assert_eq!(
-            raw_input.events.len(),
-            1,
-            "one Argus click must drain as exactly one production egui event"
-        );
-        for event in raw_input.events {
-            harness.event(event);
-        }
-        harness.run_steps(1);
-        if author_id.starts_with("menu-") && !author_id.contains('.') {
-            harness.run_steps(1);
-        }
-        if author_id.starts_with("command-palette.option.")
-            || author_id == FEMS_PROPOSE_CANCEL_AUTHOR_ID
-        {
-            harness.run_steps(1);
-        }
-        self.targets.push(author_id.to_owned());
-        found
-    }
-
-    fn finish(mut self) {
-        let entries = self.server.action_log().drain_log();
-        assert_eq!(entries.len(), self.targets.len());
-        for (entry, target) in entries.iter().zip(&self.targets) {
-            assert_eq!(entry.op_name, ARGUS_CLICK_METHOD);
-            assert_eq!(&entry.target_key, target);
-            assert!(entry.agent_id.ends_with(":client:mt065-fems03-agent"));
-            assert_ne!(entry.node_id, 0);
-        }
-        assert_eq!(
-            self.server.leases().active_resource_count(),
-            0,
-            "every Argus action lease is released after its response"
-        );
-        self.server.shutdown();
-    }
-}
-
-/// Repo-established MT-108 binding isolation: production discovery still resolves through the
-/// canonical platform app-data contract, but this test process redirects it to one external run root.
-struct ScopedAppData {
-    variable: &'static str,
-    previous: Option<std::ffi::OsString>,
-    root: PathBuf,
-}
-
-impl ScopedAppData {
-    fn install(root: PathBuf) -> Self {
-        std::fs::create_dir_all(&root).expect("create isolated MT-065 Argus binding root");
-        #[cfg(target_os = "windows")]
-        let variable = "LOCALAPPDATA";
-        #[cfg(not(target_os = "windows"))]
-        let variable = "XDG_DATA_HOME";
-        let previous = std::env::var_os(variable);
-        std::env::set_var(variable, &root);
-        Self {
-            variable,
-            previous,
-            root,
-        }
-    }
-}
-
-impl Drop for ScopedAppData {
-    fn drop(&mut self) {
-        match self.previous.take() {
-            Some(value) => std::env::set_var(self.variable, value),
-            None => std::env::remove_var(self.variable),
-        }
-        if let Err(error) = std::fs::remove_dir_all(&self.root) {
-            if error.kind() != std::io::ErrorKind::NotFound {
-                tracing::warn!(path = %self.root.display(), %error, "MT-065 Argus binding cleanup failed");
-            }
-        }
-    }
-}
-
 const FEMS_PALETTE_ROW_AUTHOR_ID: &str = "command-palette.option.hs-fems-palette-propose-to-memory";
 
 fn click_author_id(harness: &mut Harness<'_, HandshakeApp>, author_id: &str) -> FoundNode {
@@ -1527,58 +1617,12 @@ fn click_author_id(harness: &mut Harness<'_, HandshakeApp>, author_id: &str) -> 
     found
 }
 
-fn mounted_code_app(
-    live: &LiveBackend,
-    workspace_id: &str,
-    document_id: &str,
-    initial_content: &str,
-) -> HandshakeApp {
-    mounted_code_app_at(
-        &live.base,
-        live.rt.handle().clone(),
-        workspace_id,
-        document_id,
-        initial_content,
-    )
-}
-
-fn mounted_code_app_at(
-    base_url: &str,
-    runtime: tokio::runtime::Handle,
-    workspace_id: &str,
-    document_id: &str,
-    initial_content: &str,
-) -> HandshakeApp {
-    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
-        status: "ok".to_owned(),
-        db_status: "ok".to_owned(),
-        migration_version: Some(1),
-    }));
-    app.set_backend_base_url_for_test(base_url, runtime);
-    app.set_active_project_id_for_test(workspace_id.to_owned());
-    app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
-    let generation = app.begin_code_document_load_for_test(document_id);
-    app.deliver_code_document_load_for_test(
-        generation,
-        document_id,
-        PathBuf::from(format!("{document_id}.rs")),
-        0,
-        Ok(initial_content.to_owned()),
-    );
-    app.bind_code_document_source_for_test(document_id, document_id);
-    app
-}
-
 fn mounted_code_app_with_real_anchor(
+    mut app: HandshakeApp,
     live: &LiveBackend,
     workspace_id: &str,
     fixture: &CodeAuthorityFixture,
 ) -> HandshakeApp {
-    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
-        status: "ok".to_owned(),
-        db_status: "ok".to_owned(),
-        migration_version: Some(1),
-    }));
     app.set_backend_base_url_for_test(&live.base, live.rt.handle().clone());
     app.set_active_project_id_for_test(workspace_id.to_owned());
     app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
@@ -1744,6 +1788,15 @@ fn assert_same_rfc3339_instant(left: &str, right: &str) {
     );
 }
 
+fn assert_authenticated_native_actor(value: &serde_json::Value) {
+    assert!(
+        value
+            .as_str()
+            .is_some_and(|actor| actor.starts_with("handshake-native:")),
+        "actor identity must be derived from the live MCP binding: {value}"
+    );
+}
+
 fn wait_for_status(
     harness: &mut Harness<'_, HandshakeApp>,
     author_id: &str,
@@ -1769,6 +1822,40 @@ fn wait_for_status(
         );
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
+}
+
+fn drive_approval_through_commit(
+    harness: &mut Harness<'_, HandshakeApp>,
+) -> String {
+    for _ in 0..2 {
+        let state_before = find_node(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID)
+            .and_then(|node| node.value)
+            .and_then(|value| structured_field(&value, "state").map(str::to_owned));
+        let approve = wait_for_author_id(harness, FEMS_REVIEW_APPROVE_AUTHOR_ID);
+        assert!(
+            !approve.disabled,
+            "approval/commit control must be enabled: {approve:?}"
+        );
+        mcp_dispatch(harness, FEMS_REVIEW_APPROVE_AUTHOR_ID, UiAction::Click);
+        let status = wait_for_status(harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
+            if state_before.as_deref() == Some("commit_pending") {
+                structured_field(value, "state") == Some("committed")
+            } else {
+                matches!(
+                    structured_field(value, "state"),
+                    Some("commit_pending" | "committed")
+                )
+            }
+        });
+        if structured_field(&status, "state") == Some("committed") {
+            assert_eq!(structured_field(&status, "outcome"), Some("approved"));
+            return status;
+        }
+    }
+    panic!(
+        "approval followed by explicit commit did not reach committed state; status={:?}",
+        find_node(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID).and_then(|node| node.value)
+    );
 }
 
 fn wait_for_author_id(harness: &mut Harness<'_, HandshakeApp>, author_id: &str) -> FoundNode {
@@ -1876,36 +1963,87 @@ fn drive_propose_command_via_accesskit(
     proposal_id
 }
 
+fn inspect_until(
+    argus: &mut CanonicalArgusDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    author_id: &str,
+    max_steps: usize,
+) -> serde_json::Value {
+    for _ in 0..max_steps {
+        let snapshot = argus.inspect(harness);
+        if json_has_author_id(&snapshot, author_id) {
+            return snapshot;
+        }
+        harness.run_steps(1);
+        std::thread::sleep(std::time::Duration::from_millis(25));
+    }
+    let snapshot = argus.inspect(harness);
+    assert!(
+        json_has_author_id(&snapshot, author_id),
+        "canonical argus.inspect could not address '{author_id}' within {max_steps} pumped frames"
+    );
+    snapshot
+}
+
+fn argus_click(
+    argus: &mut CanonicalArgusDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    author_id: &str,
+) -> ArgusObservation {
+    let before = inspect_until(argus, harness, author_id, 60);
+    argus.click_from_snapshot_and_reinspect(harness, author_id, before)
+}
+
+fn open_proposal_dialog_via_argus(
+    argus: &mut CanonicalArgusDriver,
+    harness: &mut Harness<'_, HandshakeApp>,
+    observations: &mut Vec<ArgusObservation>,
+) {
+    for _attempt in 0..12 {
+        for _ in 0..15 {
+            harness.run_steps(1);
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        observations.push(argus_click(argus, harness, "menu-go"));
+        observations.push(argus_click(argus, harness, "menu.go.command-palette"));
+        let row = find_node(&harness.root(), FEMS_PALETTE_ROW_AUTHOR_ID)
+            .expect("canonical Argus palette row is mounted");
+        assert_eq!(row.role, "ListBoxOption");
+        observations.push(argus_click(argus, harness, FEMS_PALETTE_ROW_AUTHOR_ID));
+        for _ in 0..40 {
+            harness.run_steps(1);
+            if find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_some() {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(25));
+        }
+        let status =
+            find_node(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID).and_then(|node| node.value);
+        let reentry_blocked = status
+            .as_deref()
+            .and_then(|value| structured_field(value, "outcome"))
+            == Some("reentry_blocked");
+        assert!(
+            reentry_blocked,
+            "canonical Argus palette click did not materialize proposal dialog and was not a \
+             transient review-queue reentry block; status={status:?}; tree={}",
+            accesskit_author_dump(&harness.root())
+        );
+    }
+    panic!("canonical Argus proposal dialog did not open after bounded retries");
+}
+
 fn drive_propose_command_via_argus(
-    argus: &mut ArgusTcpDriver,
+    argus: &mut CanonicalArgusDriver,
     harness: &mut Harness<'_, HandshakeApp>,
     class: MemoryClass,
     live: &LiveBackend,
     workspace_id: &str,
+    observations: &mut Vec<ArgusObservation>,
 ) -> String {
-    let open_dialog = |argus: &mut ArgusTcpDriver, harness: &mut Harness<'_, HandshakeApp>| {
-        argus.click(harness, "menu-go");
-        argus.click(harness, "menu.go.command-palette");
-        assert_eq!(
-            argus.click(harness, FEMS_PALETTE_ROW_AUTHOR_ID).role,
-            "ListBoxOption"
-        );
-        for _ in 0..60 {
-            if find_node(&harness.root(), FEMS_PROPOSE_DIALOG_AUTHOR_ID).is_some() {
-                return;
-            }
-            harness.run_steps(1);
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-        panic!(
-            "Argus palette click did not materialize the proposal dialog; status={:?}; tree={}",
-            find_node(&harness.root(), FEMS_PROPOSE_STATUS_AUTHOR_ID),
-            accesskit_author_dump(&harness.root())
-        );
-    };
     let before_cancel = live.canonical_fems_mutation_counts(workspace_id);
-    open_dialog(argus, harness);
-    argus.click(harness, FEMS_PROPOSE_CANCEL_AUTHOR_ID);
+    open_proposal_dialog_via_argus(argus, harness, observations);
+    observations.push(argus_click(argus, harness, FEMS_PROPOSE_CANCEL_AUTHOR_ID));
     let cancelled = wait_for_status(harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
         structured_field(value, "outcome") == Some("cancelled_before_submit")
     });
@@ -1921,9 +2059,9 @@ fn drive_propose_command_via_argus(
         "Argus cancel must roll back without a proposal or memory mutation"
     );
 
-    open_dialog(argus, harness);
-    argus.click(harness, &fems_class_author_id(class));
-    argus.click(harness, FEMS_PROPOSE_CONFIRM_AUTHOR_ID);
+    open_proposal_dialog_via_argus(argus, harness, observations);
+    observations.push(argus_click(argus, harness, &fems_class_author_id(class)));
+    observations.push(argus_click(argus, harness, FEMS_PROPOSE_CONFIRM_AUTHOR_ID));
     let status = wait_for_status(harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
         structured_field(value, "outcome") == Some("event_persisted")
     });
@@ -2189,7 +2327,7 @@ fn proof_fems_01_memorypack_render() {
     use handshake_native::fems::memory_client::MemoryClient;
 
     let _serial = live_proof_guard();
-    let live = require_live_backend();
+    let live = LiveProofSession::new();
     let workspace_id = live.create_workspace(&unique_name("mt065-fems01"));
     let mut cleanup = WorkspaceCleanup {
         live: &live,
@@ -2206,7 +2344,8 @@ fn proof_fems_01_memorypack_render() {
         Some(fixture.content.clone()),
         Some(fixture.content.len()),
     );
-    let client = MemoryClient::with_base_url(live.base.clone());
+    let client = MemoryClient::with_base_url(live.base.clone())
+        .with_session_token(live.session_token.clone());
     let empty = live
         .rt
         .block_on(async { client.fetch_pack(&workspace_id, &ctx).await })
@@ -2216,7 +2355,8 @@ fn proof_fems_01_memorypack_render() {
         "fresh workspace starts with no memory"
     );
 
-    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let app = live.take_app();
+    let app = mounted_code_app_with_real_anchor(app, &live, &workspace_id, &fixture);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -2238,31 +2378,18 @@ fn proof_fems_01_memorypack_render() {
         "proposal creation alone cannot seed committed memory"
     );
 
-    mcp_dispatch(&mut harness, FEMS_REVIEW_APPROVE_AUTHOR_ID, UiAction::Click);
-    let committed = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
-        structured_field(value, "state") == Some("committed")
-            && structured_field(value, "outcome") == Some("approved")
-    });
+    let committed = drive_approval_through_commit(&mut harness);
     let item_id = structured_field(&committed, "memory_id")
         .expect("committed status carries memory_id")
         .to_owned();
     let pack_id = structured_field(&committed, "memory_pack_id")
         .expect("committed status carries memory_pack_id")
         .to_owned();
-    let typed_commit = live
-        .rt
-        .block_on(review_proposal(
-            &workspace_id,
-            &proposal_id,
-            ProposalReviewDecision::Approved,
-            &HandshakeCoreClient::with_base_url(live.base.clone()),
-        ))
-        .expect("FEMS-01 exact approval retry returns typed durable receipts")
-        .commit
-        .expect("FEMS-01 approval retry carries commit receipt");
+    let typed_commit = replay_commit_raw(&live, &workspace_id, &proposal_id);
     assert_eq!(typed_commit.memory_id, item_id);
     assert_eq!(typed_commit.memory_pack_id, pack_id);
     let commit_fr = live.poll_exact_commit_fr_event(&workspace_id, &typed_commit);
+    let pack_fr = live.poll_exact_pack_fr_event(&workspace_id, &typed_commit);
     assert_eq!(
         commit_fr["payload"]["commit_report_hash"],
         typed_commit.commit_report_hash
@@ -2339,8 +2466,8 @@ fn proof_fems_01_memorypack_render() {
     );
     assert_eq!(commit["payload"]["fr_event_id"], "FR-EVT-MEM-003");
     println!(
-        "FEMS-01 PROVEN (live mounted app): proposal={proposal_id}, explicit_commit={}, exact pack={pack_id}, item={item_id}, status={status}",
-        commit["aggregate_id"]
+        "FEMS-01 PROVEN (live mounted app): proposal={proposal_id}, explicit_commit={}, exact pack={pack_id}, item={item_id}, status={status}, FR-EVT-MEM-003={commit_fr}, FR-EVT-MEM-004={pack_fr}",
+        commit["aggregate_id"],
     );
     cleanup.clean_and_verify();
 }
@@ -2355,7 +2482,7 @@ fn proof_fems_01_memorypack_render() {
 #[test]
 fn proof_fems_02_propose_creates_proposal_and_event() {
     let _serial = live_proof_guard();
-    let live = require_live_backend();
+    let live = LiveProofSession::new();
     let workspace_id = live.create_workspace(&unique_name("mt065-fems02"));
     let mut cleanup = WorkspaceCleanup {
         live: &live,
@@ -2366,7 +2493,8 @@ fn proof_fems_02_propose_creates_proposal_and_event() {
         cleaned: false,
     };
     let fixture = live.seed_code_authority(&workspace_id);
-    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let app = live.take_app();
+    let app = mounted_code_app_with_real_anchor(app, &live, &workspace_id, &fixture);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -2453,26 +2581,31 @@ fn proof_fems_02_propose_creates_proposal_and_event() {
 
     let fr_row = live.poll_exact_fr_event(&workspace_id, &proposal_id);
     assert_exact_proposal_and_canonical_fr_ledger(&live, &proposal_id, &workspace_id, &fr_row);
-    let event_payload = live.get_json(
-        fr_row["payload"]["artifact_ref"]["path"]
-            .as_str()
-            .expect("proposal artifact path"),
-    );
+    let event_payload = live.get_json(&format!(
+        "/workspaces/{workspace_id}/memory/proposals/{proposal_id}/artifact"
+    ));
     assert_eq!(event_payload["proposal_id"], proposal_id);
-    assert_eq!(event_payload["class"], proposal.class.wire());
-    assert_eq!(event_payload["source"]["document_id"], proposal.source.document_id);
     assert_eq!(
-        event_payload["source"]["selection_start"],
-        proposal.source.selection_start
+        event_payload["ops"][0]["item"]["memory_class"],
+        proposal.class.wire()
     );
     assert_eq!(
-        event_payload["source"]["selection_end"],
-        proposal.source.selection_end
+        event_payload["source_refs"][0]["id"],
+        proposal.source.document_id
     );
-    assert_eq!(event_payload["source"]["content_hash"], proposal.source.content_hash);
-    assert_eq!(event_payload["source"]["pane_id"], proposal.source.pane_id);
-    assert_eq!(event_payload["review_gated"], true);
-    assert_eq!(event_payload["status"], "pending_review");
+    assert_eq!(
+        event_payload["source_refs"][0]["selector"],
+        format!(
+            "bytes:{}-{}",
+            proposal.source.selection_start, proposal.source.selection_end
+        )
+    );
+    assert_eq!(
+        event_payload["source_refs"][0]["hash"],
+        proposal.source.content_hash
+    );
+    assert_eq!(event_payload["ops"][0]["requires_review"], true);
+    assert_eq!(event_payload["policy"]["require_human_review"], true);
     assert_ne!(
         proposals_body["proposal"]["content"], newer_buffer,
         "the post-open editor mutation is neither substituted into nor accepted as proposal content"
@@ -2487,7 +2620,7 @@ fn proof_fems_02_propose_creates_proposal_and_event() {
 #[test]
 fn proof_fems_duplicate_submission_replays_one_proposal_and_one_event() {
     let _serial = live_proof_guard();
-    let live = require_live_backend();
+    let live = LiveProofSession::new();
     let workspace_id = live.create_workspace(&unique_name("mt064-duplicate-replay"));
     let mut cleanup = WorkspaceCleanup {
         live: &live,
@@ -2508,7 +2641,8 @@ fn proof_fems_duplicate_submission_replays_one_proposal_and_one_event() {
         fixture.content.clone(),
     )
     .expect("canonical code proposal builds");
-    let client = HandshakeCoreClient::with_base_url(live.base.clone());
+    let client = HandshakeCoreClient::with_base_url(live.base.clone())
+        .with_session_token(live.session_token.clone());
     let emitter = NativeEditorEventEmitter::new(
         workspace_id.clone(),
         std::sync::Arc::new(RuntimeChatLedgerTransport::with_session_id(
@@ -2583,7 +2717,7 @@ fn proof_fems_duplicate_submission_replays_one_proposal_and_one_event() {
 #[test]
 fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
     let _serial = live_proof_guard();
-    let live = require_live_backend();
+    let live = LiveProofSession::new();
     let workspace_id = live.create_workspace(&unique_name("mt065-review-decisions"));
     let mut cleanup = WorkspaceCleanup {
         live: &live,
@@ -2594,7 +2728,8 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         cleaned: false,
     };
     let fixture = live.seed_code_authority(&workspace_id);
-    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let app = live.take_app();
+    let app = mounted_code_app_with_real_anchor(app, &live, &workspace_id, &fixture);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -2617,11 +2752,7 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         live.get_json(&format!("/workspaces/{workspace_id}/memory/items/count"))["count"],
         before_count
     );
-    mcp_dispatch(&mut harness, FEMS_REVIEW_APPROVE_AUTHOR_ID, UiAction::Click);
-    let approved_ack = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
-        structured_field(value, "state") == Some("committed")
-            && structured_field(value, "outcome") == Some("approved")
-    });
+    let approved_ack = drive_approval_through_commit(&mut harness);
     assert_eq!(
         structured_field(&approved_ack, "proposal_id"),
         Some(approved_id.as_str())
@@ -2641,10 +2772,7 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
     ));
     assert_eq!(approved["status"], "committed");
     assert_eq!(approved["proposal"]["review"]["decision"], "approved");
-    assert_eq!(
-        approved["proposal"]["review"]["actor_id"],
-        "native-editor-fems-reviewer"
-    );
+    assert_authenticated_native_actor(&approved["proposal"]["review"]["actor_id"]);
     let approved_ledger =
         ledger_row_by_key(&live, &format!("fems-memory-proposal-review:{approved_id}"));
     assert_eq!(approved_ledger["event_type"], "PROMOTION_ACCEPTED");
@@ -2653,16 +2781,12 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         approved_ledger["correlation_id"],
         format!("fems-memory-proposal-review:{approved_id}")
     );
-    let review_client = HandshakeCoreClient::with_base_url(live.base.clone());
-    let approved_retry = live
-        .rt
-        .block_on(review_proposal(
-            &workspace_id,
-            &approved_id,
-            ProposalReviewDecision::Approved,
-            &review_client,
-        ))
-        .expect("exact approved review+commit retry converges");
+    let approved_retry = replay_review_raw(
+        &live,
+        &workspace_id,
+        &approved_id,
+        ProposalReviewDecision::Approved,
+    );
     assert_eq!(approved_retry.status, "committed");
     assert_eq!(
         approved_retry.event_ledger_event_id,
@@ -2670,10 +2794,11 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
             .as_str()
             .expect("approval ledger event id")
     );
-    let approved_retry_commit = approved_retry
-        .commit
-        .as_ref()
-        .expect("approved retry returns the original explicit commit receipt");
+    assert!(
+        approved_retry.commit.is_none(),
+        "review replay returns review evidence; the commit receipt has its own idempotent route"
+    );
+    let approved_retry_commit = replay_commit_raw(&live, &workspace_id, &approved_id);
     assert_eq!(approved_retry_commit.commit_id, approved_commit_id);
     assert_eq!(approved_retry_commit.memory_id, approved_memory_id);
     assert_eq!(approved_retry_commit.memory_pack_id, approved_pack_id);
@@ -2708,9 +2833,10 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         approved_retry_commit.commit_report.applied_ops[0].memory_id,
         approved_retry_commit.memory_id
     );
-    let commit_fr = live.poll_exact_commit_fr_event(&workspace_id, approved_retry_commit);
+    let commit_fr = live.poll_exact_commit_fr_event(&workspace_id, &approved_retry_commit);
+    let pack_fr = live.poll_exact_pack_fr_event(&workspace_id, &approved_retry_commit);
     assert_eq!(commit_fr["actor"], "human");
-    assert_eq!(commit_fr["actor_id"], "native-editor-fems-reviewer");
+    assert_authenticated_native_actor(&commit_fr["actor_id"]);
     assert_same_rfc3339_instant(
         commit_fr["timestamp"]
             .as_str()
@@ -2738,7 +2864,7 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         &approved_retry.flight_recorder_event_id,
     );
     assert_eq!(approved_fr["actor"], "human");
-    assert_eq!(approved_fr["actor_id"], "native-editor-fems-reviewer");
+    assert_authenticated_native_actor(&approved_fr["actor_id"]);
     assert_same_rfc3339_instant(
         approved_fr["timestamp"]
             .as_str()
@@ -2769,8 +2895,9 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
     );
     mcp_dispatch(&mut harness, FEMS_REVIEW_REJECT_AUTHOR_ID, UiAction::Click);
     let rejected_ack = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
-        structured_field(value, "state") == Some("reviewed")
+        structured_field(value, "state") == Some("review_failed")
             && structured_field(value, "outcome") == Some("rejected")
+            && structured_field(value, "terminal") == Some("true")
     });
     assert_eq!(
         structured_field(&rejected_ack, "proposal_id"),
@@ -2781,10 +2908,7 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
     ));
     assert_eq!(rejected["status"], "rejected");
     assert_eq!(rejected["proposal"]["review"]["decision"], "rejected");
-    assert_eq!(
-        rejected["proposal"]["review"]["actor_id"],
-        "native-editor-fems-reviewer"
-    );
+    assert_authenticated_native_actor(&rejected["proposal"]["review"]["actor_id"]);
     let rejected_ledger =
         ledger_row_by_key(&live, &format!("fems-memory-proposal-review:{rejected_id}"));
     assert_eq!(rejected_ledger["event_type"], "PROMOTION_REJECTED");
@@ -2793,23 +2917,12 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         rejected_ledger["correlation_id"],
         format!("fems-memory-proposal-review:{rejected_id}")
     );
-    assert_eq!(
-        rejected_ledger["event_id"].as_str(),
-        structured_field(&rejected_ack, "event_ledger_event_id")
+    let rejected_retry = replay_review_raw(
+        &live,
+        &workspace_id,
+        &rejected_id,
+        ProposalReviewDecision::Rejected,
     );
-    assert_eq!(
-        rejected_ledger["correlation_id"].as_str(),
-        structured_field(&rejected_ack, "correlation_id")
-    );
-    let rejected_retry = live
-        .rt
-        .block_on(review_proposal(
-            &workspace_id,
-            &rejected_id,
-            ProposalReviewDecision::Rejected,
-            &review_client,
-        ))
-        .expect("exact rejected review retry converges");
     assert_eq!(rejected_retry.status, "rejected");
     assert!(rejected_retry.commit.is_none());
     assert_eq!(
@@ -2818,10 +2931,9 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
             .as_str()
             .expect("rejection ledger event id")
     );
-    assert_eq!(
-        rejected_retry.flight_recorder_event_id,
-        structured_field(&rejected_ack, "flight_recorder_event_id")
-            .expect("native rejection status carries exact FR id")
+    assert!(
+        uuid::Uuid::parse_str(&rejected_retry.flight_recorder_event_id).is_ok(),
+        "rejection retry carries the exact durable FR UUID"
     );
     let rejected_fr = live.poll_exact_review_fr_event(
         &workspace_id,
@@ -2830,7 +2942,7 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         &rejected_retry.flight_recorder_event_id,
     );
     assert_eq!(rejected_fr["actor"], "human");
-    assert_eq!(rejected_fr["actor_id"], "native-editor-fems-reviewer");
+    assert_authenticated_native_actor(&rejected_fr["actor_id"]);
     assert_same_rfc3339_instant(
         rejected_fr["timestamp"]
             .as_str()
@@ -2848,8 +2960,8 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
         "only the explicitly approved proposal commits; rejection leaves committed memory unchanged"
     );
     println!(
-        "FEMS review decisions PROVEN: approved_proposal={approved_id} commit={approved_commit_id} approved_fr={} rejected_proposal={rejected_id} rejected_fr={} committed_count={after_count}; exact terminal retries converged",
-        approved_fr["event_id"], rejected_fr["event_id"]
+        "FEMS review decisions PROVEN: approved_proposal={approved_id} commit={approved_commit_id} approved_fr={} commit_fr={} pack_fr={} rejected_proposal={rejected_id} rejected_fr={} committed_count={after_count}; exact terminal retries converged",
+        approved_fr["event_id"], commit_fr["event_id"], pack_fr["event_id"], rejected_fr["event_id"]
     );
     cleanup.clean_and_verify();
 }
@@ -2857,7 +2969,7 @@ fn proof_fems_review_approval_and_rejection_persist_end_to_end() {
 #[test]
 fn proof_fems_approved_proposal_recovers_commit_only_after_native_restart() {
     let _serial = live_proof_guard();
-    let live = require_live_backend();
+    let live = LiveProofSession::new();
     let workspace_id = live.create_workspace(&unique_name("mt065-approved-recovery"));
     let mut cleanup = WorkspaceCleanup {
         live: &live,
@@ -2878,7 +2990,8 @@ fn proof_fems_approved_proposal_recovers_commit_only_after_native_restart() {
         fixture.content.clone(),
     )
     .expect("build restart-recovery proposal");
-    let client = HandshakeCoreClient::with_base_url(live.base.clone());
+    let client = HandshakeCoreClient::with_base_url(live.base.clone())
+        .with_session_token(live.session_token.clone());
     let emitter = NativeEditorEventEmitter::new(
         workspace_id.clone(),
         std::sync::Arc::new(RuntimeChatLedgerTransport::with_session_id(
@@ -2901,6 +3014,7 @@ fn proof_fems_approved_proposal_recovers_commit_only_after_native_restart() {
     let approved: serde_json::Value = live.rt.block_on(async {
         live.client
             .post(&review_url)
+            .header("x-hsk-session-token", &live.session_token)
             .header("x-hsk-actor-id", "native-editor-fems-reviewer")
             .header("x-hsk-actor-kind", "operator")
             .header("x-hsk-kernel-task-run-id", "mt065-approved-recovery")
@@ -2928,7 +3042,8 @@ fn proof_fems_approved_proposal_recovers_commit_only_after_native_restart() {
 
     // Construct a fresh native app instance against the same workspace. Its canonical actionable-list
     // refresh must recover the approved row and expose commit-only UI.
-    let restarted = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let restarted = live.take_app();
+    let restarted = mounted_code_app_with_real_anchor(restarted, &live, &workspace_id, &fixture);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), restarted);
@@ -2953,10 +3068,7 @@ fn proof_fems_approved_proposal_recovers_commit_only_after_native_restart() {
         reject.disabled,
         "approved recovery must not permit rejection"
     );
-    mcp_dispatch(&mut harness, FEMS_REVIEW_APPROVE_AUTHOR_ID, UiAction::Click);
-    let committed = wait_for_status(&mut harness, FEMS_PROPOSE_STATUS_AUTHOR_ID, |value| {
-        structured_field(value, "state") == Some("committed")
-    });
+    let committed = drive_approval_through_commit(&mut harness);
     let memory_id = structured_field(&committed, "memory_id")
         .expect("recovered commit carries memory_id")
         .to_owned();
@@ -2973,13 +3085,14 @@ fn proof_fems_approved_proposal_recovers_commit_only_after_native_restart() {
         ))
         .expect("recovered commit-only action is exactly idempotent");
     live.poll_exact_commit_fr_event(&workspace_id, &typed);
+    live.poll_exact_pack_fr_event(&workspace_id, &typed);
     cleanup.clean_and_verify();
 }
 
 #[test]
 fn proof_fems_editor_switch_invalidates_identical_text_range_selection() {
     let _serial = live_proof_guard();
-    let live = require_live_backend();
+    let live = LiveProofSession::new();
     let workspace_id = live.create_workspace(&unique_name("mt065-editor-selection-binding"));
     let mut cleanup = WorkspaceCleanup {
         live: &live,
@@ -3005,7 +3118,8 @@ fn proof_fems_editor_switch_invalidates_identical_text_range_selection() {
     );
     let end = start_a + shared_text.len();
 
-    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture_a);
+    let app = live.take_app();
+    let app = mounted_code_app_with_real_anchor(app, &live, &workspace_id, &fixture_a);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -3055,7 +3169,7 @@ fn proof_fems_editor_switch_invalidates_identical_text_range_selection() {
 #[test]
 fn proof_fems_cross_pane_focus_invalidates_already_staged_selection() {
     let _serial = live_proof_guard();
-    let live = require_live_backend();
+    let live = LiveProofSession::new();
     let workspace_id = live.create_workspace(&unique_name("mt065-cross-pane-selection-binding"));
     let mut cleanup = WorkspaceCleanup {
         live: &live,
@@ -3066,7 +3180,8 @@ fn proof_fems_cross_pane_focus_invalidates_already_staged_selection() {
         cleaned: false,
     };
     let fixture = live.seed_code_authority(&workspace_id);
-    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let app = live.take_app();
+    let app = mounted_code_app_with_real_anchor(app, &live, &workspace_id, &fixture);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -3118,7 +3233,7 @@ fn proof_fems_cross_pane_focus_invalidates_already_staged_selection() {
 #[test]
 fn proof_fems_focus_change_after_request_drain_invalidates_open_dialog() {
     let _serial = live_proof_guard();
-    let live = require_live_backend();
+    let live = LiveProofSession::new();
     let workspace_id = live.create_workspace(&unique_name("mt065-post-drain-dialog-binding"));
     let mut cleanup = WorkspaceCleanup {
         live: &live,
@@ -3129,7 +3244,8 @@ fn proof_fems_focus_change_after_request_drain_invalidates_open_dialog() {
         cleaned: false,
     };
     let (fixture_a, fixture_b) = live.seed_code_authorities_with_identical_selection(&workspace_id);
-    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture_a);
+    let app = live.take_app();
+    let app = mounted_code_app_with_real_anchor(app, &live, &workspace_id, &fixture_a);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
@@ -3172,7 +3288,7 @@ fn proof_fems_focus_change_after_request_drain_invalidates_open_dialog() {
 #[test]
 fn proof_fems_code_provenance_rejects_cross_workspace_and_stale_ksrc() {
     let _serial = live_proof_guard();
-    let live = require_live_backend();
+    let live = LiveProofSession::new();
     let workspace_a = live.create_workspace(&unique_name("mt065-ksrc-a"));
     let workspace_b = live.create_workspace(&unique_name("mt065-ksrc-b"));
     let mut cleanup_a = WorkspaceCleanup {
@@ -3350,8 +3466,12 @@ fn proof_fems_code_provenance_rejects_cross_workspace_and_stale_ksrc() {
 #[test]
 fn proof_fems_03_swarm_drives_fems_via_accesskit() {
     let _serial = live_proof_guard();
-    let live = require_live_backend();
+    let live = LiveProofSession::new();
     let workspace_id = live.create_workspace(&unique_name("mt065-fems03"));
+    let fixture = live.seed_code_authority(&workspace_id);
+    let app = live.take_app();
+    let mut argus = live.take_argus();
+    let app = mounted_code_app_with_real_anchor(app, &live, &workspace_id, &fixture);
     let mut cleanup = WorkspaceCleanup {
         live: &live,
         workspace_id: workspace_id.clone(),
@@ -3360,20 +3480,22 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
         item_ids: Vec::new(),
         cleaned: false,
     };
-
-    let fixture = live.seed_code_authority(&workspace_id);
-    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
-    let mut argus = ArgusTcpDriver::bind(&live, &app);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
     open_indexed_code_symbol_via_quick_switcher(&mut harness, &fixture);
     let selection = text_range("pane-a", 0, fixture.content.len(), &fixture.content);
+    let before_inspect = inspect_until(&mut argus, &mut harness, "menu-editors", 60);
+    let mut observations = Vec::new();
 
     // Open the real mounted Relevant Memory pane through the operator menu, then wait for the app-hosted
     // live MemoryPack read. Force a second real read through the panel's stable Refresh AccessKit control.
-    argus.click(&mut harness, "menu-editors");
-    argus.click(&mut harness, "menu.editors.relevant-memory");
+    observations.push(argus_click(&mut argus, &mut harness, "menu-editors"));
+    observations.push(argus_click(
+        &mut argus,
+        &mut harness,
+        "menu.editors.relevant-memory",
+    ));
     assert!(
         find_node(&harness.root(), RELEVANT_MEMORY_PANEL_AUTHOR_ID).is_some(),
         "AccessKit panel-open action mounts the real Relevant Memory pane"
@@ -3390,7 +3512,11 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
     let status_node_id = find_node(&harness.root(), RELEVANT_MEMORY_STATUS_AUTHOR_ID)
         .expect("mounted status node")
         .node_id;
-    argus.click(&mut harness, RELEVANT_MEMORY_REFRESH_AUTHOR_ID);
+    observations.push(argus_click(
+        &mut argus,
+        &mut harness,
+        RELEVANT_MEMORY_REFRESH_AUTHOR_ID,
+    ));
     let second_status = wait_for_status(&mut harness, RELEVANT_MEMORY_STATUS_AUTHOR_ID, |value| {
         structured_field(value, "completed")
             .and_then(|value| value.parse::<u64>().ok())
@@ -3431,10 +3557,14 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
             })
         })
         .expect("indexed target code tab remains model-addressable after Relevant Memory refresh");
-    argus.click(&mut harness, &code_tab_author_id);
+    observations.push(argus_click(&mut argus, &mut harness, &code_tab_author_id));
     harness.run_steps(2);
-    argus.click(&mut harness, "menu-edit");
-    argus.click(&mut harness, "menu.edit.select-all");
+    observations.push(argus_click(&mut argus, &mut harness, "menu-edit"));
+    observations.push(argus_click(
+        &mut argus,
+        &mut harness,
+        "menu.edit.select-all",
+    ));
     harness.run_steps(2);
 
     let proposal_id = drive_propose_command_via_argus(
@@ -3443,6 +3573,7 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
         MemoryClass::Procedural,
         &live,
         &workspace_id,
+        &mut observations,
     );
     cleanup.capture_proposal(proposal_id.clone());
 
@@ -3461,11 +3592,65 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
     assert_exact_proposal_readback(&readback, &proposal_id, &expected);
     let fr_row = live.poll_exact_fr_event(&workspace_id, &proposal_id);
     assert_exact_proposal_and_canonical_fr_ledger(&live, &proposal_id, &workspace_id, &fr_row);
-    println!(
-        "FEMS-03 PROVEN (live): production Argus JSON-RPC/server/client_session_id/lease/ActionChannel drove panel-open->MemoryPack-refresh ({second_status})->palette->dialog->cancel->reopen->class->confirm and drained proposal {proposal_id}; exact row={readback}; FR row={fr_row}"
+    let after_reinspect = argus.inspect(&mut harness);
+    assert!(
+        json_has_author_id(&after_reinspect, FEMS_PROPOSE_STATUS_AUTHOR_ID),
+        "fresh canonical argus.inspect sees the terminal FEMS status node"
     );
-    argus.finish();
+
+    let source_sha = current_source_sha();
+    let artifact_dir = external_artifact_dir(&format!(
+        "wp-kernel-012-mt-065/canonical-argus/run-{}",
+        uuid::Uuid::new_v4().simple()
+    ));
+    std::fs::create_dir_all(&artifact_dir)
+        .expect("create external MT-065 canonical Argus artifact directory");
+    let screenshot_path = artifact_dir.join("mt065-fems-interop-canonical-argus.png");
+    harness
+        .render()
+        .expect("MT-065 requires a material screenshot, not a typed screenshot error")
+        .save(&screenshot_path)
+        .expect("save MT-065 canonical Argus screenshot");
+    assert!(screenshot_path.is_file());
+    let evidence_path = artifact_dir.join("mt065-fems-interop-canonical-argus.json");
+    let receipts = observations
+        .iter()
+        .map(|observation| {
+            serde_json::json!({
+                "receipt_id": observation.receipt_id,
+                "receipt_status": observation.receipt_status,
+                "agent_id": observation.agent_id,
+                "before_inspect": observation.before,
+                "after_reinspect": observation.after,
+            })
+        })
+        .collect::<Vec<_>>();
+    std::fs::write(
+        &evidence_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "handshake.mt065-canonical-argus-proof.v1",
+            "source_sha": source_sha,
+            "workspace_id": workspace_id,
+            "proposal_id": proposal_id,
+            "before_inspect": before_inspect,
+            "after_reinspect": after_reinspect,
+            "action_receipts": receipts,
+            "memory_pack_status": second_status,
+            "proposal_readback": readback,
+            "fr_event": fr_row,
+            "screenshot": screenshot_path,
+        }))
+        .expect("serialize MT-065 canonical Argus evidence"),
+    )
+    .expect("write MT-065 canonical Argus evidence");
+    assert!(evidence_path.is_file());
+    println!(
+        "FEMS-03 PROVEN (live): canonical argus.inspect->argus.click->receipt->fresh inspect drove panel-open->MemoryPack-refresh ({second_status})->palette->dialog->cancel->reopen->class->confirm and drained proposal {proposal_id}; source_sha={source_sha}; screenshot={}; evidence={}; exact row={readback}; FR row={fr_row}",
+        screenshot_path.display(),
+        evidence_path.display(),
+    );
     cleanup.clean_and_verify();
+    argus.finish();
 }
 
 /// A procedural proposal created through the mounted native controls remains review-gated in canonical
@@ -3474,7 +3659,7 @@ fn proof_fems_03_swarm_drives_fems_via_accesskit() {
 #[test]
 fn proof_fems_04_procedural_proposal_stays_review_gated() {
     let _serial = live_proof_guard();
-    let live = require_live_backend();
+    let live = LiveProofSession::new();
     let workspace_id = live.create_workspace(&unique_name("mt065-fems04"));
     let mut cleanup = WorkspaceCleanup {
         live: &live,
@@ -3485,7 +3670,8 @@ fn proof_fems_04_procedural_proposal_stays_review_gated() {
         cleaned: false,
     };
     let fixture = live.seed_code_authority(&workspace_id);
-    let app = mounted_code_app_with_real_anchor(&live, &workspace_id, &fixture);
+    let app = live.take_app();
+    let app = mounted_code_app_with_real_anchor(app, &live, &workspace_id, &fixture);
     let mut harness = Harness::builder()
         .with_size(egui::vec2(1280.0, 800.0))
         .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
