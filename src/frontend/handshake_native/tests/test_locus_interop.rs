@@ -42,6 +42,7 @@ use egui_kittest::kittest::{NodeT, Queryable};
 #[path = "native_gui_support/screenshot_harness.rs"]
 mod screenshot_harness;
 use screenshot_harness::ScreenshotHarness as Harness;
+use sha2::{Digest, Sha256};
 
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::{
@@ -88,7 +89,127 @@ use pg_proof_support::{require_live_backend, LiveBackend};
 /// `<repo>/src/frontend/handshake_native`, so four `..` reach `<repo>/..` where `Handshake_Artifacts`
 /// is a sibling of the repo worktree.
 fn external_artifact_dir(subdir: &str) -> PathBuf {
-    Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
+    let root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .ancestors()
+                .nth(4)
+                .expect("native crate must live below a worktree root")
+                .join("Handshake_Artifacts")
+        });
+    assert!(
+        root.is_absolute(),
+        "HANDSHAKE_ARTIFACTS_ROOT must resolve to an absolute path"
+    );
+    root.join("handshake-test").join(subdir)
+}
+
+const MT068_RELEVANT_SOURCE_PATHS: &[&str] = &[
+    "src/backend/handshake_core/src/api/locus.rs",
+    "src/frontend/handshake_native/src/accessibility/registry.rs",
+    "src/frontend/handshake_native/src/app.rs",
+    "src/frontend/handshake_native/src/interop/cross_ref.rs",
+    "src/frontend/handshake_native/src/interop/interaction_bus.rs",
+    "src/frontend/handshake_native/src/interop/locus_interop.rs",
+    "src/frontend/handshake_native/src/manual_content_editors.rs",
+    "src/frontend/handshake_native/src/rich_editor/wikilinks/inline_view.rs",
+    "src/frontend/handshake_native/tests/native_gui_support/screenshot_harness.rs",
+    "src/frontend/handshake_native/tests/pg_proof_support/mod.rs",
+    "src/frontend/handshake_native/tests/test_locus_interop.rs",
+    "src/frontend/handshake_native/tests/test_manual_content.rs",
+];
+
+fn product_repo_root() -> &'static Path {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .expect("native crate must live at repo/src/frontend/handshake_native")
+}
+
+fn current_source_sha() -> String {
+    let clean = std::process::Command::new("git")
+        .args(["diff", "--quiet", "HEAD", "--"])
+        .args(MT068_RELEVANT_SOURCE_PATHS)
+        .current_dir(product_repo_root())
+        .status()
+        .expect("check MT-068 relevant source cleanliness");
+    assert!(
+        clean.success(),
+        "MT-068 canonical proof refuses dirty relevant source; commit implementation and proof first"
+    );
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(product_repo_root())
+        .output()
+        .expect("resolve current source hash");
+    assert!(output.status.success());
+    String::from_utf8(output.stdout)
+        .expect("source hash UTF-8")
+        .trim()
+        .to_owned()
+}
+
+fn current_runtime_source_tree() -> String {
+    let status = std::process::Command::new("git")
+        .args(["status", "--porcelain=v1", "--untracked-files=all"])
+        .current_dir(product_repo_root())
+        .output()
+        .expect("inspect complete MT-068 runtime source cleanliness");
+    assert!(status.status.success());
+    let unexpected = String::from_utf8(status.stdout)
+        .expect("git status UTF-8")
+        .lines()
+        .filter(|line| {
+            let path = line.get(3..).unwrap_or_default();
+            !matches!(path, "AGENTS.md" | "CLAUDE.md")
+        })
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    assert!(
+        unexpected.is_empty(),
+        "MT-068 canonical proof refuses dirty/untracked transitive runtime source outside the known authority files: {unexpected:?}"
+    );
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD^{tree}"])
+        .current_dir(product_repo_root())
+        .output()
+        .expect("resolve complete committed runtime source tree");
+    assert!(output.status.success());
+    String::from_utf8(output.stdout)
+        .expect("runtime source tree UTF-8")
+        .trim()
+        .to_owned()
+}
+
+fn current_proof_source_blobs() -> serde_json::Map<String, serde_json::Value> {
+    MT068_RELEVANT_SOURCE_PATHS
+        .iter()
+        .map(|path| {
+            let spec = format!("HEAD:{path}");
+            let output = std::process::Command::new("git")
+                .args(["rev-parse", &spec])
+                .current_dir(product_repo_root())
+                .output()
+                .unwrap_or_else(|error| {
+                    panic!("resolve committed MT-068 source blob {path}: {error}")
+                });
+            assert!(
+                output.status.success(),
+                "resolve committed MT-068 source blob {path}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            (
+                path.to_string(),
+                serde_json::Value::String(
+                    String::from_utf8(output.stdout)
+                        .expect("source blob UTF-8")
+                        .trim()
+                        .to_owned(),
+                ),
+            )
+        })
+        .collect()
 }
 
 /// Assert NO repo-local artifact directory exists under the crate (the SCREENSHOT/TEST-ARTIFACT RULE,
@@ -117,7 +238,16 @@ struct ScopedArgusAppData {
 
 impl ScopedArgusAppData {
     fn install(root: PathBuf) -> Self {
+        let root = if root.is_absolute() {
+            root
+        } else {
+            std::env::current_dir()
+                .expect("resolve MT-068 Argus current directory")
+                .join(root)
+        };
         std::fs::create_dir_all(&root).expect("create isolated MT-068 Argus binding root");
+        let root =
+            std::fs::canonicalize(&root).expect("canonicalize isolated MT-068 Argus binding root");
         #[cfg(target_os = "windows")]
         let variable = "LOCALAPPDATA";
         #[cfg(not(target_os = "windows"))]
@@ -303,11 +433,28 @@ impl LocusArgusDriver {
                 .is_some_and(|status| matches!(status, "applied" | "indeterminate")),
             "Argus receipt is terminal and non-rejected: {receipt}"
         );
+        let receipt_status = receipt["status"]
+            .as_str()
+            .expect("Argus receipt status")
+            .to_owned();
+        let agent_id = click["result"]["agent_id"]
+            .as_str()
+            .expect("Argus click agent id")
+            .to_owned();
         self.clicked_targets.push(author_id.to_owned());
-        after
+        serde_json::json!({
+            "method": ARGUS_CLICK_METHOD,
+            "target": author_id,
+            "before": before,
+            "action_result": click["result"].clone(),
+            "receipt_id": receipt_id,
+            "receipt_status": receipt_status,
+            "agent_id": agent_id,
+            "after": after,
+        })
     }
 
-    fn finish(mut self) {
+    fn finish(mut self) -> serde_json::Value {
         let entries = self.server.action_log().drain_log();
         assert_eq!(entries.len(), self.clicked_targets.len());
         for (entry, target) in entries.iter().zip(&self.clicked_targets) {
@@ -316,9 +463,21 @@ impl LocusArgusDriver {
             assert!(entry.agent_id.ends_with(":client:mt068-locus-agent"));
             assert_ne!(entry.node_id, 0);
         }
+        let evidence = entries
+            .iter()
+            .map(|entry| {
+                serde_json::json!({
+                    "method": entry.op_name,
+                    "target": entry.target_key,
+                    "agent_id": entry.agent_id,
+                    "node_id": entry.node_id,
+                })
+            })
+            .collect::<Vec<_>>();
         assert_eq!(self.server.leases().active_resource_count(), 0);
         self.server.shutdown();
         drop(self.runtime);
+        serde_json::Value::Array(evidence)
     }
 }
 
@@ -713,7 +872,7 @@ fn loaded_content_json(loaded: &serde_json::Value) -> serde_json::Value {
         .expect("loaded rich document carries content_json")
 }
 
-fn doc_with_wp_and_mt_refs(wp_uri: &str, mt_uri: &str) -> BlockNode {
+fn doc_with_wp_mt_and_missing_refs(wp_uri: &str, mt_uri: &str, missing_uri: &str) -> BlockNode {
     let mut para = BlockNode::new(NodeKind::Paragraph);
     para.children
         .push(Child::Text(TextLeaf::new("work packet ")));
@@ -723,6 +882,11 @@ fn doc_with_wp_and_mt_refs(wp_uri: &str, mt_uri: &str) -> BlockNode {
         .push(Child::Text(TextLeaf::new(" microtask ")));
     para.children
         .push(Child::HsLink(HsLinkNode::new(LOCUS_REF_KIND, mt_uri, "MT")));
+    para.children
+        .push(Child::Text(TextLeaf::new(" missing record ")));
+    let mut missing = HsLinkNode::new(LOCUS_REF_KIND, missing_uri, "UNRESOLVED");
+    missing.resolved = false;
+    para.children.push(Child::HsLink(missing));
     para.children.push(Child::Text(TextLeaf::new("")));
     BlockNode::doc(vec![para])
 }
@@ -886,6 +1050,17 @@ fn ac002_resolve_locus_ref_resolved_record_projection() {
 
 #[test]
 fn resolve_locus_ref_against_real_pg_live() {
+    let source_sha = current_source_sha();
+    let runtime_source_tree = current_runtime_source_tree();
+    let proof_source_blobs = current_proof_source_blobs();
+    let artifact_dir = external_artifact_dir(&format!(
+        "wp-kernel-012-mt-068/canonical-argus/run-{}-{}",
+        &source_sha[..12],
+        uuid::Uuid::new_v4().simple()
+    ));
+    std::fs::create_dir_all(&artifact_dir)
+        .expect("create MT-068 canonical Argus artifact directory");
+
     let mut be: LiveBackend = require_live_backend();
     let ws = be.workspace_id.clone();
     let suffix = uuid::Uuid::new_v4().simple().to_string();
@@ -899,7 +1074,8 @@ fn resolve_locus_ref_against_real_pg_live() {
 
     let wp_uri = format!("locus://wp/{wp_id}");
     let mt_uri = format!("locus://mt/{mt_id}");
-    let authored = doc_with_wp_and_mt_refs(&wp_uri, &mt_uri);
+    let missing_uri = format!("locus://wp/{wp_id}-MISSING");
+    let authored = doc_with_wp_mt_and_missing_refs(&wp_uri, &mt_uri, &missing_uri);
     let content_json = to_content_json_value(&authored);
     let created = be.post_json(
         "/knowledge/documents",
@@ -918,20 +1094,26 @@ fn resolve_locus_ref_against_real_pg_live() {
             "content_json": to_content_json_value(&authored),
         }),
     );
+    let save_receipt_event_id = saved["save_receipt_event_id"]
+        .as_str()
+        .filter(|id| !id.is_empty())
+        .expect("AC-006 LIVE: the rich-document save returns an authentic receipt")
+        .to_owned();
     assert!(
-        saved["save_receipt_event_id"]
-            .as_str()
-            .is_some_and(|id| !id.is_empty()),
+        !save_receipt_event_id.is_empty(),
         "AC-006 LIVE: the rich-document save returns an authentic receipt"
     );
+    let (old_backend_base, new_backend_base) = be.restart_owned();
     let loaded = be.get_json(&format!("/knowledge/documents/{document_id}"));
     let loaded_content = loaded_content_json(&loaded);
     let reparsed = from_json_string(&loaded_content.to_string())
         .expect("AC-006 LIVE: persisted content_json reloads into the rich document model");
     let reserialized = to_content_json_value(&reparsed).to_string();
     assert!(
-        reserialized.contains(&wp_uri) && reserialized.contains(&mt_uri),
-        "AC-006 LIVE: both exact Locus attrs survive save and reload"
+        reserialized.contains(&wp_uri)
+            && reserialized.contains(&mt_uri)
+            && reserialized.contains(&missing_uri),
+        "AC-006 LIVE: all exact Locus attrs survive backend restart and save/reload"
     );
 
     let svc = LocusInteropService::with_base_url(
@@ -952,10 +1134,10 @@ fn resolve_locus_ref_against_real_pg_live() {
     let wp_record = wp_record.expect("AC-002 LIVE: persisted WP resolves through the live route");
     let mt_record = mt_record.expect("AC-002 LIVE: persisted MT resolves through the live route");
     assert!(!wp_record.title.is_empty() && !mt_record.title.is_empty());
-    for (label, docs) in [
-        ("WP", wp_docs.expect("AC-004 LIVE: WP reverse lookup")),
-        ("MT", mt_docs.expect("AC-004 LIVE: MT reverse lookup")),
-    ] {
+    let wp_docs = wp_docs.expect("AC-004 LIVE: WP reverse lookup");
+    let mt_docs = mt_docs.expect("AC-004 LIVE: MT reverse lookup");
+    let mut reverse_lookup_counts = serde_json::Map::new();
+    for (label, docs) in [("WP", &wp_docs), ("MT", &mt_docs)] {
         let matching = docs
             .iter()
             .filter(|document| document.document_id == document_id)
@@ -964,14 +1146,16 @@ fn resolve_locus_ref_against_real_pg_live() {
             matching, 1,
             "AC-004 LIVE: {label} reverse lookup returns the persisted document exactly once: {docs:?}"
         );
+        reverse_lookup_counts.insert(label.to_owned(), serde_json::json!(matching));
     }
 
     // Mount a fresh production rich editor for each shared-navigation chip. The click must route the
     // exact WP/MT identity through the existing shell navigator; no direct navigation function is called
     // by the proof.
-    for (uri, expected_content_id) in [
-        (wp_uri.as_str(), format!("WP:{wp_id}")),
-        (mt_uri.as_str(), format!("MT::{mt_id}")),
+    let mut argus_state_matrix = Vec::new();
+    for (state_label, uri, expected_content_id) in [
+        ("work-packet", wp_uri.as_str(), format!("WP:{wp_id}")),
+        ("microtask", mt_uri.as_str(), format!("MT::{mt_id}")),
     ] {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
@@ -1050,13 +1234,35 @@ fn resolve_locus_ref_against_real_pg_live() {
                 .supports_action(egui::accesskit::Action::Click),
             "the mounted Locus chip advertises the AccessKit Click action"
         );
+        let missing_chip_id = locus_ref_chip_author_id(&missing_uri);
+        let missing_chip =
+            harness.get_by(|node| node.author_id() == Some(missing_chip_id.as_str()));
+        assert!(
+            matches!(
+                missing_chip.accesskit_node().role(),
+                egui::accesskit::Role::Button | egui::accesskit::Role::Link
+            ),
+            "the persisted missing Locus ref remains an addressable grey/unresolved chip"
+        );
+        let before_screenshot_path =
+            artifact_dir.join(format!("mt068-locus-{state_label}-before.png"));
+        harness
+            .render()
+            .expect("MT-068 pre-navigation state requires a material harness render")
+            .save(&before_screenshot_path)
+            .expect("save MT-068 pre-navigation harness render");
         let mut argus = LocusArgusDriver::bind(harness.state());
-        let post_action_inspection = argus.click_and_reinspect(&mut harness, &chip_id);
+        let argus_observation = argus.click_and_reinspect(&mut harness, &chip_id);
+        let post_action_inspection = &argus_observation["after"];
         assert!(
             post_action_inspection["action_receipts"]
                 .as_array()
                 .is_some_and(|receipts| !receipts.is_empty()),
             "fresh canonical argus.inspect exposes the navigation receipt"
+        );
+        assert!(
+            json_has_author_id(&argus_observation["before"], &missing_chip_id),
+            "canonical pre-action inspection includes the persisted missing/stale Locus chip"
         );
         let active = harness.state().active_pane().cloned().expect("active pane");
         let active_tab = harness
@@ -1070,22 +1276,142 @@ fn resolve_locus_ref_against_real_pg_live() {
             Some(expected_content_id.as_str()),
             "the active-pane navigator inserts and focuses the exact Locus target after canonical Argus steering; source_chip_rect={chip_rect:?}"
         );
-        argus.finish();
+        let after_screenshot_path =
+            artifact_dir.join(format!("mt068-locus-{state_label}-after.png"));
+        harness
+            .render()
+            .expect("MT-068 post-navigation state requires a material harness render")
+            .save(&after_screenshot_path)
+            .expect("save MT-068 post-navigation harness render");
+        let before_png = std::fs::read(&before_screenshot_path).expect("read pre-navigation PNG");
+        let after_png = std::fs::read(&after_screenshot_path).expect("read post-navigation PNG");
+        let before_dimensions = image::GenericImageView::dimensions(
+            &image::load_from_memory(&before_png).expect("decode pre-navigation PNG"),
+        );
+        let after_dimensions = image::GenericImageView::dimensions(
+            &image::load_from_memory(&after_png).expect("decode post-navigation PNG"),
+        );
+        let action_log = argus.finish();
+        argus_state_matrix.push(serde_json::json!({
+            "state": state_label,
+            "persisted_uri": uri,
+            "expected_navigation_content_id": expected_content_id,
+            "observation": argus_observation,
+            "action_log": action_log,
+            "screenshots": {
+                "before": {
+                    "path": before_screenshot_path.display().to_string(),
+                    "sha256": format!("{:x}", Sha256::digest(&before_png)),
+                    "width": before_dimensions.0,
+                    "height": before_dimensions.1,
+                },
+                "after": {
+                    "path": after_screenshot_path.display().to_string(),
+                    "sha256": format!("{:x}", Sha256::digest(&after_png)),
+                    "width": after_dimensions.0,
+                    "height": after_dimensions.1,
+                }
+            }
+        }));
     }
 
-    let missing = parse_locus_ref(&format!("locus://wp/{wp_id}-MISSING")).unwrap();
+    let missing = parse_locus_ref(&missing_uri).unwrap();
+    let missing_result = rt().block_on(svc.resolve_locus_ref(&missing));
     assert!(matches!(
-        rt().block_on(svc.resolve_locus_ref(&missing)),
+        missing_result,
         Err(LocusInteropError::NotFound { .. })
     ));
+    let missing_outcome = "NotFound";
 
     let document_cleanup = be.delete(&format!("/knowledge/documents/{document_id}"));
     assert!(matches!(document_cleanup, 200 | 202 | 204 | 404));
     records_cleanup.assert_cleanup();
     drop(records_cleanup);
     be.assert_cleanup();
+    locus_sql_output(&format!(
+        "DO $$ BEGIN \
+         IF EXISTS (SELECT 1 FROM work_packets WHERE wp_id = {wp}) \
+            OR EXISTS (SELECT 1 FROM micro_tasks WHERE wp_id = {wp}) \
+         THEN RAISE EXCEPTION 'MT-068 fixture residue remains'; END IF; \
+         END $$;",
+        wp = sql_literal(&wp_id)
+    ))
+    .expect("MT-068 exact Locus rows are absent after cleanup");
+    assert_no_local_artifact_dir();
+
+    let evidence_path = artifact_dir.join("mt068-locus-canonical-argus.json");
+    std::fs::write(
+        &evidence_path,
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schema_id": "handshake.mt068-locus-canonical-argus-proof.v1",
+            "test": "resolve_locus_ref_against_real_pg_live",
+            "status": "PASS",
+            "recorded_at": chrono::Utc::now().to_rfc3339(),
+            "source": {
+                "source_sha": source_sha,
+                "runtime_source_tree": runtime_source_tree,
+                "proof_source_blob": proof_source_blobs
+                    .get("src/frontend/handshake_native/tests/test_locus_interop.rs")
+                    .cloned(),
+                "proof_source_blobs": proof_source_blobs,
+                "relevant_source_clean": true,
+                "transitive_runtime_source_clean": true,
+                "global_worktree_clean": false,
+                "known_unrelated_dirty_paths": ["AGENTS.md", "CLAUDE.md"],
+            },
+            "backend": {
+                "postgresql_eventledger": true,
+                "old_base": old_backend_base,
+                "new_base": new_backend_base,
+                "same_listener_after_restart": old_backend_base == new_backend_base,
+                "post_restart_document_readback": true,
+            },
+            "persisted_fixture": {
+                "workspace_id": ws,
+                "work_packet_id": wp_id,
+                "microtask_id": mt_id,
+                "document_id": document_id,
+                "work_packet_uri": wp_uri,
+                "microtask_uri": mt_uri,
+                "missing_uri": missing_uri,
+                "save_receipt_event_id": save_receipt_event_id,
+                "rich_document_attrs_survived_restart": true,
+            },
+            "forward_resolution": {
+                "work_packet": {
+                    "id": wp_record.id,
+                    "title": wp_record.title,
+                    "status": wp_record.status,
+                },
+                "microtask": {
+                    "id": mt_record.id,
+                    "title": mt_record.title,
+                    "status": mt_record.status,
+                }
+            },
+            "reverse_lookup_matching_document_counts": reverse_lookup_counts,
+            "missing_and_stale": {
+                "live_route_outcome": missing_outcome,
+                "mounted_unresolved_chip": true,
+                "unavailable_route_negative_test": "ac002_resolve_locus_ref_route_absent_is_typed_blocker",
+                "fabricated_record": false,
+            },
+            "canonical_argus_state_matrix": argus_state_matrix,
+            "cleanup": {
+                "workspace_absent": true,
+                "persisted_document_absent": true,
+                "work_packet_rows_zero": true,
+                "microtask_rows_zero": true,
+                "runtime_quiescent": true,
+            }
+        }))
+        .expect("serialize MT-068 canonical Argus evidence"),
+    )
+    .expect("write MT-068 canonical Argus evidence");
+    assert!(evidence_path.is_file());
     println!(
-        "AC-002/004/006 LIVE OK: canonical WP {wp_id} + MT {mt_id} resolved, saved/reloaded attrs, and persisted reverse lookup returned {document_id} once per ref"
+        "AC-002/003/004/005/006 LIVE OK: canonical WP {wp_id} + MT {mt_id} resolved after restart, saved/reloaded attrs, persisted reverse lookup returned {document_id} once per ref, canonical Argus steered both targets, and cleanup preceded PASS evidence; evidence={}",
+        evidence_path.display()
     );
 }
 

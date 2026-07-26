@@ -356,6 +356,38 @@ fn mt066_stage_manual_covers_canonical_argus_recovery_and_three_tier_posture() {
     }
 }
 
+#[test]
+fn mt068_locus_manual_covers_persisted_argus_recovery_and_three_tier_posture() {
+    let section = editors_manual_section();
+    let interop = topic_body(&section, "Interop Edges");
+    for required in [
+        "locus-ref-chip-wp-{WP_ID}",
+        "locus-ref-chip-mt-{MT_ID}",
+        "fresh argus.inspect",
+        "argus.click",
+        "immediate action receipt may be indeterminate",
+        "same receipt/agent attribution",
+        "WP:{WP_ID}",
+        "MT::{MT_ID}",
+        "backend restart and rich-document reload",
+        "reverse lookup is read-only",
+        "record NotFound from LocusReadApiUnavailable",
+        "HBR-INT-009 diagnostic posture for Locus",
+        "Flight Recorder/EventLedger = DEFERRED-with-reason",
+        "read-only navigation",
+        "knowledge-document save still returns its existing EventLedger receipt",
+        "internal_diagnostics = DEFERRED-with-reason",
+        "no Locus-specific diagnostic row",
+        "Palmistry = DEFERRED-with-reason",
+        "no Locus-scoped tracker or recovery proof",
+    ] {
+        assert!(
+            interop.contains(required),
+            "MT-068 Locus manual must preserve '{required}'"
+        );
+    }
+}
+
 fn body_marker(heading: &str) -> &'static str {
     match heading {
         "Notes Worksurface and Chat" => "pane-a is the Code editor",

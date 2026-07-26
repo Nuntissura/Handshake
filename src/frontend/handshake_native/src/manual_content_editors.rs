@@ -721,8 +721,24 @@ action receipt as terminal state.\n\
 - Locus (Pillar 6): a locus:// WP/MT reference renders as an inline locus-ref chip in the rich editor, and \
 the outgoing-links pane (outgoing.panel) lists resolved (outgoing.section.resolved) and unresolved \
 (outgoing.section.unresolved) references. Bound WP and MT reads resolve through the shared navigation seam; \
-record-not-found remains a grey unresolved chip, while a missing route is the distinct typed unavailable state. An agent drives all of these with \
-click_widget / list_widgets."
+record-not-found remains a grey unresolved chip, while a missing route is the distinct typed unavailable state \
+and never fabricates a record. Persisted locus refs, including original-case WP/MT identities, survive a \
+backend restart and rich-document reload; reverse lookup is read-only and returns the exact persisted \
+document once per ref. For canonical operation, use a fresh argus.inspect to discover \
+locus-ref-chip-wp-{WP_ID} or locus-ref-chip-mt-{MT_ID}, call argus.click on that exact stable target, then \
+use a second fresh argus.inspect. The immediate action receipt may be indeterminate; navigation is proven \
+only when the fresh inspection carries the same receipt/agent attribution and the mounted navigator focuses \
+WP:{WP_ID} or MT::{MT_ID}. For a grey unresolved chip, inspect it but do not infer that the route is absent: \
+querying the live ref distinguishes record NotFound from LocusReadApiUnavailable. Restore an unavailable \
+route and reload the document; repair or remove a genuinely stale record id instead of retrying it as a \
+transport failure. HBR-INT-009 diagnostic posture for Locus: Flight Recorder/EventLedger = \
+DEFERRED-with-reason because this MT's Locus edge is read-only navigation and defines no Locus-specific \
+business-event family; the knowledge-document save still returns its existing EventLedger receipt. \
+internal_diagnostics = DEFERRED-with-reason because the current generic backend-health surface has no \
+Locus-specific diagnostic row. Palmistry = DEFERRED-with-reason because the global process watcher has no \
+Locus-scoped tracker or recovery proof. These diagnostic deferrals do not weaken the operator-visible typed \
+NotFound/unavailable states or the canonical Argus receipt and re-observation gate. An agent drives all of \
+these with argus.click / argus.inspect."
         .to_owned()
 }
 
